@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: db-simpelv2
+    env_file:
+      - .env.postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - simpelnet
+    restart: always
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./antarmuka/dist:/usr/share/nginx/html:ro
+    ports:
+      - "8081:80"    # Port dev HTTP
+      - "443:443"    # Port TLS
+    depends_on:
+      - gerbang-fiber
+      - antarmuka
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+  gerbang-fiber:
+    build:
+      context: ./gerbang-fiber
+    container_name: gerbang-fiber
+    env_file:
+      - ./gerbang-fiber/.env
+    expose:
+      - "8080"
+    depends_on:
+      - layanan-auth
+      - layanan-audit
+      - layanan-pengguna
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+  layanan-auth:
+    build:
+      context: ./layanan-auth
+    container_name: layanan-auth
+    env_file:
+      - ./layanan-auth/.env
+    expose:
+      - "3000"
+    depends_on:
+      - postgres
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+  layanan-audit:
+    build:
+      context: ./layanan-audit
+    container_name: layanan-audit
+    env_file:
+      - ./layanan-audit/.env
+    expose:
+      - "3000"
+    depends_on:
+      - postgres
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+  layanan-pengguna:
+    build:
+      context: ./layanan-pengguna
+    container_name: layanan-pengguna
+    env_file:
+      - ./layanan-pengguna/.env
+    expose:
+      - "3000"
+    depends_on:
+      - postgres
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+  antarmuka:
+    build:
+      context: ./antarmuka
+    container_name: antarmuka
+    expose:
+      - "80"
+    networks:
+      - simpelnet
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  simpelnet:
+    driver: bridge

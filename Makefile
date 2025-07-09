@@ -1,62 +1,21 @@
-SHELL := /bin/bash
+.PHONY: up down build logs ps restart
 
-DOCKER_DEV := docker-compose.dev.yml
-DOCKER_PROD := docker-compose.prod.yml
+# Default compose file
+COMPOSE_FILE ?= docker-compose.secure.yml
 
-# ----------------------
-# Cek dan Setup Docker
-# ----------------------
-check-docker:
-	@echo "🔍 Mengecek Docker Compose V2..."
-	@if ! docker compose version > /dev/null 2>&1; then \
-		echo "⚠️  Docker Compose V2 tidak ditemukan. Menjalankan setup-docker.sh..."; \
-		./scripts/setup-docker.sh; \
-	else \
-		echo "✅ Docker Compose V2 tersedia."; \
-	fi
+up:
+	docker compose -f $(COMPOSE_FILE) up -d
 
-# ----------------------
-# Development Mode
-# ----------------------
-dev: check-docker
-	@echo "🚀 Menjalankan SIMPELv2 development mode..."
-	docker compose -f $(DOCKER_DEV) up --build
+down:
+	docker compose -f $(COMPOSE_FILE) down
 
-stop-dev:
-	@echo "🛑 Menghentikan container dev..."
-	docker compose -f $(DOCKER_DEV) down
-
-logs-dev:
-	docker compose -f $(DOCKER_DEV) logs -f
-
-# ----------------------
-# Production Mode
-# ----------------------
 build:
-	@echo "🔧 Membuild image dan frontend (npm run build)..."
-	docker compose -f $(DOCKER_PROD) build
-	docker compose -f $(DOCKER_PROD) run --rm frontend npm run build
+	docker compose -f $(COMPOSE_FILE) build
 
-prod: check-docker
-	@echo "🚀 Menjalankan SIMPELv2 production mode..."
-	docker compose -f $(DOCKER_PROD) up -d --build
+logs:
+	docker compose -f $(COMPOSE_FILE) logs -f --tail=100
 
-stop-prod:
-	@echo "🛑 Menghentikan container prod..."
-	docker compose -f $(DOCKER_PROD) down
+ps:
+	docker compose -f $(COMPOSE_FILE) ps
 
-logs-prod:
-	docker compose -f $(DOCKER_PROD) logs -f
-
-# ----------------------
-# Rilis Sekaligus (Build + Prod)
-# ----------------------
-release: build prod
-
-# ----------------------
-# Stop Semua
-# ----------------------
-stop-all:
-	@echo "🛑 Menghentikan semua container..."
-	-docker compose -f $(DOCKER_DEV) down
-	-docker compose -f $(DOCKER_PROD) down
+restart: down up

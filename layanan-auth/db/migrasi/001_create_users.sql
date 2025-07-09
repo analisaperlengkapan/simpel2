@@ -1,0 +1,7 @@
+CREATE SCHEMA IF NOT EXISTS auth;
+
+CREATE TABLE auth.users (
+    id SERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL
+);

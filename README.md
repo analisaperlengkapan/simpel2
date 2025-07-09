@@ -2,9 +2,9 @@
 
 Simpelv2 adalah platform web modern dengan pemisahan **Backend** (REST API) dan **Frontend** (Single‑Page App), memanfaatkan:
 
-* **Backend**: Buffalo (Go) sebagai API server
-* **Frontend**: React + Vite sebagai SPA dengan hot‑reload
-* **Database**: PostgreSQL, migrasi via `pop`/`fizz`
+* **Backend**: Go (Gin) + sqlc sebagai API server ringan, modular, dan performa tinggi
+* **Frontend**: React + Vite sebagai SPA dengan hot‑reload dan bundling efisien
+* **Database**: PostgreSQL, migrasi manual via SQL
 * **Reverse Proxy & Static Files**: Nginx
 * **Container**: Docker Compose untuk Dev & Prod
 * **Otomasi**: Makefile dan skrip setup Docker
@@ -13,12 +13,13 @@ Simpelv2 adalah platform web modern dengan pemisahan **Backend** (REST API) dan 
 
 ## 📖 Alasan Pemilihan Teknologi
 
-1. **Go (Buffalo)**: performa tinggi, mudah di-deploy, statically compiled sehingga meminimalisir dependensi runtime.
-2. **React + Vite**: pengembangan UI responsif dengan hot-reload cepat dan bundling minimal.
-3. **PostgreSQL**: reliabilitas, dukungan fitur lanjutan (JSONB, indexing), dan komplementer dengan Pop ORM.
-4. **Nginx (Reverse Proxy & Static)**: mengelola routing ke backend/API, meneruskan request statis dengan cepat, serta SSL termination.
-5. **Docker Compose**: menyederhanakan setup lingkungan Dev/Prod, konsistensi antar tim, isolasi layanan.
-6. **Makefile & Skrip Otomasi**: menyatukan perintah kompleks dalam satu baris (`make dev`, `make release`), mempercepat onboarding pengembang baru.
+1. **Go (Gin)**: performa tinggi, modular, statically compiled, dan sangat cocok untuk layanan API skala besar.
+2. **React + Vite**: pengembangan UI cepat dengan DX unggul.
+3. **PostgreSQL**: fitur indexing, JSONB, dan reliabilitas tinggi.
+4. **sqlc**: query SQL eksplisit → kode Go aman & cepat.
+5. **Nginx (Reverse Proxy & Static)**: load balancing, proxy, dan serving aset statis.
+6. **Docker Compose**: isolasi dan konsistensi antar lingkungan.
+7. **Makefile**: menyatukan workflow dev/test/deploy dalam satu perintah.
 
 ---
 
@@ -28,7 +29,7 @@ Simpelv2 adalah platform web modern dengan pemisahan **Backend** (REST API) dan 
 2. Docker Engine & Docker Compose V2
 3. Make
 
-> Jika Docker Compose V2 belum terpasang, jalankan:
+> Jika Docker Compose V2 belum terpasang:
 >
 > ```bash
 > ./scripts/setup-docker.sh
@@ -41,20 +42,23 @@ Simpelv2 adalah platform web modern dengan pemisahan **Backend** (REST API) dan 
 ```
 simpelv2/
 ├── backend/
-│   ├── actions/         # Handler HTTP & definitions
-│   ├── models/          # Struct Pop ORM
-│   ├── migrations/      # Fizz migration files
-│   └── ...
+│   ├── cmd/                    # Entry point main.go
+│   ├── db/                     # schema.sql, query.sql, sqlc.yaml
+│   ├── internal/
+│   │   ├── api/                # Gin handlers
+│   │   ├── config/             # DB loader & env config
+│   │   └── db/                 # Output hasil sqlc generate
+│   ├── Dockerfile.backend
 ├── frontend/
-│   ├── public/          # Static assets (html, images, css)
-│   └── src/             # React components, router, API helper
+│   ├── public/, src/, dist/
+│   ├── Dockerfile.frontend
+│   ├── package.json
+│   └── vite.config.js
 ├── docker/
-│   ├── backend.Dockerfile
-│   ├── frontend.Dockerfile
-│   └── nginx/{dev.conf,prod.conf}
+│   └── nginx/{dev.conf, prod.conf}
 ├── scripts/
 │   └── setup-docker.sh
-├── .env                  # Env vars
+├── .env
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
 ├── Makefile
@@ -65,7 +69,9 @@ simpelv2/
 
 ## 👥 Kolaborasi Tim dengan GitLab
 
-Agar proses migrasi dan pengembangan Simpelv2 terstruktur dan kolaboratif, berikut panduan kerja tim menggunakan **GitLab**:
+Tetap berlaku seperti penjelasan sebelumnya (branching, MR, CI/CD, dsb).
+
+gar proses migrasi dan pengembangan Simpelv2 terstruktur dan kolaboratif, berikut panduan kerja tim menggunakan **GitLab**:
 
 ### 1. **Membuat Repository GitLab**
 
@@ -189,224 +195,190 @@ Setelah berhasil, akses:
 * Backend langsung: [http://localhost:3000/api/](http://localhost:3000/api/)
 * Frontend langsung: [http://localhost:5173](http://localhost:5173)
 * Full App (jika proxy): [http://localhost:8080](http://localhost:8080)
+---
 
-### Menjalankan di Localhost dengan Docker
+## 🏠 Menjalankan Lokal (Tanpa Docker)
 
-Untuk menjalankan di localhost menggunakan Docker (tanpa installing manual setiap komponen), ikuti:
+**Prasyarat**:
+- Go >= 1.22
+- Node.js >= 18
+- PostgreSQL aktif dan `DATABASE_URL` diset
 
-1. Pastikan Docker Engine & Docker Compose V2 terpasang.
-2. Dari folder root proyek:
+**Backend**:
+```bash
+cd backend && go run ./cmd/main.go
+```
 
-   ```bash
-   docker compose -f docker-compose.dev.yml up --build
-   ```
-3. Container yang akan berjalan:
+**Frontend**:
+```bash
+cd frontend && npm install && npm run dev -- --host
+```
 
-   * **DB**: PostgreSQL di port internal 5432
-   * **Backend**: Buffalo di [http://localhost:3000](http://localhost:3000) (via Nginx proxy di 8080)
-   * **Frontend**: Vite di [http://localhost:5173](http://localhost:5173) (via Nginx proxy di 8080)
-   * **Nginx**: Reverse proxy + static serving di [http://localhost:8080](http://localhost:8080)
-4. Akses:
+---
 
-   * SPA langsung: [http://localhost:5173](http://localhost:5173)
-   * Full App: [http://localhost:8080](http://localhost:8080)
-   * API: [http://localhost:8080/api/](http://localhost:8080/api/)
-5. Hentikan semua container:
-
-   ```bash
-   docker compose -f docker-compose.dev.yml down
-   ```
-
-## 🚀 Development
+## 🐳 Menjalankan Dengan Docker
 
 ```bash
 make dev
 ```
 
-* Vite: [http://localhost:5173](http://localhost:5173)
-* Nginx + Proxy: [http://localhost:8080](http://localhost:8080)
-* API: [http://localhost:8080/api/](http://localhost:8080/api/)
+- SPA: http://localhost:5173
+- API: http://localhost:8080/api/
+- Full App (proxy via Nginx): http://localhost:8080
 
 Hentikan: `make stop-dev`, Log: `make logs-dev`
 
 ---
 
-## 🛠 Production
+## 🎯 Production
 
 ```bash
 make build
 make prod
 ```
 
-* Akses: [http://localhost](http://localhost)
-  Hentikan: `make stop-prod`, Log: `make logs-prod`
+- http://localhost
+
+Stop: `make stop-prod`, Log: `make logs-prod`
 
 ---
 
-## 🎉 Release
+## 🚀 Rilis Sekaligus
 
 ```bash
 make release
 ```
 
-*Perintah **`make release`** menjalankan **`make build`** dan **`make prod`** secara berurutan untuk mempersiapkan dan menjalankan aplikasi di mode production.*
+---
+
+## 📦 Daftar Perintah Make
+
+| Perintah         | Deskripsi                                  |
+|------------------|---------------------------------------------|
+| make sqlc        | Generate kode Go dari SQL                  |
+| make envcheck    | Validasi `.env` penting                    |
+| make migrate-up  | Jalankan migrasi SQL                       |
+| make migrate-down| Rollback migrasi                           |
+| make seed        | Jalankan seeder data awal                  |
+| make dev         | Jalankan full stack development            |
+| make prod        | Jalankan full stack production             |
+| make release     | Jalankan sqlc → build → prod               |
 
 ---
 
-## 📦 Daftar Perintah Make (Makefile)
-
-Berikut ringkasan target Make yang tersedia:
-
-| Target           | Deskripsi                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| `make dev`       | Jalankan seluruh layanan dalam mode **development** (backend Buffalo, frontend Vite, Nginx) |
-| `make stop-dev`  | Hentikan seluruh container development                                                      |
-| `make logs-dev`  | Tampilkan log real-time untuk development                                                   |
-| `make build`     | Bangun aset frontend (Vite) untuk produksi                                                  |
-| `make prod`      | Jalankan seluruh layanan dalam mode **production** (detached)                               |
-| `make stop-prod` | Hentikan seluruh container production                                                       |
-| `make logs-prod` | Tampilkan log real-time untuk production                                                    |
-| `make release`   | Otomatisasi `make build` dan `make prod` untuk release sekali jalan                         |
-
----
+## 🔄 Migrasi Laravel → Simpelv2
 
 ## 🔄 Migrasi dari Simpelv1 (Laravel) ke Simpelv2
 
 **Mengapa Migrasi?**
 
-* **Performa dan Skalabilitas**: Go (Buffalo) memberikan eksekusi sangat cepat dan rendah latensi dibandingkan PHP, sehingga cocok untuk layanan berskala besar.
-* **Pengalaman Pengembang Modern**: React + Vite menawarkan workflow frontend yang lebih dinamis dan interaktif, dengan hot‑reload instan.
-* **Konsistensi Lintas Layanan**: Menggunakan PostgreSQL untuk fungsionalitas yang lengkap (JSONB, partial index) dan integrasi mulus dengan Pop ORM.
-* **DevOps & Deployment**: Docker Compose menyederhanakan provisioning lingkungan, meminimalisir perbedaan antara development, staging, dan production.
-* **Arsitektur Terpisah**: Pemisahan backend API dan frontend SPA memudahkan maintenance, tim terpisah, serta deployment independen.
-* **Keamanan & Stabilitas**: Buffalo memiliki middleware bawaan (CSRF, parameter logging) dan Nginx mengamankan SSL/TLS serta cache static asset.
-
-Agar jelas, berikut detil untuk pengguna awam: (Laravel) ke Simpelv2
-
-Agar jelas, berikut detil untuk pengguna awam:
+* **Performa dan Skalabilitas**: Go (Gin) memberikan eksekusi sangat cepat dan rendah latensi dibandingkan PHP.
+* **Pengalaman Pengembang Modern**: React + Vite menawarkan workflow frontend dinamis dengan hot‑reload instan.
+* **Konsistensi Lintas Layanan**: PostgreSQL memiliki fitur lengkap (JSONB, indexing) yang terintegrasi baik dengan sqlc dan Go.
+* **DevOps & Deployment**: Docker Compose menyederhanakan provisioning environment dan deployment multistage.
+* **Arsitektur Terpisah**: Pemisahan backend API dan frontend SPA memudahkan maintenance dan kerja tim paralel.
+* **Keamanan & Stabilitas**: Middleware dan proxy Nginx membantu menjaga kestabilan serta keamanan arsitektur microservice.
 
 ### A. Struktur Simpelv1 (Laravel)
 
 ```
 simpel_web-main/
-├── app/Http/Controllers/  # Logika request
-├── app/Models/            # Model Eloquent
-├── database/migrations/   # Migration MySQL
-├── resources/views/       # Blade templates
-├── resources/js/, css/    # Frontend assets
-├── routes/web.php         # Halaman
-├── routes/api.php         # API
-└── public/                # File publik
+├── app/Http/Controllers/
+├── app/Models/
+├── database/migrations/
+├── resources/views/
+├── resources/js/, css/
+├── routes/web.php
+├── routes/api.php
+└── public/
 ```
 
 ### B. Ekspor Schema MySQL
 
-1. Masuk folder v1, jalankan:
-
-   ```bash
-   mysqldump --no-data simpelv1 > schema_v1.sql
-   ```
-2. File `schema_v1.sql` berisi struktur tabel (nama & kolom).
-
-### Mapping File V1 ➔ V2
-
-| Simpelv1 Path                     | Simpelv2 Path                   | Keterangan                             |
-| --------------------------------- | ------------------------------- | -------------------------------------- |
-| `app/Http/Controllers/*.php`      | `backend/actions/`              | Laravel controllers ➔ Buffalo handlers |
-| `app/Models/*.php`                | `backend/models/`               | Eloquent models ➔ Pop ORM structs      |
-| `database/migrations/*.php`       | `backend/migrations/*.fizz`     | MySQL migrations ➔ Fizz migrations     |
-| `routes/api.php`                  | `backend/actions/app.go`        | API routes ➔ Buffalo routes            |
-| `resources/views/*.blade.php`     | `frontend/src/pages/`           | Blade templates ➔ React components     |
-| `resources/js/`, `resources/css/` | `frontend/src/`                 | Frontend assets ➔ React source folder  |
-| `public/`                         | `frontend/public/`              | Static assets (images, CSS, fonts)     |
-| `routes/web.php`                  | `frontend/src/router.jsx`       | Web routes ➔ React Router              |
-| `app/Http/Middleware/`            | `backend/actions/middleware.go` | Middleware custom ➔ Buffalo middleware |
-| `.env`                            | `.env`                          | Environment variables                  |
-
-### C. Migrasi Database
-
-1. Buat migration:
-
-   ```bash
-   ```
-
-docker compose -f docker-compose.dev.yml exec backend buff pop gen migration create\_nm\_table
-
-````
-2. Buka file `.up.fizz`, salin definisi tabel dari `schema_v1.sql`, contohnya:
-```fizz
-create_table("users") { t.Column("id","integer",{primary:true,auto:true}); ... }
-````
-
-3. Jalankan migrasi:
-
-   ```bash
-   ```
-
-docker compose -f docker-compose.dev.yml exec backend buff pop migrate
-
-````
-4. Cek di Postgres:
 ```bash
-docker compose -f docker-compose.dev.yml exec db psql -c "\d+ users"
-````
+mysqldump --no-data simpelv1 > schema_v1.sql
+```
 
-### D. Migrasi Model
+### C. Mapping File Laravel ke Simpelv2
 
-* Dari `app/Models/User.php`, buat `backend/models/user.go`:
+| Simpelv1 Path                     | Simpelv2 Path                   | Keterangan                                  |
+|----------------------------------|----------------------------------|---------------------------------------------|
+| `app/Http/Controllers/*.php`     | `backend/internal/api/*.go`      | Handler API                                 |
+| `app/Models/*.php`               | `backend/db/query.sql`           | Model SQL + generate via sqlc               |
+| `resources/views/*.blade.php`    | `frontend/src/pages/`            | Komponen halaman React                      |
+| `resources/js/`, `resources/css/`| `frontend/src/`                  | Frontend logic                              |
+| `routes/api.php`                 | `main.go`                        | Router Gin                                  |
+| `public/`                        | `frontend/public/`               | Aset statis                                 |
+| `.env`                           | `.env`                           | Lingkungan dan koneksi                      |
 
-  ```go
-  type User struct{ ID int `db:"id"`; Name string `db:"name"` }
-  ```
+### D. Migrasi Database
 
-### E. Migrasi Logic Controller
+1. Salin struktur dari `schema_v1.sql` ke `backend/db/schema.sql` (konversi ke PostgreSQL jika perlu).
+2. Tambahkan query ke `query.sql`, contoh:
 
-* File handler `backend/actions/users.go`:
+```sql
+-- name: ListUsers :many
+SELECT id, name FROM users ORDER BY id;
+```
 
-  ```go
-  func UsersList(c Context) error{ var u []models.User; DB.All(&u); return c.Render(200,r.JSON(u)) }
-  ```
-* Daftar rute di `app.go`: `app.GET("/api/users",UsersList)`
+3. Jalankan `make sqlc` untuk generate kode.
+
+### E. Migrasi Model + Handler
+
+* Buat file handler di `backend/internal/api/user.go`:
+
+```go
+func GetUsers(c *gin.Context) {
+  users, err := db.Queries.ListUsers(c)
+  if err != nil {
+    c.JSON(500, gin.H{"error": "internal error"})
+    return
+  }
+  c.JSON(200, users)
+}
+```
 
 ### F. Migrasi View ke React
 
-1. Folder `frontend/src/pages/`.
-2. Buat `Users.jsx`:
+```jsx
+function Users() {
+  const [data, setData] = useState([]);
+  useEffect(() => {
+    fetch('/api/users').then(r => r.json()).then(setData);
+  }, []);
+  return <ul>{data.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
+}
+```
 
-   ```jsx
-   function Users(){ const [u,s]=useState([]); useEffect(()=>fetch('/api/users').then(r=>r.json()).then(s),[]); return <ul>{u.map(x=> <li key={x.id}>{x.name}</li>)}</ul> }
-   ```
-3. Router `frontend/src/router.jsx`: `<Route path="/users" element={<Users/>}/>`
+Tambahkan ke router:
 
-### G. Migrasi Aset Statis
+```jsx
+<Route path="/users" element={<Users />} />
+```
 
-* Copy `public/` dari v1 ke `frontend/public/`.
+### G. Jalankan
 
-### H. (Opsional) Migrasi Data
+```bash
+make dev
+```
 
-1. Export CSV: `mysqldump --tab=/tmp ... users`
-2. Import ke Postgres: `psql ... \copy users FROM '/tmp/users.txt' CSV`
+Akses:
 
-### I. Verifikasi
-
-1. `make dev`
-2. Cek di browser:
-
-   * SPA: localhost:5173
-   * Full App: localhost:8080
-   * API: localhost:8080/api/users
+- SPA: http://localhost:5173
+- Full App: http://localhost:8080
+- API: http://localhost:8080/api/users
 
 ---
 
 ## 🤝 Kontribusi
 
 1. Fork & clone
-2. Branch baru
+2. Buat branch baru
 3. Commit & push
-4. Pull Request
+4. Buat Merge Request
 
 ---
 
 ## 📝 Lisensi
 
-MIT © 2025 Kejaksaan Republik Indonesia
+Copyright © 2025 Kejaksaan Republik Indonesia

@@ -1,4 +1,6 @@
-node_modules/
-pgdata/
 .env
-frontend/dist/
+.env.postgres
+gerbang-fiber/.env
+layanan-audit/.env
+layanan-auth/.env
+layanan-pengguna/.env
