@@ -10,8 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/joho/godotenv"
 
-	"simpelv2/gerbang-fiber/internal/middleware"
-	"simpelv2/gerbang-fiber/internal/proxy"
+	"simpelv2/gerbang/internal/middleware"
+	"simpelv2/gerbang/internal/proxy"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module simpelv2/gerbang-fiber
+module simpelv2/gerbang
 
 go 1.21
 

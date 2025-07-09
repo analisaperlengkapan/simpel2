@@ -1,6 +1,6 @@
 .env
 .env.postgres
-gerbang-fiber/.env
+gerbang/.env
 layanan-audit/.env
 layanan-auth/.env
 layanan-pengguna/.env

@@ -21,18 +21,18 @@ services:
       - "8081:80"    # Port dev HTTP
       - "443:443"    # Port TLS
     depends_on:
-      - gerbang-fiber
+      - gerbang
       - antarmuka
     networks:
       - simpelnet
     restart: unless-stopped
 
-  gerbang-fiber:
+  gerbang:
     build:
-      context: ./gerbang-fiber
-    container_name: gerbang-fiber
+      context: ./gerbang
+    container_name: gerbang
     env_file:
-      - ./gerbang-fiber/.env
+      - ./gerbang/.env
     expose:
       - "8080"
     depends_on:

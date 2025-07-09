@@ -1,4 +1,4 @@
-//gerbang-fiber/internal/proxy/router.go
+//gerbang/internal/proxy/router.go
 
 package proxy
 
