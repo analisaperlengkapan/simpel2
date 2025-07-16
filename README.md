@@ -1,384 +1,211 @@
-# Simpelv2
+# SIMPelv2
 
-Simpelv2 adalah platform web modern dengan pemisahan **Backend** (REST API) dan **Frontend** (Single‑Page App), memanfaatkan:
+**SIMPelv2** (Sistem Informasi Manajemen Barang Milik Negara Versi 2) adalah platform modern berbasis web untuk mengelola siklus hidup Barang Milik Negara (BMN), dibangun dengan arsitektur **microservices**, pendekatan **AI modular**, serta mematuhi standar **ISO dan keamanan informasi tingkat tinggi**.
 
-* **Backend**: Go (Gin) + sqlc sebagai API server ringan, modular, dan performa tinggi
-* **Frontend**: React + Vite sebagai SPA dengan hot‑reload dan bundling efisien
-* **Database**: PostgreSQL, migrasi manual via SQL
-* **Reverse Proxy & Static Files**: Nginx
-* **Container**: Docker Compose untuk Dev & Prod
-* **Otomasi**: Makefile dan skrip setup Docker
+> SIMPelv2 mendukung efisiensi, akuntabilitas, dan transparansi dalam manajemen BMN secara menyeluruh, dengan keamanan dan teknologi terkini.
 
 ---
 
-## 📖 Alasan Pemilihan Teknologi
+## 📑 Daftar Isi
 
-1. **Go (Gin)**: performa tinggi, modular, statically compiled, dan sangat cocok untuk layanan API skala besar.
-2. **React + Vite**: pengembangan UI cepat dengan DX unggul.
-3. **PostgreSQL**: fitur indexing, JSONB, dan reliabilitas tinggi.
-4. **sqlc**: query SQL eksplisit → kode Go aman & cepat.
-5. **Nginx (Reverse Proxy & Static)**: load balancing, proxy, dan serving aset statis.
-6. **Docker Compose**: isolasi dan konsistensi antar lingkungan.
-7. **Makefile**: menyatukan workflow dev/test/deploy dalam satu perintah.
-
----
-
-## 🔧 Prasyarat
-
-1. Git
-2. Docker Engine & Docker Compose V2
-3. Make
-
-> Jika Docker Compose V2 belum terpasang:
->
-> ```bash
-> ./scripts/setup-docker.sh
-> ```
+* [Fitur Unggulan](#fitur-unggulan)
+* [Teknologi Inti](#teknologi-inti)
+* [Instalasi & Setup](#instalasi--setup)
+* [Struktur Microservices](#struktur-microservices)
+* [AI & Otomasi](#ai--otomasi)
+* [Monitoring & Observabilitas](#monitoring--observabilitas)
+* [Perintah Makefile](#perintah-makefile)
+* [Keamanan Sistem](#keamanan-sistem)
+* [Kepatuhan & ISO](#kepatuhan--iso)
+* [Kontribusi](#kontribusi)
+* [Lisensi](#lisensi)
 
 ---
 
-## 📂 Struktur Proyek
+## 🚀 Fitur Unggulan
+
+* ✅ Microservices modular berbasis Go (Gin)
+* ✅ Frontend SPA modern dengan React + Vite
+* ✅ AI terintegrasi: OCR, klasifikasi, rekomendasi, summarization, label
+* ✅ Keamanan berlapis: TLS, Sealed Secret, RBAC, AI UEBA
+* ✅ Monitoring terpusat: Grafana, Prometheus, Loki, Alertmanager
+* ✅ Integrasi resmi: SIMAN, MONSAKTI, MySimkari, SIPEDE
+* ✅ Audit trail lengkap, dasbor interaktif, dan pelaporan otomatis
+* ✅ Kepatuhan terhadap ISO 27001, 20000-1, 55001, 9001, 25010, 38500
+
+---
+
+## 🧱 Teknologi Inti
+
+| Komponen        | Teknologi                                               |
+| --------------- | ------------------------------------------------------- |
+| Backend         | Go (Gin), SQLC, REST API                                |
+| Frontend        | React, Vite, Tailwind CSS                               |
+| Database        | PostgreSQL (multi-schema) + TLS                         |
+| Gateway & Proxy | Fiber + NGINX (TLS, static, reverse proxy)              |
+| Orkestrasi      | Docker Compose, MicroK8s, Kubernetes                    |
+| CI/CD           | GitLab CI, Drone CI (opsional), Makefile                |
+| AI Engine       | LLaMA3, Phi-2, Gemma, Donut, Pix2Struct, spaCy, XGBoost |
+| Observability   | Prometheus, Grafana, Loki, Alertmanager                 |
+
+---
+
+## ⚙️ Instalasi & Setup
+
+### 📌 Prasyarat
+
+* Docker & Docker Compose
+* MicroK8s (dengan `kubectl`, `kustomize`, `helm`, `ingress`)
+* Python 3.10+ (`pip install -r requirements.txt`)
+* Tools tambahan: `kubeseal`, `yamllint`, `ruamel.yaml`
+
+### 🔧 Langkah Setup
+
+```bash
+git clone https://gitlab.com/analisiskebutuhan/simpelv2_web.git
+cd simpelv2
+cp .env.example .env
+make build
+make up
+```
+
+Untuk Kubernetes dev/staging/prod:
+
+```bash
+make build-and-import
+make generate-k8s
+make deploy-dev
+# atau:
+make deploy-staging
+make deploy-prod VERSION=v1.0.0
+```
+
+---
+
+## 📂 Struktur Microservices (23 Layanan Aktif + AI)
 
 ```
 simpelv2/
-├── backend/
-│   ├── cmd/                    # Entry point main.go
-│   ├── db/                     # schema.sql, query.sql, sqlc.yaml
-│   ├── internal/
-│   │   ├── api/                # Gin handlers
-│   │   ├── config/             # DB loader & env config
-│   │   └── db/                 # Output hasil sqlc generate
-│   ├── Dockerfile.backend
-├── frontend/
-│   ├── public/, src/, dist/
-│   ├── Dockerfile.frontend
-│   ├── package.json
-│   └── vite.config.js
-├── docker/
-│   └── nginx/{dev.conf, prod.conf}
-├── scripts/
-│   └── setup-docker.sh
-├── .env
-├── docker-compose.dev.yml
-├── docker-compose.prod.yml
-├── Makefile
-└── README.md
+├── antarmuka/                 # Frontend React Vite
+├── gerbang/                   # Gateway Fiber (routing, middleware, RBAC)
+├── nginx/                     # TLS, reverse proxy, static file
+├── layanan-aset/              # Master aset BMN (AI: klasifikasi, validasi)
+├── layanan-usulan/            # Usulan kebutuhan (AI: estimasi kebutuhan)
+├── layanan-rekomendasi/       # Rekomendasi jumlah & spesifikasi (AI: XGBoost)
+├── layanan-standar/           # Standar BMN nasional
+├── layanan-roadmap/           # Perencanaan jangka panjang (AI: simulasi tren)
+├── layanan-pemakaian/         # Permohonan dan izin (AI: pola anomali)
+├── layanan-pengalihan/        # Optimalisasi & alih fungsi BMN
+├── layanan-distribusi/        # Distribusi fisik (AI: jalur & jadwal estimasi)
+├── layanan-pemeliharaan/      # Anggaran & siklus perawatan (AI: prediksi)
+├── layanan-penilaian/         # Penilaian aset (AI: interpretasi hasil)
+├── layanan-hibah/             # Pengajuan dan pemberian hibah
+├── layanan-dokumen/           # OCR, klasifikasi, arsip digital
+├── layanan-audit/             # Log & audit (AI: korelasi & deteksi)
+├── layanan-keamanan/          # Autentikasi & otorisasi pengguna
+├── layanan-konfigurasi/       # Metadata, referensi, dan konfigurasi
+├── layanan-bantuan/           # Q&A berbasis LLM, FAQ, panduan
+├── layanan-dasbor/            # Dashboard lintas layanan
+├── layanan-laporan/           # Pelaporan dinamis dan tren real-time
+├── layanan-integrasi/         # Konektor SIMAN, MONSAKTI, MySimkari, SIPEDE
+├── layanan-ai/                # AI utama: OCR, NER, summarization, rekomendasi
 ```
 
 ---
 
-## 👥 Kolaborasi Tim dengan GitLab
+## 🧠 AI & Otomasi
 
-Tetap berlaku seperti penjelasan sebelumnya (branching, MR, CI/CD, dsb).
-
-gar proses migrasi dan pengembangan Simpelv2 terstruktur dan kolaboratif, berikut panduan kerja tim menggunakan **GitLab**:
-
-### 1. **Membuat Repository GitLab**
-
-* Buat repository baru bernama `simpelv2` di GitLab (bisa disetel private/public).
-* Tambahkan anggota tim:
-
-  * **Maintainer**: tim core (setup CI/CD, proteksi branch).
-  * **Developer**: kontributor/pengembang fitur.
-
-### 2. **Struktur Branching**
-
-Gunakan strategi branching standar:
-
-| Branch      | Fungsi                                       |
-| ----------- | -------------------------------------------- |
-| `main`      | Versi stabil/produksi, hanya via Merge       |
-| `dev`       | Integrasi semua fitur baru sebelum ke `main` |
-| `feature/*` | Fitur spesifik (ex: `feature/user-login`)    |
-| `bugfix/*`  | Perbaikan bug                                |
-| `docs/*`    | Dokumentasi                                  |
-
-Contoh:
-
-```bash
-git checkout -b feature/migrasi-model-user
-# lakukan migrasi model User
-git add .
-git commit -m "Migrasi model User dari Laravel ke Buffalo"
-git push origin feature/migrasi-model-user
-```
-
-Lalu, buka **Merge Request** ke `dev` melalui GitLab UI.
-
-### 3. **Manajemen Tugas (Issues & Milestone)**
-
-Gunakan fitur `Issues` GitLab untuk memecah migrasi menjadi sub-tugas:
-
-| Milestone          | Issue Contoh                         |
-| ------------------ | ------------------------------------ |
-| Database Migration | Migrasi struktur tabel SIMAN         |
-| Auth               | Migrasi login Laravel ke Buffalo     |
-| Frontend UI        | Konversi Blade → React               |
-| CRUD Aset          | Modul Aset pada frontend dan backend |
-
-Setiap developer dapat assign dirinya sendiri pada issue.
-
-### 4. **Code Review & Merge Request**
-
-* Setiap **Merge Request (MR)** minimal direview oleh 1 anggota tim.
-* ## Gunakan checklist untuk review:
-
-### 5. **Automated Test & CI/CD**
-
-* Tambahkan file `.gitlab-ci.yml` untuk menjalankan test otomatis:
-
-  * Cek linting Go & JS
-  * Build frontend
-  * Test endpoint (opsional)
-
-Contoh:
-
-```yaml
-stages:
-  - test
-  - build
-
-test_backend:
-  image: golang:1.23
-  script:
-    - cd backend
-    - go test ./...
-
-test_frontend:
-  image: node:22
-  script:
-    - cd frontend
-    - npm install
-    - npm run lint
-```
-
-### 6. **Dokumentasi Tim**
-
-* Gunakan fitur **Wiki** di GitLab untuk mencatat:
-
-  * Mapping struktur Laravel → Buffalo
-  * Referensi REST API
-  * Standar folder & file
-  * Langkah build manual & otomatis
+| Modul/Fungsi           | Teknologi Utama            |
+| ---------------------- | -------------------------- |
+| OCR dokumen            | PaddleOCR                  |
+| Ekstraksi + NER        | spaCy                      |
+| Klasifikasi narasi     | Phi-2 / Gemma-2B           |
+| Rekomendasi jumlah BMN | XGBoost + rule engine      |
+| Ringkasan dokumen      | LLaMA3 / Mistral           |
+| Label dari PDF/foto    | Donut / Pix2Struct         |
+| AI RAG untuk Q\&A      | LLaMA3-3B + Qdrant         |
+| Analisis perilaku user | UEBA (behavior anomaly AI) |
 
 ---
 
-## 🏠 Menjalankan di Localhost (Tanpa Docker)
+## 📊 Monitoring & Observabilitas
 
-Jika Anda ingin menjalankan Simpelv2 secara lokal tanpa Docker, ikuti langkah berikut:
+* **Grafana** → `http://localhost:3000`
+* **Prometheus** → `http://localhost:9090`
+* **Loki (logs)** → `http://localhost:3100`
+* **Alertmanager** → `http://localhost:9093`
 
-1. **Install Prasyarat**:
-
-   * Go >=1.23
-   * Buffalo CLI: `go install github.com/gobuffalo/cli/cmd/buffalo@latest`
-   * Node.js >=18 & npm
-   * PostgreSQL: buat database `simpelv2_dev` dan user sesuai `.env`
-2. **Backend**:
-
-   ```bash
-   cd backend
-   buffalo dev    # Menjalankan Buffalo dengan hot-reload di port 3000
-   ```
-3. **Frontend**:
-
-   ```bash
-   cd frontend
-   npm install
-   npm run dev -- --host    # Menjalankan Vite di port 5173
-   ```
-4. **Konfigurasi Proxy (opsional)**:
-
-   * Jika ingin proxy API di localhost:8080, jalankan Nginx dengan `dev.conf` atau gunakan Buffalo proxy.
-
-Setelah berhasil, akses:
-
-* Backend langsung: [http://localhost:3000/api/](http://localhost:3000/api/)
-* Frontend langsung: [http://localhost:5173](http://localhost:5173)
-* Full App (jika proxy): [http://localhost:8080](http://localhost:8080)
----
-
-## 🏠 Menjalankan Lokal (Tanpa Docker)
-
-**Prasyarat**:
-- Go >= 1.22
-- Node.js >= 18
-- PostgreSQL aktif dan `DATABASE_URL` diset
-
-**Backend**:
-```bash
-cd backend && go run ./cmd/main.go
-```
-
-**Frontend**:
-```bash
-cd frontend && npm install && npm run dev -- --host
-```
+Logging dikumpulkan dari semua layanan ke stack observabilitas.
 
 ---
 
-## 🐳 Menjalankan Dengan Docker
+## 📦 Perintah Makefile
 
-```bash
-make dev
-```
-
-- SPA: http://localhost:5173
-- API: http://localhost:8080/api/
-- Full App (proxy via Nginx): http://localhost:8080
-
-Hentikan: `make stop-dev`, Log: `make logs-dev`
-
----
-
-## 🎯 Production
-
-```bash
-make build
-make prod
-```
-
-- http://localhost
-
-Stop: `make stop-prod`, Log: `make logs-prod`
+| Perintah                | Fungsi                                                 |
+| ----------------------- | ------------------------------------------------------ |
+| `make build`            | Build seluruh container dari Dockerfile                |
+| `make up`               | Jalankan semua container (Docker Compose)              |
+| `make build-and-import` | Build, export, lalu `ctr import` ke MicroK8s           |
+| `make generate-k8s`     | Generate file YAML dari Compose & .env                 |
+| `make deploy-dev`       | Deploy ke namespace `dev` di K8s                       |
+| `make deploy-prod`      | Deploy ke `production`                                 |
+| `make validate-k8s`     | Validasi hasil YAML (`kubectl apply --dry-run=client`) |
+| `make destroy-k8s`      | Hapus seluruh resource Kubernetes yang aktif           |
+| `make seal-secret`      | Enkripsi `.env` menjadi SealedSecret                   |
+| `make check-status`     | Cek semua status Pod dalam namespace                   |
 
 ---
 
-## 🚀 Rilis Sekaligus
+## 🔐 Keamanan Sistem
 
-```bash
-make release
-```
-
----
-
-## 📦 Daftar Perintah Make
-
-| Perintah         | Deskripsi                                  |
-|------------------|---------------------------------------------|
-| make sqlc        | Generate kode Go dari SQL                  |
-| make envcheck    | Validasi `.env` penting                    |
-| make migrate-up  | Jalankan migrasi SQL                       |
-| make migrate-down| Rollback migrasi                           |
-| make seed        | Jalankan seeder data awal                  |
-| make dev         | Jalankan full stack development            |
-| make prod        | Jalankan full stack production             |
-| make release     | Jalankan sqlc → build → prod               |
+* 🔐 TLS Digicert (Letakkan di `nginx/certs/`)
+* 🔐 Sealed Secrets terenkripsi (Kubernetes)
+* 🔐 Fiber middleware: RBAC, otorisasi token, audit
+* 🔐 Semua traffic diatur melalui reverse proxy NGINX
+* 🔐 Logging & pemantauan anomali dengan AI (UEBA)
 
 ---
 
-## 🔄 Migrasi Laravel → Simpelv2
+## 🛡️ Kepatuhan & ISO
 
-## 🔄 Migrasi dari Simpelv1 (Laravel) ke Simpelv2
-
-**Mengapa Migrasi?**
-
-* **Performa dan Skalabilitas**: Go (Gin) memberikan eksekusi sangat cepat dan rendah latensi dibandingkan PHP.
-* **Pengalaman Pengembang Modern**: React + Vite menawarkan workflow frontend dinamis dengan hot‑reload instan.
-* **Konsistensi Lintas Layanan**: PostgreSQL memiliki fitur lengkap (JSONB, indexing) yang terintegrasi baik dengan sqlc dan Go.
-* **DevOps & Deployment**: Docker Compose menyederhanakan provisioning environment dan deployment multistage.
-* **Arsitektur Terpisah**: Pemisahan backend API dan frontend SPA memudahkan maintenance dan kerja tim paralel.
-* **Keamanan & Stabilitas**: Middleware dan proxy Nginx membantu menjaga kestabilan serta keamanan arsitektur microservice.
-
-### A. Struktur Simpelv1 (Laravel)
-
-```
-simpel_web-main/
-├── app/Http/Controllers/
-├── app/Models/
-├── database/migrations/
-├── resources/views/
-├── resources/js/, css/
-├── routes/web.php
-├── routes/api.php
-└── public/
-```
-
-### B. Ekspor Schema MySQL
-
-```bash
-mysqldump --no-data simpelv1 > schema_v1.sql
-```
-
-### C. Mapping File Laravel ke Simpelv2
-
-| Simpelv1 Path                     | Simpelv2 Path                   | Keterangan                                  |
-|----------------------------------|----------------------------------|---------------------------------------------|
-| `app/Http/Controllers/*.php`     | `backend/internal/api/*.go`      | Handler API                                 |
-| `app/Models/*.php`               | `backend/db/query.sql`           | Model SQL + generate via sqlc               |
-| `resources/views/*.blade.php`    | `frontend/src/pages/`            | Komponen halaman React                      |
-| `resources/js/`, `resources/css/`| `frontend/src/`                  | Frontend logic                              |
-| `routes/api.php`                 | `main.go`                        | Router Gin                                  |
-| `public/`                        | `frontend/public/`               | Aset statis                                 |
-| `.env`                           | `.env`                           | Lingkungan dan koneksi                      |
-
-### D. Migrasi Database
-
-1. Salin struktur dari `schema_v1.sql` ke `backend/db/schema.sql` (konversi ke PostgreSQL jika perlu).
-2. Tambahkan query ke `query.sql`, contoh:
-
-```sql
--- name: ListUsers :many
-SELECT id, name FROM users ORDER BY id;
-```
-
-3. Jalankan `make sqlc` untuk generate kode.
-
-### E. Migrasi Model + Handler
-
-* Buat file handler di `backend/internal/api/user.go`:
-
-```go
-func GetUsers(c *gin.Context) {
-  users, err := db.Queries.ListUsers(c)
-  if err != nil {
-    c.JSON(500, gin.H{"error": "internal error"})
-    return
-  }
-  c.JSON(200, users)
-}
-```
-
-### F. Migrasi View ke React
-
-```jsx
-function Users() {
-  const [data, setData] = useState([]);
-  useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(setData);
-  }, []);
-  return <ul>{data.map(u => <li key={u.id}>{u.name}</li>)}</ul>;
-}
-```
-
-Tambahkan ke router:
-
-```jsx
-<Route path="/users" element={<Users />} />
-```
-
-### G. Jalankan
-
-```bash
-make dev
-```
-
-Akses:
-
-- SPA: http://localhost:5173
-- Full App: http://localhost:8080
-- API: http://localhost:8080/api/users
+| Standar ISO   | Kaitan dengan SIMPelv2                                                               |
+| ------------- | ------------------------------------------------------------------------------------ |
+| ISO 27001     | Perlindungan terhadap keamanan informasi pengguna, aset, dan infrastruktur TI        |
+| ISO 20000-1   | Tata kelola manajemen layanan TI lintas layanan SIMPelv2                             |
+| ISO 55001     | Pengelolaan aset (BMN) secara menyeluruh, akuntabel, dan efisien                     |
+| ISO 25010     | Memastikan kualitas perangkat lunak seperti usability, maintainability, dan security |
+| ISO 38500     | Tata kelola dan pengambilan keputusan strategis dalam pengembangan TI                |
+| ISO 9001      | Sistem manajemen mutu dalam siklus pengembangan, dukungan, dan pemeliharaan SIMPelv2 |
+| PCI DSS / BSI | Standar keamanan tambahan untuk transaksi dan kontrol akses                          |
 
 ---
 
 ## 🤝 Kontribusi
 
-1. Fork & clone
-2. Buat branch baru
-3. Commit & push
-4. Buat Merge Request
+Panduan kontribusi lengkap tersedia di [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+Beberapa kontribusi yang kami dukung:
+
+* 👩‍💻 Kode (fitur, bug, refactor, infra)
+* 🤖 AI & pipeline model
+* 📚 Dokumentasi & panduan
+* 🛡️ Validasi keamanan & kepatuhan
+
+Jika Anda ingin berkontribusi, pastikan:
+
+* Membaca & mengikuti struktur branch
+* Menjalankan validasi (`make validate-k8s`, `yamllint`, dll)
+* Menggunakan penamaan commit yang jelas
+* Menyertakan deskripsi lengkap saat membuat Merge Request
+
+Jika menemukan bug atau ingin diskusi fitur, gunakan Issue Tracker atau email ke `biro.perlengkapan@kejaksaan.go.id`
 
 ---
 
 ## 📝 Lisensi
 
-Copyright © 2025 Kejaksaan Republik Indonesia
+Hak Cipta © 2025 **Kejaksaan Republik Indonesia**
+Penggunaan terbatas untuk manajemen Barang Milik Negara.
+Dilarang memperjualbelikan ulang tanpa izin resmi.
+
+---

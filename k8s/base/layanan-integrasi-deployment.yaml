@@ -1,0 +1,36 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": layanan-integrasi
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": layanan-integrasi
+  "template":
+    "metadata":
+      "labels":
+        "app": layanan-integrasi
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": layanan-integrasi
+        "image": simpelv2/layanan-integrasi:dev
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "command":
+        - ./main
+        "volumeMounts":
+        - "name": layanan-integrasi-vol-0
+          "mountPath": /app/config
+          "readOnly": false
+        "envFrom":
+        - "secretRef":
+            "name": layanan-integrasi-secret
+      "volumes":
+      - "name": layanan-integrasi-vol-0
+        "hostPath":
+          "path": /var/www/simpelv2/layanan-integrasi/config
+          "type": DirectoryOrCreate

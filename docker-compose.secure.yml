@@ -1,9 +1,9 @@
 services:
-  postgres:
+  db-simpelv2:
     image: postgres:15-alpine
-    container_name: db-simpelv2
+    container_name: dbsimpelv2
     env_file:
-      - .env.postgres
+      - .env
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -18,8 +18,8 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
       - ./antarmuka/dist:/usr/share/nginx/html:ro
     ports:
-      - "8081:80"    # Port dev HTTP
-      - "443:443"    # Port TLS
+      - "80:80"
+      - "443:443"
     depends_on:
       - gerbang
       - antarmuka
@@ -36,54 +36,17 @@ services:
     expose:
       - "8080"
     depends_on:
-      - layanan-auth
+      - layanan-keamanan
       - layanan-audit
-      - layanan-pengguna
+      - layanan-integrasi
     networks:
       - simpelnet
     restart: unless-stopped
-
-  layanan-auth:
-    build:
-      context: ./layanan-auth
-    container_name: layanan-auth
-    env_file:
-      - ./layanan-auth/.env
-    expose:
-      - "3000"
-    depends_on:
-      - postgres
-    networks:
-      - simpelnet
-    restart: unless-stopped
-
-  layanan-audit:
-    build:
-      context: ./layanan-audit
-    container_name: layanan-audit
-    env_file:
-      - ./layanan-audit/.env
-    expose:
-      - "3000"
-    depends_on:
-      - postgres
-    networks:
-      - simpelnet
-    restart: unless-stopped
-
-  layanan-pengguna:
-    build:
-      context: ./layanan-pengguna
-    container_name: layanan-pengguna
-    env_file:
-      - ./layanan-pengguna/.env
-    expose:
-      - "3000"
-    depends_on:
-      - postgres
-    networks:
-      - simpelnet
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   antarmuka:
     build:
@@ -94,6 +57,68 @@ services:
     networks:
       - simpelnet
     restart: unless-stopped
+
+  layanan-keamanan:
+    build:
+      context: ./layanan-keamanan
+    container_name: layanan-keamanan
+    env_file:
+      - ./layanan-keamanan/.env
+    expose:
+      - "3000"
+    depends_on:
+      - db-simpelv2
+    networks:
+      - simpelnet
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  layanan-audit:
+    build:
+      context: ./layanan-audit
+    container_name: layanan-audit
+    env_file:
+      - ./layanan-audit/.env
+    expose:
+      - "3000"
+    depends_on:
+      - db-simpelv2
+    networks:
+      - simpelnet
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  layanan-integrasi:
+    build:
+      context: ./layanan-integrasi
+    container_name: layanan-integrasi
+    env_file:
+      - ./layanan-integrasi/.env
+    volumes:
+      - ./layanan-integrasi/config/:/app/config
+    networks:
+      - simpelnet
+    restart: unless-stopped
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:

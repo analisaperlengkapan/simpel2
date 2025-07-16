@@ -11,20 +11,11 @@ func SetupRoutes(app *fiber.App) {
 	// Routing semua prefix ke layanan terkait
 	// AUTH
 	app.All("/api/auth/*", proxy.Balancer(proxy.Config{
-		Servers: []string{"http://layanan-auth:3000"},
+		Servers: []string{"http://layanan-kemanan:3000"},
 	}))
 
 	app.All("/auth/*", proxy.Balancer(proxy.Config{
-		Servers: []string{"http://layanan-auth:3000"},
-	}))
-
-	// PENGGUNA
-	app.All("/api/pengguna/*", proxy.Balancer(proxy.Config{
-		Servers: []string{"http://layanan-pengguna:3000"},
-	}))
-
-	app.All("/pengguna/*", proxy.Balancer(proxy.Config{
-		Servers: []string{"http://layanan-pengguna:3000"},
+		Servers: []string{"http://layanan-keamanan:3000"},
 	}))
 
 	// ASET
@@ -106,5 +97,14 @@ func SetupRoutes(app *fiber.App) {
 
 	app.All("/laporan/*", proxy.Balancer(proxy.Config{
 		Servers: []string{"http://layanan-laporan:3000"},
+	}))
+
+	// INTEGRASI
+	app.All("/api/integrasi/*", proxy.Balancer(proxy.Config{
+		Servers: []string{"http://layanan-integrasi:3000"},
+	}))
+
+	app.All("/integrasi/*", proxy.Balancer(proxy.Config{
+		Servers: []string{"http://layanan-integrasi:3000"},
 	}))
 }

@@ -1,0 +1,29 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": gerbang
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": gerbang
+  "template":
+    "metadata":
+      "labels":
+        "app": gerbang
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": gerbang
+        "image": simpelv2/gerbang:dev
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 8080
+        "command":
+        - ./main
+        "volumeMounts": []
+        "envFrom":
+        - "secretRef":
+            "name": gerbang-secret
+      "volumes": []

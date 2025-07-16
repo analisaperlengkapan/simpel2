@@ -1,5 +1,3 @@
-// layanan-audit/internal/db/db.go
-
 package db
 
 import (

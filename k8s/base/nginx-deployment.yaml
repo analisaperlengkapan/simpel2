@@ -1,0 +1,48 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": nginx
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": nginx
+  "template":
+    "metadata":
+      "labels":
+        "app": nginx
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": nginx
+        "image": nginx:stable-alpine
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 80
+        "volumeMounts":
+        - "name": nginx-vol-0
+          "mountPath": /etc/nginx/conf.d
+          "readOnly": true
+        - "name": nginx-vol-1
+          "mountPath": /etc/nginx/certs
+          "readOnly": true
+        - "name": nginx-vol-2
+          "mountPath": /usr/share/nginx/html
+          "readOnly": true
+        "envFrom":
+        - "secretRef":
+            "name": nginx-secret
+      "volumes":
+      - "name": nginx-vol-0
+        "hostPath":
+          "path": /var/www/simpelv2/nginx/conf.d
+          "type": DirectoryOrCreate
+      - "name": nginx-vol-1
+        "hostPath":
+          "path": /var/www/simpelv2/nginx/certs
+          "type": DirectoryOrCreate
+      - "name": nginx-vol-2
+        "hostPath":
+          "path": /var/www/simpelv2/antarmuka/dist
+          "type": DirectoryOrCreate

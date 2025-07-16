@@ -1,6 +1,69 @@
+# 🔐 Environment files & secrets
 .env
-.env.postgres
-gerbang/.env
-layanan-audit/.env
-layanan-auth/.env
-layanan-pengguna/.env
+.env.*
+**/.env
+**/.env.*
+
+# 🐳 Docker artifacts
+*.tar
+docker-compose.override.yml
+
+# 🛢️ Data volume PostgreSQL
+pgdata/
+
+# 🔧 K8s & Sealed Secrets
+k8s/secrets/sealed/
+k8s/overlays/**/kustomization.yaml
+
+# 📦 Node (frontend React)
+node_modules/
+antarmuka/node_modules/
+dist/
+dist-ssr/
+*.local
+
+# 🧱 Python
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+
+# 🧪 Test / coverage / profiling
+coverage/
+*.lcov
+*.out
+*.testlog
+
+# 📄 Logs & debug
+logs/
+*.log
+*.pid
+
+# ⚙️ Editor & OS
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+*.swp
+*.swo
+*.sln
+*.njsproj
+
+# 💥 Build cache / lock
+pnpm-lock.yaml
+yarn.lock
+npm-debug.log*
+package-lock.json
+lerna-debug.log*
+
+# 🚫 Output sementara atau hasil CI/CD
+*.bak
+*.tmp
+*.old
+*.orig
+
+# ⚙️ File hasil autogen Python
+scripts/*.autogen.*
