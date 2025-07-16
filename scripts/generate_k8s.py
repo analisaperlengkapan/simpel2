@@ -399,6 +399,11 @@ def main():
         all_files.append("ingress-tls.yaml")
 
     validate_generated_yaml(overlay_dir)
+    sealed_dir = Path(K8S_DIR) / "secrets" / "sealed"
+    for sealed_file in sealed_dir.glob("*.yaml"):
+        dst = Path(overlay_dir) / sealed_file.name
+        shutil.copy(sealed_file, dst)
+        all_files.append(sealed_file.name)
     print(f"✅ YAML untuk environment `{ENV}` berhasil digenerate di `{overlay_dir}`")
 
 def seal_env_to_sealed_secret(secret_obj, name):

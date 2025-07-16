@@ -3,6 +3,7 @@
 .env.*
 **/.env
 **/.env.*
+*/.env
 
 # 🐳 Docker artifacts
 *.tar
@@ -11,9 +12,12 @@ docker-compose.override.yml
 # 🛢️ Data volume PostgreSQL
 pgdata/
 
-# 🔧 K8s & Sealed Secrets
+# 🔧 Kubernetes & Sealed Secrets
 k8s/secrets/sealed/
-k8s/overlays/**/kustomization.yaml
+k8s/generated/
+k8s/**/*.autogen.yaml
+!k8s/secrets/sealed/*.yaml
+*-secret.yaml
 
 # 📦 Node (frontend React)
 node_modules/
@@ -29,9 +33,11 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
+scripts/*.autogen.*
 
 # 🧪 Test / coverage / profiling
 coverage/
+.pytest_cache/
 *.lcov
 *.out
 *.testlog
@@ -62,10 +68,15 @@ package-lock.json
 lerna-debug.log*
 
 # 🚫 Output sementara atau hasil CI/CD
+build/
+output/
+artifacts/
+*.sealed.yaml
 *.bak
 *.tmp
 *.old
 *.orig
 
-# ⚙️ File hasil autogen Python
-scripts/*.autogen.*
+# 🗄️ SQLite (optional)
+*.sqlite
+*.sqlite3
