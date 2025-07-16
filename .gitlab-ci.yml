@@ -6,6 +6,7 @@ stages:
   - test
   - deploy
   - release
+  - dast  
 
 variables:
   BASE_DIR: "/var/www/simpelv2"
