@@ -218,7 +218,6 @@ File `CODEOWNERS` otomatis menetapkan reviewer berdasarkan path file. Contoh:
 * Semua data bersifat internal dan rahasia
 * Pelanggaran akan dikenai sanksi (hukum & etika)
 
-Kontak kerahasiaan: `tim.keamanan@simpelv2.go.id`
 
 ---
 
