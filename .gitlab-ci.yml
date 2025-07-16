@@ -88,7 +88,6 @@ include:
   - template: Security/Container-Scanning.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
   - template: Security/DAST.gitlab-ci.yml
-  - template: Security/SCA.gitlab-ci.yml
 
 coverage:go:
   stage: test
