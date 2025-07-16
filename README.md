@@ -1,4 +1,10 @@
-# SIMPelv2
+## 🚀 SIMPelv2
+
+[![GitLab CI](https://gitlab.com/analisiskebutuhan/simpelv2_web/badges/main/pipeline.svg)](https://gitlab.com/analisiskebutuhan/simpelv2_web/pipelines)
+![Lint Status](https://img.shields.io/badge/lint-passing-brightgreen)
+![Security Scan](https://img.shields.io/badge/security-enabled-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
+[![Coverage](https://gitlab.com/analisiskebutuhan/simpelv2_web/badges/main/coverage.svg)](https://gitlab.com/analisiskebutuhan/simpelv2_web/-/graphs/main/charts)
 
 **SIMPelv2** (Sistem Informasi Manajemen Barang Milik Negara Versi 2) adalah platform modern berbasis web untuk mengelola siklus hidup Barang Milik Negara (BMN), dibangun dengan arsitektur **microservices**, pendekatan **AI modular**, serta mematuhi standar **ISO dan keamanan informasi tingkat tinggi**.
 
@@ -11,10 +17,11 @@
 * [Fitur Unggulan](#fitur-unggulan)
 * [Teknologi Inti](#teknologi-inti)
 * [Instalasi & Setup](#instalasi--setup)
-* [Struktur Microservices](#struktur-microservices)
+* [Struktur Microservices & Folder](#struktur-microservices--folder)
 * [AI & Otomasi](#ai--otomasi)
 * [Monitoring & Observabilitas](#monitoring--observabilitas)
 * [Perintah Makefile](#perintah-makefile)
+* [CI/CD GitLab](#cicd-gitlab)
 * [Keamanan Sistem](#keamanan-sistem)
 * [Kepatuhan & ISO](#kepatuhan--iso)
 * [Kontribusi](#kontribusi)
@@ -22,7 +29,7 @@
 
 ---
 
-## 🚀 Fitur Unggulan
+## ✅ Fitur Unggulan
 
 * ✅ Microservices modular berbasis Go (Gin)
 * ✅ Frontend SPA modern dengan React + Vite
@@ -82,13 +89,19 @@ make deploy-prod VERSION=v1.0.0
 
 ---
 
-## 📂 Struktur Microservices (23 Layanan Aktif + AI)
+## 🧱 Struktur Microservices & Folder
 
-```
+```text
 simpelv2/
 ├── antarmuka/                 # Frontend React Vite
 ├── gerbang/                   # Gateway Fiber (routing, middleware, RBAC)
 ├── nginx/                     # TLS, reverse proxy, static file
+├── scripts/                   # Script Python generate_k8s, validator
+├── k8s/                       # Struktur YAML Kustomize
+│   ├── base/                  # Template dasar Deployment/Service/Ingress
+│   ├── overlay/dev/           # Kustomisasi dev
+│   ├── overlay/staging/       # Kustomisasi staging
+│   └── overlay/prod/          # Kustomisasi production
 ├── layanan-aset/              # Master aset BMN (AI: klasifikasi, validasi)
 ├── layanan-usulan/            # Usulan kebutuhan (AI: estimasi kebutuhan)
 ├── layanan-rekomendasi/       # Rekomendasi jumlah & spesifikasi (AI: XGBoost)
@@ -156,6 +169,41 @@ Logging dikumpulkan dari semua layanan ke stack observabilitas.
 
 ---
 
+## 🔄 CI/CD GitLab
+
+### 📌 Perintah CI/CD yang Umum Digunakan
+
+```bash
+# 1. Push perubahan ke branch baru
+git checkout -b fitur/layanan-baru
+# ...edit file
+git add . && git commit -m "feat: tambah layanan baru"
+git push origin fitur/layanan-baru
+
+# 2. Buat Merge Request di GitLab Web ke branch main
+# Pipeline otomatis jalan dan validasi YAML, .env, dll
+
+# 3. (Opsional) Jalankan pipeline ulang secara manual jika gagal
+# Klik tombol retry di GitLab UI
+
+# 4. Setelah merge ke main, pipeline akan auto-deploy ke dev
+```
+
+### 🧬 Diagram Alur CI/CD (GitLab)
+
+```mermaid
+graph TB
+  A[📤 Commit/Push ke GitLab] --> B[🧪 Lint YAML & Validasi .env]
+  B --> C[⚙️ Generate YAML & 🔐 Seal Secret]
+  C --> D[🚦 Simulasi Pod (dry-run)]
+  D --> E{Branch = main?}
+  E -- Ya --> F[🚀 Deploy ke Dev]
+  F --> G[🏷️ Otomatisasi Tag & Release]
+  E -- Tidak --> H[🛑 Review Manual MR]
+```
+
+---
+
 ## 🔐 Keamanan Sistem
 
 * 🔐 TLS Digicert (Letakkan di `nginx/certs/`)
@@ -207,5 +255,3 @@ Jika menemukan bug atau ingin diskusi fitur, gunakan Issue Tracker atau email ke
 Hak Cipta © 2025 **Kejaksaan Republik Indonesia**
 Penggunaan terbatas untuk manajemen Barang Milik Negara.
 Dilarang memperjualbelikan ulang tanpa izin resmi.
-
----

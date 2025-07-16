@@ -1,0 +1,101 @@
+stages:
+  - lint
+  - validate
+  - build
+  - seal
+  - test
+  - deploy
+  - release
+
+variables:
+  BASE_DIR: "/var/www/simpelv2"
+  COMPOSE_FILE: "docker-compose.secure.yml"
+  ENV: "dev"
+  TAG: "dev"
+
+default:
+  image: python:3.10
+  before_script:
+    - apt-get update
+    - apt-get install -y curl docker.io yamllint git make
+    - pip install python-dotenv pyyaml
+
+# 🔍 Lint YAML
+lint:yaml:
+  stage: lint
+  script:
+    - echo "🔍 Melakukan lint YAML..."
+    - make lint-yaml
+
+# ✅ Validasi ENV
+validate:env:
+  stage: validate
+  script:
+    - echo "✅ Validasi .env..."
+    - make validate-env
+
+# 🔧 Generate YAML dari docker-compose
+generate:k8s:
+  stage: build
+  script:
+    - echo "🔧 Generate YAML dari docker-compose..."
+    - make generate-k8s
+
+# 🔐 Seal Secrets dari .env
+seal:secrets:
+  stage: seal
+  script:
+    - echo "🔐 Mengunduh dan menjalankan kubeseal..."
+    - curl -sL https://github.com/bitnami-labs/sealed-secrets/releases/latest/download/kubeseal-linux-amd64 -o kubeseal
+    - chmod +x kubeseal && mv kubeseal /usr/local/bin/kubeseal
+    - echo "🔐 Menyegel semua secrets..."
+    - make seal-secret NAME=db FILE=.env || echo "ℹ️ Tidak ada .env untuk db, dilewati."
+
+# 🧪 Test Run Image (simulate)
+test:simulate:
+  stage: test
+  script:
+    - echo "🧪 Simulasi pod run semua image..."
+    - make simulate-pod-run
+
+# 🚀 Deploy ke dev hanya untuk branch main
+deploy:dev:
+  stage: deploy
+  script:
+    - echo "🚀 Deploy ke environment dev..."
+    - make deploy-dev
+  only:
+    - main
+  when: manual
+
+# 🏷️ Auto-tag release jika commit ke main
+release:tag:
+  stage: release
+  only:
+    - main
+  script:
+    - |
+      VERSION="v$(date +'%Y.%m.%d.%H%M')"
+      git config user.email "ci@gitlab.com"
+      git config user.name "CI Bot"
+      git tag $VERSION
+      git push origin $VERSION
+
+# 🛡️ Security Scan (GitLab Templates)
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
+  - template: Security/Infrastructure-as-Code.gitlab-ci.yml
+  - template: Security/License-Management.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/API-Scanning.gitlab-ci.yml
+  - template: Security/DAST.gitlab-ci.yml
+  - template: Security/SCA.gitlab-ci.yml
+
+coverage:go:
+  stage: test
+  script:
+    - go test -coverprofile=coverage.out ./...
+    - go tool cover -func=coverage.out
+  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+%)/'
