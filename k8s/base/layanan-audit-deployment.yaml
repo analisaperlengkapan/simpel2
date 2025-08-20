@@ -1,0 +1,29 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": layanan-audit
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": layanan-audit
+  "template":
+    "metadata":
+      "labels":
+        "app": layanan-audit
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": layanan-audit
+        "image": simpelv2/layanan-audit:dev
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "command":
+        - ./main
+        "volumeMounts": []
+        "envFrom":
+        - "secretRef":
+            "name": layanan-audit-secret
+      "volumes": []

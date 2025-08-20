@@ -1,0 +1,11 @@
+"apiVersion": v1
+"kind": PersistentVolumeClaim
+"metadata":
+  "name": db-simpelv2-pvc
+  "namespace": simpelv2
+"spec":
+  "accessModes":
+  - ReadWriteOnce
+  "resources":
+    "requests":
+      "storage": 1Gi

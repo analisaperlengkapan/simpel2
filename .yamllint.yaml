@@ -1,0 +1,17 @@
+extends: default
+
+rules:
+  line-length:
+    max: 350
+  trailing-spaces: enable
+  document-start: disable
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+ignore: |
+  k8s/secrets/*
+  k8s/overlays/*/*-secret.yaml
+  k8s/overlays/*/grafana.yaml
+  k8s/overlays/*/prometheus.yaml
+  k8s/overlays/*/ingress-tls.yaml 
