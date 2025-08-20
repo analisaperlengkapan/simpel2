@@ -1,0 +1,38 @@
+stages:
+- build
+- test
+- deploy
+variables:
+  SERVICE_NAME: perencanaan
+  SERVICE_TYPE: frontend
+  BASE_DIR: /var/www/simpelv2
+default:
+  image: node:18-alpine
+  before_script:
+  - apk add --no-cache git make
+  - npm install -g npm@latest
+build:perencanaan:
+  stage: build
+  script:
+  - "echo \"\U0001F528 Building perencanaan...\""
+  - docker build -t perencanaan:$CI_COMMIT_SHA .
+  - docker tag perencanaan:$CI_COMMIT_SHA perencanaan:latest
+  artifacts:
+    paths:
+    - dist/perencanaan/
+    expire_in: 1 week
+test:perencanaan:
+  stage: test
+  script:
+  - "echo \"\U0001F9EA Testing perencanaan...\""
+  - make test-perencanaan
+  allow_failure: true
+deploy:perencanaan:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploying perencanaan...\""
+  - make deploy-perencanaan
+  environment:
+    name: perencanaan-dev
+    url: https://perencanaan.dev.simpelv2.local
+  when: manual

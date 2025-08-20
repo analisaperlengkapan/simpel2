@@ -1,0 +1,70 @@
+[package]
+name = "layanan-keamanan"
+version = "0.1.0"
+edition = "2021"
+authors = ["SIMPelv2 Team"]
+description = "Security service for SIMPelv2 - JWT, RBAC, MFA, Vault integration"
+
+[dependencies]
+# Web Framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "limit"] }
+hyper = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "macros", "migrate"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# JWT & Authentication
+jsonwebtoken = "9.2"
+argon2 = "0.5"
+rand = "0.8"
+
+# Vault Integration
+vaultrs = "0.4"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# MFA & Security
+totp-lite = "2.0"
+base32 = "0.4"
+qrcode = "0.13"
+
+# Configuration
+config = "0.14"
+dotenv = "0.15"
+
+# Logging & Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opentelemetry = { workspace = true }
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Crypto
+sha2 = "0.10"
+hmac = "0.12"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+prometheus = "0.13"
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+sentry = { version = "0.31", features = ["tracing"] }
+sentry-tracing = "0.31"
+
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
+
+[dev-dependencies]
+tokio-test = "0.4" 

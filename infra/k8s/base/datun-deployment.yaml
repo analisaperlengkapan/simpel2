@@ -1,0 +1,24 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": datun
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": datun
+  "template":
+    "metadata":
+      "labels":
+        "app": datun
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": datun
+        "image": simpelv2/datun:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "volumeMounts": []
+      "volumes": []

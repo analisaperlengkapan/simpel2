@@ -1,0 +1,63 @@
+# Optimized Trunk Template for SIMPelv2 Microfrontends
+[build]
+target = "index.html"
+dist = "dist"
+# Use release profile for production builds
+release = true
+
+# Advanced WASM optimization
+[[build.wasm_opt]]
+args = [
+    "-Oz",                    # Maximum size optimization
+    "--enable-bulk-memory",   # Enable bulk memory operations
+    "--enable-reference-types", # Enable reference types
+    "--enable-simd",          # Enable SIMD if supported
+    "--strip-debug",          # Remove debug information
+    "--strip-producers",      # Remove producers section
+    "--dce",                  # Dead code elimination
+    "--duplicate-function-elimination", # Remove duplicate functions
+    "--simplify-locals",      # Simplify local variables
+    "--vacuum",               # Final vacuum pass
+]
+
+# Advanced wasm-bindgen configuration
+[[build.wasm-bindgen]]
+target = "web"
+typescript = false         # Disable TS generation for smaller bundles
+debug = false             # No debug in production
+demangle = false          # No name demangling for size
+keep-debug = false        # Remove debug info
+no-modules-global = "wasm_bindgen"
+
+# Tree shaking and optimization
+[build.rust]
+optimization-level = "z"   # Maximum size optimization
+debug = false
+lto = true
+
+# Static file optimization
+[build.static]
+# Minify CSS and JS
+minify = true
+
+# Development server configuration
+[serve]
+port = 8080
+addresses = ["0.0.0.0"]
+open = false              # Don't auto-open browser
+# Enable compression in dev
+ws = true
+
+# Watch configuration for faster rebuilds
+[watch]
+watch = ["src", "styles"]
+ignore = ["target", "dist", "Cargo.lock", ".git"]
+# Only rebuild on actual changes
+debounce = 100
+
+# Asset optimization
+[asset]
+# Compress images
+compress = true
+# Cache control for static assets
+max-age = 31536000        # 1 year for immutable assets

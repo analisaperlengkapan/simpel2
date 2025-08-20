@@ -1,0 +1,54 @@
+{
+  "name": "gerbang",
+  "type": "backend",
+  "description": "API Gateway menggunakan Envoy Proxy untuk SIMPelv2",
+  "version": "1.0.0",
+  "api_prefix": "/api/gerbang",
+  "health_check": {
+    "path": "/health",
+    "port": 8080
+  },
+  "envoy_config": {
+    "enabled": true,
+    "cluster_name": "gerbang",
+    "port": 8080,
+    "timeout": "30s",
+    "retry_policy": {
+      "retry_on": "connect-failure,refused-stream,unavailable,cancelled,retriable-status-codes",
+      "num_retries": 3,
+      "per_try_timeout": "5s"
+    },
+    "cors": {
+      "enabled": true,
+      "allow_origin": ["*"],
+      "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allow_headers": ["*"]
+    },
+    "rate_limit": {
+      "enabled": true,
+      "requests_per_second": 100
+    },
+    "circuit_breaker": {
+      "enabled": true,
+      "max_requests": 1000,
+      "max_retries": 3
+    }
+  },
+  "dependencies": [
+    "layanan-keamanan",
+    "layanan-integrasi"
+  ],
+  "environment": {
+    "ENVOY_PORT": "8080",
+    "ENVOY_ADMIN_PORT": "9901",
+    "LOG_LEVEL": "info"
+  },
+  "build": {
+    "context": "./gerbang",
+    "dockerfile": "Dockerfile"
+  },
+  "ports": [
+    "8080:8080",
+    "9901:9901"
+  ]
+} 

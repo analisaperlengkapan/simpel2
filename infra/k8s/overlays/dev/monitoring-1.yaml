@@ -1,0 +1,12 @@
+"apiVersion": v1
+"kind": ConfigMap
+"metadata":
+  "name": prometheus-config
+  "namespace": simpelv2
+"data":
+  "prometheus.yml": "\nglobal:\n  scrape_interval: 15s\n  evaluation_interval: 15s\n  scrape_timeout: 10s\n\nrule_files:\n\
+    \  # - \"first_rules.yml\"\n  # - \"second_rules.yml\"\n\nscrape_configs:\n  - job_name: 'simpelv2'\n    static_configs:\n\
+    \      - targets: ['badiklat:3000',\n          'datun:3000',\n          'intel:3000',\n          'pembinaan:3000',\n \
+    \         'pemulihan-aset:3000',\n          'pengawasan:3000',\n          'pidmil:3000',\n          'pidsus:3000',\n \
+    \         'pidum:3000',\n          'portal:80',\n          'gerbang:8080',\n          'src:7000',\n          'db:3000']\n\
+    \    metrics_path: /metrics\n    scrape_interval: 15s\n    scrape_timeout: 10s\n"

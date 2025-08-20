@@ -1,0 +1,72 @@
+[package]
+name = "simpelv2-konfigurasi"
+version = "0.1.0"
+edition = "2021"
+authors = ["SIMPelv2 Team"]
+description = "SIMPelv2 - Layanan Konfigurasi & Settings"
+license = "MIT"
+
+[dependencies]
+# Core Axum Framework
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Database & Persistence
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+toml = "0.8"
+
+# Validation & Errors
+validator = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+sentry = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+time = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+
+# HTTP Client
+reqwest = { workspace = true }
+
+# Encryption untuk sensitive config
+ring = "0.17"
+base64 = "0.22"
+
+# File watching untuk config changes
+notify = "6.1"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+reqwest = { workspace = true }
+serial_test = "3"
+tempfile = "3"
+
+[features]
+default = ["encryption", "hot-reload", "validation"]
+encryption = []
+hot-reload = []
+validation = []
+audit = []
+
+[[bin]]
+name = "simpelv2-konfigurasi"
+path = "src/main.rs"

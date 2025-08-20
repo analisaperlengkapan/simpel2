@@ -1,0 +1,74 @@
+[package]
+name = "simpelv2-bantuan"
+version = "0.1.0"
+edition = "2021"
+authors = ["SIMPelv2 Team"]
+description = "SIMPelv2 - Layanan Bantuan (Help Service)"
+license = "MIT"
+
+[dependencies]
+# Core Axum Framework
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Database & Persistence
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+
+# Validation & Errors
+validator = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+sentry = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+time = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+
+# HTTP Client
+reqwest = { workspace = true }
+
+# Specific Features
+tokio-util = "0.7"
+walkdir = "2"
+mime = "0.3"
+tokio-stream = "0.1"
+base64 = "0.22"
+captcha = "0.0.9"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+reqwest = { workspace = true }
+assert-json-diff = "2"
+serial_test = "3"
+tempfile = "3"
+mockall = "0.12"
+
+[features]
+default = ["ai", "webhook"]
+ai = []
+webhook = []
+
+[[bin]]
+name = "simpelv2-bantuan"
+path = "src/main.rs"
+export = []
+gdpr = []

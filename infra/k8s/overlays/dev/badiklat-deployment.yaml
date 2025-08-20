@@ -1,0 +1,24 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": badiklat
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": badiklat
+  "template":
+    "metadata":
+      "labels":
+        "app": badiklat
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": badiklat
+        "image": simpelv2/badiklat:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "volumeMounts": []
+      "volumes": []

@@ -1,0 +1,22 @@
+[package]
+name = "perencanaan-microfrontend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+shared-microfrontend = { workspace = true }
+gloo-net = { workspace = true }
+gloo-utils = { workspace = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true, features = ["HtmlInputElement", "Window", "History"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+log = "0.4"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

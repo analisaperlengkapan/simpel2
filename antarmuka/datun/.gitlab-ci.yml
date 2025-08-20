@@ -1,0 +1,38 @@
+stages:
+- build
+- test
+- deploy
+variables:
+  SERVICE_NAME: datun
+  SERVICE_TYPE: frontend
+  BASE_DIR: /var/www/simpelv2
+default:
+  image: node:18-alpine
+  before_script:
+  - apk add --no-cache git make
+  - npm install -g npm@latest
+build:datun:
+  stage: build
+  script:
+  - "echo \"\U0001F528 Building datun...\""
+  - docker build -t datun:$CI_COMMIT_SHA .
+  - docker tag datun:$CI_COMMIT_SHA datun:latest
+  artifacts:
+    paths:
+    - dist/datun/
+    expire_in: 1 week
+test:datun:
+  stage: test
+  script:
+  - "echo \"\U0001F9EA Testing datun...\""
+  - make test-datun
+  allow_failure: true
+deploy:datun:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploying datun...\""
+  - make deploy-datun
+  environment:
+    name: datun-dev
+    url: https://datun.dev.simpelv2.local
+  when: manual

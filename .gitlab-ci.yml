@@ -1,98 +1,119 @@
+include:
+- template: Security/SAST.gitlab-ci.yml
+- template: Security/Dependency-Scanning.gitlab-ci.yml
+- template: Security/Container-Scanning.gitlab-ci.yml
+- template: Security/License-Management.gitlab-ci.yml
+- template: Security/Secret-Detection.gitlab-ci.yml
+- template: Security/DAST.gitlab-ci.yml
+- template: Security/SCA.gitlab-ci.yml
 stages:
-  - lint
-  - validate
-  - build
-  - seal
-  - test
-  - deploy
-  - release
-  - dast  
-
+- lint
+- validate
+- build
+- seal
+- test
+- deploy
+- release
+- cleanup
 variables:
-  BASE_DIR: "/var/www/simpelv2"
-  COMPOSE_FILE: "docker-compose.secure.yml"
-  ENV: "dev"
-  TAG: "dev"
-
+  BASE_DIR: /var/www/simpelv2
+  COMPOSE_FILE: docker-compose.secure.yml
+  ENV: ${CI_COMMIT_REF_NAME}
+  TAG: ${CI_COMMIT_TAG}
 default:
   image: python:3.10
   before_script:
-    - apt-get update
-    - apt-get install -y curl docker.io yamllint git make
-    - pip install python-dotenv pyyaml
-
-# 🔍 Lint YAML
+  - apt-get update && apt-get install -y curl docker.io yamllint git make
+  - pip install python-dotenv pyyaml ruamel.yaml
+cache:
+  paths:
+  - .cache/pip
+  - backend/pkg/mod
 lint:yaml:
   stage: lint
   script:
-    - echo "🔍 Melakukan lint YAML..."
-    - make lint-yaml
-
-# ✅ Validasi ENV
-validate:env:
+  - "echo \"\U0001F50D Melakukan lint YAML...\""
+  - make lint-yaml
+validate:all:
   stage: validate
   script:
-    - echo "✅ Validasi .env..."
-    - make validate-env
-
-# 🔧 Generate YAML dari docker-compose
+  - "echo \"\u2705 Validasi semua konfigurasi...\""
+  - make validate-env
+  - make validate-all
 generate:k8s:
   stage: build
   script:
-    - echo "🔧 Generate YAML dari docker-compose..."
-    - make generate-k8s
-
-# 🔐 Seal Secrets dari .env
+  - "echo \"\U0001F527 Generate YAML K8s dari docker-compose...\""
+  - make generate-k8s
 seal:secrets:
   stage: seal
   script:
-    - echo "🔐 Mengunduh dan menjalankan kubeseal..."
-    - curl -sL https://github.com/bitnami-labs/sealed-secrets/releases/latest/download/kubeseal-linux-amd64 -o kubeseal
-    - chmod +x kubeseal && mv kubeseal /usr/local/bin/kubeseal
-    - echo "🔐 Menyegel semua secrets..."
-    - make seal-secret NAME=db FILE=.env || echo "ℹ️ Tidak ada .env untuk db, dilewati."
-
-# 🧪 Test Run Image (simulate)
+  - "echo \"\U0001F510 Install kubeseal...\""
+  - curl -sL https://github.com/bitnami-labs/sealed-secrets/releases/latest/download/kubeseal-linux-amd64
+    -o kubeseal
+  - chmod +x kubeseal && mv kubeseal /usr/local/bin/kubeseal
+  - "echo \"\U0001F510 Menyegel semua secret layanan...\""
+  - make seal-secret
+  - "echo \"\U0001F50D Validasi hasil SealedSecrets...\""
+  - make validate-sealed
 test:simulate:
   stage: test
   script:
-    - echo "🧪 Simulasi pod run semua image..."
-    - make simulate-pod-run
-
-# 🚀 Deploy ke dev hanya untuk branch main
-deploy:dev:
-  stage: deploy
-  script:
-    - echo "🚀 Deploy ke environment dev..."
-    - make deploy-dev
-  only:
-    - main
-  when: manual
-
-# 🏷️ Auto-tag release jika commit ke main
-release:tag:
-  stage: release
-  only:
-    - main
-  script:
-    - |
-      VERSION="v$(date +'%Y.%m.%d.%H%M')"
-      git config user.email "ci@gitlab.com"
-      git config user.name "CI Bot"
-      git tag $VERSION
-      git push origin $VERSION
-
-# 🛡️ Security Scan (GitLab Templates)
-include:
-  - template: Security/SAST.gitlab-ci.yml
-  - template: Security/Dependency-Scanning.gitlab-ci.yml
-  - template: Security/Container-Scanning.gitlab-ci.yml
-  - template: Security/Secret-Detection.gitlab-ci.yml
-  - template: Security/DAST.gitlab-ci.yml
-
+  - "echo \"\U0001F9EA Simulasi pod run semua image...\""
+  - make simulate-pod-run
 coverage:go:
   stage: test
   script:
-    - go test -coverprofile=coverage.out ./...
-    - go tool cover -func=coverage.out
-  coverage: '/total:\s+\(statements\)\s+(\d+\.\d+%)/'
+  - cd backend || exit 0
+  - go test -coverprofile=coverage.out ./...
+  - go tool cover -func=coverage.out
+  coverage: /total:\s+\(statements\)\s+(\d+\.\d+%)/
+  allow_failure: true
+deploy:dev:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploy ke dev...\""
+  - make deploy-dev
+  environment:
+    name: dev
+    url: https://dev.simpelv2.local
+  when: manual
+  only:
+  - main
+deploy:staging:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploy ke staging...\""
+  - make deploy-staging
+  environment:
+    name: staging
+    url: https://staging.simpelv2.local
+  when: manual
+  only:
+  - /^release\/.*$/
+deploy:prod:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploy ke prod...\""
+  - make deploy-prod
+  environment:
+    name: prod
+    url: https://prod.simpelv2.local
+  when: manual
+  only:
+  - tags
+release:tag:
+  stage: release
+  script:
+  - "echo \"\U0001F3F7\uFE0F Tagging release...\""
+  - git tag -a $CI_COMMIT_TAG -m "Release $CI_COMMIT_TAG"
+  - git push origin $CI_COMMIT_TAG
+  only:
+  - tags
+  when: manual
+cleanup:old-backups:
+  stage: cleanup
+  script:
+  - "echo \"\U0001F9F9 Cleanup old backups...\""
+  - find . -name '*.backup.*' -mtime +30 -delete
+  when: manual

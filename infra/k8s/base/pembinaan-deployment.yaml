@@ -1,0 +1,24 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": pembinaan
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": pembinaan
+  "template":
+    "metadata":
+      "labels":
+        "app": pembinaan
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": pembinaan
+        "image": simpelv2/pembinaan:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "volumeMounts": []
+      "volumes": []

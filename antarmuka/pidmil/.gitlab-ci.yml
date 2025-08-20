@@ -1,0 +1,38 @@
+stages:
+- build
+- test
+- deploy
+variables:
+  SERVICE_NAME: pidmil
+  SERVICE_TYPE: frontend
+  BASE_DIR: /var/www/simpelv2
+default:
+  image: node:18-alpine
+  before_script:
+  - apk add --no-cache git make
+  - npm install -g npm@latest
+build:pidmil:
+  stage: build
+  script:
+  - "echo \"\U0001F528 Building pidmil...\""
+  - docker build -t pidmil:$CI_COMMIT_SHA .
+  - docker tag pidmil:$CI_COMMIT_SHA pidmil:latest
+  artifacts:
+    paths:
+    - dist/pidmil/
+    expire_in: 1 week
+test:pidmil:
+  stage: test
+  script:
+  - "echo \"\U0001F9EA Testing pidmil...\""
+  - make test-pidmil
+  allow_failure: true
+deploy:pidmil:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploying pidmil...\""
+  - make deploy-pidmil
+  environment:
+    name: pidmil-dev
+    url: https://pidmil.dev.simpelv2.local
+  when: manual

@@ -1,0 +1,24 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": portal
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": portal
+  "template":
+    "metadata":
+      "labels":
+        "app": portal
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": portal
+        "image": simpelv2/portal:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 80
+        "volumeMounts": []
+      "volumes": []

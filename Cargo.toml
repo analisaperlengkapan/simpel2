@@ -1,0 +1,162 @@
+[workspace]
+resolver = "2"
+members = [
+    # Frontend Shared Library
+    "antarmuka/shared",
+
+    # Frontend Microfrontends (Leptos)
+    "antarmuka/badiklat",
+    "antarmuka/datun",
+    "antarmuka/intel",
+    "antarmuka/pemulihan_aset",
+    "antarmuka/pengawasan",
+    "antarmuka/pidmil",
+    "antarmuka/pidsus",
+    "antarmuka/pidum",
+    "antarmuka/portal",
+
+    # Pembinaan Microfrontends
+    "antarmuka/pembinaan/keuangan",
+    "antarmuka/pembinaan/perencanaan",
+    "antarmuka/pembinaan/perlengkapan",
+]
+
+[workspace.dependencies]
+# Axum Backend Dependencies
+axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tokio = { version = "1.35", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "macros", "migrate", "uuid", "time"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "limit", "auth", "fs", "compression-gzip"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+uuid = { version = "1.6", features = ["v4", "serde", "js"] }
+time = { version = "0.3", features = ["serde", "macros"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+dotenvy = "0.15"
+
+# Security & Authentication
+argon2 = "0.5"
+jsonwebtoken = "9.2"
+oauth2 = "4.4"
+rand = "0.8"
+
+# Frontend Shared Dependencies
+shared-microfrontend = { path = "antarmuka/shared" }
+regex = "1.10"
+urlencoding = "2.1"
+
+# Database & Caching
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+mongodb = "2.8"
+
+# HTTP Client - Unified version
+reqwest = { version = "0.12", features = ["json", "multipart", "stream", "rustls-tls"], default-features = false }
+
+# Validation & Serialization
+validator = { version = "0.16", features = ["derive"] }
+
+# Monitoring & Observability
+opentelemetry = "0.21"
+opentelemetry-otlp = { version = "0.14", features = ["tonic", "tls"] }
+prometheus = "0.13"
+sentry = { version = "0.32", features = ["tracing"] }
+
+# Leptos Frontend Dependencies - Version 0.7.x minimal features
+leptos = { version = "0.7.8" }
+leptos_meta = { version = "0.7.8" }
+leptos_router = { version = "0.7.8" }
+leptos_dom = { version = "0.7.8" }
+leptos_macro = { version = "0.7.8" }
+server_fn = { version = "0.7.8" }
+
+# WASM specific - Updated for compatibility
+wasm-bindgen = "0.2.95"
+js-sys = "0.3.72"
+gloo-net = { version = "0.6", features = ["http"] }
+gloo-utils = "0.2.0"
+web-sys = { version = "0.3.72", features = [
+    "HtmlInputElement",
+    "Window",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "HtmlAnchorElement",
+    "Navigator",
+    "Location",
+    "History",
+    "Storage",
+    "console",
+    "Blob",
+    "BlobPropertyBag",
+    "Url"
+] }
+gloo-console = "0.3"
+gloo-storage = "0.3"
+
+# Utilities
+futures = "0.3"
+async-trait = "0.1"
+
+# Dev dependencies
+tokio-test = "0.4"
+
+[workspace.metadata.leptos]
+# Leptos configuration for all frontend projects
+output-name = "main"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+assets-dir = "public"
+style-file = "style/main.scss"
+tailwind-input-file = "style/tailwind.css"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_imports = "warn"
+unused_variables = "warn"
+dead_code = "warn"
+
+[workspace.lints.clippy]
+enum_glob_use = "deny"
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+# Performance optimization profiles
+[profile.dev]
+# Faster compile times for development
+opt-level = 1            # Light optimization for better dev experience
+debug = true
+incremental = true
+codegen-units = 256      # Parallel compilation
+lto = "thin"            # Thin LTO for faster incremental builds
+
+[profile.release]
+# Maximum optimization for production
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false   # Disable overflow checks in release
+
+# Optimized profile for WASM builds
+[profile.release-wasm]
+inherits = "release"
+opt-level = "z"          # Maximum size optimization
+debug = false            # Reduce WASM debug size
+lto = "fat"              # Full LTO for maximum optimization
+panic = "abort"
+strip = true
+codegen-units = 1
+
+# Fast development builds for WASM
+[profile.dev-wasm]
+inherits = "dev"
+opt-level = 1           # Light optimization for dev
+debug = false           # Reduce debug size in dev
+lto = "thin"           # Thin LTO for balance

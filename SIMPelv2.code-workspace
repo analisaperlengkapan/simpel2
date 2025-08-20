@@ -1,0 +1,183 @@
+{
+  // ==========================================
+  // SIMPelv2 - Multi-Module Workspace Configuration
+  // ==========================================
+  // Description: Complete development environment for SIMPelv2 project
+  // Version: 2.0 - Optimized for crash prevention and performance
+  // Last Updated: August 20, 2025
+  // ==========================================
+  "folders": [
+    {
+      "name": "🏠 SIMPelv2 Root",
+      "path": "."
+    },
+    {
+      "name": "🎨 Shared Components (Working)",
+      "path": "./antarmuka/shared"
+    },
+    {
+      "name": "🖥️ Frontend Microfrontends",
+      "path": "./antarmuka"
+    },
+    {
+      "name": "⚙️ Backend Services (Disabled)",
+      "path": "./layanan"
+    },
+    {
+      "name": "🐳 Infrastructure",
+      "path": "./infra"
+    },
+    {
+      "name": "📜 Scripts & Tools",
+      "path": "./scripts"
+    },
+    {
+      "name": "📖 Documentation",
+      "path": "./docs"
+    }
+  ],
+  "settings": {
+    // ========================================
+    // WORKSPACE-WIDE PERFORMANCE SETTINGS
+    // ========================================
+    "files.watcherExclude": {
+      "**/target/**": true,
+      "**/node_modules/**": true,
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/dist/**": true,
+      "**/pkg/**": true,
+      "**/layanan/*/target/**": true,
+      "**/.vscode-server/**": true,
+      "**/.cache/**": true
+    },
+    "search.exclude": {
+      "**/target/**": true,
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/pkg/**": true,
+      "**/.git/**": true,
+      "**/layanan/*/target/**": true,
+      "**/.*cache*/**": true
+    },
+    // ========================================
+    // RUST ANALYZER WORKSPACE SETTINGS - CRASH PREVENTION
+    // ========================================
+    "rust-analyzer.linkedProjects": [
+      "./antarmuka/shared/Cargo.toml"
+    ],
+    "rust-analyzer.cargo.buildScripts.enable": false,
+    "rust-analyzer.procMacro.enable": false,
+    "rust-analyzer.checkOnSave.enable": false,
+    "rust-analyzer.diagnostics.enable": false,
+    // ========================================
+    // EDITOR WORKSPACE BEHAVIOR
+    // ========================================
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.organizeImports": "explicit"
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    // ========================================
+    // LANGUAGE-SPECIFIC WORKSPACE SETTINGS
+    // ========================================
+    "[rust]": {
+      "editor.defaultFormatter": "rust-lang.rust-analyzer",
+      "editor.formatOnSave": true,
+      "editor.semanticHighlighting.enabled": true
+    },
+    "[toml]": {
+      "editor.defaultFormatter": null
+    },
+    "[json]": {
+      "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[yaml]": {
+      "editor.defaultFormatter": null
+    }
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "🎨 Build Shared Components",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--manifest-path",
+          "antarmuka/shared/Cargo.toml"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "🔍 Check Shared Components",
+        "type": "shell",
+        "command": "cargo",
+        "args": [
+          "check",
+          "--manifest-path",
+          "antarmuka/shared/Cargo.toml"
+        ],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "shared"
+        },
+        "problemMatcher": [
+          "$rustc"
+        ]
+      },
+      {
+        "label": "🚀 Start Development Environment",
+        "dependsOrder": "sequence",
+        "dependsOn": [
+          "🔍 Check Shared Components"
+        ]
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "🎨 Debug Shared Components",
+        "type": "node",
+        "request": "launch",
+        "program": "cargo",
+        "args": [
+          "test",
+          "--manifest-path",
+          "antarmuka/shared/Cargo.toml"
+        ],
+        "preLaunchTask": "🔍 Check Shared Components",
+        "cwd": "${workspaceFolder}/antarmuka/shared"
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "rust-lang.rust-analyzer",
+      "vadimcn.vscode-lldb",
+      "ms-azuretools.vscode-docker",
+      "ms-vscode.makefile-tools",
+      "tamasfe.even-better-toml",
+      "serayuzgur.crates",
+      "dustypomerleau.rust-syntax"
+    ]
+  }
+}

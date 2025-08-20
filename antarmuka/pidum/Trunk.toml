@@ -1,0 +1,16 @@
+[build]
+target = "index.html"
+dist = "dist"
+release = true
+
+[tools]
+wasm-opt = false
+
+[serve]
+port = 8085
+addresses = ["0.0.0.0"]
+open = false
+
+[watch]
+watch = ["src", "styles"]
+ignore = ["target", "dist", "Cargo.lock", ".git"]
