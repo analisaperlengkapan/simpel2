@@ -1,316 +1,378 @@
+# SIMPelv2 Base Docker Compose Configuration
+# Base services for all environments
+# Usage: 
+#   Development: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#   Production:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
 services:
-  badiklat:
-    build:
-      context: /var/www/simpelv2/antarmuka/badiklat
-      dockerfile: Dockerfile
-    ports:
-    - 3000:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: badiklat
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  datun:
-    build:
-      context: /var/www/simpelv2/antarmuka/datun
-      dockerfile: Dockerfile
-    ports:
-    - 3001:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: datun
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  intel:
-    build:
-      context: /var/www/simpelv2/antarmuka/intel
-      dockerfile: Dockerfile
-    ports:
-    - 3002:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: intel
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pembinaan:
-    build:
-      context: /var/www/simpelv2/antarmuka/pembinaan
-      dockerfile: keuangan/Dockerfile
-    ports:
-    - 3003:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pembinaan
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pemulihan-aset:
-    build:
-      context: /var/www/simpelv2/antarmuka/pemulihan_aset
-      dockerfile: Dockerfile
-    ports:
-    - 3004:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pemulihan-aset
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pengawasan:
-    build:
-      context: /var/www/simpelv2/antarmuka/pengawasan
-      dockerfile: Dockerfile
-    ports:
-    - 3005:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pengawasan
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pidmil:
-    build:
-      context: /var/www/simpelv2/antarmuka/pidmil
-      dockerfile: Dockerfile
-    ports:
-    - 3006:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pidmil
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pidsus:
-    build:
-      context: /var/www/simpelv2/antarmuka/pidsus
-      dockerfile: Dockerfile
-    ports:
-    - 3007:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pidsus
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
-  pidum:
-    build:
-      context: /var/www/simpelv2/antarmuka/pidum
-      dockerfile: Dockerfile
-    ports:
-    - 3008:3000
-    networks:
-    - simpelv2
-    - internal
-    labels:
-      simpelv2.role: frontend
-      simpelv2.name: pidum
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:3000
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # ================================
+  # MICROFRONTEND SERVICES (11 total)
+  # ================================
+  
+  # Portal - Main Entry Point
   portal:
     build:
-      context: /var/www/simpelv2/antarmuka/portal
+      context: ./antarmuka/portal
       dockerfile: Dockerfile
-    ports:
-    - 3009:80
     networks:
-    - simpelv2
-    - internal
+      - simpelv2
+      - internal
     labels:
       simpelv2.role: frontend
       simpelv2.name: portal
     healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:80
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
+
+  # Badiklat Microfrontend
+  badiklat:
+    build:
+      context: ./antarmuka/badiklat
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: badiklat
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Datun Microfrontend
+  datun:
+    build:
+      context: ./antarmuka/datun
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: datun
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Intel Microfrontend
+  intel:
+    build:
+      context: ./antarmuka/intel
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: intel
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Keuangan Microfrontend (formerly pembinaan)
+  keuangan:
+    build:
+      context: ./antarmuka/keuangan
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: keuangan
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Pemulihan Aset Microfrontend
+  pemulihan-aset:
+    build:
+      context: ./antarmuka/pemulihan_aset
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: pemulihan-aset
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Pengawasan Microfrontend
+  pengawasan:
+    build:
+      context: ./antarmuka/pengawasan
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: pengawasan
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Perencanaan Microfrontend
+  perencanaan:
+    build:
+      context: ./antarmuka/perencanaan
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: perencanaan
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Perlengkapan Microfrontend
+  perlengkapan:
+    build:
+      context: ./antarmuka/perlengkapan
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: perlengkapan
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # PIDMIL Microfrontend
+  pidmil:
+    build:
+      context: ./antarmuka/pidmil
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: pidmil
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # PIDSUS Microfrontend
+  pidsus:
+    build:
+      context: ./antarmuka/pidsus
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: pidsus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # PIDUM Microfrontend
+  pidum:
+    build:
+      context: ./antarmuka/pidum
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: frontend
+      simpelv2.name: pidum
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ================================
+  # BACKEND SERVICES
+  # ================================
+
+  # API Gateway
   gerbang:
     build:
       context: ./infra/gerbang
       dockerfile: Dockerfile
-    ports:
-    - 8080:8080
-    - 9901:9901
     networks:
-    - simpelv2
-    - internal
+      - simpelv2
+      - internal
     healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:8080
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
     labels:
       simpelv2.role: backend
       simpelv2.name: gerbang
-    volumes:
-    - ./logs/gerbang:/var/log
-  src:
+    restart: unless-stopped
+
+  # Security Service
+  layanan-keamanan:
     build:
-      context: /var/www/simpelv2/layanan/keamanan/src
+      context: ./layanan/keamanan
       dockerfile: Dockerfile
-    ports:
-    - 7001:7000
     networks:
-    - simpelv2
-    - internal
+      - simpelv2
+      - internal
     labels:
       simpelv2.role: backend
-      simpelv2.name: src
+      simpelv2.name: keamanan
     healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:7000
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-  db:
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-    - pgdata:/var/lib/postgresql/data
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Integration Service
+  layanan-integrasi:
+    build:
+      context: ./layanan/integrasi
+      dockerfile: Dockerfile
     networks:
-    - simpelv2
-    - internal
+      - simpelv2
+      - internal
+    labels:
+      simpelv2.role: backend
+      simpelv2.name: integrasi
     healthcheck:
-      test:
-      - CMD-SHELL
-      - pg_isready -U ${DB_USER}
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # ================================
+  # DATABASE SERVICES
+  # ================================
+
+  # Primary PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: simpelv2
+      POSTGRES_USER: simpelv2_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - simpelv2
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simpelv2_user -d simpelv2"]
       interval: 30s
       timeout: 10s
       retries: 5
     labels:
-      simpelv2.role: db
-      simpelv2.name: db
-  nginx:
-    image: nginx:stable-alpine
+      simpelv2.role: database
+      simpelv2.name: postgres
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
     volumes:
-    - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    - ./nginx/certs:/etc/nginx/certs:ro
-    - ./antarmuka/dist:/usr/share/nginx/html:ro
-    - ./logs/nginx:/var/log/nginx
-    ports:
-    - 80:80
-    - 443:443
+      - redis_data:/data
     networks:
-    - simpelv2
-    - internal
+      - simpelv2
+      - internal
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    labels:
+      simpelv2.role: cache
+      simpelv2.name: redis
+
+  # ================================
+  # INFRASTRUCTURE SERVICES
+  # ================================
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+      - ./antarmuka/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - portal
+      - gerbang
+    networks:
+      - simpelv2
     labels:
       simpelv2.role: infrastructure
       simpelv2.name: nginx
-  db-simpelv2:
-    image: postgres:15-alpine
-    environment:
-    - POSTGRES_PASSWORD=rahasia
-    - POSTGRES_USER=simpel
-    - POSTGRES_DB=simpelv2
-    ports:
-    - 5432:5432
-    volumes:
-    - pgdata:/var/lib/postgresql/data
-    networks:
-    - simpelv2
-    - internal
+    restart: unless-stopped
 
+# ================================
+# NETWORKS
+# ================================
 networks:
-  simpelv2: {}
+  simpelv2:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
   internal:
+    driver: bridge
     internal: true
+
+# ================================
+# VOLUMES
+# ================================
 volumes:
-  pgdata: {}
-  logs:
+  postgres_data:
+    driver: local
+  redis_data:
     driver: local
