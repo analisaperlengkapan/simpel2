@@ -17,8 +17,9 @@
 //! - [`api`] - HTTP client dan service layer
 //!
 //! ## 🚀 **Quick Start**
-//! ```rust
+//! ```rust,no_run
 //! use shared_microfrontend::prelude::*;
+//! use leptos::prelude::*;
 //!
 //! #[component]
 //! fn MyApp() -> impl IntoView {
