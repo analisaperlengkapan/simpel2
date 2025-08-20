@@ -1,0 +1,66 @@
+[package]
+name = "simpelv2-dasbor"
+version = "0.1.0"
+edition = "2021"
+authors = ["SIMPelv2 Team"]
+description = "SIMPelv2 - Layanan Dashboard & Analytics"
+license = "MIT"
+
+[dependencies]
+# Core Axum Framework
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Database & Persistence
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Validation & Errors
+validator = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+sentry = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+time = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+
+# HTTP Client untuk komunikasi dengan microservices lain
+reqwest = { workspace = true }
+
+# Chart & Analytics specific - Disabled due to fontconfig dependency
+# plotters = "0.3"
+ndarray = "0.15"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+reqwest = { workspace = true }
+serial_test = "3"
+tempfile = "3"
+
+[features]
+default = ["analytics", "real-time"]
+analytics = []
+real-time = []
+charts = []
+
+[[bin]]
+name = "simpelv2-dasbor"
+path = "src/main.rs"

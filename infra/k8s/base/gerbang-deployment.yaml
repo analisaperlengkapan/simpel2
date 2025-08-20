@@ -1,0 +1,31 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": gerbang
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": gerbang
+  "template":
+    "metadata":
+      "labels":
+        "app": gerbang
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": gerbang
+        "image": simpelv2/gerbang:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 8080
+        "volumeMounts":
+        - "name": gerbang-vol-0
+          "mountPath": /var/log
+          "readOnly": false
+      "volumes":
+      - "name": gerbang-vol-0
+        "hostPath":
+          "path": /var/www/simpelv2/logs/gerbang
+          "type": DirectoryOrCreate

@@ -1,0 +1,70 @@
+[package]
+name = "simpelv2-integrasi"
+version = "0.1.0"
+edition = "2021"
+authors = ["SIMPelv2 Team"]
+description = "SIMPelv2 - Layanan Integrasi Microservices"
+license = "MIT"
+
+[dependencies]
+# Core Axum Framework
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Database & Persistence
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Validation & Errors
+validator = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+sentry = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+time = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
+
+# HTTP Client untuk service-to-service communication
+reqwest = { workspace = true }
+
+# Message Queue & Event Streaming
+tokio-stream = "0.1"
+lapin = "2.3"  # RabbitMQ client
+
+# Service mesh & discovery
+# etcd-rs = "1.0"  # Service registry - Disabled due to protoc requirement
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+reqwest = { workspace = true }
+serial_test = "3"
+tempfile = "3"
+
+[features]
+default = ["service-discovery", "message-queue", "circuit-breaker"]
+service-discovery = []
+message-queue = []
+circuit-breaker = []
+load-balancing = []
+
+[[bin]]
+name = "simpelv2-integrasi"
+path = "src/main.rs"

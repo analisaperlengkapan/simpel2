@@ -1,0 +1,38 @@
+stages:
+- build
+- test
+- deploy
+variables:
+  SERVICE_NAME: nginx
+  SERVICE_TYPE: generic
+  BASE_DIR: /var/www/simpelv2
+default:
+  image: python:3.10
+  before_script:
+  - apt-get update && apt-get install -y curl git make
+  - pip install python-dotenv pyyaml
+build:nginx:
+  stage: build
+  script:
+  - "echo \"\U0001F528 Building nginx...\""
+  - docker build -t nginx:$CI_COMMIT_SHA .
+  - docker tag nginx:$CI_COMMIT_SHA nginx:latest
+  artifacts:
+    paths:
+    - dist/nginx/
+    expire_in: 1 week
+test:nginx:
+  stage: test
+  script:
+  - "echo \"\U0001F9EA Testing nginx...\""
+  - make test-nginx
+  allow_failure: true
+deploy:nginx:
+  stage: deploy
+  script:
+  - "echo \"\U0001F680 Deploying nginx...\""
+  - make deploy-nginx
+  environment:
+    name: nginx-dev
+    url: https://nginx.dev.simpelv2.local
+  when: manual

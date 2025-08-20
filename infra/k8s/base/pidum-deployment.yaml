@@ -1,0 +1,24 @@
+"apiVersion": apps/v1
+"kind": Deployment
+"metadata":
+  "name": pidum
+  "namespace": simpelv2
+"spec":
+  "replicas": 1
+  "selector":
+    "matchLabels":
+      "app": pidum
+  "template":
+    "metadata":
+      "labels":
+        "app": pidum
+    "spec":
+      "restartPolicy": Always
+      "containers":
+      - "name": pidum
+        "image": simpelv2/pidum:latest
+        "imagePullPolicy": IfNotPresent
+        "ports":
+        - "containerPort": 3000
+        "volumeMounts": []
+      "volumes": []

@@ -1,0 +1,12 @@
+"apiVersion": v1
+"kind": Service
+"metadata":
+  "name": pengawasan
+  "namespace": simpelv2
+"spec":
+  "selector":
+    "app": pengawasan
+  "ports":
+  - "name": port-0
+    "port": 3005
+    "targetPort": 3000

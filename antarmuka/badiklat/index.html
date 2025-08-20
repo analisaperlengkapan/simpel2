@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badiklat - SIMPelv2</title>
+    <meta name="description" content="Sistem Informasi Manajemen Pengelolaan BMN - Badiklat">
+    <meta name="theme-color" content="#1e40af">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <!-- SIMPelv2 Design System -->
+    <link rel="stylesheet" href="../shared/styles/main.css">
+    <!-- BADIKLAT Theme -->
+    <link rel="stylesheet" href="styles/badiklat.css">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Trunk WASM configuration -->
+    <link data-trunk rel="rust" data-bin="badiklat-microfrontend" data-wasm-opt="z" data-wasm-opt-params="--enable-bulk-memory" />
+    
+    <!-- Custom styles akan di-inject oleh Leptos -->
+    <style>
+        /* Critical CSS untuk mencegah FOUC */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafb;
+        }
+        
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading state sebelum WASM dimuat -->
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+        </div>
+    </div>
+    
+    <!-- Leptos akan inject script tags di sini -->
+</body>
+</html> 

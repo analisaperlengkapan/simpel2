@@ -1,0 +1,12 @@
+"apiVersion": v1
+"kind": Service
+"metadata":
+  "name": pemulihan-aset
+  "namespace": simpelv2
+"spec":
+  "selector":
+    "app": pemulihan-aset
+  "ports":
+  - "name": port-0
+    "port": 3004
+    "targetPort": 3000

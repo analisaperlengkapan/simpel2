@@ -1,0 +1,192 @@
+# ===============================
+# 🔐 Environment Files & Secrets
+# ===============================
+.env
+.env.*
+**/.env
+**/.env.*
+*/.env
+*-secret.yaml
+*.enc
+*.pem
+**/private.key
+
+# ============================
+# 🐳 Docker Artifacts & Images
+# ============================
+*.tar
+docker-compose.override.yml
+docker-compose.override.*.yml
+
+# =============================
+# 🛢️ Data Volumes & Databases
+# =============================
+pgdata/
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.dump
+
+# ================================
+# ⚙️ Kubernetes & Sealed Secrets
+# ================================
+k8s/secrets/sealed/
+!k8s/secrets/sealed/*.yaml
+k8s/generated/
+k8s/**/*.autogen.yaml
+*.sealed.yaml
+
+# ================================
+# 🔐 Vault & Encrypted Artifacts
+# ================================
+vault/keys/
+!vault/keys/*.enc
+vault/keys/fernet.key
+vault/*.hcl
+vault/*.json
+vault/*.auto.*
+vault/init-output.json
+vault/init.log
+scripts/vault/decrypt_root_token.py
+scripts/vault/decrypt_and_unseal.py
+
+# =======================
+# 📦 Node / React Frontend
+# =======================
+node_modules/
+antarmuka/node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ========================
+# 🧱 Python & Dependencies
+# ========================
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+scripts/*.autogen.*
+
+# =============================
+# 🧪 Testing, Coverage, Profiling
+# =============================
+coverage/
+.pytest_cache/
+*.lcov
+*.out
+*.testlog
+.coverage
+.coverage.*
+htmlcov/
+test-results/
+
+# ======================
+# 📄 Logs & PIDs
+# ======================
+logs/
+*.log
+*.pid
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ======================
+# ⚙️ Editor & OS Artifacts
+# ======================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+.DS_Store
+*.swp
+*.swo
+*.sln
+*.njsproj
+
+# ===============================
+# 💥 Build Cache & Lock Files
+# ===============================
+build/
+!scripts/tools/build-tools/
+output/
+artifacts/
+*.bak
+*.tmp
+*.old
+*.orig
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+npm-debug.log*
+lerna-debug.log* 
+
+# ===============================
+# 🦀 Rust/Leptos/WASM Artifacts
+# ===============================
+**/target/
+**/pkg/
+**/dist/
+**/output/
+**/site/
+**/wasm32-unknown-unknown/
+**/*.wasm
+**/*.js
+**/*.d.ts
+**/Cargo.lock
+
+# Microfrontend auto-generated
+antarmuka/*/target/
+antarmuka/*/pkg/
+antarmuka/*/dist/
+antarmuka/*/output/
+antarmuka/*/site/
+antarmuka/*/wasm32-unknown-unknown/
+antarmuka/*/*.wasm
+antarmuka/*/*.js
+antarmuka/*/*.d.ts
+antarmuka/*/Cargo.lock
+
+# WASM-specific cache directories
+**/.wasm-bindgen/
+**/wasm-bindgen-*/
+**/.trunk/
+**/trunk-cache/
+
+# Leptos development artifacts
+**/leptos_*
+**/*.autogen.rs
+**/*.generated.*
+
+# Trunk build system
+**/Trunk.lock 
+# Enhanced Build System
+.build_cache/
+.metrics/
+.dev_servers/
+/tmp/trunk_*.pid
+/tmp/dev_servers.txt
+/tmp/proxy_*.conf
+
+# ===============================
+# 🎯 Performance & Monitoring
+# ===============================
+# Large build artifacts
+**/*.debug
+**/*.symbols
+**/debug/deps/
+**/release/deps/
+
+# Performance profiling
+**/perf.data*
+**/flame.svg
+**/profile.*
+
+# Size analysis
+**/size-report.*
+**/bundle-analysis.*
