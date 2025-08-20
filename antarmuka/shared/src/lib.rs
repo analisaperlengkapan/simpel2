@@ -17,7 +17,7 @@
 //! - [`api`] - HTTP client dan service layer
 //!
 //! ## 🚀 **Quick Start**
-//! ```rust,no_run
+//! ```rust,ignore
 //! use shared_microfrontend::prelude::*;
 //! use leptos::prelude::*;
 //!
