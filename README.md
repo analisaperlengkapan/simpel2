@@ -1,28 +1,48 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
-**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices menggunakan **Rust** untuk performa dan keamanan maksimal.
+**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfrontends menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
 
 ## 🎯 **Overview**
 
-SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Dibangun dengan teknologi modern dan mengikuti standar keamanan enterprise.
+SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Dibangun dengan teknologi modern Rust dan mengikuti standar keamanan enterprise dengan arsitektur microfrontend untuk skalabilitas dan maintainability maksimal.
 
 ## 🏗️ **Architecture**
 
 ### **🦀 Technology Stack**
-- **Backend**: Rust (Axum) untuk performa dan keamanan
-- **Frontend**: React + Vite + Tailwind CSS
-- **Database**: PostgreSQL (multi-schema)
-- **Gateway**: Envoy Proxy + Nginx
-- **Security**: HashiCorp Vault + JWT + MFA
-- **AI/ML**: Rust-Bert + Tch + Qdrant
-- **Orchestration**: Docker Compose + Kubernetes
-- **Monitoring**: Prometheus + Grafana + Loki
+- **Backend Services**: Rust (Axum) untuk performa dan keamanan tinggi
+- **Frontend Microfrontends**: Leptos 0.7.8 + WebAssembly untuk speed dan type-safety
+- **Shared UI Library**: Komponen terpusat dengan Kejaksaan RI branding
+- **Build System**: Trunk 0.21.14 dengan optimasi WASM
+- **Database**: PostgreSQL (multi-schema) dengan connection pooling
+- **Gateway**: Envoy Proxy + Nginx dengan load balancing
+- **Security**: HashiCorp Vault + JWT + MFA + Zero-Trust Architecture  
+- **AI/ML**: Rust-Bert + Tch + Qdrant untuk intelligent processing
+- **Orchestration**: Docker Compose + Kubernetes dengan Helm charts
+- **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
+
+### **🌐 Microfrontend Architecture**
+SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen:
+
+| Modul | Fungsi | Port | Status |
+|-------|--------|------|--------|
+| **Portal** | Gateway & Dashboard Utama | :8080 | ✅ Aktif |
+| **Badiklat** | Pelatihan & Pendidikan | :8081 | ✅ Aktif |
+| **Datun** | Tindak Pidana Umum | :8082 | ✅ Aktif |
+| **Intel** | Intelligence & Analytics | :8083 | ✅ Aktif |
+| **Pembinaan** | Manajemen Pembinaan | :8084-8086 | ✅ Aktif |
+| **Pemulihan Aset** | Asset Recovery | :8087 | ✅ Aktif |
+| **Pengawasan** | Monitoring & Compliance | :8088 | ✅ Aktif |
+| **PIDMIL** | Pidana Militer | :8089 | ✅ Aktif |
+| **PIDSUS** | Pidana Khusus | :8090 | ✅ Aktif |
+| **PIDUM** | Pidana Umum | :8091 | ✅ Aktif |
+| **Shared** | Komponen Terpusat | - | ✅ Library |
 
 ### **🔐 Security Features**
 - **Zero-Trust Architecture**: Tidak ada implicit trust
 - **Immutable Audit Trail**: Logging yang tidak dapat diubah
 - **Multi-Factor Authentication**: TOTP-based security
-- **Role-Based Access Control**: Granular permissions
+- **Role-Based Access Control**: Granular permissions per microfrontend
+- **Content Security Policy**: CSP headers untuk setiap modul
 - **Honeytrap Service**: Advanced threat detection
 
 ### **🤖 AI Capabilities**
@@ -83,51 +103,77 @@ make deploy-prod
 
 ```
 simpelv2/
-├── 📁 antarmuka/                 # Frontend React Vite
-├── 📁 gerbang/                   # API Gateway (Envoy)
-├── 📁 nginx/                     # Reverse Proxy
-├── 📁 layanan/                   # Microservices (Rust)
-│   ├── 🔐 keamanan/             # Security Service
-│   ├── 🤖 ai/                   # AI/ML Service
-│   ├── 📄 dokumen/              # Document Management
-│   ├── ⚙️ konfigurasi/          # Configuration Service
-│   ├── 🆘 bantuan/              # Help & Support
-│   ├── 📊 dasbor/               # Dashboard Service
-│   ├── 📋 laporan/              # Reporting Service
-│   ├── 🔗 integrasi/            # External Integration
-│   └── 🔔 notifikasi/           # Notification Service
-├── 📁 infra/                     # Infrastructure
-│   ├── 📁 k8s/                  # Kubernetes manifests
-│   ├── 📁 vault/                # HashiCorp Vault
-│   └── 📁 monitoring/           # Observability stack
-├── 📁 scripts/                   # Automation scripts
-├── 📁 docs/                      # Documentation
-└── 📁 dist/                      # Build artifacts
+├── 📁 antarmuka/                 # Microfrontend Leptos Applications
+│   ├── 🏛️ portal/              # Main Dashboard & Gateway (8080)
+│   ├── 🎓 badiklat/             # Training & Education (8081) 
+│   ├── ⚖️ datun/               # Criminal Prosecution (8082)
+│   ├── � intel/               # Intelligence Analytics (8083)
+│   ├── 📋 pembinaan/           # Development Management
+│   │   ├── 💰 keuangan/        # Financial Management (8084)
+│   │   ├── 📊 perencanaan/     # Planning & Strategy (8085)
+│   │   └── 🛠️ perlengkapan/    # Equipment Management (8086)
+│   ├── 🔄 pemulihan_aset/      # Asset Recovery (8087)
+│   ├── �️ pengawasan/          # Monitoring & Compliance (8088)
+│   ├── 🪖 pidmil/             # Military Criminal Law (8089)
+│   ├── 🔒 pidsus/             # Special Crimes (8090)
+│   ├── 📜 pidum/              # General Crimes (8091)
+│   └── 🧩 shared/             # Shared UI Components Library
+├── 📁 layanan/                   # Backend Microservices (Rust)
+│   ├── 🔐 keamanan/             # Security Service (3001)
+│   ├── 🤖 ai/                   # AI/ML Service (3002)  
+│   ├── 📄 dokumen/              # Document Management (3003)
+│   ├── ⚙️ konfigurasi/          # Configuration Service (3004)
+│   ├── 🆘 bantuan/              # Help & Support (3005)
+│   ├── 📊 dasbor/               # Dashboard Service (3006)
+│   ├── 📋 laporan/              # Reporting Service (3007)
+│   ├── 🔗 integrasi/            # External Integration (3008)
+│   └── 🔔 notifikasi/           # Notification Service (3009)
+├── 📁 infra/                     # Infrastructure & DevOps
+│   ├── 🌐 nginx/                # Nginx Reverse Proxy
+│   ├── 🚪 gerbang/              # API Gateway (Envoy)
+│   ├── 📁 k8s/                  # Kubernetes Manifests
+│   ├── � vault/                # HashiCorp Vault Config
+│   └── � monitoring/           # Observability Stack
+├── 📁 scripts/                   # Build & Automation Scripts
+│   ├── 🔧 tools/                # Development Tools
+│   ├── 🧪 test/                 # Test Automation
+│   └── 📦 makefiles/            # Make Configurations
+├── 📁 docs/                      # Comprehensive Documentation
+│   ├── 📚 api/                  # API Documentation  
+│   ├── 🏗️ architecture/         # Architecture Diagrams
+│   └── � guides/               # Development Guides
+└── 📁 target/                    # Rust Build Artifacts
+    ├── debug/                   # Development Builds
+    ├── release/                 # Production Builds
+    └── wasm32-unknown-unknown/  # WebAssembly Builds
 ```
 
-## 🔧 **Services**
+## 🎨 **Frontend Microfrontends**
 
-### **🔐 Security Service (Rust)**
-- **JWT Authentication**: Token management
-- **Multi-Factor Authentication**: TOTP-based security
-- **Role-Based Access Control**: Granular permissions
-- **HashiCorp Vault Integration**: Secret management
-- **Immutable Audit Trail**: Forensic capabilities
+### **🏛️ Portal Dashboard** 
+**Primary Gateway & Unified Dashboard**
+- **Port**: `:8080` 
+- **Function**: Main entry point, authentication, navigation
+- **Technology**: Leptos 0.7.8 + WebAssembly
+- **Features**: Single Sign-On, role-based routing, system overview
 
-**Port**: `3001`
-**Health Check**: `http://localhost:3001/health`
+### **🎓 Badiklat Training System**
+**Training & Education Management** 
+- **Port**: `:8081`
+- **Function**: Training programs, certifications, learning paths
+- **Features**: Course management, progress tracking, assessments
 
-### **🤖 AI Service (Rust)**
-- **LLM Integration**: Internal fine-tuned models
-- **RAG System**: Retrieval-Augmented Generation
-- **OCR Processing**: Document text extraction
-- **Supervised Learning**: Traditional ML models
-- **RLHF**: Reinforcement Learning from Human Feedback
+### **⚖️ Datun Criminal Prosecution**
+**General Criminal Case Management**
+- **Port**: `:8082` 
+- **Function**: Case tracking, prosecution workflow, legal documents
+- **Features**: Case assignment, timeline management, evidence tracking
 
-**Port**: `3002`
-**Health Check**: `http://localhost:3002/health`
-
-### **📄 Document Service**
+### **🔍 Intel Analytics Platform**
+**Intelligence & Data Analytics**
+- **Port**: `:8083`
+- **Function**: Data visualization, intelligence reports, analytics dashboards
+- **Features**: Real-time monitoring, predictive analytics, custom reports
 - **Upload/Download**: File management
 - **Preview**: PDF/Word document preview
 - **Classification**: AI-powered tagging
@@ -151,41 +197,74 @@ simpelv2/
 
 ### **📋 Reporting Service**
 - **Dynamic Reports**: User-generated reports
-- **Pivot Tables**: Data analysis
-- **Data Warehouse**: Filtered reporting
-- **AI Integration**: Automated insights
+## 🔧 **Backend Microservices**
 
-### **🔗 Integration Service**
-- **External APIs**: SIMAN, MONSAKTI, MySimkari, SIPEDE
-- **Webhook Support**: Real-time synchronization
-- **Scheduled Sync**: Automated data updates
-- **Mutual TLS**: Secure communication
+### **🔐 Security Service (Rust)**
+- **JWT Authentication**: Token management & validation
+- **Multi-Factor Authentication**: TOTP-based security
+- **Role-Based Access Control**: Granular permissions per microfrontend
+- **HashiCorp Vault Integration**: Secret management
+- **Immutable Audit Trail**: Forensic capabilities
 
-### **🔔 Notification Service**
-- **Multi-channel**: Email, WhatsApp, Push notifications
-- **Dynamic Templates**: Event-based messaging
-- **Service Integration**: Used by all other services
+**Port**: `3001` | **Health**: `/health`
+
+### **🤖 AI Service (Rust)**
+- **LLM Integration**: Internal fine-tuned models untuk analisa dokumen
+- **RAG System**: Retrieval-Augmented Generation untuk Q&A
+- **OCR Processing**: Document text extraction dengan AI
+- **Supervised Learning**: Traditional ML models
+- **RLHF**: Reinforcement Learning from Human Feedback
+
+**Port**: `3002` | **Health**: `/health`
+
+### **📄 Document Service (Rust)**
+- **Document Management**: Upload, versioning, storage
+- **Full-text Search**: Advanced search capabilities
+- **AI Classification**: Automated categorization
+- **Digital Signatures**: PKI-based document signing
+- **Workflow Integration**: Document approval processes
+
+**Port**: `3003` | **Health**: `/health`
+
+### **� Dashboard Service (Rust)**
+- **Real-time Metrics**: Live performance indicators
+- **Custom Dashboards**: Per-role dashboard configurations
+- **Data Visualization**: Charts, graphs, analytics
+- **Pivot Tables**: Interactive data analysis
+- **Export Functions**: PDF, Excel, CSV output
+
+**Port**: `3006` | **Health**: `/health`
+
+### **📋 Reporting Service (Rust)**
+- **Dynamic Reports**: Template-based report generation
+- **Scheduled Reports**: Automated report delivery
+- **Data Warehouse**: Filtered reporting capabilities
+- **AI Integration**: Automated insights generation
+- **Multi-format Output**: PDF, Excel, Word, JSON
+
+**Port**: `3007` | **Health**: `/health`
 
 ## 🛡️ **Security Architecture**
 
 ### **🔐 Authentication Flow**
 ```
-User Login → JWT Token → MFA Verification → Role Assignment → Access Control
+User Login → JWT Token → MFA Verification → Role Assignment → Microfrontend Access
 ```
 
-### **🛡️ Security Layers**
-1. **Network Security**: Envoy Gateway + Nginx
-2. **Application Security**: Rust memory safety
-3. **Authentication**: JWT + MFA + RBAC
-4. **Secret Management**: HashiCorp Vault
-5. **Audit Trail**: Immutable logging
-6. **Threat Detection**: Honeytrap service
+### **🛡️ Multi-Layer Security**
+1. **Network Security**: Envoy Gateway + Nginx with SSL termination
+2. **Application Security**: Rust memory safety + type checking  
+3. **Authentication**: JWT + MFA + RBAC per service
+4. **Secret Management**: HashiCorp Vault integration
+5. **Audit Trail**: Immutable logging across all microfrontends
+6. **Content Security Policy**: CSP headers for each frontend module
+7. **Threat Detection**: Honeytrap service + anomaly detection
 
-### **📊 Compliance**
-- **ISO 27001**: Information security management
-- **PCI DSS**: Payment card industry standards
-- **GDPR**: Data protection regulations
-- **SOX**: Financial reporting compliance
+### **📊 Compliance Standards**
+- **ISO 27001**: Information security management system
+- **PCI DSS**: Payment card industry data security
+- **GDPR**: General data protection regulation compliance
+- **SOX**: Sarbanes-Oxley financial reporting compliance
 
 ## 🤖 **AI Capabilities**
 
@@ -219,57 +298,208 @@ User Login → JWT Token → MFA Verification → Role Assignment → Access Con
 
 ## 🚀 **Deployment**
 
-### **Development Environment**
+## 🚀 **Quick Start**
+
+### **Prerequisites**
 ```bash
-# Start development
-make up-dev
-
-# View logs
-make logs
-
-# Stop services
-make down
+# System requirements
+- Docker & Docker Compose 20+
+- Rust 1.75+ (for development)  
+- Node.js 18+ & Trunk 0.21.14 (for microfrontends)
+- PostgreSQL 15+
+- HashiCorp Vault
 ```
 
-### **Production Environment**
+### **🚀 Development Setup**
 ```bash
+# Clone repository
+git clone https://gitlab.com/analisiskebutuhan/simpelv2_web.git
+cd simpelv2
+
+# Setup development environment
+make setup-dev
+
+# Start all services
+make up-dev
+
+# Build microfrontends
+make build-frontends
+
+# Access applications
+make open-portal        # Opens http://localhost:8080
+```
+
+### **🌐 Access Points**
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Portal** | http://localhost:8080 | Main Dashboard & Gateway |
+| **Badiklat** | http://localhost:8081 | Training System |
+| **Datun** | http://localhost:8082 | Criminal Prosecution |
+| **Intel** | http://localhost:8083 | Intelligence Platform |
+| **API Gateway** | http://localhost:8000 | Backend API Gateway |
+| **Vault UI** | http://localhost:8200 | HashiCorp Vault |
+| **Grafana** | http://localhost:3000 | Monitoring Dashboard |
+
+### **🔧 Development Commands**
+```bash
+# Frontend development
+make serve-portal       # Serve portal with hot reload
+make build-all-fe      # Build all microfrontends
+make test-frontends    # Test all frontend modules
+
+# Backend development  
+make dev-backend       # Start backend services
+make test-backend      # Run backend tests
+make clippy           # Rust linting
+
+# Infrastructure
+make up-infra         # Start infrastructure only
+make logs-all         # View all service logs
+make clean-all        # Clean all build artifacts
+```
+
+### **📦 Production Deployment**
+```bash
+# Build production images
+make build-prod
+
+# Deploy to staging
+make deploy-staging
+
 # Deploy to production
 make deploy-prod
 
-# Monitor services
-make logs-prod
-
-# Scale services
-make scale-prod
+# Monitor deployment
+make monitor-prod
 ```
 
-### **Kubernetes Deployment**
+### **☸️ Kubernetes Deployment**
 ```bash
-# Deploy to Kubernetes
+# Generate K8s manifests
 make generate-k8s
+
+# Deploy to cluster
 make deploy-k8s
 
+# Check status
+kubectl get pods -n simpelv2
+
 # Monitor with Grafana
-make monitor
+make monitor-k8s
 ```
 
 ## 📚 **Documentation**
 
-### **📖 Service Documentation**
-- [Security Service](layanan/keamanan/README.md)
-- [AI Service](layanan/ai/README.md)
-- [Architecture Decisions](DOCKER_COMPOSE_STRATEGY.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+### **📖 Core Documentation**
+- [🏗️ Architecture Overview](docs/architecture/README.md)
+- [🔐 Security Guide](docs/security/README.md)  
+- [🤝 Contributing Guidelines](CONTRIBUTING.md)
+- [🚀 Deployment Guide](docs/deployment/README.md)
+- [📋 API Documentation](docs/api/README.md)
+
+### **📱 Frontend Documentation**
+- [🎨 Microfrontend Architecture](docs/MICROFRONTEND_STATUS_REPORT.md)
+- [🧩 Shared Components Guide](antarmuka/shared/README.md)
+- [🎯 Portal System](antarmuka/portal/README.md)
+- [🔧 Build & Optimization](docs/ANTARMUKA_OPTIMIZATION_FINAL_REPORT.md)
+
+### **⚙️ Backend Documentation**
+- [🔐 Security Service](layanan/keamanan/README.md)
+- [🤖 AI/ML Service](layanan/ai/README.md)
+- [📄 Document Service](layanan/dokumen/README.md)
+- [📊 Dashboard Service](layanan/dasbor/README.md)
 
 ### **📋 API Documentation**
-- **OpenAPI 3.0**: Interactive API docs
-- **Postman Collection**: API testing
-- **Swagger UI**: Visual API explorer
+- **OpenAPI 3.0**: Interactive API documentation
+- **Postman Collection**: Comprehensive API testing suite
+- **Swagger UI**: Visual API explorer dengan examples
+- **GraphQL**: Real-time query interface untuk analytics
 
-### **🏗️ Architecture Documentation**
-- [System Design](docs/architecture/)
-- [Security Architecture](docs/security/)
-- [Deployment Guides](docs/deployment/)
+## 🔍 **Quality Assurance**
+
+### **🧪 Testing Strategy**
+- **Unit Tests**: Rust services dengan coverage >90%
+- **Integration Tests**: End-to-end microfrontend testing
+- **Performance Tests**: Load testing dengan K6
+- **Security Tests**: Penetration testing automation
+- **UI Tests**: Playwright untuk semua microfrontends
+
+### **📊 Quality Metrics**
+- **Code Coverage**: Minimum 85% untuk production
+- **Performance**: Response time <100ms average
+- **Reliability**: 99.9% uptime SLA
+- **Security**: Zero critical vulnerabilities
+- **Compliance**: ISO 27001 & SOX compliance
+
+### **🔄 CI/CD Pipeline**
+```bash
+# Quality checks pipeline
+Code Push → Pre-commit Hooks → Unit Tests → Integration Tests 
+         → Security Scan → Build → Deploy Staging → E2E Tests 
+         → Deploy Production → Health Check → Monitoring
+```
+
+## 📈 **Monitoring & Observability**
+
+### **📊 Comprehensive Metrics**
+- **Application Performance**: Response times, throughput, error rates
+- **Infrastructure Health**: CPU, memory, disk, network utilization
+- **Business Intelligence**: User engagement, feature adoption
+- **Security Monitoring**: Authentication events, threat detection
+- **Microfrontend Metrics**: Load times, bundle sizes, user flows
+
+### **📝 Structured Logging**
+- **Centralized Logging**: Loki + Grafana stack
+- **Structured JSON**: Consistent log format across services
+- **Immutable Audit Trail**: Security & compliance logging
+- **Real-time Monitoring**: Live log streaming & analysis
+- **Performance Tracing**: Distributed request tracing
+
+### **⚠️ Intelligent Alerting**
+- **Service Health Monitoring**: Automated health checks
+- **Performance Thresholds**: SLA-based alerting
+- **Security Incident Response**: Automated threat detection
+- **Business Process Alerts**: Critical workflow monitoring
+- **Predictive Alerts**: AI-powered anomaly detection
+
+## 🤝 **Contributing**
+
+### **🛠️ Development Setup**
+```bash
+# Install Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup component add clippy rustfmt
+
+# Install frontend tools
+cargo install trunk
+npm install -g wasm-pack
+
+# Install development tools
+cargo install sqlx-cli
+cargo install cargo-audit
+cargo install cargo-watch
+
+# Setup project
+git clone https://gitlab.com/analisiskebutuhan/simpelv2_web.git
+cd simpelv2
+make setup-dev
+```
+
+### **📋 Development Standards**
+- **Code Quality**: Rust conventions + clippy linting
+- **Security First**: Security-by-design approach
+- **Comprehensive Testing**: Unit, integration, e2e tests
+- **Documentation**: Clear comments + API documentation
+- **Performance**: Benchmarking + optimization
+
+### **🔄 Contribution Process**
+1. **📋 Issue Creation**: Create detailed issue dengan requirements
+2. **🌿 Branch Creation**: Feature branch dari main branch
+3. **💻 Development**: Implement dengan tests + documentation  
+4. **🧪 Quality Checks**: Run tests, linting, security scans
+5. **📝 Merge Request**: Submit dengan comprehensive description
+6. **👁️ Code Review**: Peer review + automated checks
+7. **🚀 Merge & Deploy**: Automated deployment pipeline
 
 ## 🧪 **Testing**
 
