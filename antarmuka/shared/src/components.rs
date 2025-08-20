@@ -5,7 +5,7 @@ use crate::types::*;
 use leptos::children::Children;
 use leptos::prelude::{
     AriaAttributes, ClassAttribute, CollectView, CustomAttribute, ElementChild, Get,
-    GlobalAttributes, OnAttribute, ReadSignal, RwSignal,
+    GlobalAttributes, OnAttribute, ReadSignal, RwSignal, Show,
 };
 use leptos::*;
 
@@ -399,5 +399,65 @@ where
                 </tbody>
             </table>
         </div>
+    }
+}
+
+/// App Header Component with navigation and branding
+#[component]
+pub fn AppHeader(
+    #[prop(optional, default = "SIMPelv2")] title: &'static str,
+    #[prop(optional, default = false)] show_nav: bool,
+) -> impl IntoView {
+    view! {
+        <header class="bg-kejaksaan-primary text-white shadow-lg">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <img src="/assets/garuda-logo.svg" alt="Garuda" class="h-10 w-10" />
+                        <h1 class="text-xl font-bold">{title}</h1>
+                    </div>
+                    <Show when=move || show_nav fallback=|| view! { <div></div> }>
+                        <nav class="hidden md:flex space-x-6">
+                            <a href="/" class="hover:text-kejaksaan-secondary transition-colors">{"Beranda"}</a>
+                            <a href="/dashboard" class="hover:text-kejaksaan-secondary transition-colors">{"Dashboard"}</a>
+                            <a href="/profile" class="hover:text-kejaksaan-secondary transition-colors">{"Profil"}</a>
+                        </nav>
+                    </Show>
+                </div>
+            </div>
+        </header>
+    }
+}
+
+/// Kejaksaan Footer with institutional branding
+#[component]
+pub fn KejaksaanFooter() -> impl IntoView {
+    view! {
+        <footer class="bg-kejaksaan-dark text-white py-8 mt-12">
+            <div class="container mx-auto px-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">{"Kejaksaan Republik Indonesia"}</h3>
+                        <p class="text-sm text-kejaksaan-text-light">
+                            {"Sistem Informasi Manajemen Pengadaan dan Layanan"}
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="text-md font-medium mb-3">{"Menu Utama"}</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a href="/" class="hover:text-kejaksaan-secondary transition-colors">{"Beranda"}</a></li>
+                            <li><a href="/about" class="hover:text-kejaksaan-secondary transition-colors">{"Tentang"}</a></li>
+                            <li><a href="/contact" class="hover:text-kejaksaan-secondary transition-colors">{"Kontak"}</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="text-md font-medium mb-3">{"Informasi"}</h4>
+                        <p class="text-sm text-kejaksaan-text-light">
+                            {"© 2024 Kejaksaan RI. Semua hak dilindungi."}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
     }
 }

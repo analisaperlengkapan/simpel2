@@ -15,7 +15,7 @@ fn ActionButton(
         <button
             class={class_str}
             on:click=move |_| {
-                web_sys::console::log_1(&format!("Action: {}", action).into());
+                web_sys::console::log_1(&format!("Action: {action}").into());
             }
         >
             {label}
@@ -45,7 +45,7 @@ fn SearchBox(
     #[prop(into)] placeholder: String,
     #[prop(optional)] on_search: Option<leptos::callback::Callback<String>>,
 ) -> impl IntoView {
-    let (search_value, set_search_value) = create_signal("".to_string());
+    let (search_value, set_search_value) = signal("".to_string());
 
     view! {
         <div class="relative">
@@ -70,7 +70,7 @@ fn SearchBox(
 #[component]
 pub fn PemulihanAsetDashboard() -> impl IntoView {
     // Sample statistics data
-    let (stats, _set_stats) = create_signal(vec![
+    let (stats, _set_stats) = signal(vec![
         (
             "Aset Teridentifikasi".to_string(),
             "127".to_string(),

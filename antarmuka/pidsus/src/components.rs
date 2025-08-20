@@ -21,10 +21,10 @@ pub fn SpecialTimeline(case_id: String) -> impl IntoView {
                 {timeline_events.into_iter().enumerate().map(|(index, (date, title, description, icon))| {
                     let is_completed = index < 4; // Assume first 4 are completed
                     let is_current = index == 4; // 5th item is current
-                    
+
                     view! {
                         <div class="relative flex items-start space-x-4">
-                            <div class={format!("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center {}", 
+                            <div class={format!("flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center {}",
                                 if is_completed {
                                     "bg-green-500 text-white"
                                 } else if is_current {
@@ -37,14 +37,14 @@ pub fn SpecialTimeline(case_id: String) -> impl IntoView {
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center space-x-2">
-                                    <h3 class={format!("text-sm font-medium {}", 
+                                    <h3 class={format!("text-sm font-medium {}",
                                         if is_completed || is_current { "text-gray-900" } else { "text-gray-500" }
                                     )}>
                                         {title}
                                     </h3>
                                     <span class="text-xs text-gray-500">{date}</span>
                                 </div>
-                                <p class={format!("mt-1 text-sm {}", 
+                                <p class={format!("mt-1 text-sm {}",
                                     if is_completed || is_current { "text-gray-600" } else { "text-gray-400" }
                                 )}>
                                     {description}
@@ -260,18 +260,18 @@ pub fn HighPriorityCasesMonitor() -> impl IntoView {
                                                 ("Medium", 0) => true,
                                                 _ => false,
                                             };
-                                            
+
                                             view! {
-                                                <div class={format!("w-2 h-2 rounded-full mr-1 {}", 
-                                                    if is_filled { 
+                                                <div class={format!("w-2 h-2 rounded-full mr-1 {}",
+                                                    if is_filled {
                                                         match color {
                                                             "red" => "bg-red-600",
-                                                            "orange" => "bg-orange-600", 
+                                                            "orange" => "bg-orange-600",
                                                             "yellow" => "bg-yellow-600",
                                                             _ => "bg-gray-400"
                                                         }
-                                                    } else { 
-                                                        "bg-gray-300" 
+                                                    } else {
+                                                        "bg-gray-300"
                                                     }
                                                 )}></div>
                                             }
@@ -333,7 +333,7 @@ pub fn RealTimeStats() -> impl IntoView {
                 <i class="fas fa-chart-line mr-2"></i>
                 "Statistik Real-Time"
             </h3>
-            
+
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="text-center">
                     <div class="text-2xl font-bold">"23"</div>
@@ -361,4 +361,4 @@ pub fn RealTimeStats() -> impl IntoView {
             </div>
         </div>
     }
-} 
+}

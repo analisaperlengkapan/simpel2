@@ -2,7 +2,7 @@
 //!
 //! Comprehensive type system untuk aplikasi Kejaksaan RI dengan focus pada:
 //! - **Type Safety**: Zero runtime type errors
-//! - **Performance**: Compile-time optimized structures  
+//! - **Performance**: Compile-time optimized structures
 //! - **Government Standards**: Sesuai standar sistem pemerintahan
 //! - **Extensibility**: Easy to extend dan maintain
 
@@ -26,7 +26,7 @@ pub enum ButtonVariant {
     Success,
     /// Warning state (yellow)
     Warning,
-    /// Error/danger state (red)  
+    /// Error/danger state (red)
     Danger,
     /// Subtle/ghost styling
     Ghost,
@@ -345,7 +345,7 @@ pub struct ServiceResponse<T> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum InstitusiUnit {
-    /// Kejaksaan Agung  
+    /// Kejaksaan Agung
     KejaksaanAgung,
     /// Kejaksaan Tinggi
     KejaksaanTinggi(String),
@@ -367,7 +367,7 @@ pub enum JabatanLevel {
     KepalaUnit,
     /// Jaksa utama
     JaksaUtama,
-    /// Jaksa madya  
+    /// Jaksa madya
     JaksaMadya,
     /// Jaksa muda
     JaksaMuda,

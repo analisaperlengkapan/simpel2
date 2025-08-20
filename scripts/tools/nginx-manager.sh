@@ -54,11 +54,11 @@ EOF
 
 check_dependencies() {
     local missing_deps=()
-    
+
     if ! command -v python3 &> /dev/null; then
         missing_deps+=("python3")
     fi
-    
+
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing_deps[*]}"
         info "Please install the missing dependencies and try again"
@@ -69,15 +69,15 @@ check_dependencies() {
 generate_all_configs() {
     local validate_flag=""
     [[ "$1" == "--validate" ]] && validate_flag="--validate"
-    
+
     info "Generating nginx configurations for all microfrontends..."
-    
+
     python3 "$SCRIPT_DIR/nginx-config-generator.py" \
         --base-dir "$BASE_DIR" \
         --generate-all \
         --report \
         $validate_flag
-        
+
     success "All nginx configurations generated successfully"
 }
 
@@ -85,81 +85,81 @@ generate_service_config() {
     local service_name="$1"
     local validate_flag=""
     [[ "$2" == "--validate" ]] && validate_flag="--validate"
-    
+
     if [[ -z "$service_name" ]]; then
         error "Service name is required for generate command"
         info "Usage: $0 generate --service <service_name>"
         exit 1
     fi
-    
+
     info "Generating nginx configuration for service: $service_name"
-    
+
     python3 "$SCRIPT_DIR/nginx-config-generator.py" \
         --base-dir "$BASE_DIR" \
         --service "$service_name" \
         $validate_flag
-        
+
     success "Nginx configuration generated for $service_name"
 }
 
 validate_configs() {
     info "Validating generated nginx configurations..."
-    
+
     local generated_dir="$BASE_DIR/antarmuka/shared/nginx/generated"
     local validation_failed=0
-    
+
     if [[ ! -d "$generated_dir" ]]; then
         warning "No generated configurations found. Run generate-all first."
         return 0
     fi
-    
+
     # Enhanced nginx syntax validation - check structure and syntax
     for config_file in "$generated_dir"/*.conf; do
         if [[ -f "$config_file" ]]; then
             local basename=$(basename "$config_file")
             local syntax_ok=true
-            
+
             # Check for balanced braces
             local open_braces=$(grep -o '{' "$config_file" | wc -l)
             local close_braces=$(grep -o '}' "$config_file" | wc -l)
-            
+
             if [[ $open_braces -ne $close_braces ]]; then
                 error "Unbalanced braces in $basename (open: $open_braces, close: $close_braces)"
                 syntax_ok=false
             fi
-            
+
             # Check for required directives
             if ! grep -q "server {" "$config_file"; then
                 error "Missing server block in $basename"
                 syntax_ok=false
             fi
-            
+
             if ! grep -q "listen" "$config_file"; then
                 error "Missing listen directive in $basename"
                 syntax_ok=false
             fi
-            
+
             # Check for required locations
             if ! grep -q "location /" "$config_file"; then
                 error "Missing root location block in $basename"
                 syntax_ok=false
             fi
-            
+
             # Check for WASM optimization (specific to our microfrontends)
             if ! grep -q "location.*\.wasm" "$config_file"; then
                 warning "Missing WASM location block in $basename"
             fi
-            
+
             # Check for Docker-specific configurations
             if grep -q "proxy_pass.*gerbang" "$config_file"; then
                 info "Docker container reference detected in $basename (normal for containerized deployment)"
             fi
-            
+
             # Check for health endpoint
             if ! grep -q "location /health" "$config_file"; then
                 warning "Missing health check endpoint in $basename"
             fi
-            
+
             if [[ $syntax_ok == true ]]; then
                 success "Syntax validation passed: $basename"
             else
@@ -168,7 +168,7 @@ validate_configs() {
             fi
         fi
     done
-    
+
     if [[ $validation_failed -eq 0 ]]; then
         success "All nginx configurations passed syntax validation"
         info "Note: Full nginx -t validation requires running Docker environment for hostname resolution"
@@ -180,20 +180,20 @@ validate_configs() {
 
 update_infrastructure() {
     info "Updating infrastructure nginx configuration..."
-    
+
     python3 "$SCRIPT_DIR/nginx-config-generator.py" \
         --base-dir "$BASE_DIR" \
         --update-infra
-        
+
     success "Infrastructure nginx configuration updated"
 }
 
 deploy_configurations() {
     local dry_run=""
     [[ "$1" == "--dry-run" ]] && dry_run="true"
-    
+
     info "Deploying nginx configurations..."
-    
+
     if [[ "$dry_run" == "true" ]]; then
         info "DRY RUN MODE - showing what would be deployed:"
         echo
@@ -201,7 +201,7 @@ deploy_configurations() {
         find "$BASE_DIR/antarmuka/shared/nginx/generated" -name "*.conf" -exec basename {} \; 2>/dev/null | sort
         return 0
     fi
-    
+
     # Check if Docker Compose is running
     if docker compose -f "$BASE_DIR/docker-compose.yml" ps | grep -q nginx; then
         info "Reloading nginx configuration in running containers..."
@@ -212,13 +212,13 @@ deploy_configurations() {
     else
         info "No running nginx containers found. Configuration will be applied on next startup."
     fi
-    
+
     success "Nginx configurations deployed"
 }
 
 clean_generated_configs() {
     info "Cleaning generated nginx configurations..."
-    
+
     local generated_dir="$BASE_DIR/antarmuka/shared/nginx/generated"
     if [[ -d "$generated_dir" ]]; then
         rm -f "$generated_dir"/*.conf
@@ -231,13 +231,13 @@ clean_generated_configs() {
 show_status() {
     info "Nginx Configuration Status"
     echo "=========================="
-    
+
     # Show discovered microfrontends
     local services=($(python3 "$SCRIPT_DIR/nginx-config-generator.py" --base-dir "$BASE_DIR" 2>&1 | grep "Discovered.*microfrontends:" | sed 's/.*: //' | tr ',' '\n' | xargs))
     echo "Discovered microfrontends: ${#services[@]}"
     printf '  - %s\n' "${services[@]}"
     echo
-    
+
     # Show generated configurations
     local generated_dir="$BASE_DIR/antarmuka/shared/nginx/generated"
     if [[ -d "$generated_dir" ]]; then
@@ -248,7 +248,7 @@ show_status() {
         echo "Generated configurations: 0"
     fi
     echo
-    
+
     # Show template status
     local template_file="$BASE_DIR/antarmuka/shared/nginx/microfrontend.conf"
     if [[ -f "$template_file" ]]; then
@@ -259,7 +259,7 @@ show_status() {
         echo "Template file: ❌ Missing"
     fi
     echo
-    
+
     # Show infrastructure nginx status
     local infra_nginx="$BASE_DIR/infra/nginx/nginx.conf"
     if [[ -f "$infra_nginx" ]]; then
@@ -273,10 +273,10 @@ show_status() {
 
 main() {
     check_dependencies
-    
+
     local command="$1"
     shift || true
-    
+
     case "$command" in
         "generate-all")
             local validate=""

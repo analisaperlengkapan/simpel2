@@ -250,8 +250,9 @@ fn get_sample_reports() -> Vec<IntelReport> {
     ]
 }
 
+#[allow(dead_code)]
 fn format_currency(amount: f64) -> String {
-    format!("Rp {:.0}", amount)
+    format!("Rp {amount:.0}")
 }
 
 fn get_priority_color(priority: &PriorityLevel) -> &'static str {
@@ -381,12 +382,12 @@ pub fn IntelligenceDashboard() -> impl IntoView {
                                                 <span class="text-sm text-gray-900">{format!("{:?}", operation.operation_type)}</span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class={format!("text-sm font-medium {}", status_color)}>
+                                                <span class={format!("text-sm font-medium {status_color}")}>
                                                     {format!("{:?}", operation.status)}
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class={format!("text-sm font-medium {}", priority_color)}>
+                                                <span class={format!("text-sm font-medium {priority_color}")}>
                                                     {format!("{:?}", operation.priority)}
                                                 </span>
                                             </td>
@@ -399,7 +400,7 @@ pub fn IntelligenceDashboard() -> impl IntoView {
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class={format!("inline-flex px-2 py-1 text-xs font-semibold rounded-full {}", classification_badge)}>
+                                                <span class={format!("inline-flex px-2 py-1 text-xs font-semibold rounded-full {classification_badge}")}>
                                                     {format!("{:?}", operation.classification_level)}
                                                 </span>
                                             </td>
@@ -439,7 +440,7 @@ pub fn IntelligenceDashboard() -> impl IntoView {
                                                     <span class="text-sm text-gray-500">
                                                         {report.created_date.clone()}" oleh "{report.author.clone()}
                                                     </span>
-                                                    <span class={format!("inline-flex px-2 py-1 text-xs font-semibold rounded-full {}", classification_badge)}>
+                                                    <span class={format!("inline-flex px-2 py-1 text-xs font-semibold rounded-full {classification_badge}")}>
                                                         {format!("{:?}", report.classification)}
                                                     </span>
                                                 </div>

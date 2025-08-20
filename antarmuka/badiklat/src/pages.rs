@@ -1,5 +1,5 @@
 //! BADIKLAT Pages
-//! 
+//!
 //! Halaman-halaman untuk modul pendidikan dan pelatihan
 
 use leptos::prelude::*;
@@ -82,22 +82,22 @@ pub fn BadiklatDashboard() -> impl IntoView {
 
             // Statistics cards
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
+                <StatCard
                     title="Total Pelatihan"
                     value="45"
                     description="Program aktif".to_string()
                 />
-                <StatCard 
+                <StatCard
                     title="Peserta Aktif"
                     value="234"
                     description="Peserta terdaftar".to_string()
                 />
-                <StatCard 
+                <StatCard
                     title="Instruktur"
                     value="18"
                     description="Instruktur aktif".to_string()
                 />
-                <StatCard 
+                <StatCard
                     title="Tingkat Kelulusan"
                     value="87%"
                     description="Rata-rata kelulusan".to_string()
@@ -177,7 +177,7 @@ pub fn PelatihanPage() -> impl IntoView {
 
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
-                    <SearchBox 
+                    <SearchBox
                         placeholder="Cari pelatihan..."
                         on_search=Callback::new(move |query| set_search_query.set(query))
                     />
@@ -218,7 +218,7 @@ pub fn PelatihanPage() -> impl IntoView {
     }
 }
 
-#[component]  
+#[component]
 pub fn PesertaPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
 
@@ -230,7 +230,7 @@ pub fn PesertaPage() -> impl IntoView {
                 <p class="text-gray-600">"Kelola data peserta pelatihan"</p>
             </div>
 
-            <SearchBox 
+            <SearchBox
                 placeholder="Cari peserta berdasarkan nama atau NIP..."
                 on_search=Callback::new(move |query| set_search_query.set(query))
             />
@@ -278,7 +278,7 @@ pub fn InstrukturPage() -> impl IntoView {
             <Breadcrumb items=vec!["BADIKLAT".to_string(), "Instruktur".to_string()] />
             <h1 class="text-3xl font-bold text-gray-900">"Manajemen Instruktur"</h1>
             <p class="text-gray-600">"Kelola data instruktur dan pengajar"</p>
-            
+
             <div class="bg-white p-8 rounded-lg shadow">
                 <div class="text-center">
                     <i class="fas fa-user-tie text-6xl text-gray-400 mb-4"></i>
@@ -297,7 +297,7 @@ pub fn LaporanPage() -> impl IntoView {
             <Breadcrumb items=vec!["BADIKLAT".to_string(), "Laporan".to_string()] />
             <h1 class="text-3xl font-bold text-gray-900">"Laporan Pelatihan"</h1>
             <p class="text-gray-600">"Generate dan unduh laporan pelatihan"</p>
-            
+
             <div class="bg-white p-8 rounded-lg shadow">
                 <div class="text-center">
                     <i class="fas fa-chart-bar text-6xl text-gray-400 mb-4"></i>
@@ -316,7 +316,7 @@ pub fn SertifikatPage() -> impl IntoView {
             <Breadcrumb items=vec!["BADIKLAT".to_string(), "Sertifikat".to_string()] />
             <h1 class="text-3xl font-bold text-gray-900">"Manajemen Sertifikat"</h1>
             <p class="text-gray-600">"Generate dan kelola sertifikat pelatihan"</p>
-            
+
             <div class="bg-white p-8 rounded-lg shadow">
                 <div class="text-center">
                     <i class="fas fa-certificate text-6xl text-gray-400 mb-4"></i>

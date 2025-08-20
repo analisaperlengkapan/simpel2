@@ -10,7 +10,6 @@
 //! - **Performance Analytics**: Case resolution metrics and prosecution effectiveness
 
 // Modern Leptos imports for 0.7.8
-use leptos::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 // Import application modules

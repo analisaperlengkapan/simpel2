@@ -104,17 +104,17 @@ pub fn apply_unit_theme(unit_code: &str) -> String {
                 --unit-accent: {};
                 --unit-icon: {};
             }}
-            
+
             .unit-theme {{
                 --tw-bg-opacity: 1;
                 background-color: rgb({} / var(--tw-bg-opacity));
             }}
-            
+
             .unit-text {{
                 --tw-text-opacity: 1;
                 color: rgb({} / var(--tw-text-opacity));
             }}
-            
+
             .unit-border {{
                 --tw-border-opacity: 1;
                 border-color: rgb({} / var(--tw-border-opacity));
@@ -168,55 +168,55 @@ fn hex_to_rgb(hex: &str) -> String {
 pub fn get_kejaksaan_css() -> &'static str {
     r#"
     /* Kejaksaan Design System CSS */
-    
+
     /* Logo dan Branding */
     .kejaksaan-logo {
         background: linear-gradient(135deg, #1E40AF 0%, #1E3A8A 100%);
         border-radius: 0.5rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    
+
     .kejaksaan-brand-text {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
         color: #111827;
     }
-    
+
     .kejaksaan-subtitle {
         font-size: 0.75rem;
         color: #6B7280;
         font-weight: 400;
     }
-    
+
     /* Header Styles */
     .kejaksaan-header {
         background: linear-gradient(90deg, #ffffff 0%, #f8fafc 100%);
         border-bottom: 1px solid #e5e7eb;
         backdrop-filter: blur(8px);
     }
-    
+
     /* Navigation Styles */
     .kejaksaan-nav-item {
         transition: all 0.2s ease-in-out;
         border-radius: 0.375rem;
     }
-    
+
     .kejaksaan-nav-item:hover {
         background-color: rgba(59, 130, 246, 0.1);
         transform: translateY(-1px);
     }
-    
+
     .kejaksaan-nav-item.active {
         background-color: rgba(59, 130, 246, 0.15);
         border-left: 3px solid #3B82F6;
     }
-    
+
     /* Footer Styles */
     .kejaksaan-footer {
         background: linear-gradient(135deg, #1E40AF 0%, #1E3A8A 100%);
         color: white;
     }
-    
+
     /* Button Styles */
     .btn-kejaksaan {
         background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
@@ -226,16 +226,16 @@ pub fn get_kejaksaan_css() -> &'static str {
         font-weight: 500;
         transition: all 0.2s ease-in-out;
     }
-    
+
     .btn-kejaksaan:hover {
         transform: translateY(-1px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
-    
+
     .btn-kejaksaan:active {
         transform: translateY(0);
     }
-    
+
     /* Card Styles */
     .kejaksaan-card {
         background: white;
@@ -244,41 +244,41 @@ pub fn get_kejaksaan_css() -> &'static str {
         border: 1px solid #e5e7eb;
         transition: all 0.2s ease-in-out;
     }
-    
+
     .kejaksaan-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
-    
+
     /* Typography */
     .text-kejaksaan-heading {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
         color: #1E40AF;
     }
-    
+
     .text-kejaksaan-body {
         font-family: 'Inter', sans-serif;
         line-height: 1.6;
         color: #374151;
     }
-    
+
     /* Responsive Utilities */
     @media (max-width: 768px) {
         .kejaksaan-mobile-hidden {
             display: none;
         }
-        
+
         .kejaksaan-mobile-show {
             display: block;
         }
     }
-    
+
     /* Animation Classes */
     .kejaksaan-fade-in {
         animation: kejaksaanFadeIn 0.3s ease-in-out;
     }
-    
+
     @keyframes kejaksaanFadeIn {
         from {
             opacity: 0;
@@ -289,13 +289,13 @@ pub fn get_kejaksaan_css() -> &'static str {
             transform: translateY(0);
         }
     }
-    
+
     /* Status Indicators */
     .status-success { color: #10B981; }
     .status-warning { color: #F59E0B; }
     .status-error { color: #EF4444; }
     .status-info { color: #3B82F6; }
-    
+
     /* Accessibility */
     .sr-only {
         position: absolute;
@@ -308,7 +308,7 @@ pub fn get_kejaksaan_css() -> &'static str {
         white-space: nowrap;
         border-width: 0;
     }
-    
+
     /* Focus States */
     .focus\\:ring-kejaksaan:focus {
         outline: 2px solid transparent;

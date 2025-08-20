@@ -10,7 +10,7 @@ echo "🔧 Building all Leptos 0.7.8 CSR microfrontends..."
 
 MICROFRONTENDS=(
     "antarmuka/portal"
-    "antarmuka/intel" 
+    "antarmuka/intel"
     "antarmuka/badiklat"
     "antarmuka/datun"
     "antarmuka/pembinaan"
@@ -26,14 +26,14 @@ FAILED_BUILDS=()
 for mf in "${MICROFRONTENDS[@]}"; do
     echo "📦 Building $mf..."
     cd "/var/www/simpelv2/$mf"
-    
+
     if TRUNK_SKIP_WASM_OPT=true trunk build --release; then
         echo "✅ $mf build successful"
     else
         echo "❌ $mf build failed"
         FAILED_BUILDS+=($mf)
     fi
-    
+
     cd /var/www/simpelv2
 done
 

@@ -4,7 +4,7 @@
 //!
 //! ## 🎯 **Design Philosophy**
 //! - **Performance First**: Optimized for fast compilation and runtime
-//! - **Type Safety**: Comprehensive type system untuk government-grade reliability  
+//! - **Type Safety**: Comprehensive type system untuk government-grade reliability
 //! - **Accessibility**: WCAG 2.1 AA compliant components
 //! - **Consistent Branding**: Unified Kejaksaan RI visual identity
 //!
@@ -20,7 +20,7 @@
 //! ```rust
 //! use shared_microfrontend::prelude::*;
 //!
-//! #[component]  
+//! #[component]
 //! fn MyApp() -> impl IntoView {
 //!     view! {
 //!         <AppHeader title="My Application" />
@@ -113,7 +113,7 @@ pub mod system_constants {
     pub use crate::constants::*;
 }
 
-/// Theming and styling utilities  
+/// Theming and styling utilities
 pub mod styling {
     #[cfg(feature = "serde")]
     pub use crate::styles::*;

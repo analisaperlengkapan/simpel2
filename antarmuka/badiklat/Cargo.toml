@@ -47,5 +47,5 @@ time = { workspace = true }
 default = []
 dev = ["console_error_panic_hook"]
 ssr = ["leptos/ssr"]
-csr = ["leptos/csr"] 
+csr = ["leptos/csr"]
 hydrate = ["leptos/hydrate"]

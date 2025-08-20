@@ -1,7 +1,6 @@
 //! Footer component for Datun Criminal Prosecution System
 
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
 
 /// Footer component khusus untuk sistem Datun
 #[component]

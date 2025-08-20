@@ -15,7 +15,7 @@ fn ActionButton(
         <button
             class={class_str}
             on:click=move |_| {
-                web_sys::console::log_1(&format!("Action: {}", action).into());
+                web_sys::console::log_1(&format!("Action: {action}").into());
             }
         >
             {label}

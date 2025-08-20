@@ -31,6 +31,7 @@ pub struct BudgetPlan {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum PlanPriority {
     Low,
     Medium,
@@ -39,6 +40,7 @@ pub enum PlanPriority {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum PlanStatus {
     Draft,
     InProgress,

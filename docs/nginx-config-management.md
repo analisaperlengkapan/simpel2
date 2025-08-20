@@ -151,7 +151,7 @@ generate_nginx:
 ## Future Enhancements
 
 1. **SSL Certificate Management** - Automated certificate renewal
-2. **Load Balancing Configuration** - Advanced upstream definitions  
+2. **Load Balancing Configuration** - Advanced upstream definitions
 3. **Rate Limiting Customization** - Per-service rate limit configuration
 4. **Monitoring Integration** - Prometheus metrics and alerting
 5. **Blue-Green Deployment** - Zero-downtime configuration updates
@@ -164,7 +164,7 @@ generate_nginx:
 ./scripts/tools/nginx-manager.sh generate-all --validate
 
 # 2. Update infrastructure
-./scripts/tools/nginx-manager.sh update-infra  
+./scripts/tools/nginx-manager.sh update-infra
 
 # 3. Check status
 ./scripts/tools/nginx-manager.sh status

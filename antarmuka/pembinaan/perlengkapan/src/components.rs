@@ -4,12 +4,12 @@ use leptos_router::*;
 #[component]
 pub fn Header() -> impl IntoView {
     let (user_name, _) = create_signal("Admin".to_string());
-    
+
     let logout = move |_| {
         let window = web_sys::window().unwrap();
         let _ = window.location().set_href("/antarmuka/portal-leptos");
     };
-    
+
     view! {
         <header class="header">
             <div class="header-content">
@@ -51,21 +51,21 @@ pub fn StatCard(icon: &'static str, title: String, value: String) -> impl IntoVi
 #[component]
 pub fn SearchBox(#[prop(into)] on_search: Callback<String>) -> impl IntoView {
     let (search_value, set_search_value) = create_signal(String::new());
-    
+
     let handle_search = move |_| {
     on_search.run(search_value.get());
     };
-    
+
     let handle_input = move |ev| {
         let value = event_target_value(&ev);
         set_search_value.set(value);
     };
-    
+
     view! {
         <div class="search-box">
-            <input 
-                type="text" 
-                placeholder="Cari..." 
+            <input
+                type="text"
+                placeholder="Cari..."
                 prop:value=search_value
                 on:input=handle_input
             />
@@ -98,7 +98,7 @@ pub fn StatusBadge(#[prop(into)] status: String) -> impl IntoView {
         "Perbaikan" => "status-badge status-perbaikan",
         _ => "status-badge status-tersedia",
     };
-    
+
     view! {
         <span class=badge_class>{status}</span>
     }
@@ -116,11 +116,11 @@ pub fn FormGroup(
         let value = event_target_value(&ev);
     on_change.run(value);
     };
-    
+
     view! {
         <div class="form-group">
             <label>{label}</label>
-            <input 
+            <input
                 type=input_type
                 placeholder=placeholder
                 prop:value=value
@@ -141,7 +141,7 @@ pub fn FormSelect(
         let value = event_target_value(&ev);
     on_change.run(value);
     };
-    
+
     view! {
         <div class="form-group">
             <label>{label}</label>
@@ -155,4 +155,4 @@ pub fn FormSelect(
             </select>
         </div>
     }
-} 
+}

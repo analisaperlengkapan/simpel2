@@ -36,7 +36,7 @@ pub fn PelatihanCard(
 ) -> impl IntoView {
     let status_color = match pelatihan.status.as_str() {
         "Aktif" => "green",
-        "Selesai" => "blue", 
+        "Selesai" => "blue",
         "Dibatalkan" => "red",
         _ => "gray",
     };
@@ -53,7 +53,7 @@ pub fn PelatihanCard(
                 <div class="flex-1">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">{pelatihan.judul}</h3>
                     <p class="text-sm text-gray-600 mb-3 line-clamp-2">{pelatihan.deskripsi}</p>
-                    
+
                     <div class="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                         <div class="flex items-center">
                             <i class="fas fa-calendar mr-2"></i>
@@ -76,7 +76,7 @@ pub fn PelatihanCard(
                     <span>{pelatihan.peserta_terdaftar} "/" {pelatihan.kuota}</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                         class={format!("bg-green-500 h-2 rounded-full transition-all duration-300")}
                         style={format!("width: {}%", progress)}
                     ></div>
@@ -89,7 +89,7 @@ pub fn PelatihanCard(
                 </span>
                 {if let Some(callback) = on_detail {
                     view! {
-                        <button 
+                        <button
                             class="btn btn-sm btn-primary"
                             on:click=move |_| callback.run(pelatihan.id.clone())
                         >
@@ -142,7 +142,7 @@ pub fn PesertaCard(
 
             {if let Some(callback) = on_detail {
                 view! {
-                    <button 
+                    <button
                         class="w-full btn btn-sm btn-outline"
                         on:click=move |_| callback.run(peserta.id.clone())
                     >
@@ -197,7 +197,7 @@ pub fn StatistikPelatihan() -> impl IntoView {
     }
 }
 
-#[component] 
+#[component]
 pub fn PelatihanFilter(
     on_filter_change: Callback<(String, String)>, // (kategori, status)
 ) -> impl IntoView {
@@ -229,11 +229,11 @@ pub fn PelatihanFilter(
                 <i class="fas fa-filter mr-2"></i>
                 "Filter Pelatihan"
             </h3>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">"Kategori"</label>
-                    <select 
+                    <select
                         class="simpelv2-form-input"
                         on:change=move |e| {
                             set_kategori.set(event_target_value(&e));
@@ -256,7 +256,7 @@ pub fn PelatihanFilter(
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">"Status"</label>
-                    <select 
+                    <select
                         class="simpelv2-form-input"
                         on:change=move |e| {
                             set_status.set(event_target_value(&e));
@@ -278,7 +278,7 @@ pub fn PelatihanFilter(
                 </div>
 
                 <div class="flex items-end">
-                    <button 
+                    <button
                         class="btn btn-primary w-full"
                         on:click=move |_| {
                             set_kategori.set("semua".to_string());

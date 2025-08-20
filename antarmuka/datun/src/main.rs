@@ -32,8 +32,7 @@ async fn main() {
 #[cfg(not(target_arch = "wasm32"))]
 /// Render the main application
 async fn render_app() -> Html<String> {
-    let html = format!(
-        r#"<!DOCTYPE html>
+    let html = r#"<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
@@ -47,8 +46,7 @@ async fn render_app() -> Html<String> {
     <div id="app">Loading...</div>
     <script type="module" src="/assets/datun.js"></script>
 </body>
-</html>"#
-    );
+</html>"#.to_string();
 
     Html(html)
 }

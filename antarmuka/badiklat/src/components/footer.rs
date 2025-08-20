@@ -1,7 +1,6 @@
 //! Footer component for Badiklat Training & Education System
 
 use leptos::prelude::*;
-use shared_microfrontend::prelude::*;
 
 /// Footer component khusus untuk sistem Badiklat
 #[component]

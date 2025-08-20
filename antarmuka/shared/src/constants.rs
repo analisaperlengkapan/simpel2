@@ -2,7 +2,7 @@
 //!
 //! Comprehensive constant definitions untuk aplikasi Kejaksaan RI dengan focus pada:
 //! - **Consistency**: Unified design system values
-//! - **Type Safety**: Compile-time validation  
+//! - **Type Safety**: Compile-time validation
 //! - **Performance**: Zero-allocation constant access
 //! - **Government Standards**: Sesuai standar visual identity Kejaksaan RI
 
@@ -24,7 +24,7 @@ impl KejaksaanColors {
     // === PRIMARY COLORS - Biru Kejaksaan ===
     /// Biru Kejaksaan utama (primary)
     pub const PRIMARY: &'static str = "#1E40AF"; // blue-800
-    /// Biru Kejaksaan terang  
+    /// Biru Kejaksaan terang
     pub const PRIMARY_LIGHT: &'static str = "#3B82F6"; // blue-600
     /// Biru Kejaksaan gelap
     pub const PRIMARY_DARK: &'static str = "#1E3A8A"; // blue-900
@@ -68,7 +68,7 @@ impl KejaksaanColors {
     pub const SUCCESS: &'static str = "#10B981"; // emerald-500
     /// Background success
     pub const SUCCESS_50: &'static str = "#ECFDF5"; // emerald-50
-    /// Kuning untuk warning/peringatan  
+    /// Kuning untuk warning/peringatan
     pub const WARNING: &'static str = "#F59E0B"; // amber-500
     /// Background warning
     pub const WARNING_50: &'static str = "#FFFBEB"; // amber-50
@@ -432,7 +432,7 @@ pub struct Spacing;
 impl Spacing {
     /// 4px
     pub const XS: &'static str = "0.25rem";
-    /// 8px  
+    /// 8px
     pub const SM: &'static str = "0.5rem";
     /// 12px
     pub const MD: &'static str = "0.75rem";
@@ -474,7 +474,7 @@ impl Typography {
     pub const TEXT_LG: &'static str = "1.125rem";
     /// 20px - Extra large text
     pub const TEXT_XL: &'static str = "1.25rem";
-    /// 24px - 2X large text  
+    /// 24px - 2X large text
     pub const TEXT_2XL: &'static str = "1.5rem";
     /// 30px - 3X large text
     pub const TEXT_3XL: &'static str = "1.875rem";

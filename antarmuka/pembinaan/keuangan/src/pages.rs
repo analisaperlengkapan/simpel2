@@ -249,7 +249,7 @@ pub fn ActionButton(label: String, action: String) -> impl IntoView {
 #[component]
 pub fn KeuanganDashboard() -> impl IntoView {
     // Sample financial metrics
-    let financial_metrics = RwSignal::new(FinancialMetrics {
+    let _financial_metrics = RwSignal::new(FinancialMetrics {
         total_budget: 125_500_000.0,
         total_realization: 89_200_000.0,
         utilization_percentage: 71.1,

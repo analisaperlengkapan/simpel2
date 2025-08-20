@@ -1,41 +1,50 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIMPELv2 Portal</title>
     <meta name="description" content="Portal Utama SIMPelv2 - Kejaksaan Agung Republik Indonesia">
     <meta name="theme-color" content="#1e40af">
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png">
-    
+
     <!-- SIMPelv2 Design System -->
     <link rel="stylesheet" href="../shared/styles/main.css">
-    
+
     <!-- Font Awesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Trunk WASM configuration -->
-    <link data-trunk rel="rust" data-bin="portal-microfrontend" data-wasm-opt="z" data-wasm-opt-params="--enable-bulk-memory" />
-    
+    <link data-trunk rel="rust" data-bin="portal-microfrontend" data-wasm-opt="z"
+        data-wasm-opt-params="--enable-bulk-memory" />
+
     <!-- Portal-specific styling -->
     <style>
         /* Portal loading animation */
         .portal-loading {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .5;
+            }
         }
-        
+
         /* Portal fallback styling */
         .portal-fallback {
             background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
         }
-        
+
         /* Portal branding override */
         .portal-brand {
             background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800));
@@ -43,6 +52,7 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-50">
     <div id="main">
         <!-- Portal application akan di-render di sini oleh Leptos -->
@@ -68,4 +78,5 @@
     </div>
     <!-- Script Leptos/Trunk akan di-inject otomatis oleh Trunk build -->
 </body>
+
 </html>
