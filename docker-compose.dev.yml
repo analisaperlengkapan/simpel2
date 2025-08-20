@@ -133,8 +133,8 @@ services:
 
   gerbang:
     ports:
-      - "8080:8080"  # API Gateway
-      - "9901:9901"  # Admin interface
+      - "8080:8080" # API Gateway
+      - "9901:9901" # Admin interface
     environment:
       - RUST_LOG=debug
       - GATEWAY_ENV=development
@@ -168,7 +168,7 @@ services:
 
   postgres:
     ports:
-      - "5432:5432"  # Expose for development tools
+      - "5432:5432" # Expose for development tools
     environment:
       - POSTGRES_DB=simpelv2_dev
       - POSTGRES_USER=simpelv2_dev
@@ -180,7 +180,7 @@ services:
 
   redis:
     ports:
-      - "6379:6379"  # Expose for development tools
+      - "6379:6379" # Expose for development tools
     environment:
       - REDIS_PASSWORD=dev_password
     volumes:
