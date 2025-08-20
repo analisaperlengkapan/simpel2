@@ -1,53 +1,258 @@
-# Development Override Configuration
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# SIMPelv2 Development Override Configuration
+# Development-specific configurations with port exposure and debugging features
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 services:
-  # Development database configuration
-  db-simpelv2:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_PASSWORD=rahasia
-      - POSTGRES_USER=simpel
-      - POSTGRES_DB=simpelv2
+  # ================================
+  # MICROFRONTEND DEVELOPMENT OVERRIDES
+  # ================================
+
+  portal:
     ports:
-      - "5432:5432"  # Expose port for development
+      - "8089:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - simpelv2
-      - internal
+      - ./antarmuka/portal/src:/app/src:ro
+      - ./logs/portal:/var/log
 
-  # Development nginx configuration
-  nginx:
+  badiklat:
+    ports:
+      - "8081:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-      - ./antarmuka/dist:/usr/share/nginx/html:ro
-      - ./logs/nginx:/var/log/nginx  # Log volume for development
+      - ./antarmuka/badiklat/src:/app/src:ro
+      - ./logs/badiklat:/var/log
 
-  # Development gateway configuration
+  datun:
+    ports:
+      - "8082:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/datun/src:/app/src:ro
+      - ./logs/datun:/var/log
+
+  intel:
+    ports:
+      - "8083:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/intel/src:/app/src:ro
+      - ./logs/intel:/var/log
+
+  keuangan:
+    ports:
+      - "8084:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/keuangan/src:/app/src:ro
+      - ./logs/keuangan:/var/log
+
+  pemulihan-aset:
+    ports:
+      - "8085:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/pemulihan_aset/src:/app/src:ro
+      - ./logs/pemulihan-aset:/var/log
+
+  pengawasan:
+    ports:
+      - "8086:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/pengawasan/src:/app/src:ro
+      - ./logs/pengawasan:/var/log
+
+  perencanaan:
+    ports:
+      - "8087:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/perencanaan/src:/app/src:ro
+      - ./logs/perencanaan:/var/log
+
+  perlengkapan:
+    ports:
+      - "8088:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/perlengkapan/src:/app/src:ro
+      - ./logs/perlengkapan:/var/log
+
+  pidmil:
+    ports:
+      - "8090:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/pidmil/src:/app/src:ro
+      - ./logs/pidmil:/var/log
+
+  pidsus:
+    ports:
+      - "8091:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/pidsus/src:/app/src:ro
+      - ./logs/pidsus:/var/log
+
+  pidum:
+    ports:
+      - "8092:8080"
+    environment:
+      - RUST_LOG=debug
+      - NODE_ENV=development
+    volumes:
+      - ./antarmuka/pidum/src:/app/src:ro
+      - ./logs/pidum:/var/log
+
+  # ================================
+  # BACKEND DEVELOPMENT OVERRIDES
+  # ================================
+
   gerbang:
     ports:
-      - "8080:8080"  # Expose port for development
-      - "9901:9901"  # Expose admin port for development
+      - "8080:8080" # API Gateway
+      - "9901:9901" # Admin interface
+    environment:
+      - RUST_LOG=debug
+      - GATEWAY_ENV=development
     volumes:
-      - ./logs/gerbang:/var/log  # Log volume for development
+      - ./logs/gerbang:/var/log
+      - ./infra/gerbang/config:/app/config:ro
 
-  # Development security service configuration
   layanan-keamanan:
     ports:
-      - "3001:3000"  # Expose port for development
+      - "3001:3000"
+    environment:
+      - RUST_LOG=debug
+      - SERVICE_ENV=development
     volumes:
-      - ./logs/layanan-keamanan:/var/log  # Log volume for development
+      - ./logs/layanan-keamanan:/var/log
+      - ./layanan/keamanan/config:/app/config:ro
 
-  # Development integration service configuration
   layanan-integrasi:
     ports:
-      - "3002:3000"  # Expose port for development
+      - "3002:3000"
+    environment:
+      - RUST_LOG=debug
+      - SERVICE_ENV=development
     volumes:
-      - ./logs/layanan-integrasi:/var/log  # Log volume for development
+      - ./logs/layanan-integrasi:/var/log
+      - ./layanan/integrasi/config:/app/config:ro
 
-# Development volumes
+  # ================================
+  # DATABASE DEVELOPMENT OVERRIDES
+  # ================================
+
+  postgres:
+    ports:
+      - "5432:5432" # Expose for development tools
+    environment:
+      - POSTGRES_DB=simpelv2_dev
+      - POSTGRES_USER=simpelv2_dev
+      - POSTGRES_PASSWORD=dev_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/dev-init.sql:/docker-entrypoint-initdb.d/dev-init.sql
+      - ./logs/postgres:/var/log
+
+  redis:
+    ports:
+      - "6379:6379" # Expose for development tools
+    environment:
+      - REDIS_PASSWORD=dev_password
+    volumes:
+      - redis_data:/data
+      - ./logs/redis:/var/log
+
+  # ================================
+  # INFRASTRUCTURE DEVELOPMENT OVERRIDES
+  # ================================
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/dev.conf:/etc/nginx/nginx.conf
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./antarmuka/dist:/usr/share/nginx/html:ro
+      - ./logs/nginx:/var/log/nginx
+    environment:
+      - NGINX_ENV=development
+
+  # ================================
+  # DEVELOPMENT TOOLS
+  # ================================
+
+  # Database Admin Tool (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@simpelv2.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - simpelv2
+    depends_on:
+      - postgres
+
+  # Redis Admin Tool (RedisInsight)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis_insight_data:/db
+    networks:
+      - simpelv2
+    depends_on:
+      - redis
+
+  # Log Aggregation for Development
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infra/monitoring/loki-dev.yml:/etc/loki/local-config.yaml
+      - loki_data:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - simpelv2
+
+# ================================
+# DEVELOPMENT VOLUMES
+# ================================
 volumes:
-  logs:
-    driver: local 
+  pgadmin_data:
+    driver: local
+  redis_insight_data:
+    driver: local
+  loki_data:
+    driver: local

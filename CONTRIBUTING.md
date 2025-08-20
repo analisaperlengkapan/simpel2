@@ -17,7 +17,7 @@ SIMPelv2 adalah proyek Kejaksaan yang terbuka untuk pegawai Kejaksaan dalam kont
 Mari mulai langkah kecil Anda hari ini—baik dari:
 - 🎨 Mengembangkan UI microfrontend dengan Leptos
 - 🔧 Menulis microservice dengan Rust
-- 📚 Memperbaiki dokumentasi dan guides  
+- 📚 Memperbaiki dokumentasi dan guides
 - 🧪 Menambahkan test coverage dan quality assurance
 - 🤖 Mengembangkan model AI untuk document processing
 - 🔐 Implementasi security features dan compliance
@@ -85,7 +85,7 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
    ```
 
 #### **🪟 Windows Setup (WSL2)**
-1. **Install WSL2**: Windows Subsystem for Linux  
+1. **Install WSL2**: Windows Subsystem for Linux
 2. **Install VS Code**: Dengan WSL extension
 3. **Setup Git**: Configure user.name dan user.email
 4. **Install Docker Desktop**: Dengan WSL2 backend
@@ -94,7 +94,7 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
 ### 🔄 **Workflow Kontribusi**
 
 1. **🍴 Fork Repository** → Clone → Checkout ke `main`
-2. **🌿 Buat Feature Branch** (`feature/nama-fitur` atau `fix/deskripsi`) 
+2. **🌿 Buat Feature Branch** (`feature/nama-fitur` atau `fix/deskripsi`)
 3. **💻 Development**:
    - Frontend: Edit microfrontend dengan Leptos
    - Backend: Develop microservice dengan Rust
@@ -116,7 +116,7 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
 ```
 main ← production (stable releases)
 ├── feature/microfrontend-optimization
-├── feature/ai-document-processing  
+├── feature/ai-document-processing
 ├── feature/security-improvements
 ├── fix/performance-issues
 ├── docs/api-documentation
@@ -132,7 +132,7 @@ Gunakan **Conventional Commits** untuk consistency:
 
 ```bash
 feat: add real-time dashboard untuk pemantauan aset
-fix: resolve authentication token expiry issue  
+fix: resolve authentication token expiry issue
 docs: update microfrontend development guide
 perf: optimize WASM bundle size untuk portal
 security: implement CSP headers untuk semua frontends
@@ -145,7 +145,7 @@ ci: update deployment pipeline untuk K8s
 - `feat`: New features atau enhancements
 - `fix`: Bug fixes dan error resolution
 - `docs`: Documentation changes
-- `perf`: Performance improvements  
+- `perf`: Performance improvements
 - `security`: Security-related changes
 - `test`: Test additions atau improvements
 - `refactor`: Code refactoring tanpa functional changes
@@ -159,7 +159,7 @@ ci: update deployment pipeline untuk K8s
 ```markdown
 ## 🎯 Ringkasan Perubahan
 <!-- Jelaskan apa yang diubah dan mengapa -->
-- ✨ Menambahkan [fitur baru/enhancement]  
+- ✨ Menambahkan [fitur baru/enhancement]
 - 🐛 Memperbaiki [bug/issue tertentu]
 - 📚 Memperbarui [dokumentasi/guide]
 - ⚡ Mengoptimalkan [performa/security]
@@ -167,7 +167,7 @@ ci: update deployment pipeline untuk K8s
 ## 🔧 Jenis Kontribusi
 - [ ] 🎨 Frontend Microfrontend (Leptos + WASM)
 - [ ] ⚙️ Backend Microservice (Rust + Axum)
-- [ ] 🤖 AI/ML Integration  
+- [ ] 🤖 AI/ML Integration
 - [ ] 🔐 Security Enhancement
 - [ ] 📚 Documentation Update
 - [ ] 🧪 Testing & Quality Assurance
@@ -175,7 +175,7 @@ ci: update deployment pipeline untuk K8s
 
 ## ✅ Quality Checklist
 - [ ] 🧪 Unit tests passing (`make test-unit`)
-- [ ] 🔄 Integration tests passing (`make test-integration`)  
+- [ ] 🔄 Integration tests passing (`make test-integration`)
 - [ ] 📊 Code coverage maintained/improved
 - [ ] 🦀 Rust formatting applied (`cargo fmt`)
 - [ ] 📝 Clippy warnings resolved (`cargo clippy`)
@@ -190,7 +190,7 @@ ci: update deployment pipeline untuk K8s
 - [ ] Performance testing (jika ada perubahan performa)
 - [ ] Security testing (jika ada security changes)
 
-## 📸 Screenshots/Logs  
+## 📸 Screenshots/Logs
 <!-- Lampirkan screenshot untuk UI changes atau logs untuk backend changes -->
 
 ## 🔗 Related Issues
@@ -223,7 +223,7 @@ Related to #[issue-number]
     📱 Mobile            🔐 Security         📊 Intelligence
   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
   │ PWA Support │    │ Auth/RBAC   │    │ Reporting   │
-  │ Offline     │    │ Compliance  │    │ Predictions │  
+  │ Offline     │    │ Compliance  │    │ Predictions │
   │ Performance │    │ Audit Trail │    │ Insights    │
   └─────────────┘    └─────────────┘    └─────────────┘
 ```
@@ -237,7 +237,7 @@ Related to #[issue-number]
 - **Responsibilities**: Microfrontend development, UI/UX, responsive design
 - **Projects**: Portal dashboard, modular interfaces, component library
 
-#### **⚙️ Backend Developer**  
+#### **⚙️ Backend Developer**
 - **Tech Stack**: Rust, Axum, PostgreSQL, Docker
 - **Responsibilities**: Microservices, APIs, database design, performance
 - **Projects**: Security service, document management, AI integration
@@ -252,7 +252,7 @@ Related to #[issue-number]
 - **Responsibilities**: Authentication, authorization, compliance, audit
 - **Projects**: Zero-trust implementation, security policies, threat detection
 
-#### **📊 Data Engineer/Analyst**  
+#### **📊 Data Engineer/Analyst**
 - **Tech Stack**: PostgreSQL, Grafana, Prometheus, SQL
 - **Responsibilities**: Data modeling, analytics, reporting, visualization
 - **Projects**: Business intelligence, performance metrics, compliance reports
@@ -263,13 +263,13 @@ Related to #[issue-number]
 - **Projects**: CI/CD testing, quality gates, monitoring
 
 #### **🏗️ DevOps/Infrastructure**
-- **Tech Stack**: Kubernetes, Docker, Nginx, Envoy, Observability  
+- **Tech Stack**: Kubernetes, Docker, Nginx, Envoy, Observability
 - **Responsibilities**: Infrastructure, deployment, monitoring, scaling
 - **Projects**: K8s deployment, CI/CD pipelines, observability stack
 
 #### **📖 Technical Writer**
 - **Tech Stack**: Markdown, API documentation, Architecture diagrams
-- **Responsibilities**: Documentation, guides, API specs, tutorials  
+- **Responsibilities**: Documentation, guides, API specs, tutorials
 - **Projects**: Developer guides, API documentation, architecture docs
 
 ---
@@ -286,14 +286,14 @@ SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
 - **Information Extraction**: Extract key data points dari forms dan contracts
 - **Document Summarization**: Generate executive summaries untuk reports
 
-#### **📊 Predictive Analytics** 
+#### **📊 Predictive Analytics**
 - **Asset Depreciation Models**: Predict nilai aset berdasarkan historical data
 - **Demand Forecasting**: Predict kebutuhan aset berdasarkan trends
 - **Anomaly Detection**: Detect unusual patterns dalam penggunaan aset
 - **Performance Optimization**: Optimize asset allocation dan utilization
 
 #### **🔍 Search & Discovery**
-- **Semantic Search**: Advanced search dengan natural language processing  
+- **Semantic Search**: Advanced search dengan natural language processing
 - **Recommendation Engine**: Suggest relevan documents dan assets
 - **Knowledge Graph**: Build relationships antar entities dalam sistem
 - **Contextual AI Assistant**: Chat-based interface untuk user queries
@@ -302,7 +302,7 @@ SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
 
 | Technology | Purpose | Implementation |
 |------------|---------|----------------|
-| **Rust-ML** | Core ML runtime | `candle-transformers`, `tch` |  
+| **Rust-ML** | Core ML runtime | `candle-transformers`, `tch` |
 | **Python Bridge** | Model training | `PyO3` integration dengan Rust |
 | **ONNX Runtime** | Model inference | Cross-platform model deployment |
 | **Vector Database** | Embeddings storage | `Qdrant` untuk similarity search |
@@ -325,7 +325,7 @@ SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
 # 1. Setup AI development environment
 make setup-ai-dev
 
-# 2. Train/fine-tune models  
+# 2. Train/fine-tune models
 make train-model MODEL=document-classifier
 
 # 3. Validate model performance
@@ -389,7 +389,7 @@ Manfaatkan alat bantu AI untuk meningkatkan efisiensi:
 ```bash
 # VS Code extensions yang recommended
 code --install-extension rust-lang.rust-analyzer
-code --install-extension ms-vscode.vscode-typescript-next  
+code --install-extension ms-vscode.vscode-typescript-next
 code --install-extension ms-vscode-remote.remote-wsl
 code --install-extension GitLab.gitlab-workflow
 
@@ -414,7 +414,7 @@ make setup-ai-tools     # AI-powered development tools
 # .gitlab-ci.yml highlights
 stages:
   - validate       # Code formatting, linting
-  - test          # Unit, integration tests  
+  - test          # Unit, integration tests
   - security      # Security vulnerability scan
   - build         # Build binaries dan WASM
   - deploy        # Deploy to staging/production
@@ -426,7 +426,7 @@ stages:
   ```
   # Automatic reviewers
   /antarmuka/          @frontend-team
-  /layanan/keamanan/   @security-team  
+  /layanan/keamanan/   @security-team
   /layanan/ai/         @ai-ml-team
   /docs/               @documentation-team
   /infra/              @devops-team
@@ -434,7 +434,7 @@ stages:
 
 ### 📈 **Development Metrics**
 - **Merge Request Analytics**: Review time, approval rates
-- **Code Quality Metrics**: Coverage, complexity, duplication  
+- **Code Quality Metrics**: Coverage, complexity, duplication
 - **Security Metrics**: Vulnerability trends, resolution time
 - **Performance Metrics**: Build time, deployment frequency
 
@@ -445,7 +445,7 @@ stages:
 ### 🔐 **Information Security**
 - **Classified Data**: Semua kode dan data internal bersifat rahasia
 - **Access Control**: Gunakan principle of least privilege
-- **Secure Development**: Follow OWASP security guidelines  
+- **Secure Development**: Follow OWASP security guidelines
 - **Data Protection**: Implement proper data encryption dan masking
 
 ### ⚖️ **Compliance Requirements**
@@ -476,7 +476,7 @@ stages:
 
 #### **📚 Documentation Resources**
 - [🏗️ Architecture Guide](docs/architecture/README.md)
-- [🔐 Security Manual](docs/security/README.md) 
+- [🔐 Security Manual](docs/security/README.md)
 - [🎨 Frontend Development](docs/frontend/README.md)
 - [⚙️ Backend API Reference](docs/api/README.md)
 
@@ -495,7 +495,7 @@ stages:
 ### 🎯 **Escalation Path**
 ```
 Developer Question → GitLab Issue → Team Lead → Division Head
-Security Issue → Security Team → CISO → Executive Level  
+Security Issue → Security Team → CISO → Executive Level
 Compliance Issue → Legal Team → Compliance Officer → Management
 ```
 
@@ -506,7 +506,7 @@ Compliance Issue → Legal Team → Compliance Officer → Management
 Terima kasih kepada semua kontributor yang telah membantu membangun **SIMPelv2**:
 
 - **🏛️ Kejaksaan RI**: Institutional support dan vision
-- **👥 Development Team**: Dedication dalam building modern architecture  
+- **👥 Development Team**: Dedication dalam building modern architecture
 - **🔐 Security Team**: Ensuring enterprise-grade security
 - **🤖 AI/ML Team**: Pioneering intelligent document processing
 - **📚 Documentation Team**: Creating comprehensive guides

@@ -15,7 +15,7 @@ SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengel
 - **Build System**: Trunk 0.21.14 dengan optimasi WASM
 - **Database**: PostgreSQL (multi-schema) dengan connection pooling
 - **Gateway**: Envoy Proxy + Nginx dengan load balancing
-- **Security**: HashiCorp Vault + JWT + MFA + Zero-Trust Architecture  
+- **Security**: HashiCorp Vault + JWT + MFA + Zero-Trust Architecture
 - **AI/ML**: Rust-Bert + Tch + Qdrant untuk intelligent processing
 - **Orchestration**: Docker Compose + Kubernetes dengan Helm charts
 - **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
@@ -105,7 +105,7 @@ make deploy-prod
 simpelv2/
 ├── 📁 antarmuka/                 # Microfrontend Leptos Applications
 │   ├── 🏛️ portal/              # Main Dashboard & Gateway (8080)
-│   ├── 🎓 badiklat/             # Training & Education (8081) 
+│   ├── 🎓 badiklat/             # Training & Education (8081)
 │   ├── ⚖️ datun/               # Criminal Prosecution (8082)
 │   ├── � intel/               # Intelligence Analytics (8083)
 │   ├── 📋 pembinaan/           # Development Management
@@ -120,7 +120,7 @@ simpelv2/
 │   └── 🧩 shared/             # Shared UI Components Library
 ├── 📁 layanan/                   # Backend Microservices (Rust)
 │   ├── 🔐 keamanan/             # Security Service (3001)
-│   ├── 🤖 ai/                   # AI/ML Service (3002)  
+│   ├── 🤖 ai/                   # AI/ML Service (3002)
 │   ├── 📄 dokumen/              # Document Management (3003)
 │   ├── ⚙️ konfigurasi/          # Configuration Service (3004)
 │   ├── 🆘 bantuan/              # Help & Support (3005)
@@ -139,7 +139,7 @@ simpelv2/
 │   ├── 🧪 test/                 # Test Automation
 │   └── 📦 makefiles/            # Make Configurations
 ├── 📁 docs/                      # Comprehensive Documentation
-│   ├── 📚 api/                  # API Documentation  
+│   ├── 📚 api/                  # API Documentation
 │   ├── 🏗️ architecture/         # Architecture Diagrams
 │   └── � guides/               # Development Guides
 └── 📁 target/                    # Rust Build Artifacts
@@ -150,22 +150,22 @@ simpelv2/
 
 ## 🎨 **Frontend Microfrontends**
 
-### **🏛️ Portal Dashboard** 
+### **🏛️ Portal Dashboard**
 **Primary Gateway & Unified Dashboard**
-- **Port**: `:8080` 
+- **Port**: `:8080`
 - **Function**: Main entry point, authentication, navigation
 - **Technology**: Leptos 0.7.8 + WebAssembly
 - **Features**: Single Sign-On, role-based routing, system overview
 
 ### **🎓 Badiklat Training System**
-**Training & Education Management** 
+**Training & Education Management**
 - **Port**: `:8081`
 - **Function**: Training programs, certifications, learning paths
 - **Features**: Course management, progress tracking, assessments
 
 ### **⚖️ Datun Criminal Prosecution**
 **General Criminal Case Management**
-- **Port**: `:8082` 
+- **Port**: `:8082`
 - **Function**: Case tracking, prosecution workflow, legal documents
 - **Features**: Case assignment, timeline management, evidence tracking
 
@@ -253,7 +253,7 @@ User Login → JWT Token → MFA Verification → Role Assignment → Microfront
 
 ### **🛡️ Multi-Layer Security**
 1. **Network Security**: Envoy Gateway + Nginx with SSL termination
-2. **Application Security**: Rust memory safety + type checking  
+2. **Application Security**: Rust memory safety + type checking
 3. **Authentication**: JWT + MFA + RBAC per service
 4. **Secret Management**: HashiCorp Vault integration
 5. **Audit Trail**: Immutable logging across all microfrontends
@@ -304,7 +304,7 @@ User Login → JWT Token → MFA Verification → Role Assignment → Microfront
 ```bash
 # System requirements
 - Docker & Docker Compose 20+
-- Rust 1.75+ (for development)  
+- Rust 1.75+ (for development)
 - Node.js 18+ & Trunk 0.21.14 (for microfrontends)
 - PostgreSQL 15+
 - HashiCorp Vault
@@ -347,7 +347,7 @@ make serve-portal       # Serve portal with hot reload
 make build-all-fe      # Build all microfrontends
 make test-frontends    # Test all frontend modules
 
-# Backend development  
+# Backend development
 make dev-backend       # Start backend services
 make test-backend      # Run backend tests
 make clippy           # Rust linting
@@ -392,7 +392,7 @@ make monitor-k8s
 
 ### **📖 Core Documentation**
 - [🏗️ Architecture Overview](docs/architecture/README.md)
-- [🔐 Security Guide](docs/security/README.md)  
+- [🔐 Security Guide](docs/security/README.md)
 - [🤝 Contributing Guidelines](CONTRIBUTING.md)
 - [🚀 Deployment Guide](docs/deployment/README.md)
 - [📋 API Documentation](docs/api/README.md)
@@ -434,8 +434,8 @@ make monitor-k8s
 ### **🔄 CI/CD Pipeline**
 ```bash
 # Quality checks pipeline
-Code Push → Pre-commit Hooks → Unit Tests → Integration Tests 
-         → Security Scan → Build → Deploy Staging → E2E Tests 
+Code Push → Pre-commit Hooks → Unit Tests → Integration Tests
+         → Security Scan → Build → Deploy Staging → E2E Tests
          → Deploy Production → Health Check → Monitoring
 ```
 
@@ -495,7 +495,7 @@ make setup-dev
 ### **🔄 Contribution Process**
 1. **📋 Issue Creation**: Create detailed issue dengan requirements
 2. **🌿 Branch Creation**: Feature branch dari main branch
-3. **💻 Development**: Implement dengan tests + documentation  
+3. **💻 Development**: Implement dengan tests + documentation
 4. **🧪 Quality Checks**: Run tests, linting, security scans
 5. **📝 Merge Request**: Submit dengan comprehensive description
 6. **👁️ Code Review**: Peer review + automated checks
