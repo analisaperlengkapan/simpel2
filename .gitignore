@@ -190,3 +190,7 @@ antarmuka/*/Cargo.lock
 # Size analysis
 **/size-report.*
 **/bundle-analysis.*
+
+# ===============================
+# Cargo Chef auto-generated
+recipe.json
