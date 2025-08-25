@@ -12,6 +12,9 @@ include scripts/makefiles/config.mk     # Configuration and variables
 include scripts/makefiles/dev.mk        # Development environment targets
 include scripts/makefiles/ops.mk        # Operations and deployment targets
 include scripts/makefiles/advanced.mk   # Advanced features and automation
+
+# Rust/Cargo workflow targets
+include scripts/makefiles/rust.mk       # Rust/Cargo build, test, lint, doc, chef
 include scripts/makefiles/help.mk       # Help system and documentation
 
 # ====== CORE MAKEFILES (REFACTORED FROM .SH) ======
@@ -46,12 +49,13 @@ leptos-clean: clean-frontend ## Legacy: Clean Leptos artifacts
 workspace-check: validate-workspace ## Legacy: Check workspace
 workspace-update: deps-update ## Legacy: Update workspace
 
-# Common aliases
-test: rust-test ## Alias for running tests
-serve: dev ## Alias for development server
-fmt: rust-fmt ## Alias for formatting
-clippy: rust-clippy ## Alias for linting
-doc: rust-doc ## Alias for documentation
+
+# ====== RUST WORKFLOW ALIASES ======
+# These provide short aliases for the main Rust/Cargo workflow targets
+test: rust-test        ## Alias for running all Rust tests
+fmt: rust-fmt          ## Alias for formatting all Rust code
+clippy: rust-clippy    ## Alias for linting all Rust code
+doc: rust-doc          ## Alias for building Rust documentation
 
 # ====== QUICK ACCESS TARGETS ======
 # Most commonly used commands for quick access

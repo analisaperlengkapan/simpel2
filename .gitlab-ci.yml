@@ -34,6 +34,13 @@ lint:yaml:
   script:
   - "echo \"\U0001F50D Melakukan lint YAML...\""
   - make lint-yaml
+lint:rust:
+  stage: lint
+  image: rust:1.77
+  script:
+    - rustup component add clippy rustfmt
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets --all-features -- -D warnings
 validate:all:
   stage: validate
   script:
@@ -61,6 +68,11 @@ test:simulate:
   script:
   - "echo \"\U0001F9EA Simulasi pod run semua image...\""
   - make simulate-pod-run
+test:rust:
+  stage: test
+  image: rust:1.77
+  script:
+    - cargo test --workspace --all-features
 coverage:go:
   stage: test
   script:
