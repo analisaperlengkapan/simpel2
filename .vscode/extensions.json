@@ -1,0 +1,80 @@
+{
+  "recommendations": [
+    // ========================================
+    // CORE RUST DEVELOPMENT
+    // ========================================
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "serayuzgur.crates",
+    "dustypomerleau.rust-syntax",
+    // ========================================
+    // WASM & FRONTEND DEVELOPMENT
+    // ========================================
+    "bradlc.vscode-tailwindcss",
+    "formulahendry.auto-rename-tag",
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    // ========================================
+    // CONFIGURATION & DATA FORMATS
+    // ========================================
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "ms-vscode.vscode-json",
+    // ========================================
+    // DOCKER & DEVOPS
+    // ========================================
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers",
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+    // ========================================
+    // BUILD TOOLS & AUTOMATION
+    // ========================================
+    "ms-vscode.makefile-tools",
+    "ms-vscode.cmake-tools",
+    "trunk-rs.trunk",
+    // ========================================
+    // VERSION CONTROL & COLLABORATION
+    // ========================================
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    "github.vscode-github-actions",
+    "ms-vsliveshare.vsliveshare",
+    // ========================================
+    // CODE QUALITY & TESTING
+    // ========================================
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.test-adapter-converter",
+    "hbenl.vscode-test-explorer",
+    "ryanluker.vscode-coverage-gutters",
+    // ========================================
+    // PRODUCTIVITY & UI
+    // ========================================
+    "esbenp.prettier-vscode",
+    "oderwat.indent-rainbow",
+    "vscode-icons-team.vscode-icons",
+    "gruntfuggly.todo-tree",
+    "aaron-bond.better-comments",
+    // ========================================
+    // AI & COMPLETION (Optional but recommended)
+    // ========================================
+    "github.copilot",
+    "github.copilot-chat",
+    "codeium.codeium"
+  ],
+  "unwantedRecommendations": [
+    // Remove language-specific extensions not needed
+    "ms-python.python",
+    "golang.go",
+    "ziglang.vscode-zig",
+    "ms-vscode.cpptools-extension-pack",
+    "ms-vscode.cmake-tools",
+    "ms-dotnettools.csharp",
+    // Remove conflicting formatters
+    "ms-vscode.vscode-typescript",
+    "hookyqr.beautify",
+    // Remove unused extensions
+    "ms-python.debugpy",
+    "ms-python.vscode-pylance",
+    "ms-vscode.cpptools-themes"
+  ]
+}

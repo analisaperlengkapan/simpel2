@@ -1,0 +1,262 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "cargo",
+      "label": "cargo build backend",
+      "command": "build",
+      "args": [
+        "--bin",
+        "layanan-${input:serviceName}"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "cargo",
+      "label": "cargo build ai",
+      "command": "build",
+      "args": [
+        "--bin",
+        "layanan-ai"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "cargo",
+      "label": "cargo build keamanan",
+      "command": "build",
+      "args": [
+        "--bin",
+        "layanan-keamanan"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "Build WASM Microfrontend",
+      "command": "trunk",
+      "args": [
+        "build",
+        "--config",
+        "${input:microfrontendPath}"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "Serve WASM Microfrontend",
+      "command": "trunk",
+      "args": [
+        "serve",
+        "--config",
+        "${input:microfrontendPath}",
+        "--open"
+      ],
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "cargo",
+      "label": "cargo test",
+      "command": "test",
+      "args": [
+        "--all"
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "cargo",
+      "label": "cargo clippy",
+      "command": "clippy",
+      "args": [
+        "--all",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "Docker Compose Up",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "-d"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "Run Cache Setup",
+      "command": "./scripts/cache-config.sh",
+      "args": [
+        "setup"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "WASM Optimization",
+      "command": "./scripts/wasm-optimizer.sh",
+      "args": [
+        "build"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "cargo watch build",
+      "command": "cargo",
+      "args": [
+        "watch",
+        "-x",
+        "build"
+      ],
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "cargo build dasbor",
+      "command": "cargo",
+      "args": [
+        "build",
+        "--bin",
+        "layanan-dasbor"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "trunk serve portal",
+      "command": "trunk",
+      "args": [
+        "serve",
+        "--config",
+        "antarmuka/portal/Trunk.toml",
+        "--port",
+        "8080",
+        "--open"
+      ],
+      "group": "build",
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "Full Stack Development",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Docker Compose Up",
+        "cargo watch build"
+      ]
+    },
+    {
+      "type": "shell",
+      "label": "Clean All Build Artifacts",
+      "command": "cargo",
+      "args": [
+        "clean"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "Cargo Maintenance",
+      "command": "./scripts/cargo-maintenance.sh",
+      "args": [
+        "health"
+      ],
+      "group": "build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "serviceName",
+      "description": "Service name to build",
+      "type": "pickString",
+      "options": [
+        "ai",
+        "keamanan",
+        "konfigurasi",
+        "bantuan",
+        "dasbor",
+        "dokumen",
+        "integrasi",
+        "laporan",
+        "notifikasi"
+      ]
+    },
+    {
+      "id": "microfrontendPath",
+      "description": "Microfrontend Trunk.toml path",
+      "type": "pickString",
+      "options": [
+        "antarmuka/badiklat/Trunk.toml",
+        "antarmuka/datun/Trunk.toml",
+        "antarmuka/intel/Trunk.toml",
+        "antarmuka/portal/Trunk.toml",
+        "antarmuka/pemulihan_aset/Trunk.toml",
+        "antarmuka/pengawasan/Trunk.toml",
+        "antarmuka/pidmil/Trunk.toml",
+        "antarmuka/pidsus/Trunk.toml",
+        "antarmuka/pidum/Trunk.toml"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Rust Backend Service",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/layanan-${input:serviceName}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "debug",
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "cargo build backend"
+    },
+    {
+      "name": "Debug AI Service",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/layanan-ai",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "debug",
+        "RUST_BACKTRACE": "full",
+        "DATABASE_URL": "${env:DATABASE_URL}"
+      },
+      "preLaunchTask": "cargo build ai"
+    },
+    {
+      "name": "Debug Keamanan Service",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/layanan-keamanan",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "debug",
+        "JWT_SECRET": "${env:JWT_SECRET}"
+      },
+      "preLaunchTask": "cargo build keamanan"
+    },
+    {
+      "name": "Test WASM Microfrontend",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/trunk",
+      "args": [
+        "serve",
+        "--config",
+        "${input:microfrontendConfig}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "debug"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug Full Stack",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/layanan-dasbor",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "info",
+        "RUST_BACKTRACE": "1",
+        "DATABASE_URL": "${env:DATABASE_URL}"
+      },
+      "preLaunchTask": "cargo build dasbor"
+    },
+    {
+      "name": "Debug Portal Frontend (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://localhost:8080",
+      "webRoot": "${workspaceFolder}/antarmuka/portal/src",
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "preLaunchTask": "trunk serve portal"
+    },
+    {
+      "name": "Debug with Hot Reload",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/${input:debugTarget}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_LOG": "debug",
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "cargo watch build"
+    },
+    {
+      "name": "Attach to Process",
+      "type": "lldb",
+      "request": "attach",
+      "pid": "${command:pickProcess}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "debugTarget",
+      "description": "Target service to debug with hot reload",
+      "type": "pickString",
+      "options": [
+        "layanan-ai",
+        "layanan-keamanan",
+        "layanan-konfigurasi",
+        "layanan-bantuan",
+        "layanan-dasbor",
+        "layanan-dokumen",
+        "layanan-integrasi",
+        "layanan-laporan",
+        "layanan-notifikasi"
+      ]
+    },
+    {
+      "id": "serviceName",
+      "description": "Service name to debug",
+      "type": "pickString",
+      "options": [
+        "ai",
+        "keamanan",
+        "konfigurasi",
+        "bantuan",
+        "dasbor",
+        "dokumen",
+        "integrasi",
+        "laporan",
+        "notifikasi"
+      ]
+    },
+    {
+      "id": "microfrontendConfig",
+      "description": "Microfrontend to serve",
+      "type": "pickString",
+      "options": [
+        "antarmuka/badiklat/Trunk.toml",
+        "antarmuka/datun/Trunk.toml",
+        "antarmuka/intel/Trunk.toml",
+        "antarmuka/portal/Trunk.toml",
+        "antarmuka/pemulihan_aset/Trunk.toml"
+      ]
+    }
+  ]
+}
