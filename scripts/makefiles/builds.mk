@@ -156,6 +156,19 @@ clean-docs: ## Clean documentation artifacts
 	rm -rf target/doc 2>/dev/null || true; \
 	rm -rf docs/book 2>/dev/null || true
 
+# ====== DEVELOPMENT TARGETS ======
+.PHONY: dev-start dev-stop
+
+dev-start: ## Start development environment
+	@echo -e "$(GREEN)🚀 Starting development environment...$(NC)"
+	@cd $(WORKSPACE_ROOT) && \
+	(docker compose -f docker-compose.dev.yml up -d || docker compose up -d) && \
+	echo -e "$(GREEN)✅ Development environment started$(NC)"
+
+dev-stop: ## Stop development environment
+	@echo -e "$(YELLOW)🛑 Stopping development environment...$(NC)"
+	@cd $(WORKSPACE_ROOT) && docker compose down
+
 # ====== MAINTENANCE & CHECK TARGETS ======
 .PHONY: check-services check-rust-services check-frontend-services build-status
 

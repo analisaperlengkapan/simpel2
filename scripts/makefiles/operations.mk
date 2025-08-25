@@ -1,6 +1,6 @@
-# ====== SIMPelv2 Unified Operations Makefile ======
-# Converts shell script operations to make targets
-# Version: 4.0.0 - Refactored from simpel.sh
+# ====== SIMPelv2 Operations Makefile ======
+# Focused on deployment, testing, and tool operations only
+# Version: 4.1.0 - Consolidated (Build operations moved to builds.mk)
 
 # ====== CONFIGURATION ======
 SHELL := /bin/bash
@@ -16,31 +16,8 @@ BLUE := \033[0;34m
 RED := \033[0;31m
 NC := \033[0m
 
-# ====== BUILD TARGETS ======
-.PHONY: build-all build-frontend build-backend build-clean dev-start
-
-build-all: ## Build all components (frontend + backend)
-	@echo -e "$(GREEN)🔨 Building all components...$(NC)"
-	@$(MAKE) -f $(SCRIPTS_DIR)/../Makefile build-parallel
-
-build-frontend: ## Build Leptos microfrontends
-	@echo -e "$(BLUE)🎨 Building frontend components...$(NC)"
-	@$(MAKE) -f $(SCRIPTS_DIR)/../Makefile leptos-frontend
-
-build-backend: ## Build Rust backend services
-	@echo -e "$(CYAN)🦀 Building backend services...$(NC)"
-	@$(MAKE) -f $(SCRIPTS_DIR)/../Makefile rust-backend
-
-build-clean: ## Clean all build artifacts
-	@echo -e "$(YELLOW)🧹 Cleaning build artifacts...$(NC)"
-	@$(MAKE) -f $(SCRIPTS_DIR)/../Makefile clean
-
-dev-start: ## Start development environment
-	@echo -e "$(GREEN)🚀 Starting development environment...$(NC)"
-	@$(SCRIPTS_DIR)/core/dev.sh start
-
 # ====== TEST TARGETS ======
-.PHONY: test-all test-performance test-security test-validation
+.PHONY: test-performance test-security test-validation
 
 
 test-performance: ## Run performance benchmarks
