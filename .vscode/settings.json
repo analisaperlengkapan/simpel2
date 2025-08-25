@@ -1,0 +1,226 @@
+{
+  // ========================================
+  // RUST ANALYZER - EMERGENCY CRASH FIX
+  // ========================================
+  "rust-analyzer.server.path": "rust-analyzer",
+  "rust-analyzer.checkOnSave.enable": false,
+  "rust-analyzer.cargo.features": [],
+  "rust-analyzer.cargo.allTargets": false,
+  "rust-analyzer.cargo.buildScripts.enable": false,
+  "rust-analyzer.procMacro.enable": false,
+  "rust-analyzer.procMacro.attributes.enable": false,
+  "rust-analyzer.files.watcher": "client",
+  // Minimal UI to reduce load
+  "rust-analyzer.hover.actions.enable": false,
+  "rust-analyzer.hover.documentation.enable": false,
+  "rust-analyzer.inlayHints.enable": false,
+  // Stability & Performance
+  "rust-analyzer.cargo.unsetTest": [
+    "**/target/**"
+  ],
+  "rust-analyzer.inlayHints.parameterHints.enable": false,
+  "rust-analyzer.inlayHints.typeHints.enable": false,
+  "rust-analyzer.inlayHints.chainingHints.enable": false,
+  "rust-analyzer.lens.enable": false,
+  "rust-analyzer.lens.methodReferences": false,
+  "rust-analyzer.lens.references.adt.enable": false,
+  "rust-analyzer.lens.references.enumVariant.enable": false,
+  "rust-analyzer.lens.references.method.enable": false,
+  "rust-analyzer.lens.references.trait.enable": false,
+  // Import & Completion
+  "rust-analyzer.imports.granularity.group": "crate",
+  "rust-analyzer.imports.prefix": "crate",
+  "rust-analyzer.completion.addCallParentheses": false,
+  "rust-analyzer.completion.addCallArgumentSnippets": false,
+  "rust-analyzer.completion.postfix.enable": false,
+  // Workspace Configuration
+  "rust-analyzer.linkedProjects": [
+    "./antarmuka/shared/Cargo.toml"
+  ],
+  "rust-analyzer.cargo.loadOutDirsFromCheck": false,
+  "rust-analyzer.diagnostics.enable": false,
+  "rust-analyzer.diagnostics.experimental.enable": false,
+  "rust-analyzer.cargo.target": null,
+  "rust-analyzer.runnables.command": null,
+  // ========================================
+  // LANGUAGE-SPECIFIC FORMATTERS
+  // ========================================
+  "[rust]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.rust-analyzer": "explicit",
+      "source.organizeImports.rust-analyzer": "explicit"
+    },
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.semanticHighlighting.enabled": true
+  },
+  "[toml]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[yaml]": {
+    "editor.formatOnSave": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  },
+  // ========================================
+  // FILE MANAGEMENT & PERFORMANCE
+  // ========================================
+  "files.exclude": {
+    "**/target/debug/**": true,
+    "**/target/release/build": true,
+    "**/target/release/deps": true,
+    "**/target/.rustc_info.json": true,
+    "**/target/CACHEDIR.TAG": true,
+    "**/__pycache__": true,
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/dist": true,
+    "**/pkg": true,
+    "**/.sccache": true,
+    "**/target/wasm32-unknown-unknown/debug": true,
+    // Keep important files visible
+    "**/Cargo.lock": false,
+    "**/target/wasm32-unknown-unknown/release/**/*.wasm": false
+  },
+  "search.exclude": {
+    "**/target/debug": true,
+    "**/target/release/build": true,
+    "**/target/release/deps": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/pkg": true,
+    "**/*.lock": false,
+    "**/.sccache": true,
+    "**/target/wasm32-unknown-unknown/debug": true
+  },
+  "files.watcherExclude": {
+    "**/target/debug/**": true,
+    "**/target/release/build/**": true,
+    "**/target/release/deps/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/pkg/**": true,
+    "**/.sccache/**": true,
+    "**/target/wasm32-unknown-unknown/debug/**": true
+  },
+  // ========================================
+  // EDITOR BEHAVIOR & UI
+  // ========================================
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "on"
+  },
+  "editor.suggestSelection": "first",
+  "editor.tabCompletion": "on",
+  "editor.wordBasedSuggestions": "off",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.guides.bracketPairsHorizontal": true,
+  "editor.inlayHints.enabled": "on",
+  "editor.semanticHighlighting.enabled": true,
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "boundary",
+  // ========================================
+  // FILES & ASSOCIATIONS
+  // ========================================
+  "files.associations": {
+    "Trunk.toml": "toml",
+    "*.wasm": "wasm",
+    ".env*": "dotenv",
+    "Makefile": "makefile",
+    "*.dockerfile": "dockerfile",
+    "docker-compose*.yml": "dockercompose",
+    "docker-compose*.yaml": "dockercompose"
+  },
+  "files.autoSave": "onFocusChange",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  // ========================================
+  // TERMINAL & ENVIRONMENT
+  // ========================================
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.env.linux": {
+    "RUST_LOG": "debug",
+    "RUST_BACKTRACE": "1",
+    "CARGO_TERM_COLOR": "always"
+  },
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.fontWeight": "normal",
+  // ========================================
+  // WORKSPACE & PROJECT TOOLS
+  // ========================================
+  "workbench.colorTheme": "Default Dark+",
+  "workbench.startupEditor": "readme",
+  // Docker Integration
+  "docker.composeCommand": "docker compose",
+  "docker.showStartPage": false,
+  // Makefile Integration
+  "makefile.configureOnOpen": true,
+  "makefile.phonyOnlyTargets": false,
+  // ========================================
+  // LEPTOS & WASM SPECIFIC
+  // ========================================
+  "leptos.browserCommand": "firefox",
+  "leptos.serverPort": 8080,
+  "leptos.reloadCommand": "reload",
+  // ========================================
+  // YAML & DOCKER COMPOSE
+  // ========================================
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": [
+      "docker-compose*.yml",
+      "docker-compose*.yaml"
+    ]
+  },
+  "yaml.customTags": [
+    "!reference sequence"
+  ],
+  // ========================================
+  // GIT & VERSION CONTROL
+  // ========================================
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "git.autofetchPeriod": 180,
+  "scm.diffDecorations": "gutter",
+  // ========================================
+  // PERFORMANCE OPTIMIZATIONS
+  // ========================================
+  "extensions.autoUpdate": false,
+  "telemetry.telemetryLevel": "off",
+  "update.enableWindowsBackgroundUpdates": false,
+  // Memory optimization for large workspace
+  "rust-analyzer.semanticHighlighting.strings.enable": false,
+  "rust-analyzer.workspace.symbol.search.scope": "workspace_and_dependencies",
+  "rust-analyzer.workspace.symbol.search.kind": "only_types",
+  "typescript.surveys.enabled": false,
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  // ========================================
+  // PYTHON INTEGRATION (for scripts)
+  // ========================================
+  "python-envs.pythonProjects": [
+    {
+      "path": "scripts/unified",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
+}
