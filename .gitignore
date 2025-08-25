@@ -124,7 +124,7 @@ pnpm-lock.yaml
 yarn.lock
 package-lock.json
 npm-debug.log*
-lerna-debug.log* 
+lerna-debug.log*
 
 # ===============================
 # 🦀 Rust/Leptos/WASM Artifacts
@@ -164,7 +164,7 @@ antarmuka/*/Cargo.lock
 **/*.generated.*
 
 # Trunk build system
-**/Trunk.lock 
+**/Trunk.lock
 # Enhanced Build System
 .build_cache/
 .metrics/
