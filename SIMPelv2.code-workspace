@@ -20,7 +20,7 @@
       "path": "./antarmuka"
     },
     {
-      "name": "⚙️ Backend Services (Disabled)",
+      "name": "⚙️ Backend Services",
       "path": "./layanan"
     },
     {
@@ -64,7 +64,24 @@
     // RUST ANALYZER WORKSPACE SETTINGS - CRASH PREVENTION
     // ========================================
     "rust-analyzer.linkedProjects": [
-      "./antarmuka/shared/Cargo.toml"
+  "./antarmuka/shared/Cargo.toml",
+  "./layanan/badiklat/Cargo.toml",
+  "./layanan/datun/Cargo.toml",
+  "./layanan/intel/Cargo.toml",
+  "./layanan/pemulihan_aset/Cargo.toml",
+  "./layanan/pengawasan/Cargo.toml",
+  "./layanan/pidmil/Cargo.toml",
+  "./layanan/pidsus/Cargo.toml",
+  "./layanan/pidum/Cargo.toml",
+  "./layanan/shared/ai/Cargo.toml",
+  "./layanan/shared/bantuan/Cargo.toml",
+  "./layanan/shared/dasbor/Cargo.toml",
+  "./layanan/shared/dokumen/Cargo.toml",
+  "./layanan/shared/integrasi/Cargo.toml",
+  "./layanan/shared/keamanan/Cargo.toml",
+  "./layanan/shared/konfigurasi/Cargo.toml",
+  "./layanan/shared/laporan/Cargo.toml",
+  "./layanan/shared/notifikasi/Cargo.toml"
     ],
     "rust-analyzer.cargo.buildScripts.enable": false,
     "rust-analyzer.procMacro.enable": false,
@@ -141,6 +158,34 @@
         "problemMatcher": [
           "$rustc"
         ]
+      },
+      // Backend build/check/test tasks
+      {
+        "label": "⚙️ Build All Backend Services",
+        "type": "shell",
+        "command": "cargo",
+        "args": ["build", "--all"],
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "🔍 Check All Backend Services",
+        "type": "shell",
+        "command": "cargo",
+        "args": ["check", "--all"],
+        "group": "build",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "🧪 Test All Backend Services",
+        "type": "shell",
+        "command": "cargo",
+        "args": ["test", "--all"],
+        "group": "test",
+        "presentation": { "echo": true, "reveal": "always", "focus": false, "panel": "shared" },
+        "problemMatcher": ["$rustc"]
       },
       {
         "label": "🚀 Start Development Environment",

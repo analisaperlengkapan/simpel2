@@ -19,6 +19,27 @@ members = [
     "antarmuka/pembinaan/keuangan",
     "antarmuka/pembinaan/perencanaan",
     "antarmuka/pembinaan/perlengkapan",
+
+    # Backend Layanan Utama
+    "layanan/badiklat",
+    "layanan/datun",
+    "layanan/intel",
+    "layanan/pemulihan_aset",
+    "layanan/pengawasan",
+    "layanan/pidmil",
+    "layanan/pidsus",
+    "layanan/pidum",
+
+    # Backend Shared Layanan
+    "layanan/shared/ai",
+    "layanan/shared/bantuan",
+    "layanan/shared/dasbor",
+    "layanan/shared/dokumen",
+    "layanan/shared/integrasi",
+    "layanan/shared/keamanan",
+    "layanan/shared/konfigurasi",
+    "layanan/shared/laporan",
+    "layanan/shared/notifikasi",
 ]
 
 [workspace.dependencies]

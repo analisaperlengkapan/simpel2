@@ -1,9 +1,9 @@
 [package]
-name = "layanan-pembinaan"
+name = "layanan-perlengkapan"
 version = "0.1.0"
 edition = "2021"
 authors = ["SIMPelv2 Team"]
-description = "pembinaan service for SIMPelv2"
+description = "perlengkapan service for SIMPelv2"
 
 [dependencies]
 axum = "0.7"
