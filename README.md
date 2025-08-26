@@ -610,6 +610,17 @@ make setup-dev
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+
+## 📝 **Changelog**
+
+Lihat file `CHANGELOG.md` untuk riwayat perubahan lengkap. Perubahan terakhir:
+
+- Optimalisasi `.vscode/settings.json`:
+    - Konfigurasi Rust Analyzer disederhanakan dan hanya fitur penting yang diaktifkan.
+    - Penambahan best practice Git (`git.enableCommitSigning`, `git.signCommits`).
+    - Komentar rekomendasi extension tetap ada.
+    - File sudah valid JSONC dan siap kolaborasi tim.
+
 ## 🙏 **Acknowledgments**
 
 - **Rust Community**: For the amazing language and ecosystem
