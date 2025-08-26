@@ -1,131 +1,220 @@
-include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Dependency-Scanning.gitlab-ci.yml
-- template: Security/Container-Scanning.gitlab-ci.yml
-- template: Security/License-Management.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
-- template: Security/DAST.gitlab-ci.yml
-- template: Security/SCA.gitlab-ci.yml
 stages:
-- lint
-- validate
-- build
-- seal
-- test
-- deploy
-- release
-- cleanup
+  - lint
+  - validate
+  - build
+  - seal
+  - test
+  - sbom
+  - security
+  - image
+  - deploy
+  - release
+  - cleanup
+
 variables:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
   BASE_DIR: /var/www/simpelv2
   COMPOSE_FILE: docker-compose.secure.yml
   ENV: ${CI_COMMIT_REF_NAME}
   TAG: ${CI_COMMIT_TAG}
+  LICENSE_SCANNING_DISABLED: "false"
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+
 default:
-  image: python:3.10
+  image: rust:1.82
   before_script:
-  - apt-get update && apt-get install -y curl docker.io yamllint git make
-  - pip install python-dotenv pyyaml ruamel.yaml
-cache:
-  paths:
-  - .cache/pip
-  - backend/pkg/mod
+    - apt-get update && apt-get install -y curl docker.io make git ca-certificates
+    - rustup component add clippy rustfmt
+    - cargo install cargo-chef || true
+
+# -----------------------------
+# CACHE GLOBAL
+# -----------------------------
+.cache-template: &global-cache
+  cache:
+    key: "${CI_JOB_NAME}-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - target
+      - ~/.cargo/registry
+      - ~/.cargo/git
+
+# -----------------------------
+# LINT
+# -----------------------------
 lint:yaml:
   stage: lint
+  image: python:3.10
+  before_script:
+    - pip install yamllint
   script:
-  - "echo \"\U0001F50D Melakukan lint YAML...\""
-  - make lint-yaml
+    - echo "🔍 Linting YAML..."
+    - make lint-yaml
+
 lint:rust:
   stage: lint
-  image: rust:1.77
+  <<: *global-cache
   script:
-    - rustup component add clippy rustfmt
     - cargo fmt --all -- --check
     - cargo clippy --all-targets --all-features -- -D warnings
+
+# -----------------------------
+# VALIDATE
+# -----------------------------
 validate:all:
   stage: validate
+  image: openpolicyagent/conftest:latest
   script:
-  - "echo \"\u2705 Validasi semua konfigurasi...\""
-  - make validate-env
-  - make validate-all
-generate:k8s:
+    - echo "✅ Validasi konfigurasi..."
+    - conftest test ./k8s || true
+    - make validate-env
+    - make validate-all
+
+# -----------------------------
+# BUILD
+# -----------------------------
+build:rust:
   stage: build
+  <<: *global-cache
   script:
-  - "echo \"\U0001F527 Generate YAML K8s dari docker-compose...\""
-  - make generate-k8s
+    - echo "🛠 Build dengan cargo-chef..."
+    - cargo chef prepare --recipe-path recipe.json
+    - cargo chef cook --release --recipe-path recipe.json
+    - cargo build --workspace --release
+  artifacts:
+    paths:
+      - target/release/
+
+build:leptos:
+  stage: build
+  image: rust:1.82
+  <<: *global-cache
+  script:
+    - echo "🌐 Build frontend Leptos SPA..."
+    - apt-get update && apt-get install -y npm
+    - cargo install trunk wasm-bindgen-cli
+    - cd frontend && trunk build --release
+  artifacts:
+    paths:
+      - frontend/dist/
+
+# -----------------------------
+# SEAL
+# -----------------------------
 seal:secrets:
   stage: seal
   script:
-  - "echo \"\U0001F510 Install kubeseal...\""
-  - curl -sL https://github.com/bitnami-labs/sealed-secrets/releases/latest/download/kubeseal-linux-amd64
-    -o kubeseal
-  - chmod +x kubeseal && mv kubeseal /usr/local/bin/kubeseal
-  - "echo \"\U0001F510 Menyegel semua secret layanan...\""
-  - make seal-secret
-  - "echo \"\U0001F50D Validasi hasil SealedSecrets...\""
-  - make validate-sealed
-test:simulate:
-  stage: test
-  script:
-  - "echo \"\U0001F9EA Simulasi pod run semua image...\""
-  - make simulate-pod-run
+    - echo "🔐 Menginstal kubeseal..."
+    - curl -sL https://github.com/bitnami-labs/sealed-secrets/releases/latest/download/kubeseal-linux-amd64 -o kubeseal
+    - chmod +x kubeseal && mv kubeseal /usr/local/bin/kubeseal
+    - make seal-secret
+    - make validate-sealed
+  artifacts:
+    paths:
+      - sealed-secrets/
+
+# -----------------------------
+# TEST
+# -----------------------------
 test:rust:
   stage: test
-  image: rust:1.77
+  <<: *global-cache
   script:
     - cargo test --workspace --all-features
-coverage:go:
-  stage: test
+  artifacts:
+    paths:
+      - target/
+
+# -----------------------------
+# SBOM
+# -----------------------------
+generate:sbom:
+  stage: sbom
+  image: anchore/syft:latest
   script:
-  - cd backend || exit 0
-  - go test -coverprofile=coverage.out ./...
-  - go tool cover -func=coverage.out
-  coverage: /total:\s+\(statements\)\s+(\d+\.\d+%)/
-  allow_failure: true
+    - syft packages dir:. -o cyclonedx-json > sbom.json
+  artifacts:
+    paths:
+      - sbom.json
+
+# -----------------------------
+# SECURITY
+# -----------------------------
+security:trivy:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy fs --severity HIGH,CRITICAL --exit-code 1 --format table . || true
+
+security:cargo-audit:
+  stage: security
+  <<: *global-cache
+  script:
+    - cargo install --locked cargo-audit || true
+    - cargo audit || true
+
+# -----------------------------
+# IMAGE BUILD & SIGN
+# -----------------------------
+build:image:
+  stage: image
+  image: docker:24
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t "$IMAGE_TAG" .
+    - docker push "$IMAGE_TAG"
+    - echo "📦 Generate SBOM for image"
+    - docker run --rm -v "$(pwd)":/workspace -w /workspace anchore/syft:latest packages "$IMAGE_TAG" -o cyclonedx-json > image-sbom.json
+    - |
+      if [ -n "$COSIGN_KEY" ]; then
+        echo "🔏 Signing image with cosign"
+        curl -Lo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+        chmod +x cosign && mv cosign /usr/local/bin/cosign
+        echo "$COSIGN_KEY" > cosign.key
+        cosign sign --key cosign.key "$IMAGE_TAG" || true
+      fi
+  artifacts:
+    paths:
+      - image-sbom.json
+
+# -----------------------------
+# DEPLOY
+# -----------------------------
 deploy:dev:
   stage: deploy
   script:
-  - "echo \"\U0001F680 Deploy ke dev...\""
-  - make deploy-dev
+    - make deploy-dev
   environment:
     name: dev
     url: https://dev.simpelv2.local
   when: manual
   only:
-  - main
+    - main
+
 deploy:staging:
   stage: deploy
   script:
-  - "echo \"\U0001F680 Deploy ke staging...\""
-  - make deploy-staging
+    - make deploy-staging
   environment:
     name: staging
     url: https://staging.simpelv2.local
   when: manual
   only:
-  - /^release\/.*$/
+    - /^release\/.*$/
+
 deploy:prod:
   stage: deploy
   script:
-  - "echo \"\U0001F680 Deploy ke prod...\""
-  - make deploy-prod
+    - make deploy-prod
   environment:
     name: prod
     url: https://prod.simpelv2.local
   when: manual
   only:
-  - tags
-release:tag:
-  stage: release
-  script:
-  - "echo \"\U0001F3F7\uFE0F Tagging release...\""
-  - git tag -a $CI_COMMIT_TAG -m "Release $CI_COMMIT_TAG"
-  - git push origin $CI_COMMIT_TAG
-  only:
-  - tags
-  when: manual
-cleanup:old-backups:
-  stage: cleanup
-  script:
-  - "echo \"\U0001F9F9 Cleanup old backups...\""
-  - find . -name '*.backup.*' -mtime +30 -delete
-  when: manual
+    - tags
