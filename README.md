@@ -611,15 +611,14 @@ make setup-dev
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 
+
 ## 📝 **Changelog**
 
 Lihat file `CHANGELOG.md` untuk riwayat perubahan lengkap. Perubahan terakhir:
 
-- Optimalisasi `.vscode/settings.json`:
-    - Konfigurasi Rust Analyzer disederhanakan dan hanya fitur penting yang diaktifkan.
-    - Penambahan best practice Git (`git.enableCommitSigning`, `git.signCommits`).
-    - Komentar rekomendasi extension tetap ada.
-    - File sudah valid JSONC dan siap kolaborasi tim.
+- Workspace Cargo.toml: Semua layanan backend dan shared sudah terdaftar di `[workspace].members`.
+- SIMPelv2.code-workspace: Semua backend dan shared sudah di-link ke Rust Analyzer, serta task build/check/test backend sudah tersedia.
+- Struktur workspace kini siap build/test lintas layanan dan kolaborasi tim.
 
 ## 🙏 **Acknowledgments**
 
