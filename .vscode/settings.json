@@ -194,7 +194,8 @@
     // GIT & SECURITY BEST PRACTICE
     // ========================================
     "git.enableCommitSigning": true,
-    "git.signCommits": true
+    "git.signCommits": true,
+    "containers.composeCommand": "docker compose"
     // ========================================
     // RECOMMENDED EXTENSIONS (see extensions.json)
     // ========================================
