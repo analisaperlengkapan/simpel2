@@ -15,7 +15,9 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 
 # Database & Persistence
-sqlx = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
 redis = { workspace = true }
 
 # Serialization
@@ -23,7 +25,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 # Validation & Errors
-validator = { workspace = true }
+garde = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 
@@ -45,9 +47,9 @@ dotenvy = { workspace = true }
 # HTTP Client untuk service-to-service communication
 reqwest = { workspace = true }
 
-# Message Queue & Event Streaming
-tokio-stream = "0.1"
-lapin = "2.3"  # RabbitMQ client
+# Message Queue & Event Streaming - Updated for compatibility
+tokio-stream = { workspace = true }
+amqprs = { workspace = true }
 
 # Service mesh & discovery
 # etcd-rs = "1.0"  # Service registry - Disabled due to protoc requirement

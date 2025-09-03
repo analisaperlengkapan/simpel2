@@ -99,6 +99,50 @@ make build
 make deploy-prod
 ```
 
+## 🚀 **CI/CD Pipeline**
+
+### **Enterprise-Grade GitLab CI/CD (v3.0.0)**
+SIMPelv2 menggunakan pipeline CI/CD modern dengan 9 stages dan 12+ security tools:
+
+| Stage | Jobs | Description |
+|-------|------|-------------|
+| **Preparation** | Dependencies | Rust toolchain, cargo tools, WASM tools |
+| **Quality** | Format, Clippy, Spellcheck, Docs | Code quality dan documentation |
+| **Security** | Audit, Deny, Geiger, Miri, Vet, SAST | Static security analysis |
+| **Build** | Chef, Rust Backend, Leptos Frontend | Parallel builds dengan caching |
+| **Test** | Unit, Integration, Coverage, Performance, Fuzz | Comprehensive testing suite |
+| **Security-Scan** | Trivy FS, License, Secrets, IaC, Container | Runtime security scanning |
+| **SBOM** | Generate SBOM, Policy Validation, Image Build | Supply chain security |
+| **Deploy** | Dev, Review, Staging, Production | Multi-environment deployment |
+| **Cleanup** | Cache, Security Summary | Cleanup dan reporting |
+
+### **🔐 Security Tools Integrated**
+- **Cargo Audit**: Vulnerability database scanning
+- **Cargo Deny**: Dependency policy enforcement  
+- **Cargo Geiger**: Unsafe code analysis
+- **Cargo Vet**: Supply chain verification
+- **Semgrep**: Static Application Security Testing (SAST)
+- **Trivy**: Filesystem dan container scanning
+- **TruffleHog**: Secret detection
+- **Checkov**: Infrastructure as Code security
+- **Miri**: Undefined behavior detection
+- **OPA**: Policy validation engine
+- **Cosign**: Container image signing
+- **SBOM**: Software Bill of Materials (CycloneDX + SPDX)
+
+### **⚡ Performance Optimizations**
+- **Cargo Chef**: Docker build optimization
+- **sccache**: Distributed compilation caching (2G cache)
+- **Parallel Builds**: Matrix strategy untuk 7 backend + 9 frontend
+- **Multi-level Caching**: Cargo.lock fingerprinting
+- **Distroless Images**: Minimal attack surface
+
+### **📋 Compliance & Standards**
+- **SLSA Level 3**: Supply chain security framework
+- **Zero-Trust Architecture**: Security by design
+- **OWASP Guidelines**: Web application security
+- **ISO/IEC 25010**: Software quality standards
+
 ## 📁 **Project Structure**
 
 ```

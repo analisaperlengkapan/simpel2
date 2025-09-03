@@ -271,10 +271,7 @@ async fn shutdown_signal() {
     tracing::info!("Bantuan service listening on {}:{}", config.server_host, config.server_port);
     // Run server
     let addr = SocketAddr::new(config.server_host.parse()?, config.server_port);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
-        .await?;
     Ok(())
 }
 

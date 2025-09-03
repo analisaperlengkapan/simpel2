@@ -4,29 +4,32 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.7", features = ["macros"] }
-tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "macros", "migrate"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+axum = { workspace = true }
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 serde_yaml = "0.9"
-dotenvy = "0.15"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 opentelemetry = { workspace = true }
-opentelemetry-otlp = { version = "0.14", features = ["tonic", "tls"] }
-prometheus = "0.13"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace", "limit"] }
-uuid = { version = "1", features = ["v4", "serde"] }
+opentelemetry-otlp = { workspace = true }
+prometheus = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+uuid = { workspace = true }
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
-reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
-redis = { version = "0.24", features = ["tokio-comp"] }
-validator = { version = "0.16", features = ["derive"] }
-thiserror = "1"
-sentry = { version = "0.31", features = ["tracing"] }
+reqwest = { workspace = true }
+redis = { workspace = true }
+garde = { workspace = true }
+
+thiserror = { workspace = true }
+sentry = { workspace = true }
 sentry-tracing = "0.31"
-async-trait = "0.1"
+async-trait = { workspace = true }
 tokio-util = "0.7"
 walkdir = "2"
 mime = "0.3"
@@ -39,7 +42,7 @@ mockall = "0.11"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 assert-json-diff = "2"
 serial_test = "2"
 tempfile = "3"
@@ -47,4 +50,4 @@ tempfile = "3"
 [features]
 default = []
 whatsapp = []
-push = [] 
+push = []
