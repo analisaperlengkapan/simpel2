@@ -7,28 +7,30 @@ description = "Security service for SIMPelv2 - JWT, RBAC, MFA, Vault integration
 
 [dependencies]
 # Web Framework
-axum = "0.7"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace", "limit"] }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
 hyper = { version = "1.0", features = ["full"] }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { workspace = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "macros", "migrate"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
+uuid = { workspace = true }
 
 # JWT & Authentication
-jsonwebtoken = "9.2"
+jsonwebtoken = { workspace = true }
 argon2 = "0.5"
 rand = "0.8"
 
 # Vault Integration
 vaultrs = "0.4"
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 
 # MFA & Security
 totp-lite = "2.0"
@@ -37,7 +39,7 @@ qrcode = "0.13"
 
 # Configuration
 config = "0.14"
-dotenv = "0.15"
+dotenvy = { workspace = true }
 
 # Logging & Observability
 tracing = "0.1"
@@ -56,15 +58,16 @@ sha2 = "0.10"
 hmac = "0.12"
 
 # Validation
-validator = { version = "0.16", features = ["derive"] }
+garde = { workspace = true }
 
-prometheus = "0.13"
+
+prometheus = { workspace = true }
 metrics = "0.21"
 metrics-exporter-prometheus = "0.12"
-sentry = { version = "0.31", features = ["tracing"] }
+sentry = { workspace = true }
 sentry-tracing = "0.31"
 
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
 
 [dev-dependencies]
-tokio-test = "0.4" 
+tokio-test = "0.4"

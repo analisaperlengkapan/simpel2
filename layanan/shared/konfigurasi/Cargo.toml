@@ -15,7 +15,9 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 
 # Database & Persistence
-sqlx = { workspace = true }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
 redis = { workspace = true }
 
 # Serialization
@@ -25,7 +27,7 @@ serde_yaml = "0.9"
 toml = "0.8"
 
 # Validation & Errors
-validator = { workspace = true }
+garde = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 

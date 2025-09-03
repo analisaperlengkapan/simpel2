@@ -16,6 +16,7 @@ use sqlx::postgres::PgPoolOptions;
 use tower_http::{cors::{CorsLayer, Any}, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use std::net::SocketAddr;
+use tokio::net::TcpListener;
 use std::sync::Arc;
 use prometheus::{Encoder, TextEncoder, Registry};
 use crate::security::RateLimitState;
@@ -65,10 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Notifikasi service listening on {}:{}", config.server_host, config.server_port);
     // Run server
     let addr = SocketAddr::new(config.server_host.parse()?, config.server_port);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
-        .await?;
     Ok(())
 }
 
