@@ -111,9 +111,9 @@ where
 // BRANDING COMPONENTS - Official Kejaksaan RI Identity
 // ============================================================================
 
-/// Official Kejaksaan RI logo with scalable SVG and accessibility
+/// Government logo component with official branding
 #[component]
-pub fn KejaksaanLogo(
+pub fn Logo(
     /// Logo size in pixels (default: 40)
     #[prop(default = 40)]
     size: u32,
@@ -230,7 +230,7 @@ pub fn AppHeader(
                 <div class="flex items-center justify-between">
                     // Logo and title section
                     <div class="flex items-center space-x-4">
-                        <KejaksaanLogo size=40 show_text=true />
+                        <Logo size=40 show_text=true />
                         <div class="hidden md:block h-8 w-px bg-gray-300" aria-hidden="true"></div>
                         <h1
                             class="text-xl font-bold text-gray-900 hidden sm:block"
@@ -349,7 +349,7 @@ pub fn AppHeader(
 
 /// High-performance button component with comprehensive accessibility
 #[component]
-pub fn KejButton(
+pub fn Button(
     /// Button variant for styling
     #[prop(default = ButtonVariant::Primary)]
     variant: ButtonVariant,
@@ -473,7 +473,7 @@ pub fn KejButton(
 
 /// Accessible input field with comprehensive validation
 #[component]
-pub fn KejInput(
+pub fn Input(
     /// Input type
     #[prop(default = "text".to_string(), into)]
     input_type: String,
@@ -642,7 +642,7 @@ pub fn KejInput(
 
 /// Accessible breadcrumb navigation
 #[component]
-pub fn KejBreadcrumb(
+pub fn Breadcrumb(
     /// Breadcrumb items
     items: Vec<BreadcrumbItem>,
     /// Custom separator
@@ -711,7 +711,7 @@ pub fn KejBreadcrumb(
 
 /// High-performance modal dialog with accessibility features
 #[component]
-pub fn KejModal(
+pub fn Modal(
     /// Whether the modal is open
     #[prop(into)]
     open: Signal<bool>,
@@ -833,7 +833,7 @@ pub fn KejModal(
 
 /// Toast notification system
 #[component]
-pub fn KejToast(
+pub fn Toast(
     /// Toast message
     #[prop(into)]
     message: Signal<String>,
@@ -942,7 +942,7 @@ pub fn KejToast(
 
 /// Form wrapper with validation and submission handling
 #[component]
-pub fn KejForm(
+pub fn Form(
     /// Form submission handler
     #[prop(optional)]
     on_submit: Option<Callback<web_sys::Event>>,
@@ -1044,6 +1044,146 @@ where
         timeout.as_millis() as i32,
     );
     callback.forget();
+}
+
+/// Card component for displaying content in a container
+#[component]
+pub fn Card(
+    /// Card title
+    #[prop(optional)]
+    title: Option<String>,
+    /// Card subtitle
+    #[prop(optional)]
+    subtitle: Option<String>,
+    /// Whether card is clickable
+    #[prop(default = false)]
+    clickable: bool,
+    /// Click handler for clickable cards
+    #[prop(optional)]
+    on_click: Option<Callback<web_sys::MouseEvent>>,
+    /// CSS classes for styling
+    #[prop(default = String::new(), into)]
+    class: String,
+    /// Card content
+    children: Children,
+) -> impl IntoView {
+    let base_classes = if clickable {
+        "bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+    } else {
+        "bg-white rounded-lg shadow-sm border border-gray-200"
+    };
+
+    let card_classes = if class.is_empty() {
+        base_classes.to_string()
+    } else {
+        format!("{} {}", base_classes, class)
+    };
+
+    view! {
+        <div
+            class=card_classes
+            on:click=move |e| {
+                if let Some(handler) = on_click {
+                    handler.run(e);
+                }
+            }
+        >
+            {title.map(|t| view! {
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">{t}</h3>
+                    {subtitle.map(|s| view! {
+                        <p class="mt-1 text-sm text-gray-600">{s}</p>
+                    })}
+                </div>
+            })}
+            <div class="px-6 py-4">
+                {children()}
+            </div>
+        </div>
+    }
+}
+
+/// Footer component for page layout
+#[component]
+pub fn Footer(
+    /// Footer content sections
+    #[prop(optional)]
+    sections: Option<Vec<FooterSection>>,
+    /// Copyright text
+    #[prop(default = String::new(), into)]
+    copyright: String,
+    /// CSS classes for styling
+    #[prop(default = String::new(), into)]
+    class: String,
+    /// Additional footer content
+    children: Children,
+) -> impl IntoView {
+    let footer_classes = if class.is_empty() {
+        "bg-gray-50 border-t border-gray-200".to_string()
+    } else {
+        format!("bg-gray-50 border-t border-gray-200 {}", class)
+    };
+
+    view! {
+        <footer class=footer_classes>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {sections.map(|secs| view! {
+                    <div class="py-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            {secs.into_iter().map(|section| view! {
+                                <div>
+                                    <h3 class="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">
+                                        {section.title}
+                                    </h3>
+                                    <ul class="space-y-2">
+                                        {section.links.into_iter().map(|link| view! {
+                                            <li>
+                                                <a
+                                                    href=link.url
+                                                    class="text-gray-600 hover:text-gray-900 transition-colors text-sm"
+                                                >
+                                                    {link.text}
+                                                </a>
+                                            </li>
+                                        }).collect_view()}
+                                    </ul>
+                                </div>
+                            }).collect_view()}
+                        </div>
+                    </div>
+                })}
+
+                <div class="py-4 border-t border-gray-200">
+                    <div class="flex flex-col md:flex-row justify-between items-center">
+                        <div class="text-sm text-gray-600">
+                            {if copyright.is_empty() {
+                                "© 2024 Kejaksaan Republik Indonesia. All rights reserved.".to_string()
+                            } else {
+                                copyright
+                            }}
+                        </div>
+                        <div class="mt-2 md:mt-0">
+                            {children()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    }
+}
+
+/// Footer section data structure
+#[derive(Clone)]
+pub struct FooterSection {
+    pub title: String,
+    pub links: Vec<FooterLink>,
+}
+
+/// Footer link data structure
+#[derive(Clone)]
+pub struct FooterLink {
+    pub text: String,
+    pub url: String,
 }
 
 // Continue with more optimized components...

@@ -49,9 +49,9 @@ pub fn Header() -> impl IntoView {
 
                     // User Actions
                     <div class="flex items-center space-x-3">
-                        <KejButton variant=ButtonVariant::Secondary class="hidden md:inline-flex">
+                        <Button variant=ButtonVariant::Secondary class="hidden md:inline-flex">
                             "🔍 Search"
-                        </KejButton>
+                        </Button>
 
                         // Mobile menu button
                         <button
@@ -82,9 +82,9 @@ pub fn Header() -> impl IntoView {
                             "Bantuan"
                         </a>
                         <div class="pt-2">
-                            <KejButton variant=ButtonVariant::Secondary class="w-full">
+                            <Button variant=ButtonVariant::Secondary class="w-full">
                                 "🔍 Search"
-                            </KejButton>
+                            </Button>
                         </div>
                     </nav>
                 </div>

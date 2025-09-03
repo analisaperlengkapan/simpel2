@@ -40,7 +40,6 @@ members = [
     "layanan/shared/konfigurasi",
     "layanan/shared/laporan",
     "layanan/shared/notifikasi",
-    "layanan/shared/utils",
 ]
 
 [workspace.dependencies]
