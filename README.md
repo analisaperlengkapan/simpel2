@@ -101,7 +101,7 @@ make deploy-prod
 
 ## 🚀 **CI/CD Pipeline**
 
-### **Enterprise-Grade GitLab CI/CD (v3.0.0)**
+### **Enterprise-Grade GitLab CI/CD (v1.0.0)**
 SIMPelv2 menggunakan pipeline CI/CD modern dengan 9 stages dan 12+ security tools:
 
 | Stage | Jobs | Description |
@@ -118,7 +118,7 @@ SIMPelv2 menggunakan pipeline CI/CD modern dengan 9 stages dan 12+ security tool
 
 ### **🔐 Security Tools Integrated**
 - **Cargo Audit**: Vulnerability database scanning
-- **Cargo Deny**: Dependency policy enforcement  
+- **Cargo Deny**: Dependency policy enforcement
 - **Cargo Geiger**: Unsafe code analysis
 - **Cargo Vet**: Supply chain verification
 - **Semgrep**: Static Application Security Testing (SAST)

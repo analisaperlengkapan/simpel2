@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.0.0] - 2024-09-03
+## [0.1.0] - 2025-09-03
 
 ### 🚀 Major GitLab CI/CD Pipeline Optimization
 
@@ -22,7 +22,7 @@
 ### 🏗️ Build & Performance Optimization
 - **Cargo Chef Integration**: Optimized Docker builds dengan dependency caching
 - **sccache Integration**: Distributed compilation caching (2G cache)
-- **Parallel Matrix Builds**: 
+- **Parallel Matrix Builds**:
   - 7 backend services (keamanan, ai, dasbor, aset, audit, distribusi, dokumen)
   - 9 frontend microfrontends (portal, badiklat, datun, intel, pengawasan, pidmil, pidsus, pidum, pemulihan_aset)
 - **Advanced Caching Strategy**: Multi-level caching dengan Cargo.lock fingerprinting
