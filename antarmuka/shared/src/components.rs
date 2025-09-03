@@ -573,7 +573,7 @@ pub fn Input(
                     type={input_type}
                     class=move || input_classes.get()
                     placeholder={placeholder}
-                    prop:value=move || input_value.get()
+                    value=move || input_value.get()
                     required={required}
                     disabled={disabled}
                     readonly={readonly}

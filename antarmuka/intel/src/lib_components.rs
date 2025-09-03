@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 
 // Import shared components
-use shared_microfrontend::{KejaksaanHeader, KejaksaanFooter};
+use shared_microfrontend::KejaksaanHeader;
 
 mod pages;
 use pages::IntelDashboard;
@@ -31,7 +31,6 @@ pub fn App() -> impl IntoView {
                 <IntelDashboard />
             </main>
 
-            <KejaksaanFooter />
         </div>
     }
 }

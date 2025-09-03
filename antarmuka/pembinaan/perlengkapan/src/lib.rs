@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::*;
-use shared_microfrontend::components::{AppHeader, KejaksaanFooter};
+use shared_microfrontend::components::AppHeader;
 
 mod pages;
 use pages::*;
@@ -24,7 +24,6 @@ pub fn App() -> impl IntoView {
                     <PerlengkapanDashboard/>
                 </div>
             </main>
-            <KejaksaanFooter />
         </div>
     }
 }

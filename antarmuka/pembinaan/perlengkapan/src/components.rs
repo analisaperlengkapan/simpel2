@@ -66,7 +66,7 @@ pub fn SearchBox(#[prop(into)] on_search: Callback<String>) -> impl IntoView {
             <input
                 type="text"
                 placeholder="Cari..."
-                prop:value=search_value
+                value=move || search_value.get()
                 on:input=handle_input
             />
             <button class="search-btn" on:click=handle_search>
@@ -123,7 +123,7 @@ pub fn FormGroup(
             <input
                 type=input_type
                 placeholder=placeholder
-                prop:value=value
+                value=move || value.get()
                 on:input=handle_input
             />
         </div>
@@ -145,7 +145,7 @@ pub fn FormSelect(
     view! {
         <div class="form-group">
             <label>{label}</label>
-            <select prop:value=value on:change=handle_change>
+            <select value=move || value.get() on:change=handle_change>
                 <option value="">"Pilih..."</option>
                 {options.into_iter().map(|(value, text)| {
                     view! {
