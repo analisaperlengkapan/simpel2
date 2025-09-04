@@ -1,7 +1,15 @@
-use leptos::prelude::*;
-use perlengkapan_microfrontend::App;
+// Binary entrypoint for Trunk so that data-bin works correctly.
+// For wasm32 we just invoke the start function defined in lib.rs.
 
+#[cfg(target_arch = "wasm32")]
+use perlengkapan_microfrontend::start_app;
+
+#[cfg(target_arch = "wasm32")]
 fn main() {
-    console_error_panic_hook::set_once();
-    leptos::mount::mount_to_body(|| view! { <App /> });
+    start_app();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    println!("This application only runs on wasm32 target");
 }
