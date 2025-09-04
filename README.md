@@ -1,5 +1,7 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev)
+
 **SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfron├── 📁 docs/                      # Comprehensive Documentation
 │   ├── 📚 api/                  # API Documentation
 │   ├── 🏗️ architecture/         # Architecture Diagrams
@@ -34,6 +36,7 @@ SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang di
 | **Datun** | Tindak Pidana Umum | :8082 | ✅ Aktif |
 | **Intel** | Intelligence & Analytics | :8083 | ✅ Aktif |
 | **Pembinaan** | Manajemen Pembinaan | :8084-8086 | ✅ Aktif |
+| **Perlengkapan** | Equipment Management | :8086 | ✅ **NEW v0.3.0** |
 | **Pemulihan Aset** | Asset Recovery | :8087 | ✅ Aktif |
 | **Pengawasan** | Monitoring & Compliance | :8088 | ✅ Aktif |
 | **PIDMIL** | Pidana Militer | :8089 | ✅ Aktif |
@@ -191,7 +194,9 @@ simpelv2/
 │   ├── 📊 dasbor/               # Dashboard Service (3006)
 │   ├── 📋 laporan/              # Reporting Service (3007)
 │   ├── 🔗 integrasi/            # External Integration (3008)
-│   └── 🔔 notifikasi/           # Notification Service (3009)
+│   ├── 🔔 notifikasi/           # Notification Service (3009)
+│   └── 📁 pembinaan/            # Development Services
+│       └── 🛠️ perlengkapan/    # Equipment Management (3010)
 ├── 📁 infra/                     # Infrastructure & DevOps
 │   ├── 🌐 nginx/                # Nginx Reverse Proxy
 │   ├── 🚪 gerbang/              # API Gateway (Envoy)
@@ -298,6 +303,16 @@ simpelv2/
 - **Export Functions**: PDF, Excel, CSV output
 
 **Port**: `3006` | **Health**: `/health`
+
+### **🛠️ Perlengkapan Service (Rust)**
+- **Equipment Management**: Comprehensive BMN equipment tracking
+- **Asset Database**: PostgreSQL dengan BigDecimal precision
+- **Hierarchical Menu System**: Dashboard, Bank Aset, Analisis Kebutuhan, Pengadaan, Pengelolaan BMN
+- **REST API**: Complete CRUD operations dengan pagination
+- **JWT Authentication**: Secure API endpoints dengan middleware
+- **Business Logic**: Asset lifecycle management dan validation
+
+**Port**: `3010` | **Health**: `/health`
 
 ### **📋 Reporting Service (Rust)**
 - **Dynamic Reports**: Template-based report generation

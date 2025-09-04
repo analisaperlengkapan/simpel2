@@ -26,11 +26,11 @@ debug = false
 lto = false
 
 [serve]
-# Align with expected access at http://127.0.0.1:8093/
-port = 8093
+# Align with expected access at http://127.0.0.1:8080/
+port = 8080
 addresses = ["0.0.0.0"]
 open = false
 
 [watch]
-watch = ["src", "styles"]
+watch = ["src"]
 debounce = 100
