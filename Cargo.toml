@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+    # CLI Tool
+    "scripts/cli",
+
     # Frontend Shared Library
     "antarmuka/shared",
 
