@@ -1,35 +1,36 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = true
+release = false
 
-# Advanced WASM optimization
-[[build.wasm_opt]]
-args = [
-    "-Oz",                    # Maximum size optimization
-    "--enable-bulk-memory",   # Enable bulk memory operations
-    "--strip-debug",          # Remove debug information
-    "--dce",                  # Dead code elimination
-    "--vacuum",               # Final vacuum pass
-]
+# Disable wasm-opt for now to avoid validation errors
+# Will re-enable after basic functionality is confirmed
+# [[build.wasm_opt]]
+# args = [
+#     "-Oz",
+#     "--enable-bulk-memory",
+#     "--strip-debug",
+#     "--dce",
+#     "--vacuum",
+# ]
 
-# Advanced wasm-bindgen configuration
+# Simplified wasm-bindgen configuration for development
 [[build.wasm-bindgen]]
 target = "web"
-typescript = false         # Disable TS generation for smaller bundles
-debug = false             # No debug in production
+typescript = false
+debug = false
 
 [build.rust]
-optimization-level = "z"   # Maximum size optimization
+optimization-level = "s"   # Smaller optimization for development
 debug = false
-lto = true
+lto = false
 
 [serve]
-port = 8092
+# Align with expected access at http://127.0.0.1:8080/
+port = 8080
 addresses = ["0.0.0.0"]
 open = false
 
 [watch]
-watch = ["src", "styles"]
-ignore = ["target", "dist", "Cargo.lock", ".git"]
+watch = ["src"]
 debounce = 100

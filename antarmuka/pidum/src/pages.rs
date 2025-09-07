@@ -113,7 +113,7 @@ fn GeneralSearchInput() -> impl IntoView {
                 on:input=move |ev| {
                     set_search_query.set(event_target_value(&ev));
                 }
-                prop:value=search_query
+                value=move || search_query.get()
             />
         </div>
     }

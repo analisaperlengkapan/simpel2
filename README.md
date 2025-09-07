@@ -1,6 +1,12 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
-**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfrontends menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev)
+
+**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfron├── 📁 docs/                      # Comprehensive Documentation
+│   ├── 📚 api/                  # API Documentation
+│   ├── 🏗️ architecture/         # Architecture Diagrams
+│   ├── 📘 guides/               # Development Guides
+│   └── SHARED_OPTIMIZATION_COMPLETE.md # ⭐ Optimization Reports menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
 
 ## 🎯 **Overview**
 
@@ -21,7 +27,7 @@ SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengel
 - **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
 
 ### **🌐 Microfrontend Architecture**
-SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen:
+SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang didukung oleh **shared components library** yang telah dioptimasi dengan Leptos 0.8.x:
 
 | Modul | Fungsi | Port | Status |
 |-------|--------|------|--------|
@@ -30,12 +36,22 @@ SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen:
 | **Datun** | Tindak Pidana Umum | :8082 | ✅ Aktif |
 | **Intel** | Intelligence & Analytics | :8083 | ✅ Aktif |
 | **Pembinaan** | Manajemen Pembinaan | :8084-8086 | ✅ Aktif |
+| **Perlengkapan** | Equipment Management | :8086 | ✅ **NEW v0.3.0** |
 | **Pemulihan Aset** | Asset Recovery | :8087 | ✅ Aktif |
 | **Pengawasan** | Monitoring & Compliance | :8088 | ✅ Aktif |
 | **PIDMIL** | Pidana Militer | :8089 | ✅ Aktif |
 | **PIDSUS** | Pidana Khusus | :8090 | ✅ Aktif |
 | **PIDUM** | Pidana Umum | :8091 | ✅ Aktif |
-| **Shared** | Komponen Terpusat | - | ✅ Library |
+| **Shared** | Komponen Terpusat | - | ✅ **v0.2.0 Optimized** |
+
+### **🧩 Shared Components Library v0.2.0**
+**Production-Ready UI Components dengan Leptos 0.8.x Compatibility**
+- **40+ Components**: Button, Input, Modal, Table, Navigation, Form, Toast, Spinner, dll.
+- **Zero Compilation Errors**: Full compatibility setelah resolusi 113+ compilation errors
+- **Thread Safety**: Complete Send + Sync implementation untuk reactive components
+- **Modern Patterns**: Updated signal patterns, callback methods, dan type annotations
+- **Government Branding**: Kejaksaan RI design system dan accessibility compliance
+- **Performance Optimized**: High-performance WASM dengan zero-copy operations
 
 ### **🔐 Security Features**
 - **Zero-Trust Architecture**: Tidak ada implicit trust
@@ -161,7 +177,14 @@ simpelv2/
 │   ├── 🪖 pidmil/             # Military Criminal Law (8089)
 │   ├── 🔒 pidsus/             # Special Crimes (8090)
 │   ├── 📜 pidum/              # General Crimes (8091)
-│   └── 🧩 shared/             # Shared UI Components Library
+│   └── 🧩 shared/             # ⭐ Shared UI Components Library v0.2.0
+│       ├── src/
+│       │   ├── components.rs   # 40+ Optimized Components
+│       │   ├── types.rs        # Modern Type System
+│       │   ├── constants.rs    # Government Data Constants
+│       │   ├── theme.rs        # Kejaksaan RI Design System
+│       │   └── utils.rs        # Utility Functions
+│       └── Cargo.toml          # Leptos 0.8.x Dependencies
 ├── 📁 layanan/                   # Backend Microservices (Rust)
 │   ├── 🔐 keamanan/             # Security Service (3001)
 │   ├── 🤖 ai/                   # AI/ML Service (3002)
@@ -171,7 +194,9 @@ simpelv2/
 │   ├── 📊 dasbor/               # Dashboard Service (3006)
 │   ├── 📋 laporan/              # Reporting Service (3007)
 │   ├── 🔗 integrasi/            # External Integration (3008)
-│   └── 🔔 notifikasi/           # Notification Service (3009)
+│   ├── 🔔 notifikasi/           # Notification Service (3009)
+│   └── 📁 pembinaan/            # Development Services
+│       └── 🛠️ perlengkapan/    # Equipment Management (3010)
 ├── 📁 infra/                     # Infrastructure & DevOps
 │   ├── 🌐 nginx/                # Nginx Reverse Proxy
 │   ├── 🚪 gerbang/              # API Gateway (Envoy)
@@ -278,6 +303,16 @@ simpelv2/
 - **Export Functions**: PDF, Excel, CSV output
 
 **Port**: `3006` | **Health**: `/health`
+
+### **🛠️ Perlengkapan Service (Rust)**
+- **Equipment Management**: Comprehensive BMN equipment tracking
+- **Asset Database**: PostgreSQL dengan BigDecimal precision
+- **Hierarchical Menu System**: Dashboard, Bank Aset, Analisis Kebutuhan, Pengadaan, Pengelolaan BMN
+- **REST API**: Complete CRUD operations dengan pagination
+- **JWT Authentication**: Secure API endpoints dengan middleware
+- **Business Logic**: Asset lifecycle management dan validation
+
+**Port**: `3010` | **Health**: `/health`
 
 ### **📋 Reporting Service (Rust)**
 - **Dynamic Reports**: Template-based report generation

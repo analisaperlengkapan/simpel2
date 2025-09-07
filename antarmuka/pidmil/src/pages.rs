@@ -120,7 +120,7 @@ fn MilitarySearchInput(
                         callback.run(val);
                     }
                 }
-                prop:value=search_value
+                value=move || search_value.get()
             />
         </div>
     }

@@ -408,7 +408,7 @@ pub fn SpecialSearchInput(placeholder: String) -> impl IntoView {
                 type="text"
                 class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-red-500 focus:border-red-500"
                 placeholder=placeholder
-                prop:value=search_term.get()
+                value=search_term.get()
                 on:input=move |ev| {
                     set_search_term.set(event_target_value(&ev));
                 }

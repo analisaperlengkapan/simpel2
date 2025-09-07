@@ -327,30 +327,30 @@ pub fn DatunDashboard(
 
             // Quick Stats
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <KejCard>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-kejaksaan-primary mb-2">"127"</div>
                         <div class="text-kejaksaan-text-muted">"Perkara Aktif"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-green-600 mb-2">"89"</div>
                         <div class="text-kejaksaan-text-muted">"Selesai Bulan Ini"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-orange-600 mb-2">"23"</div>
                         <div class="text-kejaksaan-text-muted">"Prioritas Tinggi"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-blue-600 mb-2">"94%"</div>
                         <div class="text-kejaksaan-text-muted">"Tingkat Penyelesaian"</div>
                     </div>
-                </KejCard>
+                </Card>
             </div>
 
             // Case Categories by Status
@@ -363,7 +363,7 @@ pub fn DatunDashboard(
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {cases.into_iter().map(|case| {
                                 view! {
-                                    <KejCard class="hover:shadow-lg transition-shadow duration-300">
+                                    <Card class="hover:shadow-lg transition-shadow duration-300">
                                         <div class="p-6">
                                             <div class="flex items-start justify-between mb-4">
                                                 <div class="flex items-center space-x-3">
@@ -424,19 +424,19 @@ pub fn DatunDashboard(
                                             </div>
 
                                             <div class="flex space-x-2">
-                                                <KejButton
+                                                <Button
                                                     variant=ButtonVariant::Primary
                                                     class="flex-1">
                                                     "Detail Perkara"
-                                                </KejButton>
-                                                <KejButton
+                                                </Button>
+                                                <Button
                                                     variant=ButtonVariant::Secondary
                                                     class="flex-1">
                                                     "Timeline"
-                                                </KejButton>
+                                                </Button>
                                             </div>
                                         </div>
-                                    </KejCard>
+                                    </Card>
                                 }
                             }).collect_view()}
                         </div>
@@ -445,7 +445,7 @@ pub fn DatunDashboard(
             }).collect_view()}
 
             // Support Information
-            <KejCard class="bg-kejaksaan-bg-light">
+            <Card class="bg-kejaksaan-bg-light">
                 <div class="p-6">
                     <h2 class="text-xl font-semibold text-kejaksaan-text mb-4">
                         "📞 Bantuan Datun"
@@ -461,7 +461,7 @@ pub fn DatunDashboard(
                         </div>
                     </div>
                 </div>
-            </KejCard>
+            </Card>
         </div>
     }
 }

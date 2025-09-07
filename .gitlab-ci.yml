@@ -1,5 +1,5 @@
 # 🔍 GitLab CI/CD Optimized Configuration
-# Version: 3.0.0 - Enhanced Security & Quality Pipeline
+# Version: 1.0.0 - Enhanced Security & Quality Pipeline
 # Features: Comprehensive Rust toolchain with security scanning
 
 stages:
@@ -335,7 +335,6 @@ security:sast:
       - semgrep-report.json
   allow_failure: true
 
-
 # ========================================
 # BUILD STAGE - Optimized Multi-stage Build
 # ========================================
@@ -386,7 +385,18 @@ build:leptos-frontend:
   <<: *cache-pull
   parallel:
     matrix:
-      - FRONTEND: [portal, badiklat, datun, intel, pengawasan, pidmil, pidsus, pidum, pemulihan_aset]
+      - FRONTEND:
+          [
+            portal,
+            badiklat,
+            datun,
+            intel,
+            pengawasan,
+            pidmil,
+            pidsus,
+            pidum,
+            pemulihan_aset,
+          ]
   script:
     - 'echo "🌐 Building Leptos WASM frontend: $FRONTEND"'
     - |
