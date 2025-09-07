@@ -23,12 +23,11 @@ mod handlers;
 use crate::{
     config::AppConfig,
     error::AppError,
-    handlers::create_routes,
+    handlers::routes,
 };
 use axum::{Router, http::Method};
-use sqlx::postgres::PgPoolOptions;
 use tower_http::{
-    cors::{CorsLayer, Any},
+    cors::CorsLayer,
     trace::TraceLayer,
     compression::CompressionLayer,
     timeout::TimeoutLayer,
@@ -40,7 +39,7 @@ use prometheus::{Registry, TextEncoder, Encoder};
 /// Application state yang dishare ke semua handlers
 #[derive(Clone)]
 pub struct AppState {
-    pub db: sqlx::PgPool,
+    pub db: deadpool_postgres::Pool,
     pub redis: redis::Client,
     pub config: AppConfig,
     pub metrics_registry: Registry,
@@ -49,7 +48,7 @@ pub struct AppState {
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     // Inisialisasi konfigurasi
-    let config = AppConfig::from_env()?;
+    let config = AppConfig::from_env();
 
     // Setup tracing dan logging
     setup_tracing(&config)?;
@@ -108,7 +107,7 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
             sentry::ClientOptions {
                 release: sentry::release_name!(),
                 traces_sample_rate: 0.1,
-                debug: config.debug_mode,
+                debug: config.log_level == "debug",
                 ..Default::default()
             }
         )))
@@ -119,19 +118,23 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 }
 
 /// Setup database connection pool
-async fn setup_database(config: &AppConfig) -> Result<sqlx::PgPool, AppError> {
+async fn setup_database(config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
     tracing::info!("Connecting to database...");
 
-    let pool = PgPoolOptions::new()
-        .max_connections(config.db_max_connections)
-        .acquire_timeout(Duration::from_secs(10))
-        .connect(&config.database_url)
-        .await?;
+    let pool_config = deadpool_postgres::Config::new();
+    let pool = match pool_config.create_pool(
+        Some(deadpool_postgres::Runtime::Tokio1),
+        tokio_postgres::NoTls,
+    ) {
+        Ok(pool) => pool,
+        Err(e) => return Err(AppError::PoolConfig(e.to_string())),
+    };
 
-    // Run migrations
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    // Test the connection
+    let client = pool.get().await?;
+    client.simple_query("SELECT 1").await?;
 
-    tracing::info!("Database connected and migrations applied");
+    tracing::info!("Database connected successfully");
     Ok(pool)
 }
 
@@ -160,12 +163,7 @@ fn setup_metrics() -> Result<Registry, AppError> {
 async fn create_app_router(state: AppState) -> Result<Router, AppError> {
     // CORS configuration
     let cors = CorsLayer::new()
-        .allow_origin(
-            state.config.cors_origins
-                .iter()
-                .map(|s| s.parse().unwrap_or(Any))
-                .collect::<Vec<_>>()
-        )
+        .allow_origin(tower_http::cors::Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::PATCH])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
@@ -175,7 +173,7 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         .allow_credentials(true);
 
     // Create main application router
-    let app = create_routes(state.clone())
+    let app = routes(state.config.clone(), state.db.clone())
         .layer(
             tower::ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
@@ -196,7 +194,7 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
 
 /// Start HTTP server
 async fn start_server(app: Router, config: &AppConfig) -> Result<(), AppError> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.server_port));
 
     tracing::info!("🚀 Server starting on {}", addr);
 
@@ -219,7 +217,8 @@ async fn readiness_check(
     axum::extract::State(state): axum::extract::State<AppState>
 ) -> Result<&'static str, AppError> {
     // Check database connection
-    sqlx::query("SELECT 1").execute(&state.db).await?;
+    let client = state.db.get().await?;
+    client.simple_query("SELECT 1").await?;
 
     // Check Redis connection (optional)
     // let mut conn = state.redis.get_async_connection().await?;

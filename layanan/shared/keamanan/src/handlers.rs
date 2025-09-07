@@ -329,7 +329,11 @@ pub async fn refresh_token(
     // Revoke token lama
     let _ = state.revoke_refresh_token(&refresh_token_hash).await;
     // Generate token baru
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_one("SELECT id, username, email, password_hash, nip, nik, is_active, created_at, updated_at FROM keamanan.users WHERE id = $1", &[&user_id])
         .await
@@ -378,9 +382,16 @@ pub async fn setup_mfa(
     )?;
 
     // Store secret in database
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     client
-        .execute("UPDATE keamanan.users SET mfa_secret = $1, mfa_enabled = true WHERE id = $2", &[&secret, &mfa_req.user_id])
+        .execute(
+            "UPDATE keamanan.users SET mfa_secret = $1, mfa_enabled = true WHERE id = $2",
+            &[&secret, &mfa_req.user_id],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -399,16 +410,22 @@ pub async fn verify_mfa(
     use totp_lite::{totp_custom, Algorithm, Sha1};
 
     // Get user's MFA secret
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
-    let row = client
-        .query_one("SELECT mfa_secret FROM keamanan.users WHERE id = $1", &[&mfa_req.user_id])
+    let client = state
+        .pool
+        .get()
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
-    
+    let row = client
+        .query_one(
+            "SELECT mfa_secret FROM keamanan.users WHERE id = $1",
+            &[&mfa_req.user_id],
+        )
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
     let mfa_secret: Option<String> = row.get(0);
 
-    let secret = mfa_secret
-        .ok_or(AppError::Validation("MFA not set up".to_string()))?;
+    let secret = mfa_secret.ok_or(AppError::Validation("MFA not set up".to_string()))?;
 
     // Verify MFA code
     let totp = totp_custom!(secret.as_bytes(), 30, 6, Sha1::sha1());
@@ -445,7 +462,11 @@ pub async fn update_profile(
         .ok_or(AppError::Unauthorized)?;
     let user_id = claims.sub;
     // Update user di DB
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_one("UPDATE keamanan.users SET email = COALESCE($1, email), nip = COALESCE($2, nip), nik = COALESCE($3, nik), updated_at = NOW() WHERE id = $4 RETURNING id, username, email, password_hash, nip, nik, is_active, created_at, updated_at", &[&req.email, &req.nip, &req.nik, &user_id])
         .await
@@ -481,13 +502,20 @@ pub async fn get_current_user(
 pub async fn get_roles(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<crate::models::Role>>, AppError> {
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let rows = client
         .query("SELECT id, name, description, created_at, updated_at FROM keamanan.roles ORDER BY name", &[])
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
-    
-    let roles: Vec<crate::models::Role> = rows.iter().map(|row| crate::models::Role::from(row)).collect();
+
+    let roles: Vec<crate::models::Role> = rows
+        .iter()
+        .map(|row| crate::models::Role::from(row))
+        .collect();
 
     Ok(Json(roles))
 }
@@ -499,7 +527,11 @@ pub async fn create_role(
     let role_id = Uuid::new_v4();
     let now = chrono::Utc::now();
 
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_one("INSERT INTO keamanan.roles (id, name, description, permissions, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, description, created_at, updated_at", &[&role_id, &role_req.name, &role_req.description, &role_req.permissions, &now, &now])
         .await
@@ -513,13 +545,20 @@ pub async fn create_role(
 pub async fn get_permissions(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<crate::models::Permission>>, AppError> {
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let rows = client
         .query("SELECT id, name, description, created_at, updated_at FROM keamanan.permissions ORDER BY name", &[])
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
-    
-    let permissions: Vec<crate::models::Permission> = rows.iter().map(|row| crate::models::Permission::from(row)).collect();
+
+    let permissions: Vec<crate::models::Permission> = rows
+        .iter()
+        .map(|row| crate::models::Permission::from(row))
+        .collect();
 
     Ok(Json(permissions))
 }
@@ -574,13 +613,20 @@ pub async fn get_audit_logs(
 
     // Note: This is a simplified implementation
     // In a real implementation, you'd use proper parameterized queries
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let rows = client
         .query(&sql, &[])
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
-    
-    let logs: Vec<crate::models::AuditLog> = rows.iter().map(|row| crate::models::AuditLog::from(row)).collect();
+
+    let logs: Vec<crate::models::AuditLog> = rows
+        .iter()
+        .map(|row| crate::models::AuditLog::from(row))
+        .collect();
 
     Ok(Json(logs))
 }
@@ -590,7 +636,11 @@ pub async fn mfa_recovery(
     Json(req): Json<MfaRecoveryRequest>,
 ) -> Result<StatusCode, AppError> {
     // Implementasi recovery code/token secure
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_opt("SELECT id, username, email, password_hash, nip, nik, is_active, created_at, updated_at FROM keamanan.users WHERE email = $1", &[&req.email])
         .await
@@ -603,7 +653,7 @@ pub async fn mfa_recovery(
         .await
         .map_err(|e| AppError::Database(e.to_string()))?
         .ok_or(AppError::Validation("No recovery code found".to_string()))?;
-    
+
     let code: String = rec_row.get(0);
     let expires_at: chrono::DateTime<chrono::Utc> = rec_row.get(1);
     let used: bool = rec_row.get(2);
@@ -617,12 +667,18 @@ pub async fn mfa_recovery(
     }
     // Disable MFA
     client
-        .execute("UPDATE keamanan.users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1", &[&user.id])
+        .execute(
+            "UPDATE keamanan.users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1",
+            &[&user.id],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     // Tandai recovery code sudah dipakai
     client
-        .execute("UPDATE keamanan.mfa_recovery SET used = TRUE WHERE user_id = $1 AND code = $2", &[&user.id, &code])
+        .execute(
+            "UPDATE keamanan.mfa_recovery SET used = TRUE WHERE user_id = $1 AND code = $2",
+            &[&user.id, &code],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     state
@@ -664,7 +720,11 @@ pub async fn mfa_disable(
         .ok_or(AppError::Unauthorized)?;
     let user_id = claims.sub;
     // Get user
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_one("SELECT id, username, email, password_hash, nip, nik, is_active, created_at, updated_at FROM keamanan.users WHERE id = $1", &[&user_id])
         .await
@@ -686,7 +746,10 @@ pub async fn mfa_disable(
     }
     // Disable MFA
     client
-        .execute("UPDATE keamanan.users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1", &[&user_id])
+        .execute(
+            "UPDATE keamanan.users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1",
+            &[&user_id],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     state
@@ -709,7 +772,11 @@ pub async fn request_password_reset(
     Json(req): Json<PasswordResetRequest>,
 ) -> Result<StatusCode, AppError> {
     // Cari user
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let row = client
         .query_opt("SELECT id, username, email, password_hash, nip, nik, is_active, created_at, updated_at FROM keamanan.users WHERE email = $1", &[&req.email])
         .await
@@ -721,7 +788,10 @@ pub async fn request_password_reset(
     let expires_at = chrono::Utc::now() + chrono::Duration::minutes(30);
     // Simpan token ke DB
     client
-        .execute("INSERT INTO keamanan.password_resets (user_id, token, expires_at) VALUES ($1, $2, $3)", &[&user.id, &token, &expires_at])
+        .execute(
+            "INSERT INTO keamanan.password_resets (user_id, token, expires_at) VALUES ($1, $2, $3)",
+            &[&user.id, &token, &expires_at],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     // Kirim email notification
@@ -751,17 +821,24 @@ pub async fn reset_password(
     Json(req): Json<PasswordResetConfirm>,
 ) -> Result<StatusCode, AppError> {
     // Cari token
-    let client = state.pool.get().await.map_err(|e| AppError::Database(e.to_string()))?;
+    let client = state
+        .pool
+        .get()
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let rec_row = client
-        .query_opt("SELECT user_id, expires_at, used FROM keamanan.password_resets WHERE token = $1", &[&req.token])
+        .query_opt(
+            "SELECT user_id, expires_at, used FROM keamanan.password_resets WHERE token = $1",
+            &[&req.token],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?
         .ok_or(AppError::Validation("Invalid or expired token".to_string()))?;
-    
+
     let user_id: uuid::Uuid = rec_row.get(0);
     let expires_at: chrono::DateTime<chrono::Utc> = rec_row.get(1);
     let used: bool = rec_row.get(2);
-    
+
     if used || expires_at < chrono::Utc::now() {
         return Err(AppError::Validation(
             "Token expired or already used".to_string(),
@@ -770,12 +847,18 @@ pub async fn reset_password(
     // Update password user
     // Tandai token sudah used
     client
-        .execute("UPDATE keamanan.password_resets SET used = TRUE WHERE token = $1", &[&req.token])
+        .execute(
+            "UPDATE keamanan.password_resets SET used = TRUE WHERE token = $1",
+            &[&req.token],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     let hash = crate::auth::hash_password(&req.new_password)?;
     client
-        .execute("UPDATE keamanan.users SET password_hash = $1 WHERE id = $2", &[&hash, &user_id])
+        .execute(
+            "UPDATE keamanan.users SET password_hash = $1 WHERE id = $2",
+            &[&hash, &user_id],
+        )
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;
     state
@@ -856,7 +939,12 @@ mod tests {
             dbname: Some("testdb".to_string()),
             ..Default::default()
         };
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let config = crate::config::Config::load().unwrap();
         let vault_client = crate::vault::VaultClient::new("http://localhost:8200", "test").unwrap();
         let state = crate::models::AppState {
@@ -891,7 +979,12 @@ mod tests {
             dbname: Some("testdb".to_string()),
             ..Default::default()
         };
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let config = crate::config::Config::load().unwrap();
         let vault_client = crate::vault::VaultClient::new("http://localhost:8200", "test").unwrap();
         let state = crate::models::AppState {
@@ -926,7 +1019,12 @@ mod tests {
             dbname: Some("testdb".to_string()),
             ..Default::default()
         };
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let config = crate::config::Config::load().unwrap();
         let vault_client = crate::vault::VaultClient::new("http://localhost:8200", "test").unwrap();
         let state = crate::models::AppState {
@@ -961,7 +1059,12 @@ mod tests {
             dbname: Some("testdb".to_string()),
             ..Default::default()
         };
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let config = crate::config::Config::load().unwrap();
         let vault_client = crate::vault::VaultClient::new("http://localhost:8200", "test").unwrap();
         let state = crate::models::AppState {

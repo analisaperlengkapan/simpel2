@@ -8,10 +8,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
-pub async fn api_key_middleware<B>(
+pub async fn api_key_middleware(
     State(config): State<AppConfig>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, AppError> {
     let key = req.headers().get("x-api-key").and_then(|v| v.to_str().ok());
     if key != Some(&config.api_key) {
@@ -20,10 +20,10 @@ pub async fn api_key_middleware<B>(
     Ok(next.run(req).await)
 }
 
-pub async fn rate_limit_middleware<B>(
+pub async fn rate_limit_middleware(
     State(state): State<RateLimitState>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
     limit: u32,
 ) -> Result<Response, AppError> {
     let ip = req.headers().get("x-forwarded-for")
@@ -41,4 +41,4 @@ pub async fn rate_limit_middleware<B>(
         entry.0 += 1;
     }
     Ok(next.run(req).await)
-} 
+}

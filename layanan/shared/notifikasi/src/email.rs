@@ -1,10 +1,9 @@
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::{Notification, NotificationRecipient};
-use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox};
+use lettre::{message::Mailbox, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde_json::Value;
 
 pub struct EmailService {
     pub config: AppConfig,
@@ -23,10 +22,19 @@ impl EmailService {
             .port(config.smtp_port)
             .credentials(creds)
             .build();
-        Self { config, pool, mailer }
+        Self {
+            config,
+            pool,
+            mailer,
+        }
     }
 
-    pub async fn send_email(&self, recipient: &str, subject: &str, body: &str) -> Result<Notification, AppError> {
+    pub async fn send_email(
+        &self,
+        recipient: &str,
+        subject: &str,
+        body: &str,
+    ) -> Result<Notification, AppError> {
         let email = Message::builder()
             .from(self.config.smtp_from.parse::<Mailbox>().unwrap())
             .to(recipient.parse::<Mailbox>().unwrap())
@@ -35,11 +43,16 @@ impl EmailService {
             .map_err(|e| AppError::Email(e.to_string()))?;
         let notif_id = Uuid::new_v4();
         // Insert notification DB (pending)
-        let notif = sqlx::query_as!(Notification,
+        let notif = sqlx::query_as!(
+            Notification,
             r#"INSERT INTO notifikasi.notifications (id, channel, status, subject, body, created_at)
             VALUES ($1, 'email', 'pending', $2, $3, NOW()) RETURNING *"#,
-            notif_id, subject, body
-        ).fetch_one(&self.pool).await?;
+            notif_id,
+            subject,
+            body
+        )
+        .fetch_one(&self.pool)
+        .await?;
         // Insert recipient
         sqlx::query!(
             r#"INSERT INTO notifikasi.notification_recipients (id, notification_id, recipient, recipient_type, status)
@@ -62,7 +75,12 @@ impl EmailService {
         Ok(notif)
     }
 
-    pub async fn send_batch_emails(&self, recipients: Vec<String>, subject: &str, body: &str) -> Result<Vec<NotificationRecipient>, AppError> {
+    pub async fn send_batch_emails(
+        &self,
+        recipients: Vec<String>,
+        subject: &str,
+        body: &str,
+    ) -> Result<Vec<NotificationRecipient>, AppError> {
         let mut results = Vec::new();
         for recipient in recipients {
             let _ = self.send_email(&recipient, subject, body).await; // Ignore error per recipient
@@ -76,10 +94,13 @@ impl EmailService {
     }
 
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
-        let notif = sqlx::query_as!(Notification,
+        let notif = sqlx::query_as!(
+            Notification,
             r#"SELECT * FROM notifikasi.notifications WHERE id = $1"#,
             notification_id
-        ).fetch_one(&self.pool).await?;
+        )
+        .fetch_one(&self.pool)
+        .await?;
         Ok(notif)
     }
-} 
+}

@@ -16,6 +16,7 @@ impl ServiceDiscovery {
     }
 }
 
+#[derive(Clone)]
 pub struct ServiceRegistry;
 
 impl ServiceRegistry {

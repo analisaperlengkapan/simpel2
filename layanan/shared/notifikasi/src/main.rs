@@ -16,7 +16,6 @@ use sqlx::postgres::PgPoolOptions;
 use tower_http::{cors::{CorsLayer, Any}, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
 use std::sync::Arc;
 use prometheus::{Encoder, TextEncoder, Registry};
 use crate::security::RateLimitState;
@@ -33,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
     // Sentry (opsional)
-    let _guard = None;
+    let _guard: Option<()> = None;
     // DB pool
     let pool = PgPoolOptions::new()
         .max_connections(10)
@@ -44,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = Registry::new();
     // CORS
     let cors = CorsLayer::new()
-        .allow_origin(config.cors_origins.iter().map(|s| s.parse().unwrap_or(Any)).collect::<Vec<_>>())
+        .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION, axum::http::header::HeaderName::from_static("x-api-key")]);
     // Rate limit state
@@ -66,7 +65,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Notifikasi service listening on {}:{}", config.server_host, config.server_port);
     // Run server
     let addr = SocketAddr::new(config.server_host.parse()?, config.server_port);
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
+        .await?;
     Ok(())
 }
 
@@ -74,7 +76,9 @@ async fn shutdown_signal() {
     use tokio::signal;
     let ctrl_c = signal::ctrl_c();
     #[cfg(unix)]
-    let terminate = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap().recv();
+    let mut terminate_signal = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap();
+    #[cfg(unix)]
+    let terminate = terminate_signal.recv();
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
     tokio::select! {
@@ -82,4 +86,4 @@ async fn shutdown_signal() {
         _ = terminate => {},
     }
     tracing::warn!("Shutdown signal received, shutting down gracefully...");
-} 
+}

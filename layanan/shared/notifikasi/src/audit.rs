@@ -1,8 +1,7 @@
 use crate::error::AppError;
+use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde_json::Value;
-use chrono::Utc;
 
 pub async fn insert_audit_log(
     pool: &PgPool,
@@ -33,7 +32,7 @@ pub async fn query_audit_logs(
     pool: &PgPool,
     notification_id: Option<Uuid>,
     user_id: Option<Uuid>,
-    limit: i64
+    limit: i64,
 ) -> Result<Vec<serde_json::Value>, AppError> {
     let rows = if let Some(nid) = notification_id {
         sqlx::query!(
@@ -49,18 +48,23 @@ pub async fn query_audit_logs(
         sqlx::query!(
             r#"SELECT * FROM notifikasi.delivery_logs ORDER BY timestamp DESC LIMIT $1"#,
             limit
-        ).fetch_all(pool).await?
+        )
+        .fetch_all(pool)
+        .await?
     };
-    let logs = rows.into_iter().map(|row| {
-        serde_json::json!({
-            "id": row.id,
-            "notification_id": row.notification_id,
-            "recipient": row.recipient,
-            "channel": row.channel,
-            "status": row.status,
-            "message": row.message,
-            "timestamp": row.timestamp
+    let logs = rows
+        .into_iter()
+        .map(|row| {
+            serde_json::json!({
+                "id": row.id,
+                "notification_id": row.notification_id,
+                "recipient": row.recipient,
+                "channel": row.channel,
+                "status": row.status,
+                "message": row.message,
+                "timestamp": row.timestamp
+            })
         })
-    }).collect();
+        .collect();
     Ok(logs)
-} 
+}
