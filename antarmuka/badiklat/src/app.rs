@@ -319,30 +319,30 @@ pub fn BadiklatDashboard(
 
             // Quick Stats
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <KejCard>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-kejaksaan-primary mb-2">"5"</div>
                         <div class="text-kejaksaan-text-muted">"Program Aktif"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-green-600 mb-2">"148"</div>
                         <div class="text-kejaksaan-text-muted">"Peserta Terdaftar"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-blue-600 mb-2">"23"</div>
                         <div class="text-kejaksaan-text-muted">"Sedang Berlangsung"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-purple-600 mb-2">"12"</div>
                         <div class="text-kejaksaan-text-muted">"Instruktur Aktif"</div>
                     </div>
-                </KejCard>
+                </Card>
             </div>
 
             // Training Categories
@@ -355,7 +355,7 @@ pub fn BadiklatDashboard(
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {programs.into_iter().map(|program| {
                                 view! {
-                                    <KejCard class="hover:shadow-lg transition-shadow duration-300">
+                                    <Card class="hover:shadow-lg transition-shadow duration-300">
                                         <div class="p-6">
                                             <div class="flex items-start justify-between mb-4">
                                                 <div class="flex items-center space-x-3">
@@ -403,31 +403,31 @@ pub fn BadiklatDashboard(
                                             </div>
 
                                             <div class="flex space-x-2">
-                                                <KejButton
+                                                <Button
                                                     variant=ButtonVariant::Primary
                                                     class="flex-1">
                                                     "Lihat Detail"
-                                                </KejButton>
+                                                </Button>
                                                 {if matches!(program.status, ProgramStatus::Open) {
                                                     view! {
-                                                        <KejButton
+                                                        <Button
                                                             variant=ButtonVariant::Secondary
                                                             class="flex-1">
                                                             "Daftar"
-                                                        </KejButton>
+                                                        </Button>
                                                     }
                                                 } else {
                                                     view! {
-                                                        <KejButton
+                                                        <Button
                                                             variant=ButtonVariant::Outline
                                                             class="flex-1">
                                                             "Info"
-                                                        </KejButton>
+                                                        </Button>
                                                     }
                                                 }}
                                             </div>
                                         </div>
-                                    </KejCard>
+                                    </Card>
                                 }
                             }).collect_view()}
                         </div>
@@ -436,7 +436,7 @@ pub fn BadiklatDashboard(
             }).collect_view()}
 
             // Support Information
-            <KejCard class="bg-kejaksaan-bg-light">
+            <Card class="bg-kejaksaan-bg-light">
                 <div class="p-6">
                     <h2 class="text-xl font-semibold text-kejaksaan-text mb-4">
                         "📞 Bantuan Badiklat"
@@ -452,7 +452,7 @@ pub fn BadiklatDashboard(
                         </div>
                     </div>
                 </div>
-            </KejCard>
+            </Card>
         </div>
     }
 }

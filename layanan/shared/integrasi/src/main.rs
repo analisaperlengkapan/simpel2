@@ -44,7 +44,7 @@ async fn main() -> Result<(), IntegrationError> {
     tracing::info!("🔗 Starting SIMPelv2 Integration Service");
 
     // Database connection
-    let pool_config = deadpool_postgres::Config::from_url(&config.database_url)?;
+    let pool_config = deadpool_postgres::Config::new();
     let db = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
 
     // Redis connection untuk caching dan pub/sub

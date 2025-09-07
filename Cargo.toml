@@ -30,6 +30,9 @@ members = [
     "layanan/pidsus",
     "layanan/pidum",
 
+    # Backend Layanan Pembinaan
+    "layanan/pembinaan/perlengkapan",
+
     # Backend Shared Layanan
     # "layanan/shared/ai",      # Temporarily disabled - migrating from SQLx
     "layanan/shared/bantuan",
@@ -146,7 +149,7 @@ leptos_macro = { version = "0.8" }
 server_fn = { version = "0.8" }
 
 # WASM specific - Latest Stable Versions
-wasm-bindgen = "0.2"
+wasm-bindgen = "=0.2.100"
 js-sys = "0.3"
 gloo-net = { version = "0.6", features = ["http"] }
 gloo-utils = "0.2"

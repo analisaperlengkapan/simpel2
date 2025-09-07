@@ -3,16 +3,54 @@ name = "layanan-perlengkapan"
 version = "0.1.0"
 edition = "2021"
 authors = ["SIMPelv2 Team"]
-description = "perlengkapan service for SIMPelv2"
+description = "Layanan Perlengkapan untuk manajemen BMN Kejaksaan RI"
+
+[[bin]]
+name = "layanan-perlengkapan"
+path = "src/main.rs"
 
 [dependencies]
+# Web framework
 axum = { workspace = true }
-tokio = { workspace = true }
 tower = { workspace = true }
-tower-http = { workspace = true, features = ["cors", "trace"] }
+tower-http = { workspace = true, features = ["cors", "trace", "fs"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "bigdecimal", "migrate"] }
+
+# UUID and time
+uuid = { version = "1.8", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = "1.0"
+
+# Logging
 tracing = { workspace = true }
-tracing-subscriber = "0.3"
-anyhow = "1.0"
-uuid = { version = "1.0", features = ["v4", "serde"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Authentication & JWT
+jsonwebtoken = "9.2"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Decimal support
+bigdecimal = { version = "0.4", features = ["serde"] }
+
+# Async trait support
+async-trait = "0.1"
+
+# Environment variables
+dotenv = "0.15"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }

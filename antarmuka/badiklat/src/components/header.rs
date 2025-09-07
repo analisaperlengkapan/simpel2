@@ -36,12 +36,12 @@ pub fn BadiklatHeader() -> impl IntoView {
 
                     // Action Buttons
                     <div class="flex items-center space-x-2">
-                        <KejButton variant=ButtonVariant::Ghost class="text-white border-white hover:bg-white hover:text-kejaksaan-primary">
+                        <Button variant=ButtonVariant::Ghost class="text-white border-white hover:bg-white hover:text-kejaksaan-primary">
                             "📋 Daftar Program"
-                        </KejButton>
-                        <KejButton variant=ButtonVariant::Ghost class="text-white border-white hover:bg-white hover:text-kejaksaan-primary">
+                        </Button>
+                        <Button variant=ButtonVariant::Ghost class="text-white border-white hover:bg-white hover:text-kejaksaan-primary">
                             "👤 Profile"
-                        </KejButton>
+                        </Button>
                     </div>
 
                     // Mobile Menu Button

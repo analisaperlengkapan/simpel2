@@ -222,7 +222,7 @@ pub fn HomePage(
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {systems.into_iter().map(|system| {
                                 view! {
-                                    <KejCard class="hover:shadow-lg transition-shadow duration-300">
+                                    <Card class="hover:shadow-lg transition-shadow duration-300">
                                         <div class="text-center p-4">
                                             <div class="text-4xl mb-3">{system.icon}</div>
                                             <h3 class="text-lg font-semibold text-kejaksaan-text mb-2">
@@ -234,13 +234,13 @@ pub fn HomePage(
                                             <div class=format!("text-sm font-medium mb-4 {}", system.status.css_class())>
                                                 "Status: " {system.status.label()}
                                             </div>
-                                            <KejButton
+                                            <Button
                                                 variant=ButtonVariant::Primary
                                                 class="w-full">
                                                 "Akses Sistem"
-                                            </KejButton>
+                                            </Button>
                                         </div>
-                                    </KejCard>
+                                    </Card>
                                 }
                             }).collect_view()}
                         </div>
@@ -250,28 +250,28 @@ pub fn HomePage(
 
             // Quick Stats
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <KejCard>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-kejaksaan-primary mb-2">"9"</div>
                         <div class="text-kejaksaan-text-muted">"Sistem Terintegrasi"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-green-600 mb-2">"8"</div>
                         <div class="text-kejaksaan-text-muted">"Sistem Online"</div>
                     </div>
-                </KejCard>
-                <KejCard>
+                </Card>
+                <Card>
                     <div class="text-center p-4">
                         <div class="text-3xl font-bold text-yellow-600 mb-2">"1"</div>
                         <div class="text-kejaksaan-text-muted">"Maintenance"</div>
                     </div>
-                </KejCard>
+                </Card>
             </div>
 
             // Support Information
-            <KejCard class="bg-kejaksaan-bg-light">
+            <Card class="bg-kejaksaan-bg-light">
                 <div class="p-6">
                     <h2 class="text-xl font-semibold text-kejaksaan-text mb-4">
                         "📞 Dukungan Teknis"
@@ -287,7 +287,7 @@ pub fn HomePage(
                         </div>
                     </div>
                 </div>
-            </KejCard>
+            </Card>
         </div>
     }
 }
