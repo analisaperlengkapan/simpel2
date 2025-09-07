@@ -6,9 +6,9 @@ impl ApiGateway {
     pub fn new() -> Self {
         Self
     }
-    
+
     pub fn create_router(&self) -> Router {
         Router::new()
-            // TODO: Implement API gateway routes
+        // TODO: Implement API gateway routes
     }
 }

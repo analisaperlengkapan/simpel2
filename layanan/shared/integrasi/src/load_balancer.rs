@@ -4,7 +4,7 @@ impl LoadBalancer {
     pub fn new() -> Self {
         Self
     }
-    
+
     pub fn get_next_instance(&self, service_name: &str) -> Option<String> {
         // TODO: Implement load balancing
         None

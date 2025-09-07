@@ -18,7 +18,7 @@ use crate::{
     handlers::create_routes,
 };
 use axum::Router;
-use sqlx::postgres::PgPoolOptions;
+use deadpool_postgres::Pool;
 use tower_http::{
     cors::CorsLayer,
     trace::TraceLayer,
@@ -31,7 +31,7 @@ use prometheus::Registry;
 /// Application state untuk dashboard service
 #[derive(Clone)]
 pub struct AppState {
-    pub db: sqlx::PgPool,
+    pub db: Pool,
     pub redis: redis::Client,
     pub config: AppConfig,
     pub metrics_registry: Registry,
@@ -46,10 +46,8 @@ async fn main() -> Result<(), DashboardError> {
     tracing_subscriber::fmt::init();
     
     // Database connection
-    let db = PgPoolOptions::new()
-        .max_connections(20)
-        .connect(&config.database_url)
-        .await?;
+    let pool_config = deadpool_postgres::Config::new();
+    let db = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
     
     // Redis connection untuk real-time data
     let redis_client = redis::Client::open(config.redis_url.clone())?;

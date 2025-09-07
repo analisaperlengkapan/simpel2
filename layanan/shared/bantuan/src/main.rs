@@ -1,5 +1,5 @@
 //! SIMPelv2 Layanan Bantuan
-//! 
+//!
 //! Service untuk menangani bantuan pengguna, FAQ, ticketing system,
 //! dan chatbot berbasis AI.
 
@@ -28,7 +28,7 @@ use crate::{
 use axum::{Router, http::Method};
 use sqlx::postgres::PgPoolOptions;
 use tower_http::{
-    cors::{CorsLayer, Any}, 
+    cors::{CorsLayer, Any},
     trace::TraceLayer,
     compression::CompressionLayer,
     timeout::TimeoutLayer,
@@ -50,22 +50,22 @@ pub struct AppState {
 async fn main() -> Result<(), AppError> {
     // Inisialisasi konfigurasi
     let config = AppConfig::from_env()?;
-    
+
     // Setup tracing dan logging
     setup_tracing(&config)?;
-    
+
     // Inisialisasi Sentry untuk error tracking
     let _sentry_guard = setup_sentry(&config);
-    
+
     // Setup database connection
     let db_pool = setup_database(&config).await?;
-    
+
     // Setup Redis connection
     let redis_client = setup_redis(&config)?;
-    
+
     // Setup metrics registry
     let metrics_registry = setup_metrics()?;
-    
+
     // Create application state
     let state = AppState {
         db: db_pool,
@@ -73,10 +73,10 @@ async fn main() -> Result<(), AppError> {
         config: config.clone(),
         metrics_registry,
     };
-    
+
     // Create router dengan semua routes
     let app = create_app_router(state).await?;
-    
+
     // Start server
     start_server(app, &config).await?;
     Ok(())
@@ -94,7 +94,7 @@ fn setup_tracing(config: &AppConfig) -> Result<(), AppError> {
                 .json()
         )
         .init();
-    
+
     tracing::info!("Tracing initialized with level: {}", config.log_level);
     Ok(())
 }
@@ -121,16 +121,16 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 /// Setup database connection pool
 async fn setup_database(config: &AppConfig) -> Result<sqlx::PgPool, AppError> {
     tracing::info!("Connecting to database...");
-    
+
     let pool = PgPoolOptions::new()
         .max_connections(config.db_max_connections)
         .acquire_timeout(Duration::from_secs(10))
         .connect(&config.database_url)
         .await?;
-    
+
     // Run migrations
     sqlx::migrate!("./migrations").run(&pool).await?;
-    
+
     tracing::info!("Database connected and migrations applied");
     Ok(pool)
 }
@@ -138,9 +138,9 @@ async fn setup_database(config: &AppConfig) -> Result<sqlx::PgPool, AppError> {
 /// Setup Redis connection
 fn setup_redis(config: &AppConfig) -> Result<redis::Client, AppError> {
     tracing::info!("Connecting to Redis...");
-    
+
     let client = redis::Client::open(config.redis_url.clone())?;
-    
+
     tracing::info!("Redis client created");
     Ok(client)
 }
@@ -148,10 +148,10 @@ fn setup_redis(config: &AppConfig) -> Result<redis::Client, AppError> {
 /// Setup metrics registry
 fn setup_metrics() -> Result<Registry, AppError> {
     let registry = Registry::new();
-    
+
     // Register default metrics
     // Anda bisa menambahkan custom metrics di sini
-    
+
     tracing::info!("Metrics registry initialized");
     Ok(registry)
 }
@@ -197,15 +197,15 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
 /// Start HTTP server
 async fn start_server(app: Router, config: &AppConfig) -> Result<(), AppError> {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
-    
+
     tracing::info!("🚀 Server starting on {}", addr);
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    
+
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
-        
+
     Ok(())
 }
 
@@ -220,11 +220,11 @@ async fn readiness_check(
 ) -> Result<&'static str, AppError> {
     // Check database connection
     sqlx::query("SELECT 1").execute(&state.db).await?;
-    
+
     // Check Redis connection (optional)
     // let mut conn = state.redis.get_async_connection().await?;
     // redis::cmd("PING").query_async(&mut conn).await?;
-    
+
     Ok("READY")
 }
 
@@ -235,9 +235,9 @@ async fn metrics_handler(
     let encoder = TextEncoder::new();
     let mut buffer = Vec::new();
     let metric_families = state.metrics_registry.gather();
-    
+
     encoder.encode(&metric_families, &mut buffer)?;
-    
+
     Ok(String::from_utf8(buffer)?)
 }
 
@@ -267,24 +267,3 @@ async fn shutdown_signal() {
 
     tracing::info!("🛑 Shutdown signal received");
 }
-    // Startup log
-    tracing::info!("Bantuan service listening on {}:{}", config.server_host, config.server_port);
-    // Run server
-    let addr = SocketAddr::new(config.server_host.parse()?, config.server_port);
-        .with_graceful_shutdown(shutdown_signal())
-    Ok(())
-}
-
-async fn shutdown_signal() {
-    use tokio::signal;
-    let ctrl_c = signal::ctrl_c();
-    #[cfg(unix)]
-    let terminate = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap().recv();
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
-    tracing::warn!("Shutdown signal received, shutting down gracefully...");
-} 

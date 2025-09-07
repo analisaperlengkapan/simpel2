@@ -40,7 +40,6 @@ members = [
     "layanan/shared/konfigurasi",
     "layanan/shared/laporan",
     "layanan/shared/notifikasi",
-    "layanan/shared/utils",
 ]
 
 [workspace.dependencies]
@@ -61,11 +60,14 @@ anyhow = "1.0"
 thiserror = "1.0"
 dotenvy = "0.15"
 
-# PostgreSQL Database Dependencies (Modern alternatives - no SQLx)
+# PostgreSQL Database Dependencies (Optimized for security & performance)
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1", "with-time-0_3"] }
 deadpool-postgres = { version = "0.14", features = ["serde"] }
 postgres-types = { version = "0.2", features = ["derive", "with-uuid-1", "with-chrono-0_4", "with-serde_json-1", "with-time-0_3"] }
 refinery = { version = "0.8", features = ["tokio-postgres"] }
+
+# Additional PostgreSQL utilities (optional)
+# sea-query = { version = "0.31", features = ["postgres-array", "with-chrono", "with-uuid"] }  # Query builder if needed
 
 # Security & Authentication
 argon2 = "0.5"
@@ -77,10 +79,11 @@ ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 # Vault Integration
 vaultrs = "0.7"
 
-# Proc Macro Dependencies (alternatives to unmaintained paste)
+# Proc Macro Dependencies (secure alternatives)
 syn = { version = "2.0", features = ["full", "parsing", "printing", "proc-macro"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+pastey = "0.1"  # Maintained fork of paste crate (replaces unmaintained paste)
 
 # Frontend Shared Dependencies
 shared-microfrontend = { path = "antarmuka/shared" }
@@ -135,12 +138,12 @@ qrcode = { version = "0.14", features = ["svg"] }
 base32 = "0.5"
 
 # Leptos Frontend Dependencies - Latest Available Stable
-leptos = { version = "0.8.5" }
-leptos_meta = { version = "0.8.5" }
-leptos_router = { version = "0.8.5" }
-leptos_dom = { version = "0.8.5" }
-leptos_macro = { version = "0.8.5" }
-server_fn = { version = "0.8.5" }
+leptos = { version = "0.8" }
+leptos_meta = { version = "0.8" }
+leptos_router = { version = "0.8" }
+leptos_dom = { version = "0.8" }
+leptos_macro = { version = "0.8" }
+server_fn = { version = "0.8" }
 
 # WASM specific - Latest Stable Versions
 wasm-bindgen = "0.2"

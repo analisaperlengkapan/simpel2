@@ -9,7 +9,10 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] tokio_postgres::Error),
+
+    #[error("Pool error: {0}")]
+    Pool(#[from] deadpool_postgres::PoolError),
 
     #[error("JWT error: {0}")]
     Jwt(#[from] jsonwebtoken::errors::Error),
@@ -78,8 +81,13 @@ impl IntoResponse for AppError {
             AppError::Serialization(_) => (StatusCode::BAD_REQUEST, "Invalid JSON"),
             AppError::Argon2(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Password hash error"),
             AppError::Base32(_) => (StatusCode::BAD_REQUEST, "Invalid base32 encoding"),
-            AppError::QrCode(_) => (StatusCode::INTERNAL_SERVER_ERROR, "QR code generation error"),
-            AppError::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error"),
+            AppError::QrCode(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "QR code generation error",
+            ),
+            AppError::InternalServerError => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+            }
         };
 
         let body = Json(json!({
@@ -89,4 +97,4 @@ impl IntoResponse for AppError {
 
         (status, body).into_response()
     }
-} 
+}

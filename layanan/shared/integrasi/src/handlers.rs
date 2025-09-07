@@ -1,26 +1,24 @@
-use axum::{extract::Path, response::Json, http::StatusCode, Router, routing::get};
+use crate::{error::Result, models::HealthResponse};
+use axum::{extract::Path, http::StatusCode, response::Json, routing::get, Router};
 use serde_json::{json, Value};
-use crate::{models::HealthResponse, error::Result};
 
 pub async fn health() -> Json<Value> {
-    Json(json!({ 
-        "status": "healthy", 
+    Json(json!({
+        "status": "healthy",
         "service": "integrasi",
         "timestamp": chrono::Utc::now()
     }))
 }
 
 pub async fn get_services() -> Json<Value> {
-    Json(json!({ 
+    Json(json!({
         "services": [],
-        "message": "Service discovery not implemented yet" 
+        "message": "Service discovery not implemented yet"
     }))
 }
 
-pub async fn register_service(
-    Json(payload): Json<Value>
-) -> Result<Json<Value>, StatusCode> {
-    Ok(Json(json!({ 
+pub async fn register_service(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+    Ok(Json(json!({
         "message": "Service registration not implemented yet",
         "received": payload
     })))
