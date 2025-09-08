@@ -1,48 +1,56 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev) [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
 
-**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfron├── 📁 docs/                      # Comprehensive Documentation
-│   ├── 📚 api/                  # API Documentation
-│   ├── 🏗️ architecture/         # Architecture Diagrams
-│   ├── 📘 guides/               # Development Guides
-│   └── SHARED_OPTIMIZATION_COMPLETE.md # ⭐ Optimization Reports menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
+**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfrontends menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
 
 ## 🎯 **Overview**
 
 SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Dibangun dengan teknologi modern Rust dan mengikuti standar keamanan enterprise dengan arsitektur microfrontend untuk skalabilitas dan maintainability maksimal.
 
-## 🏗️ **Architecture**
+## 🚀 **Production Deployment**
+
+### **� Live URLs**
+- **Main Portal**: [https://simpel.kejaksaan.go.id/](https://simpel.kejaksaan.go.id/)
+- **Portal Microfrontend**: [https://simpel.kejaksaan.go.id/portal](https://simpel.kejaksaan.go.id/portal)
+- **Perlengkapan Module**: [https://simpel.kejaksaan.go.id/perlengkapan](https://simpel.kejaksaan.go.id/perlengkapan)
+
+### **🛡️ Security Features**
+- ✅ **SSL/TLS**: DigiCert certificate with HTTP/2 support
+- ✅ **HSTS**: Strict Transport Security headers
+- ✅ **CSP**: Content Security Policy implementation
+- ✅ **Zero-Trust Architecture**: All traffic encrypted and authenticated
+
+## �🏗️ **Architecture**
 
 ### **🦀 Technology Stack**
 - **Backend Services**: Rust (Axum) untuk performa dan keamanan tinggi
-- **Frontend Microfrontends**: Leptos 0.7.8 + WebAssembly untuk speed dan type-safety
+- **Frontend Microfrontends**: Leptos 0.8.x + WebAssembly untuk speed dan type-safety
 - **Shared UI Library**: Komponen terpusat dengan Kejaksaan RI branding
 - **Build System**: Trunk 0.21.14 dengan optimasi WASM
 - **Database**: PostgreSQL (multi-schema) dengan connection pooling
-- **Gateway**: Envoy Proxy + Nginx dengan load balancing
+- **Container Orchestration**: MicroK8s dengan LoadBalancer dan Ingress
 - **Security**: HashiCorp Vault + JWT + MFA + Zero-Trust Architecture
 - **AI/ML**: Rust-Bert + Tch + Qdrant untuk intelligent processing
-- **Orchestration**: Docker Compose + Kubernetes dengan Helm charts
 - **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
 
 ### **🌐 Microfrontend Architecture**
 SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang didukung oleh **shared components library** yang telah dioptimasi dengan Leptos 0.8.x:
 
-| Modul | Fungsi | Port | Status |
-|-------|--------|------|--------|
-| **Portal** | Gateway & Dashboard Utama | :8080 | ✅ Aktif |
-| **Badiklat** | Pelatihan & Pendidikan | :8081 | ✅ Aktif |
-| **Datun** | Tindak Pidana Umum | :8082 | ✅ Aktif |
-| **Intel** | Intelligence & Analytics | :8083 | ✅ Aktif |
-| **Pembinaan** | Manajemen Pembinaan | :8084-8086 | ✅ Aktif |
-| **Perlengkapan** | Equipment Management | :8086 | ✅ **NEW v0.3.0** |
-| **Pemulihan Aset** | Asset Recovery | :8087 | ✅ Aktif |
-| **Pengawasan** | Monitoring & Compliance | :8088 | ✅ Aktif |
-| **PIDMIL** | Pidana Militer | :8089 | ✅ Aktif |
-| **PIDSUS** | Pidana Khusus | :8090 | ✅ Aktif |
-| **PIDUM** | Pidana Umum | :8091 | ✅ Aktif |
-| **Shared** | Komponen Terpusat | - | ✅ **v0.2.0 Optimized** |
+| Modul | Fungsi | Port | Status | Deployment |
+|-------|--------|------|--------|------------|
+| **Portal** | Gateway & Dashboard Utama | :8080 | ✅ **v0.4.0 Live** | 🚀 K8s Production |
+| **Perlengkapan** | Equipment Management | :8086 | ✅ **v0.3.0 Live** | 🚀 K8s Production |
+| **Badiklat** | Pelatihan & Pendidikan | :8081 | ✅ Aktif | 🛠️ Development |
+| **Datun** | Tindak Pidana Umum | :8082 | ✅ Aktif | 🛠️ Development |
+| **Intel** | Intelligence & Analytics | :8083 | ✅ Aktif | 🛠️ Development |
+| **Pembinaan** | Manajemen Pembinaan | :8084-8086 | ✅ Aktif | 🛠️ Development |
+| **Pemulihan Aset** | Asset Recovery | :8087 | ✅ Aktif | 🛠️ Development |
+| **Pengawasan** | Monitoring & Compliance | :8088 | ✅ Aktif | 🛠️ Development |
+| **PIDMIL** | Pidana Militer | :8089 | ✅ Aktif | 🛠️ Development |
+| **PIDSUS** | Pidana Khusus | :8090 | ✅ Aktif | 🛠️ Development |
+| **PIDUM** | Pidana Umum | :8091 | ✅ Aktif | 🛠️ Development |
+| **Shared** | Komponen Terpusat | - | ✅ **v0.2.0 Optimized** | 📦 Library |
 
 ### **🧩 Shared Components Library v0.2.0**
 **Production-Ready UI Components dengan Leptos 0.8.x Compatibility**
@@ -453,19 +461,35 @@ make monitor-prod
 ```
 
 ### **☸️ Kubernetes Deployment**
+
+**MicroK8s Production Deployment**
 ```bash
-# Generate K8s manifests
-make generate-k8s
+# Build Portal microfrontend
+cd antarmuka/portal
+trunk build --release
 
-# Deploy to cluster
-make deploy-k8s
+# Deploy Portal to MicroK8s
+microk8s kubectl apply -f infra/k8s/microfrontends/portal-deployment.yaml
 
-# Check status
-kubectl get pods -n simpelv2
+# Deploy Perlengkapan (if needed)
+microk8s kubectl apply -f infra/k8s/microfrontends/perlengkapan-deployment.yaml
 
-# Monitor with Grafana
-make monitor-k8s
+# Update Ingress configuration
+microk8s kubectl apply -f infra/k8s/ingress/ingress.yaml
+
+# Check deployment status
+microk8s kubectl get pods,svc,ingress -n simpelv2
+
+# Test SSL endpoints
+curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/ -I
+curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/portal -I
+curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/perlengkapan -I
 ```
+
+**Production URLs:**
+- 🌐 **Main Portal**: https://simpel.kejaksaan.go.id/
+- 🛠️ **Perlengkapan**: https://simpel.kejaksaan.go.id/perlengkapan
+- 📊 **Portal Direct**: https://simpel.kejaksaan.go.id/portal
 
 ## 📚 **Documentation**
 

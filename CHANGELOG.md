@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.4.0] - 2025-09-08
+
+### 🌐 **Portal Microfrontend Deployment & Ingress Configuration**
+
+**Complete MicroK8s Deployment with SSL Termination**
+- **Portal Microfrontend**: Leptos WASM deployed as default root application
+- **Kubernetes Infrastructure**: Complete K8s manifests with ingress routing
+- **SSL Configuration**: DigiCert certificate integration with HTTPS/HTTP2
+
+### 🚀 **Portal Microfrontend Features**
+- **Default Root Route**: Portal serves as main application at `/`
+- **Dual Path Access**: Available at both `/` and `/portal` for flexibility
+- **WASM Optimization**: Built with trunk --release and wasm-opt optimization
+- **Production Ready**: Resource limits, health checks, and ConfigMap configuration
+
+### 🛡️ **Security & Performance Enhancements**
+- **SSL Termination**: Valid DigiCert certificate for *.kejaksaan.go.id
+- **HTTP/2 Support**: Enhanced performance with modern protocol
+- **Security Headers**: HSTS, XSS protection, CSRF protection
+- **Gzip Compression**: Optimized content delivery with WASM MIME types
+
+### ⚙️ **Infrastructure Improvements**
+- **MicroK8s Deployment**: Complete portal-deployment.yaml with ConfigMap
+- **Ingress Routing**: Updated simpelv2-ingress with portal and perlengkapan routes
+- **Load Balancing**: 2 replicas with ClusterIP service configuration
+- **Health Monitoring**: Liveness and readiness probes with proper timeouts
+
+### 🔧 **Development Workflow**
+- **Trunk Build**: Fixed duplicate TOML sections in portal/Trunk.toml
+- **Kubernetes Apply**: Automated deployment with kubectl/microk8s
+- **SSL Testing**: Verified HTTPS access with curl testing suite
+- **Multi-Route Validation**: Confirmed both portal and perlengkapan accessibility
+
 ## [0.3.0] - 2025-09-04
 
 ### 🏛️ **SIMPelv2 Perlengkapan - Complete Implementation**

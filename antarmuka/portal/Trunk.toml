@@ -15,20 +15,8 @@ optimization-level = "z"   # Maximum size optimization
 debug = false
 lto = true
 
-[serve]
-port = 8080
-addresses = ["0.0.0.0"]
-open = false
-
-[watch]
-watch = ["src", "styles"]
-
 [tools]
 wasm-opt = false
-ignore = ["target", "dist", "Cargo.lock", ".git"]
-debounce = 100
-debug = false
-lto = true
 
 [serve]
 addresses = ["127.0.0.1", "0.0.0.0"]
@@ -41,6 +29,7 @@ ignore = [
     "./dist/**",
     "./.git/**"
 ]
+watch = ["src", "styles"]
 
 [build.public-assets]
 sources = ["styles/*.css"]
