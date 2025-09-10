@@ -1,4 +1,50 @@
 # Changelog
+## [0.4.1] - 2025-01-10
+
+### 🌐 **Complete Microfrontend Deployment & Ingress Routing Fix**
+
+**All Microfrontends Deployed with Standardized Port 80 Routing**
+
+- **PIDUM Microfrontend**: Successfully deployed following PIDSUS pattern
+- **Badiklat Microfrontend**: Training & Education module deployed
+- **Datun Microfrontend**: Criminal Prosecution module deployed
+- **Intel Microfrontend**: Intelligence Analytics module deployed
+- **Pengawasan Microfrontend**: Monitoring & Compliance module deployed
+
+### 🔧 **Ingress Configuration Standardization**
+
+**Fixed Port Routing Issues for Production Access**
+
+- **Port Standardization**: Updated all microfrontends from port 3000 to port 80
+- **Ingress Controller Restart**: Applied nginx-ingress-microk8s-controller restart
+- **Routing Verification**: Confirmed all microfrontends accessible via HTTPS
+- **SSL Termination**: Maintained DigiCert certificate with HTTP/2 support
+
+### 🚀 **Production URLs Verified**
+
+**All Microfrontends Accessible via Domain Routing**
+
+- **Badiklat**: https://simpel.kejaksaan.go.id/badiklat
+- **Datun**: https://simpel.kejaksaan.go.id/datun
+- **Intel**: https://simpel.kejaksaan.go.id/intel
+- **Pengawasan**: https://simpel.kejaksaan.go.id/pengawasan
+- **Pidum**: https://simpel.kejaksaan.go.id/pidum
+
+### 🛡️ **Security & Performance Maintained**
+
+- **Zero-Trust Architecture**: All traffic encrypted and authenticated
+- **Content Security Policy**: CSP headers for each microfrontend
+- **HSTS Headers**: Strict Transport Security implementation
+- **Load Balancing**: Proper service discovery and routing
+
+### 📊 **Infrastructure Status**
+
+- **Kubernetes Deployment**: All microfrontends running in MicroK8s cluster
+- **Ingress Controller**: nginx-ingress-microk8s-controller with proper routing
+- **SSL Certificate**: DigiCert wildcard certificate for *.kejaksaan.go.id
+- **Health Checks**: All services with liveness and readiness probes
+
+
 
 ## [0.4.0] - 2025-09-08
 

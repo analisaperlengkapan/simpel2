@@ -13,6 +13,11 @@ SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengel
 ### **� Live URLs**
 
 - **Main Portal**: [https://simpel.kejaksaan.go.id/](https://simpel.kejaksaan.go.id/)
+- **Badiklat Module**: [https://simpel.kejaksaan.go.id/badiklat](https://simpel.kejaksaan.go.id/badiklat)
+- **Datun Module**: [https://simpel.kejaksaan.go.id/datun](https://simpel.kejaksaan.go.id/datun)
+- **Intel Module**: [https://simpel.kejaksaan.go.id/intel](https://simpel.kejaksaan.go.id/intel)
+- **Pengawasan Module**: [https://simpel.kejaksaan.go.id/pengawasan](https://simpel.kejaksaan.go.id/pengawasan)
+- **Pidum Module**: [https://simpel.kejaksaan.go.id/pidum](https://simpel.kejaksaan.go.id/pidum)
 - **Portal Microfrontend**: [https://simpel.kejaksaan.go.id/portal](https://simpel.kejaksaan.go.id/portal)
 - **Perlengkapan Module**: [https://simpel.kejaksaan.go.id/perlengkapan](https://simpel.kejaksaan.go.id/perlengkapan)
 
@@ -43,17 +48,17 @@ SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang di
 
 | Modul              | Fungsi                    | Port       | Status                  | Deployment        |
 | ------------------ | ------------------------- | ---------- | ----------------------- | ----------------- |
-| **Portal**         | Gateway & Dashboard Utama | :8080      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Perlengkapan**   | Equipment Management      | :8086      | ✅ **v0.3.0 Live**      | 🚀 K8s Production |
-| **Badiklat**       | Pelatihan & Pendidikan    | :8081      | ✅ Aktif                | 🛠️ Development    |
-| **Datun**          | Tindak Pidana Umum        | :8082      | ✅ Aktif                | 🛠️ Development    |
-| **Intel**          | Intelligence & Analytics  | :8083      | ✅ Aktif                | 🛠️ Development    |
-| **Pembinaan**      | Manajemen Pembinaan       | :8084-8086 | ✅ Aktif                | 🛠️ Development    |
-| **Pemulihan Aset** | Asset Recovery            | :8087      | ✅ Aktif                | 🛠️ Development    |
-| **Pengawasan**     | Monitoring & Compliance   | :8088      | ✅ Aktif                | 🛠️ Development    |
-| **PIDMIL**         | Pidana Militer            | :8089      | ✅ Aktif                | 🛠️ Development    |
-| **PIDSUS**         | Pidana Khusus             | :8090      | ✅ Aktif                | 🛠️ Development    |
-| **PIDUM**          | Pidana Umum               | :8091      | ✅ Aktif                | 🛠️ Development    |
+| **Portal**         | Gateway & Dashboard Utama | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Perlengkapan**   | Equipment Management      | :80      | ✅ **v0.3.0 Live**      | 🚀 K8s Production |
+| **Badiklat**       | Pelatihan & Pendidikan    | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Datun**          | Tindak Pidana Umum        | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Intel**          | Intelligence & Analytics  | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Pembinaan**      | Manajemen Pembinaan       | :80 | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Pemulihan Aset** | Asset Recovery            | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **Pengawasan**     | Monitoring & Compliance   | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **PIDMIL**         | Pidana Militer            | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **PIDSUS**         | Pidana Khusus             | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
+| **PIDUM**          | Pidana Umum               | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
 | **Shared**         | Komponen Terpusat         | -          | ✅ **v0.2.0 Optimized** | 📦 Library        |
 
 ### **🧩 Shared Components Library v0.2.0**
@@ -112,7 +117,7 @@ make up-dev
 
 # Access the application
 # Frontend: http://localhost:3000
-# API Gateway: http://localhost:8080
+# API Gateway: http://localhost:80
 # Security Service: http://localhost:3001
 # AI Service: http://localhost:3002
 ```
@@ -246,7 +251,7 @@ simpelv2/
 
 **Primary Gateway & Unified Dashboard**
 
-- **Port**: `:8080`
+- **Port**: `:80`
 - **Function**: Main entry point, authentication, navigation
 - **Technology**: Leptos 0.7.8 + WebAssembly
 - **Features**: Single Sign-On, role-based routing, system overview
@@ -255,7 +260,7 @@ simpelv2/
 
 **Training & Education Management**
 
-- **Port**: `:8081`
+- **Port**: `:80`
 - **Function**: Training programs, certifications, learning paths
 - **Features**: Course management, progress tracking, assessments
 
@@ -263,7 +268,7 @@ simpelv2/
 
 **General Criminal Case Management**
 
-- **Port**: `:8082`
+- **Port**: `:80`
 - **Function**: Case tracking, prosecution workflow, legal documents
 - **Features**: Case assignment, timeline management, evidence tracking
 
@@ -271,7 +276,7 @@ simpelv2/
 
 **Intelligence & Data Analytics**
 
-- **Port**: `:8083`
+- **Port**: `:80`
 - **Function**: Data visualization, intelligence reports, analytics dashboards
 - **Features**: Real-time monitoring, predictive analytics, custom reports
 - **Upload/Download**: File management
@@ -456,17 +461,17 @@ make up-dev
 make build-frontends
 
 # Access applications
-make open-portal        # Opens http://localhost:8080
+make open-portal        # Opens http://localhost:80
 ```
 
 ### **🌐 Access Points**
 
 | Service         | URL                   | Description              |
 | --------------- | --------------------- | ------------------------ |
-| **Portal**      | http://localhost:8080 | Main Dashboard & Gateway |
-| **Badiklat**    | http://localhost:8081 | Training System          |
-| **Datun**       | http://localhost:8082 | Criminal Prosecution     |
-| **Intel**       | http://localhost:8083 | Intelligence Platform    |
+| **Portal**      | http://localhost:80 | Main Dashboard & Gateway |
+| **Badiklat**    | http://localhost:80 | Training System          |
+| **Datun**       | http://localhost:80 | Criminal Prosecution     |
+| **Intel**       | http://localhost:80 | Intelligence Platform    |
 | **API Gateway** | http://localhost:8000 | Backend API Gateway      |
 | **Vault UI**    | http://localhost:8200 | HashiCorp Vault          |
 | **Grafana**     | http://localhost:3000 | Monitoring Dashboard     |
