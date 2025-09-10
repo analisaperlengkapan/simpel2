@@ -113,7 +113,9 @@ pub fn CaseCard(case: MilitaryCase) -> impl IntoView {
         CaseStatus::Reported => ("bg-blue-100 text-blue-800", "Dilaporkan"),
         CaseStatus::UnderInvestigation => ("bg-yellow-100 text-yellow-800", "Dalam Penyidikan"),
         CaseStatus::EvidenceCollection => ("bg-orange-100 text-orange-800", "Pengumpulan Bukti"),
-        CaseStatus::SuspectIdentified => ("bg-purple-100 text-purple-800", "Tersangka Teridentifikasi"),
+        CaseStatus::SuspectIdentified => {
+            ("bg-purple-100 text-purple-800", "Tersangka Teridentifikasi")
+        }
         CaseStatus::AwaitingTrial => ("bg-indigo-100 text-indigo-800", "Menunggu Sidang"),
         CaseStatus::InTrial => ("bg-pink-100 text-pink-800", "Dalam Sidang"),
         CaseStatus::Concluded => ("bg-green-100 text-green-800", "Selesai"),
@@ -218,7 +220,7 @@ pub fn FormGroup(
     #[prop(into)] input_type: &'static str,
     #[prop(into)] placeholder: String,
     #[prop(into)] value: Signal<String>,
-    #[prop(into)] on_change: Callback<String>
+    #[prop(into)] on_change: Callback<String>,
 ) -> impl IntoView {
     let handle_input = move |ev| {
         let value = event_target_value(&ev);
@@ -243,7 +245,7 @@ pub fn FormSelect(
     #[prop(into)] label: String,
     #[prop(into)] options: Vec<(String, String)>,
     #[prop(into)] value: Signal<String>,
-    #[prop(into)] on_change: Callback<String>
+    #[prop(into)] on_change: Callback<String>,
 ) -> impl IntoView {
     let handle_change = move |ev| {
         let value = event_target_value(&ev);
