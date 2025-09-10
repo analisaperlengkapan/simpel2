@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: badiklat-microfrontend
+  namespace: simpelv2
+  labels:
+    app: badiklat-microfrontend
+    component: frontend
+    tier: presentation
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: badiklat-microfrontend
+  template:
+    metadata:
+      labels:
+        app: badiklat-microfrontend
+        component: frontend
+        tier: presentation
+    spec:
+      containers:
+      - name: badiklat-microfrontend
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: badiklat-dist
+          mountPath: /usr/share/nginx/html
+        - name: shared-styles
+          mountPath: /usr/share/nginx/html/assets
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: badiklat-dist
+        hostPath:
+          path: /srv/proyek/simpelv2_web/antarmuka/badiklat/dist
+          type: Directory
+      - name: shared-styles
+        hostPath:
+          path: /srv/proyek/simpelv2_web/antarmuka/shared/styles
+          type: Directory
+      - name: nginx-config
+        configMap:
+          name: badiklat-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: badiklat-microfrontend-service
+  namespace: simpelv2
+  labels:
+    app: badiklat-microfrontend
+spec:
+  selector:
+    app: badiklat-microfrontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: badiklat-nginx-config
+  namespace: simpelv2
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Enable gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/javascript
+            application/wasm
+            application/xml+rss
+            application/json;
+
+        # WASM MIME type
+        location ~* \.wasm$ {
+            add_header Content-Type application/wasm;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        # Static assets caching
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        # Main application - Badiklat root
+        location / {
+            try_files $uri $uri/ /index.html;
+            add_header Cache-Control "public, max-age=0, must-revalidate";
+        }
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    }

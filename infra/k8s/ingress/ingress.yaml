@@ -52,6 +52,13 @@ spec:
             name: intel
             port:
               number: 3000
+      - path: /perencanaan(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: perencanaan-service
+            port:
+              number: 80
       - "path": /pembinaan(/|$)(.*)
         "pathType": Prefix
         "backend":
@@ -63,30 +70,30 @@ spec:
         "pathType": Prefix
         "backend":
           "service":
-            "name": pemulihan-aset
+            "name": pemulihan-aset-service
             "port":
-              "number": 3000
+              "number": 80
       - "path": /pengawasan(/|$)(.*)
         "pathType": Prefix
         "backend":
           "service":
-            "name": pengawasan
+            "name": pengawasan-service
             "port":
-              "number": 3000
+              "number": 80
       - "path": /pidmil(/|$)(.*)
         "pathType": Prefix
         "backend":
           "service":
-            "name": pidmil
+            "name": pidmil-service
             "port":
-              "number": 3000
-      - "path": /pidsus(/|$)(.*)
-        "pathType": Prefix
-        "backend":
-          "service":
-            "name": pidsus
-            "port":
-              "number": 3000
+              "number": 80
+      - path: /pidsus(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: pidsus-service
+            port:
+              number: 80
       - "path": /pidum(/|$)(.*)
         "pathType": Prefix
         "backend":

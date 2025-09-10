@@ -19,3 +19,6 @@ log = "0.4"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

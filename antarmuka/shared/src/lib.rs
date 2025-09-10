@@ -30,17 +30,27 @@ pub mod styles;
 
 /// Prelude module untuk import yang mudah
 pub mod prelude {
-    // Re-export Leptos essentials
+    // Re-export Leptos essentials (excluding conflicting items)
     pub use leptos::prelude::*;
     pub use leptos_meta::*;
     pub use leptos_router::*;
 
-    // Re-export our components
-    pub use crate::components::*;
+    // Re-export our components (excluding utility functions that conflict)
+    pub use crate::components::{
+        AppHeader, Breadcrumb, Button, CachedRender, Card, Form, Input, LazyLoad, Logo, Modal,
+        Toast,
+    };
     pub use crate::constants::*;
     pub use crate::theme::*;
     pub use crate::types::*;
     pub use crate::utils::*;
+
+    // Re-export utility functions with specific names to avoid conflicts
+    pub use crate::components::{
+        event_target_checked as shared_event_target_checked,
+        event_target_value as shared_event_target_value, set_timeout as shared_set_timeout,
+        window as shared_window,
+    };
 }
 
 // ============================================================================

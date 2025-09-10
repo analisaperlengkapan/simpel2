@@ -4,20 +4,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembinaan Perencanaan - SIMPelv2</title>
+    <title>Sistem Informasi Manajemen Perencanaan - SIMPelv2</title>
+    <meta name="description" content="Sistem Informasi Manajemen Perencanaan BMN">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
     <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <!-- SIMPelv2 Design System -->
     <link rel="stylesheet" href="../../shared/styles/main.css">
-    <!-- Legacy Support -->
-    <link rel="stylesheet" href="../../shared/styles/legacy.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <!-- Trunk WASM configuration -->
-    <link data-trunk rel="rust" data-bin="perencanaan-microfrontend" data-wasm-opt="z"
-        data-wasm-opt-params="--enable-bulk-memory" />
+    <link data-trunk rel="rust" data-bin="perencanaan-microfrontend" />
+
+    <style>
+        .loading-screen {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
 <body>
-    <div id="app"></div>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="text-center">
+            <i class="fas fa-chart-line text-6xl text-white mb-4"></i>
+            <h1 class="text-2xl font-bold text-white mb-2">SIMPelv2</h1>
+            <p class="text-white/80 mb-4">Sistem Informasi Manajemen Perencanaan</p>
+            <div class="loading-spinner"></div>
+            <p class="text-white/60 text-sm mt-4">Memuat aplikasi...</p>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" style="display: none;"></div>
+
+    <script>
+        // Hide loading screen when app is ready
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const loading = document.getElementById('loading-screen');
+                const app = document.getElementById('app');
+                if (loading && app) {
+                    loading.style.display = 'none';
+                    app.style.display = 'block';
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 
 </html>

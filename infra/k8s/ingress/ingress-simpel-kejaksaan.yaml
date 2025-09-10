@@ -25,6 +25,20 @@ spec:
             name: api-gateway
             port:
               number: 80
+      - path: /pidum
+        pathType: Prefix
+        backend:
+          service:
+            name: pidum-service
+            port:
+              number: 80
+      - path: /pidum/
+        pathType: Prefix
+        backend:
+          service:
+            name: pidum-service
+            port:
+              number: 80
   - host: www.simpel.kejaksaan.go.id
     http:
       paths:
@@ -33,5 +47,19 @@ spec:
         backend:
           service:
             name: api-gateway
+            port:
+              number: 80
+      - path: /pidum
+        pathType: Prefix
+        backend:
+          service:
+            name: pidum-service
+            port:
+              number: 80
+      - path: /pidum/
+        pathType: Prefix
+        backend:
+          service:
+            name: pidum-service
             port:
               number: 80

@@ -10,18 +10,18 @@ use leptos::prelude::*;
 pub fn PageContainer(
     /// CSS classes tambahan
     #[prop(optional)]
-    class: Option<&'static str>,
+    _class: Option<&'static str>,
     /// Children components
-    children: Children,
+    _children: Children,
 ) -> impl IntoView {
-    let _container_class = format!(
+    let container_class = format!(
         "container mx-auto px-4 sm:px-6 lg:px-8 {}",
-        class.unwrap_or("")
+        _class.unwrap_or("")
     );
 
     view! {
-        <div class=_container_class>
-            {children()}
+        <div class={container_class}>
+            {_children()}
         </div>
     }
 }

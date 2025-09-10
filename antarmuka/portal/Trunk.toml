@@ -2,26 +2,41 @@
 target = "index.html"
 dist = "dist"
 release = true
-wasm-opt = false  # Disable wasm-opt to avoid optimization errors
+
+# Advanced WASM optimization
+[[build.wasm_opt]]
+args = [
+    "-Oz",                    # Maximum size optimization
+    "--enable-bulk-memory",   # Enable bulk memory operations
+    "--enable-reference-types", # Enable reference types
+    "--enable-simd",          # Enable SIMD if supported
+    "--strip-debug",          # Remove debug information
+    "--strip-producers",      # Remove producers section
+    "--dce",                  # Dead code elimination
+    "--duplicate-function-elimination", # Remove duplicate functions
+    "--simplify-locals",      # Simplify local variables
+    "--vacuum",               # Final vacuum pass
+]
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]
 target = "web"
 typescript = false         # Disable TS generation for smaller bundles
 debug = false             # No debug in production
+demangle = false          # No name demangling for size
+keep-debug = false        # Remove debug info
+no-modules-global = "wasm_bindgen"
 
+# Tree shaking and optimization
 [build.rust]
 optimization-level = "z"   # Maximum size optimization
 debug = false
 lto = true
 
-[tools]
-wasm-opt = false
-
 [serve]
 addresses = ["127.0.0.1", "0.0.0.0"]
 port = 8080
-open = true
+open = false              # Don't auto-open browser
 
 [watch]
 ignore = [
@@ -29,10 +44,10 @@ ignore = [
     "./dist/**",
     "./.git/**"
 ]
-watch = ["src", "styles"]
+watch = ["src", "styles", "../shared/styles"]
 
 [build.public-assets]
-sources = ["styles/*.css"]
+sources = ["styles/*.css", "../shared/styles/*.css"]
 output-dir = "assets"
 
 [build.public-files]

@@ -28,6 +28,8 @@ spec:
         volumeMounts:
         - name: perlengkapan-dist
           mountPath: /usr/share/nginx/html
+        - name: shared-styles
+          mountPath: /usr/share/nginx/html/assets
         - name: nginx-config
           mountPath: /etc/nginx/conf.d
         resources:
@@ -53,6 +55,10 @@ spec:
       - name: perlengkapan-dist
         hostPath:
           path: /srv/proyek/simpelv2_web/antarmuka/pembinaan/perlengkapan/dist
+          type: Directory
+      - name: shared-styles
+        hostPath:
+          path: /srv/proyek/simpelv2_web/antarmuka/shared/styles
           type: Directory
       - name: nginx-config
         configMap:

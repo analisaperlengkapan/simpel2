@@ -37,5 +37,15 @@ pub mod prelude {
     pub use crate::components::*;
     pub use leptos::prelude::*;
     pub use leptos_router::*;
-    pub use shared_microfrontend::prelude::*;
+    // Import shared items selectively to avoid Footer conflict
+    pub use shared_microfrontend::constants::*;
+    pub use shared_microfrontend::prelude::{
+        shared_event_target_checked, shared_event_target_value, shared_set_timeout, shared_window,
+        AppHeader as SharedAppHeader, Breadcrumb as SharedBreadcrumb, Button as SharedButton,
+        CachedRender, Card as SharedCard, Form as SharedForm, Input as SharedInput, LazyLoad,
+        Logo as SharedLogo, Modal as SharedModal, Toast as SharedToast,
+    };
+    pub use shared_microfrontend::theme::*;
+    pub use shared_microfrontend::types::*;
+    pub use shared_microfrontend::utils::*;
 }

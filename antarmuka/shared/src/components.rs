@@ -1186,5 +1186,12 @@ pub struct FooterLink {
     pub url: String,
 }
 
+// ============================================================================
+// COMPONENT RE-EXPORTS - Make components available through prelude
+// ============================================================================
+
+// Note: Components are already public, so no need for pub use statements
+// The pub use crate::components::* in lib.rs will make them available
+
 // Continue with more optimized components...
 // This is the foundation - showing the pattern for comprehensive optimization

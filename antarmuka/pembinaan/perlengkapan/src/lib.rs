@@ -10,8 +10,15 @@ use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::hooks::use_navigate;
 use leptos_router::*;
+use shared_microfrontend::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
+
+// Additional imports for async operations
+use gloo::timers::future::TimeoutFuture;
+use leptos::task::spawn_local;
+use std::collections::HashMap;
+use url;
 
 pub mod components;
 
@@ -31,6 +38,7 @@ pub fn App() -> impl IntoView {
             <Routes fallback=|| view! { <NotFound /> }>
                 <Route path=path!("/") view=HomePage />
                 <Route path=path!("/login") view=LoginPage />
+                <Route path=path!("/auth/callback") view=AuthCallback />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>
@@ -41,30 +49,98 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn HomePage() -> impl IntoView {
     let navigate = use_navigate();
+    let (_show_loading, _set_show_loading) = signal(true);
 
-    // Check authentication token
-    let authenticated = is_authenticated();
+    // Check authentication after a brief delay to show loading screen
+    Effect::new(move |_| {
+        let navigate_clone = navigate.clone();
+        spawn_local(async move {
+            // Show loading for at least 2 seconds for better UX
+            TimeoutFuture::new(2000).await;
 
-    if authenticated {
-        // Redirect to dashboard if authenticated
-        navigate("/dashboard", Default::default());
-    } else {
-        // Redirect to login page
-        navigate("/login", Default::default());
-    }
+            let authenticated = is_authenticated();
 
-    // Loading state sementara redirect
+            _set_show_loading.set(false);
+
+            if authenticated {
+                // Redirect to dashboard if authenticated
+                navigate_clone("/dashboard", Default::default());
+            } else {
+                // Redirect to login page
+                navigate_clone("/login", Default::default());
+            }
+        });
+    });
+
+    // Show beautiful loading screen
     view! {
-        <div class="min-h-screen flex items-center justify-center">
-            <div class="text-center">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p class="text-gray-600">Loading...</p>
+        <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700">
+            <div class="bg-white p-12 rounded-2xl shadow-2xl w-96 text-center">
+                <div class="mb-8">
+                    <div class="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <i class="fas fa-balance-scale text-4xl text-white"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">"SIMPEL"</h1>
+                    <p class="text-lg text-gray-700 font-medium mb-1">"KEJAKSAAN RI"</p>
+                    <p class="text-gray-600">"Sistem Informasi Manajemen Perlengkapan"</p>
+                </div>
+                <div class="text-center">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                    <p class="text-sm text-gray-500">"Memuat aplikasi..."</p>
+                </div>
             </div>
         </div>
     }
 }
 
-/// Dashboard routes handler
+/// Authentication callback handler
+#[component]
+pub fn AuthCallback() -> impl IntoView {
+    let navigate = use_navigate();
+
+    // Use Effect::new instead of deprecated create_effect
+    Effect::new(move |_| {
+        let navigate_clone = navigate.clone();
+        spawn_local(async move {
+            // Check for token in URL params or localStorage
+            if let Some(token) = get_token_from_url() {
+                // Store token in localStorage
+                if let Some(window) = window() {
+                    if let Ok(storage) = window.local_storage() {
+                        if let Some(storage) = storage {
+                            let _ = storage.set_item("jwt_token", &token);
+                        }
+                    }
+                }
+
+                // Redirect to dashboard
+                navigate_clone("/dashboard", Default::default());
+            } else {
+                // No token found, redirect to login
+                navigate_clone("/login", Default::default());
+            }
+        });
+    });
+
+    view! {
+        <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700">
+            <div class="bg-white p-12 rounded-2xl shadow-2xl w-96 text-center">
+                <div class="mb-8">
+                    <div class="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <i class="fas fa-check-circle text-4xl text-white"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">"Autentikasi Berhasil"</h1>
+                    <p class="text-lg text-gray-700 font-medium mb-1">"KEJAKSAAN RI"</p>
+                    <p class="text-gray-600">"Mengarahkan ke dashboard..."</p>
+                </div>
+                <div class="text-center">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mb-4"></div>
+                    <p class="text-sm text-gray-500">"Memproses autentikasi..."</p>
+                </div>
+            </div>
+        </div>
+    }
+}
 #[component]
 pub fn DashboardRoutes() -> impl IntoView {
     let navigate = use_navigate();
@@ -83,12 +159,11 @@ pub fn DashboardRoutes() -> impl IntoView {
     }
 
     view! {
-        <div class="min-h-screen bg-gray-50">
-            // Simple header
-            <header class="bg-white shadow-sm border-b">
-                <div class="px-6 py-4">
-                    <h1 class="text-2xl font-bold text-gray-900">SIMPEL Perlengkapan</h1>
-                    <p class="text-gray-600">Kejaksaan Republik Indonesia</p>
+        <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            // Header menggunakan shared
+            <header class="simpelv2-header">
+                <div class="container mx-auto px-6 py-4">
+                    <Logo show_text=true />
                 </div>
             </header>
 
@@ -118,8 +193,8 @@ pub fn DashboardRoutes() -> impl IntoView {
                 </Routes>
             </main>
 
-            // Simple footer
-            <footer class="bg-gray-100 border-t py-6">
+            // Footer menggunakan shared
+            <footer class="bg-gray-100 border-t py-6 simpelv2-stat-card">
                 <div class="container mx-auto px-6 text-center">
                     <p class="text-gray-600">"© 2024 Kejaksaan Republik Indonesia"</p>
                 </div>
@@ -206,8 +281,8 @@ fn BantuanRoutes() -> impl IntoView {
 fn DashboardHome() -> impl IntoView {
     view! {
         <div class="space-y-6">
-            <div class="bg-white rounded-lg shadow p-6">
-                <h1 class="text-2xl font-bold text-gray-900 mb-4">
+            <div class="bg-white rounded-lg shadow p-6 simpelv2-stat-card">
+                <h1 class="text-2xl font-bold gradient-text mb-4">
                     "Dashboard SIMPEL Perlengkapan"
                 </h1>
                 <p class="text-gray-600">
@@ -217,21 +292,33 @@ fn DashboardHome() -> impl IntoView {
 
             // Quick stats cards
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-blue-500 text-white p-6 rounded-lg">
+                <div class="simpelv2-stat-card bg-blue-500 text-white p-6 rounded-lg">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-box text-2xl"></i>
+                    </div>
                     <h3 class="text-lg font-medium">"Total Aset"</h3>
-                    <p class="text-3xl font-bold">"1,234"</p>
+                    <p class="text-3xl font-bold animate-glow">"1,234"</p>
                 </div>
-                <div class="bg-green-500 text-white p-6 rounded-lg">
+                <div class="simpelv2-stat-card bg-green-500 text-white p-6 rounded-lg">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-shopping-cart text-2xl"></i>
+                    </div>
                     <h3 class="text-lg font-medium">"Pengadaan Aktif"</h3>
-                    <p class="text-3xl font-bold">"23"</p>
+                    <p class="text-3xl font-bold animate-glow">"23"</p>
                 </div>
-                <div class="bg-yellow-500 text-white p-6 rounded-lg">
+                <div class="simpelv2-stat-card bg-yellow-500 text-white p-6 rounded-lg">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-clock text-2xl"></i>
+                    </div>
                     <h3 class="text-lg font-medium">"Pending Approval"</h3>
-                    <p class="text-3xl font-bold">"12"</p>
+                    <p class="text-3xl font-bold animate-glow">"12"</p>
                 </div>
-                <div class="bg-red-500 text-white p-6 rounded-lg">
+                <div class="simpelv2-stat-card bg-red-500 text-white p-6 rounded-lg">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-exclamation-triangle text-2xl"></i>
+                    </div>
                     <h3 class="text-lg font-medium">"Perlu Perhatian"</h3>
-                    <p class="text-3xl font-bold">"5"</p>
+                    <p class="text-3xl font-bold animate-glow">"5"</p>
                 </div>
             </div>
         </div>
@@ -264,6 +351,23 @@ fn is_authenticated() -> bool {
         }
     }
     false
+}
+
+/// Get token from URL parameters
+fn get_token_from_url() -> Option<String> {
+    if let Some(window) = window() {
+        let location = window.location();
+        if let Ok(search) = location.search() {
+            // Parse URL parameters
+            let params: HashMap<String, String> =
+                url::form_urlencoded::parse(search.trim_start_matches('?').as_bytes())
+                    .into_owned()
+                    .collect();
+
+            return params.get("token").cloned();
+        }
+    }
+    None
 }
 
 /// Main function to mount the app

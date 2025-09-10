@@ -1,7 +1,16 @@
 //! Local components module for Pembinaan Perencanaan
 
-pub mod footer;
-pub mod header;
+//! # Components Module
+//!
+//! Re-exports untuk semua komponen di microfrontend perencanaan
 
-pub use footer::Footer;
-pub use header::Header;
+// Core components
+pub mod login;
+pub mod sidebar;
+pub mod sidebar_section;
+pub mod user_menu;
+
+// Re-exports untuk komponen yang digunakan
+pub use login::LoginPage;
+pub use sidebar::Sidebar;
+pub use user_menu::UserMenu;

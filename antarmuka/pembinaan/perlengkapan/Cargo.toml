@@ -28,6 +28,8 @@ console_log = "1.0"
 log = "0.4"
 reqwest = { version = "0.11", features = ["json"] }
 uuid = { version = "1.8", features = ["js"] }
+url = "2.5"
+gloo = { version = "0.10", features = ["futures"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
