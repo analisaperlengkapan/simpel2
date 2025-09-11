@@ -245,3 +245,12 @@ pub struct ApiResponse<T> {
     pub data: Option<T>,
     pub message: String,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ButtonVariant {
+    Primary,
+    Secondary,
+    Success,
+    Warning,
+    Danger,
+}

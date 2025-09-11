@@ -1,14 +1,17 @@
+use crate::components::sidebar_section::{MenuItem, SidebarSection};
 use leptos::prelude::*;
-use crate::components::sidebar_section::{SidebarSection, MenuItem};
 
 #[component]
-pub fn Sidebar() -> impl IntoView {
+pub fn Sidebar(
+    /// Sidebar open state signal
+    _sidebar_open: RwSignal<bool>,
+) -> impl IntoView {
     // Reactive signals for collapsible sections
     let dashboard_rw = RwSignal::new(false);
     let bank_aset_rw = RwSignal::new(false);
     let analisis_rw = RwSignal::new(false);
     let pengadaan_rw = RwSignal::new(false);
-    let bmn_rw = RwSignal::new(false);
+    let pengelolaan_bmn_rw = RwSignal::new(false);
     let pengguna_rw = RwSignal::new(false);
     let bantuan_rw = RwSignal::new(false);
 
@@ -30,8 +33,9 @@ pub fn Sidebar() -> impl IntoView {
                     icon="🏠".to_string()
                     is_expanded=dashboard_rw
                     items=vec![
-                        MenuItem::new("/dashboard/overview", "Overview"),
-                        MenuItem::new("/dashboard/analytics", "Analytics")
+                        MenuItem::new("/dashboard/overview", "Ringkasan"),
+                        MenuItem::new("/dashboard/analytics", "Analitik"),
+                        MenuItem::new("/dashboard/reports", "Laporan")
                     ]
                 />
 
@@ -43,7 +47,9 @@ pub fn Sidebar() -> impl IntoView {
                         MenuItem::new("/dashboard/bank-aset/daftar", "Daftar Aset"),
                         MenuItem::new("/dashboard/bank-aset/kategori", "Kategori Aset"),
                         MenuItem::new("/dashboard/bank-aset/lokasi", "Lokasi Aset"),
-                        MenuItem::new("/dashboard/bank-aset/status", "Status Aset")
+                        MenuItem::new("/dashboard/bank-aset/status", "Status Aset"),
+                        MenuItem::new("/dashboard/bank-aset/penilaian", "Penilaian Aset"),
+                        MenuItem::new("/dashboard/bank-aset/mutasi", "Mutasi Aset")
                     ]
                 />
 
@@ -52,9 +58,11 @@ pub fn Sidebar() -> impl IntoView {
                     icon="📊".to_string()
                     is_expanded=analisis_rw
                     items=vec![
-                        MenuItem::new("/dashboard/analisis/perencanaan", "Perencanaan"),
-                        MenuItem::new("/dashboard/analisis/evaluasi", "Evaluasi"),
-                        MenuItem::new("/dashboard/analisis/rekomendasi", "Rekomendasi")
+                        MenuItem::new("/dashboard/analisis/perencanaan", "Perencanaan Kebutuhan"),
+                        MenuItem::new("/dashboard/analisis/evaluasi", "Evaluasi Kebutuhan"),
+                        MenuItem::new("/dashboard/analisis/rekomendasi", "Rekomendasi"),
+                        MenuItem::new("/dashboard/analisis/trend", "Analisis Trend"),
+                        MenuItem::new("/dashboard/analisis/prediksi", "Prediksi Kebutuhan")
                     ]
                 />
 
@@ -65,19 +73,26 @@ pub fn Sidebar() -> impl IntoView {
                     items=vec![
                         MenuItem::new("/dashboard/pengadaan/rencana", "Rencana Pengadaan"),
                         MenuItem::new("/dashboard/pengadaan/proses", "Proses Pengadaan"),
-                        MenuItem::new("/dashboard/pengadaan/monitoring", "Monitoring")
+                        MenuItem::new("/dashboard/pengadaan/monitoring", "Monitoring"),
+                        MenuItem::new("/dashboard/pengadaan/kontrak", "Kontrak"),
+                        MenuItem::new("/dashboard/pengadaan/vendor", "Vendor/Supplier"),
+                        MenuItem::new("/dashboard/pengadaan/evaluasi", "Evaluasi Pengadaan")
                     ]
                 />
 
                 <SidebarSection
                     title="Pengelolaan BMN".to_string()
                     icon="⚙️".to_string()
-                    is_expanded=bmn_rw
+                    is_expanded=pengelolaan_bmn_rw
                     items=vec![
                         MenuItem::new("/dashboard/bmn/inventarisasi", "Inventarisasi"),
                         MenuItem::new("/dashboard/bmn/pemeliharaan", "Pemeliharaan"),
+                        MenuItem::new("/dashboard/bmn/pemanfaatan", "Pemanfaatan"),
                         MenuItem::new("/dashboard/bmn/pemusnahan", "Pemusnahan"),
-                        MenuItem::new("/dashboard/bmn/pemanfaatan", "Pemanfaatan")
+                        MenuItem::new("/dashboard/bmn/penghapusan", "Penghapusan"),
+                        MenuItem::new("/dashboard/bmn/pengamanan", "Pengamanan"),
+                        MenuItem::new("/dashboard/bmn/distribusi", "Distribusi"),
+                        MenuItem::new("/dashboard/bmn/pengembalian", "Pengembalian")
                     ]
                 />
 
@@ -88,7 +103,9 @@ pub fn Sidebar() -> impl IntoView {
                     items=vec![
                         MenuItem::new("/dashboard/pengguna/manajemen", "Manajemen User"),
                         MenuItem::new("/dashboard/pengguna/akses", "Hak Akses"),
-                        MenuItem::new("/dashboard/pengguna/audit", "Audit Log")
+                        MenuItem::new("/dashboard/pengguna/audit", "Audit Log"),
+                        MenuItem::new("/dashboard/pengguna/profil", "Profil Pengguna"),
+                        MenuItem::new("/dashboard/pengguna/aktivitas", "Log Aktivitas")
                     ]
                 />
 
@@ -97,9 +114,11 @@ pub fn Sidebar() -> impl IntoView {
                     icon="❓".to_string()
                     is_expanded=bantuan_rw
                     items=vec![
-                        MenuItem::new("/dashboard/bantuan/panduan", "Panduan"),
+                        MenuItem::new("/dashboard/bantuan/panduan", "Panduan Pengguna"),
                         MenuItem::new("/dashboard/bantuan/faq", "FAQ"),
-                        MenuItem::new("/dashboard/bantuan/helpdesk", "Helpdesk")
+                        MenuItem::new("/dashboard/bantuan/helpdesk", "Helpdesk"),
+                        MenuItem::new("/dashboard/bantuan/kontak", "Kontak Support"),
+                        MenuItem::new("/dashboard/bantuan/tutorial", "Tutorial")
                     ]
                 />
             </nav>

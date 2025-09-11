@@ -1,5 +1,5 @@
 use crate::{error::Result, models::HealthResponse};
-use axum::{extract::Path, http::StatusCode, response::Json, routing::get, Router};
+use axum::{response::Json, routing::get, Router};
 use serde_json::{json, Value};
 
 pub async fn health() -> Json<Value> {
@@ -17,7 +17,7 @@ pub async fn get_services() -> Json<Value> {
     }))
 }
 
-pub async fn register_service(Json(payload): Json<Value>) -> Result<Json<Value>, StatusCode> {
+pub async fn register_service(Json(payload): Json<Value>) -> Result<Json<Value>> {
     Ok(Json(json!({
         "message": "Service registration not implemented yet",
         "received": payload

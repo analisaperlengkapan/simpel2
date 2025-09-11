@@ -1,7 +1,8 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = true
+release = false
+debug = true
 
 [tools]
 wasm-opt = false

@@ -1,6 +1,9 @@
 use leptos::prelude::*;
 use leptos_meta::*;
 
+mod components;
+pub use components::*;
+
 mod pages;
 pub use pages::*;
 

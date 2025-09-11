@@ -34,3 +34,7 @@ open = false
 [watch]
 watch = ["src"]
 debounce = 100
+
+[build.public-assets]
+sources = ["styles/*.css", "../../shared/styles/*.css"]
+output-dir = "assets"

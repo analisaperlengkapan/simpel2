@@ -1,11 +1,11 @@
-use sqlx::PgPool;
 use crate::{llm::LlmService, ocr::OcrService, rag::RagService};
+use chrono::{DateTime, Utc};
+use deadpool_postgres::Pool;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use chrono::{DateTime, Utc};
 
 pub struct AppState {
-    pub pool: PgPool,
+    pub pool: Pool,
     pub config: crate::config::Config,
     pub llm_service: LlmService,
     pub ocr_service: OcrService,
@@ -27,7 +27,9 @@ pub struct JobQueue {
 
 impl JobQueue {
     pub fn new() -> Self {
-        Self { queue: VecDeque::new() }
+        Self {
+            queue: VecDeque::new(),
+        }
     }
     pub fn enqueue(&mut self, job: Job) {
         self.queue.push_back(job);
@@ -75,4 +77,4 @@ impl ModelRegistry {
         }
     }
     // dst, bisa dikembangkan
-} 
+}

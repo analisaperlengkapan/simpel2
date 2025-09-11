@@ -1,21 +1,14 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = true
-wasm-opt = false  # Temporarily disable wasm-opt to avoid optimization error
-
-# We configure wasm-opt per HTML link; keep default here to avoid duplication
+release = false
 
 # Advanced wasm-bindgen configuration
 [[build.wasm-bindgen]]
 target = "web"
 typescript = false         # Disable TS generation for smaller bundles
-debug = false             # No debug in production
-
-[build.rust]
-optimization-level = "z"   # Maximum size optimization
-debug = false
-lto = true
+debug = true              # Enable debug for development
+wasm-opt = false          # Disable wasm-opt to avoid feature issues
 
 [serve]
 port = 8087

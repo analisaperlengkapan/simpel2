@@ -628,10 +628,9 @@ pub fn is_file_size_valid(size: u64, file_type: &str) -> bool {
 }
 
 // ============================================================================
-// FEATURE-GATED CONSTANTS
+// ENVIRONMENT CONSTANTS
 // ============================================================================
 
-#[cfg(feature = "development")]
 pub mod development {
     pub const DEBUG_MODE: bool = true;
     pub const API_BASE_URL: &str = "http://localhost:3000";
@@ -639,7 +638,6 @@ pub mod development {
     pub const LOG_LEVEL: &str = "debug";
 }
 
-#[cfg(feature = "production")]
 pub mod production {
     pub const DEBUG_MODE: bool = false;
     pub const API_BASE_URL: &str = "https://api.kejaksaan.go.id";

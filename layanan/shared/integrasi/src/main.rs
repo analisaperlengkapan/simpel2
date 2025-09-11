@@ -14,9 +14,9 @@ mod models;
 mod service_discovery;
 
 use crate::{config::AppConfig, error::IntegrationError, handlers::create_routes};
+use deadpool_postgres::Pool;
 use prometheus::Registry;
-use sqlx::postgres::PgPoolOptions;
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 use tower_http::{
     compression::CompressionLayer,
     // timeout::TimeoutLayer,  // Disabled - feature not available
@@ -27,7 +27,7 @@ use tower_http::{
 /// Application state untuk integration service
 #[derive(Clone)]
 pub struct AppState {
-    pub db: sqlx::PgPool,
+    pub db: Pool,
     pub redis: redis::Client,
     pub config: AppConfig,
     pub metrics_registry: Registry,
@@ -44,10 +44,11 @@ async fn main() -> Result<(), IntegrationError> {
     tracing::info!("🔗 Starting SIMPelv2 Integration Service");
 
     // Database connection
-    let db = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&config.database_url)
-        .await?;
+    let pool_config = deadpool_postgres::Config::new();
+    let db = pool_config.create_pool(
+        Some(deadpool_postgres::Runtime::Tokio1),
+        tokio_postgres::NoTls,
+    )?;
 
     // Redis connection untuk caching dan pub/sub
     let redis_client = redis::Client::open(config.redis_url.clone())?;
@@ -76,7 +77,12 @@ async fn main() -> Result<(), IntegrationError> {
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
             // .layer(TimeoutLayer::new(Duration::from_secs(60))) // Disabled - feature not available
-            .layer(CorsLayer::permissive()),
+            .layer(
+                CorsLayer::new()
+                    .allow_origin(tower_http::cors::Any)
+                    .allow_methods(tower_http::cors::Any)
+                    .allow_headers(tower_http::cors::Any),
+            ),
     );
 
     // Start server

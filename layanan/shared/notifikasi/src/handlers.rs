@@ -1,22 +1,20 @@
-use axum::{extract::{State, Path, Json, Query}, response::{IntoResponse, Response}, Router, routing::{get, post, put, delete}};
+use axum::{extract::{Path, Json}, response::IntoResponse, Router, routing::{get, post, put}};
 use crate::config::AppConfig;
 use crate::error::AppError;
-use crate::models::*;
 use crate::email::EmailService;
 use crate::whatsapp::WhatsAppService;
 use crate::push::PushService;
 use crate::template::TemplateService;
-use crate::audit::{insert_audit_log, query_audit_logs};
-use crate::security::{api_key_middleware, rate_limit_middleware, RateLimitState};
+use crate::security::RateLimitState;
 use sqlx::PgPool;
 use uuid::Uuid;
 use serde_json::json;
 
-pub fn routes(app_config: AppConfig, pool: PgPool, rate_limit_state: RateLimitState) -> Router {
-    let email = EmailService::new(app_config.clone(), pool.clone());
-    let whatsapp = WhatsAppService::new(app_config.clone(), pool.clone());
-    let push = PushService::new(app_config.clone(), pool.clone());
-    let template = TemplateService::new(pool.clone());
+pub fn routes(app_config: AppConfig, pool: PgPool, _rate_limit_state: RateLimitState) -> Router {
+    let _email = EmailService::new(app_config.clone(), pool.clone());
+    let _whatsapp = WhatsAppService::new(app_config.clone(), pool.clone());
+    let _push = PushService::new(app_config.clone(), pool.clone());
+    let _template = TemplateService::new(pool.clone());
     Router::new()
         // Email
         .route("/notifications/email/send", post(send_email))
@@ -85,4 +83,4 @@ pub async fn get_audit_logs() -> Result<impl IntoResponse, AppError> {
 }
 pub async fn health() -> impl IntoResponse {
     Json(json!({"status": "ok"}))
-} 
+}

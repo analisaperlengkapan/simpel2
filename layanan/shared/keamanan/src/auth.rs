@@ -1,32 +1,38 @@
-use crate::models::{JwtClaims, LoginRequest, LoginResponse, User, UserInfo};
 use crate::error::AppError;
+use crate::models::{JwtClaims, LoginRequest, LoginResponse, User, UserInfo};
 use axum::Json;
 use chrono::{Duration, Utc};
+use deadpool_postgres::Pool;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use sqlx::PgPool;
 use std::collections::HashMap;
 use tracing::{error, info};
 
 pub struct AuthService {
-    pool: PgPool,
+    pool: Pool,
     jwt_secret: String,
 }
 
 impl AuthService {
-    pub fn new(pool: PgPool, jwt_secret: String) -> Self {
+    pub fn new(pool: Pool, jwt_secret: String) -> Self {
         Self { pool, jwt_secret }
     }
 
     pub async fn authenticate(&self, login_req: LoginRequest) -> Result<LoginResponse, AppError> {
         // Get user from database
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM keamanan.users WHERE username = $1 AND is_active = true",
-            login_req.username
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(AppError::InvalidCredentials)?;
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT id, username, password_hash, email, is_active, mfa_enabled, mfa_secret, created_at, updated_at
+                 FROM keamanan.users WHERE username = $1 AND is_active = true",
+                &[&login_req.username]
+            )
+            .await?;
+
+        let user = if let Some(row) = rows.first() {
+            User::from(row)
+        } else {
+            return Err(AppError::InvalidCredentials);
+        };
 
         // Verify password
         if !self.verify_password(&login_req.password, &user.password_hash)? {
@@ -135,50 +141,53 @@ impl AuthService {
 
     fn verify_password(&self, password: &str, hash: &str) -> Result<bool, AppError> {
         use argon2::{Argon2, PasswordHash, PasswordVerifier};
-        
+
         let parsed_hash = PasswordHash::new(hash)?;
         let argon2 = Argon2::default();
-        
+
         Ok(PasswordVerifier::verify_password(&argon2, password.as_bytes(), &parsed_hash).is_ok())
     }
 
     fn verify_mfa(&self, secret: &str, code: &str) -> Result<bool, AppError> {
         use totp_lite::{totp_custom, Algorithm, Sha1};
-        
-        let totp = totp_custom!(
-            secret.as_bytes(),
-            30,
-            6,
-            Sha1::sha1()
-        );
-        
+
+        let totp = totp_custom!(secret.as_bytes(), 30, 6, Sha1::sha1());
+
         Ok(totp == code)
     }
 
     async fn get_user_roles(&self, user_id: uuid::Uuid) -> Result<Vec<String>, AppError> {
-        let roles = sqlx::query!(
-            "SELECT r.name FROM keamanan.roles r 
-             JOIN keamanan.user_roles ur ON r.id = ur.role_id 
-             WHERE ur.user_id = $1",
-            user_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT r.name FROM keamanan.roles r
+                 JOIN keamanan.user_roles ur ON r.id = ur.role_id
+                 WHERE ur.user_id = $1",
+                &[&user_id],
+            )
+            .await?;
 
-        Ok(roles.into_iter().map(|r| r.name).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<_, String>("name"))
+            .collect())
     }
 
     async fn get_user_permissions(&self, user_id: uuid::Uuid) -> Result<Vec<String>, AppError> {
-        let permissions = sqlx::query!(
-            "SELECT DISTINCT p.name FROM keamanan.permissions p 
-             JOIN keamanan.role_permissions rp ON p.id = rp.permission_id 
-             JOIN keamanan.user_roles ur ON rp.role_id = ur.role_id 
-             WHERE ur.user_id = $1",
-            user_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT DISTINCT p.name FROM keamanan.permissions p
+                 JOIN keamanan.role_permissions rp ON p.id = rp.permission_id
+                 JOIN keamanan.user_roles ur ON rp.role_id = ur.role_id
+                 WHERE ur.user_id = $1",
+                &[&user_id],
+            )
+            .await?;
 
-        Ok(permissions.into_iter().map(|p| p.name).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| row.get::<_, String>("name"))
+            .collect())
     }
-} 
+}

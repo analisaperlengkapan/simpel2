@@ -1,16 +1,17 @@
 use axum::extract::State;
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use tokio_postgres::Row;
 use uuid::Uuid;
 
-use crate::vault::VaultClient;
 use crate::config::Config;
+use crate::vault::VaultClient;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-    pub pool: PgPool,
+    pub pool: Pool,
     pub vault_client: VaultClient,
     pub config: Config,
 }
@@ -25,70 +26,89 @@ impl AppState {
         details: &Value,
         ip_address: &str,
         user_agent: &str,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let timestamp = Utc::now();
         let id = Uuid::new_v4();
-        let hash = format!("{}:{}:{}:{}:{}:{}:{}:{}", id, user_id.map(|u| u.to_string()).unwrap_or_default(), action, resource, resource_id.unwrap_or(""), ip_address, user_agent, timestamp);
-        sqlx::query!(
-            r#"INSERT INTO keamanan.audit_logs (id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, hash)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
+        let hash = format!(
+            "{}:{}:{}:{}:{}:{}:{}:{}",
             id,
-            user_id,
+            user_id.map(|u| u.to_string()).unwrap_or_default(),
             action,
             resource,
-            resource_id,
-            details,
+            resource_id.unwrap_or(""),
             ip_address,
             user_agent,
-            timestamp,
-            hash
-        )
-        .execute(&self.pool)
-        .await?;
+            timestamp
+        );
+
+        let client = self.pool.get().await?;
+        client.execute(
+            r#"INSERT INTO keamanan.audit_logs (id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, hash)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
+            &[&id, &user_id, &action, &resource, &resource_id, &details, &ip_address, &user_agent, &timestamp, &hash]
+        ).await?;
         Ok(())
     }
 
-    pub async fn is_refresh_token_revoked(&self, refresh_token_hash: &str) -> Result<bool, sqlx::Error> {
-        let rec = sqlx::query!(
-            "SELECT is_revoked FROM keamanan.sessions WHERE refresh_token_hash = $1",
-            refresh_token_hash
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(rec.map(|r| r.is_revoked).unwrap_or(true))
+    pub async fn is_refresh_token_revoked(
+        &self,
+        refresh_token_hash: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT is_revoked FROM keamanan.sessions WHERE refresh_token_hash = $1",
+                &[&refresh_token_hash],
+            )
+            .await?;
+
+        Ok(rows
+            .first()
+            .map(|row| row.get::<_, bool>("is_revoked"))
+            .unwrap_or(true))
     }
-    pub async fn revoke_refresh_token(&self, refresh_token_hash: &str) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE keamanan.sessions SET is_revoked = TRUE WHERE refresh_token_hash = $1",
-            refresh_token_hash
-        )
-        .execute(&self.pool)
-        .await?;
+    pub async fn revoke_refresh_token(
+        &self,
+        refresh_token_hash: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = self.pool.get().await?;
+        client
+            .execute(
+                "UPDATE keamanan.sessions SET is_revoked = TRUE WHERE refresh_token_hash = $1",
+                &[&refresh_token_hash],
+            )
+            .await?;
         Ok(())
     }
-    pub async fn save_new_refresh_token(&self, user_id: Uuid, refresh_token_hash: &str, expires_at: DateTime<Utc>) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+    pub async fn save_new_refresh_token(
+        &self,
+        user_id: Uuid,
+        refresh_token_hash: &str,
+        expires_at: DateTime<Utc>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = self.pool.get().await?;
+        client.execute(
             "INSERT INTO keamanan.sessions (user_id, refresh_token_hash, expires_at) VALUES ($1, $2, $3)",
-            user_id,
-            refresh_token_hash,
-            expires_at
-        )
-        .execute(&self.pool)
-        .await?;
+            &[&user_id, &refresh_token_hash, &expires_at]
+        ).await?;
         Ok(())
     }
-    pub async fn revoke_all_sessions_for_user(&self, user_id: Uuid) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE keamanan.sessions SET is_revoked = TRUE WHERE user_id = $1",
-            user_id
-        )
-        .execute(&self.pool)
-        .await?;
+    pub async fn revoke_all_sessions_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = self.pool.get().await?;
+        client
+            .execute(
+                "UPDATE keamanan.sessions SET is_revoked = TRUE WHERE user_id = $1",
+                &[&user_id],
+            )
+            .await?;
         Ok(())
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
@@ -103,7 +123,25 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+impl From<&Row> for User {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            username: row.get("username"),
+            email: row.get("email"),
+            nip: row.get("nip"),
+            nik: row.get("nik"),
+            password_hash: row.get("password_hash"),
+            mfa_secret: row.get("mfa_secret"),
+            mfa_enabled: row.get("mfa_enabled"),
+            is_active: row.get("is_active"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Role {
     pub id: Uuid,
     pub name: String,
@@ -113,7 +151,20 @@ pub struct Role {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+impl From<&Row> for Role {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            name: row.get("name"),
+            description: row.get("description"),
+            permissions: row.get("permissions"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserRole {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -121,7 +172,18 @@ pub struct UserRole {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+impl From<&Row> for UserRole {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            role_id: row.get("role_id"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Permission {
     pub id: Uuid,
     pub name: String,
@@ -130,7 +192,19 @@ pub struct Permission {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+impl From<&Row> for Permission {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            name: row.get("name"),
+            resource: row.get("resource"),
+            action: row.get("action"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AuditLog {
     pub id: Uuid,
     pub user_id: Option<Uuid>,
@@ -142,6 +216,23 @@ pub struct AuditLog {
     pub user_agent: String,
     pub timestamp: DateTime<Utc>,
     pub hash: String, // Immutable hash for integrity
+}
+
+impl From<&Row> for AuditLog {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            action: row.get("action"),
+            resource: row.get("resource"),
+            resource_id: row.get("resource_id"),
+            details: row.get("details"),
+            ip_address: row.get("ip_address"),
+            user_agent: row.get("user_agent"),
+            timestamp: row.get("timestamp"),
+            hash: row.get("hash"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -214,4 +305,4 @@ pub struct AuditLogQuery {
     pub end_date: Option<DateTime<Utc>>,
     pub limit: Option<i32>,
     pub offset: Option<i32>,
-} 
+}

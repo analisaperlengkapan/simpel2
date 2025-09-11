@@ -1,0 +1,31 @@
+[package]
+name = "simpel-cli"
+version = "3.0.0"
+edition = "2021"
+
+[[bin]]
+name = "simpel"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+colored = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+base64 = "0.22"
+aes-gcm = "0.10"
+rand = "0.8"
+uuid = { version = "1.0", features = ["v4"] }
+k8s-openapi = { version = "0.22", features = ["v1_30"] }
+kube = { version = "0.93", features = ["runtime", "derive"] }
+tempfile = "3.0"
+walkdir = "2.0"
+regex = "1.0"
+shellexpand = "3.0"
+which = "6.0"

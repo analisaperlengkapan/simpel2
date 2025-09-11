@@ -4,8 +4,8 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use deadpool_postgres::Pool;
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use sqlx::PgPool;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -61,14 +61,22 @@ pub async fn rbac_middleware(
         .ok_or(AppError::Unauthorized)?;
 
     // Check if user has required permission
-    if !claims.permissions.contains(&required_permission.to_string())
+    if !claims
+        .permissions
+        .contains(&required_permission.to_string())
         && !claims.permissions.contains(&"*".to_string())
     {
-        error!("User {} lacks permission: {}", claims.username, required_permission);
+        error!(
+            "User {} lacks permission: {}",
+            claims.username, required_permission
+        );
         return Err(AppError::Forbidden);
     }
 
-    info!("User {} authorized for: {}", claims.username, required_permission);
+    info!(
+        "User {} authorized for: {}",
+        claims.username, required_permission
+    );
 
     Ok(next.run(request).await)
 }
@@ -94,7 +102,7 @@ pub async fn audit_middleware(
     // Log audit entry
     let duration = start_time.elapsed();
     let status = response.status();
-    
+
     let audit_log = crate::models::AuditLog {
         id: Uuid::new_v4(),
         user_id,
@@ -136,23 +144,24 @@ pub async fn audit_middleware(
     Ok(response)
 }
 
-async fn store_audit_log(pool: &PgPool, audit_log: crate::models::AuditLog) -> Result<(), AppError> {
-    sqlx::query!(
-        "INSERT INTO keamanan.audit_logs (id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, hash) 
+async fn store_audit_log(pool: &Pool, audit_log: crate::models::AuditLog) -> Result<(), AppError> {
+    let client = pool.get().await?;
+    client.execute(
+        "INSERT INTO keamanan.audit_logs (id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, hash)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        audit_log.id,
-        audit_log.user_id,
-        audit_log.action,
-        audit_log.resource,
-        audit_log.resource_id,
-        audit_log.details,
-        audit_log.ip_address,
-        audit_log.user_agent,
-        audit_log.timestamp,
-        audit_log.hash
-    )
-    .execute(pool)
-    .await?;
+        &[
+            &audit_log.id,
+            &audit_log.user_id,
+            &audit_log.action,
+            &audit_log.resource,
+            &audit_log.resource_id,
+            &audit_log.details,
+            &audit_log.ip_address,
+            &audit_log.user_agent,
+            &audit_log.timestamp,
+            &audit_log.hash,
+        ]
+    ).await?;
 
     Ok(())
 }
@@ -173,23 +182,20 @@ pub async fn rate_limit_middleware(
     // Simple in-memory rate limiting (in production, use Redis)
     // This is a simplified implementation
     let rate_limit_key = format!("rate_limit:{}", client_ip);
-    
+
     // Check rate limit (simplified)
     // In production, implement proper rate limiting with Redis
-    
+
     Ok(next.run(request).await)
 }
 
-pub async fn cors_middleware(
-    request: Request,
-    next: Next,
-) -> Result<Response, AppError> {
+pub async fn cors_middleware(request: Request, next: Next) -> Result<Response, AppError> {
     let response = next.run(request).await;
-    
+
     // Add CORS headers
     let mut response = response;
     let headers = response.headers_mut();
-    
+
     if let Ok(val) = "*".parse() {
         headers.insert("Access-Control-Allow-Origin", val);
     }
@@ -199,6 +205,6 @@ pub async fn cors_middleware(
     if let Ok(val) = "Content-Type, Authorization".parse() {
         headers.insert("Access-Control-Allow-Headers", val);
     }
-    
+
     Ok(response)
-} 
+}

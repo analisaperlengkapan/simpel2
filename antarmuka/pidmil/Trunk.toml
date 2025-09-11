@@ -1,8 +1,7 @@
 [build]
 target = "index.html"
 dist = "dist"
-release = true
-wasm-opt = false  # Disable wasm-opt to avoid optimization errors
+release = false
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]
@@ -10,10 +9,16 @@ target = "web"
 typescript = false         # Disable TS generation for smaller bundles
 debug = false             # No debug in production
 
+# Disable wasm-opt to avoid validation errors
+[build.wasm-opt]
+enable = false
+
 [build.rust]
 optimization-level = "z"   # Maximum size optimization
 debug = false
 lto = true
+target = "wasm32-unknown-unknown"
+rustflags = ["--cfg", "web_sys_unstable_apis"]
 
 [serve]
 port = 8086
@@ -25,5 +30,10 @@ watch = ["src", "styles"]
 
 [tools]
 wasm-opt = false
+
+[[hooks]]
+stage = "post_build"
+command = "echo"
+command_arguments = ["Build completed without wasm-opt"]
 ignore = ["target", "dist", "Cargo.lock", ".git"]
 debounce = 100

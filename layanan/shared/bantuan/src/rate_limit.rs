@@ -7,10 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
-pub async fn rate_limit_middleware<B>(
+pub async fn rate_limit_middleware(
     State(state): State<RateLimitState>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<axum::body::Body>,
+    next: Next,
     limit: u32,
 ) -> Result<Response, AppError> {
     let ip = req.headers().get("x-forwarded-for")
@@ -28,4 +28,4 @@ pub async fn rate_limit_middleware<B>(
         entry.0 += 1;
     }
     Ok(next.run(req).await)
-} 
+}

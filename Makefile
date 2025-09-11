@@ -19,7 +19,7 @@ include scripts/makefiles/help.mk       # Help system and documentation
 
 # ====== CORE MAKEFILES (REFACTORED FROM .SH) ======
 include scripts/makefiles/builds.mk     # Unified build operations (merged)
-include scripts/makefiles/operations.mk # Main operations (from simpel.sh)
+include scripts/makefiles/operations.mk # Main operations (migrated from simpel.sh)
 include scripts/makefiles/test-core.mk  # Testing operations (from test scripts)
 
 # ====== CORE TARGETS ======

@@ -5,6 +5,7 @@
 use crate::types::ApiResponse;
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
+use web_sys::window;
 
 /// API Error types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,8 +50,10 @@ impl ApiClient {
 
     /// Get authentication token from localStorage
     fn get_auth_token(&self) -> Option<String> {
-        crate::utils::storage::load_string("auth_token")
-            .ok()
+        window()
+            .and_then(|win| win.local_storage().ok())
+            .flatten()
+            .and_then(|storage| storage.get_item("auth_token").ok())
             .flatten()
     }
 

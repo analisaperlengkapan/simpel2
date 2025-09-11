@@ -10,68 +10,403 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use serde::{Deserialize, Serialize};
 
-// Import shared components - Modern Leptos 0.7.8
-use shared_microfrontend::prelude::*;
-
 // Import local components directly
 use crate::components::footer::Footer;
 use crate::components::header::Header;
 
-/// Model data untuk sistem yang terintegrasi
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SystemInfo {
-    /// Nama sistem
+/// Authentication state
+#[derive(Clone, Debug, PartialEq)]
+pub enum AuthState {
+    /// User is not authenticated and needs to log in
+    LoggedOut,
+    /// User is authenticated and can access the system
+    LoggedIn,
+}
+
+/// User session data
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct UserSession {
+    /// User's login username
+    pub username: String,
+    /// User's role in the system (e.g., admin, user, etc.)
+    pub role: String,
+    /// User's display name
     pub name: String,
-    /// URL akses sistem
-    pub url: String,
-    /// Deskripsi singkat
-    pub description: String,
-    /// Status operasional
-    pub status: SystemStatus,
-    /// Icon sistem
-    pub icon: String,
-    /// Kategori sistem
-    pub category: String,
-    /// Level prioritas untuk tampilan
-    pub priority: u8,
 }
 
-/// Status operasional sistem
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SystemStatus {
-    /// Sistem beroperasi normal
-    Online,
-    /// Sistem dalam maintenance
-    Maintenance,
-    /// Sistem mengalami gangguan
-    Offline,
-}
+/// Komponen halaman login
+#[component]
+pub fn LoginPage(
+    /// Signal setter for authentication state
+    set_auth_state: WriteSignal<AuthState>,
+    /// Signal setter for user session
+    set_user_session: WriteSignal<Option<UserSession>>
+) -> impl IntoView {
+    let (username, set_username) = signal(String::new());
+    let (password, set_password) = signal(String::new());
+    let (error_message, set_error_message) = signal(String::new());
+    let (success_message, set_success_message) = signal(String::new());
 
-impl SystemStatus {
-    /// Mendapatkan CSS class berdasarkan status
-    pub fn css_class(&self) -> &'static str {
-        match self {
-            SystemStatus::Online => "text-green-600",
-            SystemStatus::Maintenance => "text-yellow-600",
-            SystemStatus::Offline => "text-red-600",
+    let login_action = Action::new(move |_: &()| {
+        let username_val = username.get();
+        let password_val = password.get();
+        let set_auth_state_clone = set_auth_state;
+        let set_user_session_clone = set_user_session;
+
+        async move {
+            // Clear previous error message
+            set_error_message.set(String::new());
+
+            // Validate input
+            if username_val.trim().is_empty() {
+                set_error_message.set("Username tidak boleh kosong".to_string());
+                return;
+            }
+
+            if password_val.is_empty() {
+                set_error_message.set("Password tidak boleh kosong".to_string());
+                return;
+            }
+
+            // Simple authentication logic (in production, this would call an API)
+            // For demo purposes, accept any non-empty credentials
+            if !username_val.trim().is_empty() && !password_val.is_empty() {
+                set_success_message.set("Login berhasil! Mengalihkan ke dashboard...".to_string());
+
+                // Create user session
+                let session = UserSession {
+                    username: username_val.clone(),
+                    role: "admin".to_string(),
+                    name: "Administrator".to_string(),
+                };
+
+                // Set authentication state and user session
+                set_auth_state_clone.set(AuthState::LoggedIn);
+                set_user_session_clone.set(Some(session));
+
+                leptos::logging::log!("✅ Login berhasil untuk user: {}", username_val);
+            } else {
+                set_error_message.set("Username dan password harus diisi dengan benar".to_string());
+            }
         }
+    });
+
+    view! {
+        <div class="min-h-screen bg-gradient-to-br from-red-50 via-white to-blue-50 flex items-center justify-center p-4">
+            <div class="max-w-md w-full">
+                // Logo dan Header Kejaksaan
+                <div class="flex items-center justify-center mb-8">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">"⚖"</div>
+                        <h1 class="text-3xl font-bold text-red-600 mb-2">"Kejaksaan Agung"</h1>
+                        <h2 class="text-xl text-gray-600">"Republik Indonesia"</h2>
+                        <p class="text-sm text-gray-500 mt-2">"Sistem Pembinaan SIMPelv2"</p>
+                    </div>
+                </div>
+
+                // Login Card
+                <div class="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+                    // Header Card
+                    <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+                        <h4 class="text-white text-lg font-semibold text-center">
+                            "🔐 Masuk ke Sistem"
+                        </h4>
+                    </div>
+
+                    // Form
+                    <div class="p-6">
+                        <form
+                            on:submit=move |ev| {
+                                ev.prevent_default();
+                                login_action.dispatch(());
+                            }
+                            class="space-y-6"
+                        >
+                            <div>
+                                <label for="username" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-user mr-2 text-red-600"></i>
+                                    "Username"
+                                </label>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    value=move || username.get()
+                                    on:input=move |ev| set_username.set(event_target_value(&ev))
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200"
+                                    placeholder="Masukkan username Anda"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <i class="fas fa-lock mr-2 text-red-600"></i>
+                                    "Password"
+                                </label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    value=move || password.get()
+                                    on:input=move |ev| set_password.set(event_target_value(&ev))
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200"
+                                    placeholder="Masukkan password Anda"
+                                    required
+                                />
+                            </div>
+
+                            // Error Message
+                            {move || (!error_message.get().is_empty()).then(|| view! {
+                                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-exclamation-triangle mr-2 text-red-500"></i>
+                                        <span class="font-medium">{error_message.get()}</span>
+                                    </div>
+                                </div>
+                            })}
+
+                            // Success Message
+                            {move || (!success_message.get().is_empty()).then(|| view! {
+                                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-r-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-check-circle mr-2 text-green-500"></i>
+                                        <span class="font-medium">{success_message.get()}</span>
+                                    </div>
+                                </div>
+                            })}
+
+                            // Loading Message
+                            {move || (login_action.pending().get() && error_message.get().is_empty() && success_message.get().is_empty()).then(|| view! {
+                                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 px-4 py-3 rounded-r-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>
+                                        <span class="font-medium">"Memverifikasi kredensial..."</span>
+                                    </div>
+                                </div>
+                            })}
+
+                            // Login Button
+                            <button
+                                type="submit"
+                                disabled=(move || login_action.pending().get())()
+                                class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                            >
+                                {move || if login_action.pending().get() {
+                                    view! {
+                                        <div class="flex items-center justify-center">
+                                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                                            <span>"Sedang Masuk..."</span>
+                                        </div>
+                                    }
+                                } else {
+                                    view! {
+                                        <div class="flex items-center justify-center">
+                                            <i class="fas fa-sign-in-alt mr-2"></i>
+                                            <span>"Masuk ke Sistem"</span>
+                                        </div>
+                                    }
+                                }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                // Demo Info
+                <div class="mt-6 text-center">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p class="text-sm text-blue-800 font-medium">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            "Untuk demo, masukkan username dan password apa saja"
+                        </p>
+                    </div>
+                </div>
+
+                // Footer
+                <div class="mt-8 text-center text-xs text-gray-400">
+                    <p>"© 2025 Kejaksaan Agung Republik Indonesia"</p>
+                    <p class="mt-1">"SIMPelv2 v2.0 - Sistem Terintegrasi"</p>
+                </div>
+            </div>
+        </div>
     }
+}
 
-    /// Mendapatkan label status
-    pub fn label(&self) -> &'static str {
-        match self {
-            SystemStatus::Online => "Online",
-            SystemStatus::Maintenance => "Maintenance",
-            SystemStatus::Offline => "Offline",
-        }
+/// Komponen halaman dashboard utama
+#[component]
+pub fn DashboardPage(
+    /// User session data
+    user_session: UserSession
+) -> impl IntoView {
+    view! {
+        <div class="min-h-screen bg-gradient-to-br from-red-50 via-white to-blue-50">
+            // Header dengan tema Kejaksaan
+            <header class="bg-gradient-to-r from-red-600 to-red-700 shadow-lg">
+                <div class="container mx-auto px-4 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-white p-2 rounded-lg shadow-md">
+                                <div class="text-2xl">"⚖"</div>
+                            </div>
+                            <div>
+                                <h1 class="text-white text-xl font-bold">"Kejaksaan Agung RI"</h1>
+                                <p class="text-red-100 text-sm">"Sistem Pembinaan SIMPelv2"</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span class="text-white text-sm">"Selamat datang, "{user_session.name}</span>
+                            <button
+                                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                                on:click=move |_| {
+                                    // Logout functionality will be handled by parent component
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.location().reload();
+                                    }
+                                }
+                            >
+                                <i class="fas fa-sign-out-alt mr-2"></i>
+                                "Logout"
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="container mx-auto px-4 py-8">
+                // Welcome Section
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8 border-l-4 border-red-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                                "Selamat Datang di Portal SIMPelv2"
+                            </h1>
+                            <p class="text-gray-600">"Sistem Pembinaan Terintegrasi Kejaksaan"</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-4xl">"🏛"</div>
+                        </div>
+                    </div>
+                </div>
+
+                // Quick Stats
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                        <div class="flex items-center">
+                            <div class="bg-green-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-server text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-gray-900">"9"</p>
+                                <p class="text-gray-600 text-sm">"Total Sistem"</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-users text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-gray-900">"1,234"</p>
+                                <p class="text-gray-600 text-sm">"Pengguna Aktif"</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
+                        <div class="flex items-center">
+                            <div class="bg-yellow-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-gray-900">"99.9%"</p>
+                                <p class="text-gray-600 text-sm">"Uptime Sistem"</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                        <div class="flex items-center">
+                            <div class="bg-red-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-shield-alt text-red-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-gray-900">"A+"</p>
+                                <p class="text-gray-600 text-sm">"Tingkat Keamanan"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                // Main Content
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-600">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-cogs text-blue-600 mr-2"></i>
+                            "Sistem Utama"
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700">"Portal SIMPelv2"</span>
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">"Online"</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700">"AI Service"</span>
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">"Online"</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700">"Security Service"</span>
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">"Online"</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-chart-line text-green-600 mr-2"></i>
+                            "Aktivitas Terbaru"
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                <div class="bg-blue-100 p-2 rounded-lg">
+                                    <i class="fas fa-user-plus text-blue-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">"User baru terdaftar"</p>
+                                    <p class="text-xs text-gray-500">"2 menit yang lalu"</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                                <div class="bg-green-100 p-2 rounded-lg">
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-900">"Backup sistem berhasil"</p>
+                                    <p class="text-xs text-gray-500">"1 jam yang lalu"</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            // Footer
+            <footer class="bg-gray-800 text-white mt-12">
+                <div class="container mx-auto px-4 py-6 text-center">
+                    <p class="text-gray-400 text-sm">
+                        "© 2025 Kejaksaan Agung Republik Indonesia - Sistem Pembinaan SIMPelv2"
+                    </p>
+                </div>
+            </footer>
+        </div>
     }
 }
 
 /// Komponen utama aplikasi Portal SIMPelv2
 #[component]
 pub fn App() -> impl IntoView {
-    // Data sistem yang tersedia - Prioritas berdasarkan tingkat kepentingan
-    let systems = create_system_data();
+    // Authentication state
+    let (auth_state, set_auth_state) = signal(AuthState::LoggedOut);
+    let (user_session, set_user_session) = signal(None::<UserSession>);
 
     view! {
         <Html attr:lang="id"/>
@@ -82,212 +417,17 @@ pub fn App() -> impl IntoView {
         <Meta property="og:title" content="Portal SIMPelv2"/>
         <Meta property="og:description" content="Gateway to Justice Technology - Kejaksaan Agung RI"/>
 
-        <div class="min-h-screen bg-kejaksaan-bg">
+        <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
             <Header />
-
-            <main class="container mx-auto px-4 py-8">
-                <HomePage systems=systems/>
-            </main>
-
+            {move || match auth_state.get() {
+                AuthState::LoggedOut => view! {
+                    <LoginPage set_auth_state=set_auth_state set_user_session=set_user_session />
+                }.into_any(),
+                AuthState::LoggedIn => view! {
+                    <DashboardPage user_session=user_session.get().unwrap_or_default() />
+                }.into_any(),
+            }}
             <Footer />
-        </div>
-    }
-}
-
-/// Generate data sistem yang tersedia
-fn create_system_data() -> Vec<SystemInfo> {
-    vec![
-        SystemInfo {
-            name: "PIDUM".to_string(),
-            url: "/pidum".to_string(),
-            description: "Sistem Informasi Pidana Umum - Manajemen kasus dan perkara pidana umum".to_string(),
-            status: SystemStatus::Online,
-            icon: "⚖️".to_string(),
-            category: "Pidana".to_string(),
-            priority: 1,
-        },
-        SystemInfo {
-            name: "PIDSUS".to_string(),
-            url: "/pidsus".to_string(),
-            description: "Sistem Informasi Pidana Khusus - Penanganan kasus korupsi, narkoba, dan tindak pidana khusus".to_string(),
-            status: SystemStatus::Online,
-            icon: "🏛️".to_string(),
-            category: "Pidana".to_string(),
-            priority: 1,
-        },
-        SystemInfo {
-            name: "PIDMIL".to_string(),
-            url: "/pidmil".to_string(),
-            description: "Sistem Informasi Pidana Militer - Penanganan perkara pidana militer".to_string(),
-            status: SystemStatus::Online,
-            icon: "🎖️".to_string(),
-            category: "Pidana".to_string(),
-            priority: 2,
-        },
-        SystemInfo {
-            name: "DATUN".to_string(),
-            url: "/datun".to_string(),
-            description: "Sistem Informasi Data dan Tuntutan - Manajemen data perkara dan tuntutan hukum".to_string(),
-            status: SystemStatus::Online,
-            icon: "📊".to_string(),
-            category: "Data".to_string(),
-            priority: 1,
-        },
-        SystemInfo {
-            name: "INTEL".to_string(),
-            url: "/intel".to_string(),
-            description: "Sistem Informasi Intelijen - Analisis dan monitoring keamanan nasional".to_string(),
-            status: SystemStatus::Online,
-            icon: "🔍".to_string(),
-            category: "Intelijen".to_string(),
-            priority: 1,
-        },
-        SystemInfo {
-            name: "PENGAWASAN".to_string(),
-            url: "/pengawasan".to_string(),
-            description: "Sistem Informasi Pengawasan - Monitoring dan evaluasi kinerja internal".to_string(),
-            status: SystemStatus::Online,
-            icon: "👁️".to_string(),
-            category: "Pengawasan".to_string(),
-            priority: 2,
-        },
-        SystemInfo {
-            name: "BADIKLAT".to_string(),
-            url: "/badiklat".to_string(),
-            description: "Sistem Informasi Pendidikan dan Pelatihan - Manajemen SDM dan kapasitas aparatur".to_string(),
-            status: SystemStatus::Online,
-            icon: "🎓".to_string(),
-            category: "SDM".to_string(),
-            priority: 2,
-        },
-        SystemInfo {
-            name: "PEMBINAAN".to_string(),
-            url: "/pembinaan".to_string(),
-            description: "Sistem Informasi Pembinaan - Program pembinaan dan rehabilitasi".to_string(),
-            status: SystemStatus::Online,
-            icon: "🤝".to_string(),
-            category: "Pembinaan".to_string(),
-            priority: 3,
-        },
-        SystemInfo {
-            name: "PEMULIHAN ASET".to_string(),
-            url: "/pemulihan_aset".to_string(),
-            description: "Sistem Informasi Pemulihan Aset - Pelacakan dan pemulihan aset negara".to_string(),
-            status: SystemStatus::Maintenance,
-            icon: "💰".to_string(),
-            category: "Aset".to_string(),
-            priority: 2,
-        },
-    ]
-}
-
-/// Halaman utama dengan dashboard sistem
-#[component]
-pub fn HomePage(
-    /// Data sistem yang akan ditampilkan
-    systems: Vec<SystemInfo>,
-) -> impl IntoView {
-    // Kelompokkan sistem berdasarkan kategori
-    let grouped_systems = systems.into_iter().fold(
-        std::collections::HashMap::<String, Vec<SystemInfo>>::new(),
-        |mut acc, system| {
-            acc.entry(system.category.clone()).or_default().push(system);
-            acc
-        },
-    );
-
-    view! {
-        <div class="space-y-8">
-            // Hero Section
-            <div class="text-center py-12 bg-white rounded-lg shadow-sm">
-                <div class="text-6xl mb-4">"⚖️"</div>
-                <h1 class="text-4xl font-bold text-kejaksaan-text mb-4">
-                    "Portal SIMPelv2"
-                </h1>
-                <p class="text-xl text-kejaksaan-text-muted max-w-2xl mx-auto">
-                    "Sistem Informasi Manajemen Pengelolaan Barang Milik Negara"
-                </p>
-                <p class="text-lg text-kejaksaan-text-muted mt-2">
-                    "Kejaksaan Agung Republik Indonesia"
-                </p>
-            </div>
-
-            // System Categories
-            {grouped_systems.into_iter().map(|(category, systems)| {
-                view! {
-                    <div class="bg-white rounded-lg shadow-sm p-6">
-                        <h2 class="text-2xl font-bold text-kejaksaan-text mb-6 border-b pb-2">
-                            "Sistem " {category}
-                        </h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {systems.into_iter().map(|system| {
-                                view! {
-                                    <Card class="hover:shadow-lg transition-shadow duration-300">
-                                        <div class="text-center p-4">
-                                            <div class="text-4xl mb-3">{system.icon}</div>
-                                            <h3 class="text-lg font-semibold text-kejaksaan-text mb-2">
-                                                {system.name}
-                                            </h3>
-                                            <p class="text-sm text-kejaksaan-text-muted mb-4 line-clamp-3">
-                                                {system.description}
-                                            </p>
-                                            <div class=format!("text-sm font-medium mb-4 {}", system.status.css_class())>
-                                                "Status: " {system.status.label()}
-                                            </div>
-                                            <Button
-                                                variant=ButtonVariant::Primary
-                                                class="w-full">
-                                                "Akses Sistem"
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                }
-                            }).collect_view()}
-                        </div>
-                    </div>
-                }
-            }).collect_view()}
-
-            // Quick Stats
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                    <div class="text-center p-4">
-                        <div class="text-3xl font-bold text-kejaksaan-primary mb-2">"9"</div>
-                        <div class="text-kejaksaan-text-muted">"Sistem Terintegrasi"</div>
-                    </div>
-                </Card>
-                <Card>
-                    <div class="text-center p-4">
-                        <div class="text-3xl font-bold text-green-600 mb-2">"8"</div>
-                        <div class="text-kejaksaan-text-muted">"Sistem Online"</div>
-                    </div>
-                </Card>
-                <Card>
-                    <div class="text-center p-4">
-                        <div class="text-3xl font-bold text-yellow-600 mb-2">"1"</div>
-                        <div class="text-kejaksaan-text-muted">"Maintenance"</div>
-                    </div>
-                </Card>
-            </div>
-
-            // Support Information
-            <Card class="bg-kejaksaan-bg-light">
-                <div class="p-6">
-                    <h2 class="text-xl font-semibold text-kejaksaan-text mb-4">
-                        "📞 Dukungan Teknis"
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-kejaksaan-text-muted">
-                        <div>
-                            <p>"📧 Email: support@kejaksaan.go.id"</p>
-                            <p>"📞 Telpon: (021) 7805000"</p>
-                        </div>
-                        <div>
-                            <p>"🕒 Senin - Jumat: 08:00 - 17:00 WIB"</p>
-                            <p>"📍 Jakarta, Indonesia"</p>
-                        </div>
-                    </div>
-                </div>
-            </Card>
         </div>
     }
 }

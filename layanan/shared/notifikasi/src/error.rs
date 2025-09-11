@@ -1,4 +1,7 @@
-use axum::{http::StatusCode, response::{IntoResponse, Response}};
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use thiserror::Error;
 use tracing::error;
 
@@ -30,18 +33,28 @@ pub enum AppError {
     Internal,
 }
 
+impl From<redis::RedisError> for AppError {
+    fn from(err: redis::RedisError) -> Self {
+        AppError::Internal
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let status = match self {
-            AppError::Db(_) | AppError::Io(_) | AppError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Db(_) | AppError::Io(_) | AppError::Internal => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::Validation(_) | AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::RateLimit => StatusCode::TOO_MANY_REQUESTS,
-            AppError::Email(_) | AppError::WhatsApp(_) | AppError::Push(_) => StatusCode::BAD_GATEWAY,
+            AppError::Email(_) | AppError::WhatsApp(_) | AppError::Push(_) => {
+                StatusCode::BAD_GATEWAY
+            }
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
         };
         error!(error = ?self, "AppError");
         (status, format!("{{\"error\":\"{}\"}}", self)).into_response()
     }
-} 
+}

@@ -1,9 +1,8 @@
-use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::NotificationTemplate;
+use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
-use serde_json::Value;
 
 pub struct TemplateService {
     pub pool: PgPool,
@@ -14,7 +13,12 @@ impl TemplateService {
         Self { pool }
     }
 
-    pub async fn create_template(&self, name: &str, content: &str, variables: Value) -> Result<NotificationTemplate, AppError> {
+    pub async fn create_template(
+        &self,
+        name: &str,
+        content: &str,
+        variables: Value,
+    ) -> Result<NotificationTemplate, AppError> {
         let rec = sqlx::query_as!(NotificationTemplate,
             r#"INSERT INTO notifikasi.notification_templates (id, name, content, variables, version, created_at, updated_at, is_active)
             VALUES ($1, $2, $3, $4, 1, NOW(), NOW(), TRUE) RETURNING *"#,
@@ -24,14 +28,22 @@ impl TemplateService {
     }
 
     pub async fn get_template(&self, id: Uuid) -> Result<NotificationTemplate, AppError> {
-        let rec = sqlx::query_as!(NotificationTemplate,
+        let rec = sqlx::query_as!(
+            NotificationTemplate,
             r#"SELECT * FROM notifikasi.notification_templates WHERE id = $1"#,
             id
-        ).fetch_one(&self.pool).await?;
+        )
+        .fetch_one(&self.pool)
+        .await?;
         Ok(rec)
     }
 
-    pub async fn update_template(&self, id: Uuid, content: &str, variables: Value) -> Result<NotificationTemplate, AppError> {
+    pub async fn update_template(
+        &self,
+        id: Uuid,
+        content: &str,
+        variables: Value,
+    ) -> Result<NotificationTemplate, AppError> {
         let rec = sqlx::query_as!(NotificationTemplate,
             r#"UPDATE notifikasi.notification_templates SET content = $1, variables = $2, updated_at = NOW(), version = version + 1 WHERE id = $3 RETURNING *"#,
             content, variables, id
@@ -43,7 +55,9 @@ impl TemplateService {
         sqlx::query!(
             r#"DELETE FROM notifikasi.notification_templates WHERE id = $1"#,
             id
-        ).execute(&self.pool).await?;
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -59,4 +73,4 @@ impl TemplateService {
         }
         Ok(content)
     }
-} 
+}
