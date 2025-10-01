@@ -153,6 +153,7 @@ server_fn = { version = "0.8" }
 
 # WASM specific - Latest Stable Versions
 wasm-bindgen = "=0.2.100"
+wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 gloo-net = { version = "0.6", features = ["http"] }
 gloo-utils = "0.2"
@@ -170,7 +171,11 @@ web-sys = { version = "0.3", features = [
     "console",
     "Blob",
     "BlobPropertyBag",
-    "Url"
+    "Url",
+    "MouseEvent",
+    "KeyboardEvent",
+    "Event",
+    "EventTarget"
 ] }
 gloo-console = "0.3"
 gloo-storage = "0.3"

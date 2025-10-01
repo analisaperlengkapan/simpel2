@@ -1,63 +1,68 @@
 [package]
 name = "portal-microfrontend"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["SIMPelv2 Team <simpelv2@kejaksaan.go.id>"]
-description = "SIMPelv2 Portal Utama - Gateway to Justice Technology"
+description = "SIMPelv2 Portal Utama - Gateway to Justice Technology & SSO Integration"
 license = "MIT"
-repository = "https://gitlab.kejaksaan.go.id/simpelv2"
-keywords = ["leptos", "wasm", "kejaksaan", "portal", "microfrontend"]
+repository = "https://gitlab.com/analisiskebutuhan/simpelv2_web"
+keywords = ["leptos", "wasm", "kejaksaan", "portal", "sso"]
 categories = ["wasm", "web-programming"]
 
 [lib]
 crate-type = ["cdylib"]
 
+# Modern Dependencies - Optimized for Performance & Security
 [dependencies]
-# Shared Components Library - Optimized
-shared-microfrontend = { workspace = true }
-
-# Leptos Framework 0.7.8 - Modern Frontend
-leptos = { workspace = true, features = ["ssr", "csr", "hydrate"] }
+# Core Leptos Framework 0.8.x - Modern reactive primitives
+leptos = { workspace = true, features = ["csr", "hydrate"] }
 leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 
-# WASM & Web APIs - Performance Optimized
+# Shared Components Library - Government compliant UI
+shared-microfrontend = { workspace = true }
+
+# Web Assembly bindings - Performance optimized
 wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
-wasm-bindgen-futures = "0.4"
-console_error_panic_hook = "0.1"
+gloo = { version = "0.11", features = ["futures", "timers", "events"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+gloo-utils = { version = "0.2" }
+gloo-net = { version = "0.6" }
 
-# Gloo Ecosystem - Optimized
-gloo-net = { workspace = true }
-gloo-utils = { workspace = true }
-
-# Serialization - Performance First
-serde = { workspace = true }
+# Serialization - Compact binary format
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
-# Time & Utilities - Modern Stack
-uuid = { workspace = true }
-log = "0.4"
+# Utilities & Error Handling - Production ready
+console_error_panic_hook = { version = "0.1" }
+console_log = { version = "1.0" }
+log = { version = "0.4" }
+uuid = { version = "1.11", features = ["v4", "js", "fast-rng"] }
+url = { version = "2.5" }
 
 [features]
-default = []
+default = ["csr"]
+csr = ["leptos/csr"]
 hydrate = ["leptos/hydrate"]
-ssr = ["leptos/ssr"]
-dev = []
 
+# WASM Build Optimization Profile
 [profile.release]
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = "abort"
+opt-level = "z"              # Maximum size optimization
+lto = "fat"                  # Full link-time optimization
+codegen-units = 1            # Better optimization, slower compile
+panic = "abort"              # Smaller binary
+strip = "symbols"            # Remove debug symbols
+debug = false                # No debug info
+overflow-checks = false      # Remove overflow checks for size
 
-[profile.wasm-release]
-inherits = "release"
-opt-level = 'z'
-lto = true
-codegen-units = 1
-panic = "abort"
+# Development profile with fast rebuild
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name

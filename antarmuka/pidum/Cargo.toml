@@ -1,21 +1,64 @@
 [package]
 name = "pidum-microfrontend"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
-
-[dependencies]
-leptos = { workspace = true }
-leptos_meta = { workspace = true }
-leptos_router = { workspace = true }
-shared-microfrontend = { workspace = true }
-serde = { workspace = true }
-serde_json = "1.0"
-wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["HtmlInputElement", "Window", "History"] }
-console_error_panic_hook = "0.1"
-console_log = "1.0"
-log = "0.4"
-chrono = { version = "0.4", features = ["serde"] }
+authors = ["SIMPelv2 Team <simpelv2@kejaksaan.go.id>"]
+description = "SIMPelv2 Pidum - General Criminal Prosecution Management System"
+license = "MIT"
+repository = "https://gitlab.com/analisiskebutuhan/simpelv2_web"
+keywords = ["leptos", "wasm", "kejaksaan", "general-crimes", "prosecution"]
+categories = ["wasm", "web-programming"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
+
+# Modern Dependencies - Optimized for Performance & Security
+[dependencies]
+# Core Leptos Framework 0.8.x - Modern reactive primitives
+leptos = { workspace = true, features = ["csr", "hydrate"] }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+
+# Shared Components Library - Government compliant UI
+shared-microfrontend = { workspace = true }
+
+# Web Assembly bindings - Performance optimized
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true }
+js-sys = { workspace = true }
+gloo = { version = "0.11", features = ["futures", "timers", "events"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+
+# Serialization - Compact binary format
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { version = "0.4", features = ["serde", "wasmbind"] }
+
+# Utilities & Error Handling - Production ready
+console_error_panic_hook = { version = "0.1" }
+console_log = { version = "1.0" }
+log = { version = "0.4" }
+uuid = { version = "1.11", features = ["v4", "js", "fast-rng"] }
+url = { version = "2.5" }
+
+[features]
+default = ["csr"]
+csr = ["leptos/csr"]
+hydrate = ["leptos/hydrate"]
+
+# WASM Build Optimization Profile
+[profile.release]
+opt-level = "z"              # Maximum size optimization
+lto = "fat"                  # Full link-time optimization
+codegen-units = 1            # Better optimization, slower compile
+panic = "abort"              # Smaller binary
+strip = "symbols"            # Remove debug symbols
+debug = false                # No debug info
+overflow-checks = false      # Remove overflow checks for size
+
+# Development profile with fast rebuild
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
