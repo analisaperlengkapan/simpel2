@@ -118,7 +118,7 @@ garde = { version = "0.22", features = ["derive", "serde"] }  # Modern validator
 opentelemetry = "0.21"
 opentelemetry-otlp = { version = "0.14", features = ["tonic", "tls"] }
 prometheus = "0.14"
-sentry = { version = "0.32", features = ["tracing"] }
+sentry = { version = "0.44", features = ["tracing"] }
 metrics = "0.21"
 metrics-exporter-prometheus = "0.12"
 
