@@ -860,7 +860,7 @@ async fn main() -> Result<()> {
                 }
             }
             handlers::handle_vault(&action, &options).await
-        },
+        }
         Commands::Monitor { action } => handle_monitor_new(action).await,
         Commands::Config { action } => handle_config_new(action).await,
         Commands::Clean { action } => handle_clean_new(action).await,

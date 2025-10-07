@@ -48,7 +48,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for shell scripts
+        id: check_scripts
+        run: |
+          if find scripts -type f -name "*.sh" | grep -q .; then
+            echo "has_scripts=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_scripts=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run ShellCheck
+        if: steps.check_scripts.outputs.has_scripts == 'true'
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './scripts'
@@ -62,11 +72,16 @@ jobs:
 
       - name: Download actionlint
         run: |
-          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          bash <(curl -sS https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        continue-on-error: true
 
       - name: Run actionlint
         run: |
-          ./actionlint -color
+          if [ -f ./actionlint ]; then
+            ./actionlint -color
+          else
+            echo "actionlint not found, skipping"
+          fi
         continue-on-error: true
 
   rust-fmt-check:
@@ -89,6 +104,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Install taplo
         run: cargo install taplo-cli --locked

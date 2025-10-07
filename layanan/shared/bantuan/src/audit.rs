@@ -1,9 +1,9 @@
-use crate::models::AuditLog;
 use crate::error::AppError;
-use deadpool_postgres::Pool;
+use crate::models::AuditLog;
 use chrono::Utc;
-use uuid::Uuid;
+use deadpool_postgres::Pool;
 use serde_json::Value;
+use uuid::Uuid;
 
 pub async fn insert_audit_log(
     pool: &Pool,
@@ -29,7 +29,7 @@ pub async fn query_audit_logs(
     user_id: Option<Uuid>,
     action: Option<&str>,
     resource: Option<&str>,
-    limit: i64
+    limit: i64,
 ) -> Result<Vec<AuditLog>, AppError> {
     let client = pool.get().await?;
     let rows = if let Some(uid) = user_id {

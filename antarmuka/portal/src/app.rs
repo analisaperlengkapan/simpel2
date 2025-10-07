@@ -40,7 +40,7 @@ pub fn LoginPage(
     /// Signal setter for authentication state
     set_auth_state: WriteSignal<AuthState>,
     /// Signal setter for user session
-    set_user_session: WriteSignal<Option<UserSession>>
+    set_user_session: WriteSignal<Option<UserSession>>,
 ) -> impl IntoView {
     let (username, set_username) = signal(String::new());
     let (password, set_password) = signal(String::new());
@@ -234,7 +234,7 @@ pub fn LoginPage(
 #[component]
 pub fn DashboardPage(
     /// User session data
-    user_session: UserSession
+    user_session: UserSession,
 ) -> impl IntoView {
     view! {
         <div class="min-h-screen bg-gradient-to-br from-red-50 via-white to-blue-50">

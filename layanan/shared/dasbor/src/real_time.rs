@@ -1,16 +1,25 @@
+use crate::error::DashboardError;
+use crate::models::RealTimeUpdate;
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 use redis::AsyncCommands;
-use crate::error::DashboardError;
-use crate::models::RealTimeUpdate;
-use uuid::Uuid;
 use serde_json::Value;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait RealTimeServiceTrait {
-    async fn publish_update(&self, metric_name: &str, value: f64, source: &str) -> Result<(), DashboardError>;
+    async fn publish_update(
+        &self,
+        metric_name: &str,
+        value: f64,
+        source: &str,
+    ) -> Result<(), DashboardError>;
     async fn subscribe_to_metric(&self, metric_name: &str) -> Result<Value, DashboardError>;
-    async fn get_recent_updates(&self, metric_name: &str, limit: i64) -> Result<Vec<RealTimeUpdate>, DashboardError>;
+    async fn get_recent_updates(
+        &self,
+        metric_name: &str,
+        limit: i64,
+    ) -> Result<Vec<RealTimeUpdate>, DashboardError>;
     async fn get_active_subscriptions(&self) -> Result<Value, DashboardError>;
 }
 
@@ -32,7 +41,12 @@ impl RealTimeService {
 
 #[async_trait]
 impl RealTimeServiceTrait for RealTimeService {
-    async fn publish_update(&self, metric_name: &str, value: f64, source: &str) -> Result<(), DashboardError> {
+    async fn publish_update(
+        &self,
+        metric_name: &str,
+        value: f64,
+        source: &str,
+    ) -> Result<(), DashboardError> {
         let client = self.pool.get().await?;
         let id = Uuid::new_v4();
         let now = chrono::Utc::now();
@@ -54,7 +68,8 @@ impl RealTimeServiceTrait for RealTimeService {
             "source": source
         });
 
-        conn.publish(format!("metric:{}", metric_name), update_data.to_string()).await?;
+        conn.publish(format!("metric:{}", metric_name), update_data.to_string())
+            .await?;
 
         Ok(())
     }
@@ -74,7 +89,11 @@ impl RealTimeServiceTrait for RealTimeService {
         }))
     }
 
-    async fn get_recent_updates(&self, metric_name: &str, limit: i64) -> Result<Vec<RealTimeUpdate>, DashboardError> {
+    async fn get_recent_updates(
+        &self,
+        metric_name: &str,
+        limit: i64,
+    ) -> Result<Vec<RealTimeUpdate>, DashboardError> {
         let client = self.pool.get().await?;
         let rows = client.query(
             "SELECT * FROM real_time_updates WHERE metric_name = $1 ORDER BY timestamp DESC LIMIT $2",

@@ -1,9 +1,9 @@
 use crate::error::AppError;
-use axum::{http::Request, middleware::Next, response::Response, extract::State};
-use std::sync::Arc;
+use axum::{extract::State, http::Request, middleware::Next, response::Response};
 use std::collections::HashMap;
-use tokio::sync::Mutex;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 
 pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
@@ -13,10 +13,16 @@ pub async fn rate_limit_middleware(
     next: Next,
     limit: u32,
 ) -> Result<Response, AppError> {
-    let ip = req.headers().get("x-forwarded-for")
+    let ip = req
+        .headers()
+        .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown").to_string();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        .unwrap_or("unknown")
+        .to_string();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let mut map = state.lock().await;
     let entry = map.entry(ip.clone()).or_insert((0, now));
     if now - entry.1 > 60 {

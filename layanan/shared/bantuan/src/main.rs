@@ -3,38 +3,31 @@
 //! Service untuk menangani bantuan pengguna, FAQ, ticketing system,
 //! dan chatbot berbasis AI.
 
-mod config;
-mod error;
-mod models;
-mod faq;
-mod ticket;
-mod chatbot;
-mod knowledge;
 mod analytics;
 mod audit;
-mod webhook;
-mod export_import;
-mod gdpr;
-mod rbac;
-mod rate_limit;
 mod captcha;
+mod chatbot;
+mod config;
+mod error;
+mod export_import;
+mod faq;
+mod gdpr;
 mod handlers;
+mod knowledge;
+mod models;
+mod rate_limit;
+mod rbac;
+mod ticket;
+mod webhook;
 
-use crate::{
-    config::AppConfig,
-    error::AppError,
-    handlers::routes,
-};
-use axum::{Router, http::Method};
+use crate::{config::AppConfig, error::AppError, handlers::routes};
+use axum::{http::Method, Router};
+use prometheus::{Encoder, Registry, TextEncoder};
+use std::{net::SocketAddr, time::Duration};
 use tower_http::{
-    cors::CorsLayer,
-    trace::TraceLayer,
-    compression::CompressionLayer,
-    timeout::TimeoutLayer,
+    compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use std::{net::SocketAddr, time::Duration};
-use prometheus::{Registry, TextEncoder, Encoder};
 
 /// Application state yang dishare ke semua handlers
 #[derive(Clone)]
@@ -90,7 +83,7 @@ fn setup_tracing(config: &AppConfig) -> Result<(), AppError> {
                 .with_target(true)
                 .with_level(true)
                 .with_thread_ids(true)
-                .json()
+                .json(),
         )
         .init();
 
@@ -109,7 +102,7 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
                 traces_sample_rate: 0.1,
                 debug: config.log_level == "debug",
                 ..Default::default()
-            }
+            },
         )))
     } else {
         tracing::warn!("Sentry DSN tidak dikonfigurasi");
@@ -164,23 +157,28 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
     // CORS configuration
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::PATCH])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::PATCH,
+        ])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
             axum::http::header::AUTHORIZATION,
-            axum::http::header::HeaderName::from_static("x-api-key")
+            axum::http::header::HeaderName::from_static("x-api-key"),
         ])
         .allow_credentials(true);
 
     // Create main application router
-    let app = routes(state.config.clone(), state.db.clone())
-        .layer(
-            tower::ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(CompressionLayer::new())
-                .layer(TimeoutLayer::new(Duration::from_secs(30)))
-                .layer(cors)
-        );
+    let app = routes(state.config.clone(), state.db.clone()).layer(
+        tower::ServiceBuilder::new()
+            .layer(TraceLayer::new_for_http())
+            .layer(CompressionLayer::new())
+            .layer(TimeoutLayer::new(Duration::from_secs(30)))
+            .layer(cors),
+    );
 
     // Add health check and metrics routes
     let health_routes = Router::new()
@@ -214,7 +212,7 @@ async fn health_check() -> &'static str {
 
 /// Readiness check handler (bisa check database, Redis, dll)
 async fn readiness_check(
-    axum::extract::State(state): axum::extract::State<AppState>
+    axum::extract::State(state): axum::extract::State<AppState>,
 ) -> Result<&'static str, AppError> {
     // Check database connection
     let client = state.db.get().await?;
@@ -229,7 +227,7 @@ async fn readiness_check(
 
 /// Metrics handler untuk Prometheus
 async fn metrics_handler(
-    axum::extract::State(state): axum::extract::State<AppState>
+    axum::extract::State(state): axum::extract::State<AppState>,
 ) -> Result<String, AppError> {
     let encoder = TextEncoder::new();
     let mut buffer = Vec::new();

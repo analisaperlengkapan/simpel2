@@ -1,14 +1,19 @@
-use axum::{extract::{State, Path, Json}, response::IntoResponse, Router, routing::{get, post}};
-use crate::config::AppConfig;
-use crate::error::DashboardError;
 use crate::aggregator::AggregatorService;
 use crate::analytics::AnalyticsService;
 use crate::charts::ChartService;
+use crate::config::AppConfig;
+use crate::error::DashboardError;
 use crate::real_time::RealTimeService;
+use axum::{
+    extract::{Json, Path, State},
+    response::IntoResponse,
+    routing::{get, post},
+    Router,
+};
 use deadpool_postgres::Pool;
-use uuid::Uuid;
-use serde_json::json;
 use serde::Deserialize;
+use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct CreateDashboardRequest {
@@ -41,29 +46,35 @@ pub fn create_routes(app_config: AppConfig, pool: Pool) -> Router {
     Router::new()
         // Dashboard management
         .route("/dashboards", get(list_dashboards).post(create_dashboard))
-        .route("/dashboards/:id", get(get_dashboard).put(update_dashboard).delete(delete_dashboard))
-        .route("/dashboards/:id/config", get(get_dashboard_config).put(update_dashboard_config))
-
+        .route(
+            "/dashboards/:id",
+            get(get_dashboard)
+                .put(update_dashboard)
+                .delete(delete_dashboard),
+        )
+        .route(
+            "/dashboards/:id/config",
+            get(get_dashboard_config).put(update_dashboard_config),
+        )
         // Charts management
         .route("/charts", get(list_charts).post(create_chart))
-        .route("/charts/:id", get(get_chart).put(update_chart).delete(delete_chart))
+        .route(
+            "/charts/:id",
+            get(get_chart).put(update_chart).delete(delete_chart),
+        )
         .route("/charts/:id/data", get(get_chart_data))
-
         // Analytics
         .route("/analytics/metrics", get(get_metrics))
         .route("/analytics/metrics/:name", get(get_metric_history))
         .route("/analytics/aggregated", get(get_aggregated_data))
         .route("/analytics/real-time", get(get_real_time_data))
-
         // Aggregator
         .route("/aggregator/process", post(process_aggregation))
         .route("/aggregator/batch", post(process_batch_aggregation))
         .route("/aggregator/status", get(get_aggregation_status))
-
         // Real-time updates
         .route("/realtime/subscribe", get(subscribe_real_time))
         .route("/realtime/publish", post(publish_real_time_update))
-
         .with_state((app_config, pool))
 }
 

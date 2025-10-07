@@ -1,4 +1,7 @@
-use axum::{http::StatusCode, response::{IntoResponse, Response}};
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use thiserror::Error;
 use tracing::error;
 
@@ -43,14 +46,23 @@ pub enum DashboardError {
 impl IntoResponse for DashboardError {
     fn into_response(self) -> Response {
         let status = match self {
-            DashboardError::Db(_) | DashboardError::Pool(_) | DashboardError::PoolConfig(_) | DashboardError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            DashboardError::Db(_)
+            | DashboardError::Pool(_)
+            | DashboardError::PoolConfig(_)
+            | DashboardError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
             DashboardError::NotFound => StatusCode::NOT_FOUND,
             DashboardError::Forbidden => StatusCode::FORBIDDEN,
-            DashboardError::Validation(_) | DashboardError::BadRequest(_) | DashboardError::Json(_) => StatusCode::BAD_REQUEST,
+            DashboardError::Validation(_)
+            | DashboardError::BadRequest(_)
+            | DashboardError::Json(_) => StatusCode::BAD_REQUEST,
             DashboardError::RateLimit => StatusCode::TOO_MANY_REQUESTS,
-            DashboardError::Prometheus(_) | DashboardError::Utf8(_) | DashboardError::Redis(_) => StatusCode::BAD_GATEWAY,
+            DashboardError::Prometheus(_) | DashboardError::Utf8(_) | DashboardError::Redis(_) => {
+                StatusCode::BAD_GATEWAY
+            }
             DashboardError::Unauthorized => StatusCode::UNAUTHORIZED,
-            DashboardError::Aggregator(_) | DashboardError::Chart(_) | DashboardError::RealTime(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            DashboardError::Aggregator(_)
+            | DashboardError::Chart(_)
+            | DashboardError::RealTime(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         error!(error = ?self, "DashboardError");
         (status, format!("{{\"error\":\"{}\"}}", self)).into_response()
