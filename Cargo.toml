@@ -120,7 +120,7 @@ opentelemetry-otlp = { version = "0.14", features = ["tonic", "tls"] }
 prometheus = "0.14"
 sentry = { version = "0.32", features = ["tracing"] }
 metrics = "0.21"
-metrics-exporter-prometheus = "0.12"
+metrics-exporter-prometheus = "0.17"
 
 # Email and Notifications
 lettre = { version = "0.11", features = ["tokio1-native-tls"] }

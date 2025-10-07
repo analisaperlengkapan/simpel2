@@ -63,7 +63,7 @@ garde = { workspace = true }
 
 prometheus = { workspace = true }
 metrics = "0.21"
-metrics-exporter-prometheus = "0.12"
+metrics-exporter-prometheus = "0.17"
 sentry = { workspace = true }
 sentry-tracing = "0.31"
 
