@@ -97,7 +97,7 @@ regex = "1.10"
 urlencoding = "2.1"
 
 # Database & Caching
-redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "0.32", features = ["tokio-comp", "connection-manager"] }
 mongodb = "2.8"
 
 # Message Queue & Event Streaming
