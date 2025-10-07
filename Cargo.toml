@@ -115,8 +115,8 @@ reqwest = { version = "0.12", features = ["json", "multipart", "stream", "rustls
 garde = { version = "0.22", features = ["derive", "serde"] }  # Modern validator replacement
 
 # Monitoring & Observability
-opentelemetry = "0.21"
-opentelemetry-otlp = { version = "0.14", features = ["tonic", "tls"] }
+opentelemetry = "0.31"
+opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
 prometheus = "0.14"
 sentry = { version = "0.32", features = ["tracing"] }
 metrics = "0.21"
