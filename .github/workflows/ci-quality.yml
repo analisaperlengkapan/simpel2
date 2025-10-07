@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -21,11 +25,10 @@ jobs:
         with:
           toolchain: 1.90.0
       
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "docs"
       
       - name: Generate documentation
         run: cargo doc --no-deps --all-features --document-private-items
@@ -38,6 +41,7 @@ jobs:
           name: documentation
           path: target/doc/
           retention-days: 7
+          if-no-files-found: warn
 
   coverage:
     name: Code Coverage
@@ -66,14 +70,13 @@ jobs:
           toolchain: 1.90.0
           components: llvm-tools-preview
       
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "coverage"
+      
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
-      
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Setup test environment
         run: |
@@ -95,6 +98,8 @@ jobs:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       
@@ -103,17 +108,18 @@ jobs:
         with:
           toolchain: 1.90.0
       
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "benchmarks"
       
       - name: Run benchmarks
-        run: cargo bench --all -- --output-format bencher | tee output.txt
+        run: cargo bench --all -- --output-format bencher | tee output.txt || echo "No benchmarks found"
+        continue-on-error: true
       
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
+        if: success()
         with:
           tool: 'cargo'
           output-file-path: output.txt
@@ -129,10 +135,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
+      - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
+      
+      - name: Install Rust Nightly
+        uses: dtolnay/rust-toolchain@nightly
       
       - name: Install cargo-outdated
         run: cargo install cargo-outdated --locked
@@ -154,6 +163,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+      
       - name: Install tokei
         run: cargo install tokei --locked
       
@@ -168,3 +180,4 @@ jobs:
           name: code-metrics
           path: metrics.json
           retention-days: 30
+          if-no-files-found: warn

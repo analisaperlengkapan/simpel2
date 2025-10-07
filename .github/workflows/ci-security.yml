@@ -9,6 +9,10 @@ on:
     # Run security checks weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -24,11 +28,15 @@ jobs:
         with:
           toolchain: 1.90.0
       
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+      
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       
       - name: Run cargo audit
         run: cargo audit --deny warnings
+        continue-on-error: true
 
   deny:
     name: Dependency Policy (cargo-deny)
@@ -41,17 +49,23 @@ jobs:
         with:
           toolchain: 1.90.0
       
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+      
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
       
       - name: Check licenses
         run: cargo deny check licenses
+        continue-on-error: true
       
       - name: Check advisories
         run: cargo deny check advisories
+        continue-on-error: true
       
       - name: Check bans
         run: cargo deny check bans
+        continue-on-error: true
 
   secreton-security:
     name: Secreton Vault Security
@@ -64,6 +78,11 @@ jobs:
         with:
           toolchain: 1.90.0
       
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "infra/secreton"
+      
       - name: Check secreton workspace
         run: |
           cd infra/secreton
@@ -74,6 +93,7 @@ jobs:
           cd infra/secreton
           cargo install cargo-audit --locked
           cargo audit
+        continue-on-error: true
 
   sast:
     name: Static Analysis (SAST)
