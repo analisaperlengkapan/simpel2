@@ -55,7 +55,7 @@ ring = "0.17"
 base64 = "0.22"
 
 # File watching untuk config changes
-notify = "6.1"
+notify = "8.2"
 
 [dev-dependencies]
 tokio-test = { workspace = true }
