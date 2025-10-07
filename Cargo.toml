@@ -152,7 +152,7 @@ leptos_macro = { version = "0.8" }
 server_fn = { version = "0.8" }
 
 # WASM specific - Latest Stable Versions
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = "=0.2.104"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 gloo-net = { version = "0.6", features = ["http"] }
