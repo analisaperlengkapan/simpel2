@@ -30,17 +30,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "backend-check"
-      
+
       - name: Run cargo check
         run: cargo check --all --verbose
 
@@ -61,24 +61,24 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "backend-test"
-      
+
       - name: Setup test environment
         run: |
           echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/simpelv2_test" >> $GITHUB_ENV
-      
+
       - name: Run cargo test
         run: cargo test --all --verbose
         env:
@@ -89,18 +89,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           components: clippy
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "backend-clippy"
-      
+
       - name: Run clippy
         run: cargo clippy --all --all-targets -- -D warnings
 
@@ -109,13 +109,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           components: rustfmt
-      
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -125,20 +125,20 @@ jobs:
     needs: [check, test, clippy, fmt]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "backend-release"
-      
+
       - name: Build release
         run: cargo build --release --all-targets --verbose
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

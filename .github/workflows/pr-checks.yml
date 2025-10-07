@@ -1,0 +1,99 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-title-check:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PR title format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+        continue-on-error: true
+
+  pr-size-check:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changed files
+        id: changes
+        run: |
+          FILES_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.sha }} | wc -l)
+          LINES_CHANGED=$(git diff --stat ${{ github.event.pull_request.base.sha }}...${{ github.sha }} | tail -1 | awk '{print $4+$6}')
+          echo "files=$FILES_CHANGED" >> $GITHUB_OUTPUT
+          echo "lines=$LINES_CHANGED" >> $GITHUB_OUTPUT
+          echo "Files changed: $FILES_CHANGED"
+          echo "Lines changed: $LINES_CHANGED"
+
+      - name: Comment on large PR
+        if: steps.changes.outputs.files > 50 || steps.changes.outputs.lines > 1000
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ This PR is quite large. Consider splitting it into smaller PRs for easier review.\n\n' +
+                    `- Files changed: ${process.env.FILES_CHANGED}\n` +
+                    `- Lines changed: ${process.env.LINES_CHANGED}`
+            })
+        env:
+          FILES_CHANGED: ${{ steps.changes.outputs.files }}
+          LINES_CHANGED: ${{ steps.changes.outputs.lines }}
+        continue-on-error: true
+
+  conflict-check:
+    name: Check for Merge Conflicts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for conflict markers
+        run: |
+          if grep -r "<<<<<<< " . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=target; then
+            echo "Found merge conflict markers in files"
+            exit 1
+          else
+            echo "No merge conflicts found"
+          fi
+
+  label-check:
+    name: Check PR Labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            if (labels.length === 0) {
+              core.warning('PR has no labels. Consider adding relevant labels.');
+            }
+        continue-on-error: true

@@ -41,22 +41,22 @@ jobs:
           - pidmil
           - pidsus
           - pidum
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "antarmuka/${{ matrix.module }}"
           shared-key: "wasm-check-${{ matrix.module }}"
-      
+
       - name: Check WASM compilation
         run: cargo check --target wasm32-unknown-unknown --manifest-path antarmuka/${{ matrix.module }}/Cargo.toml
 
@@ -65,18 +65,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "antarmuka"
           shared-key: "wasm-test"
-      
+
       - name: Run WASM tests
         run: |
           cd antarmuka
@@ -100,32 +100,32 @@ jobs:
           - pidmil
           - pidsus
           - pidum
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "antarmuka/${{ matrix.module }}"
           shared-key: "wasm-build-${{ matrix.module }}"
-      
+
       - name: Install Trunk
         run: |
           wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
           sudo mv trunk /usr/local/bin/
-      
+
       - name: Build with Trunk
         run: |
           cd antarmuka/${{ matrix.module }}
           trunk build --release
-      
+
       - name: Check bundle size
         run: |
           WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" -exec wc -c {} + | awk '{print $1}')
@@ -135,7 +135,7 @@ jobs:
             echo "::error::WASM bundle exceeds 2MB limit: ${WASM_SIZE_MB}MB"
             exit 1
           fi
-      
+
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -149,19 +149,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "antarmuka/shared"
           shared-key: "wasm-shared"
-      
+
       - name: Check shared components
         run: |
           cd antarmuka/shared

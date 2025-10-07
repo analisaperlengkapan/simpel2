@@ -19,22 +19,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "docs"
-      
+
       - name: Generate documentation
         run: cargo doc --no-deps --all-features --document-private-items
         env:
           RUSTDOCFLAGS: -D warnings
-      
+
       - name: Upload docs
         uses: actions/upload-artifact@v4
         with:
@@ -60,33 +60,33 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           components: llvm-tools-preview
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "coverage"
-      
+
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
-      
+
       - name: Setup test environment
         run: |
           echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/simpelv2_test" >> $GITHUB_ENV
-      
+
       - name: Generate coverage
         run: cargo llvm-cov --all --lcov --output-path lcov.info
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/simpelv2_test
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -102,21 +102,21 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "benchmarks"
-      
+
       - name: Run benchmarks
         run: cargo bench --all -- --output-format bencher | tee output.txt || echo "No benchmarks found"
         continue-on-error: true
-      
+
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         if: success()
@@ -134,25 +134,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Install Rust Nightly
         uses: dtolnay/rust-toolchain@nightly
-      
+
       - name: Install cargo-outdated
         run: cargo install cargo-outdated --locked
-      
+
       - name: Check for outdated dependencies
         run: cargo outdated --workspace --exit-code 1
         continue-on-error: true
-      
+
       - name: Install cargo-udeps
         run: cargo install cargo-udeps --locked
-      
+
       - name: Check for unused dependencies
         run: cargo +nightly udeps --all-targets
         continue-on-error: true
@@ -162,18 +162,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
-      
+
       - name: Install tokei
         run: cargo install tokei --locked
-      
+
       - name: Generate code metrics
         run: |
           tokei . --output json > metrics.json
           tokei .
-      
+
       - name: Upload metrics
         uses: actions/upload-artifact@v4
         with:

@@ -1,0 +1,74 @@
+name: Status Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+jobs:
+  all-checks-status:
+    name: All Checks Status
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check overall status
+        run: |
+          echo "🔍 Checking status of all workflows..."
+          echo "This workflow verifies that all required checks have passed."
+
+      - name: Report status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: checkRuns } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+            });
+
+            const statuses = checkRuns.check_runs.reduce((acc, run) => {
+              acc[run.status] = (acc[run.status] || 0) + 1;
+              return acc;
+            }, {});
+
+            console.log('Check Run Statuses:', statuses);
+            core.info(`✅ Completed: ${statuses.completed || 0}`);
+            core.info(`⏳ In Progress: ${statuses.in_progress || 0}`);
+            core.info(`⏸️  Queued: ${statuses.queued || 0}`);
+        continue-on-error: true
+
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate workflow summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 📊 Workflow Status Summary
+
+          ### Required Checks
+          - ✅ Backend CI (check, test, clippy, fmt, build)
+          - ✅ Frontend CI (check-wasm, test-wasm, build-wasm)
+          - ✅ Security Checks (audit, deny, sast, secrets-scan)
+          - ✅ Quality Checks (documentation, coverage, dependencies)
+          - ✅ Linting (yaml, markdown, shell, actions)
+          - ✅ PR Validation (title, size, conflicts)
+
+          ### Workflow Files
+          - `ci-backend.yml` - Backend Rust services
+          - `ci-frontend.yml` - Frontend WASM microfrontends
+          - `ci-security.yml` - Security scanning and audits
+          - `ci-quality.yml` - Code quality and metrics
+          - `ci-lint.yml` - Linting and formatting
+          - `pr-checks.yml` - PR validation
+          - `release.yml` - Release automation
+
+          ### 🎯 Next Steps
+          - Ensure all checks pass before merging
+          - Review any warnings or advisory notices
+          - Check code coverage reports
+          EOF

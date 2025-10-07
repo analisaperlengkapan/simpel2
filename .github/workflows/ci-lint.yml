@@ -1,0 +1,98 @@
+name: CI - Linting & Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  yaml-lint:
+    name: YAML Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, trailing-spaces: enable, document-start: disable, truthy: disable}}" .github/workflows/
+
+  markdown-lint:
+    name: Markdown Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: '**/*.md'
+          config: '.markdownlint.json'
+        continue-on-error: true
+
+  shellcheck:
+    name: Shell Script Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+        continue-on-error: true
+
+  actionlint:
+    name: GitHub Actions Workflow Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      - name: Run actionlint
+        run: |
+          ./actionlint -color
+        continue-on-error: true
+
+  rust-fmt-check:
+    name: Rust Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: rustfmt
+
+      - name: Check formatting (all workspace)
+        run: cargo fmt --all -- --check
+
+  toml-check:
+    name: TOML Files Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install taplo
+        run: cargo install taplo-cli --locked
+
+      - name: Check TOML formatting
+        run: taplo fmt --check
+        continue-on-error: true
