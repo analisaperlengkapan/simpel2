@@ -85,7 +85,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/simpelv2_test
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           fail_ci_if_error: false
