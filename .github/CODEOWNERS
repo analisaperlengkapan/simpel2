@@ -1,0 +1,49 @@
+# CODEOWNERS for SIMPelv2
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @analisaperlengkapan
+
+# Documentation
+/docs/ @analisaperlengkapan
+*.md @analisaperlengkapan
+/CHANGELOG.md @analisaperlengkapan
+/README.md @analisaperlengkapan
+
+# GitHub configurations
+/.github/ @analisaperlengkapan
+
+# Infrastructure
+/infra/ @analisaperlengkapan
+/infra/gerbang/ @analisaperlengkapan
+/infra/secreton/ @analisaperlengkapan
+/infra/k8s/ @analisaperlengkapan
+/docker-compose*.yml @analisaperlengkapan
+/Dockerfile* @analisaperlengkapan
+
+# Backend Services
+/layanan/ @analisaperlengkapan
+/layanan/shared/authenc/ @analisaperlengkapan
+
+# Frontend Microfrontends
+/antarmuka/ @analisaperlengkapan
+/antarmuka/shared/ @analisaperlengkapan
+
+# Build & CI/CD
+/Makefile @analisaperlengkapan
+/scripts/ @analisaperlengkapan
+/.github/workflows/ @analisaperlengkapan
+
+# Rust workspace
+/Cargo.toml @analisaperlengkapan
+/Cargo.lock @analisaperlengkapan
+
+# Security-sensitive files (require additional review)
+/layanan/shared/authenc/ @analisaperlengkapan
+/infra/secreton/ @analisaperlengkapan
+/config/*.production.toml @analisaperlengkapan
+
+# Module-specific owners (can be updated as team grows)
+# /antarmuka/portal/ @portal-team
+# /antarmuka/pembinaan/perlengkapan/ @perlengkapan-team
+# /layanan/keamanan/ @security-team

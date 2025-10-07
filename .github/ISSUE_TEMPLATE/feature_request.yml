@@ -1,0 +1,117 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for SIMPelv2
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees:
+  - analisaperlengkapan
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please fill out the sections below.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component would this feature affect?
+      options:
+        - Backend Service (layanan/*)
+        - Frontend Microfrontend (antarmuka/*)
+        - API Gateway (infra/gerbang)
+        - Secreton Vault (infra/secreton)
+        - Shared Library
+        - Infrastructure/DevOps
+        - Documentation
+        - Cross-cutting (multiple components)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is your feature request related to a problem?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like
+      placeholder: "I would like to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Describe any alternative solutions or features you've considered
+      placeholder: "Another approach could be..."
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - Critical (Blocking major functionality)
+        - High (Important for user experience)
+        - Medium (Nice to have)
+        - Low (Enhancement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases for this feature
+      placeholder: |
+        1. As a user, I want to...
+        2. As an administrator, I need to...
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What would make this feature complete?
+      placeholder: |
+        - [ ] Feature X is implemented
+        - [ ] Tests are written
+        - [ ] Documentation is updated
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Implementation Impact
+      description: How much effort do you think this would require?
+      options:
+        - Small (1-2 days)
+        - Medium (1 week)
+        - Large (2-4 weeks)
+        - Extra Large (1+ months)
+        - Unknown
+
+  - type: textarea
+    id: technical
+    attributes:
+      label: Technical Considerations
+      description: Any technical details, dependencies, or constraints?
+      placeholder: "This would require changes to the authentication system..."
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: This feature aligns with SIMPelv2's goals
+          required: true
+        - label: I have searched existing issues/PRs for similar requests
+          required: true
+        - label: I am willing to contribute to implementation
+          required: false

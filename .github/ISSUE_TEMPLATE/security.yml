@@ -1,0 +1,135 @@
+name: 🔒 Security Vulnerability
+description: Report a security vulnerability (CONFIDENTIAL)
+title: "[Security]: "
+labels: ["security", "critical"]
+assignees:
+  - analisaperlengkapan
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **PLEASE DO NOT disclose security vulnerabilities publicly.**
+        
+        If you have found a critical security vulnerability, please:
+        1. **DO NOT** create a public issue
+        2. Email security details directly to: **security@kejaksaan.go.id**
+        3. Or use GitHub's private vulnerability reporting feature
+        
+        For non-critical security improvements, you may use this template.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe is this security issue?
+      options:
+        - Critical (Remote code execution, data breach)
+        - High (Authentication bypass, privilege escalation)
+        - Medium (Information disclosure, CSRF)
+        - Low (Security hardening suggestion)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which component is affected?
+      options:
+        - Authentication/Authorization (layanan-keamanan)
+        - Secreton Vault (infra/secreton)
+        - API Gateway (infra/gerbang)
+        - Backend Services
+        - Frontend Microfrontends
+        - Database Layer
+        - Infrastructure
+        - Multiple Components
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability Description
+      description: Describe the security issue (avoid specific exploit details in public issues)
+      placeholder: "There is a potential security issue in..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: attack-vector
+    attributes:
+      label: Attack Vector
+      description: How could this vulnerability be exploited?
+      options:
+        - Network (Remote exploitation)
+        - Adjacent Network
+        - Local (Requires local access)
+        - Physical
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What could an attacker achieve?
+      placeholder: |
+        - Unauthorized access to...
+        - Data exfiltration of...
+        - Denial of service...
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: How could this be fixed?
+      placeholder: "Add input validation for..."
+
+  - type: input
+    id: cve
+    attributes:
+      label: CVE ID
+      description: If this is related to a known CVE, please provide the ID
+      placeholder: "CVE-2024-XXXXX"
+
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected Versions
+      description: Which versions are vulnerable?
+      placeholder: |
+        - v0.4.0
+        - v0.3.x
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Security Checklist
+      options:
+        - label: I have NOT disclosed this vulnerability publicly
+          required: true
+        - label: I understand this is a security-sensitive issue
+          required: true
+        - label: I have provided sufficient information for investigation
+          required: true
+        - label: For CRITICAL issues, I will contact the security team directly
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        **Responsible Disclosure Policy:**
+        - We aim to acknowledge reports within 48 hours
+        - We will provide regular updates on remediation progress
+        - We request 90 days before public disclosure
+        - Security researchers will be credited (if desired)
+        
+        Thank you for helping keep SIMPelv2 secure! 🔒

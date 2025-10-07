@@ -1,0 +1,148 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in SIMPelv2
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees:
+  - analisaperlengkapan
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the sections below to help us understand and fix the issue.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      options:
+        - Backend Service (layanan/*)
+        - Frontend Microfrontend (antarmuka/*)
+        - API Gateway (infra/gerbang)
+        - Secreton Vault (infra/secreton)
+        - Shared Library
+        - Infrastructure/DevOps
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: module
+    attributes:
+      label: Specific Module
+      description: "Which specific module? (e.g., portal, badiklat, layanan-keamanan)"
+      placeholder: "portal"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "When I click the login button, the application crashes..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: "The login should redirect to the dashboard..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "The application shows a blank screen..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs & Error Messages
+      description: Please paste any relevant log output or error messages
+      render: shell
+      placeholder: |
+        Error: ...
+        Stack trace: ...
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (System down, data loss)
+        - High (Major feature broken)
+        - Medium (Feature partially working)
+        - Low (Minor inconvenience)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version of SIMPelv2 are you using?
+      placeholder: "v0.4.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this bug occur?
+      options:
+        - Production
+        - Staging
+        - Development
+        - Local
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (for frontend bugs)
+      description: Which browser and version?
+      placeholder: "Chrome 120.0, Firefox 121.0"
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (screenshots, related issues, etc.)
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+        - label: I have provided all requested information
+          required: true
+        - label: This bug is reproducible
+          required: false

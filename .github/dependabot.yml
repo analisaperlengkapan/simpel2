@@ -1,0 +1,150 @@
+version: 2
+updates:
+  # Main workspace Rust dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "rust"
+      - "automated"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Tokio ecosystem
+      tokio-stack:
+        patterns:
+          - "tokio*"
+          - "tower*"
+          - "axum*"
+          - "hyper*"
+          - "h2"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Leptos ecosystem
+      leptos-stack:
+        patterns:
+          - "leptos*"
+          - "web-sys"
+          - "wasm-bindgen*"
+          - "js-sys"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Database stack
+      database-stack:
+        patterns:
+          - "tokio-postgres"
+          - "deadpool-postgres"
+          - "refinery*"
+          - "sea-query"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Cryptography
+      crypto-stack:
+        patterns:
+          - "blake3"
+          - "sha2"
+          - "ed25519*"
+          - "ring"
+          - "rustls*"
+        update-types:
+          - "patch"
+      
+      # Tracing & Observability
+      observability-stack:
+        patterns:
+          - "tracing*"
+          - "opentelemetry*"
+          - "prometheus*"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Serialization
+      serde-stack:
+        patterns:
+          - "serde*"
+          - "bincode"
+          - "toml"
+          - "quick-xml"
+        update-types:
+          - "minor"
+          - "patch"
+    
+    # Allow immediate security updates
+    allow:
+      - dependency-type: "all"
+    
+    ignore:
+      # Pin Rust edition 2024 compatible versions
+      - dependency-name: "rustc"
+        update-types: ["version-update:semver-major"]
+
+  # Secreton workspace
+  - package-ecosystem: "cargo"
+    directory: "/infra/secreton"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "secreton"
+      - "security"
+    commit-message:
+      prefix: "deps(secreton)"
+    groups:
+      vault-crypto:
+        patterns:
+          - "*chacha*"
+          - "*poly1305*"
+          - "aes-gcm"
+          - "curve25519*"
+          - "x25519*"
+          - "argon2"
+        update-types:
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "02:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "ci"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "02:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+
+# Security updates are handled immediately regardless of schedule
+# Dependabot will create PRs for security vulnerabilities as soon as they are discovered

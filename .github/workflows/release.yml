@@ -1,0 +1,205 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: SIMPelv2 ${{ github.ref }}
+          draft: false
+          prerelease: false
+          body: |
+            ## SIMPelv2 Release ${{ steps.get_version.outputs.version }}
+            
+            ### What's Changed
+            See [CHANGELOG.md](https://github.com/analisaperlengkapan/simpel2/blob/main/CHANGELOG.md) for details.
+            
+            ### Installation
+            Download the appropriate binary for your platform below.
+            
+            ### Docker Images
+            ```bash
+            docker pull ghcr.io/analisaperlengkapan/simpelv2:${{ steps.get_version.outputs.version }}
+            ```
+
+  build-backend:
+    name: Build Backend - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          targets: ${{ matrix.target }}
+      
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+      
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }} --verbose
+      
+      - name: Package binaries
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/layanan-* release/ || true
+          cd release
+          tar czf ../simpelv2-backend-${{ matrix.target }}.tar.gz *
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./simpelv2-backend-${{ matrix.target }}.tar.gz
+          asset_name: simpelv2-backend-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          targets: wasm32-unknown-unknown
+      
+      - name: Install Trunk
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          sudo mv trunk /usr/local/bin/
+      
+      - name: Build all microfrontends
+        run: |
+          for module in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
+            echo "Building $module..."
+            cd antarmuka/$module
+            trunk build --release
+            cd ../..
+          done
+          
+          # Build perlengkapan (nested path)
+          cd antarmuka/pembinaan/perlengkapan
+          trunk build --release
+          cd ../../..
+      
+      - name: Package frontend artifacts
+        run: |
+          mkdir -p release-frontend
+          for module in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
+            cp -r antarmuka/$module/dist release-frontend/$module
+          done
+          cp -r antarmuka/pembinaan/perlengkapan/dist release-frontend/perlengkapan
+          cd release-frontend
+          tar czf ../simpelv2-frontend.tar.gz *
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./simpelv2-frontend.tar.gz
+          asset_name: simpelv2-frontend.tar.gz
+          asset_content_type: application/gzip
+
+  docker-build:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/simpelv2:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-k8s:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      - name: Update Kubernetes manifests
+        run: |
+          cd infra/k8s
+          sed -i "s|image:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}|g" deployments/*.yaml
+      
+      - name: Deploy to Kubernetes
+        run: |
+          echo "Deployment step - configure with your K8s cluster credentials"
+          # kubectl apply -f infra/k8s/
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
