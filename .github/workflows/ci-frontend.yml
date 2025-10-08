@@ -4,16 +4,16 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'antarmuka/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/ci-frontend.yml'
+      - "antarmuka/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/ci-frontend.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'antarmuka/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "antarmuka/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -118,7 +118,8 @@ jobs:
 
       - name: Install Trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/\
+            trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
           sudo mv trunk /usr/local/bin/
 
       - name: Build with Trunk
@@ -128,7 +129,8 @@ jobs:
 
       - name: Check bundle size
         run: |
-          WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" -exec wc -c {} + | awk '{print $1}')
+          WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" \
+            -exec wc -c {} + | awk '{print $1}')
           WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
           echo "WASM bundle size: ${WASM_SIZE_MB}MB"
           if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then

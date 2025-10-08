@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use tokio_postgres::Row;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Notification {
     pub id: Uuid,
     pub channel: String,
@@ -20,7 +20,7 @@ pub struct Notification {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NotificationTemplate {
     pub id: Uuid,
     pub name: String,
@@ -32,7 +32,7 @@ pub struct NotificationTemplate {
     pub is_active: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NotificationChannel {
     pub id: Uuid,
     pub channel: String,
@@ -41,7 +41,7 @@ pub struct NotificationChannel {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NotificationEvent {
     pub id: Uuid,
     pub event_type: String,
@@ -50,7 +50,7 @@ pub struct NotificationEvent {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NotificationRecipient {
     pub id: Uuid,
     pub notification_id: Uuid,
@@ -63,7 +63,7 @@ pub struct NotificationRecipient {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DeliveryLog {
     pub id: Uuid,
     pub notification_id: Uuid,
@@ -74,7 +74,7 @@ pub struct DeliveryLog {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Consent {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -83,11 +83,62 @@ pub struct Consent {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Optout {
     pub id: Uuid,
     pub recipient: String,
     pub channel: String,
     pub reason: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+impl Notification {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            channel: row.get("channel"),
+            template_id: row.get("template_id"),
+            event_id: row.get("event_id"),
+            status: row.get("status"),
+            subject: row.get("subject"),
+            body: row.get("body"),
+            payload: row.get("payload"),
+            created_at: row.get("created_at"),
+            sent_at: row.get("sent_at"),
+            delivered_at: row.get("delivered_at"),
+            read_at: row.get("read_at"),
+            error_message: row.get("error_message"),
+        }
+    }
+}
+
+impl NotificationRecipient {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            notification_id: row.get("notification_id"),
+            recipient: row.get("recipient"),
+            recipient_type: row.get("recipient_type"),
+            status: row.get("status"),
+            sent_at: row.get("sent_at"),
+            delivered_at: row.get("delivered_at"),
+            read_at: row.get("read_at"),
+            error_message: row.get("error_message"),
+        }
+    }
+}
+
+impl NotificationTemplate {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            name: row.get("name"),
+            content: row.get("content"),
+            variables: row.get("variables"),
+            version: row.get("version"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            is_active: row.get("is_active"),
+        }
+    }
 }

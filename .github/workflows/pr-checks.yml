@@ -43,7 +43,8 @@ jobs:
         id: changes
         run: |
           FILES_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.sha }} | wc -l)
-          LINES_CHANGED=$(git diff --stat ${{ github.event.pull_request.base.sha }}...${{ github.sha }} | tail -1 | awk '{print $4+$6}')
+          LINES_CHANGED=$(git diff --stat ${{ github.event.pull_request.base.sha }}...${{ github.sha }} \
+            | tail -1 | awk '{print $4+$6}')
           echo "files=$FILES_CHANGED" >> $GITHUB_OUTPUT
           echo "lines=$LINES_CHANGED" >> $GITHUB_OUTPUT
           echo "Files changed: $FILES_CHANGED"

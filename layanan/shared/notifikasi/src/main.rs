@@ -13,12 +13,14 @@ mod whatsapp;
 use crate::config::AppConfig;
 use crate::security::RateLimitState;
 use axum::{http::Method, Router};
+use deadpool_postgres::{Manager, Pool};
 use prometheus::{Encoder, Registry, TextEncoder};
-use sqlx::postgres::PgPoolOptions;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_postgres::NoTls;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
@@ -37,10 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sentry (opsional)
     let _guard: Option<()> = None;
     // DB pool
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&config.database_url)
-        .await?;
+    let pg_config = tokio_postgres::Config::from_str(&config.database_url)?;
+    let mgr = Manager::from_config(pg_config, NoTls, deadpool_postgres::ManagerConfig::default());
+    let pool = Pool::builder(mgr).max_size(10).build()?;
     // Redis
     let _redis = redis::Client::open(config.redis_url.clone())?;
     // Prometheus registry

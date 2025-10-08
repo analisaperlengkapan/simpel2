@@ -20,14 +20,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install yamllint
         run: pip install yamllint
 
       - name: Lint YAML files
         run: |
-          yamllint -d "{extends: default, rules: {line-length: {max: 120}, trailing-spaces: enable, document-start: disable, truthy: disable}}" .github/workflows/
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, \
+            trailing-spaces: enable, document-start: disable, truthy: disable}}" \
+            .github/workflows/
 
   markdown-lint:
     name: Markdown Linting
@@ -38,8 +40,8 @@ jobs:
       - name: Lint Markdown files
         uses: DavidAnson/markdownlint-cli2-action@v16
         with:
-          globs: '**/*.md'
-          config: '.markdownlint.json'
+          globs: "**/*.md"
+          config: ".markdownlint.json"
         continue-on-error: true
 
   shellcheck:
@@ -61,7 +63,7 @@ jobs:
         if: steps.check_scripts.outputs.has_scripts == 'true'
         uses: ludeeus/action-shellcheck@master
         with:
-          scandir: './scripts'
+          scandir: "./scripts"
         continue-on-error: true
 
   actionlint:

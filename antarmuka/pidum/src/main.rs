@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use pidum_microfrontend::App;
+use shared_microfrontend::App;
 
 fn main() {
     console_error_panic_hook::set_once();

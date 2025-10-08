@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -113,7 +113,8 @@ jobs:
 
       - name: Install Trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/\
+            trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
           sudo mv trunk /usr/local/bin/
 
       - name: Build all microfrontends
@@ -192,11 +193,12 @@ jobs:
       - name: Update Kubernetes manifests
         run: |
           cd infra/k8s
-          sed -i "s|image:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}|g" deployments/*.yaml
+          sed -i "s|image:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:\
+            ${{ steps.version.outputs.version }}|g" deployments/*.yaml
 
       - name: Deploy to Kubernetes
         run: |
           echo "Deployment step - configure with your K8s cluster credentials"
           # kubectl apply -f infra/k8s/
         env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}

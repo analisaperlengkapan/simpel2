@@ -11,11 +11,11 @@ use axum::{
     routing::{get, post, put},
     Router,
 };
+use deadpool_postgres::Pool;
 use serde_json::json;
-use sqlx::PgPool;
 use uuid::Uuid;
 
-pub fn routes(app_config: AppConfig, pool: PgPool, _rate_limit_state: RateLimitState) -> Router {
+pub fn routes(app_config: AppConfig, pool: Pool, _rate_limit_state: RateLimitState) -> Router {
     let _email = EmailService::new(app_config.clone(), pool.clone());
     let _whatsapp = WhatsAppService::new(app_config.clone(), pool.clone());
     let _push = PushService::new(app_config.clone(), pool.clone());

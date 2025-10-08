@@ -2,13 +2,15 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use deadpool_postgres;
 use thiserror::Error;
+use tokio_postgres::Error as PgError;
 use tracing::error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Db(#[from] sqlx::Error),
+    Db(#[from] PgError),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Not found")]
@@ -34,7 +36,13 @@ pub enum AppError {
 }
 
 impl From<redis::RedisError> for AppError {
-    fn from(err: redis::RedisError) -> Self {
+    fn from(_err: redis::RedisError) -> Self {
+        AppError::Internal
+    }
+}
+
+impl From<deadpool_postgres::PoolError> for AppError {
+    fn from(_err: deadpool_postgres::PoolError) -> Self {
         AppError::Internal
     }
 }
