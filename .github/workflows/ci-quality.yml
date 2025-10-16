@@ -15,23 +15,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Generate documentation
         run: cargo doc --no-deps --all-features --document-private-items
         env:
           RUSTDOCFLAGS: -D warnings
-      
+
       - name: Upload docs
         uses: actions/upload-artifact@v4
         with:
@@ -56,34 +56,34 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           components: llvm-tools-preview
-      
+
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Setup test environment
         run: |
           echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/simpelv2_test" >> $GITHUB_ENV
-      
+
       - name: Generate coverage
         run: cargo llvm-cov --all --lcov --output-path lcov.info
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/simpelv2_test
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -97,21 +97,21 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Run benchmarks
         run: cargo bench --all -- --output-format bencher | tee output.txt
-      
+
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -128,22 +128,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-      
+
       - name: Install cargo-outdated
         run: cargo install cargo-outdated --locked
-      
+
       - name: Check for outdated dependencies
         run: cargo outdated --workspace --exit-code 1
         continue-on-error: true
-      
+
       - name: Install cargo-udeps
         run: cargo install cargo-udeps --locked
-      
+
       - name: Check for unused dependencies
         run: cargo +nightly udeps --all-targets
         continue-on-error: true
@@ -153,15 +153,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install tokei
         run: cargo install tokei --locked
-      
+
       - name: Generate code metrics
         run: |
           tokei . --output json > metrics.json
           tokei .
-      
+
       - name: Upload metrics
         uses: actions/upload-artifact@v4
         with:
