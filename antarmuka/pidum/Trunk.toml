@@ -5,7 +5,7 @@ release = false
 debug = true
 
 [tools]
-wasm-opt = false
+wasm-opt = true
 
 [serve]
 port = 8085

@@ -1,0 +1,63 @@
+# Prometheus configuration for CAPTCHA system monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "simpelv2-production"
+    service: "captcha"
+
+rule_files:
+  - "captcha_alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - captcha-alertmanager:9093
+
+scrape_configs:
+  # CAPTCHA Service Metrics
+  - job_name: "captcha-service"
+    static_configs:
+      - targets: ["authenc:8088"]
+    metrics_path: "/metrics"
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    params:
+      module: ["captcha"]
+
+  # CAPTCHA Analytics Database
+  - job_name: "captcha-postgres"
+    static_configs:
+      - targets: ["captcha-analytics-db:5432"]
+    metrics_path: "/metrics"
+    scrape_interval: 60s
+
+  # CAPTCHA Redis Cache
+  - job_name: "captcha-redis"
+    static_configs:
+      - targets: ["captcha-redis:6379"]
+    metrics_path: "/metrics"
+    scrape_interval: 30s
+
+  # Node Exporter for system metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 30s
+
+  # Elasticsearch for log metrics
+  - job_name: "captcha-elasticsearch"
+    static_configs:
+      - targets: ["captcha-elasticsearch:9200"]
+    metrics_path: "/_prometheus/metrics"
+    scrape_interval: 60s
+
+  # Custom CAPTCHA metrics endpoint
+  - job_name: "captcha-custom-metrics"
+    static_configs:
+      - targets: ["authenc:8088"]
+    metrics_path: "/api/v1/captcha/metrics"
+    scrape_interval: 15s
+    scrape_timeout: 5s

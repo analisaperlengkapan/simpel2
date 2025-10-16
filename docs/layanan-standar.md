@@ -25,7 +25,7 @@ Menetapkan standar baku untuk perencanaan dan usulan BMN berdasarkan data histor
 - Go + Gin
 - PostgreSQL (skema: `standar`)
 - sqlc untuk query database
-- JWT middleware dari `layanan-keamanan`
+- JWT middleware dari `authenc`
 - AI modular (XGBoost, rule-based suggestion)
 
 ---

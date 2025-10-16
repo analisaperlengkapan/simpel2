@@ -1,15 +1,15 @@
 use axum::{
+    Router,
     extract::State,
     response::{Html, Json},
-    routing::{get, post},
-    Router,
+    routing::get,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

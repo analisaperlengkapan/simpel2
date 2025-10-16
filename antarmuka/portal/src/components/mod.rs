@@ -1,13 +1,9 @@
-//! # Portal Components Module
-//!
-//! Komponen-komponen utama untuk Portal SIMPelv2 dengan design system modern
+//! Components module - All UI components
 
-pub mod footer;
-pub mod header;
+pub mod cards;
 pub mod layout;
+pub mod navigation;
 
-// Re-export untuk kemudahan penggunaan
-#[allow(unused_imports)]
-pub use footer::Footer;
-#[allow(unused_imports)]
-pub use header::Header;
+// Re-export commonly used components
+pub use layout::*;
+pub use navigation::*;

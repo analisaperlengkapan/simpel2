@@ -1,6 +1,13 @@
 use leptos::prelude::*;
 use leptos_meta::*;
+use leptos_router::{
+    StaticSegment,
+    components::{Route, Router, Routes},
+};
 use serde::{Deserialize, Serialize};
+use shared_microfrontend::components::auth::{
+    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
+};
 
 // Intelligence Operation Models
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -526,8 +533,52 @@ pub fn App() -> impl IntoView {
         <Meta name="description" content="Sistem Intelligence - Kejaksaan Agung RI"/>
         <Meta name="keywords" content="intelligence, kejaksaan, monitoring, surveillance, intel"/>
 
-        <div class="min-h-screen bg-gray-50">
-            <IntelligenceDashboard />
-        </div>
+        <Router>
+            <Routes fallback=|| "Page not found".into_view()>
+                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("dashboard") view=DashboardPage />
+            </Routes>
+        </Router>
+    }
+}
+
+#[component]
+fn DashboardPage() -> impl IntoView {
+    let content = move || {
+        view! {
+            <div class="min-h-screen bg-gray-50">
+                <IntelHeaderWithAuth />
+                <IntelligenceDashboard />
+            </div>
+        }
+    };
+
+    view! {
+        <ProtectedRoute children=content />
+    }
+}
+
+#[component]
+fn IntelHeaderWithAuth() -> impl IntoView {
+    view! {
+        <header class="bg-gray-900 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <a href="/dashboard" class="flex items-center space-x-3">
+                            <span class="text-2xl">"🕵️"</span>
+                            <div>
+                                <h1 class="text-xl font-bold">"Intel SIMPelv2"</h1>
+                                <p class="text-sm text-gray-400">"Intelligence System"</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <UserProfile class="text-white".to_string() />
+                        <LogoutButton class="text-white hover:bg-gray-800".to_string() />
+                    </div>
+                </div>
+            </div>
+        </header>
     }
 }

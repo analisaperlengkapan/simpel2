@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 //! # SIMPelv2 Portal Utama - Gateway to Justice Technology
 //!
 //! Portal Utama sistem SIMPelv2 yang menyediakan:
@@ -6,46 +8,36 @@
 //! - **Microfrontend Router**: Gateway ke semua aplikasi SIMPelv2
 //! - **Government Compliance**: Sesuai standar keamanan siber nasional
 //! - **Responsive Design**: Optimized untuk semua device
-//!
-//! ## Architecture
-//! Portal menggunakan Leptos 0.7.8 dengan pattern:
-//! - **Component-Based**: Reusable UI components dari shared library
-//! - **Type-Safe Routing**: Leptos Router dengan compile-time checks
-//! - **Performance First**: Code splitting dan lazy loading
-//! - **Accessibility**: WCAG 2.1 AA compliance
-//!
-//! ## Usage
-//! ```rust
-//! use portal_microfrontend::App;
-//! // leptos::mount::mount_to_body(App);
-//! ```
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 #![warn(clippy::all)]
 #![forbid(unsafe_code)]
 
 pub mod app;
 pub mod components;
+pub mod features;
+pub mod pages;
 
-// Re-exports untuk kemudahan penggunaan
-pub use app::*;
-pub use components::*;
+// Re-export the main App component
+pub use app::App;
 
-/// Prelude module untuk import yang sering digunakan
+/// Prelude for commonly used items in portal
 pub mod prelude {
-    pub use crate::app::*;
-    pub use crate::components::*;
+    // Re-export specific items to avoid ambiguity
+    pub use crate::features::auth::{AuthService, UserSession as PortalUserSession};
+    pub use crate::features::microfrontends::{
+        AppCategory, AppColor, AppStatus, MicrofrontendApp, MicrofrontendRegistry,
+    };
+    pub use crate::pages::{
+        AppsPage, CallbackPage, DashboardPage, HomePage, LoginPage, MfaBackupCodesPage,
+        MfaBackupVerificationPage, MfaSetupPage, MfaVerificationPage, NotFoundPage,
+        NotificationsPage, PembinaanPage,
+    };
     pub use leptos::prelude::*;
     pub use leptos_router::*;
-    // Import shared items selectively to avoid Footer conflict
-    pub use shared_microfrontend::constants::*;
-    pub use shared_microfrontend::prelude::{
-        shared_event_target_checked, shared_event_target_value, shared_set_timeout, shared_window,
-        AppHeader as SharedAppHeader, Breadcrumb as SharedBreadcrumb, Button as SharedButton,
-        CachedRender, Card as SharedCard, Form as SharedForm, Input as SharedInput, LazyLoad,
-        Logo as SharedLogo, Modal as SharedModal, Toast as SharedToast,
-    };
-    pub use shared_microfrontend::theme::*;
-    pub use shared_microfrontend::types::*;
-    pub use shared_microfrontend::utils::*;
+    // Re-export shared components without glob to avoid conflicts
+    pub use shared_microfrontend::components;
+    pub use shared_microfrontend::core;
+    pub use shared_microfrontend::hooks;
+    pub use shared_microfrontend::utils;
 }

@@ -46,4 +46,4 @@
 # Module-specific owners (can be updated as team grows)
 # /antarmuka/portal/ @portal-team
 # /antarmuka/pembinaan/perlengkapan/ @perlengkapan-team
-# /layanan/keamanan/ @security-team
+# /infra/authenc/ @security-team

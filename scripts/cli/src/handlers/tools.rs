@@ -139,13 +139,15 @@ async fn optimize_wasm(package: Option<String>, opt_level: Option<String>) -> Re
 
 async fn optimize_wasm_package(package: &str, opt_level: &str) -> Result<()> {
     // Set WASM-specific environment
-    std::env::set_var(
-        "CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS",
-        &format!("-C opt-level={} -C lto=thin", opt_level),
-    );
+    unsafe {
+        std::env::set_var(
+            "CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS",
+            format!("-C opt-level={} -C lto=thin", opt_level),
+        );
+    }
 
     let status = Command::new("cargo")
-        .args(&[
+        .args([
             "build",
             "--release",
             "--target=wasm32-unknown-unknown",
@@ -171,7 +173,7 @@ async fn optimize_wasm_package(package: &str, opt_level: &str) -> Result<()> {
         println!("{}", "  ⚡ Running wasm-opt optimization...".cyan());
 
         let status = Command::new("wasm-opt")
-            .args(&[
+            .args([
                 "-Os",
                 "--enable-bulk-memory",
                 &wasm_file,
@@ -181,7 +183,7 @@ async fn optimize_wasm_package(package: &str, opt_level: &str) -> Result<()> {
             .status()?;
 
         if status.success() {
-            fs::rename(&format!("{}.opt", wasm_file), &wasm_file)?;
+            fs::rename(format!("{}.opt", wasm_file), &wasm_file)?;
             println!("{}", "  ✅ WASM optimization completed".green());
         }
     }
@@ -242,7 +244,7 @@ async fn show_wasm_stats() -> Result<()> {
             let entry = entry?;
             let path = entry.path();
 
-            if path.extension().map_or(false, |ext| ext == "wasm") {
+            if path.extension().is_some_and(|ext| ext == "wasm") {
                 let metadata = fs::metadata(&path)?;
                 let size_kb = metadata.len() / 1024;
                 let file_name = path.file_name().unwrap().to_string_lossy();
@@ -284,7 +286,7 @@ async fn analyze_wasm_package(package: &str) -> Result<()> {
     if Command::new("wasm-pack").arg("--version").output().is_ok() {
         println!("{}", "Using wasm-pack for analysis...".cyan());
         let status = Command::new("wasm-pack")
-            .args(&["build", "--target", "web", "--out-dir", "pkg"])
+            .args(["build", "--target", "web", "--out-dir", "pkg"])
             .status()?;
 
         if status.success() {
@@ -326,7 +328,7 @@ async fn update_cargo_dependencies(_scope: Option<String>) -> Result<()> {
         {
             println!("{}", "📊 Checking for outdated dependencies:".cyan());
             let _ = Command::new("cargo-outdated")
-                .args(&["--root-deps-only"])
+                .args(["--root-deps-only"])
                 .status();
         }
     } else {
@@ -373,7 +375,7 @@ async fn check_outdated_dependencies() -> Result<()> {
         .is_ok()
     {
         let status = Command::new("cargo-outdated")
-            .args(&["--root-deps-only"])
+            .args(["--root-deps-only"])
             .status()?;
 
         if status.success() {
@@ -396,7 +398,7 @@ async fn show_dependency_tree(scope: Option<String>) -> Result<()> {
     cmd.arg("tree");
 
     if let Some(pkg) = scope {
-        cmd.args(&["--package", &pkg]);
+        cmd.args(["--package", &pkg]);
     }
 
     let status = cmd.status()?;
@@ -459,7 +461,7 @@ async fn update_development_tools() -> Result<()> {
         if Command::new(tool).arg("--version").output().is_ok() {
             println!("{}", format!("  ⬆️  Updating {}...", tool).cyan());
             let status = Command::new("cargo")
-                .args(&["install", tool, "--force"])
+                .args(["install", tool, "--force"])
                 .status();
 
             match status {
@@ -468,7 +470,7 @@ async fn update_development_tools() -> Result<()> {
             }
         } else {
             println!("{}", format!("  📦 Installing {}...", tool).cyan());
-            let status = Command::new("cargo").args(&["install", tool]).status();
+            let status = Command::new("cargo").args(["install", tool]).status();
 
             match status {
                 Ok(s) if s.success() => println!("{}", format!("  ✅ {} installed", tool).green()),
@@ -485,7 +487,7 @@ async fn analyze_duplicate_dependencies() -> Result<()> {
 
     // Use cargo tree to find duplicates
     let output = Command::new("cargo")
-        .args(&["tree", "--duplicates"])
+        .args(["tree", "--duplicates"])
         .output()?;
 
     if output.status.success() {
@@ -512,7 +514,7 @@ async fn build_docker_image(image: Option<String>, tag: Option<String>) -> Resul
     );
 
     let status = Command::new("docker")
-        .args(&["build", "-t", &format!("{}:{}", img_name, tag_name), "."])
+        .args(["build", "-t", &format!("{}:{}", img_name, tag_name), "."])
         .status()?;
 
     if status.success() {
@@ -534,7 +536,7 @@ async fn push_docker_image(image: Option<String>, tag: Option<String>) -> Result
     );
 
     let status = Command::new("docker")
-        .args(&["push", &format!("{}:{}", img_name, tag_name)])
+        .args(["push", &format!("{}:{}", img_name, tag_name)])
         .status()?;
 
     if status.success() {
@@ -551,7 +553,7 @@ async fn clean_docker_resources() -> Result<()> {
 
     // Clean unused images
     let status = Command::new("docker")
-        .args(&["image", "prune", "-f"])
+        .args(["image", "prune", "-f"])
         .status()?;
 
     if status.success() {
@@ -560,7 +562,7 @@ async fn clean_docker_resources() -> Result<()> {
 
     // Clean unused containers
     let status = Command::new("docker")
-        .args(&["container", "prune", "-f"])
+        .args(["container", "prune", "-f"])
         .status()?;
 
     if status.success() {
@@ -580,12 +582,12 @@ async fn scan_docker_image(image: Option<String>) -> Result<()> {
 
     // Use docker scout if available
     if Command::new("docker")
-        .args(&["scout", "version"])
+        .args(["scout", "version"])
         .output()
         .is_ok()
     {
         let status = Command::new("docker")
-            .args(&["scout", "cves", &img_name])
+            .args(["scout", "cves", &img_name])
             .status()?;
 
         if status.success() {
@@ -662,7 +664,7 @@ async fn show_git_stats() -> Result<()> {
 
     // Show commit count
     let output = Command::new("git")
-        .args(&["rev-list", "--count", "HEAD"])
+        .args(["rev-list", "--count", "HEAD"])
         .output()?;
 
     if output.status.success() {
@@ -672,7 +674,7 @@ async fn show_git_stats() -> Result<()> {
     }
 
     // Show contributors
-    let output = Command::new("git").args(&["shortlog", "-sn"]).output()?;
+    let output = Command::new("git").args(["shortlog", "-sn"]).output()?;
 
     if output.status.success() {
         let contributors = String::from_utf8_lossy(&output.stdout);
@@ -688,7 +690,7 @@ async fn check_git_health() -> Result<()> {
 
     // Check if repo is clean
     let output = Command::new("git")
-        .args(&["status", "--porcelain"])
+        .args(["status", "--porcelain"])
         .output()?;
 
     if output.status.success() {
@@ -704,7 +706,7 @@ async fn check_git_health() -> Result<()> {
     }
 
     // Check for stashes
-    let output = Command::new("git").args(&["stash", "list"]).output()?;
+    let output = Command::new("git").args(["stash", "list"]).output()?;
 
     if output.status.success() {
         let stashes = String::from_utf8_lossy(&output.stdout);
@@ -946,7 +948,7 @@ async fn run_rust_benchmarks() -> Result<()> {
     println!("{}", "🦀 Running Rust benchmarks...".cyan());
 
     let output = Command::new("cargo")
-        .args(&["bench", "--workspace"])
+        .args(["bench", "--workspace"])
         .output()?;
 
     if output.status.success() {
@@ -988,7 +990,7 @@ async fn run_wrk_tests() -> Result<()> {
         println!("🎯 Testing endpoint: {}", endpoint);
 
         let output = Command::new("wrk")
-            .args(&["-t4", "-c100", "-d30s", "--latency", endpoint])
+            .args(["-t4", "-c100", "-d30s", "--latency", endpoint])
             .output()?;
 
         if output.status.success() {
@@ -1023,7 +1025,7 @@ async fn run_hey_tests() -> Result<()> {
         println!("🎯 Testing endpoint: {}", endpoint);
 
         let output = Command::new("hey")
-            .args(&["-n", "1000", "-c", "50", "-t", "30", endpoint])
+            .args(["-n", "1000", "-c", "50", "-t", "30", endpoint])
             .output()?;
 
         if output.status.success() {
@@ -1134,7 +1136,7 @@ async fn initialize_git() -> Result<()> {
     println!("{}", "🔧 Initializing git repository...".cyan());
 
     if !Path::new(".git").exists() {
-        Command::new("git").args(&["init"]).status()?;
+        Command::new("git").args(["init"]).status()?;
         println!("  ✅ Git repository initialized");
     }
 
@@ -1267,34 +1269,33 @@ async fn count_lines_of_code() -> Result<()> {
     // Simple directory walking - just check current directory
     if let Ok(entries) = fs::read_dir(".") {
         for entry in entries.flatten() {
-            if let Ok(path) = entry.path().canonicalize() {
-                if path.is_file() {
-                    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                        match ext {
-                            "rs" => {
-                                if let Ok(content) = fs::read_to_string(&path) {
-                                    let lines = content.lines().count();
-                                    rust_lines += lines;
-                                    total_lines += lines;
-                                }
-                            }
-                            "toml" => {
-                                if let Ok(content) = fs::read_to_string(&path) {
-                                    let lines = content.lines().count();
-                                    toml_lines += lines;
-                                    total_lines += lines;
-                                }
-                            }
-                            "yml" | "yaml" => {
-                                if let Ok(content) = fs::read_to_string(&path) {
-                                    let lines = content.lines().count();
-                                    yaml_lines += lines;
-                                    total_lines += lines;
-                                }
-                            }
-                            _ => {}
+            if let Ok(path) = entry.path().canonicalize()
+                && path.is_file()
+                && let Some(ext) = path.extension().and_then(|s| s.to_str())
+            {
+                match ext {
+                    "rs" => {
+                        if let Ok(content) = fs::read_to_string(&path) {
+                            let lines = content.lines().count();
+                            rust_lines += lines;
+                            total_lines += lines;
                         }
                     }
+                    "toml" => {
+                        if let Ok(content) = fs::read_to_string(&path) {
+                            let lines = content.lines().count();
+                            toml_lines += lines;
+                            total_lines += lines;
+                        }
+                    }
+                    "yml" | "yaml" => {
+                        if let Ok(content) = fs::read_to_string(&path) {
+                            let lines = content.lines().count();
+                            yaml_lines += lines;
+                            total_lines += lines;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -1320,7 +1321,7 @@ async fn analyze_dependencies() -> Result<()> {
 
     // Run cargo tree to analyze dependencies
     let output = Command::new("cargo")
-        .args(&["tree", "--workspace"])
+        .args(["tree", "--workspace"])
         .output()?;
 
     if output.status.success() {
@@ -1337,7 +1338,7 @@ async fn analyze_dependencies() -> Result<()> {
         .is_ok()
     {
         let output = Command::new("cargo")
-            .args(&["outdated", "--workspace"])
+            .args(["outdated", "--workspace"])
             .output()?;
 
         if output.status.success() {
@@ -1411,7 +1412,7 @@ async fn generate_stats_report() -> Result<()> {
                 report.push_str(&format!("- {}: {}\n", key_formatted, value));
             }
         }
-        report.push_str("\n");
+        report.push('\n');
     }
 
     // Add dependency information
@@ -1446,12 +1447,11 @@ pub async fn handle_yaml_validation() -> Result<()> {
     if let Ok(entries) = fs::read_dir(".") {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "yml" || ext == "yaml" {
-                        yaml_files.push(path);
-                    }
-                }
+            if path.is_file()
+                && let Some(ext) = path.extension()
+                && (ext == "yml" || ext == "yaml")
+            {
+                yaml_files.push(path);
             }
         }
     }

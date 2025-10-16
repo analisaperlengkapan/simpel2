@@ -137,7 +137,7 @@ async fn handle_db_status() -> Result<()> {
             "{}",
             format!(
                 "✅ Database URL configured: {}",
-                database_url.split('@').last().unwrap_or("unknown")
+                database_url.split('@').next_back().unwrap_or("unknown")
             )
         );
     } else {
@@ -230,12 +230,12 @@ fn backup_service_files(src_path: &str) -> Result<()> {
     for entry in fs::read_dir(src_path)? {
         let entry = entry?;
         let file_name = entry.file_name();
-        if let Some(name) = file_name.to_str() {
-            if name.ends_with(".rs") {
-                let src_file = entry.path();
-                let dst_file = Path::new(&backup_dir).join(&file_name);
-                fs::copy(&src_file, &dst_file)?;
-            }
+        if let Some(name) = file_name.to_str()
+            && name.ends_with(".rs")
+        {
+            let src_file = entry.path();
+            let dst_file = Path::new(&backup_dir).join(&file_name);
+            fs::copy(&src_file, &dst_file)?;
         }
     }
 

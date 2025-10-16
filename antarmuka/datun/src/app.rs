@@ -9,14 +9,20 @@
 
 use leptos::prelude::*;
 use leptos_meta::*;
+use leptos_router::{
+    StaticSegment,
+    components::{Route, Router, Routes},
+};
 use serde::{Deserialize, Serialize};
 
 // Import shared components - Modern Leptos 0.7.8
+use shared_microfrontend::components::auth::{
+    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
+};
 use shared_microfrontend::prelude::*;
 
 // Import local components
 use crate::components::DatunFooter;
-use crate::components::DatunHeader;
 
 /// Model data untuk perkara tindak pidana umum
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -192,9 +198,6 @@ impl PriorityLevel {
 /// Komponen utama aplikasi Datun SIMPelv2
 #[component]
 pub fn App() -> impl IntoView {
-    // Data perkara yang tersedia
-    let criminal_cases = create_case_data();
-
     view! {
         <Html attr:lang="id"/>
         <Title text="Datun SIMPelv2 - Direktorat Tindak Pidana Umum Kejaksaan RI"/>
@@ -204,15 +207,62 @@ pub fn App() -> impl IntoView {
         <Meta property="og:title" content="Datun SIMPelv2"/>
         <Meta property="og:description" content="Criminal Prosecution Excellence - Kejaksaan Agung RI"/>
 
-        <div class="min-h-screen bg-kejaksaan-bg">
-            <DatunHeader />
+        <Router>
+            <Routes fallback=|| "Page not found".into_view()>
+                <Route path=StaticSegment("") view=LoginRedirectPage />
+                <Route path=StaticSegment("dashboard") view=DashboardPage />
+            </Routes>
+        </Router>
+    }
+}
 
-            <main class="container mx-auto px-4 py-8">
-                <DatunDashboard cases=criminal_cases/>
-            </main>
+/// Dashboard page with authentication
+#[component]
+fn DashboardPage() -> impl IntoView {
+    let criminal_cases = create_case_data();
 
-            <DatunFooter />
-        </div>
+    let content = move || {
+        view! {
+            <div class="min-h-screen bg-kejaksaan-bg">
+                <DatunHeaderWithAuth />
+                <main class="container mx-auto px-4 py-8">
+                    <DatunDashboard cases=criminal_cases.clone()/>
+                </main>
+                <DatunFooter />
+            </div>
+        }
+    };
+
+    view! {
+        <ProtectedRoute children=content />
+    }
+}
+
+/// Header with auth controls
+#[component]
+fn DatunHeaderWithAuth() -> impl IntoView {
+    view! {
+        <header class="bg-kejaksaan-primary text-white shadow-lg">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <a href="/dashboard" class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">"⚖️"</span>
+                            </div>
+                            <div>
+                                <h1 class="text-xl font-bold">"Datun SIMPelv2"</h1>
+                                <p class="text-sm text-kejaksaan-primary-light">"Tindak Pidana Umum"</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <UserProfile class="text-white".to_string() />
+                        <LogoutButton class="text-white hover:bg-kejaksaan-primary-dark".to_string() />
+                    </div>
+                </div>
+            </div>
+        </header>
     }
 }
 

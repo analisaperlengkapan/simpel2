@@ -339,7 +339,7 @@ fn count_files_with_extension(path: &str, ext: &str) -> Result<usize> {
 
             if path.is_dir() {
                 count += count_recursive(&path, ext)?;
-            } else if path.extension().map_or(false, |e| e == ext) {
+            } else if path.extension().is_some_and(|e| e == ext) {
                 count += 1;
             }
         }
@@ -351,10 +351,10 @@ fn count_files_with_extension(path: &str, ext: &str) -> Result<usize> {
 
 async fn count_lines_of_code() -> Result<u32> {
     let output = Command::new("find")
-        .args(&[
+        .args([
             ".", "-name", "*.rs", "-o", "-name", "*.py", "-o", "-name", "*.sh",
         ])
-        .args(&["-exec", "wc", "-l", "{}", "+"])
+        .args(["-exec", "wc", "-l", "{}", "+"])
         .output()?;
 
     if output.status.success() {
@@ -430,7 +430,7 @@ async fn show_cargo_workspace_info() -> Result<()> {
     println!("{}", "\n🦀 Cargo Workspace Information:".bright_cyan());
 
     let output = Command::new("cargo")
-        .args(&["tree", "--workspace"])
+        .args(["tree", "--workspace"])
         .output()?;
 
     if output.status.success() {
@@ -450,28 +450,28 @@ async fn show_git_statistics() -> Result<()> {
 
     // Commit count
     let output = Command::new("git")
-        .args(&["rev-list", "--count", "HEAD"])
+        .args(["rev-list", "--count", "HEAD"])
         .output();
 
-    if let Ok(output) = output {
-        if output.status.success() {
-            let output_str = String::from_utf8_lossy(&output.stdout);
-            let count = output_str.trim();
-            println!("Total commits: {}", count);
-        }
+    if let Ok(output) = output
+        && output.status.success()
+    {
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let count = output_str.trim();
+        println!("Total commits: {}", count);
     }
 
     // Contributors
     let output = Command::new("git")
-        .args(&["shortlog", "-sn", "--all"])
+        .args(["shortlog", "-sn", "--all"])
         .output();
 
-    if let Ok(output) = output {
-        if output.status.success() {
-            let contributors = String::from_utf8_lossy(&output.stdout);
-            let contributor_count = contributors.lines().count();
-            println!("Contributors: {}", contributor_count);
-        }
+    if let Ok(output) = output
+        && output.status.success()
+    {
+        let contributors = String::from_utf8_lossy(&output.stdout);
+        let contributor_count = contributors.lines().count();
+        println!("Contributors: {}", contributor_count);
     }
 
     Ok(())
@@ -482,7 +482,7 @@ async fn show_build_statistics() -> Result<()> {
 
     // Check target directory size
     if Path::new("target").exists() {
-        let output = Command::new("du").args(&["-sh", "target"]).output()?;
+        let output = Command::new("du").args(["-sh", "target"]).output()?;
 
         if output.status.success() {
             let size = String::from_utf8_lossy(&output.stdout);
@@ -504,14 +504,14 @@ async fn show_dependency_stats(_format: &str) -> Result<()> {
     {
         println!("{}", "\nOutdated dependencies:".yellow());
         let _ = Command::new("cargo-outdated")
-            .args(&["--root-deps-only"])
+            .args(["--root-deps-only"])
             .status();
     }
 
     // Show duplicate dependencies
     println!("{}", "\nChecking for duplicates:".yellow());
     let output = Command::new("cargo")
-        .args(&["tree", "--duplicates"])
+        .args(["tree", "--duplicates"])
         .output()?;
 
     if output.status.success() {
@@ -548,7 +548,7 @@ async fn show_performance_stats(_format: &str) -> Result<()> {
     if Path::new("target/release").exists() {
         println!("{}", "\nRelease binary sizes:".yellow());
         let output = Command::new("find")
-            .args(&[
+            .args([
                 "target/release",
                 "-maxdepth",
                 "1",
@@ -556,7 +556,7 @@ async fn show_performance_stats(_format: &str) -> Result<()> {
                 "f",
                 "-executable",
             ])
-            .args(&["-exec", "ls", "-lh", "{}", ";"])
+            .args(["-exec", "ls", "-lh", "{}", ";"])
             .output()?;
 
         if output.status.success() {
@@ -627,7 +627,7 @@ async fn check_dependency_health(fix: bool) -> Result<()> {
     {
         println!("{}", "  📊 Checking for outdated dependencies...".cyan());
         let output = Command::new("cargo-outdated")
-            .args(&["--root-deps-only"])
+            .args(["--root-deps-only"])
             .output()?;
 
         if output.status.success() {
@@ -648,7 +648,7 @@ async fn check_services_health(_fix: bool) -> Result<()> {
     // Check if all services compile
     println!("{}", "  🔨 Checking compilation...".cyan());
     let status = Command::new("cargo")
-        .args(&["check", "--workspace"])
+        .args(["check", "--workspace"])
         .status()?;
 
     if status.success() {
@@ -660,7 +660,7 @@ async fn check_services_health(_fix: bool) -> Result<()> {
     // Check for clippy warnings
     println!("{}", "  🔍 Running clippy analysis...".cyan());
     let status = Command::new("cargo")
-        .args(&["clippy", "--workspace", "--", "-D", "warnings"])
+        .args(["clippy", "--workspace", "--", "-D", "warnings"])
         .status()?;
 
     if status.success() {
@@ -686,7 +686,7 @@ async fn check_infrastructure_health(_fix: bool) -> Result<()> {
 
             // Validate compose file
             let status = Command::new("docker")
-                .args(&["compose", "-f", compose_file, "config"])
+                .args(["compose", "-f", compose_file, "config"])
                 .status()?;
 
             if status.success() {
@@ -752,7 +752,7 @@ async fn validate_cargo_configuration(strict: bool) -> Result<()> {
 
     // Check if cargo check passes
     let status = Command::new("cargo")
-        .args(&["check", "--workspace"])
+        .args(["check", "--workspace"])
         .output()?;
 
     if status.status.success() {
@@ -862,7 +862,7 @@ async fn update_cargo_dependencies(check: bool) -> Result<()> {
             .is_ok()
         {
             let _ = Command::new("cargo-outdated")
-                .args(&["--root-deps-only"])
+                .args(["--root-deps-only"])
                 .status();
         }
     } else {
@@ -885,10 +885,10 @@ async fn update_npm_dependencies(check: bool) -> Result<()> {
     if Path::new("package.json").exists() {
         if check {
             // Check for outdated packages
-            let _ = Command::new("npm").args(&["outdated"]).status();
+            let _ = Command::new("npm").args(["outdated"]).status();
         } else {
             // Update packages
-            let status = Command::new("npm").args(&["update"]).status()?;
+            let status = Command::new("npm").args(["update"]).status()?;
 
             if status.success() {
                 println!("{}", "  ✅ NPM dependencies updated".green());
@@ -906,10 +906,10 @@ async fn update_docker_images(check: bool) -> Result<()> {
 
     if check {
         // Just list current images
-        let _ = Command::new("docker").args(&["images"]).status();
+        let _ = Command::new("docker").args(["images"]).status();
     } else {
         // Pull latest images
-        let _ = Command::new("docker").args(&["compose", "pull"]).status();
+        let _ = Command::new("docker").args(["compose", "pull"]).status();
     }
 
     Ok(())
@@ -936,7 +936,7 @@ async fn handle_project_archive(component: String, location: Option<String>) -> 
     let archive_path = format!("{}/{}", archive_location, archive_name);
 
     let status = Command::new("tar")
-        .args(&["-czf", &archive_path, &component])
+        .args(["-czf", &archive_path, &component])
         .status()?;
 
     if status.success() {
@@ -959,19 +959,19 @@ async fn initialize_git(path: &str) -> Result<()> {
     println!("{}", "📚 Initializing Git repository...".cyan());
 
     let status = Command::new("git")
-        .args(&["init"])
+        .args(["init"])
         .current_dir(path)
         .status()?;
 
     if status.success() {
         // Create initial commit
         let _ = Command::new("git")
-            .args(&["add", "."])
+            .args(["add", "."])
             .current_dir(path)
             .status();
 
         let _ = Command::new("git")
-            .args(&["commit", "-m", "Initial commit"])
+            .args(["commit", "-m", "Initial commit"])
             .current_dir(path)
             .status();
 
@@ -1481,8 +1481,7 @@ button:focus {
 }
 
 fn create_frontend_dockerfile(_name: &str) -> String {
-    format!(
-        r#"# Multi-stage build for WASM frontend
+    r#"# Multi-stage build for WASM frontend
 FROM rust:1.70 AS builder
 
 # Install trunk and wasm target
@@ -1520,7 +1519,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 CMD ["nginx", "-g", "daemon off;"]
 "#
-    )
+    .to_string()
 }
 
 fn create_workspace_cargo_toml(name: &str) -> String {

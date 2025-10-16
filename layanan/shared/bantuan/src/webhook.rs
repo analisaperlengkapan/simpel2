@@ -1,10 +1,10 @@
-use crate::models::WebhookEvent;
 use crate::error::AppError;
-use deadpool_postgres::Pool;
+use crate::models::WebhookEvent;
 use chrono::Utc;
-use uuid::Uuid;
+use deadpool_postgres::Pool;
 use reqwest::Client;
 use serde_json::Value;
+use uuid::Uuid;
 
 pub struct WebhookService {
     pub pool: Pool,
@@ -13,10 +13,17 @@ pub struct WebhookService {
 
 impl WebhookService {
     pub fn new(pool: Pool) -> Self {
-        Self { pool, client: Client::new() }
+        Self {
+            pool,
+            client: Client::new(),
+        }
     }
 
-    pub async fn create_event(&self, event_type: &str, payload: &Value) -> Result<WebhookEvent, AppError> {
+    pub async fn create_event(
+        &self,
+        event_type: &str,
+        payload: &Value,
+    ) -> Result<WebhookEvent, AppError> {
         let client = self.pool.get().await?;
         let row = client.query_one(
             r#"INSERT INTO bantuan.webhook_events (id, event_type, payload, delivered, created_at)
@@ -27,15 +34,18 @@ impl WebhookService {
     }
     pub async fn deliver_event(&self, event_id: Uuid, url: &str) -> Result<(), AppError> {
         let client = self.pool.get().await?;
-        let row = client.query_one(
-            r#"SELECT * FROM bantuan.webhook_events WHERE id = $1"#,
-            &[&event_id]
-        ).await?;
+        let row = client
+            .query_one(
+                r#"SELECT * FROM bantuan.webhook_events WHERE id = $1"#,
+                &[&event_id],
+            )
+            .await?;
         let event = WebhookEvent::from(&row);
-        let resp = self.client.post(url)
-            .json(&event.payload)
-            .send().await;
-        let delivered = resp.as_ref().map(|r| r.status().is_success()).unwrap_or(false);
+        let resp = self.client.post(url).json(&event.payload).send().await;
+        let delivered = resp
+            .as_ref()
+            .map(|r| r.status().is_success())
+            .unwrap_or(false);
         let now = Utc::now();
         client.execute(
             r#"UPDATE bantuan.webhook_events SET delivered = $1, delivered_at = $2 WHERE id = $3"#,
@@ -43,7 +53,12 @@ impl WebhookService {
         ).await?;
         Ok(())
     }
-    pub async fn list_events(&self, event_type: Option<&str>, delivered: Option<bool>, limit: i64) -> Result<Vec<WebhookEvent>, AppError> {
+    pub async fn list_events(
+        &self,
+        event_type: Option<&str>,
+        delivered: Option<bool>,
+        limit: i64,
+    ) -> Result<Vec<WebhookEvent>, AppError> {
         let client = self.pool.get().await?;
         let rows = if let Some(et) = event_type {
             client.query(
@@ -56,7 +71,10 @@ impl WebhookService {
                 &[&delivered, &limit]
             ).await?
         };
-        let events = rows.into_iter().map(|row| WebhookEvent::from(&row)).collect();
+        let events = rows
+            .into_iter()
+            .map(|row| WebhookEvent::from(&row))
+            .collect();
         Ok(events)
     }
     pub async fn retry_event(&self, event_id: Uuid, url: &str) -> Result<(), AppError> {

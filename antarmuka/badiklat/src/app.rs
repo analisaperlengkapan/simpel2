@@ -9,14 +9,20 @@
 
 use leptos::prelude::*;
 use leptos_meta::*;
+use leptos_router::{
+    StaticSegment,
+    components::{Route, Router, Routes},
+};
 use serde::{Deserialize, Serialize};
 
 // Import shared components - Modern Leptos 0.7.8
+use shared_microfrontend::components::auth::{
+    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
+};
 use shared_microfrontend::prelude::*;
 
 // Import local components
 use crate::components::BadiklatFooter;
-use crate::components::BadiklatHeader;
 
 /// Model data untuk program pelatihan
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -169,9 +175,6 @@ impl TrainingLevel {
 /// Komponen utama aplikasi Badiklat SIMPelv2
 #[component]
 pub fn App() -> impl IntoView {
-    // Data program pelatihan yang tersedia
-    let training_programs = create_training_data();
-
     view! {
         <Html attr:lang="id"/>
         <Title text="Badiklat SIMPelv2 - Pendidikan dan Pelatihan Kejaksaan RI"/>
@@ -181,14 +184,141 @@ pub fn App() -> impl IntoView {
         <Meta property="og:title" content="Badiklat SIMPelv2"/>
         <Meta property="og:description" content="Training & Education Excellence - Kejaksaan Agung RI"/>
 
-        <div class="min-h-screen bg-kejaksaan-bg">
-            <BadiklatHeader />
+        <Router>
+            <Routes fallback=|| "Page not found".into_view()>
+                // Public route - Login redirect page
+                <Route path=StaticSegment("") view=LoginRedirectPage />
 
-            <main class="container mx-auto px-4 py-8">
-                <BadiklatDashboard programs=training_programs/>
-            </main>
+                // Protected routes - require authentication
+                <Route path=StaticSegment("dashboard") view=DashboardPage />
+            </Routes>
+        </Router>
+    }
+}
 
-            <BadiklatFooter />
+/// Dashboard page with authentication protection
+#[component]
+fn DashboardPage() -> impl IntoView {
+    let training_programs = create_training_data();
+
+    let content = move || {
+        view! {
+            <div class="min-h-screen bg-kejaksaan-bg">
+                <BadiklatHeaderWithAuth />
+
+                <main class="container mx-auto px-4 py-8">
+                    <BadiklatDashboard programs=training_programs.clone()/>
+                </main>
+
+                <BadiklatFooter />
+            </div>
+        }
+    };
+
+    view! {
+        <ProtectedRoute children=content />
+    }
+}
+
+/// Header with authentication controls
+#[component]
+fn BadiklatHeaderWithAuth() -> impl IntoView {
+    let auth = use_auth();
+
+    view! {
+        <header class="bg-kejaksaan-primary text-white shadow-lg">
+            <div class="container mx-auto px-4">
+                <div class="flex items-center justify-between py-4">
+                    // Logo dan Brand
+                    <div class="flex items-center space-x-4">
+                        <a href="/dashboard" class="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">"🎓"</span>
+                            </div>
+                            <div>
+                                <h1 class="text-xl font-bold">"Badiklat SIMPelv2"</h1>
+                                <p class="text-sm text-kejaksaan-primary-light">"Pendidikan & Pelatihan"</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    // Navigation Menu
+                    <nav class=":flex space-x-1">
+                        <NavigationLink href="/dashboard" text="Dashboard" icon="🏠" />
+                        <NavigationLink href="/programs" text="Program" icon="📚" />
+                        <NavigationLink href="/schedule" text="Jadwal" icon="📅" />
+                        <NavigationLink href="/participants" text="Peserta" icon="👥" />
+                        <NavigationLink href="/instructors" text="Instruktur" icon="👨‍🏫" />
+                        <NavigationLink href="/certificates" text="Sertifikat" icon="🏆" />
+                        <NavigationLink href="/reports" text="Laporan" icon="📊" />
+                    </nav>
+
+                    // User Profile and Logout
+                    <div class="flex items-center space-x-4">
+                        <UserProfile class="text-white".to_string() />
+                        <LogoutButton class="text-white hover:bg-kejaksaan-primary-dark".to_string() />
+                    </div>
+
+                    // Mobile Menu Button
+                    <button class="md:hidden p-2 hover:bg-kejaksaan-primary-dark rounded-lg transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                // Training Status Bar
+                <div class="border-t border-kejaksaan-primary-light py-2">
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center space-x-6">
+                            <StatusItem icon="📈" label="Program Aktif" value="5" />
+                            <StatusItem icon="👥" label="Peserta" value="148" />
+                            <StatusItem icon="🎯" label="Completion Rate" value="95%" />
+                        </div>
+                        <div class="text-kejaksaan-primary-light">
+                            "Last Updated: " <span class="text-white">"09:30 WIB"</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+    }
+}
+
+/// Component untuk navigation link
+#[component]
+fn NavigationLink(
+    /// URL tujuan
+    href: &'static str,
+    /// Teks link
+    text: &'static str,
+    /// Icon emoji
+    icon: &'static str,
+) -> impl IntoView {
+    view! {
+        <a href=href
+           class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-kejaksaan-primary-dark transition-colors duration-200">
+            <span>{icon}</span>
+            <span class="text-sm font-medium">{text}</span>
+        </a>
+    }
+}
+
+/// Component untuk status item di bar
+#[component]
+fn StatusItem(
+    /// Icon emoji
+    icon: &'static str,
+    /// Label item
+    label: &'static str,
+    /// Nilai yang ditampilkan
+    value: &'static str,
+) -> impl IntoView {
+    view! {
+        <div class="flex items-center space-x-2">
+            <span>{icon}</span>
+            <span class="text-kejaksaan-primary-light">{label}":"</span>
+            <span class="text-white font-medium">{value}</span>
         </div>
     }
 }
@@ -419,7 +549,7 @@ pub fn BadiklatDashboard(
                                                 } else {
                                                     view! {
                                                         <Button
-                                                            variant=ButtonVariant::Outline
+                                                            variant=ButtonVariant::Ghost
                                                             class="flex-1">
                                                             "Info"
                                                         </Button>

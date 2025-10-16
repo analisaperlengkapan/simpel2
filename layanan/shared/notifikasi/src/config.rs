@@ -33,10 +33,14 @@ impl AppConfig {
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL wajib di-set"),
             redis_url: env::var("REDIS_URL").expect("REDIS_URL wajib di-set"),
             smtp_host: env::var("SMTP_HOST").expect("SMTP_HOST wajib di-set"),
-            smtp_port: env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string()).parse().unwrap_or(587),
+            smtp_port: env::var("SMTP_PORT")
+                .unwrap_or_else(|_| "587".to_string())
+                .parse()
+                .unwrap_or(587),
             smtp_username: env::var("SMTP_USERNAME").expect("SMTP_USERNAME wajib di-set"),
             smtp_password: env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD wajib di-set"),
-            smtp_from: env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@simpelv2.go.id".to_string()),
+            smtp_from: env::var("SMTP_FROM")
+                .unwrap_or_else(|_| "noreply@simpelv2.go.id".to_string()),
             whatsapp_api_url: env::var("WHATSAPP_API_URL").ok(),
             whatsapp_access_token: env::var("WHATSAPP_ACCESS_TOKEN").ok(),
             whatsapp_phone_number_id: env::var("WHATSAPP_PHONE_NUMBER_ID").ok(),
@@ -44,13 +48,29 @@ impl AppConfig {
             apns_key_id: env::var("APNS_KEY_ID").ok(),
             apns_team_id: env::var("APNS_TEAM_ID").ok(),
             apns_private_key: env::var("APNS_PRIVATE_KEY").ok(),
-            server_port: env::var("SERVER_PORT").unwrap_or_else(|_| "3004".to_string()).parse().unwrap_or(3004),
+            server_port: env::var("SERVER_PORT")
+                .unwrap_or_else(|_| "3004".to_string())
+                .parse()
+                .unwrap_or(3004),
             server_host: env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             api_key: env::var("API_KEY").expect("API_KEY wajib di-set"),
-            cors_origins: env::var("CORS_ORIGINS").unwrap_or_else(|_| "*".to_string()).split(',').map(|s| s.trim().to_string()).collect(),
-            rate_limit_emails: env::var("RATE_LIMIT_EMAILS").unwrap_or_else(|_| "1000".to_string()).parse().unwrap_or(1000),
-            rate_limit_whatsapp: env::var("RATE_LIMIT_WHATSAPP").unwrap_or_else(|_| "100".to_string()).parse().unwrap_or(100),
-            rate_limit_push: env::var("RATE_LIMIT_PUSH").unwrap_or_else(|_| "5000".to_string()).parse().unwrap_or(5000),
+            cors_origins: env::var("CORS_ORIGINS")
+                .unwrap_or_else(|_| "*".to_string())
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect(),
+            rate_limit_emails: env::var("RATE_LIMIT_EMAILS")
+                .unwrap_or_else(|_| "1000".to_string())
+                .parse()
+                .unwrap_or(1000),
+            rate_limit_whatsapp: env::var("RATE_LIMIT_WHATSAPP")
+                .unwrap_or_else(|_| "100".to_string())
+                .parse()
+                .unwrap_or(100),
+            rate_limit_push: env::var("RATE_LIMIT_PUSH")
+                .unwrap_or_else(|_| "5000".to_string())
+                .parse()
+                .unwrap_or(5000),
         }
     }
-} 
+}

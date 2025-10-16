@@ -1,7 +1,7 @@
 [package]
 name = "simpelv2-laporan"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "SIMPelv2 - Layanan Pelaporan & Export"
 license = "MIT"
@@ -49,13 +49,13 @@ reqwest = { workspace = true }
 
 # Report generation
 # printpdf = "0.6"  # PDF generation - Disabled due to fontconfig dependency
-calamine = "0.22"  # Excel reading
-rust_xlsxwriter = "0.60"  # Excel writing
+calamine = { workspace = true }  # Excel reading
+rust_xlsxwriter = { workspace = true }  # Excel writing
 csv = "1.3"  # CSV handling
 
 # Template engine untuk report formatting
-tera = "1.19"
-handlebars = "5.1"
+tera = { workspace = true }
+handlebars = { workspace = true }
 
 # Data visualization - Disabled due to fontconfig dependency
 # plotters = "0.3"
@@ -63,8 +63,8 @@ handlebars = "5.1"
 [dev-dependencies]
 tokio-test = { workspace = true }
 reqwest = { workspace = true }
-serial_test = "3"
-tempfile = "3"
+serial_test = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = ["pdf", "excel", "csv", "charts"]

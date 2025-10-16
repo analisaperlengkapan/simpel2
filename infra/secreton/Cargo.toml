@@ -1,0 +1,359 @@
+# Note: This file is now part of the main workspace at /srv/proyek/simpelv2_web/Cargo.toml
+# All dependencies should be inherited from the root workspace
+
+[workspace]
+# Independent workspace for secreton vault system
+members = [
+    "crates/core",
+    "crates/crypto",
+    "crates/storage",
+    "crates/api",
+    "crates/agent",
+    "crates/cli",
+    "crates/ui",
+    "crates/core/audit_log",
+    "crates/core/granular_revocation",
+    "crates/core/secret_versioning",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+authors = ["Cipherce Security Team <security@cipherce.io>"]
+license = "Apache-2.0"
+rust-version = "1.90"
+
+[workspace.dependencies]
+# Core async runtime
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1.89"
+futures = "0.3.31"
+futures-util = "0.3.31"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "2.0.1"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
+
+# Utilities
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+
+# Cryptography - Ed25519 focused
+sha2 = "0.10.9"
+blake3 = "1.5"
+hmac = "0.12"
+argon2 = "0.5"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core", "serde"] }
+x25519-dalek = { version = "2.0", features = ["serde", "static_secrets"] }
+curve25519-dalek = "4.1"
+p256 = "0.13"
+p384 = "0.13"
+k256 = "0.13"
+aes-gcm = "0.10.3"
+chacha20poly1305 = "0.10.1"
+ring = "0.17.14"
+subtle = "2.6"
+rand = "0.8.5"                                                             # Using 0.8.5 for crypto ecosystem compatibility
+rand_core = { version = "0.6", features = ["getrandom"] }
+getrandom = "0.3.3"
+
+# Encoding
+base32 = "0.5"
+base64 = "0.22"
+hex = "0.4"
+
+# HTTP and networking
+axum = { version = "0.8.6", features = [
+    "macros",
+    "multipart",
+    "json",
+    "tracing",
+] }
+hyper = { version = "1.7.0", features = ["full"] }
+reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
+tower = { version = "0.5.2", features = ["full"] }
+tower-http = { version = "0.6.6", features = [
+    "fs",
+    "trace",
+    "cors",
+    "compression-gzip",
+] }
+
+# Database - PostgreSQL native
+tokio-postgres = { version = "0.7.14", features = [
+    "with-uuid-1",
+    "with-chrono-0_4",
+    "with-serde_json-1",
+] }
+deadpool-postgres = "0.14.1"
+
+# TLS
+rustls = "0.23.32"
+rustls-webpki = "0.103.7"
+
+# Storage
+redis = { version = "0.32.7", features = [
+    "tokio-comp",
+    "connection-manager",
+    "aio",
+] }
+
+# Configuration
+toml = "0.9.7"
+config = "0.15.18"
+clap = { version = "4.5", features = ["derive"] }
+
+# gRPC
+tonic = { version = "0.12", features = ["tls", "tls-roots"] }
+
+# Additional crypto dependencies
+pbkdf2 = "0.12"
+hkdf = "0.12"
+scrypt = "0.11"
+sha3 = "0.10.8"
+cbc = "0.1.2"
+aes = "0.8.4"
+sha1 = "0.10"
+rand_chacha = "0.3"
+
+# Crypto traits
+digest = "0.10"
+signature = "2.2"
+elliptic-curve = "0.13"
+generic-array = "1.2.0"
+
+# API documentation
+aide = { version = "0.15.1", features = ["axum", "macros"] }
+
+# Monitoring
+prometheus = "0.14.0"
+opentelemetry = "0.31.0"
+
+# Testing
+criterion = { version = "0.7.0", features = ["html_reports"] }
+proptest = { version = "1.8.0", default-features = false, features = ["std"] }
+
+# Utilities
+regex = "1.11.3"
+parking_lot = "0.12.5"
+
+# AWS SDK
+aws-config = "1.8.7"
+aws-sdk-iam = "1.90.0"
+aws-sdk-sts = "1.87.0"
+
+# Additional dependencies
+once_cell = "1.19"
+urlencoding = "2.1"
+data-encoding = "2.5"
+qrcode = "0.14"
+bcrypt = "0.15"
+jsonwebtoken = "9.2"
+totp-rs = { version = "5.4", default-features = false }
+dashmap = "5.5"
+tempfile = "3.8"
+mysql_async = "0.34"
+mongodb = "3.3"
+secrecy = { version = "0.10.3", features = ["serde"] }
+wiremock = { version = "0.6.5", default-features = false }
+rmp-serde = "1.3.0"
+constant_time_eq = "0.4.2"
+cbor4ii = "1.1.1"
+num_cpus = "1.17.0"
+postgres-native-tls = "0.5.2"
+opentelemetry-jaeger = "0.22.0"
+tokio-test = "0.4.4"
+pretty_assertions = "1.4.1"
+
+# Inter-crate dependencies
+secreton-core = { path = "crates/core" }
+secreton-crypto = { path = "crates/crypto" }
+secreton-storage = { path = "crates/storage" }
+secreton-api = { path = "crates/api" }
+
+[package]
+name = "secreton"
+version = "1.0.0"
+edition = "2024"
+authors = ["Cipherce Security Team <security@cipherce.io>"]
+license = "Apache-2.0"
+repository = "https://github.com/cipherce/secreton-vault"
+homepage = "https://cipherce.io/secreton"
+description = "Advanced Security Vault System with Quantum-Safe Cryptography by Cipherce"
+keywords = ["security", "vault", "cryptography", "zero-trust", "quantum-safe"]
+categories = ["cryptography", "authentication", "security-tools"]
+rust-version = "1.90"
+
+[dependencies]
+# Core crate dependencies (local)
+secreton-core = { path = "crates/core" }
+secreton-crypto = { path = "crates/crypto" }
+secreton-storage = { path = "crates/storage" }
+secreton-api = { path = "crates/api" }
+audit_log = { path = "crates/core/audit_log" }
+granular_revocation = { path = "crates/core/granular_revocation" }
+secret_versioning = { path = "crates/core/secret_versioning" }
+
+# Core dependencies (from workspace)
+tokio = { version = "1.47.1", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.140"
+anyhow = "1.0.100"
+thiserror = "2.0.17"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
+uuid = { version = "1.11.1", features = ["v4", "serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
+bincode = "1.3.3"
+zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
+redis = { version = "0.32.7", features = ["tokio-comp", "connection-manager"] }
+
+# Testing dependencies
+criterion = { version = "0.7.0", features = ["html_reports"] }
+proptest = { version = "1.8.0", default-features = false, features = ["std"] }
+rmp-serde = "1.3.0"
+secrecy = { version = "0.10.3", features = ["serde"] }
+wiremock = { version = "0.6.5", default-features = false }
+
+# Async runtime (from workspace)
+async-trait = "0.1.89"
+futures = "0.3.31"
+futures-util = "0.3.31"
+
+# Cryptography (from workspace)
+ring = "0.17.14"
+rustls = "0.23.32"
+rustls-webpki = "0.103.7"
+aes-gcm = "0.10.3"
+chacha20poly1305 = "0.10.1"
+argon2 = "0.5.3"
+sha2 = "0.10.9"
+sha3 = "0.10.8"
+blake3 = "1.8.2"
+hmac = "0.12.1"
+pbkdf2 = "0.12.2"
+
+hex.workspace = true
+base32.workspace = true
+base64.workspace = true
+rand.workspace = true
+regex = "1.11.3"
+
+# RustCrypto elliptic curves - Ed25519 focus (from workspace)
+p256.workspace = true
+p384.workspace = true
+k256.workspace = true
+x25519-dalek.workspace = true
+ed25519-dalek.workspace = true
+curve25519-dalek.workspace = true
+
+# Cryptographic traits and utilities
+digest = "0.10"
+signature = "2.2"
+elliptic-curve = "0.13"
+generic-array = "1.2.0"
+subtle.workspace = true
+rand_core.workspace = true
+getrandom.workspace = true
+
+# Additional crypto (not in main workspace)
+aes = "0.8.4"
+cbc = "0.1.2"
+
+# Network and HTTP (from workspace)
+axum.workspace = true
+hyper.workspace = true
+reqwest.workspace = true
+tonic.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+prost = "0.14.1"
+
+# AWS SDK
+aws-config = "1.8.7"
+aws-sdk-iam = "1.90.0"
+aws-sdk-sts = "1.87.0"
+
+# Threading and concurrency
+parking_lot = "0.12.5"
+
+# Database - PostgreSQL only (from workspace)
+tokio-postgres.workspace = true
+deadpool-postgres.workspace = true
+postgres-native-tls = "0.5.2"      # TLS support for PostgreSQL
+
+# API Documentation
+aide = { version = "0.15.1", features = ["axum", "macros"] }
+
+# Configuration (from workspace)
+toml.workspace = true
+config.workspace = true
+clap.workspace = true
+
+# Metrics and monitoring
+# Metrics and monitoring
+prometheus = "0.14.0"           # Updated to address protobuf vulnerability
+opentelemetry = "0.31.0"
+opentelemetry-jaeger = "0.22.0"
+
+# Security utilities
+constant_time_eq = "0.4.2"
+
+# Serialization formats
+cbor4ii = "1.1.1"   # Pinned to resolve version conflict
+num_cpus = "1.17.0"
+
+# Development and testing dependencies
+tokio-test = "0.4.4"
+pretty_assertions = "1.4.1"
+num-bigint = "0.4"
+axum-test = "17.1"
+env_logger = "0.11"
+num-traits = "0.2"
+
+[[bench]]
+name = "performance"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+inherits = "release"
+debug = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+
+# Security-focused profile for maximum performance
+[profile.security]
+inherits = "release"
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+overflow-checks = true

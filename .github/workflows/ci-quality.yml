@@ -14,7 +14,7 @@ jobs:
     name: Documentation Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -22,7 +22,7 @@ jobs:
           toolchain: 1.90.0
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -58,7 +58,7 @@ jobs:
           - 5432:5432
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -70,7 +70,7 @@ jobs:
         run: cargo install cargo-llvm-cov --locked
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -104,7 +104,7 @@ jobs:
           toolchain: 1.90.0
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -127,7 +127,7 @@ jobs:
     name: Dependencies Health
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -152,7 +152,7 @@ jobs:
     name: Code Metrics
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install tokei
         run: cargo install tokei --locked

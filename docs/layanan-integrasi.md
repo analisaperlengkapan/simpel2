@@ -101,7 +101,7 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 | `layanan-pemeliharaan` | Realisasi anggaran dari MONSAKTI            |
 | `layanan-konfigurasi`  | Referensi wilayah dan instansi dari SIPEDE  |
 | `layanan-audit`        | Audit sinkronisasi dan histori API          |
-| `layanan-keamanan`     | Validasi autentikasi token integrasi        |
+| `authenc`     | Validasi autentikasi token integrasi        |
 
 ---
 

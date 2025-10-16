@@ -1,26 +1,29 @@
-mod config;
-mod error;
-mod models;
-mod email;
-mod whatsapp;
-mod push;
-mod template;
 mod audit;
+mod config;
+mod email;
+mod error;
+mod handlers;
+mod models;
+mod push;
 mod queue;
 mod security;
-mod handlers;
+mod template;
+mod whatsapp;
 
 use crate::config::AppConfig;
+use crate::security::RateLimitState;
 use axum::{Router, http::Method};
-use sqlx::postgres::PgPoolOptions;
-use tower_http::{cors::{CorsLayer, Any}, trace::TraceLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use deadpool_postgres::{Config, Runtime};
+use prometheus::{Encoder, Registry, TextEncoder};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use prometheus::{Encoder, TextEncoder, Registry};
-use crate::security::RateLimitState;
 use tokio::sync::Mutex;
-use std::collections::HashMap;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,9 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sentry (opsional)
     let _guard: Option<()> = None;
     // DB pool
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&config.database_url).await?;
+    let mut cfg = Config::new();
+    cfg.url = Some(config.database_url.clone());
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)?;
     // Redis
     let _redis = redis::Client::open(config.redis_url.clone())?;
     // Prometheus registry
@@ -45,7 +48,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION, axum::http::header::HeaderName::from_static("x-api-key")]);
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::HeaderName::from_static("x-api-key"),
+        ]);
     // Rate limit state
     let rate_limit_state: RateLimitState = Arc::new(Mutex::new(HashMap::new()));
     // Router
@@ -53,16 +60,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(cors)
         .layer(TraceLayer::new_for_http());
     // Health & metrics
-    let metrics_route = Router::new().route("/metrics", axum::routing::get(|| async move {
-        let encoder = TextEncoder::new();
-        let mut buffer = Vec::new();
-        let mf = registry.gather();
-        encoder.encode(&mf, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
-    }));
+    let metrics_route = Router::new().route(
+        "/metrics",
+        axum::routing::get(|| async move {
+            let encoder = TextEncoder::new();
+            let mut buffer = Vec::new();
+            let mf = registry.gather();
+            encoder.encode(&mf, &mut buffer).unwrap();
+            String::from_utf8(buffer).unwrap()
+        }),
+    );
     let app = app.merge(metrics_route);
     // Startup log
-    tracing::info!("Notifikasi service listening on {}:{}", config.server_host, config.server_port);
+    tracing::info!(
+        "Notifikasi service listening on {}:{}",
+        config.server_host,
+        config.server_port
+    );
     // Run server
     let addr = SocketAddr::new(config.server_host.parse()?, config.server_port);
     let listener = tokio::net::TcpListener::bind(addr).await?;

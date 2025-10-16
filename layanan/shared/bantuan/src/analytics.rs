@@ -1,7 +1,7 @@
-use crate::models::HelpAnalytics;
 use crate::error::AppError;
-use deadpool_postgres::Pool;
+use crate::models::HelpAnalytics;
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Pool;
 
 pub struct AnalyticsService {
     pub pool: Pool,
@@ -12,16 +12,27 @@ impl AnalyticsService {
         Self { pool }
     }
 
-    pub async fn get_ticket_analytics(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<Vec<HelpAnalytics>, AppError> {
+    pub async fn get_ticket_analytics(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<HelpAnalytics>, AppError> {
         let client = self.pool.get().await?;
         let rows = client.query(
             r#"SELECT * FROM bantuan.help_analytics WHERE metric = 'ticket' AND recorded_at BETWEEN $1 AND $2 ORDER BY recorded_at DESC"#,
             &[&start, &end]
         ).await?;
-        let analytics = rows.into_iter().map(|row| HelpAnalytics::from(&row)).collect();
+        let analytics = rows
+            .into_iter()
+            .map(|row| HelpAnalytics::from(&row))
+            .collect();
         Ok(analytics)
     }
-    pub async fn get_faq_analytics(&self, category_id: Option<uuid::Uuid>, period: &str) -> Result<Vec<HelpAnalytics>, AppError> {
+    pub async fn get_faq_analytics(
+        &self,
+        category_id: Option<uuid::Uuid>,
+        period: &str,
+    ) -> Result<Vec<HelpAnalytics>, AppError> {
         let client = self.pool.get().await?;
         let rows = if let Some(cat_id) = category_id {
             client.query(
@@ -34,10 +45,17 @@ impl AnalyticsService {
                 &[&period]
             ).await?
         };
-        let analytics = rows.into_iter().map(|row| HelpAnalytics::from(&row)).collect();
+        let analytics = rows
+            .into_iter()
+            .map(|row| HelpAnalytics::from(&row))
+            .collect();
         Ok(analytics)
     }
-    pub async fn get_chatbot_analytics(&self, user_id: Option<uuid::Uuid>, period: &str) -> Result<Vec<HelpAnalytics>, AppError> {
+    pub async fn get_chatbot_analytics(
+        &self,
+        user_id: Option<uuid::Uuid>,
+        period: &str,
+    ) -> Result<Vec<HelpAnalytics>, AppError> {
         let client = self.pool.get().await?;
         let rows = if let Some(uid) = user_id {
             client.query(
@@ -50,16 +68,26 @@ impl AnalyticsService {
                 &[&period]
             ).await?
         };
-        let analytics = rows.into_iter().map(|row| HelpAnalytics::from(&row)).collect();
+        let analytics = rows
+            .into_iter()
+            .map(|row| HelpAnalytics::from(&row))
+            .collect();
         Ok(analytics)
     }
-    pub async fn get_satisfaction(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<Vec<HelpAnalytics>, AppError> {
+    pub async fn get_satisfaction(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<HelpAnalytics>, AppError> {
         let client = self.pool.get().await?;
         let rows = client.query(
             r#"SELECT * FROM bantuan.help_analytics WHERE metric = 'satisfaction' AND recorded_at BETWEEN $1 AND $2 ORDER BY recorded_at DESC"#,
             &[&start, &end]
         ).await?;
-        let analytics = rows.into_iter().map(|row| HelpAnalytics::from(&row)).collect();
+        let analytics = rows
+            .into_iter()
+            .map(|row| HelpAnalytics::from(&row))
+            .collect();
         Ok(analytics)
     }
 }

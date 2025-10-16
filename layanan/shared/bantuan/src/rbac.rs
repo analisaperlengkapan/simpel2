@@ -1,10 +1,10 @@
 use crate::error::AppError;
-use deadpool_postgres::Pool;
 use axum::{
     extract::{Request, State},
     middleware::Next,
     response::Response,
 };
+use deadpool_postgres::Pool;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Role {
@@ -24,7 +24,12 @@ impl Role {
     }
 }
 
-pub async fn has_permission(pool: &Pool, role: &str, resource: &str, action: &str) -> Result<bool, AppError> {
+pub async fn has_permission(
+    pool: &Pool,
+    role: &str,
+    resource: &str,
+    action: &str,
+) -> Result<bool, AppError> {
     let client = pool.get().await?;
     let row = client.query_opt(
         r#"SELECT * FROM bantuan.rbac_permissions WHERE role = $1 AND resource = $2 AND action = $3 LIMIT 1"#,
@@ -36,19 +41,25 @@ pub async fn has_permission(pool: &Pool, role: &str, resource: &str, action: &st
 // Middleware Axum untuk validasi permission
 pub async fn rbac_middleware(
     State(pool): State<deadpool_postgres::Pool>,
-    mut req: Request,
+    req: Request,
     next: Next,
 ) -> Result<Response, AppError> {
     // Ambil role user dari header (atau session/auth)
-    let role = req.headers().get("x-user-role")
+    let role = req
+        .headers()
+        .get("x-user-role")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("user");
 
     // Ambil required resource dan action dari header atau extension
-    let required_resource = req.headers().get("x-required-resource")
+    let required_resource = req
+        .headers()
+        .get("x-required-resource")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("default");
-    let required_action = req.headers().get("x-required-action")
+    let required_action = req
+        .headers()
+        .get("x-required-action")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("read");
 

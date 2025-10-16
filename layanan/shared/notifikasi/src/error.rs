@@ -2,13 +2,14 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use deadpool_postgres;
 use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Db(#[from] sqlx::Error),
+    Db(#[from] tokio_postgres::Error),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Not found")]
@@ -16,25 +17,31 @@ pub enum AppError {
     #[error("Forbidden")]
     Forbidden,
     #[error("Validation error: {0}")]
-    Validation(String),
+    Validation(Box<str>),
     #[error("Rate limit exceeded")]
     RateLimit,
     #[error("Email error: {0}")]
-    Email(String),
+    Email(Box<str>),
     #[error("WhatsApp error: {0}")]
-    WhatsApp(String),
+    WhatsApp(Box<str>),
     #[error("Push error: {0}")]
-    Push(String),
+    Push(Box<str>),
     #[error("Unauthorized")]
     Unauthorized,
     #[error("Bad request: {0}")]
-    BadRequest(String),
+    BadRequest(Box<str>),
     #[error("Internal server error")]
     Internal,
 }
 
 impl From<redis::RedisError> for AppError {
     fn from(err: redis::RedisError) -> Self {
+        AppError::Internal
+    }
+}
+
+impl From<deadpool_postgres::PoolError> for AppError {
+    fn from(_err: deadpool_postgres::PoolError) -> Self {
         AppError::Internal
     }
 }

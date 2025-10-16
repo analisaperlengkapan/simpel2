@@ -10,7 +10,7 @@ pub mod sidebar_section;
 pub mod user_menu;
 
 // Re-exports untuk komponen yang digunakan
-pub use dashboard::DashboardLayout;
 pub use login::LoginPage;
-pub use sidebar::Sidebar;
-pub use user_menu::UserMenu;
+
+// Alias for compatibility
+pub use dashboard::DashboardLayout as DashboardPage;

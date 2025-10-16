@@ -25,7 +25,7 @@ Memberikan rekomendasi otomatis dan berbasis AI kepada pengguna dalam proses per
 - Bahasa: Go (Gin)
 - Database: PostgreSQL (skema `rekomendasi`)
 - AI: XGBoost, Rule Engine (pada `layanan-ai`)
-- Autentikasi: Middleware dari `layanan-keamanan`
+- Autentikasi: Middleware dari `authenc`
 - Logging & Audit: via `layanan-audit`
 
 ---

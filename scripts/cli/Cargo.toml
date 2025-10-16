@@ -1,31 +1,31 @@
 [package]
 name = "simpel-cli"
-version = "3.0.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [[bin]]
 name = "simpel"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
-tokio = { version = "1.0", features = ["full"] }
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-toml = "0.8"
-colored = "2.0"
-chrono = { version = "0.4", features = ["serde"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-base64 = "0.22"
-aes-gcm = "0.10"
-rand = "0.8"
-uuid = { version = "1.0", features = ["v4"] }
-k8s-openapi = { version = "0.22", features = ["v1_30"] }
-kube = { version = "0.93", features = ["runtime", "derive"] }
-tempfile = "3.0"
-walkdir = "2.0"
-regex = "1.0"
-shellexpand = "3.0"
-which = "6.0"
+clap = { workspace = true, features = ["derive"] }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+colored = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+base64 = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+uuid = { workspace = true }
+k8s-openapi = { workspace = true, features = ["latest"] }
+kube = { workspace = true, features = ["runtime", "derive", "rustls-tls"], default-features = false }
+tempfile = { workspace = true }
+walkdir = { workspace = true }
+regex = { workspace = true }
+shellexpand = { workspace = true }
+which = { workspace = true }

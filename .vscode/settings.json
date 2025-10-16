@@ -23,7 +23,7 @@
     },
     "[toml]": {
       "editor.formatOnSave": true,
-      "editor.defaultFormatter": "rust-lang.rust-analyzer",
+      "editor.defaultFormatter": "tamasfe.even-better-toml",
       "editor.insertSpaces": true,
       "editor.tabSize": 2
     },

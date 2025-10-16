@@ -1,7 +1,7 @@
 [package]
 name = "notifikasi"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 axum = { workspace = true }
@@ -11,7 +11,7 @@ deadpool-postgres = { workspace = true }
 postgres-types = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
+serde_yaml = { workspace = true }
 dotenvy = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -21,33 +21,35 @@ prometheus = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
 uuid = { workspace = true }
-lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
+lettre = { workspace = true }
 reqwest = { workspace = true }
 redis = { workspace = true }
 garde = { workspace = true }
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "chrono", "uuid", "json"] }
-chrono = { version = "0.4", features = ["serde"] }
+sea-query = { workspace = true }
+# sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros"], default-features = false }  # DISABLED: sqlx pulls sqlx-mysql which has RSA vulnerability
+# Using tokio-postgres directly instead
+chrono = { workspace = true }
 
 thiserror = { workspace = true }
 sentry = { workspace = true }
-sentry-tracing = "0.31"
+sentry-tracing = { workspace = true }
 async-trait = { workspace = true }
-tokio-util = "0.7"
-walkdir = "2"
-mime = "0.3"
-time = "0.3"
-anyhow = "1"
-futures = "0.3"
-tokio-stream = "0.1"
-base64 = "0.21"
-mockall = "0.11"
+tokio-util = { workspace = true }
+walkdir = { workspace = true }
+mime = { workspace = true }
+time = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+tokio-stream = { workspace = true }
+base64 = { workspace = true }
+mockall = { workspace = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-assert-json-diff = "2"
-serial_test = "2"
-tempfile = "3"
+assert-json-diff = { workspace = true }
+serial_test = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = []

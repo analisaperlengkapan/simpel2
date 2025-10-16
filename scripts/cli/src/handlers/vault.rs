@@ -1,9 +1,9 @@
 use aes_gcm::{
+    Aes256Gcm,
     aead::{Aead, AeadCore, KeyInit, OsRng},
-    Aes256Gcm, Key,
 };
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -105,7 +105,9 @@ async fn decrypt_root_token(options: &HashMap<String, String>) -> Result<()> {
         println!("Root token: {}", decrypted_token);
     } else {
         // Save to secure location or environment
-        std::env::set_var("VAULT_TOKEN", &decrypted_token);
+        unsafe {
+            std::env::set_var("VAULT_TOKEN", &decrypted_token);
+        }
         println!("✅ Root token decrypted and set in environment");
     }
 
@@ -222,7 +224,7 @@ async fn check_vault_health(_options: &HashMap<String, String>) -> Result<()> {
 
     // Check seal status
     let seal_status = client
-        .get(&format!("{}/v1/sys/seal-status", vault_addr))
+        .get(format!("{}/v1/sys/seal-status", vault_addr))
         .send()
         .await?
         .json::<serde_json::Value>()
@@ -237,7 +239,7 @@ async fn check_vault_health(_options: &HashMap<String, String>) -> Result<()> {
 
     // Check health
     let health = client
-        .get(&format!("{}/v1/sys/health", vault_addr))
+        .get(format!("{}/v1/sys/health", vault_addr))
         .send()
         .await?
         .json::<serde_json::Value>()
@@ -289,7 +291,7 @@ async fn is_vault_initialized() -> Result<bool> {
         std::env::var("VAULT_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8200".to_string());
 
     let response = client
-        .get(&format!("{}/v1/sys/init", vault_addr))
+        .get(format!("{}/v1/sys/init", vault_addr))
         .send()
         .await?;
 
@@ -320,7 +322,7 @@ async fn initialize_vault(config: &VaultSetupConfig) -> Result<VaultInitResult> 
     });
 
     let response = client
-        .post(&format!("{}/v1/sys/init", vault_addr))
+        .post(format!("{}/v1/sys/init", vault_addr))
         .json(&init_payload)
         .send()
         .await?;
@@ -365,7 +367,7 @@ async fn unseal_vault_with_keys(keys: &[String]) -> Result<()> {
         });
 
         let response = client
-            .post(&format!("{}/v1/sys/unseal", vault_addr))
+            .post(format!("{}/v1/sys/unseal", vault_addr))
             .json(&unseal_payload)
             .send()
             .await?;
@@ -411,7 +413,7 @@ async fn enable_kv_engine(token: &str) -> Result<()> {
     });
 
     client
-        .post(&format!("{}/v1/sys/mounts/secret", vault_addr))
+        .post(format!("{}/v1/sys/mounts/secret", vault_addr))
         .header("X-Vault-Token", token)
         .json(&enable_payload)
         .send()
@@ -444,7 +446,7 @@ async fn create_policy(token: &str, name: &str, policy: &str) -> Result<()> {
     });
 
     client
-        .put(&format!("{}/v1/sys/policies/acl/{}", vault_addr, name))
+        .put(format!("{}/v1/sys/policies/acl/{}", vault_addr, name))
         .header("X-Vault-Token", token)
         .json(&policy_payload)
         .send()
@@ -455,14 +457,14 @@ async fn create_policy(token: &str, name: &str, policy: &str) -> Result<()> {
 
 // Encryption helpers
 fn generate_key() -> [u8; 32] {
-    use rand::RngCore;
+    use aes_gcm::aead::rand_core::RngCore;
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
     key
 }
 
 fn encrypt_data(data: &str, key: &[u8; 32]) -> Result<String> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let cipher = Aes256Gcm::new(key.into());
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     let ciphertext = cipher
         .encrypt(&nonce, data.as_bytes())

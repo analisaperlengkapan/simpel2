@@ -26,14 +26,10 @@ debug = false
 lto = false
 
 [serve]
-# Align with expected access at http://127.0.0.1:8080/
-port = 8080
+port = 8093
 addresses = ["0.0.0.0"]
 open = false
-
-[watch]
-watch = ["src"]
-debounce = 100
+no_autoreload = true
 
 [build.public-assets]
 sources = ["styles/*.css", "../../shared/styles/*.css"]
