@@ -33,33 +33,17 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-registry-
-
-      - name: Cache cargo index
-        uses: actions/cache@v4.3.0
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-git-
-
-      - name: Cache target directory
-        uses: actions/cache@v4.3.0
-        with:
-          path: target
-          key: ${{ runner.os }}-target-check-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-target-check-
+          shared-key: "backend-check"
 
       - name: Run cargo check
         run: cargo check --all --verbose
@@ -90,23 +74,10 @@ jobs:
         with:
           toolchain: 1.90.0
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v4.3.0
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4.3.0
-        with:
-          path: target
-          key: ${{ runner.os }}-target-test-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "backend-test"
 
       - name: Setup test environment
         run: |
@@ -129,17 +100,10 @@ jobs:
           toolchain: 1.90.0
           components: clippy
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4.3.0
-        with:
-          path: target
-          key: ${{ runner.os }}-target-clippy-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "backend-clippy"
 
       - name: Run clippy
         run: cargo clippy --all --all-targets -- -D warnings
@@ -171,17 +135,10 @@ jobs:
         with:
           toolchain: 1.90.0
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache target directory
-        uses: actions/cache@v4.3.0
-        with:
-          path: target
-          key: ${{ runner.os }}-target-release-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "backend-build"
 
       - name: Build release
         run: cargo build --release --all-targets --verbose
