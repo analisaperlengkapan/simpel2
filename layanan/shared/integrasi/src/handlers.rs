@@ -1,4 +1,4 @@
-use crate::{error::Result, models::HealthResponse};
+use crate::error::Result;
 use axum::{response::Json, routing::get, Router};
 use serde_json::{json, Value};
 

@@ -1,0 +1,166 @@
+# Production MFA Configuration for Indonesian Attorney General's Office
+# This configuration enforces strict MFA policies for government security compliance
+
+# Server configuration for production
+[server]
+host = "0.0.0.0"
+port = 8443
+log_level = "warn"
+storage_path = "/var/lib/secreton/data"
+tls_cert_path = "/etc/secreton/tls/server.crt"
+tls_key_path = "/etc/secreton/tls/server.key"
+
+# Production database configuration
+[database]
+url = "${SECRETON_DATABASE_URL}"
+max_connections = 50
+min_connections = 10
+max_lifetime = 3600  # 1 hour
+idle_timeout = 600   # 10 minutes
+connection_timeout = 30
+statement_cache_size = 2000
+prepared_statement_cache_size = 500
+
+# Production authentication configuration
+[auth]
+token_ttl = 1800  # 30 minutes (shorter for security)
+refresh_token_ttl = 86400  # 24 hours (shorter for security)
+jwt_secret = "${SECRETON_JWT_SECRET}"
+
+# Strict MFA configuration for government compliance
+[mfa]
+enabled = true
+default_method = "TOTP"
+supported_methods = ["TOTP"]  # Only TOTP for maximum security
+
+# Production TOTP configuration
+[mfa.totp]
+issuer = "SIMPelv2 Kejaksaan RI"
+time_window = 30
+digits = 6
+algorithm = "SHA1"  # Most compatible with authenticator apps
+skew_tolerance = 1  # Minimal tolerance for security
+qr_code_size = 256
+
+# Strict enforcement policies for government employees
+[mfa.policies]
+enforce_for_all = true
+setup_grace_period = 3  # Shorter grace period for production
+max_failed_attempts = 3  # Stricter limit
+lockout_duration = 60  # Longer lockout for security
+reauth_interval = 4  # More frequent re-authentication
+# Role-based MFA requirements (production)
+[mfa.policies.roles]
+admin_immediate_setup = ["AdminPusat", "AdminEselonI", "AdminWilayah", "AdminSatker"]
+high_privilege_roles = ["AdminPusat", "AdminEselonI"]
+standard_roles = ["PegawaiNegeri", "PegawaiKontrak"]
+
+# Satker-specific policies (production)
+[mfa.policies.satker]
+high_security_satkers = [
+    "KEJAKSAAN_AGUNG",
+    "KEJATI_DKI",
+    "KEJARI_JAKARTA_PUSAT",
+    "KEJATI_JAWA_BARAT",
+    "KEJATI_JAWA_TENGAH",
+    "KEJATI_JAWA_TIMUR"
+]
+standard_satkers = ["KEJATI_*", "KEJARI_*"]
+
+# Production recovery codes configuration
+[mfa.recovery_codes]
+count = 8  # Fewer codes for better security
+length = 16  # Longer codes for security
+format = "alphanumeric"
+allow_reuse = false
+
+# Strict rate limiting for production
+[mfa.rate_limiting]
+max_attempts_per_minute = 5  # Stricter limit
+max_setup_attempts_per_hour = 2  # Stricter limit
+window_seconds = 60
+progressive_delays = true
+
+# Comprehensive audit logging for compliance
+[mfa.audit]
+enabled = true
+log_success = true
+log_failures = true
+log_setup_changes = true
+log_recovery_usage = true
+retention_days = 2555  # 7 years for government compliance
+
+# Production integration settings
+[mfa.integration]
+sms_provider = "disabled"  # Disable SMS for security
+email_provider = "disabled"  # Disable email for security
+push_provider = "disabled"  # Only TOTP allowed
+
+# Enhanced security for production
+[mfa.security]
+secret_encryption = "AES-256-GCM"
+kdf = "PBKDF2"
+kdf_iterations = 200000  # Higher iterations for security
+salt_length = 64  # Longer salt for security
+use_hsm = true  # Enable HSM in production
+hsm_slot = 0
+hsm_pin = "${SECRETON_HSM_PIN}"
+# Production backup configuration
+[mfa.backup]
+enabled = true
+interval_hours = 12  # More frequent backups
+retention_days = 180  # Longer retention for compliance
+backup_encryption_key = "${SECRETON_BACKUP_KEY}"
+backup_path = "/var/lib/secreton/backups/mfa"
+
+# Enhanced monitoring for production
+[mfa.monitoring]
+metrics_enabled = true
+alert_on_anomalies = true
+failed_attempts_threshold = 10  # Lower threshold for alerts
+monitoring_window_minutes = 10  # Shorter monitoring window
+alert_email = "security-alerts@kejaksaan.go.id"
+alert_webhook = "${SECRETON_ALERT_WEBHOOK_URL}"
+
+# Government compliance settings
+[mfa.compliance]
+# Enable FIPS 140-2 compliance mode
+fips_mode = true
+# Enable audit trail integrity verification
+audit_integrity_check = true
+# Require administrator approval for MFA policy changes
+require_admin_approval = true
+# Enable automatic compliance reporting
+compliance_reporting = true
+# Compliance report generation interval (in hours)
+report_interval_hours = 168  # Weekly reports
+
+# Access control for MFA operations
+[mfa.access_control]
+# Require specific permissions for MFA operations
+setup_permission = "mfa:setup"
+verify_permission = "mfa:verify"
+admin_permission = "mfa:admin"
+audit_permission = "mfa:audit"
+
+# Network security settings
+[mfa.network]
+# Allowed IP ranges for MFA operations (government networks)
+allowed_ip_ranges = [
+    "10.0.0.0/8",      # Internal government network
+    "172.16.0.0/12",   # Private network range
+    "192.168.0.0/16"   # Local network range
+]
+# Enable IP-based rate limiting
+ip_rate_limiting = true
+# Maximum requests per IP per minute
+max_requests_per_ip = 20
+
+# Session management for MFA
+[mfa.session]
+# MFA session timeout (in minutes)
+session_timeout = 15
+# Require MFA for session extension
+require_mfa_for_extension = true
+# Maximum concurrent MFA sessions per user
+max_concurrent_sessions = 3

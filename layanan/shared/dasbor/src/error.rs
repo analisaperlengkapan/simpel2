@@ -22,25 +22,25 @@ pub enum DashboardError {
     #[error("Forbidden")]
     Forbidden,
     #[error("Validation error: {0}")]
-    Validation(String),
+    Validation(Box<str>),
     #[error("Rate limit exceeded")]
     RateLimit,
     #[error("Unauthorized")]
     Unauthorized,
     #[error("Bad request: {0}")]
-    BadRequest(String),
+    BadRequest(Box<str>),
     #[error("Pool config error: {0}")]
-    PoolConfig(String),
+    PoolConfig(Box<str>),
     #[error("Prometheus error: {0}")]
     Prometheus(#[from] prometheus::Error),
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
     #[error("Aggregator error: {0}")]
-    Aggregator(String),
+    Aggregator(Box<str>),
     #[error("Chart error: {0}")]
-    Chart(String),
+    Chart(Box<str>),
     #[error("Real-time error: {0}")]
-    RealTime(String),
+    RealTime(Box<str>),
 }
 
 impl IntoResponse for DashboardError {

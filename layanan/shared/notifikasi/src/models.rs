@@ -20,6 +20,26 @@ pub struct Notification {
     pub error_message: Option<String>,
 }
 
+impl From<Row> for Notification {
+    fn from(row: Row) -> Self {
+        Self {
+            id: row.get("id"),
+            channel: row.get("channel"),
+            template_id: row.get("template_id"),
+            event_id: row.get("event_id"),
+            status: row.get("status"),
+            subject: row.get("subject"),
+            body: row.get("body"),
+            payload: row.get("payload"),
+            created_at: row.get("created_at"),
+            sent_at: row.get("sent_at"),
+            delivered_at: row.get("delivered_at"),
+            read_at: row.get("read_at"),
+            error_message: row.get("error_message"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NotificationTemplate {
     pub id: Uuid,
@@ -30,6 +50,21 @@ pub struct NotificationTemplate {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub is_active: bool,
+}
+
+impl From<Row> for NotificationTemplate {
+    fn from(row: Row) -> Self {
+        Self {
+            id: row.get("id"),
+            name: row.get("name"),
+            content: row.get("content"),
+            variables: row.get("variables"),
+            version: row.get("version"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            is_active: row.get("is_active"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,6 +98,22 @@ pub struct NotificationRecipient {
     pub error_message: Option<String>,
 }
 
+impl From<Row> for NotificationRecipient {
+    fn from(row: Row) -> Self {
+        Self {
+            id: row.get("id"),
+            notification_id: row.get("notification_id"),
+            recipient: row.get("recipient"),
+            recipient_type: row.get("recipient_type"),
+            status: row.get("status"),
+            sent_at: row.get("sent_at"),
+            delivered_at: row.get("delivered_at"),
+            read_at: row.get("read_at"),
+            error_message: row.get("error_message"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeliveryLog {
     pub id: Uuid,
@@ -90,55 +141,4 @@ pub struct Optout {
     pub channel: String,
     pub reason: Option<String>,
     pub created_at: DateTime<Utc>,
-}
-
-impl Notification {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            channel: row.get("channel"),
-            template_id: row.get("template_id"),
-            event_id: row.get("event_id"),
-            status: row.get("status"),
-            subject: row.get("subject"),
-            body: row.get("body"),
-            payload: row.get("payload"),
-            created_at: row.get("created_at"),
-            sent_at: row.get("sent_at"),
-            delivered_at: row.get("delivered_at"),
-            read_at: row.get("read_at"),
-            error_message: row.get("error_message"),
-        }
-    }
-}
-
-impl NotificationRecipient {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            notification_id: row.get("notification_id"),
-            recipient: row.get("recipient"),
-            recipient_type: row.get("recipient_type"),
-            status: row.get("status"),
-            sent_at: row.get("sent_at"),
-            delivered_at: row.get("delivered_at"),
-            read_at: row.get("read_at"),
-            error_message: row.get("error_message"),
-        }
-    }
-}
-
-impl NotificationTemplate {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            name: row.get("name"),
-            content: row.get("content"),
-            variables: row.get("variables"),
-            version: row.get("version"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            is_active: row.get("is_active"),
-        }
-    }
 }

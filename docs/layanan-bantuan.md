@@ -27,7 +27,7 @@ Mendukung pengguna SIMPelv2 dengan dokumentasi, FAQ, video tutorial, serta kanal
 - Database: PostgreSQL (skema `bantuan`)
 - Frontend: Komponen Antarmuka SIMPelv2 (FAQ dan tiket)
 - AI Q&A: LLaMA3-3B + Qdrant (Retrieval-Augmented Generation)
-- Notifikasi: Email via `layanan-keamanan`, webhook Telegram
+- Notifikasi: Email via `authenc`, webhook Telegram
 
 ---
 
@@ -78,7 +78,7 @@ layanan-bantuan/
 - Semua pengguna dapat membuat tiket (perlu login)
 - Admin layanan atau PIC hanya dapat merespon tiket
 - Semua aksi dicatat oleh `layanan-audit`
-- Validasi input wajib melalui middleware `layanan-keamanan`
+- Validasi input wajib melalui middleware `authenc`
 
 ---
 
@@ -87,7 +87,7 @@ layanan-bantuan/
 - `layanan-dokumen`: untuk dokumen/video pembelajaran
 - `layanan-ai`: menyuplai Q&A model dan retriever
 - `layanan-konfigurasi`: untuk kategori tiket, FAQ, prioritas
-- `layanan-keamanan`: validasi user & pengiriman notifikasi
+- `authenc`: validasi user & pengiriman notifikasi
 
 ---
 

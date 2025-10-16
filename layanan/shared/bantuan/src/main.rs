@@ -21,7 +21,7 @@ mod ticket;
 mod webhook;
 
 use crate::{config::AppConfig, error::AppError, handlers::routes};
-use axum::{http::Method, Router};
+use axum::{Router, http::Method};
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::{net::SocketAddr, time::Duration};
 use tower_http::{

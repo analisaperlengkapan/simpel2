@@ -65,7 +65,7 @@ layanan-usulan/
 - **layanan-aset**: mengambil master data aset
 - **layanan-standar**: mengambil standar jumlah/spesifikasi
 - **layanan-rekomendasi**: untuk perhitungan prioritas
-- **layanan-keamanan**: validasi token & otorisasi pengguna
+- **authenc**: validasi token & otorisasi pengguna
 
 ---
 

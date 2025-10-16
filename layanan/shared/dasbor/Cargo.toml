@@ -1,7 +1,7 @@
 [package]
 name = "simpelv2-dasbor"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "SIMPelv2 - Layanan Dashboard & Analytics"
 license = "MIT"
@@ -40,7 +40,7 @@ sentry = { workspace = true }
 # Utilities
 uuid = { workspace = true }
 time = { workspace = true }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
 dotenvy = { workspace = true }
@@ -50,13 +50,13 @@ reqwest = { workspace = true }
 
 # Chart & Analytics specific - Disabled due to fontconfig dependency
 # plotters = "0.3"
-ndarray = "0.15"
+ndarray = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
 reqwest = { workspace = true }
-serial_test = "3"
-tempfile = "3"
+serial_test = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = ["analytics", "real-time"]

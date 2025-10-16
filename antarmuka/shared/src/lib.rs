@@ -1,94 +1,95 @@
 //! 🚀 SIMPelv2 Shared Component Library
 //!
-//! Library komponen bersama untuk aplikasi pemerintah Indonesia dengan fokus pada:
-//! - Performance tinggi dengan optimasi Rust/WASM
-//! - Accessibility standar WCAG 2.1 AA
-//! - Government compliance dan branding Kejaksaan RI
-//! - Type safety dan developer experience terbaik
+//! Clean, focused, production-ready component library untuk aplikasi Kejaksaan RI.
+//!
+//! ## Philosophy
+//! - **KISS**: Keep It Simple, Stupid
+//! - **YAGNI**: You Aren't Gonna Need It
+//! - **DRY**: Don't Repeat Yourself
+//! - **Production-First**: Battle-tested components only
+//!
+//! ## Structure
+//! ```text
+//! shared/
+//! |-- core/          # Types, constants, theme
+//! |-- components/    # UI components (layout, forms, feedback, navigation, display)
+//! |-- hooks/         # Reusable hooks (storage, media query, debounce)
+//! `-- utils/         # Utilities (validation, formatters, helpers)
+//! ```
 
 // ============================================================================
 // MODULE DECLARATIONS
 // ============================================================================
 
-// Core modules
 pub mod components;
-pub mod constants;
-pub mod theme;
-pub mod types;
+pub mod core;
+pub mod hooks;
 pub mod utils;
 
-// Optional modules
-#[cfg(feature = "api")]
-pub mod api;
-
-#[cfg(feature = "styles")]
-pub mod styles;
-
 // ============================================================================
-// PRELUDE - Common imports for easy usage
+// PRELUDE - Ergonomic imports
 // ============================================================================
 
 /// Prelude module untuk import yang mudah
+#[allow(ambiguous_glob_reexports)]
 pub mod prelude {
-    // Re-export Leptos essentials (excluding conflicting items)
+    // Leptos essentials
     pub use leptos::prelude::*;
     pub use leptos_meta::*;
     pub use leptos_router::*;
 
-    // Re-export our components (excluding utility functions that conflict)
-    pub use crate::components::{
-        AppHeader, Breadcrumb, Button, CachedRender, Card, Form, Input, LazyLoad, Logo, Modal,
-        Toast,
-    };
-    pub use crate::constants::*;
-    pub use crate::theme::*;
-    pub use crate::types::*;
-    pub use crate::utils::*;
+    // Core
+    pub use crate::core::constants::*;
+    pub use crate::core::theme::*;
+    pub use crate::core::types::*;
 
-    // Re-export utility functions with specific names to avoid conflicts
-    pub use crate::components::{
-        event_target_checked as shared_event_target_checked,
-        event_target_value as shared_event_target_value, set_timeout as shared_set_timeout,
-        window as shared_window,
-    };
+    // Components
+    pub use crate::components::captcha::*;
+    pub use crate::components::display::*;
+    pub use crate::components::feedback::*;
+    pub use crate::components::forms::*;
+    pub use crate::components::layout::*;
+    pub use crate::components::navigation::*;
+
+    // Hooks
+    pub use crate::hooks::*;
+
+    // Utils
+    pub use crate::utils::*;
 }
 
 // ============================================================================
 // LIBRARY METADATA
 // ============================================================================
 
-/// Versi library saat ini
+/// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Informasi library
-pub const LIB_INFO: &str = concat!(
+/// Library info
+pub const INFO: &str = concat!(
     "SIMPelv2 Shared Library v",
     env!("CARGO_PKG_VERSION"),
-    " - High-performance components for Indonesian Government"
+    " - Production-ready components for Kejaksaan RI"
 );
 
 // ============================================================================
-// ERROR HANDLING
+// RE-EXPORTS (Top-level convenience)
 // ============================================================================
 
-/// Custom error types untuk library
-pub mod error {
-    use thiserror::Error;
+// Core exports
+pub use core::{constants, theme, types as core_types};
 
-    #[derive(Error, Debug)]
-    pub enum SharedError {
-        #[error("Validation error: {message}")]
-        ValidationError { message: String },
+// Component exports
+pub use components::{
+    accessibility, auth, captcha, display, feedback, forms, layout, monitoring_dashboard,
+    navigation, security_meta,
+};
 
-        #[error("Component error: {message}")]
-        ComponentError { message: String },
+// Hook exports
+pub use hooks::*;
 
-        #[error("Theme error: {message}")]
-        ThemeError { message: String },
-
-        #[error("Government data error: {message}")]
-        GovernmentDataError { message: String },
-    }
-
-    pub type Result<T> = std::result::Result<T, SharedError>;
-}
+// Utility exports (specific to avoid conflicts)
+pub use utils::{
+    analytics, caching, code_splitting, csrf, error_tracking, formatters, helpers, monitoring,
+    secure_storage, security, validation,
+};

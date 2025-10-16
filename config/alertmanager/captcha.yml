@@ -1,0 +1,186 @@
+# AlertManager configuration for CAPTCHA system
+
+global:
+  smtp_smarthost: "${SMTP_HOST}:587"
+  smtp_from: "alerts@kejaksaan.go.id"
+  smtp_auth_username: "${SMTP_USERNAME}"
+  smtp_auth_password: "${SMTP_PASSWORD}"
+  smtp_require_tls: true
+
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+route:
+  group_by: ["alertname", "service"]
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: "web.hook"
+  routes:
+    # Critical alerts go to multiple channels
+    - match:
+        severity: critical
+      receiver: "critical-alerts"
+      group_wait: 5s
+      repeat_interval: 30m
+
+    # Security alerts go to security team
+    - match_re:
+        alertname: "^Captcha.*Security.*|.*Bot.*|.*Attack.*"
+      receiver: "security-alerts"
+      group_wait: 5s
+      repeat_interval: 15m
+
+    # Performance alerts go to ops team
+    - match_re:
+        alertname: "^Captcha.*Performance.*|.*Slow.*|.*High.*Usage"
+      receiver: "ops-alerts"
+      repeat_interval: 2h
+
+    # Business metrics alerts
+    - match_re:
+        alertname: "^Captcha.*Success.*|.*Abandonment.*|.*Experience.*"
+      receiver: "business-alerts"
+      repeat_interval: 4h
+
+receivers:
+  - name: "web.hook"
+    webhook_configs:
+      - url: "${ALERT_WEBHOOK_URL}"
+        send_resolved: true
+
+  - name: "critical-alerts"
+    email_configs:
+      - to: "admin@kejaksaan.go.id"
+        subject: "[CRITICAL] CAPTCHA System Alert: {{ .GroupLabels.alertname }}"
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Service: {{ .Labels.service }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+        headers:
+          Priority: "high"
+
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#critical-alerts"
+        title: "CRITICAL CAPTCHA Alert"
+        text: |
+          {{ range .Alerts }}
+          🚨 *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Started:* {{ .StartsAt }}
+          {{ end }}
+        send_resolved: true
+
+    webhook_configs:
+      - url: "${PAGERDUTY_WEBHOOK_URL}"
+        send_resolved: true
+
+  - name: "security-alerts"
+    email_configs:
+      - to: "security@kejaksaan.go.id"
+        subject: "[SECURITY] CAPTCHA Security Alert: {{ .GroupLabels.alertname }}"
+        body: |
+          Security Alert Detected in CAPTCHA System
+
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Service: {{ .Labels.service }}
+          Started: {{ .StartsAt }}
+
+          Immediate Action Required:
+          1. Check CAPTCHA dashboard for attack patterns
+          2. Review blocked IPs and rate limiting
+          3. Verify bot detection accuracy
+          4. Check for any configuration changes
+          {{ end }}
+        headers:
+          Priority: "high"
+
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#security-alerts"
+        title: "CAPTCHA Security Alert"
+        text: |
+          🔒 *Security Alert in CAPTCHA System*
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Started:* {{ .StartsAt }}
+          {{ end }}
+        send_resolved: true
+
+  - name: "ops-alerts"
+    email_configs:
+      - to: "ops@kejaksaan.go.id"
+        subject: "[OPS] CAPTCHA Performance Alert: {{ .GroupLabels.alertname }}"
+        body: |
+          Performance Alert in CAPTCHA System
+
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#ops-alerts"
+        title: "CAPTCHA Performance Alert"
+        text: |
+          ⚡ *Performance Issue in CAPTCHA System*
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  - name: "business-alerts"
+    email_configs:
+      - to: "product@kejaksaan.go.id"
+        subject: "[BUSINESS] CAPTCHA Metrics Alert: {{ .GroupLabels.alertname }}"
+        body: |
+          Business Metrics Alert in CAPTCHA System
+
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Impact: This may affect user experience and conversion rates
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#product-alerts"
+        title: "CAPTCHA Business Metrics Alert"
+        text: |
+          📊 *Business Impact Alert in CAPTCHA System*
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+inhibit_rules:
+  # Inhibit any warning if the same alert is already critical
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "service"]
+
+  # Inhibit service-specific alerts if the entire service is down
+  - source_match:
+      alertname: "CaptchaServiceDown"
+    target_match_re:
+      alertname: "^Captcha.*"
+    equal: ["service"]

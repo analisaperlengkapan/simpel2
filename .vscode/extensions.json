@@ -5,15 +5,13 @@
     // ========================================
     "rust-lang.rust-analyzer",
     "vadimcn.vscode-lldb",
-    "serayuzgur.crates",
-    "dustypomerleau.rust-syntax",
+    "fill-labs.Dependi",
     // ========================================
     // WASM & FRONTEND DEVELOPMENT
     // ========================================
     "bradlc.vscode-tailwindcss",
     "formulahendry.auto-rename-tag",
     "ms-vscode.vscode-typescript-next",
-    "bradlc.vscode-tailwindcss",
     // ========================================
     // CONFIGURATION & DATA FORMATS
     // ========================================

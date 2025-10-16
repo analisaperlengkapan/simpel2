@@ -30,22 +30,22 @@ impl PushService {
     ) -> Result<Notification, AppError> {
         let notif_id = Uuid::new_v4();
         // Insert notification DB (pending)
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "INSERT INTO notifikasi.notifications (id, channel, status, subject, body, created_at)
-                 VALUES ($1, 'push', 'pending', $2, $3, NOW()) RETURNING *",
-                &[&notif_id, &title, &body],
-            )
+        let sql = r#"INSERT INTO notifikasi.notifications (id, channel, status, subject, body, created_at)
+            VALUES ($1, 'push', 'pending', $2, $3, NOW()) RETURNING id, channel, status, subject, body, created_at, sent_at, error_message"#;
+        let row = self
+            .pool
+            .get()
+            .await?
+            .query_one(sql, &[&notif_id, &title, &body])
             .await?;
-        let notif = Notification::from_row(&row);
+        let notif: Notification = row.into();
         // Insert recipient
-        client
-            .execute(
-                "INSERT INTO notifikasi.notification_recipients (id, notification_id, recipient, recipient_type, status)
-                 VALUES ($1, $2, $3, 'device_token', 'pending')",
-                &[&Uuid::new_v4(), &notif_id, &device_token],
-            )
+        let sql_recipient = r#"INSERT INTO notifikasi.notification_recipients (id, notification_id, recipient, recipient_type, status)
+            VALUES ($1, $2, $3, 'device_token', 'pending')"#;
+        self.pool
+            .get()
+            .await?
+            .execute(sql_recipient, &[&Uuid::new_v4(), &notif_id, &device_token])
             .await?;
         // Kirim push (FCM)
         let fcm_key = self.config.fcm_server_key.as_deref().unwrap_or("");
@@ -73,15 +73,18 @@ impl PushService {
         };
         let error_message = resp.as_ref().err().map(|e| e.to_string());
         // Update status DB
-        client
-            .execute(
-                "UPDATE notifikasi.notifications SET status = $1, sent_at = NOW(), error_message = $2 WHERE id = $3",
-                &[&status, &error_message, &notif_id],
-            )
+        let sql_update_notif = r#"UPDATE notifikasi.notifications SET status = $1, sent_at = NOW(), error_message = $2 WHERE id = $3"#;
+        self.pool
+            .get()
+            .await?
+            .execute(sql_update_notif, &[&status, &error_message, &notif_id])
             .await?;
-        client
+        let sql_update_recipient = r#"UPDATE notifikasi.notification_recipients SET status = $1, sent_at = NOW(), error_message = $2 WHERE notification_id = $3 AND recipient = $4"#;
+        self.pool
+            .get()
+            .await?
             .execute(
-                "UPDATE notifikasi.notification_recipients SET status = $1, sent_at = NOW(), error_message = $2 WHERE notification_id = $3 AND recipient = $4",
+                sql_update_recipient,
                 &[&status, &error_message, &notif_id, &device_token],
             )
             .await?;
@@ -98,28 +101,28 @@ impl PushService {
         let mut results = Vec::new();
         for token in device_tokens {
             let _ = self.send_push(&token, title, body, data.clone()).await;
-            let client = self.pool.get().await?;
-            let row = client
-                .query_one(
-                    "SELECT * FROM notifikasi.notification_recipients WHERE recipient = $1 ORDER BY sent_at DESC LIMIT 1",
-                    &[&token],
-                )
+            let sql_recipient_status = r#"SELECT id, notification_id, recipient, recipient_type, status, sent_at, error_message FROM notifikasi.notification_recipients WHERE recipient = $1 ORDER BY sent_at DESC LIMIT 1"#;
+            let row = self
+                .pool
+                .get()
+                .await?
+                .query_one(sql_recipient_status, &[&token])
                 .await?;
-            let rec = NotificationRecipient::from_row(&row);
+            let rec: NotificationRecipient = row.into();
             results.push(rec);
         }
         Ok(results)
     }
 
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "SELECT * FROM notifikasi.notifications WHERE id = $1",
-                &[&notification_id],
-            )
+        let sql = r#"SELECT id, channel, status, subject, body, created_at, sent_at, error_message FROM notifikasi.notifications WHERE id = $1"#;
+        let row = self
+            .pool
+            .get()
+            .await?
+            .query_one(sql, &[&notification_id])
             .await?;
-        let notif = Notification::from_row(&row);
+        let notif: Notification = row.into();
         Ok(notif)
     }
 }

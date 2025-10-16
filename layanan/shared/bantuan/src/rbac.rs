@@ -41,7 +41,7 @@ pub async fn has_permission(
 // Middleware Axum untuk validasi permission
 pub async fn rbac_middleware(
     State(pool): State<deadpool_postgres::Pool>,
-    mut req: Request,
+    req: Request,
     next: Next,
 ) -> Result<Response, AppError> {
     // Ambil role user dari header (atau session/auth)

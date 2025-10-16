@@ -2,7 +2,7 @@ use crate::error::AppError;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct QueueJob {
@@ -23,7 +23,7 @@ impl QueueService {
     pub async fn enqueue_job(&self, queue: &str, job: &QueueJob) -> Result<(), AppError> {
         let mut conn = self
             .redis
-            .get_async_connection()
+            .get_multiplexed_tokio_connection()
             .await
             .map_err(|_e| AppError::Internal)?;
         let data = serde_json::to_string(job).map_err(|_e| AppError::Internal)?;
@@ -40,7 +40,7 @@ impl QueueService {
     ) -> Result<Option<QueueJob>, AppError> {
         let mut conn = self
             .redis
-            .get_async_connection()
+            .get_multiplexed_tokio_connection()
             .await
             .map_err(|_e| AppError::Internal)?;
         let res: Option<(String, String)> =

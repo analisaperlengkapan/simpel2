@@ -7,6 +7,7 @@
 ## 🎯 Features
 
 ### Core Functionality
+
 - ✅ **Single Sign-On (SSO)** - Autentikasi terpusat untuk semua aplikasi
 - ✅ **Unified Dashboard** - Dashboard overview semua modul
 - ✅ **Microfrontend Router** - Gateway ke semua aplikasi SIMPelv2
@@ -17,6 +18,7 @@
 - ✅ **Search Global** - Pencarian lintas modul
 
 ### Technical Features
+
 - 🚀 **Leptos 0.8.x** - Modern reactive web framework
 - 📦 **WebAssembly** - High-performance browser execution
 - 🎨 **Shared Components** - Government-compliant UI library
@@ -56,6 +58,7 @@ antarmuka/portal/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Rust 1.75+ with wasm32-unknown-unknown target
 - Trunk 0.18+ for WASM bundling
 - Node.js 20+ (for tooling)
@@ -137,19 +140,19 @@ command_arguments = ["run", "build:css"]
 
 ### Available Modules
 
-| Module | Description | Port | URL |
-|--------|-------------|------|-----|
-| **Badiklat** | Training & Education | 8093 | /badiklat |
-| **Datun** | Criminal Prosecution | 8081 | /datun |
-| **Intel** | Intelligence & Surveillance | 8082 | /intel |
-| **Pidum** | General Criminal Prosecution | 8088 | /pidum |
-| **Pidsus** | Special Crimes Prosecution | 8087 | /pidsus |
-| **Pidmil** | Military Crimes Prosecution | 8086 | /pidmil |
-| **Pengawasan** | Supervision & Oversight | 8085 | /pengawasan |
-| **Pemulihan Aset** | Asset Recovery | 8084 | /pemulihan-aset |
-| **Keuangan** | Financial Management | 8090 | /pembinaan/keuangan |
-| **Perencanaan** | Strategic Planning | 8091 | /pembinaan/perencanaan |
-| **Perlengkapan** | Equipment Management | 8092 | /pembinaan/perlengkapan |
+| Module             | Description                  | Port | URL                     |
+| ------------------ | ---------------------------- | ---- | ----------------------- |
+| **Badiklat**       | Training & Education         | 8093 | /badiklat               |
+| **Datun**          | Criminal Prosecution         | 8081 | /datun                  |
+| **Intel**          | Intelligence & Surveillance  | 8082 | /intel                  |
+| **Pidum**          | General Criminal Prosecution | 8088 | /pidum                  |
+| **Pidsus**         | Special Crimes Prosecution   | 8087 | /pidsus                 |
+| **Pidmil**         | Military Crimes Prosecution  | 8086 | /pidmil                 |
+| **Pengawasan**     | Supervision & Oversight      | 8085 | /pengawasan             |
+| **Pemulihan Aset** | Asset Recovery               | 8084 | /pemulihan-aset         |
+| **Keuangan**       | Financial Management         | 8090 | /pembinaan/keuangan     |
+| **Perencanaan**    | Strategic Planning           | 8091 | /pembinaan/perencanaan  |
+| **Perlengkapan**   | Equipment Management         | 8092 | /pembinaan/perlengkapan |
 
 ### Navigation Example
 
@@ -214,7 +217,7 @@ pub fn LoginPage() -> impl IntoView {
             ))
             .expect("Failed to redirect");
     };
-    
+
     view! {
         <div class="login-container">
             <div class="login-card">
@@ -246,14 +249,14 @@ impl AuthService {
             .set_item("auth_token", token)
             .expect("Failed to store token");
     }
-    
+
     pub fn get_token(&self) -> Option<String> {
         self.storage
             .get_item("auth_token")
             .ok()
             .flatten()
     }
-    
+
     pub fn clear_token(&self) {
         self.storage
             .remove_item("auth_token")
@@ -281,12 +284,14 @@ npm run test:e2e
 ## 📦 Dependencies
 
 ### Core Dependencies
+
 - **leptos**: 0.8.x - Reactive web framework
 - **leptos_router**: 0.8.x - Client-side routing
 - **leptos_meta**: 0.8.x - Meta tags management
 - **shared-microfrontend**: 0.4.0 - Shared UI components
 
 ### Utilities
+
 - **serde**: 1.0 - Serialization/deserialization
 - **gloo**: 0.11 - Web API wrappers
 - **uuid**: 1.11 - Unique identifiers
@@ -323,31 +328,31 @@ kubectl get ingress portal
 server {
     listen 80;
     server_name portal.simpelv2.kejaksaan.go.id;
-    
+
     root /usr/share/nginx/html;
     index index.html;
-    
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    
+
     # CSP header
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.simpelv2.kejaksaan.go.id;" always;
-    
+
     # SPA routing
     location / {
         try_files $uri $uri/ /index.html;
     }
-    
+
     # API proxy
     location /api/ {
         proxy_pass https://api.simpelv2.kejaksaan.go.id/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
-    
+
     # WASM mime type
     location ~ \.wasm$ {
         add_header Content-Type application/wasm;
@@ -358,6 +363,7 @@ server {
 ## 🔒 Security
 
 ### Content Security Policy
+
 ```
 default-src 'self';
 script-src 'self' 'unsafe-inline' 'unsafe-eval';
@@ -369,6 +375,7 @@ frame-ancestors 'none';
 ```
 
 ### Authentication & Authorization
+
 - OAuth 2.0 / OpenID Connect
 - JWT tokens with refresh mechanism
 - Role-Based Access Control (RBAC)
@@ -376,6 +383,7 @@ frame-ancestors 'none';
 - Session timeout and auto-logout
 
 ### Security Headers
+
 ```
 X-Frame-Options: SAMEORIGIN
 X-Content-Type-Options: nosniff
@@ -387,16 +395,19 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 ## 📊 Performance
 
 ### WASM Bundle Size
+
 - **Development**: ~1.2MB (unoptimized)
 - **Production**: ~320KB (optimized + gzipped)
 
 ### Load Performance
+
 - First Contentful Paint: <1.2s
 - Time to Interactive: <2.5s
 - Largest Contentful Paint: <2.0s
 - Lighthouse Score: 98+
 
 ### Performance Optimizations
+
 - Code splitting per route
 - Lazy loading for modules
 - Image optimization
@@ -419,7 +430,7 @@ pub fn apply_custom_theme() {
         text_color: "#111827",
         font_family: "Inter, system-ui, sans-serif",
     };
-    
+
     set_theme(theme);
 }
 ```
@@ -441,6 +452,6 @@ MIT License - See [LICENSE](../../LICENSE) for details.
 
 ---
 
-**Version**: 0.4.0  
-**Last Updated**: October 1, 2025  
+**Version**: 0.4.0
+**Last Updated**: October 1, 2025
 **Maintainer**: SIMPelv2 Team

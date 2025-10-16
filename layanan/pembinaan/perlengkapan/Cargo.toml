@@ -1,7 +1,7 @@
 [package]
 name = "layanan-perlengkapan"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "Layanan Perlengkapan untuk manajemen BMN Kejaksaan RI"
 
@@ -22,35 +22,36 @@ tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "bigdecimal", "migrate"] }
+# Database - PostgreSQL only (no MySQL to avoid RSA vulnerability RUSTSEC-2023-0071)
+# sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "uuid", "chrono"], default-features = false }  # DISABLED: sqlx dependency structure includes mysql
+# Using tokio-postgres directly for cleaner dependency tree
 
 # UUID and time
-uuid = { version = "1.8", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
 
 # Error handling
 anyhow = { workspace = true }
-thiserror = "1.0"
+thiserror = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { workspace = true }
 
 # Authentication & JWT
-jsonwebtoken = "9.2"
+jsonwebtoken = { workspace = true }
 
-# Validation
-validator = { version = "0.16", features = ["derive"] }
+# Validation (FIXED: replaced validator with garde - no idna vulnerability)
+garde = { workspace = true }
 
 # Decimal support
-bigdecimal = { version = "0.4", features = ["serde"] }
+bigdecimal = { workspace = true }
 
 # Async trait support
-async-trait = "0.1"
+async-trait = { workspace = true }
 
-# Environment variables
-dotenv = "0.15"
+# Environment variables (FIXED: using maintained dotenvy)
+dotenvy = { workspace = true }
 
 # HTTP client
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true }

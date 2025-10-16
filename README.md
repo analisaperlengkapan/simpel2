@@ -1,6 +1,6 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev) [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev) [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
 
 **SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfrontends menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
 

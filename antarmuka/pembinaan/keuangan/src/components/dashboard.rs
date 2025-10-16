@@ -53,11 +53,11 @@ pub fn DashboardLayout(
     // Logout handler
     let on_logout: Option<Box<dyn Fn() + Send + Sync>> = Some(Box::new(|| {
         // Clear any stored session data
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(local_storage)) = window.local_storage() {
-                let _ = local_storage.remove_item("auth_token");
-                let _ = local_storage.remove_item("user_session");
-            }
+        if let Some(window) = web_sys::window()
+            && let Ok(Some(local_storage)) = window.local_storage()
+        {
+            let _ = local_storage.remove_item("auth_token");
+            let _ = local_storage.remove_item("user_session");
         }
         // Redirect to portal logout
         if let Some(window) = web_sys::window() {

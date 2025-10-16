@@ -81,7 +81,7 @@ layanan-dasbor/
 ## 🔐 Akses & Validasi
 - Hanya pengguna role `admin`, `monitoring`, atau `pimpinan` yang dapat mengakses
 - Semua akses dicatat dalam `layanan-audit`
-- Query dibatasi ke data yang diotorisasi oleh `layanan-keamanan`
+- Query dibatasi ke data yang diotorisasi oleh `authenc`
 
 ---
 

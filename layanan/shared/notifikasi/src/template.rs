@@ -19,27 +19,22 @@ impl TemplateService {
         content: &str,
         variables: Value,
     ) -> Result<NotificationTemplate, AppError> {
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "INSERT INTO notifikasi.notification_templates (id, name, content, variables, version, created_at, updated_at, is_active)
-                 VALUES ($1, $2, $3, $4, 1, NOW(), NOW(), TRUE) RETURNING *",
-                &[&Uuid::new_v4(), &name, &content, &variables],
-            )
+        let sql = r#"INSERT INTO notifikasi.notification_templates (id, name, content, variables, version, created_at, updated_at, is_active)
+            VALUES ($1, $2, $3, $4, 1, NOW(), NOW(), TRUE) RETURNING id, name, content, variables, version, created_at, updated_at, is_active"#;
+        let row = self
+            .pool
+            .get()
+            .await?
+            .query_one(sql, &[&Uuid::new_v4(), &name, &content, &variables])
             .await?;
-        let rec = NotificationTemplate::from_row(&row);
+        let rec: NotificationTemplate = row.into();
         Ok(rec)
     }
 
     pub async fn get_template(&self, id: Uuid) -> Result<NotificationTemplate, AppError> {
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "SELECT * FROM notifikasi.notification_templates WHERE id = $1",
-                &[&id],
-            )
-            .await?;
-        let rec = NotificationTemplate::from_row(&row);
+        let sql = r#"SELECT id, name, content, variables, version, created_at, updated_at, is_active FROM notifikasi.notification_templates WHERE id = $1"#;
+        let row = self.pool.get().await?.query_one(sql, &[&id]).await?;
+        let rec: NotificationTemplate = row.into();
         Ok(rec)
     }
 
@@ -49,25 +44,20 @@ impl TemplateService {
         content: &str,
         variables: Value,
     ) -> Result<NotificationTemplate, AppError> {
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "UPDATE notifikasi.notification_templates SET content = $1, variables = $2, updated_at = NOW(), version = version + 1 WHERE id = $3 RETURNING *",
-                &[&content, &variables, &id],
-            )
+        let sql = r#"UPDATE notifikasi.notification_templates SET content = $1, variables = $2, updated_at = NOW(), version = version + 1 WHERE id = $3 RETURNING id, name, content, variables, version, created_at, updated_at, is_active"#;
+        let row = self
+            .pool
+            .get()
+            .await?
+            .query_one(sql, &[&content, &variables, &id])
             .await?;
-        let rec = NotificationTemplate::from_row(&row);
+        let rec: NotificationTemplate = row.into();
         Ok(rec)
     }
 
     pub async fn delete_template(&self, id: Uuid) -> Result<(), AppError> {
-        let client = self.pool.get().await?;
-        client
-            .execute(
-                "DELETE FROM notifikasi.notification_templates WHERE id = $1",
-                &[&id],
-            )
-            .await?;
+        let sql = r#"DELETE FROM notifikasi.notification_templates WHERE id = $1"#;
+        self.pool.get().await?.execute(sql, &[&id]).await?;
         Ok(())
     }
 

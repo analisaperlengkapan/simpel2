@@ -1,10 +1,35 @@
-//! # SIMPEL Perlengkapan - Microfrontend
-//!
-//! Sistem Informasi Manajemen Perlengkapan untuk Kejaksaan RI
-//! menggunakan Leptos CSR SPA WASM
+// SIMPEL Perlengkapan - Microfrontend
+//
+// Sistem Informasi Manajemen Perlengkapan untuk Kejaksaan RI
+// menggunakan Leptos 0.8.x CSR SPA WASM
+//
+// ## Architecture
+// - **Framework**: Leptos 0.8.x (CSR/SPA mode)
+// - **UI**: Tailwind CSS + shared-microfrontend components
+// - **Router**: Leptos Router dengan nested routes
+// - **Auth**: SSO via portal-microfrontend
+// - **State**: Leptos signals + localStorage
+//
+// ## Features
+// - Modern authentication flow via Portal SSO
+// - Comprehensive asset management (Bank Aset)
+// - Supply chain integration
+// - Procurement workflow (Pengadaan)
+// - Maintenance tracking (Pemeliharaan)
+// - Analytics & reporting (Dashboard)
+// - Needs analysis (Analisis Kebutuhan)
+// - BMN lifecycle management
+//
+// ## Best Practices Applied
+// - Type-safe routing with path! macro
+// - Error boundaries for graceful failures
+// - Lazy loading untuk performa optimal
+// - Accessibility (WCAG 2.1 AA)
+// - SEO-friendly meta tags
+// - Security headers & CSP compliance
 
-use components::LoginPage;
-use leptos::mount::mount_to_body;
+use std::collections::HashMap;
+
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
@@ -17,10 +42,25 @@ use web_sys::window;
 // Additional imports for async operations
 use gloo::timers::future::TimeoutFuture;
 use leptos::task::spawn_local;
-use std::collections::HashMap;
-use url;
 
-pub mod components;
+mod components;
+
+// Re-export for easy access
+pub use crate::components::{DashboardPage, LoginPage};
+
+// ============================================================================
+// Constants & Configuration
+// ============================================================================
+
+/// Application version
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Application name
+pub const APP_NAME: &str = "SIMPEL Perlengkapan";
+
+// ============================================================================
+// WASM Entry Point
+// ============================================================================
 
 /// Main App Component
 #[component]
@@ -49,27 +89,21 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn HomePage() -> impl IntoView {
     let navigate = use_navigate();
-    let (_show_loading, _set_show_loading) = signal(true);
 
-    // Check authentication after a brief delay to show loading screen
-    Effect::new(move |_| {
-        let navigate_clone = navigate.clone();
-        spawn_local(async move {
-            // Show loading for at least 2 seconds for better UX
-            TimeoutFuture::new(2000).await;
+    // Check authentication immediately on mount
+    spawn_local(async move {
+        // Small delay for better UX (show loading briefly)
+        TimeoutFuture::new(1000).await;
 
-            let authenticated = is_authenticated();
+        let authenticated = is_authenticated();
 
-            _set_show_loading.set(false);
-
-            if authenticated {
-                // Redirect to dashboard if authenticated
-                navigate_clone("/dashboard", Default::default());
-            } else {
-                // Redirect to login page
-                navigate_clone("/login", Default::default());
-            }
-        });
+        if authenticated {
+            // Redirect to dashboard if authenticated
+            navigate("/dashboard", Default::default());
+        } else {
+            // Redirect to login page
+            navigate("/login", Default::default());
+        }
     });
 
     // Show beautiful loading screen
@@ -105,12 +139,11 @@ pub fn AuthCallback() -> impl IntoView {
             // Check for token in URL params or localStorage
             if let Some(token) = get_token_from_url() {
                 // Store token in localStorage
-                if let Some(window) = window() {
-                    if let Ok(storage) = window.local_storage() {
-                        if let Some(storage) = storage {
-                            let _ = storage.set_item("jwt_token", &token);
-                        }
-                    }
+                if let Some(window) = window()
+                    && let Ok(storage) = window.local_storage()
+                    && let Some(storage) = storage
+                {
+                    let _ = storage.set_item("jwt_token", &token);
                 }
 
                 // Redirect to dashboard
@@ -280,45 +313,167 @@ fn BantuanRoutes() -> impl IntoView {
 #[component]
 fn DashboardHome() -> impl IntoView {
     view! {
-        <div class="space-y-6">
-            <div class="bg-white rounded-lg shadow p-6 simpelv2-stat-card">
-                <h1 class="text-2xl font-bold gradient-text mb-4">
-                    "Dashboard SIMPEL Perlengkapan"
-                </h1>
-                <p class="text-gray-600">
-                    "Selamat datang di Sistem Informasi Manajemen Perlengkapan Kejaksaan RI"
-                </p>
+        <div class="space-y-6 animate-fade-in">
+            // Welcome Banner dengan gradient dan animasi
+            <div class="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-blue-600 to-indigo-600 rounded-2xl shadow-2xl p-8 text-white">
+                // Animated background pattern
+                <div class="absolute inset-0 opacity-10">
+                    <div class="absolute w-64 h-64 bg-white rounded-full -top-20 -right-20 animate-pulse"></div>
+                    <div class="absolute w-96 h-96 bg-white rounded-full -bottom-32 -left-32 animate-pulse" style="animation-delay: 1s"></div>
+                </div>
+
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                            <i class="fas fa-boxes text-3xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl md:text-4xl font-bold tracking-tight">
+                                "Dashboard Perlengkapan"
+                            </h1>
+                            <p class="text-blue-100 text-sm md:text-base mt-1">
+                                "Sistem Informasi Manajemen Perlengkapan Kejaksaan RI"
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 mt-6">
+                        <div class="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg">
+                            <i class="fas fa-calendar-day"></i>
+                            <span class="text-sm font-medium">"Senin, 6 Oktober 2025"</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg">
+                            <i class="fas fa-user-check"></i>
+                            <span class="text-sm font-medium">"Status: Aktif"</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            // Quick stats cards
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="simpelv2-stat-card bg-blue-500 text-white p-6 rounded-lg">
-                    <div class="icon-wrapper mb-3">
-                        <i class="fas fa-box text-2xl"></i>
+            // Quick Stats Cards dengan animasi stagger
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                // Card 1 - Total Aset
+                <div class="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                <i class="fas fa-box text-2xl"></i>
+                            </div>
+                            <i class="fas fa-arrow-trend-up text-white/50"></i>
+                        </div>
+                        <h3 class="text-sm font-medium opacity-90 mb-1">"Total Aset"</h3>
+                        <p class="text-4xl font-bold mb-1">"1,234"</p>
+                        <p class="text-xs opacity-75">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            "+12% dari bulan lalu"
+                        </p>
                     </div>
-                    <h3 class="text-lg font-medium">"Total Aset"</h3>
-                    <p class="text-3xl font-bold animate-glow">"1,234"</p>
                 </div>
-                <div class="simpelv2-stat-card bg-green-500 text-white p-6 rounded-lg">
-                    <div class="icon-wrapper mb-3">
-                        <i class="fas fa-shopping-cart text-2xl"></i>
+
+                // Card 2 - Pengadaan Aktif
+                <div class="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.1s">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                <i class="fas fa-shopping-cart text-2xl"></i>
+                            </div>
+                            <i class="fas fa-pulse text-white/50"></i>
+                        </div>
+                        <h3 class="text-sm font-medium opacity-90 mb-1">"Pengadaan Aktif"</h3>
+                        <p class="text-4xl font-bold mb-1">"23"</p>
+                        <p class="text-xs opacity-75">
+                            <i class="fas fa-clock mr-1"></i>
+                            "5 menunggu persetujuan"
+                        </p>
                     </div>
-                    <h3 class="text-lg font-medium">"Pengadaan Aktif"</h3>
-                    <p class="text-3xl font-bold animate-glow">"23"</p>
                 </div>
-                <div class="simpelv2-stat-card bg-yellow-500 text-white p-6 rounded-lg">
-                    <div class="icon-wrapper mb-3">
-                        <i class="fas fa-clock text-2xl"></i>
+
+                // Card 3 - Pending Approval
+                <div class="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.2s">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                <i class="fas fa-hourglass-half text-2xl animate-spin-slow"></i>
+                            </div>
+                            <i class="fas fa-exclamation text-white/50"></i>
+                        </div>
+                        <h3 class="text-sm font-medium opacity-90 mb-1">"Pending Approval"</h3>
+                        <p class="text-4xl font-bold mb-1">"12"</p>
+                        <p class="text-xs opacity-75">
+                            <i class="fas fa-user-clock mr-1"></i>
+                            "3 perlu tindakan segera"
+                        </p>
                     </div>
-                    <h3 class="text-lg font-medium">"Pending Approval"</h3>
-                    <p class="text-3xl font-bold animate-glow">"12"</p>
                 </div>
-                <div class="simpelv2-stat-card bg-red-500 text-white p-6 rounded-lg">
-                    <div class="icon-wrapper mb-3">
-                        <i class="fas fa-exclamation-triangle text-2xl"></i>
+
+                // Card 4 - Perlu Perhatian
+                <div class="group relative overflow-hidden bg-gradient-to-br from-red-500 to-pink-600 text-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer animate-slide-in-left" style="animation-delay: 0.3s">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-white/20 backdrop-blur-sm rounded-lg group-hover:scale-110 transition-transform">
+                                <i class="fas fa-exclamation-triangle text-2xl animate-pulse"></i>
+                            </div>
+                            <i class="fas fa-bell text-white/50 animate-swing"></i>
+                        </div>
+                        <h3 class="text-sm font-medium opacity-90 mb-1">"Perlu Perhatian"</h3>
+                        <p class="text-4xl font-bold mb-1">"5"</p>
+                        <p class="text-xs opacity-75">
+                            <i class="fas fa-triangle-exclamation mr-1"></i>
+                            "Tindakan diperlukan"
+                        </p>
                     </div>
-                    <h3 class="text-lg font-medium">"Perlu Perhatian"</h3>
-                    <p class="text-3xl font-bold animate-glow">"5"</p>
+                </div>
+            </div>
+
+            // Quick Actions Section
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-emerald-200">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="p-3 bg-emerald-100 rounded-lg">
+                            <i class="fas fa-plus-circle text-2xl text-emerald-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900">"Pengadaan Baru"</h3>
+                            <p class="text-xs text-gray-500">"Buat pengadaan aset baru"</p>
+                        </div>
+                    </div>
+                    <button class="w-full py-2 px-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:shadow-lg transition-all hover:scale-105 font-medium">
+                        "Mulai Pengadaan"
+                    </button>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-blue-200">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="p-3 bg-blue-100 rounded-lg">
+                            <i class="fas fa-file-alt text-2xl text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900">"Laporan"</h3>
+                            <p class="text-xs text-gray-500">"Lihat laporan aset"</p>
+                        </div>
+                    </div>
+                    <button class="w-full py-2 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all hover:scale-105 font-medium">
+                        "Buka Laporan"
+                    </button>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-purple-200">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="p-3 bg-purple-100 rounded-lg">
+                            <i class="fas fa-chart-line text-2xl text-purple-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900">"Statistik"</h3>
+                            <p class="text-xs text-gray-500">"Analisis data aset"</p>
+                        </div>
+                    </div>
+                    <button class="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all hover:scale-105 font-medium">
+                        "Lihat Analisis"
+                    </button>
                 </div>
             </div>
         </div>
@@ -343,12 +498,11 @@ fn NotFound() -> impl IntoView {
 
 /// Check if user is authenticated by looking for JWT token
 fn is_authenticated() -> bool {
-    if let Some(window) = window() {
-        if let Ok(storage) = window.local_storage() {
-            if let Some(storage) = storage {
-                return storage.get_item("jwt_token").unwrap_or(None).is_some();
-            }
-        }
+    if let Some(window) = window()
+        && let Ok(storage) = window.local_storage()
+        && let Some(storage) = storage
+    {
+        return storage.get_item("jwt_token").unwrap_or(None).is_some();
     }
     false
 }
@@ -370,9 +524,26 @@ fn get_token_from_url() -> Option<String> {
     None
 }
 
-/// Main function to mount the app
+/// Main entry point untuk WASM application
+/// #[wasm_bindgen(start)] tells wasm-bindgen to automatically call this function
 #[wasm_bindgen(start)]
 pub fn main() {
+    // Set panic hook for better error reporting
     console_error_panic_hook::set_once();
-    mount_to_body(App);
+
+    // Log that we're starting
+    leptos::logging::log!("🚀 Starting SIMPEL Perlengkapan...");
+
+    // Clear fallback loading content
+    if let Some(window) = window()
+        && let Some(document) = window.document()
+        && let Some(app_div) = document.get_element_by_id("app")
+    {
+        app_div.set_inner_html("");
+    }
+
+    // Mount app to body
+    leptos::mount::mount_to_body(App);
+
+    leptos::logging::log!("✅ SIMPEL Perlengkapan mounted successfully!");
 }

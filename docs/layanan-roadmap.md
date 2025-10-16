@@ -28,7 +28,7 @@
 - Database: PostgreSQL (skema: `roadmap`)
 - Integrasi: layanan-usulan, layanan-aset, layanan-rekomendasi
 - AI Opsional: Analisis tren kebutuhan & prediksi roadmap
-- Standar: JSON REST API + JWT Auth + RBAC (via layanan-keamanan)
+- Standar: JSON REST API + JWT Auth + RBAC (via authenc)
 
 ---
 
@@ -62,7 +62,7 @@ layanan-roadmap/
 
 ## 🔐 Keamanan
 
-- Semua endpoint dilindungi JWT dan role dari layanan-keamanan.
+- Semua endpoint dilindungi JWT dan role dari authenc.
 - Audit trail dicatat otomatis via middleware logging.
 - Validasi input disertai sanitasi dan pembatasan input numerik.
 

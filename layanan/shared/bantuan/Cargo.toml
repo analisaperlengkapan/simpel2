@@ -1,7 +1,7 @@
 [package]
 name = "simpelv2-bantuan"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "SIMPelv2 - Layanan Bantuan (Help Service)"
 license = "MIT"
@@ -23,8 +23,8 @@ redis = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
-chrono = { version = "0.4", features = ["serde"] }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
 
 # Validation & Errors
 garde = { workspace = true }
@@ -50,20 +50,20 @@ dotenvy = { workspace = true }
 reqwest = { workspace = true }
 
 # Specific Features
-tokio-util = "0.7"
-walkdir = "2"
-mime = "0.3"
-tokio-stream = "0.1"
-base64 = "0.22"
-captcha = "0.0.9"
+tokio-util = { workspace = true }
+walkdir = { workspace = true }
+mime = { workspace = true }
+tokio-stream = { workspace = true }
+base64 = { workspace = true }
+captcha = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
 reqwest = { workspace = true }
-assert-json-diff = "2"
-serial_test = "3"
-tempfile = "3"
-mockall = "0.12"
+assert-json-diff = { workspace = true }
+serial_test = { workspace = true }
+tempfile = { workspace = true }
+mockall = { workspace = true }
 
 [features]
 default = ["ai", "webhook"]
@@ -73,5 +73,3 @@ webhook = []
 [[bin]]
 name = "simpelv2-bantuan"
 path = "src/main.rs"
-export = []
-gdpr = []

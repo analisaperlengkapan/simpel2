@@ -5,10 +5,10 @@ use crate::config::AppConfig;
 use crate::error::DashboardError;
 use crate::real_time::RealTimeService;
 use axum::{
+    Router,
     extract::{Json, Path, State},
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use deadpool_postgres::Pool;
 use serde::Deserialize;

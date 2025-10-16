@@ -1,0 +1,168 @@
+# Server configuration
+[server]
+host = "127.0.0.1"
+port = 8080
+log_level = "info"
+storage_path = "./data"
+
+# Database configuration - Optimized for PostgreSQL
+[database]
+# PostgreSQL connection URL (recommended for production)
+url = "postgresql://secreton_user:secure_password@localhost:5432/secreton_db"
+# Optimized connection pool settings for PostgreSQL
+max_connections = 20
+min_connections = 5
+max_lifetime = 1800  # 30 minutes
+idle_timeout = 300   # 5 minutes
+connection_timeout = 10
+# PostgreSQL-specific optimizations
+statement_cache_size = 1000
+prepared_statement_cache_size = 100
+
+# Authentication configuration
+[auth]
+token_ttl = 3600  # 1 hour in seconds
+refresh_token_ttl = 2592000  # 30 days in seconds
+jwt_secret = "change-this-to-a-secure-random-string"
+
+# Multi-Factor Authentication (MFA) configuration for government employees
+[mfa]
+# Enable MFA enforcement for all users
+enabled = true
+# Default MFA method for new users
+default_method = "TOTP"
+# Supported MFA methods
+supported_methods = ["TOTP", "SMS", "Email"]
+
+# TOTP (Time-based One-Time Password) configuration
+[mfa.totp]
+# TOTP issuer name displayed in authenticator apps
+issuer = "SIMPelv2 Kejaksaan RI"
+# Time window in seconds (standard is 30)
+time_window = 30
+# Number of digits in TOTP code (6 or 8)
+digits = 6
+# Hash algorithm (SHA1, SHA256, SHA512)
+algorithm = "SHA1"
+# Clock skew tolerance (number of time windows to accept)
+skew_tolerance = 1
+# QR code image size in pixels
+qr_code_size = 256
+
+# MFA enforcement policies for government employees
+[mfa.policies]
+# Require MFA for all government employees
+enforce_for_all = true
+# Grace period for MFA setup (in days)
+setup_grace_period = 7
+# Maximum failed MFA attempts before account lockout
+max_failed_attempts = 5
+# Account lockout duration in minutes
+lockout_duration = 30
+# Require MFA re-verification after this many hours
+reauth_interval = 8
+
+# Role-based MFA requirements
+[mfa.policies.roles]
+# Administrative roles require immediate MFA setup
+admin_immediate_setup = ["AdminPusat", "AdminEselonI", "AdminWilayah", "AdminSatker"]
+# High-privilege roles require stricter MFA policies
+high_privilege_roles = ["AdminPusat", "AdminEselonI"]
+# Standard employee roles
+standard_roles = ["PegawaiNegeri", "PegawaiKontrak"]
+
+# Organizational unit (Satker) specific MFA policies
+[mfa.policies.satker]
+# High-security satkers require immediate MFA setup
+high_security_satkers = ["KEJAKSAAN_AGUNG", "KEJATI_DKI", "KEJARI_JAKARTA_PUSAT"]
+# Standard satkers have normal grace period
+standard_satkers = ["KEJATI_*", "KEJARI_*"]
+
+# Recovery codes configuration
+[mfa.recovery_codes]
+# Number of recovery codes to generate
+count = 10
+# Length of each recovery code
+length = 12
+# Format: "numeric", "alphanumeric", "hex"
+format = "alphanumeric"
+# Allow recovery code reuse (not recommended for security)
+allow_reuse = false
+
+# Rate limiting for MFA operations
+[mfa.rate_limiting]
+# Maximum MFA verification attempts per minute
+max_attempts_per_minute = 10
+# Maximum MFA setup attempts per hour
+max_setup_attempts_per_hour = 3
+# Rate limit window in seconds
+window_seconds = 60
+# Enable progressive delays for failed attempts
+progressive_delays = true
+
+# Audit logging for MFA operations
+[mfa.audit]
+# Enable comprehensive MFA audit logging
+enabled = true
+# Log successful MFA verifications
+log_success = true
+# Log failed MFA attempts
+log_failures = true
+# Log MFA setup and configuration changes
+log_setup_changes = true
+# Log recovery code usage
+log_recovery_usage = true
+# Retention period for MFA audit logs (in days)
+retention_days = 365
+
+# Integration with external systems
+[mfa.integration]
+# SMS provider for SMS-based MFA (if enabled)
+sms_provider = "twilio"
+# Email provider for email-based MFA (if enabled)
+email_provider = "smtp"
+# Push notification provider (for future mobile app integration)
+push_provider = "firebase"
+
+# Security settings for MFA secrets
+[mfa.security]
+# Encryption algorithm for MFA secrets
+secret_encryption = "AES-256-GCM"
+# Key derivation function for MFA secret encryption
+kdf = "PBKDF2"
+# Number of KDF iterations
+kdf_iterations = 100000
+# Salt length for KDF
+salt_length = 32
+# Enable hardware security module (HSM) for key storage
+use_hsm = false
+# HSM configuration (if enabled)
+hsm_slot = 0
+hsm_pin = "change-this-hsm-pin"
+
+# Backup and disaster recovery for MFA data
+[mfa.backup]
+# Enable automatic backup of MFA configurations
+enabled = true
+# Backup interval in hours
+interval_hours = 24
+# Backup retention period in days
+retention_days = 90
+# Backup encryption key (should be different from main encryption key)
+backup_encryption_key = "change-this-backup-key"
+# Backup storage location
+backup_path = "./backups/mfa"
+
+# Monitoring and alerting for MFA operations
+[mfa.monitoring]
+# Enable MFA metrics collection
+metrics_enabled = true
+# Alert on suspicious MFA patterns
+alert_on_anomalies = true
+# Threshold for failed MFA attempts to trigger alert
+failed_attempts_threshold = 20
+# Time window for failed attempts monitoring (in minutes)
+monitoring_window_minutes = 15
+# Alert destinations
+alert_email = "security@kejaksaan.go.id"
+alert_webhook = "https://monitoring.kejaksaan.go.id/alerts/mfa"

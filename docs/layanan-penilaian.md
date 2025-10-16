@@ -17,7 +17,7 @@
 
 - Bahasa Pemrograman: Go (Gin Framework)
 - Database: PostgreSQL (skema: `penilaian`)
-- Otentikasi & Otorisasi: JWT + RBAC via `layanan-keamanan`
+- Otentikasi & Otorisasi: JWT + RBAC via `authenc`
 - Integrasi: `layanan-aset`, `layanan-laporan`, `layanan-roadmap`
 - AI: NLP summarization & interpretasi dokumen penilai
 
@@ -46,7 +46,7 @@ layanan-penilaian/
 
 ## 🔐 Keamanan
 
-- Token JWT diverifikasi dengan middleware `layanan-keamanan`
+- Token JWT diverifikasi dengan middleware `authenc`
 - Role-based access control: hanya pengguna tertentu yang bisa unggah/edit hasil
 - Data sensitif seperti nilai estimasi dan catatan penilai dilindungi dengan enkripsi saat disimpan
 

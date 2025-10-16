@@ -56,7 +56,7 @@ layanan-dokumen/
 
 ## 🔐 Keamanan
 
-- Token-based Authentication (melalui `layanan-keamanan`)
+- Token-based Authentication (melalui `authenc`)
 - Akses terkontrol melalui RBAC
 - Audit trail dari setiap aktivitas akses/modifikasi dokumen
 - Objek disimpan terenkripsi via MinIO + TLS

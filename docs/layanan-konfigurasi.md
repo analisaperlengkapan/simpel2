@@ -89,7 +89,7 @@ SIMAN_API_KEY=xxx
 
 - Perubahan referensi hanya oleh pengguna dengan role `admin-konfigurasi`
 - Semua perubahan tercatat di `layanan-audit`
-- Token JWT dari `layanan-keamanan` diperlukan untuk semua request
+- Token JWT dari `authenc` diperlukan untuk semua request
 
 ---
 

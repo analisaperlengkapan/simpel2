@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared_microfrontend::components::{Card, Logo};
+use shared_microfrontend::components::{Card, Logo, LogoSize};
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
@@ -57,11 +57,12 @@ pub fn LoginPage() -> impl IntoView {
 
                 // Header dengan Logo Kejaksaan
                 <div class="mb-8">
-                    <Logo
-                        size=96
-                        show_text=true
-                        class="mx-auto mb-6"
-                    />
+                    <div class="mx-auto mb-6">
+                        <Logo
+                            size=LogoSize::Large
+                            show_text=true
+                        />
+                    </div>
 
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">
                         "SIMPEL"

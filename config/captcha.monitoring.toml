@@ -1,0 +1,343 @@
+# CAPTCHA System Monitoring Configuration
+# Production monitoring and alerting configuration for CAPTCHA system
+
+[monitoring]
+# Enable monitoring
+enabled = true
+
+# Metrics collection interval in seconds
+collection_interval = 30
+
+# Metrics retention period in days
+retention_days = 90
+
+[monitoring.prometheus]
+# Prometheus metrics configuration
+enabled = true
+endpoint = "/metrics"
+namespace = "simpelv2_captcha"
+
+# Custom metrics
+[monitoring.prometheus.metrics]
+# Challenge metrics
+challenge_generation_duration = "histogram"
+challenge_validation_duration = "histogram"
+challenge_success_rate = "gauge"
+challenge_failure_rate = "gauge"
+active_challenges = "gauge"
+
+# Bot detection metrics
+bot_detection_accuracy = "gauge"
+bot_detection_precision = "gauge"
+bot_detection_recall = "gauge"
+bot_detection_f1_score = "gauge"
+suspicious_behavior_count = "counter"
+
+# Performance metrics
+memory_usage = "gauge"
+cpu_usage = "gauge"
+concurrent_users = "gauge"
+request_latency = "histogram"
+
+# Security metrics
+rate_limit_triggers = "counter"
+lockout_events = "counter"
+attack_attempts = "counter"
+blocked_ips = "gauge"
+
+[monitoring.tracing]
+# Distributed tracing configuration
+enabled = true
+service_name = "simpelv2-captcha"
+service_version = "1.0.0"
+
+# OpenTelemetry configuration
+[monitoring.tracing.otlp]
+enabled = true
+endpoint = "${OTLP_ENDPOINT}"
+headers = {}
+timeout = 10
+
+# Jaeger configuration (alternative)
+[monitoring.tracing.jaeger]
+enabled = false
+agent_endpoint = "${JAEGER_AGENT_ENDPOINT}"
+collector_endpoint = "${JAEGER_COLLECTOR_ENDPOINT}"
+
+[monitoring.logging]
+# Structured logging configuration
+enabled = true
+format = "json"
+level = "info"
+
+# Log targets
+[monitoring.logging.targets]
+console = true
+file = true
+syslog = false
+elasticsearch = true
+
+# File logging configuration
+[monitoring.logging.file]
+path = "/var/log/simpelv2/captcha.log"
+rotation = "daily"
+max_size = "100MB"
+max_files = 30
+
+# Elasticsearch logging configuration
+[monitoring.logging.elasticsearch]
+enabled = true
+endpoint = "${ELASTICSEARCH_ENDPOINT}"
+index_prefix = "simpelv2-captcha"
+bulk_size = 100
+flush_interval = 5
+
+[monitoring.alerting]
+# Alerting configuration
+enabled = true
+
+# Alert channels
+[monitoring.alerting.channels]
+email = true
+slack = true
+webhook = true
+pagerduty = false
+
+# Email alerting
+[monitoring.alerting.email]
+smtp_host = "${SMTP_HOST}"
+smtp_port = 587
+smtp_username = "${SMTP_USERNAME}"
+smtp_password = "${SMTP_PASSWORD}"
+from_address = "alerts@kejaksaan.go.id"
+to_addresses = ["admin@kejaksaan.go.id", "security@kejaksaan.go.id"]
+
+# Slack alerting
+[monitoring.alerting.slack]
+webhook_url = "${SLACK_WEBHOOK_URL}"
+channel = "#security-alerts"
+username = "CAPTCHA Monitor"
+
+# Webhook alerting
+[monitoring.alerting.webhook]
+url = "${ALERT_WEBHOOK_URL}"
+timeout = 10
+retry_count = 3
+
+[monitoring.alerts]
+# Alert rules configuration
+
+# High failure rate alert
+[monitoring.alerts.high_failure_rate]
+enabled = true
+condition = "failure_rate > 0.7"
+duration = "5m"
+severity = "warning"
+message = "CAPTCHA failure rate is above 70% for 5 minutes"
+
+# Bot detection accuracy alert
+[monitoring.alerts.low_bot_detection_accuracy]
+enabled = true
+condition = "bot_detection_accuracy < 0.85"
+duration = "10m"
+severity = "warning"
+message = "Bot detection accuracy has dropped below 85%"
+
+# High bot detection rate alert
+[monitoring.alerts.high_bot_detection_rate]
+enabled = true
+condition = "bot_detection_rate > 0.5"
+duration = "2m"
+severity = "critical"
+message = "High bot detection rate detected - possible attack in progress"
+
+# Performance degradation alert
+[monitoring.alerts.performance_degradation]
+enabled = true
+condition = "avg_response_time > 2000"
+duration = "3m"
+severity = "warning"
+message = "CAPTCHA response time degraded above 2 seconds"
+
+# Memory usage alert
+[monitoring.alerts.high_memory_usage]
+enabled = true
+condition = "memory_usage > 0.85"
+duration = "5m"
+severity = "warning"
+message = "CAPTCHA service memory usage above 85%"
+
+# CPU usage alert
+[monitoring.alerts.high_cpu_usage]
+enabled = true
+condition = "cpu_usage > 0.8"
+duration = "5m"
+severity = "warning"
+message = "CAPTCHA service CPU usage above 80%"
+
+# Rate limiting alert
+[monitoring.alerts.excessive_rate_limiting]
+enabled = true
+condition = "rate_limit_triggers > 100"
+duration = "1m"
+severity = "warning"
+message = "Excessive rate limiting triggers detected"
+
+# Security incident alert
+[monitoring.alerts.security_incident]
+enabled = true
+condition = "attack_attempts > 50"
+duration = "1m"
+severity = "critical"
+message = "High number of attack attempts detected"
+
+# Service availability alert
+[monitoring.alerts.service_unavailable]
+enabled = true
+condition = "up == 0"
+duration = "30s"
+severity = "critical"
+message = "CAPTCHA service is unavailable"
+
+[monitoring.dashboards]
+# Dashboard configuration
+enabled = true
+
+# Grafana dashboard
+[monitoring.dashboards.grafana]
+enabled = true
+url = "${GRAFANA_URL}"
+api_key = "${GRAFANA_API_KEY}"
+dashboard_id = "captcha-system"
+
+# Dashboard panels
+[monitoring.dashboards.panels]
+# Overview panel
+overview = [
+    "challenge_success_rate",
+    "bot_detection_accuracy",
+    "active_challenges",
+    "concurrent_users"
+]
+
+# Performance panel
+performance = [
+    "request_latency",
+    "memory_usage",
+    "cpu_usage",
+    "challenge_generation_duration"
+]
+
+# Security panel
+security = [
+    "bot_detection_rate",
+    "attack_attempts",
+    "blocked_ips",
+    "rate_limit_triggers"
+]
+
+# Analytics panel
+analytics = [
+    "challenge_type_distribution",
+    "difficulty_distribution",
+    "geographic_distribution",
+    "user_experience_metrics"
+]
+
+[monitoring.health_checks]
+# Health check configuration
+enabled = true
+interval = 30
+timeout = 10
+
+# Health check endpoints
+[monitoring.health_checks.endpoints]
+database = "/health/database"
+secreton = "/health/secreton"
+authenc = "/health/authenc"
+cache = "/health/cache"
+
+# Health check thresholds
+[monitoring.health_checks.thresholds]
+database_response_time = 1000  # ms
+secreton_response_time = 2000  # ms
+authenc_response_time = 1000   # ms
+cache_response_time = 100      # ms
+
+[monitoring.audit]
+# Audit logging configuration
+enabled = true
+retention_days = 365
+
+# Audit events to log
+[monitoring.audit.events]
+challenge_created = true
+challenge_solved = true
+challenge_failed = true
+bot_detected = true
+rate_limit_triggered = true
+security_incident = true
+configuration_changed = true
+admin_action = true
+
+# Audit log format
+[monitoring.audit.format]
+timestamp = true
+user_id = true
+ip_address = true
+user_agent = true
+action = true
+resource = true
+outcome = true
+details = true
+
+[monitoring.compliance]
+# Compliance monitoring
+enabled = true
+
+# GDPR compliance
+[monitoring.compliance.gdpr]
+enabled = true
+data_retention_days = 90
+anonymization_enabled = true
+consent_tracking = true
+
+# Security compliance
+[monitoring.compliance.security]
+encryption_monitoring = true
+access_control_monitoring = true
+vulnerability_scanning = true
+penetration_testing = false
+
+[monitoring.reporting]
+# Automated reporting
+enabled = true
+
+# Daily reports
+[monitoring.reporting.daily]
+enabled = true
+time = "06:00"
+recipients = ["admin@kejaksaan.go.id"]
+include_metrics = true
+include_alerts = true
+include_security_summary = true
+
+# Weekly reports
+[monitoring.reporting.weekly]
+enabled = true
+day = "monday"
+time = "08:00"
+recipients = ["admin@kejaksaan.go.id", "security@kejaksaan.go.id"]
+include_analytics = true
+include_performance_summary = true
+include_security_analysis = true
+
+# Monthly reports
+[monitoring.reporting.monthly]
+enabled = true
+day = 1
+time = "09:00"
+recipients = ["admin@kejaksaan.go.id", "management@kejaksaan.go.id"]
+include_executive_summary = true
+include_trend_analysis = true
+include_recommendations = true

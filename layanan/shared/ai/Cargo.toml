@@ -1,7 +1,7 @@
 [package]
 name = "layanan-ai"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "AI service for SIMPelv2 - LLM, RAG, OCR, ML models"
 
@@ -10,7 +10,7 @@ description = "AI service for SIMPelv2 - LLM, RAG, OCR, ML models"
 axum = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
-hyper = { version = "1.0", features = ["full"] }
+hyper = { workspace = true }
 tokio = { workspace = true }
 
 # Serialization
@@ -27,37 +27,37 @@ uuid = { workspace = true }
 # rust-bert = "0.21" # Disabled for now
 # tokenizers = "0.15" # Disabled for now
 # tch = "0.13" # Disabled for now
-rust-embed = "8.0"
+rust-embed = { workspace = true }
 
 # OCR & Image Processing - Disabled due to system dependencies
 # image = "0.24"
 # opencv = "0.88" # Disabled for now due to clang dependency
 
 # Vector Database (for RAG)
-qdrant-client = "1.7"
+qdrant-client = { workspace = true }
 
 # NLP & Text Processing
-regex = "1.10"
+regex = { workspace = true }
 
 # Configuration
-config = "0.14"
+config = { workspace = true }
 dotenvy = { workspace = true }
 
 # Logging & Observability
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-opentelemetry = "0.21"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
 
 # Error Handling
-anyhow = "1.0"
-thiserror = "1.0"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
 
 # Time
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true }
 
 # Async
-futures = "0.3"
-async-trait = "0.1"
+futures = { workspace = true }
+async-trait = { workspace = true }
 
 # HTTP Client
 reqwest = { workspace = true }
@@ -65,10 +65,9 @@ reqwest = { workspace = true }
 # Validation
 garde = { workspace = true }
 
-
 # Crypto (for model integrity)
-sha2 = "0.10"
-hmac = "0.12"
+sha2 = { workspace = true }
+hmac = { workspace = true }
 
 [dev-dependencies]
-tokio-test = "0.4"
+tokio-test = { workspace = true }

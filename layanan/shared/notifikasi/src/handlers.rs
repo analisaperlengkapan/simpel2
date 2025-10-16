@@ -6,10 +6,10 @@ use crate::security::RateLimitState;
 use crate::template::TemplateService;
 use crate::whatsapp::WhatsAppService;
 use axum::{
+    Router,
     extract::{Json, Path},
     response::IntoResponse,
     routing::{get, post, put},
-    Router,
 };
 use deadpool_postgres::Pool;
 use serde_json::json;

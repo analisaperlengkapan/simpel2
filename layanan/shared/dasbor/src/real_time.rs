@@ -59,7 +59,7 @@ impl RealTimeServiceTrait for RealTimeService {
 
         // Publish to Redis for real-time subscribers
         let redis_client = self.get_redis_client().await?;
-        let mut conn = redis_client.get_async_connection().await?;
+        let mut conn = redis_client.get_multiplexed_tokio_connection().await?;
         let update_data = serde_json::json!({
             "id": id,
             "metric_name": metric_name,
@@ -68,7 +68,7 @@ impl RealTimeServiceTrait for RealTimeService {
             "source": source
         });
 
-        conn.publish(format!("metric:{}", metric_name), update_data.to_string())
+        conn.publish::<_, _, ()>(format!("metric:{}", metric_name), update_data.to_string())
             .await?;
 
         Ok(())
@@ -76,10 +76,9 @@ impl RealTimeServiceTrait for RealTimeService {
 
     async fn subscribe_to_metric(&self, metric_name: &str) -> Result<Value, DashboardError> {
         let redis_client = self.get_redis_client().await?;
-        let conn = redis_client.get_async_connection().await?;
 
-        // Subscribe to the metric channel using pubsub
-        let mut pubsub = conn.into_pubsub();
+        // For pubsub in redis 0.32+, get async pubsub directly
+        let mut pubsub = redis_client.get_async_pubsub().await?;
         pubsub.subscribe(format!("metric:{}", metric_name)).await?;
 
         Ok(serde_json::json!({
@@ -106,7 +105,7 @@ impl RealTimeServiceTrait for RealTimeService {
 
     async fn get_active_subscriptions(&self) -> Result<Value, DashboardError> {
         let redis_client = self.get_redis_client().await?;
-        let mut conn = redis_client.get_async_connection().await?;
+        let mut conn = redis_client.get_multiplexed_tokio_connection().await?;
 
         // Get info about active subscriptions (simplified)
         let info: redis::Value = redis::cmd("INFO").query_async(&mut conn).await?;

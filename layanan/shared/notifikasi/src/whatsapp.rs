@@ -29,23 +29,18 @@ impl WhatsAppService {
     ) -> Result<Notification, AppError> {
         let notif_id = Uuid::new_v4();
         // Insert notification DB (pending)
-        let client = self.pool.get().await?;
-        let row = client
-            .query_one(
-                "INSERT INTO notifikasi.notifications (id, channel, status, subject, body, created_at)
-                 VALUES ($1, 'whatsapp', 'pending', $2, $3, NOW()) RETURNING *",
-                &[&notif_id, &template_name, &variables.to_string()],
-            )
-            .await?;
-        let notif = Notification::from_row(&row);
+        let row = self.pool.get().await?.query_one(
+            r#"INSERT INTO notifikasi.notifications (id, channel, status, subject, body, created_at)
+            VALUES ($1, 'whatsapp', 'pending', $2, $3, NOW()) RETURNING *"#,
+            &[&notif_id, &template_name, &variables.to_string()]
+        ).await?;
+        let notif: Notification = row.into();
         // Insert recipient
-        client
-            .execute(
-                "INSERT INTO notifikasi.notification_recipients (id, notification_id, recipient, recipient_type, status)
-                 VALUES ($1, $2, $3, 'phone', 'pending')",
-                &[&Uuid::new_v4(), &notif_id, &phone_number],
-            )
-            .await?;
+        self.pool.get().await?.execute(
+            r#"INSERT INTO notifikasi.notification_recipients (id, notification_id, recipient, recipient_type, status)
+            VALUES ($1, $2, $3, 'phone', 'pending')"#,
+            &[&Uuid::new_v4(), &notif_id, &phone_number]
+        ).await?;
         // Kirim WhatsApp
         let api_url = self.config.whatsapp_api_url.as_deref().unwrap_or("");
         let token = self.config.whatsapp_access_token.as_deref().unwrap_or("");
@@ -85,18 +80,14 @@ impl WhatsAppService {
         };
         let error_message = resp.as_ref().err().map(|e| e.to_string());
         // Update status DB
-        client
-            .execute(
-                "UPDATE notifikasi.notifications SET status = $1, sent_at = NOW(), error_message = $2 WHERE id = $3",
-                &[&status, &error_message, &notif_id],
-            )
-            .await?;
-        client
-            .execute(
-                "UPDATE notifikasi.notification_recipients SET status = $1, sent_at = NOW(), error_message = $2 WHERE notification_id = $3 AND recipient = $4",
-                &[&status, &error_message, &notif_id, &phone_number],
-            )
-            .await?;
+        self.pool.get().await?.execute(
+            r#"UPDATE notifikasi.notifications SET status = $1, sent_at = NOW(), error_message = $2 WHERE id = $3"#,
+            &[&status, &error_message, &notif_id]
+        ).await?;
+        self.pool.get().await?.execute(
+            r#"UPDATE notifikasi.notification_recipients SET status = $1, sent_at = NOW(), error_message = $2 WHERE notification_id = $3 AND recipient = $4"#,
+            &[&status, &error_message, &notif_id, &phone_number]
+        ).await?;
         Ok(notif)
     }
 
@@ -111,28 +102,27 @@ impl WhatsAppService {
             let _ = self
                 .send_whatsapp(&recipient, template_name, variables.clone())
                 .await;
-            let client = self.pool.get().await?;
-            let row = client
-                .query_one(
-                    "SELECT * FROM notifikasi.notification_recipients WHERE recipient = $1 ORDER BY sent_at DESC LIMIT 1",
-                    &[&recipient],
-                )
-                .await?;
-            let rec = NotificationRecipient::from_row(&row);
+            let row = self.pool.get().await?.query_one(
+                r#"SELECT * FROM notifikasi.notification_recipients WHERE recipient = $1 ORDER BY sent_at DESC LIMIT 1"#,
+                &[&recipient]
+            ).await?;
+            let rec: NotificationRecipient = row.into();
             results.push(rec);
         }
         Ok(results)
     }
 
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
-        let client = self.pool.get().await?;
-        let row = client
+        let row = self
+            .pool
+            .get()
+            .await?
             .query_one(
-                "SELECT * FROM notifikasi.notifications WHERE id = $1",
+                r#"SELECT * FROM notifikasi.notifications WHERE id = $1"#,
                 &[&notification_id],
             )
             .await?;
-        let notif = Notification::from_row(&row);
+        let notif: Notification = row.into();
         Ok(notif)
     }
 }

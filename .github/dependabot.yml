@@ -27,7 +27,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      
+
       # Leptos ecosystem
       leptos-stack:
         patterns:
@@ -38,7 +38,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      
+
       # Database stack
       database-stack:
         patterns:
@@ -49,7 +49,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      
+
       # Cryptography
       crypto-stack:
         patterns:
@@ -60,7 +60,7 @@ updates:
           - "rustls*"
         update-types:
           - "patch"
-      
+
       # Tracing & Observability
       observability-stack:
         patterns:
@@ -70,7 +70,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      
+
       # Serialization
       serde-stack:
         patterns:
@@ -81,11 +81,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    
+
     # Allow immediate security updates
     allow:
       - dependency-type: "all"
-    
+
     ignore:
       # Pin Rust edition 2024 compatible versions
       - dependency-name: "rustc"
@@ -114,6 +114,36 @@ updates:
           - "curve25519*"
           - "x25519*"
           - "argon2"
+        update-types:
+          - "patch"
+
+  # Authenc workspace
+  - package-ecosystem: "cargo"
+    directory: "/infra/authenc"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "authenc"
+      - "security"
+    commit-message:
+      prefix: "deps(authenc)"
+    groups:
+      auth-crypto:
+        patterns:
+          - "ed25519*"
+          - "x25519*"
+          - "argon2"
+          - "jsonwebtoken"
+          - "bcrypt"
+          - "totp*"
+          - "p256"
+          - "p384"
+          - "p521"
+          - "ecdsa"
         update-types:
           - "patch"
 

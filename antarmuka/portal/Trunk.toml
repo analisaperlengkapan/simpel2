@@ -3,48 +3,34 @@ target = "index.html"
 dist = "dist"
 release = true
 
-# Advanced WASM optimization
+# WASM optimization - enable all required features
 [[build.wasm_opt]]
 args = [
-    "-Oz",                    # Maximum size optimization
-    "--enable-bulk-memory",   # Enable bulk memory operations
-    "--enable-reference-types", # Enable reference types
-    "--enable-simd",          # Enable SIMD if supported
-    "--strip-debug",          # Remove debug information
-    "--strip-producers",      # Remove producers section
-    "--dce",                  # Dead code elimination
-    "--duplicate-function-elimination", # Remove duplicate functions
-    "--simplify-locals",      # Simplify local variables
-    "--vacuum",               # Final vacuum pass
+  "-O2",           # Moderate optimization
+  "--enable-all",  # Enable all features
+  "--strip-debug", # Remove debug information
 ]
 
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]
 target = "web"
-typescript = false         # Disable TS generation for smaller bundles
-debug = false             # No debug in production
-demangle = false          # No name demangling for size
-keep-debug = false        # Remove debug info
+typescript = false                 # Disable TS generation for smaller bundles
+debug = false                      # No debug in production
+demangle = false                   # No name demangling for size
+keep-debug = false                 # Remove debug info
 no-modules-global = "wasm_bindgen"
 
 # Tree shaking and optimization
+
 [build.rust]
-optimization-level = "z"   # Maximum size optimization
+optimization-level = "3" # High optimization (not maximum size)
 debug = false
 lto = true
 
+# Server configuration - NO AUTO RELOAD
 [serve]
-addresses = ["127.0.0.1", "0.0.0.0"]
 port = 8080
-open = false              # Don't auto-open browser
-
-[watch]
-ignore = [
-    "./target/**",
-    "./dist/**",
-    "./.git/**"
-]
-watch = ["src", "styles", "../shared/styles"]
+open = false
 
 [build.public-assets]
 sources = ["styles/*.css", "../shared/styles/*.css"]

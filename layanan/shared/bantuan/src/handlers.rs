@@ -9,10 +9,10 @@ use crate::knowledge::KnowledgeService;
 use crate::ticket::TicketService;
 use crate::webhook::WebhookService;
 use axum::{
+    Router,
     extract::{Json, Path, Query, State},
     response::IntoResponse,
     routing::{get, post, put},
-    Router,
 };
 use deadpool_postgres::Pool;
 use serde_json::json;

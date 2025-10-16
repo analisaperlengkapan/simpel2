@@ -5,15 +5,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perlengkapan - SIMPelv2</title>
-    <!-- Tailwind CSS -->
-    <!-- SIMPelv2 Design System -->
-    <link rel="stylesheet" href="/assets/main.css">
-    <!-- Legacy Support -->
-    <link rel="stylesheet" href="/assets/legacy.css">
+
+    <!-- Tailwind CSS CDN (for quick setup) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Trunk WASM configuration -->
-    <link data-trunk rel="rust" data-bin="perlengkapan-microfrontend" data-wasm-opt="z"
-        data-wasm-opt-params="--enable-bulk-memory" />
+
+    <!-- Custom CSS for animations and utilities -->
+    <link data-trunk rel="css" href="styles/custom.css">
+
+    <!-- Trunk WASM configuration - lib only, no binary -->
+    <link data-trunk rel="rust" data-wasm-opt="z" data-wasm-opt-params="--enable-bulk-memory" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <!-- SEO & Meta Tags -->
+    <meta name="description" content="Sistem Informasi Manajemen Perlengkapan Kejaksaan Republik Indonesia - Platform terintegrasi untuk pengelolaan aset dan BMN">
+    <meta name="keywords" content="SIMPEL, Kejaksaan, Perlengkapan, BMN, Aset, Pengadaan">
+    <meta name="author" content="Kejaksaan RI">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
 </head>
 
 <body>

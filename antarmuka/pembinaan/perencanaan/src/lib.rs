@@ -3,21 +3,17 @@
 //! Sistem Informasi Manajemen Perencanaan BMN (Barang Milik Negara)
 //! Mengelola perencanaan pengadaan, pemeliharaan, dan pengembangan aset negara
 
-use leptos::mount::mount_to_body;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::hooks::use_navigate;
 use leptos_router::*;
 use shared_microfrontend::prelude::*;
-use wasm_bindgen::prelude::*;
 use web_sys::window;
 
 // Additional imports for async operations
 use gloo::timers::future::TimeoutFuture;
 use leptos::task::spawn_local;
-use std::collections::HashMap;
-use url;
 
 pub mod components;
 pub mod pages;
@@ -200,12 +196,11 @@ pub fn DashboardRoutes() -> impl IntoView {
 
 /// Check if user is authenticated by looking for JWT token
 fn is_authenticated() -> bool {
-    if let Some(window) = window() {
-        if let Ok(storage) = window.local_storage() {
-            if let Some(storage) = storage {
-                return storage.get_item("jwt_token").unwrap_or(None).is_some();
-            }
-        }
+    if let Some(window) = window()
+        && let Ok(storage) = window.local_storage()
+        && let Some(storage) = storage
+    {
+        return storage.get_item("jwt_token").unwrap_or(None).is_some();
     }
     false
 }

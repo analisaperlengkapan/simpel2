@@ -1,0 +1,275 @@
+# Docker Compose configuration for CAPTCHA system deployment
+# This extendsker-compose.th CAPTCHA-specific services
+
+version: "3.8"
+
+services:
+  # CAPTCHA Analytics Database (separate from main database for performance)
+  captcha-analytics-db:
+    image: postgres:16-alpine
+    container_name: simpelv2-captcha-analytics-db
+    environment:
+      POSTGRES_DB: captcha_analytics
+      POSTGRES_USER: ${CAPTCHA_DB_USER:-captcha_user}
+      POSTGRES_PASSWORD: ${CAPTCHA_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - captcha_analytics_data:/var/lib/postgresql/data
+      - ./infra/authenc/migrations/025_captcha_system.sql:/docker-entrypoint-initdb.d/001_captcha_schema.sql:ro
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${CAPTCHA_DB_USER:-captcha_user} -d captcha_analytics",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  # Redis for CAPTCHA caching and rate limiting
+  captcha-redis:
+    image: redis:7-alpine
+    container_name: simpelv2-captcha-redis
+    command: redis-server --appendonly yes --requirepass ${CAPTCHA_REDIS_PASSWORD}
+    volumes:
+      - captcha_redis_data:/data
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+
+  # CAPTCHA Metrics Collector (Prometheus)
+  captcha-prometheus:
+    image: prom/prometheus:latest
+    container_name: simpelv2-captcha-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=90d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./config/prometheus/captcha.yml:/etc/prometheus/prometheus.yml:ro
+      - captcha_prometheus_data:/prometheus
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+
+  # CAPTCHA Dashboard (Grafana)
+  captcha-grafana:
+    image: grafana/grafana:latest
+    container_name: simpelv2-captcha-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${CAPTCHA_GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - captcha_grafana_data:/var/lib/grafana
+      - ./config/grafana/captcha-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./config/grafana/captcha-datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    depends_on:
+      - captcha-prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  # CAPTCHA Log Aggregator (Elasticsearch)
+  captcha-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: simpelv2-captcha-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - captcha_elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # CAPTCHA Log Visualization (Kibana)
+  captcha-kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: simpelv2-captcha-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://captcha-elasticsearch:9200
+      SERVER_NAME: captcha-kibana
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    depends_on:
+      - captcha-elasticsearch
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  # CAPTCHA Alert Manager
+  captcha-alertmanager:
+    image: prom/alertmanager:latest
+    container_name: simpelv2-captcha-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/config.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://localhost:9093"
+    volumes:
+      - ./config/alertmanager/captcha.yml:/etc/alertmanager/config.yml:ro
+      - captcha_alertmanager_data:/alertmanager
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9093/-/healthy",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+
+  # CAPTCHA Backup Service
+  captcha-backup:
+    image: postgres:16-alpine
+    container_name: simpelv2-captcha-backup
+    environment:
+      PGPASSWORD: ${CAPTCHA_DB_PASSWORD}
+    volumes:
+      - captcha_backups:/backups
+      - ./scripts/backup/captcha-backup.sh:/usr/local/bin/backup.sh:ro
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    depends_on:
+      - captcha-analytics-db
+    command: >
+      sh -c "
+        while true; do
+          sleep 86400;
+          /usr/local/bin/backup.sh;
+        done
+      "
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.1"
+        reservations:
+          memory: 64M
+          cpus: "0.05"
+
+volumes:
+  captcha_analytics_data:
+    driver: local
+  captcha_redis_data:
+    driver: local
+  captcha_prometheus_data:
+    driver: local
+  captcha_grafana_data:
+    driver: local
+  captcha_elasticsearch_data:
+    driver: local
+  captcha_alertmanager_data:
+    driver: local
+  captcha_backups:
+    driver: local
+
+networks:
+  simpelv2-network:
+    external: true

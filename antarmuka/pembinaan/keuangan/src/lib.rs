@@ -3,13 +3,15 @@
 //! Sistem Informasi Manajemen Keuangan untuk Kejaksaan RI
 //! menggunakan Leptos CSR SPA WASM
 
-use components::LoginPage;
 use leptos::mount::mount_to_body;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router::hooks::use_navigate;
 use leptos_router::*;
+use shared_microfrontend::components::auth::{
+    LoginRedirectPage, LogoutButton, ProtectedRoute, UserProfile,
+};
 use shared_microfrontend::prelude::*;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
@@ -18,7 +20,6 @@ use web_sys::window;
 use gloo::timers::future::TimeoutFuture;
 use leptos::task::spawn_local;
 use std::collections::HashMap;
-use url;
 
 pub mod components;
 
@@ -36,9 +37,7 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=|| view! { <NotFound /> }>
-                <Route path=path!("/") view=HomePage />
-                <Route path=path!("/login") view=LoginPage />
-                <Route path=path!("/auth/callback") view=AuthCallback />
+                <Route path=path!("/") view=LoginRedirectPage />
                 <Route path=path!("/dashboard/*") view=DashboardRoutes />
             </Routes>
         </Router>
@@ -105,12 +104,11 @@ pub fn AuthCallback() -> impl IntoView {
             // Check for token in URL params or localStorage
             if let Some(token) = get_token_from_url() {
                 // Store token in localStorage
-                if let Some(window) = window() {
-                    if let Ok(storage) = window.local_storage() {
-                        if let Some(storage) = storage {
-                            let _ = storage.set_item("jwt_token", &token);
-                        }
-                    }
+                if let Some(window) = window()
+                    && let Ok(storage) = window.local_storage()
+                    && let Some(storage) = storage
+                {
+                    let _ = storage.set_item("jwt_token", &token);
                 }
 
                 // Redirect to dashboard
@@ -144,29 +142,21 @@ pub fn AuthCallback() -> impl IntoView {
 
 #[component]
 pub fn DashboardRoutes() -> impl IntoView {
-    let navigate = use_navigate();
-
-    // Check authentication before showing dashboard
-    if !is_authenticated() {
-        navigate("/login", Default::default());
-        return view! {
-            <div class="min-h-screen flex items-center justify-center">
-                <div class="text-center">
-                    <p class="text-red-600">Authentication required. Redirecting...</p>
-                </div>
-            </div>
-        }
-        .into_any();
-    }
-
-    view! {
-        <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-            // Header menggunakan shared
-            <header class="simpelv2-header">
-                <div class="container mx-auto px-6 py-4">
-                    <Logo show_text=true />
-                </div>
-            </header>
+    let content = move || {
+        view! {
+            <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+                // Header with auth
+                <header class="simpelv2-header bg-blue-700 text-white">
+                    <div class="container mx-auto px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <Logo show_text=true />
+                            <div class="flex items-center space-x-4">
+                                <UserProfile class="text-white".to_string() />
+                                <LogoutButton class="text-white hover:bg-blue-800".to_string() />
+                            </div>
+                        </div>
+                    </div>
+                </header>
 
             // Content area
             <main class="container mx-auto px-6 py-8">
@@ -194,15 +184,19 @@ pub fn DashboardRoutes() -> impl IntoView {
                 </Routes>
             </main>
 
-            // Footer menggunakan shared
-            <footer class="bg-gray-100 border-t py-6 simpelv2-stat-card">
-                <div class="container mx-auto px-6 text-center">
-                    <p class="text-gray-600">"© 2024 Kejaksaan Republik Indonesia"</p>
-                </div>
-            </footer>
-        </div>
+                // Footer menggunakan shared
+                <footer class="bg-gray-100 border-t py-6 simpelv2-stat-card">
+                    <div class="container mx-auto px-6 text-center">
+                        <p class="text-gray-600">"© 2024 Kejaksaan Republik Indonesia"</p>
+                    </div>
+                </footer>
+            </div>
+        }
+    };
+
+    view! {
+        <ProtectedRoute children=content />
     }
-    .into_any()
 }
 
 // Anggaran Routes
@@ -343,12 +337,11 @@ fn NotFound() -> impl IntoView {
 
 /// Check if user is authenticated by looking for JWT token
 fn is_authenticated() -> bool {
-    if let Some(window) = window() {
-        if let Ok(storage) = window.local_storage() {
-            if let Some(storage) = storage {
-                return storage.get_item("jwt_token").unwrap_or(None).is_some();
-            }
-        }
+    if let Some(window) = window()
+        && let Ok(storage) = window.local_storage()
+        && let Some(storage) = storage
+    {
+        return storage.get_item("jwt_token").unwrap_or(None).is_some();
     }
     false
 }

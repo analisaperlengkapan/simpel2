@@ -43,7 +43,7 @@ For highly sensitive issues, request our PGP key via email first.
 
 ### In Scope
 
-- **Authentication & Authorization** (`layanan/shared/authenc/`)
+- **Authentication & Authorization** (`infra/authenc/`)
 - **Secreton Vault** (`infra/secreton/`)
 - **API Gateway** (`infra/gerbang/`)
 - **Backend Services** (`layanan/`)

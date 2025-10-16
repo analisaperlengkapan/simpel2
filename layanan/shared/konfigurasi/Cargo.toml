@@ -1,7 +1,7 @@
 [package]
 name = "simpelv2-konfigurasi"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 authors = ["SIMPelv2 Team"]
 description = "SIMPelv2 - Layanan Konfigurasi & Settings"
 license = "MIT"
@@ -23,8 +23,8 @@ redis = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
-toml = "0.8"
+serde_yaml = { workspace = true }
+toml = { workspace = true }
 
 # Validation & Errors
 garde = { workspace = true }
@@ -51,17 +51,17 @@ dotenvy = { workspace = true }
 reqwest = { workspace = true }
 
 # Encryption untuk sensitive config
-ring = "0.17"
-base64 = "0.22"
+ring = { workspace = true }
+base64 = { workspace = true }
 
 # File watching untuk config changes
-notify = "6.1"
+notify = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
 reqwest = { workspace = true }
-serial_test = "3"
-tempfile = "3"
+serial_test = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = ["encryption", "hot-reload", "validation"]

@@ -56,7 +56,7 @@ layanan-pengalihan/
 
 ## 🔐 Keamanan
 
-- Validasi JWT melalui middleware `layanan-keamanan`
+- Validasi JWT melalui middleware `authenc`
 - RBAC berdasarkan peran pengguna dan unit kerja
 - Logging aktivitas dan audit trail otomatis
 

@@ -67,10 +67,10 @@ async fn audit_dependencies(format: &str) -> Result<()> {
 
         match format {
             "json" => {
-                cmd.args(&["--format", "json"]);
+                cmd.args(["--format", "json"]);
             }
             "sarif" => {
-                cmd.args(&["--format", "sarif"]);
+                cmd.args(["--format", "sarif"]);
             }
             _ => { /* default text format */ }
         }
@@ -100,7 +100,7 @@ async fn audit_dependencies(format: &str) -> Result<()> {
     if Path::new("package.json").exists() {
         println!("{}", "  📦 Running npm audit...".cyan());
 
-        let status = Command::new("npm").args(&["audit"]).status()?;
+        let status = Command::new("npm").args(["audit"]).status()?;
 
         if status.success() {
             println!("{}", "  ✅ npm audit completed".green());
@@ -122,7 +122,7 @@ async fn audit_code(_format: &str) -> Result<()> {
     println!("{}", "  🦀 Running Clippy security checks...".cyan());
 
     let status = Command::new("cargo")
-        .args(&[
+        .args([
             "clippy",
             "--workspace",
             "--",
@@ -226,7 +226,7 @@ async fn scan_vulnerabilities(severity: Option<&str>) -> Result<()> {
 
         if let Some(sev) = severity {
             // Filter by severity if supported
-            cmd.args(&["--ignore", &format!("severity-{}", sev)]);
+            cmd.args(["--ignore", &format!("severity-{}", sev)]);
         }
 
         let status = cmd.status()?;
@@ -240,14 +240,14 @@ async fn scan_vulnerabilities(severity: Option<&str>) -> Result<()> {
 
     // 2. Docker scout for container images
     if Command::new("docker")
-        .args(&["scout", "version"])
+        .args(["scout", "version"])
         .output()
         .is_ok()
     {
         println!("{}", "  🐳 Scanning container images...".cyan());
 
         let status = Command::new("docker")
-            .args(&["scout", "cves", ".", "--format", "table"])
+            .args(["scout", "cves", ".", "--format", "table"])
             .status()?;
 
         if status.success() {
@@ -298,7 +298,7 @@ async fn scan_files_for_patterns(
 ) -> Result<()> {
     // Simple implementation - in production, use proper secret scanning tools
     let output = Command::new("find")
-        .args(&[".", "-name", pattern, "-type", "f"])
+        .args([".", "-name", pattern, "-type", "f"])
         .output()?;
 
     if output.status.success() {
@@ -346,7 +346,7 @@ async fn check_vulnerable_packages() -> Result<()> {
 
     // Get dependency list
     let output = Command::new("cargo")
-        .args(&["tree", "--format", "{p}"])
+        .args(["tree", "--format", "{p}"])
         .output()?;
 
     if output.status.success() {
@@ -376,7 +376,7 @@ async fn check_vulnerable_packages() -> Result<()> {
 async fn scan_unsafe_code() -> Result<()> {
     // Scan for unsafe blocks in Rust code
     let output = Command::new("grep")
-        .args(&["-r", "--include=*.rs", "unsafe", "."])
+        .args(["-r", "--include=*.rs", "unsafe", "."])
         .output()?;
 
     if output.status.success() {
@@ -441,7 +441,7 @@ async fn scan_k8s_security() -> Result<()> {
     }
 
     let output = Command::new("find")
-        .args(&["infra/k8s", "-name", "*.yaml", "-o", "-name", "*.yml"])
+        .args(["infra/k8s", "-name", "*.yaml", "-o", "-name", "*.yml"])
         .output()?;
 
     if output.status.success() {
@@ -500,7 +500,7 @@ async fn scan_nginx_security() -> Result<()> {
     }
 
     let output = Command::new("find")
-        .args(&["infra/nginx", "-name", "*.conf"])
+        .args(["infra/nginx", "-name", "*.conf"])
         .output()?;
 
     if output.status.success() {
@@ -977,7 +977,7 @@ async fn handle_security_update(force: bool) -> Result<()> {
     // Update npm dependencies if package.json exists
     if Path::new("package.json").exists() {
         println!("{}", "📦 Updating npm dependencies...".cyan());
-        let status = Command::new("npm").args(&["audit", "fix"]).status()?;
+        let status = Command::new("npm").args(["audit", "fix"]).status()?;
 
         if status.success() {
             println!("{}", "  ✅ npm dependencies updated".green());
@@ -999,7 +999,7 @@ async fn update_security_tools() -> Result<()> {
     for tool in security_tools {
         println!("{}", format!("  ⬆️  Updating {}...", tool).cyan());
         let status = Command::new("cargo")
-            .args(&["install", tool, "--force"])
+            .args(["install", tool, "--force"])
             .status();
 
         match status {
@@ -1041,7 +1041,7 @@ async fn fix_dependency_issues(auto: bool) -> Result<()> {
         // Run npm audit fix if package.json exists
         if Path::new("package.json").exists() {
             let status = Command::new("npm")
-                .args(&["audit", "fix", "--force"])
+                .args(["audit", "fix", "--force"])
                 .status()?;
 
             if status.success() {
@@ -1073,7 +1073,7 @@ async fn fix_code_issues(auto: bool) -> Result<()> {
     if auto {
         // Run cargo fix
         let status = Command::new("cargo")
-            .args(&["fix", "--allow-dirty", "--allow-staged"])
+            .args(["fix", "--allow-dirty", "--allow-staged"])
             .status()?;
 
         if status.success() {
@@ -1081,7 +1081,7 @@ async fn fix_code_issues(auto: bool) -> Result<()> {
         }
 
         // Run cargo fmt
-        let status = Command::new("cargo").args(&["fmt", "--all"]).status()?;
+        let status = Command::new("cargo").args(["fmt", "--all"]).status()?;
 
         if status.success() {
             println!("{}", "  ✅ Code formatted".green());
@@ -1094,7 +1094,7 @@ async fn fix_code_issues(auto: bool) -> Result<()> {
 
         // Show what would be fixed
         let _ = Command::new("cargo")
-            .args(&["clippy", "--workspace"])
+            .args(["clippy", "--workspace"])
             .status();
     }
 
@@ -1105,7 +1105,7 @@ async fn install_cargo_audit() -> Result<()> {
     println!("{}", "📦 Installing cargo-audit...".cyan());
 
     let status = Command::new("cargo")
-        .args(&["install", "cargo-audit"])
+        .args(["install", "cargo-audit"])
         .status()?;
 
     if status.success() {

@@ -129,7 +129,7 @@ async fn handle_dns(action: String, record_type: Option<String>) -> Result<()> {
 
 async fn show_nginx_status() -> Result<()> {
     let output = AsyncCommand::new("systemctl")
-        .args(&["is-active", "nginx"])
+        .args(["is-active", "nginx"])
         .output()
         .await?;
 

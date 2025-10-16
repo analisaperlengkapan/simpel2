@@ -1,90 +1,49 @@
 [package]
 name = "shared-microfrontend"
-version = "0.4.0"
-edition = "2021"
-rust-version = "1.76"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.90"
 authors = ["Tim Pengembang SIMPelv2 <dev@kejaksaan.go.id>"]
-description = "🚀 High-performance shared component library untuk aplikasi pemerintah Indonesia"
-documentation = "https://docs.simpelv2.kejaksaan.go.id/shared"
-homepage = "https://simpelv2.kejaksaan.go.id"
-repository = "https://github.com/kejaksaan-ri/simpelv2"
+description = "Clean, focused, production-ready component library untuk Kejaksaan RI"
 license = "MIT"
 readme = "README.md"
-keywords = ["leptos", "wasm", "frontend", "government", "indonesia"]
-categories = ["web-programming", "gui", "wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# Feature flags untuk optimasi modular
 [features]
-default = [
-    "optimized-components",
-    "optimized-types",
-    "optimized-utils",
-    "optimized-constants",
-    "serde",
-    "validation",
-    "government-data"
-]
-
-# Optimized module implementations
-optimized-components = []
-optimized-types = []
-optimized-utils = []
-optimized-constants = []
-optimized-theme = ["theming"]
-
-# Feature categories
-serde = ["dep:serde", "dep:serde_json", "smallvec/serde"]
-validation = ["dep:regex", "dep:once_cell"]
-government-data = ["validation", "dep:chrono"]
-theming = ["serde", "dep:once_cell"]
-api = ["dep:gloo-net"]
-styles = []
+default = []
+ssr = []
+hydrate = []
 
 [dependencies]
-# Core Leptos - Latest stable version with all features
-leptos = { version = "0.8.5", features = [
-    "csr", "ssr", "hydrate",
-    "nightly", "islands",
-    "tracing"
-] }
-leptos_meta = { version = "0.8.5", features = ["ssr"] }
-leptos_router = { version = "0.8.5", features = ["ssr"] }
+# Core Leptos
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
 
-# Performance optimizations
-smallvec = { version = "1.13", features = ["serde"] }
-once_cell = { version = "1.19", optional = true }
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
-# Serialization & Data Handling
-serde = { version = "1.0", features = ["derive", "rc"], optional = true }
-serde_json = { version = "1.0", optional = true }
-chrono = { version = "0.4", features = ["serde", "wasm-bindgen"], optional = true }
+# Date/Time
+chrono = { workspace = true, features = ["serde", "wasm-bindgen"] }
 
-# Error handling & Validation
-thiserror = "2.0"
-regex = { version = "1.11", optional = true }
+# Validation
+regex = { workspace = true }
 
-# Web APIs - Comprehensive WASM bindings
-wasm-bindgen = "0.2"
-js-sys = "0.3"
-gloo-net = { version = "0.6", optional = true }
-web-sys = { version = "0.3", features = [
-    "console",
-    "Document", "Element", "HtmlElement", "HtmlDivElement",
-    "Window", "Location", "History",
-    "EventTarget", "Event", "MouseEvent", "KeyboardEvent", "SubmitEvent",
-    "HtmlInputElement", "HtmlButtonElement", "HtmlFormElement",
-    "HtmlSelectElement", "HtmlTextAreaElement",
-    "Storage",
-    "Performance",
-    "CssStyleDeclaration", "DomRect",
-    "IntersectionObserver", "IntersectionObserverEntry"
-] }
+# Web APIs
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true }
+js-sys = { workspace = true }
 
-# Image processing & Media (untuk fitur upload)
-gloo = { version = "0.11", features = ["file", "utils", "timers"] }
+# Utilities
+gloo = { workspace = true, features = ["timers", "net", "storage"] }
+gloo-timers = { workspace = true }
+gloo-storage = { workspace = true }
+urlencoding = "2.1"
+uuid = { workspace = true }
 
 [build-dependencies]
 # Build-time optimizations
@@ -92,19 +51,8 @@ cfg_aliases = "0.2"
 
 # Dev dependencies untuk testing dan development
 [dev-dependencies]
-wasm-bindgen-test = "0.3"
-console_error_panic_hook = "0.1"
-tokio-test = "0.4"
+wasm-bindgen-test = { workspace = true }
+console_error_panic_hook = { workspace = true }
+tokio-test = { workspace = true }
 
 # Optimasi compile time dan runtime
-[profile.release]
-lto = true
-codegen-units = 1
-panic = "abort"
-opt-level = "s"
-strip = "symbols"
-
-[profile.dev]
-debug = true
-opt-level = 0
-incremental = true

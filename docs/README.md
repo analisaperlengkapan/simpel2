@@ -10,7 +10,7 @@ Selamat datang di dokumentasi lengkap SIMPelv2. Dokumentasi ini mencakup semua a
 - [Deployment Architecture](deployment/) - Strategi deployment dan infrastructure
 
 ### **🔧 Services Documentation**
-- [Security Service](layanan-keamanan.md) - Layanan keamanan dan autentikasi
+- [Security Service](authenc.md) - Layanan keamanan dan autentikasi
 - [AI Service](layanan-ai.md) - Layanan AI dan machine learning
 - [Document Service](layanan-dokumen.md) - Manajemen dokumen dan OCR
 - [Configuration Service](layanan-konfigurasi.md) - Konfigurasi dinamis

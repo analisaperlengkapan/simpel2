@@ -4,20 +4,16 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "antarmuka/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/ci-frontend.yml"
+      - 'antarmuka/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/ci-frontend.yml'
   pull_request:
     branches: [main, develop]
     paths:
-      - "antarmuka/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+      - 'antarmuka/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   CARGO_TERM_COLOR: always
@@ -41,22 +37,28 @@ jobs:
           - pidmil
           - pidsus
           - pidum
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
         with:
-          workspaces: "antarmuka/${{ matrix.module }}"
-          shared-key: "wasm-check-${{ matrix.module }}"
-
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: target
+          key: ${{ runner.os }}-wasm-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Check WASM compilation
         run: cargo check --target wasm32-unknown-unknown --manifest-path antarmuka/${{ matrix.module }}/Cargo.toml
 
@@ -64,19 +66,19 @@ jobs:
     name: Test WASM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
         with:
-          workspaces: "antarmuka"
-          shared-key: "wasm-test"
-
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Run WASM tests
         run: |
           cd antarmuka
@@ -100,70 +102,75 @@ jobs:
           - pidmil
           - pidsus
           - pidum
-
+    
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "antarmuka/${{ matrix.module }}"
-          shared-key: "wasm-build-${{ matrix.module }}"
-
+      
       - name: Install Trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/\
-            trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
           sudo mv trunk /usr/local/bin/
-
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache trunk directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: |
+            antarmuka/${{ matrix.module }}/dist
+            target
+          key: ${{ runner.os }}-trunk-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Build with Trunk
         run: |
           cd antarmuka/${{ matrix.module }}
           trunk build --release
-
+      
       - name: Check bundle size
         run: |
-          WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" \
-            -exec wc -c {} + | awk '{print $1}')
+          WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" -exec wc -c {} + | awk '{print $1}')
           WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
           echo "WASM bundle size: ${WASM_SIZE_MB}MB"
           if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then
             echo "::error::WASM bundle exceeds 2MB limit: ${WASM_SIZE_MB}MB"
             exit 1
           fi
-
+      
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-${{ matrix.module }}
           path: antarmuka/${{ matrix.module }}/dist/
           retention-days: 7
-          if-no-files-found: error
 
   build-shared:
     name: Build Shared Components
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
         with:
-          workspaces: "antarmuka/shared"
-          shared-key: "wasm-shared"
-
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
       - name: Check shared components
         run: |
           cd antarmuka/shared

@@ -12,6 +12,7 @@
 @import url('layout.css');      /* Layout Components */
 @import url('components.css');  /* UI Components */
 @import url('utilities.css');   /* Utility Classes */
+@import url('advanced.css');    /* Advanced Features & Animations */
 
 .gradient-text {
   background: linear-gradient(135deg, var(--color-theme-600), var(--color-theme-800));

@@ -24,7 +24,7 @@ Kembangkan `antarmuka/pembinaan/perlengkapan` sebagai perlengkapan-microfrontend
 ### Backend Integration
 - **Service**: `layanan/pembinaan/perlengkapan` (Rust Axum)
 - **Database**: PostgreSQL (tokio-postgres + deadpool-postgres)
-- **Authentication**: JWT via `layanan/shared/authenc/`
+- **Authentication**: JWT via `infra/authenc/`
 - **API Gateway**: All requests via `infra/gerbang/`
 
 ## UI Specification
@@ -131,7 +131,7 @@ Nanti tampilannya:
   - `deadpool-postgres` 0.14 (connection pooling)
   - `refinery` 0.8 (migrations)
   - `sea-query` 0.31 (query builder)
-- **Authentication**: JWT + MFA via `layanan/shared/authenc/`
+- **Authentication**: JWT + MFA via `infra/authenc/`
 - **Tracing**: `tracing-opentelemetry` 0.32+
 - **Cryptography**: blake3, sha2 (NO sha1), ed25519-dalek
 

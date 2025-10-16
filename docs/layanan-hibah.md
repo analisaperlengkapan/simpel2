@@ -48,7 +48,7 @@ layanan-hibah/
 
 ## 🔐 Keamanan
 
-- Otentikasi JWT dari `layanan-keamanan`
+- Otentikasi JWT dari `authenc`
 - Validasi RBAC dari Fiber Gateway (`gerbang`)
 - Audit trail otomatis melalui `layanan-audit`
 

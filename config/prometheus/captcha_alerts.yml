@@ -1,0 +1,222 @@
+# Prometheus Alert Rules for CAPTCHA System
+
+groups:
+  - name: captcha_performance
+    rules:
+      - alert: CaptchaHighFailureRate
+        expr: captcha_failure_rate > 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "High CAPTCHA failure rate detected"
+          description: "CAPTCHA failure rate is {{ $value | humanizePercentage }} for more than 5 minutes"
+
+      - alert: CaptchaSlowResponse
+        expr: histogram_quantile(0.95, captcha_validation_duration_seconds) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA response time degraded"
+          description: "95th percentile CAPTCHA validation time is {{ $value }}s"
+
+      - alert: CaptchaHighMemoryUsage
+        expr: captcha_memory_usage_bytes / captcha_memory_limit_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "High memory usage in CAPTCHA service"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+
+      - alert: CaptchaHighCPUUsage
+        expr: rate(captcha_cpu_usage_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "High CPU usage in CAPTCHA service"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+  - name: captcha_security
+    rules:
+      - alert: CaptchaHighBotDetectionRate
+        expr: captcha_bot_detection_rate > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          service: captcha
+        annotations:
+          summary: "High bot detection rate - possible attack"
+          description: "Bot detection rate is {{ $value | humanizePercentage }} - possible automated attack in progress"
+
+      - alert: CaptchaLowBotDetectionAccuracy
+        expr: captcha_bot_detection_accuracy < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "Low bot detection accuracy"
+          description: "Bot detection accuracy has dropped to {{ $value | humanizePercentage }}"
+
+      - alert: CaptchaExcessiveRateLimiting
+        expr: rate(captcha_rate_limit_triggers_total[5m]) > 2
+        for: 1m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "Excessive rate limiting triggers"
+          description: "Rate limiting is being triggered {{ $value }} times per second"
+
+      - alert: CaptchaSecurityIncident
+        expr: rate(captcha_attack_attempts_total[1m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          service: captcha
+        annotations:
+          summary: "Security incident detected"
+          description: "{{ $value }} attack attempts per second detected"
+
+      - alert: CaptchaBlockedIPsHigh
+        expr: captcha_blocked_ips > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "High number of blocked IPs"
+          description: "{{ $value }} IPs are currently blocked"
+
+  - name: captcha_availability
+    rules:
+      - alert: CaptchaServiceDown
+        expr: up{job="captcha-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: captcha
+        annotations:
+          summary: "CAPTCHA service is down"
+          description: "CAPTCHA service has been down for more than 30 seconds"
+
+      - alert: CaptchaDatabaseDown
+        expr: up{job="captcha-postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: captcha
+        annotations:
+          summary: "CAPTCHA database is down"
+          description: "CAPTCHA analytics database has been down for more than 1 minute"
+
+      - alert: CaptchaRedisDown
+        expr: up{job="captcha-redis"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA Redis cache is down"
+          description: "CAPTCHA Redis cache has been down for more than 1 minute"
+
+      - alert: CaptchaSecreton Integration
+        expr: captcha_secreton_connection_errors > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA Secreton integration issues"
+          description: "{{ $value }} Secreton connection errors in the last 2 minutes"
+
+      - alert: CaptchaAuthencIntegrationDown
+        expr: captcha_authenc_connection_errors > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA Authenc integration issues"
+          description: "{{ $value }} Authenc connection errors in the last 2 minutes"
+
+  - name: captcha_business_metrics
+    rules:
+      - alert: CaptchaLowSuccessRate
+        expr: captcha_success_rate < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "Low CAPTCHA success rate"
+          description: "CAPTCHA success rate is only {{ $value | humanizePercentage }}"
+
+      - alert: CaptchaHighAbandonmentRate
+        expr: captcha_abandonment_rate > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "High CAPTCHA abandonment rate"
+          description: "{{ $value | humanizePercentage }} of users are abandoning CAPTCHA challenges"
+
+      - alert: CaptchaAccessibilityIssues
+        expr: captcha_accessibility_failure_rate > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA accessibility issues detected"
+          description: "{{ $value | humanizePercentage }} accessibility failure rate"
+
+      - alert: CaptchaUserExperienceDegraded
+        expr: captcha_user_satisfaction_score < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA user experience degraded"
+          description: "User satisfaction score is {{ $value }}"
+
+  - name: captcha_data_quality
+    rules:
+      - alert: CaptchaMissingBehavioralData
+        expr: rate(captcha_behavioral_data_missing_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "Missing behavioral data in CAPTCHA"
+          description: "{{ $value | humanizePercentage }} of challenges are missing behavioral data"
+
+      - alert: CaptchaDataIntegrityIssues
+        expr: captcha_data_integrity_errors > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: captcha
+        annotations:
+          summary: "CAPTCHA data integrity issues"
+          description: "{{ $value }} data integrity errors detected"
+
+      - alert: CaptchaAnalyticsLag
+        expr: time() - captcha_analytics_last_update > 3600
+        for: 5m
+        labels:
+          severity: warning
+          service: captcha
+        annotations:
+          summary: "CAPTCHA analytics data is stale"
+          description: "Analytics data hasn't been updated for {{ $value | humanizeDuration }}"
