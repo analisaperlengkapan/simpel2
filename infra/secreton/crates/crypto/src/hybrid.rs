@@ -24,20 +24,15 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 /// Cryptographic modes for hybrid operation
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CryptoMode {
     /// Classical cryptography only (Ed25519, AES-256-GCM)
+    #[default]
     Classical,
     /// Hybrid mode (Classical + Post-Quantum for transition)
     Hybrid,
     /// Post-quantum only (ML-DSA, ML-KEM)
     PostQuantum,
-}
-
-impl Default for CryptoMode {
-    fn default() -> Self {
-        CryptoMode::Classical
-    }
 }
 
 impl std::fmt::Display for CryptoMode {
@@ -120,7 +115,8 @@ pub struct HybridCrypto {
 
 /// Algorithm selection result
 #[derive(Debug, Clone)]
-struct AlgorithmSelection {
+#[allow(dead_code)]
+pub struct AlgorithmSelection {
     /// Selected mode
     mode: CryptoMode,
     /// Classical algorithm (if used)
@@ -316,7 +312,7 @@ impl HybridCrypto {
             "{}:{}:{}:{:?}",
             requirements.security_level,
             requirements.quantum_resistant,
-            requirements.performance_priority.clone() as u8,
+            requirements.performance_priority as u8,
             requirements.compliance_requirements
         );
 
@@ -603,7 +599,7 @@ impl HybridCrypto {
         let pq_start = Instant::now();
 
         // Generate PQ key pair for key encapsulation
-        let (pq_public_key, pq_private_key) = self.pq_key_exchange.keypair_generate()
+        let (pq_public_key, _pq_private_key) = self.pq_key_exchange.keypair_generate()
             .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
         // Encapsulate a shared secret
@@ -621,7 +617,7 @@ impl HybridCrypto {
         let pq_encrypted = self.classical_engine.encrypt(AlgorithmId::Aes256Gcm, data, &pq_key)?;
 
         // Sign the data for integrity
-        let (sig_public_key, sig_private_key) = self.pq_signature.keypair_generate()
+        let (_sig_public_key, sig_private_key) = self.pq_signature.keypair_generate()
             .map_err(|e| CryptoError::SigningFailed(e.to_string()))?;
 
         let signature = self.pq_signature.sign(data, &sig_private_key)
@@ -664,7 +660,7 @@ impl HybridCrypto {
 
         // For now, use classical encryption with PQ key derivation
         // In a full implementation, this would use pure PQ algorithms
-        let (pq_public_key, pq_private_key) = self.pq_key_exchange.keypair_generate()
+        let (pq_public_key, _pq_private_key) = self.pq_key_exchange.keypair_generate()
             .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
         let (ciphertext, shared_secret) = self.pq_key_exchange.encapsulate(&pq_public_key)
@@ -680,7 +676,7 @@ impl HybridCrypto {
         let encrypted = self.classical_engine.encrypt(AlgorithmId::Aes256Gcm, data, &key)?;
 
         // Generate PQ signature
-        let (sig_public_key, sig_private_key) = self.pq_signature.keypair_generate()
+        let (_sig_public_key, sig_private_key) = self.pq_signature.keypair_generate()
             .map_err(|e| CryptoError::SigningFailed(e.to_string()))?;
 
         let signature = self.pq_signature.sign(data, &sig_private_key)
@@ -733,7 +729,7 @@ impl HybridCrypto {
         self.decrypt_classical(encrypted).await
     }
 
-    async fn decrypt_post_quantum(&self, pq_data: &PostQuantumEncryption) -> CryptoResult<Vec<u8>> {
+    async fn decrypt_post_quantum(&self, _pq_data: &PostQuantumEncryption) -> CryptoResult<Vec<u8>> {
         // Placeholder for pure PQ decryption
         // In a real implementation, this would:
         // 1. Decapsulate the shared secret using ML-KEM

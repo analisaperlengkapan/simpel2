@@ -71,7 +71,7 @@ impl Default for RotationPolicy {
 }
 
 /// Access control policies
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccessControlPolicy {
     /// Role-based access control
     pub rbac: RoleBasedAccessControl,
@@ -81,17 +81,6 @@ pub struct AccessControlPolicy {
     pub time_restrictions: TimeRestrictions,
     /// Rate limiting policies
     pub rate_limiting: RateLimitingPolicy,
-}
-
-impl Default for AccessControlPolicy {
-    fn default() -> Self {
-        Self {
-            rbac: RoleBasedAccessControl::default(),
-            ip_restrictions: IpRestrictions::default(),
-            time_restrictions: TimeRestrictions::default(),
-            rate_limiting: RateLimitingPolicy::default(),
-        }
-    }
 }
 
 /// Role-based access control
@@ -220,7 +209,7 @@ impl Default for KeyRestrictions {
 }
 
 /// IP address restrictions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IpRestrictions {
     /// Allowed IP addresses/ranges (CIDR notation)
     pub allowed_ips: Vec<String>,
@@ -228,16 +217,6 @@ pub struct IpRestrictions {
     pub denied_ips: Vec<String>,
     /// Enable IP restriction enforcement
     pub enabled: bool,
-}
-
-impl Default for IpRestrictions {
-    fn default() -> Self {
-        Self {
-            allowed_ips: Vec::new(), // Empty = all allowed
-            denied_ips: Vec::new(),
-            enabled: false,
-        }
-    }
 }
 
 /// Time-based access restrictions
@@ -490,10 +469,8 @@ impl PolicyEngine {
     pub fn check_permission(&self, user: &str, permission: Permission) -> bool {
         if let Some(roles) = self.policies.access_control.rbac.user_roles.get(user) {
             for role_name in roles {
-                if let Some(role) = self.policies.access_control.rbac.roles.get(role_name) {
-                    if role.permissions.contains(&permission) {
-                        return true;
-                    }
+                if let Some(role) = self.policies.access_control.rbac.roles.get(role_name) && role.permissions.contains(&permission) {
+                    return true;
                 }
             }
         }
@@ -515,10 +492,8 @@ impl PolicyEngine {
         // Check user role restrictions
         if let Some(roles) = self.policies.access_control.rbac.user_roles.get(user) {
             for role_name in roles {
-                if let Some(role) = self.policies.access_control.rbac.roles.get(role_name) {
-                    if let Some(allowed_types) = &role.key_restrictions.allowed_key_types {
-                        return allowed_types.contains(key_type);
-                    }
+                if let Some(role) = self.policies.access_control.rbac.roles.get(role_name) && let Some(allowed_types) = &role.key_restrictions.allowed_key_types {
+                    return allowed_types.contains(key_type);
                 }
             }
         }

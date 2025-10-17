@@ -25,12 +25,11 @@
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
-use rand::RngCore;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
-use subtle::ConstantTimeEq;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -50,7 +49,9 @@ const MAX_SHARES: usize = 255;
 const MAX_COMMITMENT_SIZE: usize = 100 * 1024 * 1024;
 
 /// Share dengan private fields dan validasi ketat
-#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop, bincode::Encode, bincode::Decode)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop, bincode::Encode, bincode::Decode,
+)]
 pub struct Share {
     version: u8,
     #[zeroize(skip)]
@@ -453,7 +454,7 @@ pub struct ShamirConfig {
 impl ShamirConfig {
     /// Create new configuration dengan validasi
     pub fn new(threshold: usize, num_shares: usize) -> Result<Self> {
-        if threshold < 2 || threshold > MAX_THRESHOLD {
+        if !(2..=MAX_THRESHOLD).contains(&threshold) {
             return Err(ShamirError::InvalidThreshold);
         }
         if num_shares <= threshold || num_shares > MAX_SHARES {
@@ -668,7 +669,7 @@ fn lagrange_interpolate(points: &[(Scalar, Scalar)]) -> Result<Scalar> {
 /// Reconstruct secret from shares
 pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>> {
     // Validate inputs
-    if threshold < 2 || threshold > MAX_THRESHOLD {
+    if !(2..=MAX_THRESHOLD).contains(&threshold) {
         return Err(ShamirError::InvalidThreshold);
     }
     if shares.len() < threshold {
@@ -718,7 +719,7 @@ pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>>
     let mut result = vec![0u8; secret_len];
 
     // Reconstruct each byte
-    for byte_idx in 0..secret_len {
+    for (byte_idx, result_byte) in result.iter_mut().enumerate().take(secret_len) {
         let points: Vec<(Scalar, Scalar)> = shares
             .iter()
             .take(threshold)
@@ -730,7 +731,7 @@ pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>>
 
         // Convert scalar back to byte
         let bytes = secret_scalar.to_bytes();
-        result[byte_idx] = bytes[0];
+        *result_byte = bytes[0];
     }
 
     Ok(result)

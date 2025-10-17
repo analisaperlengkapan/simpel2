@@ -108,6 +108,7 @@ pub struct CacheMetrics {
 
 /// Cached encryption result
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CachedEncryption {
     /// Encrypted data
     encrypted_data: EncryptedData,
@@ -121,6 +122,7 @@ struct CachedEncryption {
 
 /// Cached key derivation result
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CachedKey {
     /// Derived key
     key: Vec<u8>,
@@ -294,8 +296,8 @@ impl EnhancedSecretonCrypto {
         let cache_key = self.generate_cache_key(&request.path, &request.data);
 
         // Check cache if enabled
-        if request.use_cache {
-            if let Some(cached) = self.get_cached_encryption(&cache_key).await {
+        if request.use_cache
+            && let Some(cached) = self.get_cached_encryption(&cache_key).await {
                 let duration = start.elapsed();
                 self.update_metrics("secret_encryption", duration, true, true).await;
 
@@ -309,7 +311,6 @@ impl EnhancedSecretonCrypto {
                         compression_ratio: None,
                     },
                 });
-            }
         }
 
         // Prepare data (compression if requested)
@@ -612,7 +613,7 @@ impl EnhancedSecretonCrypto {
         let encrypted = self.classical_engine.encrypt(AlgorithmId::Aes256Gcm, data, &key)?;
 
         // Generate PQ signature for integrity
-        let (pq_public, pq_private) = self.pq_signature.keypair_generate()
+        let (_pq_public, pq_private) = self.pq_signature.keypair_generate()
             .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
         let signature = self.pq_signature.sign(data, &pq_private)
@@ -658,11 +659,10 @@ impl EnhancedSecretonCrypto {
 
     async fn get_cached_encryption(&self, cache_key: &str) -> Option<CachedEncryption> {
         let cache = self.encryption_cache.read().await;
-        if let Some(cached) = cache.get(cache_key) {
-            if cached.expires_at > chrono::Utc::now() {
+        if let Some(cached) = cache.get(cache_key)
+            && cached.expires_at > chrono::Utc::now() {
                 return Some(cached.clone());
             }
-        }
         None
     }
 

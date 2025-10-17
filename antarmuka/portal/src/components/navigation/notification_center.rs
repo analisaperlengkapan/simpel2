@@ -8,24 +8,35 @@ use serde::{Deserialize, Serialize};
 /// Notification data structure
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Notification {
+    /// Unique identifier for the notification
     pub id: String,
+    /// Title of the notification
     pub title: String,
+    /// Detailed message content
     pub message: String,
+    /// Category type of the notification
     pub category: NotificationCategory,
+    /// Timestamp when the notification was created
     pub timestamp: String,
+    /// Whether the notification has been read
     pub read: bool,
 }
 
 /// Notification category
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum NotificationCategory {
+    /// Informational notification
     Info,
+    /// Warning notification
     Warning,
+    /// Error notification
     Error,
+    /// Success notification
     Success,
 }
 
 impl NotificationCategory {
+    /// Returns the icon emoji for this notification category
     pub fn icon(&self) -> &'static str {
         match self {
             Self::Info => "ℹ️",
@@ -35,6 +46,7 @@ impl NotificationCategory {
         }
     }
 
+    /// Returns CSS classes for styling this notification category
     pub fn color_classes(&self) -> &'static str {
         match self {
             Self::Info => "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300",

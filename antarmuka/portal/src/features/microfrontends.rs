@@ -30,13 +30,21 @@ pub struct MicrofrontendApp {
 /// Application color theme
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AppColor {
+    /// Red color theme
     Red,
+    /// Blue color theme
     Blue,
+    /// Green color theme
     Green,
+    /// Yellow color theme
     Yellow,
+    /// Purple color theme
     Purple,
+    /// Pink color theme
     Pink,
+    /// Indigo color theme
     Indigo,
+    /// Orange color theme
     Orange,
 }
 

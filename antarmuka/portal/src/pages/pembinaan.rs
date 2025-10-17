@@ -4,18 +4,30 @@ use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
+/// Represents a pembinaan module with metadata
 #[derive(Clone, Debug)]
 pub struct PembinaanModule {
+    /// Unique identifier for the module
     pub id: String,
+    /// Display name of the module
     pub name: String,
+    /// Description of the module's purpose
     pub description: String,
+    /// Icon emoji for visual representation
     pub icon: String,
+    /// URL to launch the module
     pub url: String,
+    /// CSS color class for styling
     pub color: &'static str,
 }
 
 #[component]
-pub fn PembinaanPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn PembinaanPage(
+    /// Current user session data
+    user_session: UserSession,
+    /// Callback function to handle user logout
+    on_logout: Box<dyn Fn()>,
+) -> impl IntoView {
     let modules = vec![
         PembinaanModule {
             id: "keuangan".to_string(),

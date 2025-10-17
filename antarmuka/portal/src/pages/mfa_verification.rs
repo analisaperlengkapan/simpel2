@@ -12,14 +12,18 @@ use wasm_bindgen_futures::spawn_local;
 /// MFA verification request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaVerificationRequest {
+    /// Temporary token from login
     pub temp_token: String,
+    /// OTP code from authenticator
     pub otp_code: String,
 }
 
 /// MFA verification response
 #[derive(Debug, Clone, Serialize)]
 pub struct MfaVerificationResponse {
+    /// JWT access token
     pub access_token: String,
+    /// User session data
     pub user_session: serde_json::Value,
 }
 

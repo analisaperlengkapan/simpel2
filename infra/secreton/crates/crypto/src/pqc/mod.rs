@@ -254,57 +254,6 @@ pub struct AlgorithmCharacteristics {
     pub performance_rating: String,
 }
 
-/// Hybrid classical + PQC implementation
-// TODO: Re-enable when TransitProvider trait is defined
-// pub struct HybridCryptoProvider {
-//     classical_provider: Box<dyn crate::transit::TransitProvider>,
-//     pqc_signatures: Box<dyn PostQuantumSignatures>,
-//     pqc_key_exchange: Box<dyn PostQuantumKeyExchange>,
-// }
-
-// impl HybridCryptoProvider {
-//     /// Create a new hybrid provider
-//     pub fn new(
-//         classical_provider: Box<dyn crate::transit::TransitProvider>,
-//         pqc_signatures: Box<dyn PostQuantumSignatures>,
-//         pqc_key_exchange: Box<dyn PostQuantumKeyExchange>,
-//     ) -> Self {
-//         Self {
-//             classical_provider,
-//             pqc_signatures,
-//             pqc_key_exchange,
-//         }
-//     }
-//
-//     /// Generate hybrid signature (classical + PQC)
-//     pub async fn hybrid_sign(&self, message: &[u8]) -> CryptoResult<HybridSignature> {
-//         // Generate classical signature
-//         let classical_sig = self.classical_provider.sign(message).await?;
-//
-//         // Generate PQC signature
-//         let pqc_sig = self.pqc_signatures.sign(message, &Vec::new())?; // Would need proper key management
-//
-//         Ok(HybridSignature {
-//             classical_signature: classical_sig,
-//             pqc_signature: pqc_sig,
-//             algorithm_info: format!(
-//                 "{}/{}",
-//                 self.classical_provider.algorithm_id(),
-//                 self.pqc_signatures.algorithm_id()
-//             ),
-//         })
-//     }
-//
-//     /// Verify hybrid signature
-//     pub async fn hybrid_verify(&self, message: &[u8], signature: &HybridSignature) -> CryptoResult<bool> {
-//         // Verify both signatures
-//         let classical_valid = self.classical_provider.verify(message, &signature.classical_signature).await?;
-//         let pqc_valid = self.pqc_signatures.verify(message, &signature.pqc_signature, &Vec::new())?; // Would need proper key management
-//
-//         Ok(classical_valid && pqc_valid)
-//     }
-// }
-
 /// Hybrid signature structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HybridSignature {

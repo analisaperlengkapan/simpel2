@@ -7,6 +7,7 @@ use shared_microfrontend::{
     core::types::{ButtonSize, ButtonVariant},
 };
 
+/// Home page component - public landing page
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {

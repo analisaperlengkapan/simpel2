@@ -3,6 +3,7 @@
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
 
+/// 404 Not Found page component
 #[component]
 pub fn NotFoundPage() -> impl IntoView {
     view! {

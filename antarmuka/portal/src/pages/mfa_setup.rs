@@ -11,8 +11,11 @@ use wasm_bindgen_futures::spawn_local;
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaSetupData {
+    /// QR code URL for authenticator app
     pub qr_code_url: String,
+    /// Secret key for manual entry
     pub secret_key: String,
+    /// Generated backup codes
     pub backup_codes: Vec<String>,
 }
 

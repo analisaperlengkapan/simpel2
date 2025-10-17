@@ -62,7 +62,15 @@ impl TransitEngine {
             audit: None,
         }
     }
+}
 
+impl Default for TransitEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TransitEngine {
     /// Set audit logger
     pub fn with_audit_logger(mut self, logger: Box<dyn AuditLogger + Send + Sync>) -> Self {
         self.audit = Some(logger);

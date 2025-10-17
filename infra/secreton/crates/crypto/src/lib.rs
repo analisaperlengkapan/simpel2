@@ -35,7 +35,9 @@ pub use hybrid::{
     CryptoMode, HybridCrypto, HybridEncryptionResult, MigrationPhase, MigrationStrategy,
     PerformancePriority, PostQuantumEncryption, SecurityRequirements,
 };
-pub use key_derivation::*;
+pub use key_derivation::{
+    derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch, DerivedKey, KdfParams,
+};
 pub use kmip::*;
 pub use kv_engine::*;
 pub use pq_key_management::{
@@ -45,7 +47,47 @@ pub use pq_key_management::{
 };
 pub use pqc::*;
 pub use shamir::*;
-pub use transit::*;
+pub use transit::{
+    algorithms,
+    batch,
+    // Functions from algorithms
+    constant_time_eq,
+    derive_key as transit_derive_key,
+    generate_random,
+    generate_salt,
+    hash_data,
+    keys,
+    operations,
+    policies,
+    AuditLogger,
+    CreateKeyRequest,
+    CreateKeyResponse,
+    DecryptRequest,
+    DecryptResponse,
+    DefaultAuditLogger,
+    DeriveKeyRequest,
+    DeriveKeyResponse,
+    EncryptRequest,
+    EncryptResponse,
+    KeyInfo,
+    KeyOptions,
+    KeyType,
+    KeyUsage,
+    OperationStats,
+    RandomFormat,
+    RandomRequest,
+    RandomResponse,
+    RotateKeyRequest,
+    RotateKeyResponse,
+    SignRequest,
+    SignResponse,
+    TransitEngine,
+    TransitKey,
+    // Structs from operations
+    TransitOperations,
+    VerifyRequest,
+    VerifyResponse,
+};
 
 /// Supported cryptographic algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

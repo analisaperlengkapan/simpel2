@@ -7,8 +7,14 @@ use crate::components::navigation::{Notification, NotificationCategory};
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
+/// Notifications history page component - displays all user notifications
 #[component]
-pub fn NotificationsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn NotificationsPage(
+    /// Current user session data
+    user_session: UserSession,
+    /// Callback function to handle user logout
+    on_logout: Box<dyn Fn()>,
+) -> impl IntoView {
     let (notifications, set_notifications) = signal(get_all_notifications());
     let (filter, set_filter) = signal(None::<NotificationCategory>);
 

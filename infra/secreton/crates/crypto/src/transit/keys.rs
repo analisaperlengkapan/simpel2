@@ -121,6 +121,7 @@ pub struct TransitKey {
 
 /// Individual key version with cryptographic material
 #[derive(Debug)]
+#[allow(dead_code)]
 struct KeyVersion {
     /// Version number
     version: u32,
@@ -146,6 +147,7 @@ enum KeyMaterial {
     /// Ed25519 private key
     Ed25519(Box<Ed25519SigningKey>),
     /// X25519 private key (stored as bytes since EphemeralSecret can't be stored)
+    #[allow(dead_code)]
     X25519(Box<[u8; 32]>),
 }
 
@@ -205,7 +207,7 @@ impl TransitKey {
         let key_version = self
             .versions
             .get(&version)
-            .ok_or_else(|| CryptoError::KeyVersionNotFound(version))?;
+            .ok_or(CryptoError::KeyVersionNotFound(version))?;
 
         // Check if encrypt usage is allowed
         if !self.options.usage.contains(&KeyUsage::Encrypt) {
@@ -234,7 +236,7 @@ impl TransitKey {
 
                 // Format: version:nonce:ciphertext
                 let mut result = format!("v{}:", version);
-                result.push_str(&BASE64.encode(&nonce_bytes));
+                result.push_str(&BASE64.encode(nonce_bytes));
                 result.push(':');
                 result.push_str(&BASE64.encode(&encrypted));
                 result
@@ -258,7 +260,7 @@ impl TransitKey {
                     .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
                 let mut result = format!("v{}:", version);
-                result.push_str(&BASE64.encode(&nonce_bytes));
+                result.push_str(&BASE64.encode(nonce_bytes));
                 result.push(':');
                 result.push_str(&BASE64.encode(&encrypted));
                 result
@@ -282,7 +284,7 @@ impl TransitKey {
                     .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
                 let mut result = format!("v{}:", version);
-                result.push_str(&BASE64.encode(&nonce_bytes));
+                result.push_str(&BASE64.encode(nonce_bytes));
                 result.push(':');
                 result.push_str(&BASE64.encode(&encrypted));
                 result
@@ -324,7 +326,7 @@ impl TransitKey {
         let key_version = self
             .versions
             .get(&version)
-            .ok_or_else(|| CryptoError::KeyVersionNotFound(version))?;
+            .ok_or(CryptoError::KeyVersionNotFound(version))?;
 
         // Check if decrypt usage is allowed
         if !self.options.usage.contains(&KeyUsage::Decrypt) {
@@ -358,10 +360,8 @@ impl TransitKey {
                     .map_err(|e| CryptoError::DecryptionFailed(e.to_string()))?;
 
                 // Remove context if present
-                if let Some(ctx) = context {
-                    if decrypted.len() >= ctx.len() && decrypted.ends_with(ctx) {
-                        decrypted.truncate(decrypted.len() - ctx.len());
-                    }
+                if let Some(ctx) = context && decrypted.len() >= ctx.len() && decrypted.ends_with(ctx) {
+                    decrypted.truncate(decrypted.len() - ctx.len());
                 }
 
                 decrypted
@@ -391,10 +391,8 @@ impl TransitKey {
                     .map_err(|e| CryptoError::DecryptionFailed(e.to_string()))?;
 
                 // Remove context if present
-                if let Some(ctx) = context {
-                    if decrypted.len() >= ctx.len() && decrypted.ends_with(ctx) {
-                        decrypted.truncate(decrypted.len() - ctx.len());
-                    }
+                if let Some(ctx) = context && decrypted.len() >= ctx.len() && decrypted.ends_with(ctx) {
+                    decrypted.truncate(decrypted.len() - ctx.len());
                 }
 
                 decrypted
@@ -421,7 +419,7 @@ impl TransitKey {
         let key_version = self
             .versions
             .get(&version)
-            .ok_or_else(|| CryptoError::KeyVersionNotFound(version))?;
+            .ok_or(CryptoError::KeyVersionNotFound(version))?;
 
         // Check if sign usage is allowed
         if !self.options.usage.contains(&KeyUsage::Sign) {
@@ -482,7 +480,7 @@ impl TransitKey {
         let key_version = self
             .versions
             .get(&version)
-            .ok_or_else(|| CryptoError::KeyVersionNotFound(version))?;
+            .ok_or(CryptoError::KeyVersionNotFound(version))?;
 
         // Check if verify usage is allowed
         if !self.options.usage.contains(&KeyUsage::Verify) {
@@ -547,7 +545,7 @@ impl TransitKey {
         let key_version = self
             .versions
             .get(&self.latest_version)
-            .ok_or_else(|| CryptoError::KeyVersionNotFound(self.latest_version))?;
+            .ok_or(CryptoError::KeyVersionNotFound(self.latest_version))?;
 
         let derived_key = match &key_version.material {
             KeyMaterial::Aes256Gcm(key_bytes) => {

@@ -7,21 +7,32 @@ use leptos::prelude::*;
 /// Statistical card properties
 #[derive(Clone)]
 pub struct StatCardData {
+    /// The title of the statistic
     pub title: String,
+    /// The numerical value to display
     pub value: String,
+    /// Icon identifier (e.g., emoji or icon class)
     pub icon: String,
+    /// Color theme for the card
     pub color: StatColor,
+    /// Optional trend indicator text
     pub trend: Option<String>,
 }
 
 /// Color variants for stat cards
 #[derive(Clone, Copy)]
 pub enum StatColor {
+    /// Blue color theme
     Blue,
+    /// Green color theme
     Green,
+    /// Yellow color theme
     Yellow,
+    /// Red color theme
     Red,
+    /// Purple color theme
     Purple,
+    /// Indigo color theme
     Indigo,
 }
 

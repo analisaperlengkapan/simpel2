@@ -9,20 +9,30 @@ use serde::{Deserialize, Serialize};
 /// Search result item
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchResult {
+    /// Unique identifier for the search result
     pub id: String,
+    /// Display title of the result
     pub title: String,
+    /// Description or summary of the result
     pub description: String,
+    /// Category classification of the result
     pub category: SearchCategory,
+    /// URL to navigate to when selected
     pub url: String,
+    /// Icon identifier for visual representation
     pub icon: String,
 }
 
 /// Search result category
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum SearchCategory {
+    /// Application or module result
     Application,
+    /// Page or route result
     Page,
+    /// Document or file result
     Document,
+    /// User or profile result
     User,
 }
 

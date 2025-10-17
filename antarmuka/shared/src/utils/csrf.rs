@@ -307,7 +307,7 @@ pub async fn csrf_protected_request(
     let csrf_token = get_csrf_token();
 
     // Create request with CSRF token in header
-    let mut opts = web_sys::RequestInit::new();
+    let opts = web_sys::RequestInit::new();
     opts.set_method(method);
     opts.set_mode(web_sys::RequestMode::Cors);
     opts.set_credentials(web_sys::RequestCredentials::Include);

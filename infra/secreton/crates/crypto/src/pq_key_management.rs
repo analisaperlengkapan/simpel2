@@ -12,7 +12,6 @@ use crate::{
     pqc::{
         mldsa::{MLDsaKeypair, MLDsaVariant},
         mlkem::{MLKemKeypair, MLKemVariant},
-        PostQuantumKeyExchange, PostQuantumSignatures,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -666,7 +665,7 @@ impl PostQuantumKeyManager {
         )?;
 
         // Encapsulate the symmetric key using ML-KEM
-        let (encapsulated_symmetric_key, encapsulated_key) = archive_key.mlkem_keypair.encapsulate()?;
+        let (_encapsulated_symmetric_key, encapsulated_key) = archive_key.mlkem_keypair.encapsulate()?;
 
         // Create integrity signature using ML-DSA
         let integrity_data = [data, &encapsulated_key].concat();
@@ -680,7 +679,7 @@ impl PostQuantumKeyManager {
             archive_id,
             created_at: chrono::Utc::now(),
             retention_until: chrono::Utc::now() + archive_key.retention_period,
-            purpose: archive_key.purpose.clone(),
+            purpose: archive_key.purpose,
             classification,
             checksum,
         };
@@ -827,7 +826,7 @@ impl PostQuantumKeyManager {
         // Generate public key using curve25519-dalek
         use curve25519_dalek::{scalar::Scalar, constants::X25519_BASEPOINT};
         let scalar = Scalar::from_bytes_mod_order(private_key);
-        let public_key_point = &scalar * &X25519_BASEPOINT;
+        let public_key_point = scalar * X25519_BASEPOINT;
         let public_key = public_key_point.to_bytes();
 
         Ok(X25519KeyPair {
@@ -845,7 +844,7 @@ impl PostQuantumKeyManager {
 
         let scalar = Scalar::from_bytes_mod_order(*private_key);
         let peer_point = curve25519_dalek::montgomery::MontgomeryPoint(*peer_public_key);
-        let shared_secret = &scalar * &peer_point;
+        let shared_secret = scalar * peer_point;
 
         Ok(shared_secret.to_bytes())
     }
@@ -913,19 +912,19 @@ impl PostQuantumKeyManager {
         // Count expired ML-KEM keys
         let mlkem_keys = self.mlkem_keys.read().await;
         count += mlkem_keys.values()
-            .filter(|k| k.expires_at.map_or(false, |exp| exp < now))
+            .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
         // Count expired ML-DSA keys
         let mldsa_keys = self.mldsa_keys.read().await;
         count += mldsa_keys.values()
-            .filter(|k| k.expires_at.map_or(false, |exp| exp < now))
+            .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
         // Count expired hybrid keys
         let hybrid_keys = self.hybrid_keys.read().await;
         count += hybrid_keys.values()
-            .filter(|k| k.expires_at.map_or(false, |exp| exp < now))
+            .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
         count

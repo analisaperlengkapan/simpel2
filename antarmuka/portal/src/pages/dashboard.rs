@@ -5,8 +5,14 @@ use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use leptos::prelude::*;
 
+/// Dashboard page component - main user dashboard with statistics
 #[component]
-pub fn DashboardPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn DashboardPage(
+    /// Current user session data
+    user_session: UserSession,
+    /// Callback function to handle user logout
+    on_logout: Box<dyn Fn()>,
+) -> impl IntoView {
     let stats = vec![
         StatCardData {
             title: "Total Sistem".to_string(),

@@ -6,8 +6,14 @@ use crate::features::auth::UserSession;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
 use leptos::prelude::*;
 
+/// Applications page component - displays available microfrontends
 #[component]
-pub fn AppsPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn AppsPage(
+    /// Current user session data
+    user_session: UserSession,
+    /// Callback function to handle user logout
+    on_logout: Box<dyn Fn()>,
+) -> impl IntoView {
     let (selected_category, set_selected_category) = signal(None::<AppCategory>);
     let (search_query, set_search_query) = signal(String::new());
 

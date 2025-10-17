@@ -20,7 +20,7 @@ pub use sha3::{Sha3_256, Sha3_384, Sha3_512};
 pub enum HashAlgorithm {
     /// SHA-256
     Sha256,
-    /// SHA-384  
+    /// SHA-384
     Sha384,
     /// SHA-512
     Sha512,
@@ -251,6 +251,7 @@ impl SecureRandom for rand::rngs::ThreadRng {
 
 /// Algorithm registry for dynamic algorithm selection
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct AlgorithmRegistry {
     supported_ciphers: Vec<String>,
     supported_hashes: Vec<HashAlgorithm>,

@@ -13,22 +13,33 @@ use shared_microfrontend::core::types::AlertVariant;
 /// Backup codes response from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupCodesResponse {
+    /// List of backup codes
     pub codes: Vec<String>,
+    /// Total number of codes
     pub count: usize,
+    /// Warning message about backup codes
     pub warning: String,
 }
 
 /// Backup code status response from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupCodeStatusResponse {
+    /// Whether backup codes are available
     pub available: bool,
+    /// Number of remaining backup codes
     pub remaining_codes: usize,
+    /// Timestamp of last code generation
     pub last_generated: Option<String>,
 }
 
 /// MFA Backup Codes Management Page Component
 #[component]
-pub fn MfaBackupCodesPage(user_session: UserSession, on_logout: Box<dyn Fn()>) -> impl IntoView {
+pub fn MfaBackupCodesPage(
+    /// Current user session data
+    user_session: UserSession,
+    /// Callback function to handle user logout
+    on_logout: Box<dyn Fn()>,
+) -> impl IntoView {
     let (backup_codes, set_backup_codes) = signal(None::<BackupCodesResponse>);
     let (status, set_status) = signal(None::<BackupCodeStatusResponse>);
     let (loading, set_loading) = signal(false);

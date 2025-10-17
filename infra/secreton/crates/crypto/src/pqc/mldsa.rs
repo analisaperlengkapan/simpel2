@@ -4,7 +4,7 @@
 
 use crate::error::{CryptoError, CryptoResult};
 use pqcrypto_mldsa::*;
-use pqcrypto_traits::sign::{DetachedSignature, PublicKey, SecretKey, SignedMessage};
+use pqcrypto_traits::sign::{DetachedSignature, PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

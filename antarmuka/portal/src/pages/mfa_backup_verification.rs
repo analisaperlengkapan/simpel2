@@ -10,16 +10,22 @@ use serde::{Deserialize, Serialize};
 /// Backup code verification request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupCodeVerificationRequest {
+    /// Temporary token from MFA setup
     pub temp_token: String,
+    /// Backup code to verify
     pub backup_code: String,
 }
 
 /// Backup code verification response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupCodeVerificationResponse {
+    /// Whether the backup code is valid
     pub valid: bool,
+    /// Access token if verification successful
     pub access_token: Option<String>,
+    /// Number of remaining backup codes
     pub remaining_codes: usize,
+    /// Response message
     pub message: String,
 }
 
