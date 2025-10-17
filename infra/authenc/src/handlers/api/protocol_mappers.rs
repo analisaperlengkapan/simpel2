@@ -23,22 +23,29 @@ use crate::{
 /// Create protocol mapper request
 #[derive(Debug, Deserialize)]
 pub struct CreateMapperRequest {
+    /// Human-readable name for the protocol mapper
     pub name: String,
-    pub protocol: String,    // "oidc" or "saml"
-    pub mapper_type: String, // "user-attribute", "role-list", etc.
+    /// Protocol type this mapper applies to ("oidc" or "saml")
+    pub protocol: String,
+    /// Type of mapper ("user-attribute", "role-list", etc.)
+    pub mapper_type: String,
+    /// Configuration data for the mapper
     pub config: JsonValue,
 }
 
 /// Update protocol mapper request
 #[derive(Debug, Deserialize)]
 pub struct UpdateMapperRequest {
+    /// Updated configuration data (optional)
     pub config: Option<JsonValue>,
+    /// Whether the mapper is enabled (optional)
     pub enabled: Option<bool>,
 }
 
 /// Query parameters for mapper listing
 #[derive(Debug, Deserialize)]
 pub struct MapperQueryParams {
+    /// Filter by protocol type (optional)
     pub protocol: Option<String>,
 }
 

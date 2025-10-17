@@ -50,41 +50,62 @@ impl Default for MfaSecurityMonitorConfig {
 pub enum MfaSecurityEventType {
     /// Excessive failed MFA attempts from single IP
     ExcessiveFailedAttempts {
+        /// IP address showing excessive failed attempts
         ip: String,
+        /// Number of failed attempts
         attempts: u32,
+        /// Time window for the attempts
         time_window: Duration,
     },
     /// Suspicious MFA setup pattern
     SuspiciousMfaSetupPattern {
+        /// IP address showing suspicious setup pattern
         ip: String,
+        /// Number of MFA setups in time window
         setups: u32,
+        /// Time window for the setups
         time_window: Duration,
     },
     /// Geographic anomaly detected
     GeographicAnomaly {
+        /// ID of the user showing geographic anomaly
         user_id: Uuid,
+        /// Previous location of the user
         previous_location: String,
+        /// Current location of the user
         current_location: String,
+        /// Distance between locations in kilometers
         distance_km: f64,
+        /// Time difference in minutes between logins
         time_diff_minutes: u64,
     },
     /// Account lockout triggered
     AccountLockoutTriggered {
+        /// ID of the user whose account was locked
         user_id: Uuid,
+        /// IP address that triggered the lockout
         ip: String,
+        /// Number of failed attempts that triggered lockout
         failed_attempts: u32,
     },
     /// Brute force attack detected
     BruteForceAttackDetected {
+        /// IP address performing the brute force attack
         ip: String,
+        /// List of user IDs targeted by the attack
         target_users: Vec<Uuid>,
+        /// Number of attack attempts
         attempts: u32,
     },
     /// Time-based anomaly (unusual login times)
     TimeBasedAnomaly {
+        /// ID of the user showing time-based anomaly
         user_id: Uuid,
+        /// Usual login hours for this user
         usual_hours: Vec<u8>,
+        /// Current login hour
         current_hour: u8,
+        /// Anomaly score for this event
         anomaly_score: f64,
     },
 }
@@ -92,22 +113,34 @@ pub enum MfaSecurityEventType {
 /// Security alert severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertSeverity {
+    /// Low severity alert
     Low,
+    /// Medium severity alert
     Medium,
+    /// High severity alert
     High,
+    /// Critical severity alert requiring immediate attention
     Critical,
 }
 
 /// Security alert information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityAlert {
+    /// Unique identifier of the security alert
     pub id: Uuid,
+    /// Type of security event that triggered the alert
     pub event_type: MfaSecurityEventType,
+    /// Severity level of the alert
     pub severity: AlertSeverity,
+    /// Timestamp when the alert was generated
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Human-readable description of the alert
     pub description: String,
+    /// Recommended actions to resolve the alert
     pub recommended_actions: Vec<String>,
+    /// List of users affected by this alert
     pub affected_users: Vec<Uuid>,
+    /// List of IP addresses involved in the alert
     pub source_ips: Vec<String>,
 }
 
@@ -147,6 +180,7 @@ pub struct MfaSecurityMonitor {
 
 /// Trait for handling security alerts
 pub trait AlertHandler: Send + Sync {
+    /// Handle a security alert by processing it according to implementation logic
     fn handle_alert(&self, alert: &SecurityAlert) -> Result<(), AuthencError>;
 }
 

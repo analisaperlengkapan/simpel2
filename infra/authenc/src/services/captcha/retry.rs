@@ -11,24 +11,35 @@ use tracing::{debug, error, info, warn};
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CircuitState {
-    Closed,   // Normal operation
-    Open,     // Failing, reject requests
-    HalfOpen, // Testing if service recovered
+    /// Normal operation - requests are allowed
+    Closed,
+    /// Failing state - requests are rejected
+    Open,
+    /// Testing recovery - limited requests allowed
+    HalfOpen,
 }
 
 /// Circuit breaker for external service calls
 #[derive(Debug, Clone)]
 pub struct CircuitBreaker {
+    /// Current state of the circuit breaker
     state: Arc<RwLock<CircuitState>>,
+    /// Number of consecutive failures
     failure_count: Arc<RwLock<u32>>,
+    /// Timestamp of the last failure
     last_failure_time: Arc<RwLock<Option<Instant>>>,
+    /// Threshold for opening the circuit
     failure_threshold: u32,
+    /// Time to wait before attempting recovery
     recovery_timeout: Duration,
+    /// Maximum calls allowed in half-open state
     half_open_max_calls: u32,
+    /// Current number of calls in half-open state
     half_open_calls: Arc<RwLock<u32>>,
 }
 
 impl CircuitBreaker {
+    /// Create a new circuit breaker with the given failure threshold and recovery timeout
     pub fn new(failure_threshold: u32, recovery_timeout: Duration) -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitState::Closed)),
@@ -144,10 +155,15 @@ impl CircuitBreaker {
 /// Retry configuration
 #[derive(Debug, Clone)]
 pub struct RetryConfig {
+    /// Maximum number of retry attempts
     pub max_attempts: u32,
+    /// Base delay between retries
     pub base_delay: Duration,
+    /// Maximum delay between retries
     pub max_delay: Duration,
+    /// Exponential backoff base multiplier
     pub exponential_base: f64,
+    /// Whether to add random jitter to delays
     pub jitter: bool,
 }
 
@@ -166,11 +182,14 @@ impl Default for RetryConfig {
 /// Retry executor with various backoff strategies
 #[derive(Clone)]
 pub struct RetryExecutor {
+    /// Configuration for retry behavior
     config: RetryConfig,
+    /// Optional circuit breaker for additional protection
     circuit_breaker: Option<Arc<CircuitBreaker>>,
 }
 
 impl RetryExecutor {
+    /// Create a new retry executor with the given configuration
     pub fn new(config: RetryConfig) -> Self {
         Self {
             config,
@@ -178,6 +197,7 @@ impl RetryExecutor {
         }
     }
 
+    /// Add a circuit breaker to this retry executor for additional protection
     pub fn with_circuit_breaker(mut self, circuit_breaker: Arc<CircuitBreaker>) -> Self {
         self.circuit_breaker = Some(circuit_breaker);
         self
@@ -317,6 +337,7 @@ pub struct BatchRetryExecutor {
 }
 
 impl BatchRetryExecutor {
+    /// Create a new batch retry executor with the given retry executor and concurrency limit
     pub fn new(retry_executor: RetryExecutor, max_concurrent: usize) -> Self {
         Self {
             retry_executor,
@@ -374,12 +395,14 @@ pub struct ServiceHealthChecker {
 }
 
 impl ServiceHealthChecker {
+    /// Create a new service health checker
     pub fn new() -> Self {
         Self {
             circuit_breakers: std::collections::HashMap::new(),
         }
     }
 
+    /// Add a service to monitor with its circuit breaker
     pub fn add_service(&mut self, name: String, circuit_breaker: Arc<CircuitBreaker>) {
         self.circuit_breakers.insert(name, circuit_breaker);
     }

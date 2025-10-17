@@ -92,13 +92,18 @@ impl Default for CaptchaRateLimitConfig {
 /// CAPTCHA failure tracking for rate limiting
 #[derive(Debug, Clone)]
 pub struct CaptchaFailureTracker {
+    /// Total number of CAPTCHA failures recorded
     pub failure_count: u32,
+    /// Timestamp of the last CAPTCHA failure
     pub last_failure: SystemTime,
+    /// Current risk level based on failure patterns
     pub current_risk_level: RiskLevel,
+    /// Number of consecutive CAPTCHA failures
     pub consecutive_failures: u32,
 }
 
 impl CaptchaFailureTracker {
+    /// Create a new CAPTCHA failure tracker with default values
     pub fn new() -> Self {
         Self {
             failure_count: 0,
@@ -108,6 +113,7 @@ impl CaptchaFailureTracker {
         }
     }
 
+    /// Record a CAPTCHA validation failure with the given risk level
     pub fn record_failure(&mut self, risk_level: RiskLevel) {
         self.failure_count += 1;
         self.consecutive_failures += 1;
@@ -115,11 +121,13 @@ impl CaptchaFailureTracker {
         self.current_risk_level = risk_level;
     }
 
+    /// Record a successful CAPTCHA validation
     pub fn record_success(&mut self) {
         self.consecutive_failures = 0;
         self.current_risk_level = RiskLevel::Low;
     }
 
+    /// Get the current failure level based on consecutive failures
     pub fn get_failure_level(&self) -> FailureLevel {
         match self.consecutive_failures {
             0..=2 => FailureLevel::Low,
@@ -133,17 +141,24 @@ impl CaptchaFailureTracker {
 /// Failure level classification for progressive rate limiting
 #[derive(Debug, Clone, PartialEq)]
 pub enum FailureLevel {
+    /// Low failure rate - minimal restrictions
     Low,
+    /// Medium failure rate - moderate restrictions
     Medium,
+    /// High failure rate - significant restrictions
     High,
+    /// Critical failure rate - maximum restrictions
     Critical,
 }
 
 /// CAPTCHA rate limiting state
 #[derive(Clone)]
 pub struct CaptchaRateLimitState {
+    /// Configuration for CAPTCHA rate limiting
     config: CaptchaRateLimitConfig,
+    /// Base rate limiter state for standard rate limiting
     base_rate_limiter: RateLimiterState,
+    /// Thread-safe failure tracker for CAPTCHA failures
     failure_tracker: Arc<RwLock<HashMap<String, CaptchaFailureTracker>>>,
 }
 

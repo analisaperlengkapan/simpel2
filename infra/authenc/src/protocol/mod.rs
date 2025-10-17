@@ -11,11 +11,14 @@ use uuid::Uuid;
 /// Protocol types supported
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Protocol {
+    /// OpenID Connect protocol
     OIDC,
+    /// Security Assertion Markup Language protocol
     SAML,
 }
 
 impl Protocol {
+    /// Returns the string representation of the protocol
     pub fn as_str(&self) -> &str {
         match self {
             Protocol::OIDC => "oidc",
@@ -27,15 +30,25 @@ impl Protocol {
 /// Mapper context containing user and session data
 #[derive(Debug, Clone)]
 pub struct MapperContext {
+    /// Unique identifier for the user
     pub user_id: Uuid,
+    /// Username of the user
     pub username: String,
+    /// Email address of the user (optional)
     pub email: Option<String>,
+    /// First name of the user (optional)
     pub first_name: Option<String>,
+    /// Last name of the user (optional)
     pub last_name: Option<String>,
+    /// Additional user attributes as key-value pairs
     pub attributes: HashMap<String, JsonValue>,
+    /// Roles assigned to the user
     pub roles: Vec<String>,
+    /// Groups the user belongs to
     pub groups: Vec<String>,
+    /// Client identifier for the session (optional)
     pub client_id: Option<String>,
+    /// Authentication realm/domain
     pub realm: String,
 }
 
@@ -62,8 +75,11 @@ pub trait ProtocolMapper: Send + Sync {
 /// Mapper error types
 #[derive(Debug, Clone)]
 pub enum MapperError {
+    /// Configuration provided to the mapper is invalid
     InvalidConfiguration(String),
+    /// Required attribute is missing from the context
     MissingAttribute(String),
+    /// Mapping operation failed with the specified error
     MappingFailed(String),
 }
 
@@ -89,6 +105,7 @@ pub struct UserAttributeMapper {
 }
 
 impl UserAttributeMapper {
+    /// Creates a new user attribute mapper with the specified configuration
     pub fn new(
         name: String,
         protocol: Protocol,
@@ -184,6 +201,7 @@ pub struct UserPropertyMapper {
 }
 
 impl UserPropertyMapper {
+    /// Creates a new user property mapper with the specified configuration
     pub fn new(name: String, protocol: Protocol, property: String, claim_name: String) -> Self {
         Self {
             name,
@@ -253,6 +271,7 @@ pub struct RoleListMapper {
 }
 
 impl RoleListMapper {
+    /// Creates a new role list mapper with the specified configuration
     pub fn new(
         name: String,
         protocol: Protocol,
@@ -321,6 +340,7 @@ pub struct HardcodedClaimMapper {
 }
 
 impl HardcodedClaimMapper {
+    /// Creates a new hardcoded claim mapper with the specified configuration
     pub fn new(
         name: String,
         protocol: Protocol,
@@ -383,6 +403,7 @@ pub struct GroupMembershipMapper {
 }
 
 impl GroupMembershipMapper {
+    /// Creates a new group membership mapper with the specified configuration
     pub fn new(name: String, protocol: Protocol, claim_name: String, full_path: bool) -> Self {
         Self {
             name,
@@ -446,6 +467,7 @@ pub struct AudienceMapper {
 }
 
 impl AudienceMapper {
+    /// Creates a new audience mapper with the specified configuration
     pub fn new(
         name: String,
         protocol: Protocol,
@@ -516,16 +538,19 @@ pub struct MapperRegistry {
 }
 
 impl MapperRegistry {
+    /// Creates a new empty mapper registry
     pub fn new() -> Self {
         Self {
             mappers: Vec::new(),
         }
     }
 
+    /// Registers a new protocol mapper in the registry
     pub fn register(&mut self, mapper: Box<dyn ProtocolMapper>) {
         self.mappers.push(mapper);
     }
 
+    /// Applies all registered mappers to the given context and protocol
     pub async fn apply_mappers(
         &self,
         context: &MapperContext,

@@ -49,15 +49,22 @@ pub trait CaptchaServiceTrait: Send + Sync {
 
 /// CAPTCHA service implementation
 pub struct CaptchaService {
+    /// Database operations for CAPTCHA challenges
     db_ops: Arc<crate::database::CaptchaOperations>,
+    /// Challenge generator for creating CAPTCHA challenges
     generator: Arc<super::generator::ChallengeGenerator>,
+    /// Validation engine for checking CAPTCHA responses
     validator: Arc<super::validator::ValidationEngine>,
+    /// Behavioral analyzer for risk assessment
     analyzer: Arc<super::analyzer::BehavioralAnalyzer>,
+    /// Metrics collector for performance monitoring
     metrics_collector: Arc<super::metrics::MetricsCollector>,
+    /// Alert manager for security notifications
     alert_manager: Arc<super::alerting::AlertManager>,
 }
 
 impl CaptchaService {
+    /// Create a new CAPTCHA service with all required components
     pub fn new(
         db_ops: Arc<crate::database::CaptchaOperations>,
         generator: Arc<super::generator::ChallengeGenerator>,

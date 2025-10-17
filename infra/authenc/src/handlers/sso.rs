@@ -56,12 +56,19 @@ pub struct SsoLogoutQuery {
 /// SSO session info response
 #[derive(Debug, Serialize)]
 pub struct SsoSessionInfo {
+    /// Unique identifier of the SSO session
     pub session_id: String,
+    /// ID of the authenticated user
     pub user_id: String,
+    /// ID of the realm this session belongs to
     pub realm_id: String,
+    /// SSO provider used for authentication
     pub provider: String,
+    /// Timestamp when the session was created
     pub created_at: String,
+    /// Timestamp of the last access to this session
     pub last_access: String,
+    /// List of client session identifiers associated with this SSO session
     pub client_sessions: Vec<String>,
 }
 

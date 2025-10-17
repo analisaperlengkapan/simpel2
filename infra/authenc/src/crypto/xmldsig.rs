@@ -20,13 +20,13 @@ use std::time::{Duration, SystemTime};
 /// Supported canonicalization methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum CanonicalizationMethod {
-    /// Canonical XML 1.0 (without comments)
+    /// Canonical XML 1.0 (without comments) - standard canonicalization method
     C14n,
-    /// Canonical XML 1.0 (with comments)
+    /// Canonical XML 1.0 (with comments) - includes XML comments in canonicalization
     C14nWithComments,
-    /// Exclusive XML Canonicalization 1.0 (without comments)
+    /// Exclusive XML Canonicalization 1.0 (without comments) - excludes ancestor context
     ExclusiveC14n,
-    /// Exclusive XML Canonicalization 1.0 (with comments)
+    /// Exclusive XML Canonicalization 1.0 (with comments) - excludes ancestor context but includes comments
     ExclusiveC14nWithComments,
 }
 

@@ -37,23 +37,36 @@ pub enum ComplianceStandard {
 /// Compliance control result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceControlResult {
+    /// Unique identifier for the compliance control
     pub control_id: String,
+    /// Human-readable name of the control
     pub control_name: String,
+    /// Compliance standard this control belongs to
     pub standard: ComplianceStandard,
+    /// Category of the control
     pub category: String,
+    /// Current implementation status
     pub status: ControlStatus,
+    /// Evidence of implementation
     pub evidence: Vec<String>,
+    /// Timestamp of last compliance check
     pub last_checked: DateTime<Utc>,
+    /// Timestamp of next scheduled review
     pub next_review: DateTime<Utc>,
+    /// Owner/responsible party for this control
     pub owner: String,
 }
 
 /// Control implementation status
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ControlStatus {
+    /// Control is fully implemented and operational
     Implemented,
+    /// Control is partially implemented with some gaps
     PartiallyImplemented,
+    /// Control is not implemented
     NotImplemented,
+    /// Control is not applicable to this system
     NotApplicable,
 }
 
@@ -61,6 +74,7 @@ pub enum ControlStatus {
 pub mod soc2 {
     use super::*;
 
+    /// Get SOC 2 Type II trust service criteria controls
     pub fn get_trust_service_criteria() -> Vec<ComplianceControlResult> {
         vec![
             // Security (CC) Controls
@@ -241,6 +255,7 @@ pub mod soc2 {
 pub mod iso27001 {
     use super::*;
 
+    /// Get ISO 27001 information security controls
     pub fn get_controls() -> Vec<ComplianceControlResult> {
         vec![
             ComplianceControlResult {
@@ -326,6 +341,7 @@ pub mod iso27001 {
 pub mod gdpr {
     use super::*;
 
+    /// Get GDPR data protection controls
     pub fn get_controls() -> Vec<ComplianceControlResult> {
         vec![
             ComplianceControlResult {
@@ -426,6 +442,7 @@ pub struct ComplianceManager {
 }
 
 impl ComplianceManager {
+    /// Create a new compliance manager with default control sets
     pub fn new() -> Self {
         let mut controls = HashMap::new();
 
@@ -439,6 +456,7 @@ impl ComplianceManager {
         Self { controls }
     }
 
+    /// Calculate compliance score as a percentage for the given standard
     pub fn get_compliance_score(&self, standard: ComplianceStandard) -> f64 {
         if let Some(controls) = self.controls.get(&standard) {
             let total = controls.len() as f64;
@@ -453,10 +471,12 @@ impl ComplianceManager {
         }
     }
 
+    /// Check if the system is fully compliant with the given standard
     pub fn is_compliant(&self, standard: ComplianceStandard) -> bool {
         self.get_compliance_score(standard) >= 100.0
     }
 
+    /// Generate a detailed compliance report for the given standard
     pub fn generate_compliance_report(&self, standard: ComplianceStandard) -> ComplianceReport {
         let controls = self.controls.get(&standard).cloned().unwrap_or_default();
 
@@ -497,14 +517,23 @@ impl Default for ComplianceManager {
 /// Compliance report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceReport {
+    /// Compliance standard this report is for
     pub standard: ComplianceStandard,
+    /// Total number of controls in the standard
     pub total_controls: usize,
+    /// Number of controls that are fully implemented
     pub implemented: usize,
+    /// Number of controls that are partially implemented
     pub partially_implemented: usize,
+    /// Number of controls that are not implemented
     pub not_implemented: usize,
+    /// Overall compliance score as a percentage
     pub compliance_score: f64,
+    /// Whether the system is fully compliant with the standard
     pub is_compliant: bool,
+    /// Timestamp when this report was generated
     pub generated_at: DateTime<Utc>,
+    /// Detailed list of all controls with their status
     pub controls: Vec<ComplianceControlResult>,
 }
 

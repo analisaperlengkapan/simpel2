@@ -12,29 +12,48 @@ use uuid::Uuid;
 /// SAML request/response storage model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamlMessage {
+    /// Unique identifier for the SAML message record
     pub id: Uuid,
+    /// SAML message ID from the XML
     pub saml_id: String,
+    /// Type of SAML message (AuthnRequest, Response, etc.)
     pub message_type: String,
+    /// SAML issuer/entity ID
     pub issuer: String,
+    /// SAML destination URL
     pub destination: String,
+    /// Raw XML content of the SAML message
     pub xml_content: String,
+    /// Optional XML signature for the message
     pub signature: Option<String>,
+    /// Timestamp when the message was created
     pub created_at: DateTime<Utc>,
+    /// Timestamp when the message expires
     pub expires_at: DateTime<Utc>,
+    /// Optional session ID associated with the message
     pub session_id: Option<String>,
+    /// Optional SAML relay state parameter
     pub relay_state: Option<String>,
 }
 
 /// Parameters for storing SAML request
 #[derive(Debug)]
 pub struct SamlRequestParams<'a> {
+    /// SAML message ID from the XML
     pub saml_id: &'a str,
+    /// Type of SAML message (AuthnRequest, Response, etc.)
     pub message_type: &'a str,
+    /// SAML issuer/entity ID
     pub issuer: &'a str,
+    /// SAML destination URL
     pub destination: &'a str,
+    /// Raw XML content of the SAML message
     pub xml_content: &'a str,
+    /// Optional XML signature for the message
     pub signature: Option<&'a str>,
+    /// Optional SAML relay state parameter
     pub relay_state: Option<&'a str>,
+    /// Time-to-live in seconds for the message
     pub ttl_seconds: i64,
 }
 
@@ -42,7 +61,7 @@ pub struct SamlRequestParams<'a> {
 pub mod saml_storage {
     use super::*;
 
-    /// Store SAML request in database
+    /// Store SAML request in database with expiration
     pub async fn store_saml_request(
         db: &Database,
         params: SamlRequestParams<'_>,
@@ -96,7 +115,7 @@ pub mod saml_storage {
         })
     }
 
-    /// Retrieve SAML request from database
+    /// Retrieve SAML request from database by SAML ID
     pub async fn get_saml_request(db: &Database, saml_id: &str) -> Result<Option<SamlMessage>> {
         let query = r#"
             SELECT id, saml_id, message_type, issuer, destination,
@@ -124,14 +143,14 @@ pub mod saml_storage {
         }))
     }
 
-    /// Delete SAML request from database
+    /// Delete SAML request from database by SAML ID
     pub async fn delete_saml_request(db: &Database, saml_id: &str) -> Result<()> {
         let query = "DELETE FROM saml_messages WHERE saml_id = $1";
         db.execute(query, &[&saml_id]).await?;
         Ok(())
     }
 
-    /// Cleanup expired SAML messages
+    /// Cleanup expired SAML messages from database
     pub async fn cleanup_expired_saml_messages(db: &Database) -> Result<i64> {
         let query = "DELETE FROM saml_messages WHERE expires_at < NOW()";
         let rows_affected = db.execute(query, &[]).await?;

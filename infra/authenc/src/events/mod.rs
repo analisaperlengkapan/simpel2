@@ -16,11 +16,17 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EventCategory {
+    /// User-related events (registration, profile updates, etc.)
     User,
+    /// Administrative events (user management, system configuration, etc.)
     Admin,
+    /// Authentication events (login, logout, MFA, etc.)
     Auth,
+    /// Session management events (creation, invalidation, etc.)
     Session,
+    /// Resource access events (API calls, resource modifications, etc.)
     Resource,
+    /// System-level events (startup, shutdown, health checks, etc.)
     System,
 }
 
@@ -29,49 +35,80 @@ pub enum EventCategory {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EventType {
     // User events
+    /// User account was created
     UserCreated,
+    /// User account was updated
     UserUpdated,
+    /// User account was deleted
     UserDeleted,
+    /// User logged in successfully
     UserLogin,
+    /// User logged out
     UserLogout,
+    /// User email/phone was verified
     UserVerified,
+    /// User account was disabled
     UserDisabled,
+    /// User account was enabled
     UserEnabled,
 
     // Admin events
+    /// Administrative action was performed
     AdminAction,
+    /// Resource was created by admin
     ResourceCreated,
+    /// Resource was updated by admin
     ResourceUpdated,
+    /// Resource was deleted by admin
     ResourceDeleted,
+    /// System configuration was changed
     ConfigurationChanged,
 
     // Auth events
+    /// Authentication was successful
     AuthSuccess,
+    /// Authentication failed
     AuthFailure,
+    /// JWT token was issued
     TokenIssued,
+    /// JWT token was refreshed
     TokenRefreshed,
+    /// JWT token was revoked
     TokenRevoked,
+    /// Multi-factor authentication was required
     MfaRequired,
+    /// Multi-factor authentication was successful
     MfaSuccess,
+    /// Multi-factor authentication failed
     MfaFailure,
 
     // Session events
+    /// User session was created
     SessionCreated,
+    /// User session expired
     SessionExpired,
+    /// User session was terminated
     SessionTerminated,
+    /// User session was refreshed
     SessionRefreshed,
 
     // System events
+    /// System started up
     SystemStartup,
+    /// System shut down
     SystemShutdown,
+    /// Database migration was performed
     DatabaseMigration,
+    /// Cache was cleared
     CacheCleared,
 
     // Custom events
+    /// Custom event with string identifier
     Custom(String),
 }
 
 impl EventType {
+    /// Convert event type to string representation
     pub fn as_str(&self) -> &str {
         match self {
             EventType::UserCreated => "USER_CREATED",
@@ -111,26 +148,44 @@ impl EventType {
 /// Event data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
+    /// Unique identifier for the event
     pub id: Uuid,
+    /// Realm identifier where the event occurred
     pub realm_id: Uuid,
+    /// Type of event that occurred
     pub event_type: EventType,
+    /// Category of the event
     pub event_category: EventCategory,
+    /// Type of resource affected by the event
     pub resource_type: Option<String>,
+    /// Identifier of the resource affected
     pub resource_id: Option<String>,
+    /// Name of the resource affected
     pub resource_name: Option<String>,
+    /// User ID associated with the event
     pub user_id: Option<Uuid>,
+    /// Username associated with the event
     pub username: Option<String>,
+    /// Additional event data as JSON
     pub event_data: Option<JsonValue>,
+    /// Previous value of changed resource (for update events)
     pub old_value: Option<JsonValue>,
+    /// New value of changed resource (for update events)
     pub new_value: Option<JsonValue>,
+    /// IP address of the client that triggered the event
     pub ip_address: Option<String>,
+    /// User agent string from the client
     pub user_agent: Option<String>,
+    /// Session ID associated with the event
     pub session_id: Option<Uuid>,
+    /// Correlation ID for tracing related events
     pub correlation_id: Option<Uuid>,
+    /// Timestamp when the event occurred
     pub timestamp: DateTime<Utc>,
 }
 
 impl Event {
+    /// Create a new event with the specified realm, type, and category
     pub fn new(realm_id: Uuid, event_type: EventType, event_category: EventCategory) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -153,23 +208,27 @@ impl Event {
         }
     }
 
+    /// Set resource information for the event
     pub fn with_resource(mut self, resource_type: &str, resource_id: &str) -> Self {
         self.resource_type = Some(resource_type.to_string());
         self.resource_id = Some(resource_id.to_string());
         self
     }
 
+    /// Set user information for the event
     pub fn with_user(mut self, user_id: Uuid, username: &str) -> Self {
         self.user_id = Some(user_id);
         self.username = Some(username.to_string());
         self
     }
 
+    /// Set additional event data
     pub fn with_data(mut self, data: JsonValue) -> Self {
         self.event_data = Some(data);
         self
     }
 
+    /// Set old and new values for change events
     pub fn with_changes(mut self, old: JsonValue, new: JsonValue) -> Self {
         self.old_value = Some(old);
         self.new_value = Some(new);
@@ -209,6 +268,7 @@ pub struct EventBus {
 }
 
 impl EventBus {
+    /// Create a new event bus
     pub fn new() -> Self {
         Self {
             listeners: Arc::new(RwLock::new(Vec::new())),
@@ -269,19 +329,28 @@ impl Default for EventBus {
 /// Result of listener execution
 #[derive(Debug, Clone)]
 pub struct ListenerResult {
+    /// Name of the listener that was executed
     pub listener_name: String,
+    /// Whether the listener executed successfully
     pub success: bool,
+    /// Error message if execution failed
     pub error: Option<String>,
+    /// Execution duration in milliseconds
     pub duration_ms: i32,
 }
 
 /// Event error types
 #[derive(Debug, Clone)]
 pub enum EventError {
+    /// Listener execution failed with the specified error message
     ListenerFailed(String),
+    /// Failed to serialize or deserialize event data
     SerializationError(String),
+    /// Network communication error during event transmission
     NetworkError(String),
+    /// Event processing timed out
     Timeout(String),
+    /// Generic event error with custom message
     Other(String),
 }
 
@@ -306,6 +375,7 @@ pub struct LoggingListener {
 }
 
 impl LoggingListener {
+    /// Creates a new logging listener with the specified name and log level
     pub fn new(name: String, log_level: String) -> Self {
         Self { name, log_level }
     }
@@ -356,6 +426,7 @@ pub struct WebhookListener {
 }
 
 impl WebhookListener {
+    /// Creates a new webhook listener with the specified configuration
     pub fn new(
         name: String,
         url: String,
@@ -431,6 +502,7 @@ pub struct MetricsListener {
 }
 
 impl MetricsListener {
+    /// Creates a new metrics listener with the specified name
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -438,6 +510,7 @@ impl MetricsListener {
         }
     }
 
+    /// Retrieves a copy of the current metrics collected by this listener
     pub async fn get_metrics(&self) -> HashMap<String, u64> {
         self.metrics.read().await.clone()
     }

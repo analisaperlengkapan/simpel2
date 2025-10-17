@@ -16,21 +16,32 @@ pub mod security_tests {
     /// Security test result
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SecurityTestResult {
+        /// Name of the security test performed
         pub test_name: String,
+        /// Whether the test passed or failed
         pub passed: bool,
+        /// Severity level of the security issue
         pub severity: SecuritySeverity,
+        /// Detailed description of the test result
         pub description: String,
+        /// Optional remediation steps for failed tests
         pub remediation: Option<String>,
+        /// List of CVE references related to the issue
         pub cve_references: Vec<String>,
     }
 
     /// Security severity levels
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
     pub enum SecuritySeverity {
+        /// Critical security vulnerability requiring immediate attention
         Critical,
+        /// High severity security issue
         High,
+        /// Medium severity security issue
         Medium,
+        /// Low severity security issue
         Low,
+        /// Informational finding
         Info,
     }
 
@@ -335,6 +346,7 @@ pub mod security_tests {
     }
 
     impl SecurityTestRunner {
+        /// Create a new security test runner instance
         pub fn new() -> Self {
             Self {
                 results: Vec::new(),
@@ -420,10 +432,15 @@ pub mod security_tests {
     /// Security test report
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct SecurityReport {
+        /// Total number of security tests executed
         pub total_tests: usize,
+        /// Number of tests that passed
         pub passed: usize,
+        /// Number of tests that failed
         pub failed: usize,
+        /// Breakdown of results by security severity
         pub by_severity: HashMap<SecuritySeverity, usize>,
+        /// Detailed results of all security tests
         pub results: Vec<SecurityTestResult>,
     }
 

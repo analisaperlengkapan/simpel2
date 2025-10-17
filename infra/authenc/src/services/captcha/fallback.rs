@@ -17,11 +17,17 @@ use uuid::Uuid;
 /// Fallback service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FallbackConfig {
+    /// Whether to enable local encryption fallback
     pub enable_local_encryption: bool,
+    /// Whether to enable simplified challenges fallback
     pub enable_simplified_challenges: bool,
+    /// Whether to enable manual verification fallback
     pub enable_manual_verification: bool,
+    /// Whether to enable cached responses fallback
     pub enable_cached_responses: bool,
+    /// Timeout for degraded mode before emergency fallback
     pub degraded_mode_timeout: Duration,
+    /// Time-to-live for cached responses
     pub cache_ttl: Duration,
 }
 
@@ -41,8 +47,11 @@ impl Default for FallbackConfig {
 /// Fallback service state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FallbackState {
+    /// Normal operation with all services available
     Normal,
+    /// Degraded operation with some services unavailable
     Degraded,
+    /// Emergency operation with minimal functionality
     Emergency,
 }
 
@@ -53,6 +62,7 @@ pub struct LocalEncryptionFallback {
 }
 
 impl LocalEncryptionFallback {
+    /// Create a new local encryption fallback instance
     pub fn new() -> Self {
         // Generate a random key for local encryption
         // In production, this should be derived from a secure source
@@ -66,6 +76,7 @@ impl LocalEncryptionFallback {
         }
     }
 
+    /// Encrypt data using local fallback encryption
     pub fn encrypt(&self, data: &str) -> Result<String, CaptchaError> {
         if !self.enabled {
             return Err(CaptchaError::SecreonUnavailable {
@@ -86,6 +97,7 @@ impl LocalEncryptionFallback {
         Ok(BASE64.encode(encrypted))
     }
 
+    /// Decrypt data using local fallback decryption
     pub fn decrypt(&self, encrypted_data: &str) -> Result<String, CaptchaError> {
         if !self.enabled {
             return Err(CaptchaError::SecreonUnavailable {
@@ -123,10 +135,12 @@ pub struct SimplifiedChallengeGenerator {
 }
 
 impl SimplifiedChallengeGenerator {
+    /// Create a new simplified challenge generator
     pub fn new() -> Self {
         Self { enabled: true }
     }
 
+    /// Generate a simple challenge for degraded mode
     pub fn generate_simple_challenge(&self, difficulty: u8) -> Result<Challenge, CaptchaError> {
         if !self.enabled {
             return Err(CaptchaError::GenerationFailed {
@@ -213,6 +227,7 @@ struct PendingVerification {
 }
 
 impl ManualVerificationSystem {
+    /// Create a new manual verification system
     pub fn new() -> Self {
         Self {
             pending_verifications: Arc::new(RwLock::new(HashMap::new())),
@@ -220,6 +235,7 @@ impl ManualVerificationSystem {
         }
     }
 
+    /// Request manual verification for a user
     pub async fn request_manual_verification(
         &self,
         user_id: String,
@@ -250,6 +266,7 @@ impl ManualVerificationSystem {
         Ok(verification_id)
     }
 
+    /// Check the status of a manual verification request
     pub async fn check_verification_status(&self, verification_id: &str) -> Option<bool> {
         let pending = self.pending_verifications.read().await;
         if let Some(verification) = pending.get(verification_id) {
@@ -265,6 +282,7 @@ impl ManualVerificationSystem {
         }
     }
 
+    /// Clean up expired verification requests
     pub async fn cleanup_expired_verifications(&self) {
         let mut pending = self.pending_verifications.write().await;
         let now = SystemTime::now();
@@ -289,6 +307,7 @@ struct CachedResponse {
 }
 
 impl ResponseCache {
+    /// Create a new response cache with specified TTL
     pub fn new(ttl: Duration) -> Self {
         Self {
             cache: Arc::new(RwLock::new(HashMap::new())),
@@ -297,6 +316,7 @@ impl ResponseCache {
         }
     }
 
+    /// Get a cached response by key
     pub async fn get(&self, key: &str) -> Option<ValidationResult> {
         if !self.enabled {
             return None;
@@ -311,6 +331,7 @@ impl ResponseCache {
         None
     }
 
+    /// Set a cached response
     pub async fn set(&self, key: String, value: ValidationResult) {
         if !self.enabled {
             return;
@@ -323,6 +344,7 @@ impl ResponseCache {
         });
     }
 
+    /// Clean up expired cached responses
     pub async fn cleanup_expired(&self) {
         let mut cache = self.cache.write().await;
         let now = SystemTime::now();
@@ -345,6 +367,7 @@ pub struct FallbackService {
 }
 
 impl FallbackService {
+    /// Create a new fallback service with configuration
     pub fn new(config: FallbackConfig) -> Self {
         Self {
             response_cache: ResponseCache::new(config.cache_ttl),
@@ -565,11 +588,17 @@ impl FallbackService {
 /// Fallback service status for monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FallbackStatus {
+    /// Current fallback state
     pub state: FallbackState,
+    /// Timestamp when degraded mode was entered
     pub degraded_since: Option<SystemTime>,
+    /// Whether local encryption fallback is enabled
     pub local_encryption_enabled: bool,
+    /// Whether simplified challenges fallback is enabled
     pub simplified_challenges_enabled: bool,
+    /// Whether manual verification fallback is enabled
     pub manual_verification_enabled: bool,
+    /// Whether response caching is enabled
     pub cache_enabled: bool,
 }
 

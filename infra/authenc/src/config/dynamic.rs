@@ -324,8 +324,11 @@ impl DynamicConfig {
 
 /// Dynamic configuration manager with thread-safe updates
 pub struct DynamicConfigManager {
+    /// Current dynamic configuration stored in thread-safe wrapper
     config: Arc<RwLock<DynamicConfig>>,
+    /// Channel sender for broadcasting configuration updates
     update_sender: watch::Sender<DynamicConfig>,
+    /// Channel receiver for internal use (not directly accessible)
     _update_receiver: watch::Receiver<DynamicConfig>,
 }
 
@@ -415,9 +418,13 @@ impl Default for DynamicConfigManager {
 
 /// Performance profiler for collecting system metrics
 pub struct PerformanceProfiler {
+    /// Time when profiling started
     start_time: Instant,
+    /// Total number of requests processed
     request_count: Arc<RwLock<u64>>,
+    /// Number of requests that resulted in errors
     error_count: Arc<RwLock<u64>>,
+    /// Recent response times in milliseconds
     response_times: Arc<RwLock<Vec<f64>>>,
 }
 

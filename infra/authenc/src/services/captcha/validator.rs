@@ -55,9 +55,13 @@ pub trait ChallengeValidatorTrait: Send + Sync {
 /// Validation attempt tracking
 #[derive(Debug, Clone)]
 struct ValidationAttempt {
+    /// Total number of validation attempts
     pub count: u32,
+    /// Timestamp of the last validation attempt
     pub last_attempt: SystemTime,
+    /// Number of consecutive validation failures
     pub consecutive_failures: u32,
+    /// Current risk level based on failure patterns
     pub risk_level: RiskLevel,
 }
 
@@ -129,13 +133,17 @@ impl ValidationAttempt {
 
 /// Core validation engine for CAPTCHA challenges
 pub struct ValidationEngine {
+    /// Behavioral analyzer for risk assessment
     behavioral_analyzer: Arc<dyn BehavioralAnalyzerTrait>,
+    /// Optional rate limiting state for progressive restrictions
     rate_limit_state: Option<Arc<CaptchaRateLimitState>>,
+    /// Optional security monitoring state for event tracking
     security_monitoring_state: Option<Arc<CaptchaSecurityMonitoringState>>,
-    // Track validation attempts per IP/session
+    /// Thread-safe tracking of validation attempts per IP/session
     attempt_tracker: Arc<RwLock<HashMap<String, ValidationAttempt>>>,
-    // Configuration
+    /// Maximum allowed attempts per session
     max_attempts_per_session: u32,
+    /// Minimum confidence threshold for validation acceptance
     confidence_threshold: f64,
 }
 

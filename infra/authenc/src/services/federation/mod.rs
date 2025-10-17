@@ -8,8 +8,11 @@ use uuid::Uuid;
 use crate::database::Database;
 
 // SAML and OIDC provider implementations
+/// OIDC (OpenID Connect) identity provider implementation
 pub mod oidc;
+/// SAML identity provider implementation
 pub mod saml;
+/// SAML security utilities and validation
 pub mod saml_security;
 
 use oidc::OidcIdentityProvider;
@@ -437,7 +440,7 @@ impl FederationService {
         }
     }
 
-    /// Register identity provider
+    /// Register identity provider with the federation service
     pub async fn register_provider(&mut self, config: IdentityProviderConfig) -> Result<()> {
         let provider: Box<dyn IdentityProvider> = match config.provider_type {
             IdentityProviderType::SAML => Box::new(SamlIdentityProvider::new(
@@ -455,7 +458,7 @@ impl FederationService {
         Ok(())
     }
 
-    /// Authenticate user with specific provider
+    /// Authenticate user with specific identity provider
     pub async fn authenticate(
         &self,
         provider_id: &Uuid,
@@ -480,7 +483,7 @@ impl FederationService {
         }
     }
 
-    /// Get all registered providers
+    /// Get all registered identity providers
     pub fn get_providers(&self) -> Vec<&IdentityProviderConfig> {
         self.provider_configs.values().collect()
     }

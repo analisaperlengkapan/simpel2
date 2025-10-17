@@ -29,38 +29,37 @@ pub struct ExtendedBrowserFingerprint {
 /// Advanced fingerprinting data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvancedFingerprint {
-    /// Hardware information
+    /// Number of logical processors available
     pub hardware_concurrency: Option<u32>,
+    /// Amount of device memory in gigabytes
     pub device_memory: Option<f64>,
+    /// Maximum number of touch points supported
     pub max_touch_points: Option<u32>,
-
-    /// Display information
+    /// Color depth of the screen
     pub color_depth: Option<u32>,
+    /// Pixel depth of the screen
     pub pixel_depth: Option<u32>,
+    /// Screen orientation (portrait/landscape)
     pub screen_orientation: Option<String>,
-
-    /// Network information
+    /// Network connection type
     pub connection_type: Option<String>,
+    /// Network connection downlink speed
     pub connection_downlink: Option<f64>,
+    /// Network connection round-trip time
     pub connection_rtt: Option<u32>,
-
-    /// Audio context fingerprint
+    /// Audio context fingerprint hash
     pub audio_context_fingerprint: Option<String>,
-
-    /// Font detection
+    /// List of available fonts
     pub available_fonts: Vec<String>,
-
-    /// WebRTC fingerprint
+    /// WebRTC fingerprint hash
     pub webrtc_fingerprint: Option<String>,
-
-    /// Battery information (if available)
+    /// Battery charge level (0.0 to 1.0)
     pub battery_level: Option<f64>,
+    /// Whether battery is currently charging
     pub battery_charging: Option<bool>,
-
-    /// Media devices
+    /// Number of media input/output devices
     pub media_devices_count: Option<u32>,
-
-    /// Performance timing
+    /// Performance timing fingerprint hash
     pub performance_fingerprint: Option<String>,
 }
 
@@ -85,16 +84,12 @@ pub struct HashedIdentifiers {
 pub struct FingerprintAnalysis {
     /// Uniqueness score (0.0 - 1.0)
     pub uniqueness_score: f64,
-
     /// Consistency score with previous fingerprints
     pub consistency_score: f64,
-
     /// Automation detection indicators
     pub automation_indicators: Vec<AutomationIndicator>,
-
     /// Privacy risk assessment
     pub privacy_risk: PrivacyRisk,
-
     /// Bot probability based on fingerprint
     pub bot_probability: f64,
 }
@@ -102,35 +97,50 @@ pub struct FingerprintAnalysis {
 /// Automation detection indicator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutomationIndicator {
+    /// Type of automation indicator detected
     pub indicator_type: String,
+    /// Description of the indicator
     pub description: String,
+    /// Confidence level in the detection (0.0 to 1.0)
     pub confidence: f64,
+    /// Severity level of the indicator
     pub severity: IndicatorSeverity,
 }
 
 /// Indicator severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndicatorSeverity {
+    /// Low severity automation indicator
     Low,
+    /// Medium severity automation indicator
     Medium,
+    /// High severity automation indicator
     High,
+    /// Critical severity automation indicator
     Critical,
 }
 
 /// Privacy risk assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrivacyRisk {
+    /// Overall privacy risk level
     pub risk_level: PrivacyRiskLevel,
+    /// Resistance to tracking (0.0 to 1.0)
     pub tracking_resistance: f64,
+    /// Anonymity score (0.0 to 1.0)
     pub anonymity_score: f64,
 }
 
 /// Privacy risk levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PrivacyRiskLevel {
+    /// Minimal privacy risk
     Minimal,
+    /// Low privacy risk
     Low,
+    /// Medium privacy risk
     Medium,
+    /// High privacy risk
     High,
 }
 

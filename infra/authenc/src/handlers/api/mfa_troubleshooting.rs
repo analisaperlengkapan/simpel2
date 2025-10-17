@@ -47,154 +47,251 @@ pub fn create_mfa_troubleshooting_routes() -> Router<Arc<crate::app::AppState>> 
 
 // Request/Response structures
 
+/// Request structure for admin authentication in MFA troubleshooting operations
 #[derive(Deserialize)]
 pub struct AdminAuthRequest {
+    /// Admin authentication token for privileged operations
     pub admin_token: String,
 }
 
+/// Request structure for user authentication in MFA troubleshooting operations
 #[derive(Deserialize)]
 pub struct UserAuthRequest {
+    /// User authentication token for user-specific operations
     pub user_token: String,
 }
 
+/// Request structure for diagnosing MFA issues for a specific user
 #[derive(Deserialize)]
 pub struct DiagnoseUserRequest {
+    /// Admin authentication token for authorization
     pub admin_token: String,
+    /// Whether to include sensitive diagnostic data in the response
     pub include_sensitive_data: Option<bool>,
 }
 
+/// Result of MFA diagnostic analysis for a user
 #[derive(Serialize)]
 pub struct MfaDiagnosticResult {
+    /// Unique identifier of the user being diagnosed
     pub user_id: Uuid,
+    /// Username of the user
     pub username: String,
+    /// Detailed MFA status information
     pub mfa_status: MfaStatusDiagnostic,
+    /// List of MFA-related issues found during diagnosis
     pub issues_found: Vec<MfaIssue>,
+    /// Recommended actions to resolve identified issues
     pub recommendations: Vec<String>,
+    /// Current health status of the MFA system
     pub system_health: SystemHealthStatus,
 }
 
+/// Detailed diagnostic information about a user's MFA status
 #[derive(Serialize)]
 pub struct MfaStatusDiagnostic {
+    /// Whether MFA is enabled for the user
     pub enabled: bool,
+    /// Whether MFA setup has been completed
     pub setup_completed: bool,
+    /// Timestamp of the last successful MFA verification
     pub last_successful_verification: Option<DateTime<Utc>>,
+    /// Number of recent MFA verification failures
     pub recent_failures: u32,
+    /// Whether the user's account is currently locked
     pub account_locked: bool,
+    /// Number of backup codes available for the user
     pub backup_codes_available: u32,
+    /// Whether connectivity to Secreton (vault) is working
     pub secreton_connectivity: bool,
 }
 
+/// Information about a specific MFA issue found during diagnosis
 #[derive(Serialize)]
 pub struct MfaIssue {
+    /// Type/category of the MFA issue
     pub issue_type: String,
+    /// Severity level of the issue
     pub severity: String, // "low", "medium", "high", "critical"
+    /// Detailed description of the issue
     pub description: String,
+    /// Suggested fix or resolution steps
     pub suggested_fix: String,
+    /// Whether the issue can be automatically fixed
     pub auto_fixable: bool,
 }
 
+/// Current health status of various system components
 #[derive(Serialize)]
 pub struct SystemHealthStatus {
+    /// Whether connection to Secreton (vault) is working
     pub secreton_connection: bool,
+    /// Whether database connection is working
     pub database_connection: bool,
+    /// Whether time synchronization is working
     pub time_synchronization: bool,
+    /// Whether rate limiting is active
     pub rate_limiting_active: bool,
+    /// Overall health status of the system
     pub overall_status: String, // "healthy", "degraded", "unhealthy"
 }
 
+/// Overall status and metrics of the MFA system
 #[derive(Serialize)]
 pub struct MfaSystemStatus {
+    /// Total number of users in the system
     pub total_users: u64,
+    /// Number of users with MFA enabled
     pub mfa_enabled_users: u64,
+    /// Number of currently active MFA sessions
     pub active_sessions: u64,
+    /// Number of MFA failures in recent period
     pub recent_failures: u64,
+    /// Current health status of the MFA system
     pub system_health: SystemHealthStatus,
+    /// Performance metrics for MFA operations
     pub performance_metrics: PerformanceMetrics,
+    /// Active system alerts
     pub alerts: Vec<SystemAlert>,
 }
 
+/// Performance metrics for MFA operations
 #[derive(Serialize)]
 pub struct PerformanceMetrics {
+    /// Average time for MFA verification in milliseconds
     pub avg_verification_time_ms: f64,
+    /// Average time for MFA setup in milliseconds
     pub avg_setup_time_ms: f64,
+    /// MFA success rate in the last 24 hours (0.0 to 1.0)
     pub success_rate_24h: f64,
+    /// MFA error rate in the last 24 hours (0.0 to 1.0)
     pub error_rate_24h: f64,
 }
 
+/// System alert information
 #[derive(Serialize)]
 pub struct SystemAlert {
+    /// Type of system alert
     pub alert_type: String,
+    /// Severity level of the alert
     pub severity: String,
+    /// Alert message describing the issue
     pub message: String,
+    /// Timestamp when the alert was generated
     pub timestamp: DateTime<Utc>,
+    /// Number of users affected by this alert
     pub affected_users: Option<u32>,
 }
 
+/// Step in a guided MFA setup process
 #[derive(Serialize)]
 pub struct GuidedSetupStep {
+    /// Sequential step number in the setup process
     pub step_number: u32,
+    /// Title of the setup step
     pub title: String,
+    /// Detailed description of what this step accomplishes
     pub description: String,
+    /// Step-by-step instructions for the user
     pub instructions: Vec<String>,
+    /// Common issues that may occur at this step
     pub common_issues: Vec<String>,
+    /// Tips for troubleshooting problems at this step
     pub troubleshooting_tips: Vec<String>,
 }
 
+/// Complete troubleshooting workflow for MFA issues
 #[derive(Serialize)]
 pub struct TroubleshootingWorkflow {
+    /// Unique identifier for the troubleshooting workflow
     pub workflow_id: String,
+    /// Human-readable title of the workflow
     pub title: String,
+    /// Detailed description of the troubleshooting scenario
     pub description: String,
+    /// Sequential steps to resolve the issue
     pub steps: Vec<TroubleshootingStep>,
 }
 
+/// Individual step in a troubleshooting workflow
 #[derive(Serialize)]
 pub struct TroubleshootingStep {
+    /// Unique identifier for this troubleshooting step
     pub step_id: String,
+    /// Human-readable title of the step
     pub title: String,
+    /// Detailed description of what to do in this step
     pub description: String,
+    /// Type of action required
     pub action_type: String, // "check", "fix", "manual", "contact_admin"
+    /// Whether this step can be automated
     pub automated: bool,
+    /// Expected outcome after completing this step
     pub expected_outcome: String,
+    /// Next steps to take based on the outcome
     pub next_steps: Vec<String>,
 }
 
+/// Request to test QR code generation for MFA setup
 #[derive(Deserialize)]
 pub struct QrCodeTestRequest {
+    /// User authentication token for the test
     pub user_token: String,
+    /// Optional test secret to use instead of user's actual secret
     pub test_secret: Option<String>,
 }
 
+/// Result of QR code generation testing
 #[derive(Serialize)]
 pub struct QrCodeTestResult {
+    /// Whether QR code was successfully generated
     pub qr_code_generated: bool,
+    /// Whether the generated QR code is valid
     pub qr_code_valid: bool,
+    /// Whether the secret format is valid
     pub secret_format_valid: bool,
+    /// Whether the URI format is valid
     pub uri_format_valid: bool,
+    /// List of issues found during testing
     pub issues: Vec<String>,
 }
 
+/// Result of time synchronization check for TOTP
 #[derive(Serialize)]
 pub struct TimeSyncCheckResult {
+    /// Current server time
     pub server_time: DateTime<Utc>,
+    /// Time window tolerance in seconds for TOTP
     pub time_window_tolerance: u32,
+    /// Synchronization status
     pub sync_status: String, // "synchronized", "drift_detected", "major_drift"
+    /// Time drift in seconds from expected time
     pub drift_seconds: i64,
+    /// Recommendations for fixing time sync issues
     pub recommendations: Vec<String>,
 }
 
+/// Request to test authenticator app compatibility
 #[derive(Deserialize)]
 pub struct AuthenticatorTestRequest {
+    /// User authentication token for the test
     pub user_token: String,
+    /// Type of authenticator app being tested
     pub authenticator_type: String, // "google", "microsoft", "authy", "freeotp"
+    /// Test code generated by the authenticator app
     pub test_code: String,
 }
 
+/// Result of authenticator app testing
 #[derive(Serialize)]
 pub struct AuthenticatorTestResult {
+    /// Whether the authenticator app is compatible
     pub compatible: bool,
+    /// Whether the test code verification was successful
     pub test_successful: bool,
+    /// List of issues detected during testing
     pub detected_issues: Vec<String>,
+    /// Notes about compatibility and usage
     pub compatibility_notes: Vec<String>,
 }
 

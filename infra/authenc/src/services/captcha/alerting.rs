@@ -17,77 +17,138 @@ use super::types::*;
 /// Alert rule configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertRule {
+    /// Unique identifier for the alert rule
     pub id: String,
+    /// Human-readable name of the alert rule
     pub name: String,
+    /// Detailed description of what this rule monitors
     pub description: String,
+    /// Type of metric this rule monitors
     pub rule_type: AlertRuleType,
+    /// Condition that triggers the alert
     pub condition: AlertCondition,
+    /// Severity level of alerts from this rule
     pub severity: AlertSeverity,
+    /// Whether this rule is currently enabled
     pub enabled: bool,
+    /// Cooldown period in minutes between alerts
     pub cooldown_minutes: u64,
+    /// Channels to send notifications through
     pub notification_channels: Vec<NotificationChannel>,
 }
 
 /// Types of alert rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertRuleType {
+    /// Alert when bot detection rate exceeds threshold
     BotDetectionRate,
+    /// Alert when success rate falls below threshold
     SuccessRate,
+    /// Alert when average latency exceeds threshold
     AverageLatency,
+    /// Alert when error rate exceeds threshold
     ErrorRate,
+    /// Alert when concurrent challenges exceed threshold
     ConcurrentChallenges,
+    /// Alert on security incidents
     SecurityIncident,
+    /// Alert on system health issues
     SystemHealth,
+    /// Alert on user experience degradation
     UserExperience,
 }
 
 /// Alert condition configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertCondition {
+    /// Name of the metric to monitor
     pub metric: String,
+    /// Comparison operator for the threshold
     pub operator: ComparisonOperator,
+    /// Threshold value to compare against
     pub threshold: f64,
+    /// Time window in minutes for evaluation
     pub time_window_minutes: u64,
+    /// Number of consecutive violations required to trigger
     pub consecutive_violations: u32,
 }
 
 /// Comparison operators for alert conditions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComparisonOperator {
+    /// Metric value must be greater than threshold
     GreaterThan,
+    /// Metric value must be less than threshold
     LessThan,
+    /// Metric value must be greater than or equal to threshold
     GreaterThanOrEqual,
+    /// Metric value must be less than or equal to threshold
     LessThanOrEqual,
+    /// Metric value must equal threshold
     Equal,
+    /// Metric value must not equal threshold
     NotEqual,
 }
 
 /// Notification channels for alerts
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NotificationChannel {
-    Email { addresses: Vec<String> },
-    Webhook { url: String, headers: HashMap<String, String> },
-    Slack { webhook_url: String, channel: String },
-    PagerDuty { integration_key: String },
-    Log { level: LogLevel },
+    /// Send alerts via email to specified addresses
+    Email {
+        /// List of email addresses to send alerts to
+        addresses: Vec<String>
+    },
+    /// Send alerts via HTTP webhook
+    Webhook {
+        /// URL of the webhook endpoint
+        url: String,
+        /// HTTP headers to include in webhook requests
+        headers: HashMap<String, String>
+    },
+    /// Send alerts to Slack channel
+    Slack {
+        /// Slack webhook URL for posting messages
+        webhook_url: String,
+        /// Slack channel name to post alerts to
+        channel: String
+    },
+    /// Send alerts to PagerDuty
+    PagerDuty {
+        /// PagerDuty integration key for routing alerts
+        integration_key: String
+    },
+    /// Log alerts to system logs
+    Log {
+        /// Log level to use for logging alerts
+        level: LogLevel
+    },
 }
 
 /// Log levels for logging notifications
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LogLevel {
+    /// Informational log level
     Info,
+    /// Warning log level
     Warn,
+    /// Error log level
     Error,
+    /// Critical log level
     Critical,
 }
 
 /// Alert state tracking
 #[derive(Debug, Clone)]
 struct AlertState {
+    /// ID of the alert rule this state belongs to
     rule_id: String,
+    /// Number of consecutive violations detected
     consecutive_violations: u32,
+    /// Last time this alert was triggered
     last_triggered: Option<SystemTime>,
+    /// Last time this alert was resolved
     last_resolved: Option<SystemTime>,
+    /// ID of the currently active alert
     active_alert_id: Option<String>,
 }
 
@@ -101,6 +162,7 @@ pub struct AlertingEngine {
 }
 
 impl AlertingEngine {
+    /// Create a new alerting engine with default rules and configuration
     pub fn new(
         metrics_collector: Arc<MetricsCollector>,
         notification_sender: Arc<NotificationSender>,
@@ -484,6 +546,7 @@ pub struct NotificationSender {
 }
 
 impl NotificationSender {
+    /// Create a new notification sender instance
     pub fn new() -> Self {
         Self {}
     }
@@ -556,6 +619,7 @@ pub struct AlertManager {
 }
 
 impl AlertManager {
+    /// Create a new alert manager with the given metrics collector
     pub fn new(metrics_collector: Arc<MetricsCollector>) -> Self {
         let notification_sender = Arc::new(NotificationSender::new());
         let alerting_engine = Arc::new(AlertingEngine::new(

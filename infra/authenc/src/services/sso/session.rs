@@ -61,13 +61,21 @@ pub struct ClientSession {
 /// Parameters for creating a new SSO session
 #[derive(Debug)]
 pub struct CreateSessionParams<'a> {
+    /// User ID for the session
     pub user_id: &'a str,
+    /// Realm ID for the session
     pub realm_id: &'a str,
+    /// SSO provider name
     pub provider: &'a str,
+    /// Idle timeout in seconds
     pub idle_timeout: i32,
+    /// Maximum session lifespan in seconds
     pub max_lifespan: i32,
+    /// Whether to remember the session
     pub remember_me: bool,
+    /// IP address of the client
     pub ip_address: Option<String>,
+    /// User agent string from the client
     pub user_agent: Option<String>,
 }
 

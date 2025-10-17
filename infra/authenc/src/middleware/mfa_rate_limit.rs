@@ -105,8 +105,11 @@ impl RateLimitCounter {
 /// Account lockout information
 #[derive(Debug, Clone)]
 pub struct AccountLockout {
+    /// Time until the account lockout expires
     pub locked_until: Instant,
+    /// Number of failed attempts that triggered the lockout
     pub failed_attempts: u32,
+    /// Reason for the account lockout
     pub lockout_reason: String,
 }
 

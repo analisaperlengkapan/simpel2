@@ -9,49 +9,69 @@ use uuid::Uuid;
 /// CAPTCHA challenge types
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ChallengeType {
+    /// Visual CAPTCHA (image-based)
     Visual,
+    /// Audio CAPTCHA (sound-based)
     Audio,
+    /// Behavioral CAPTCHA (interaction-based)
     Behavioral,
+    /// Logical CAPTCHA (puzzle-based)
     Logical,
+    /// Hybrid CAPTCHA (multiple types combined)
     Hybrid,
 }
 
 /// Risk level assessment
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RiskLevel {
+    /// Low risk level
     Low,
+    /// Medium risk level
     Medium,
+    /// High risk level
     High,
+    /// Critical risk level
     Critical,
 }
 
 /// Behavioral classification
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BehaviorClassification {
+    /// Classified as human behavior
     Human,
+    /// Suspicious behavior detected
     Suspicious,
+    /// Classified as bot behavior
     Bot,
+    /// Unknown classification
     Unknown,
 }
 
 /// CAPTCHA challenge model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Challenge {
+    /// Unique challenge identifier
     pub id: String,
+    /// Type of CAPTCHA challenge
     pub challenge_type: ChallengeType,
-    #[serde(deserialize_with = "validate_difficulty")]
+    /// Difficulty level (1-10)
     pub difficulty_level: u8,
+    /// Encrypted challenge data
     pub encrypted_data: String,
+    /// Hash of the expected answer
     pub expected_answer_hash: String,
-    #[serde(with = "systemtime_serde")]
+    /// Timestamp when challenge was created
     pub created_at: SystemTime,
-    #[serde(with = "systemtime_serde")]
+    /// Timestamp when challenge expires
     pub expires_at: SystemTime,
+    /// Optional session identifier
     pub session_id: Option<String>,
+    /// IP address of the client
     pub ip_address: String,
 }
 
 impl Challenge {
+    /// Create a new CAPTCHA challenge
     pub fn new(
         challenge_type: ChallengeType,
         difficulty_level: u8,
@@ -76,6 +96,7 @@ impl Challenge {
         }
     }
 
+    /// Check if the challenge has expired
     pub fn is_expired(&self) -> bool {
         SystemTime::now() > self.expires_at
     }
@@ -83,66 +104,102 @@ impl Challenge {
 /// Behavioral metrics for bot detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehavioralMetrics {
+    /// Session identifier for tracking user behavior
     pub session_id: String,
+    /// Recorded mouse movement events
     pub mouse_movements: Vec<MouseEvent>,
+    /// Recorded keystroke dynamics
     pub keystroke_dynamics: Vec<KeystrokeEvent>,
+    /// Analysis of timing patterns
     pub timing_patterns: TimingAnalysis,
+    /// Browser fingerprint for device identification
     pub browser_fingerprint: BrowserFingerprint,
+    /// Calculated risk score (0.0 to 1.0)
     pub risk_score: f64,
+    /// Classification of behavior type
     pub classification: BehaviorClassification,
 }
 
 /// Mouse event data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MouseEvent {
+    /// X coordinate of mouse position
     pub x: f64,
+    /// Y coordinate of mouse position
     pub y: f64,
+    /// Timestamp of the event in milliseconds
     pub timestamp: u64,
+    /// Type of mouse event (click, move, etc.)
     pub event_type: String,
+    /// Mouse movement velocity if applicable
     pub velocity: Option<f64>,
+    /// Mouse movement acceleration if applicable
     pub acceleration: Option<f64>,
 }
 
 /// Keystroke event data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeystrokeEvent {
+    /// The key that was pressed
     pub key: String,
+    /// Timestamp when key was pressed in milliseconds
     pub timestamp: u64,
+    /// Duration the key was held down in milliseconds
     pub duration: u64,
+    /// Time the key was pressed down
     pub dwell_time: u64,
+    /// Time between releasing this key and pressing the next
     pub flight_time: Option<u64>,
 }
 
 /// Timing analysis data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimingAnalysis {
+    /// Total time spent on interaction in milliseconds
     pub total_interaction_time: u64,
+    /// Patterns of pauses between actions
     pub pause_patterns: Vec<u64>,
+    /// Consistency score of typing rhythm (0.0 to 1.0)
     pub rhythm_consistency: f64,
+    /// Average typing speed in characters per minute
     pub typing_speed: Option<f64>,
 }
 
 /// Browser fingerprint data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserFingerprint {
+    /// User agent string of the browser
     pub user_agent: String,
+    /// Screen resolution in format "widthxheight"
     pub screen_resolution: String,
+    /// Timezone identifier
     pub timezone: String,
+    /// Primary language setting
     pub language: String,
+    /// List of installed browser plugins
     pub plugins: Vec<String>,
+    /// Canvas rendering fingerprint hash
     pub canvas_fingerprint: Option<String>,
+    /// WebGL rendering fingerprint hash
     pub webgl_fingerprint: Option<String>,
 }
 
 /// CAPTCHA validation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
+    /// Whether the validation was successful
     pub success: bool,
+    /// Confidence score of the validation (0.0 to 1.0)
     pub confidence_score: f64,
+    /// Assessed risk level
     pub risk_assessment: RiskLevel,
+    /// Recommended difficulty level for next challenge
     pub next_difficulty: u8,
+    /// Whether retry is allowed after failure
     pub retry_allowed: bool,
+    /// Duration to lock out user if applicable
     pub lockout_duration: Option<Duration>,
+    /// Human-readable message about the result
     pub message: String,
 }
 // Validation functions and serialization helpers

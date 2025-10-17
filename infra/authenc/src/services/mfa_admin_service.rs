@@ -18,34 +18,48 @@ pub struct MfaAdminService {
 /// Account lockout information for admin interface
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountLockoutInfo {
+    /// ID of the locked user
     pub user_id: Uuid,
+    /// Username of the locked user
     pub username: String,
+    /// Time until the account lockout expires
     pub locked_until: DateTime<Utc>,
+    /// Number of failed attempts that triggered the lockout
     pub failed_attempts: u32,
+    /// Reason for the account lockout
     pub lockout_reason: String,
+    /// Timestamp when the account was locked
     pub locked_at: DateTime<Utc>,
 }
 
 /// MFA admin operation result
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MfaAdminResult {
+    /// Whether the admin operation was successful
     pub success: bool,
+    /// Message describing the result of the operation
     pub message: String,
+    /// ID of the user affected by the operation (if applicable)
     pub user_id: Option<Uuid>,
 }
 
 /// Request to unlock an account
 #[derive(Debug, Deserialize)]
 pub struct UnlockAccountRequest {
+    /// ID of the user account to unlock
     pub user_id: Uuid,
+    /// Reason for unlocking the account (for audit logging)
     pub admin_reason: String,
 }
 
 /// Request to reset MFA for a user
 #[derive(Debug, Deserialize)]
 pub struct ResetMfaRequest {
+    /// ID of the user whose MFA should be reset
     pub user_id: Uuid,
+    /// Reason for resetting MFA (for audit logging)
     pub admin_reason: String,
+    /// Whether to force immediate reactivation of MFA
     pub force_reactivation: bool,
 }
 

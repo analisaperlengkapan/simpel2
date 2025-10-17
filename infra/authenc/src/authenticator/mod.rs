@@ -14,18 +14,28 @@ use uuid::Uuid;
 /// Authentication context for authenticators
 #[derive(Debug, Clone)]
 pub struct AuthContext {
+    /// Realm identifier for the authentication
     pub realm_id: Uuid,
+    /// Client identifier if applicable
     pub client_id: Option<String>,
+    /// Session identifier if applicable
     pub session_id: Option<Uuid>,
+    /// User identifier if known
     pub user_id: Option<Uuid>,
+    /// Username if known
     pub username: Option<String>,
+    /// IP address of the client
     pub ip_address: String,
+    /// User agent string from the client
     pub user_agent: Option<String>,
+    /// Authentication data collected during the flow
     pub auth_data: HashMap<String, JsonValue>,
+    /// Flow-specific data for the authentication process
     pub flow_data: HashMap<String, JsonValue>,
 }
 
 impl AuthContext {
+    /// Creates a new authentication context with the specified realm and IP address
     pub fn new(realm_id: Uuid, ip_address: String) -> Self {
         Self {
             realm_id,
@@ -40,22 +50,26 @@ impl AuthContext {
         }
     }
 
+    /// Sets the client ID for this authentication context
     pub fn with_client(mut self, client_id: String) -> Self {
         self.client_id = Some(client_id);
         self
     }
 
+    /// Sets the session ID for this authentication context
     pub fn with_session(mut self, session_id: Uuid) -> Self {
         self.session_id = Some(session_id);
         self
     }
 
+    /// Sets the user information for this authentication context
     pub fn with_user(mut self, user_id: Uuid, username: String) -> Self {
         self.user_id = Some(user_id);
         self.username = Some(username);
         self
     }
 
+    /// Adds authentication data to this context
     pub fn with_auth_data(mut self, key: String, value: JsonValue) -> Self {
         self.auth_data.insert(key, value);
         self
@@ -65,14 +79,20 @@ impl AuthContext {
 /// Authentication result status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuthStatus {
+    /// Authentication was successful
     Success,
+    /// Authentication failed
     Failed,
+    /// Authentication was skipped
     Skipped,
+    /// Authentication was attempted but not completed
     Attempted,
+    /// Authentication requires additional user action
     RequiresAction,
 }
 
 impl AuthStatus {
+    /// Returns the string representation of the authentication status
     pub fn as_str(&self) -> &str {
         match self {
             AuthStatus::Success => "SUCCESS",
@@ -87,14 +107,20 @@ impl AuthStatus {
 /// Authentication result
 #[derive(Debug, Clone)]
 pub struct AuthResult {
+    /// Status of the authentication attempt
     pub status: AuthStatus,
+    /// User ID if authentication was successful
     pub user_id: Option<Uuid>,
+    /// Error message if authentication failed
     pub error_message: Option<String>,
+    /// Required actions for the user to complete authentication
     pub required_actions: Vec<String>,
+    /// Context updates to apply after authentication
     pub context_updates: HashMap<String, JsonValue>,
 }
 
 impl AuthResult {
+    /// Creates a successful authentication result with the specified user ID
     pub fn success(user_id: Uuid) -> Self {
         Self {
             status: AuthStatus::Success,
@@ -105,6 +131,7 @@ impl AuthResult {
         }
     }
 
+    /// Creates a failed authentication result with the specified error message
     pub fn failed(error: String) -> Self {
         Self {
             status: AuthStatus::Failed,
@@ -115,6 +142,7 @@ impl AuthResult {
         }
     }
 
+    /// Creates an authentication result that requires the specified action
     pub fn requires_action(action: String) -> Self {
         Self {
             status: AuthStatus::RequiresAction,
@@ -125,6 +153,7 @@ impl AuthResult {
         }
     }
 
+    /// Creates a skipped authentication result
     pub fn skipped() -> Self {
         Self {
             status: AuthStatus::Skipped,
@@ -139,13 +168,18 @@ impl AuthResult {
 /// Authenticator requirement level
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Requirement {
+    /// Authenticator is required for authentication
     Required,
+    /// Authenticator is an alternative option
     Alternative,
+    /// Authenticator is disabled
     Disabled,
+    /// Authenticator is conditionally required
     Conditional,
 }
 
 impl Requirement {
+    /// Returns the string representation of the requirement level
     pub fn as_str(&self) -> &str {
         match self {
             Requirement::Required => "REQUIRED",
@@ -155,6 +189,7 @@ impl Requirement {
         }
     }
 
+    /// Creates a requirement level from its string representation
     pub fn from_str(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "REQUIRED" => Requirement::Required,
@@ -193,12 +228,19 @@ pub trait Authenticator: Send + Sync {
 /// Authenticator error types
 #[derive(Debug, Clone)]
 pub enum AuthError {
+    /// Provided credentials are invalid
     InvalidCredentials,
+    /// Authenticator configuration is invalid
     InvalidConfiguration(String),
+    /// User was not found in the system
     UserNotFound,
+    /// User account is disabled
     UserDisabled,
+    /// Required authentication data is missing
     MissingRequiredData(String),
+    /// Authentication process failed
     AuthenticationFailed(String),
+    /// Too many authentication attempts
     TooManyAttempts,
 }
 
@@ -224,6 +266,7 @@ pub struct UsernamePasswordAuthenticator {
 }
 
 impl UsernamePasswordAuthenticator {
+    /// Creates a new username/password authenticator with the specified name
     pub fn new(name: String) -> Self {
         Self { name }
     }
@@ -286,6 +329,7 @@ pub struct OTPAuthenticator {
 }
 
 impl OTPAuthenticator {
+    /// Creates a new OTP authenticator with the specified name and OTP length
     pub fn new(name: String, otp_length: usize) -> Self {
         Self { name, otp_length }
     }
@@ -349,6 +393,7 @@ pub struct ConditionalAuthenticator {
 }
 
 impl ConditionalAuthenticator {
+    /// Creates a new conditional authenticator with the specified name and condition
     pub fn new(name: String, condition_type: String, condition_value: String) -> Self {
         Self {
             name,
@@ -416,18 +461,21 @@ pub struct AuthFlowExecutor {
 }
 
 impl AuthFlowExecutor {
+    /// Creates a new authentication flow executor
     pub fn new() -> Self {
         Self {
             authenticators: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
+    /// Registers an authenticator in the flow executor
     pub async fn register(&self, authenticator: Arc<dyn Authenticator>) {
         let mut auth = self.authenticators.write().await;
         auth.push(authenticator);
         auth.sort_by_key(|a| a.priority());
     }
 
+    /// Executes the authentication flow with the given context and requirements
     pub async fn execute_flow(
         &self,
         context: &mut AuthContext,

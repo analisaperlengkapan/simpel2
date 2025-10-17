@@ -61,8 +61,11 @@ pub struct BulkUnlockRequest {
 #[derive(Serialize)]
 /// Response for admin operations
 pub struct AdminOperationResponse {
+    /// Whether the operation was successful
     pub success: bool,
+    /// Human-readable message about the operation result
     pub message: String,
+    /// Detailed results of the admin operation
     pub results: Vec<MfaAdminResult>,
 }
 

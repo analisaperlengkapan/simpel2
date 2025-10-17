@@ -75,13 +75,21 @@ impl Default for CaptchaSecurityConfig {
 /// CAPTCHA security event types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CaptchaSecurityEvent {
+    /// A new CAPTCHA challenge was generated
     ChallengeGenerated,
+    /// A CAPTCHA challenge was successfully validated
     ChallengeValidated,
+    /// A CAPTCHA validation attempt failed
     ValidationFailed,
+    /// Bot-like behavior was detected
     BotDetected,
+    /// Suspicious activity pattern detected
     SuspiciousActivity,
+    /// Rate limit was exceeded
     RateLimitExceeded,
+    /// Account was locked out due to security policy
     AccountLockout,
+    /// General security alert triggered
     SecurityAlert,
 }
 
@@ -103,15 +111,25 @@ impl std::fmt::Display for CaptchaSecurityEvent {
 /// CAPTCHA security event data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaptchaSecurityEventData {
+    /// Type of security event that occurred
     pub event_type: CaptchaSecurityEvent,
+    /// ID of the CAPTCHA challenge involved
     pub challenge_id: Option<String>,
+    /// IP address of the client
     pub ip_address: String,
+    /// Session ID if available
     pub session_id: Option<String>,
+    /// User agent string from the request
     pub user_agent: Option<String>,
+    /// Risk level assessment
     pub risk_level: Option<RiskLevel>,
+    /// Behavioral classification result
     pub behavior_classification: Option<BehaviorClassification>,
+    /// Confidence score for the assessment
     pub confidence_score: Option<f64>,
+    /// Number of attempts made
     pub attempt_count: Option<u32>,
+    /// Additional event-specific data
     pub additional_data: HashMap<String, serde_json::Value>,
 }
 
@@ -183,14 +201,20 @@ impl CaptchaSecurityEventData {
 /// Activity tracking for security monitoring
 #[derive(Debug, Clone)]
 pub struct ActivityTracker {
+    /// Total number of CAPTCHA attempts
     pub total_attempts: u32,
+    /// Number of failed validation attempts
     pub failed_attempts: u32,
+    /// Number of bot detections
     pub bot_detections: u32,
+    /// Timestamp of the last activity
     pub last_activity: SystemTime,
+    /// Recent security events with timestamps
     pub recent_events: Vec<(SystemTime, CaptchaSecurityEvent)>,
 }
 
 impl ActivityTracker {
+    /// Create a new activity tracker with default values
     pub fn new() -> Self {
         Self {
             total_attempts: 0,
@@ -201,6 +225,7 @@ impl ActivityTracker {
         }
     }
 
+    /// Record a security event and update tracking statistics
     pub fn record_event(&mut self, event: CaptchaSecurityEvent) {
         self.total_attempts += 1;
         self.last_activity = SystemTime::now();
@@ -222,6 +247,7 @@ impl ActivityTracker {
         }
     }
 
+    /// Get the rate of recent activity in the last minute
     pub fn get_recent_activity_rate(&self) -> u32 {
         let one_minute_ago = SystemTime::now() - std::time::Duration::from_secs(60);
         self.recent_events
@@ -230,6 +256,7 @@ impl ActivityTracker {
             .count() as u32
     }
 
+    /// Check if the activity rate exceeds the given threshold
     pub fn is_suspicious(&self, threshold: u32) -> bool {
         self.get_recent_activity_rate() > threshold
     }
@@ -238,8 +265,11 @@ impl ActivityTracker {
 /// CAPTCHA security monitoring state
 #[derive(Clone)]
 pub struct CaptchaSecurityMonitoringState {
+    /// Configuration for security monitoring behavior
     config: CaptchaSecurityConfig,
+    /// Optional audit log store for persistent logging
     audit_store: Option<Arc<PgAuditLogStore>>,
+    /// Thread-safe activity tracking per IP/session
     activity_tracker: Arc<RwLock<HashMap<String, ActivityTracker>>>,
 }
 

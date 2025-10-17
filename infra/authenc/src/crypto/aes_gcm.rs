@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 /// AES-GCM encryption service for enhanced security
 pub struct AesGcmService {
-    /// AES-256-GCM encryption key
+    /// AES-256-GCM encryption key used for all cryptographic operations
     key: Key<Aes256Gcm>,
 }
 

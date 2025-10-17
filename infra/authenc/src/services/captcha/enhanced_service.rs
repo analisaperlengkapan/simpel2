@@ -36,11 +36,17 @@ pub struct EnhancedCaptchaService {
 /// Service health status
 #[derive(Debug, Clone)]
 pub struct ServiceHealth {
+    /// Whether Secreton service is available
     pub secreton_available: bool,
+    /// Whether Authenc monitoring is available
     pub authenc_monitoring_available: bool,
+    /// Whether database is available
     pub database_available: bool,
+    /// Timestamp of last health check
     pub last_health_check: SystemTime,
+    /// Whether degraded mode is currently active
     pub degraded_mode_active: bool,
+    /// Number of errors since last health check
     pub error_count: u32,
 }
 
@@ -58,6 +64,7 @@ impl Default for ServiceHealth {
 }
 
 impl EnhancedCaptchaService {
+    /// Create a new enhanced CAPTCHA service with error handling and fallback mechanisms
     pub fn new(
         core_service: Arc<CaptchaService>,
         fallback_config: FallbackConfig,
@@ -375,15 +382,22 @@ impl EnhancedCaptchaService {
 /// Comprehensive metrics including error handling status
 #[derive(Debug, Clone)]
 pub struct ComprehensiveMetrics {
+    /// Current service health status
     pub service_health: ServiceHealth,
+    /// Current fallback service status
     pub fallback_status: crate::services::captcha::fallback::FallbackStatus,
+    /// Optional core service metrics summary
     pub core_metrics: Option<crate::services::captcha::metrics::MetricsSummary>,
+    /// Current circuit breaker states
     pub circuit_breaker_states: CircuitBreakerStates,
 }
 
+/// Circuit breaker states for external services
 #[derive(Debug, Clone)]
 pub struct CircuitBreakerStates {
+    /// Current state of Secreton circuit breaker
     pub secreton_state: String,
+    /// Current state of Authenc circuit breaker
     pub authenc_state: String,
 }
 

@@ -300,11 +300,17 @@ impl TokenManager {
 /// Token information for listing (no sensitive data)
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
+    /// Unique identifier of the token
     pub id: Uuid,
+    /// ID of the client that issued the token
     pub client_id: Uuid,
+    /// OAuth2 scopes granted to the token
     pub scopes: Vec<String>,
+    /// Expiration timestamp of the token
     pub expires_at: DateTime<Utc>,
+    /// Creation timestamp of the token
     pub created_at: DateTime<Utc>,
+    /// Last usage timestamp of the token
     pub last_used_at: Option<DateTime<Utc>>,
 }
 

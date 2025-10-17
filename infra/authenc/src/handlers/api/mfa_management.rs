@@ -51,158 +51,256 @@ pub fn create_mfa_management_routes() -> Router<Arc<crate::app::AppState>> {
 
 // Request/Response structures
 
+/// Request structure for admin authentication in MFA management operations
 #[derive(Deserialize)]
 pub struct AdminAuthRequest {
+    /// Admin authentication token for privileged operations
     pub admin_token: String,
 }
 
+/// Query parameters for retrieving paginated user MFA information
 #[derive(Deserialize)]
 pub struct GetUsersQuery {
+    /// Page number for pagination (1-based)
     pub page: Option<u32>,
+    /// Number of users per page
     pub limit: Option<u32>,
+    /// Filter by satker (work unit) code
     pub satker_code: Option<String>,
+    /// Filter by MFA enabled status
     pub mfa_enabled: Option<bool>,
+    /// Search term for username, name, or NIP
     pub search: Option<String>,
 }
 
+/// Response structure containing MFA information for a specific user
 #[derive(Serialize)]
 pub struct UserMfaInfo {
+    /// Unique identifier for the user
     pub user_id: Uuid,
+    /// Username/login identifier
     pub username: String,
+    /// Government employee identification number
     pub nip: Option<String>,
+    /// Full name of the user
     pub nama: Option<String>,
+    /// Work unit code (satker)
     pub satker_code: Option<String>,
+    /// Job position/title
     pub jabatan: Option<String>,
+    /// Current MFA status for the user
     pub mfa_status: MfaStatus,
+    /// Timestamp of the user's last login
     pub last_login: Option<DateTime<Utc>>,
+    /// Whether the user's account is currently locked
     pub account_locked: bool,
 }
 
+/// Paginated response containing user MFA information
 #[derive(Serialize)]
 pub struct PaginatedUserMfaResponse {
+    /// List of user MFA information for the current page
     pub users: Vec<UserMfaInfo>,
+    /// Total number of users matching the query
     pub total: u64,
+    /// Current page number (1-based)
     pub page: u32,
+    /// Number of users per page
     pub limit: u32,
+    /// Total number of pages available
     pub total_pages: u32,
 }
 
+/// Request structure for resetting MFA for a user
 #[derive(Deserialize)]
 pub struct ResetMfaRequest {
+    /// Admin authentication token for authorization
     pub admin_token: String,
+    /// Reason for resetting MFA (for audit logging)
     pub reason: String,
+    /// Whether to force immediate reactivation of MFA
     pub force_reactivation: bool,
 }
 
+/// Request structure for performing bulk MFA operations on multiple users
 #[derive(Deserialize)]
 pub struct BulkMfaRequest {
+    /// Admin authentication token for authorization
     pub admin_token: String,
+    /// List of user IDs to perform bulk operation on
     pub user_ids: Vec<Uuid>,
+    /// Reason for the bulk operation (for audit logging)
     pub reason: String,
 }
 
+/// Response structure for bulk MFA operations
 #[derive(Serialize)]
 pub struct BulkMfaResponse {
+    /// Number of successful operations
     pub success_count: u32,
+    /// Number of failed operations
     pub failure_count: u32,
+    /// Detailed results for each user operation
     pub results: Vec<MfaOperationResult>,
 }
 
+/// Result structure for individual MFA operations in bulk requests
 #[derive(Serialize)]
 pub struct MfaOperationResult {
+    /// ID of the user the operation was performed on
     pub user_id: Uuid,
+    /// Username of the user
     pub username: String,
+    /// Whether the operation was successful
     pub success: bool,
+    /// Detailed message about the operation result
     pub message: String,
 }
 
+/// Organization-wide MFA status summary
 #[derive(Serialize)]
 pub struct OrganizationMfaStatus {
+    /// Total number of users in the organization
     pub total_users: u64,
+    /// Number of users with MFA enabled
     pub mfa_enabled_users: u64,
+    /// MFA adoption rate as a percentage (0.0 to 1.0)
     pub mfa_adoption_rate: f64,
+    /// MFA statistics broken down by satker (work unit)
     pub by_satker: HashMap<String, MfaStatistics>,
+    /// Recent MFA activity summaries
     pub recent_activity: Vec<MfaActivitySummary>,
 }
 
+/// Summary of MFA activity for a specific date
 #[derive(Serialize)]
 pub struct MfaActivitySummary {
+    /// Date of the activity (YYYY-MM-DD format)
     pub date: String,
+    /// Number of new MFA setups on this date
     pub new_setups: u32,
+    /// Number of successful MFA verifications on this date
     pub successful_verifications: u32,
+    /// Number of failed MFA verifications on this date
     pub failed_verifications: u32,
 }
 
+/// MFA policy configuration for the organization
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MfaPolicy {
+    /// Whether MFA is enforced for all users
     pub enforce_for_all: bool,
+    /// List of roles that require MFA enforcement
     pub enforce_for_roles: Vec<String>,
+    /// List of satkers (work units) that require MFA enforcement
     pub enforce_for_satkers: Vec<String>,
+    /// Grace period in days for MFA setup after account creation
     pub grace_period_days: u32,
+    /// Whether backup codes are required for MFA setup
     pub backup_codes_required: bool,
+    /// Maximum number of failed MFA attempts before lockout
     pub max_failed_attempts: u32,
+    /// Duration in minutes for account lockout after failed attempts
     pub lockout_duration_minutes: u32,
 }
 
+/// Report on MFA adoption across the organization
 #[derive(Serialize)]
 pub struct MfaAdoptionReport {
+    /// Overall MFA adoption rate across the organization (0.0 to 1.0)
     pub overall_adoption: f64,
+    /// MFA adoption rates broken down by satker (work unit)
     pub by_satker: HashMap<String, f64>,
+    /// MFA adoption rates broken down by role
     pub by_role: HashMap<String, f64>,
+    /// Historical trend data for adoption rates
     pub trend_data: Vec<AdoptionTrendPoint>,
 }
 
+/// Data point for MFA adoption trend analysis
 #[derive(Serialize)]
 pub struct AdoptionTrendPoint {
+    /// Date of the data point (YYYY-MM-DD format)
     pub date: String,
+    /// MFA adoption rate on this date (0.0 to 1.0)
     pub adoption_rate: f64,
+    /// Total number of users on this date
     pub total_users: u64,
+    /// Number of users with MFA enabled on this date
     pub mfa_users: u64,
 }
 
+/// Report on MFA usage patterns and statistics
 #[derive(Serialize)]
 pub struct MfaUsageReport {
+    /// Daily verification counts over time
     pub daily_verifications: Vec<UsageDataPoint>,
+    /// Most popular authenticator apps by usage count
     pub top_authenticator_apps: HashMap<String, u32>,
+    /// Analysis of verification failures
     pub failure_analysis: FailureAnalysis,
 }
 
+/// Data point for MFA usage statistics
 #[derive(Serialize)]
 pub struct UsageDataPoint {
+    /// Date of the usage data (YYYY-MM-DD format)
     pub date: String,
+    /// Number of successful MFA verifications on this date
     pub successful_verifications: u32,
+    /// Number of failed MFA verifications on this date
     pub failed_verifications: u32,
+    /// Number of unique users who performed MFA on this date
     pub unique_users: u32,
 }
 
+/// Analysis of MFA verification failures
 #[derive(Serialize)]
 pub struct FailureAnalysis {
+    /// Common reasons for MFA verification failures with occurrence counts
     pub common_failure_reasons: HashMap<String, u32>,
+    /// Time periods when failures are most common
     pub peak_failure_times: Vec<String>,
+    /// Users who frequently experience MFA verification failures
     pub users_with_frequent_failures: Vec<Uuid>,
 }
 
+/// Report on MFA policy compliance across the organization
 #[derive(Serialize)]
 pub struct ComplianceReport {
+    /// Percentage of users compliant with MFA policies (0.0 to 1.0)
     pub compliance_percentage: f64,
+    /// List of users who are not compliant with MFA requirements
     pub non_compliant_users: Vec<NonCompliantUser>,
+    /// List of policy violations detected
     pub policy_violations: Vec<PolicyViolation>,
+    /// Recommended actions to improve compliance
     pub recommendations: Vec<String>,
 }
 
+/// Information about a user who is not compliant with MFA policies
 #[derive(Serialize)]
 pub struct NonCompliantUser {
+    /// ID of the non-compliant user
     pub user_id: Uuid,
+    /// Username of the non-compliant user
     pub username: String,
+    /// Satker (work unit) code of the user
     pub satker_code: String,
+    /// Type of MFA compliance violation
     pub violation_type: String,
+    /// Number of days the user has been non-compliant
     pub days_non_compliant: u32,
 }
 
+/// Information about a policy violation
 #[derive(Serialize)]
 pub struct PolicyViolation {
+    /// Type of policy violation
     pub violation_type: String,
+    /// Number of occurrences of this violation type
     pub count: u32,
+    /// Severity level of the violation
     pub severity: String,
 }
 

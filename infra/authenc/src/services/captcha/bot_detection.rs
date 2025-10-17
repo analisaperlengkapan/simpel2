@@ -13,58 +13,73 @@ use super::analyzer::*;
 /// Machine learning model types for bot detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MLModelType {
-    /// Naive Bayes classifier
+    /// Naive Bayes probabilistic classifier
     NaiveBayes,
-    /// Support Vector Machine
+    /// Support Vector Machine classifier
     SVM,
-    /// Random Forest
+    /// Random Forest ensemble classifier
     RandomForest,
-    /// Neural Network
+    /// Neural Network deep learning model
     NeuralNetwork,
-    /// Ensemble of multiple models
+    /// Ensemble combining multiple model types
     Ensemble,
 }
 
 /// Feature vector for machine learning models
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureVector {
-    /// Mouse movement features
+    /// Mean mouse movement velocity
     pub mouse_velocity_mean: f64,
+    /// Standard deviation of mouse velocity
     pub mouse_velocity_std: f64,
+    /// Smoothness score of mouse trajectory
     pub mouse_trajectory_smoothness: f64,
+    /// Ratio of pauses in mouse movement
     pub mouse_pause_ratio: f64,
+    /// Number of direction changes in mouse path
     pub mouse_direction_changes: f64,
-
-    /// Keystroke features
+    /// Mean keystroke dwell time
     pub keystroke_dwell_mean: f64,
+    /// Standard deviation of keystroke dwell time
     pub keystroke_dwell_std: f64,
+    /// Mean flight time between keystrokes
     pub keystroke_flight_mean: f64,
+    /// Standard deviation of flight time
     pub keystroke_flight_std: f64,
+    /// Consistency of keystroke rhythm
     pub keystroke_rhythm_consistency: f64,
-
-    /// Timing features
+    /// Total interaction duration
     pub interaction_duration: f64,
+    /// Frequency of pauses during interaction
     pub pause_frequency: f64,
+    /// Overall rhythm score
     pub rhythm_score: f64,
-
-    /// Browser fingerprint features
+    /// Uniqueness score of browser fingerprint
     pub fingerprint_uniqueness: f64,
+    /// Count of automation indicators detected
     pub automation_indicator_count: f64,
+    /// Number of browser plugins installed
     pub plugin_count: f64,
-
-    /// Derived features
+    /// Ratio of velocity to acceleration
     pub velocity_acceleration_ratio: f64,
+    /// Consistency of typing speed
     pub typing_speed_consistency: f64,
+    /// Entropy measure of behavioral patterns
     pub behavioral_entropy: f64,
 }
 
 /// Machine learning model configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MLModelConfig {
+    /// Type of machine learning model to use
     pub model_type: MLModelType,
+    /// Minimum confidence threshold for classification
     pub confidence_threshold: f64,
+    /// Weights for different features in the model
     pub feature_weights: HashMap<String, f64>,
+    /// Size of training dataset used
     pub training_data_size: usize,
+    /// Interval for retraining the model in seconds
     pub retraining_interval: u64, // seconds
 }
 
@@ -134,11 +149,16 @@ pub struct RiskScoringConfig {
     pub thresholds: RiskThresholds,
 }
 
+/// Configuration for risk threshold levels in bot detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RiskThresholds {
+    /// Threshold for low risk classification
     pub low_risk: f64,
+    /// Threshold for medium risk classification
     pub medium_risk: f64,
+    /// Threshold for high risk classification
     pub high_risk: f64,
+    /// Threshold for critical risk classification
     pub critical_risk: f64,
 }
 
@@ -161,12 +181,19 @@ impl Default for RiskScoringConfig {
 /// Bot detection result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BotDetectionResult {
+    /// Whether the behavior is classified as bot
     pub is_bot: bool,
+    /// Confidence level in the classification (0.0 to 1.0)
     pub confidence: f64,
+    /// Overall risk score (0.0 to 1.0)
     pub risk_score: f64,
+    /// Final behavior classification
     pub classification: BehaviorClassification,
+    /// Predictions from individual models
     pub model_predictions: HashMap<String, f64>,
+    /// Anomaly scores for different features
     pub anomaly_scores: HashMap<String, f64>,
+    /// Feature importance scores
     pub feature_importance: HashMap<String, f64>,
 }
 

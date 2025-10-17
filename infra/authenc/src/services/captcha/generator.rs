@@ -15,19 +15,28 @@ use super::adaptive_difficulty::*;
 /// Visual challenge data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualChallenge {
+    /// Type of visual challenge
     pub challenge_type: String,
+    /// Challenge data (base64 encoded image or similar)
     pub data: String,
+    /// Expected answer to the challenge
     pub answer: String,
+    /// Multiple choice options if applicable
     pub options: Option<Vec<String>>,
+    /// Instructions for the user
     pub instructions: String,
 }
 
 /// Logical challenge data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogicalChallenge {
+    /// The logical problem to solve
     pub problem: String,
+    /// Expected answer to the problem
     pub answer: String,
+    /// Type of logical challenge
     pub challenge_type: String,
+    /// Instructions for solving the problem
     pub instructions: String,
 }
 

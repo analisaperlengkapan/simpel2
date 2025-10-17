@@ -14,150 +14,226 @@ use super::types::*;
 /// Dashboard configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardConfig {
+    /// Refresh interval in seconds for dashboard data
     pub refresh_interval_seconds: u64,
+    /// Data retention period in hours
     pub data_retention_hours: u64,
+    /// Alert threshold configuration
     pub alert_thresholds: AlertThresholds,
-    pub chart_time_windows: Vec<u64>, // in minutes
+    /// Chart time windows in minutes
+    pub chart_time_windows: Vec<u64>,
 }
 
 /// Alert threshold configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertThresholds {
+    /// High bot detection rate threshold
     pub bot_detection_rate_high: f64,
+    /// Low success rate threshold
     pub success_rate_low: f64,
+    /// High average latency threshold in milliseconds
     pub average_latency_high_ms: u64,
+    /// High error rate threshold
     pub error_rate_high: f64,
+    /// High concurrent challenges threshold
     pub concurrent_challenges_high: u64,
 }
 
 /// Real-time dashboard data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardData {
+    /// Timestamp when dashboard data was generated
     pub timestamp: SystemTime,
+    /// Overview metrics summary
     pub overview: OverviewMetrics,
+    /// Performance chart data
     pub performance: PerformanceChartData,
+    /// Security chart data
     pub security: SecurityChartData,
+    /// User experience chart data
     pub user_experience: UserExperienceChartData,
+    /// Active alerts
     pub alerts: Vec<Alert>,
+    /// System health status
     pub system_health: SystemHealthStatus,
 }
 
 /// Overview metrics for dashboard summary
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverviewMetrics {
+    /// Total challenges generated today
     pub total_challenges_today: u64,
+    /// Success rate over the last 24 hours
     pub success_rate_24h: f64,
+    /// Bot detection rate over the last 24 hours
     pub bot_detection_rate_24h: f64,
+    /// Average response time in milliseconds
     pub average_response_time_ms: u64,
+    /// Number of currently active challenges
     pub active_challenges: u64,
+    /// Number of unique users in the last 24 hours
     pub unique_users_24h: u64,
+    /// Number of security incidents in the last 24 hours
     pub security_incidents_24h: u64,
 }
 /// Performance chart data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceChartData {
+    /// Latency over time data points
     pub latency_over_time: Vec<TimeSeriesPoint>,
+    /// Success rate over time data points
     pub success_rate_over_time: Vec<TimeSeriesPoint>,
+    /// Throughput over time data points
     pub throughput_over_time: Vec<TimeSeriesPoint>,
+    /// Distribution of challenges by difficulty level
     pub difficulty_distribution: HashMap<u8, u64>,
+    /// Distribution of challenges by type
     pub challenge_type_distribution: HashMap<ChallengeType, u64>,
 }
 
 /// Security chart data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityChartData {
+    /// Distribution of threats by risk level
     pub threat_level_distribution: HashMap<RiskLevel, u64>,
+    /// Bot detection over time data points
     pub bot_detection_over_time: Vec<TimeSeriesPoint>,
+    /// Attack attempts over time data points
     pub attack_attempts_over_time: Vec<TimeSeriesPoint>,
+    /// Geographic threat map data
     pub geographic_threat_map: HashMap<String, ThreatData>,
+    /// Top attacking IP addresses
     pub top_attacking_ips: Vec<IpThreatInfo>,
 }
 
 /// User experience chart data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserExperienceChartData {
+    /// Completion time distribution data points
     pub completion_time_distribution: Vec<TimeSeriesPoint>,
+    /// Abandonment rate over time data points
     pub abandonment_rate_over_time: Vec<TimeSeriesPoint>,
+    /// Accessibility usage over time data points
     pub accessibility_usage_over_time: Vec<TimeSeriesPoint>,
+    /// Satisfaction score over time data points
     pub satisfaction_score_over_time: Vec<TimeSeriesPoint>,
+    /// Retry rate by difficulty level
     pub retry_rate_by_difficulty: HashMap<u8, f64>,
 }
 
 /// Time series data point
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeSeriesPoint {
+    /// Timestamp of the data point
     pub timestamp: SystemTime,
+    /// Numeric value of the data point
     pub value: f64,
+    /// Optional label for the data point
     pub label: Option<String>,
 }
 
 /// Geographic threat data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreatData {
+    /// ISO country code
     pub country_code: String,
+    /// Full country name
     pub country_name: String,
+    /// Number of threats from this country
     pub threat_count: u64,
+    /// Risk level for this country
     pub risk_level: RiskLevel,
-    pub coordinates: Option<(f64, f64)>, // lat, lng
+    /// Optional geographic coordinates (latitude, longitude)
+    pub coordinates: Option<(f64, f64)>,
 }
 
 /// IP threat information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IpThreatInfo {
+    /// IP address
     pub ip_address: String,
+    /// Number of threats from this IP
     pub threat_count: u64,
+    /// Risk level for this IP
     pub risk_level: RiskLevel,
+    /// Optional ISO country code
     pub country_code: Option<String>,
+    /// Last time this IP was seen
     pub last_seen: SystemTime,
 }
 
 /// System health status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemHealthStatus {
+    /// Overall system health status
     pub overall_status: HealthStatus,
+    /// Health status of individual components
     pub components: HashMap<String, ComponentHealth>,
+    /// System uptime percentage
     pub uptime_percentage: f64,
+    /// Timestamp of last incident
     pub last_incident: Option<SystemTime>,
 }
 
 /// Health status enum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HealthStatus {
+    /// System is healthy and operating normally
     Healthy,
+    /// System has warnings but is still operational
     Warning,
+    /// System has critical issues requiring attention
     Critical,
+    /// System is down and not operational
     Down,
 }
 
 /// Component health information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentHealth {
+    /// Health status of the component
     pub status: HealthStatus,
+    /// Response time in milliseconds
     pub response_time_ms: Option<u64>,
+    /// Error rate as a percentage
     pub error_rate: f64,
+    /// Timestamp of last health check
     pub last_check: SystemTime,
+    /// Optional status message
     pub message: Option<String>,
 }
 
 /// Alert information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Alert {
+    /// Unique alert identifier
     pub id: String,
+    /// Severity level of the alert
     pub severity: AlertSeverity,
+    /// Alert title
     pub title: String,
+    /// Detailed alert description
     pub description: String,
+    /// Timestamp when alert was generated
     pub timestamp: SystemTime,
+    /// Whether the alert has been acknowledged
     pub acknowledged: bool,
+    /// Whether the alert has been resolved
     pub resolved: bool,
+    /// Additional metadata for the alert
     pub metadata: HashMap<String, String>,
 }
 
 /// Alert severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertSeverity {
+    /// Informational alert
     Info,
+    /// Warning alert requiring attention
     Warning,
+    /// Critical alert requiring immediate action
     Critical,
+    /// Emergency alert indicating system failure
     Emergency,
 }
 /// Dashboard service for generating real-time analytics
@@ -169,6 +245,7 @@ pub struct DashboardService {
 }
 
 impl DashboardService {
+    /// Create a new dashboard service instance
     pub fn new(
         metrics_collector: Arc<MetricsCollector>,
         db_ops: Arc<crate::database::CaptchaOperations>,

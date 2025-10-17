@@ -45,52 +45,79 @@ impl Default for BehavioralAnalysisConfig {
 /// Mouse movement analysis results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MouseAnalysisResult {
+    /// Average velocity of mouse movements in pixels per second
     pub average_velocity: f64,
+    /// Variance in mouse movement velocity
     pub velocity_variance: f64,
+    /// Smoothness score of mouse trajectory (0.0 to 1.0)
     pub trajectory_smoothness: f64,
+    /// Number of pauses detected in mouse movement
     pub pause_count: usize,
+    /// Number of direction changes in mouse path
     pub direction_changes: usize,
+    /// Probability that this is bot behavior (0.0 to 1.0)
     pub bot_probability: f64,
 }
 
 /// Keystroke dynamics analysis results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeystrokeAnalysisResult {
+    /// Average time keys are held down in milliseconds
     pub average_dwell_time: f64,
+    /// Variance in dwell time
     pub dwell_time_variance: f64,
+    /// Average time between releasing one key and pressing next
     pub average_flight_time: f64,
+    /// Variance in flight time
     pub flight_time_variance: f64,
+    /// Consistency score of typing rhythm (0.0 to 1.0)
     pub typing_rhythm_consistency: f64,
+    /// Probability that this is bot behavior (0.0 to 1.0)
     pub bot_probability: f64,
 }
 
 /// Timing pattern analysis results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimingAnalysisResult {
+    /// Total duration of user interaction in milliseconds
     pub interaction_duration: u64,
+    /// Frequency of pauses during interaction
     pub pause_frequency: f64,
+    /// Rhythm consistency score (0.0 to 1.0)
     pub rhythm_score: f64,
+    /// Probability that this is bot behavior (0.0 to 1.0)
     pub bot_probability: f64,
 }
 
 /// Browser fingerprint analysis results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FingerprintAnalysisResult {
+    /// Score indicating how unique this fingerprint is (0.0 to 1.0)
     pub uniqueness_score: f64,
+    /// Score indicating fingerprint consistency over time (0.0 to 1.0)
     pub consistency_score: f64,
+    /// List of detected automation indicators
     pub automation_indicators: Vec<String>,
+    /// Probability that this is bot behavior (0.0 to 1.0)
     pub bot_probability: f64,
 }
 
 /// Comprehensive behavioral analysis result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehavioralAnalysisResult {
+    /// Results from mouse movement analysis
     pub mouse_analysis: Option<MouseAnalysisResult>,
+    /// Results from keystroke dynamics analysis
     pub keystroke_analysis: Option<KeystrokeAnalysisResult>,
+    /// Results from timing pattern analysis
     pub timing_analysis: TimingAnalysisResult,
+    /// Results from browser fingerprint analysis
     pub fingerprint_analysis: FingerprintAnalysisResult,
+    /// Overall risk score combining all analyses (0.0 to 1.0)
     pub overall_risk_score: f64,
+    /// Final classification of behavior
     pub classification: BehaviorClassification,
+    /// Confidence level in the classification (0.0 to 1.0)
     pub confidence: f64,
 }
 

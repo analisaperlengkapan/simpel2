@@ -15,71 +15,117 @@ use super::types::*;
 /// CAPTCHA performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
+    /// Unique identifier for this metrics snapshot
     pub metric_id: String,
+    /// Timestamp when metrics were collected
     pub timestamp: SystemTime,
+    /// Average time to generate challenges in milliseconds
     pub challenge_generation_latency_ms: u64,
+    /// Average time to validate challenges in milliseconds
     pub validation_latency_ms: u64,
+    /// Rate of successful challenge completions (0.0 to 1.0)
     pub success_rate: f64,
+    /// Rate of failed challenge attempts (0.0 to 1.0)
     pub failure_rate: f64,
+    /// Average difficulty level of challenges
     pub average_difficulty: f64,
+    /// Number of concurrent challenges being processed
     pub concurrent_challenges: u64,
+    /// Memory usage in megabytes
     pub memory_usage_mb: f64,
+    /// CPU usage percentage
     pub cpu_usage_percent: f64,
 }
 
 /// Bot detection accuracy metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BotDetectionMetrics {
+    /// Unique identifier for this metrics snapshot
     pub metric_id: String,
+    /// Timestamp when metrics were collected
     pub timestamp: SystemTime,
+    /// Total number of bot detections attempted
     pub total_detections: u64,
+    /// Number of correctly identified bots
     pub true_positives: u64,
+    /// Number of incorrectly flagged humans as bots
     pub false_positives: u64,
+    /// Number of correctly identified humans
     pub true_negatives: u64,
+    /// Number of bots that were not detected
     pub false_negatives: u64,
+    /// Overall accuracy rate (0.0 to 1.0)
     pub accuracy_rate: f64,
+    /// Precision of bot detection (0.0 to 1.0)
     pub precision: f64,
+    /// Recall of bot detection (0.0 to 1.0)
     pub recall: f64,
+    /// F1 score combining precision and recall (0.0 to 1.0)
     pub f1_score: f64,
+    /// Distribution of detected risks by level
     pub risk_distribution: HashMap<RiskLevel, u64>,
 }
 
 /// User experience metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserExperienceMetrics {
+    /// Unique identifier for this metrics snapshot
     pub metric_id: String,
+    /// Timestamp when metrics were collected
     pub timestamp: SystemTime,
+    /// Average time users take to complete challenges in milliseconds
     pub average_completion_time_ms: u64,
+    /// Rate of users abandoning challenges (0.0 to 1.0)
     pub abandonment_rate: f64,
+    /// Rate of users retrying after failure (0.0 to 1.0)
     pub retry_rate: f64,
+    /// Rate of accessibility features usage (0.0 to 1.0)
     pub accessibility_usage_rate: f64,
+    /// User satisfaction score (0.0 to 1.0)
     pub user_satisfaction_score: f64,
+    /// User preferences for different challenge types
     pub challenge_type_preferences: HashMap<ChallengeType, u64>,
+    /// Distribution of challenge difficulties
     pub difficulty_distribution: HashMap<u8, u64>,
 }
 
 /// Security event metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityEventMetrics {
+    /// Unique identifier for this metrics snapshot
     pub metric_id: String,
+    /// Timestamp when metrics were collected
     pub timestamp: SystemTime,
+    /// Number of detected attack attempts
     pub attack_attempts: u64,
+    /// Number of IP addresses blocked
     pub blocked_ips: u64,
+    /// Number of rate limit triggers
     pub rate_limit_triggers: u64,
+    /// Number of user account lockouts
     pub lockout_events: u64,
+    /// Number of suspicious behavior detections
     pub suspicious_behavior_count: u64,
+    /// Distribution of threats by risk level
     pub threat_level_distribution: HashMap<RiskLevel, u64>,
+    /// Geographic distribution of security events
     pub geographic_distribution: HashMap<String, u64>,
 }
 
 /// Aggregated metrics summary
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsSummary {
+    /// Timestamp when summary was generated
     pub timestamp: SystemTime,
+    /// Time window covered by this summary in minutes
     pub time_window_minutes: u64,
+    /// Performance metrics for the time window
     pub performance: PerformanceMetrics,
+    /// Bot detection metrics for the time window
     pub bot_detection: BotDetectionMetrics,
+    /// User experience metrics for the time window
     pub user_experience: UserExperienceMetrics,
+    /// Security event metrics for the time window
     pub security_events: SecurityEventMetrics,
 }
 
@@ -93,6 +139,7 @@ pub struct MetricsCollector {
 }
 
 impl MetricsCollector {
+    /// Create a new metrics collector
     pub fn new(db_ops: Arc<crate::database::CaptchaOperations>) -> Self {
         Self {
             performance_buffer: Arc::new(RwLock::new(Vec::new())),
@@ -607,9 +654,14 @@ impl MetricsCollector {
 /// Security event types for metrics
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SecurityEventType {
+    /// Attempted attack on the CAPTCHA system
     AttackAttempt,
+    /// IP address blocked due to suspicious activity
     IpBlocked,
+    /// Rate limit triggered for excessive requests
     RateLimitTriggered,
+    /// User account locked out due to security policy
     UserLockedOut,
+    /// Suspicious behavior detected
     SuspiciousBehavior,
 }

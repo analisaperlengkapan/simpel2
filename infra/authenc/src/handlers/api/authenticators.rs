@@ -47,29 +47,38 @@ pub struct UpdateAuthenticatorRequest {
 /// Create execution request
 #[derive(Debug, Deserialize)]
 pub struct CreateExecutionRequest {
+    /// ID of the authentication flow
     pub flow_id: Uuid,
+    /// ID of the authenticator to execute
     pub authenticator_id: Option<Uuid>,
+    /// Execution requirement type
     pub requirement: String, // "REQUIRED", "ALTERNATIVE", "DISABLED", "CONDITIONAL"
+    /// Execution priority order
     pub priority: i32,
+    /// ID of the parent authentication flow
     pub parent_flow_id: Option<Uuid>,
 }
 
 /// Update execution request
 #[derive(Debug, Deserialize)]
 pub struct UpdateExecutionRequest {
+    /// Updated execution requirement type
     pub requirement: String,
 }
 
 /// Query parameters for authenticator listing
 #[derive(Debug, Deserialize)]
 pub struct AuthenticatorQueryParams {
+    /// Whether to return only enabled authenticators
     pub enabled_only: Option<bool>,
 }
 
 /// Query parameters for statistics
 #[derive(Debug, Deserialize)]
 pub struct StatisticsQueryParams {
+    /// Start date for statistics query (ISO 8601 format)
     pub from_date: Option<String>,
+    /// End date for statistics query (ISO 8601 format)
     pub to_date: Option<String>,
 }
 

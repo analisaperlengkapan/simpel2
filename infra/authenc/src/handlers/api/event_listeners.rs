@@ -23,42 +23,69 @@ use crate::{
 /// Query parameters for event log
 #[derive(Debug, Deserialize)]
 pub struct EventLogQueryParams {
+    /// Filter by event category
     pub event_category: Option<String>,
+    /// Filter by specific event type
     pub event_type: Option<String>,
+    /// Filter by resource type affected
     pub resource_type: Option<String>,
+    /// Filter by user ID who triggered the event
     pub user_id: Option<Uuid>,
+    /// Start date for event query (ISO 8601 format)
     pub from_date: Option<String>,
+    /// End date for event query (ISO 8601 format)
     pub to_date: Option<String>,
+    /// Whether to return only successful events
     pub success_only: Option<bool>,
+    /// Pagination offset
     pub offset: Option<i64>,
+    /// Maximum number of results to return
     pub limit: Option<i64>,
 }
 
 /// Event listener registration request
 #[derive(Debug, Deserialize)]
 pub struct RegisterListenerRequest {
+    /// Human-readable name for the listener
     pub name: String,
+    /// Type of listener (e.g., "webhook", "email", "internal")
     pub listener_type: String,
+    /// Configuration data specific to the listener type
     pub config: JsonValue,
+    /// List of event types this listener should handle
     pub event_types: Option<Vec<String>>,
+    /// Execution priority (higher numbers = higher priority)
     pub priority: Option<i32>,
+    /// Whether the listener should execute asynchronously
     pub is_async: Option<bool>,
+    /// Whether to retry on failure
     pub retry_on_failure: Option<bool>,
+    /// Maximum number of retry attempts
     pub max_retries: Option<i32>,
 }
 
 /// Webhook registration request
 #[derive(Debug, Deserialize)]
 pub struct RegisterWebhookRequest {
+    /// ID of the listener this webhook belongs to
     pub listener_id: Uuid,
+    /// Target URL for webhook delivery
     pub url: String,
+    /// HTTP method to use (GET, POST, PUT, etc.)
     pub http_method: String,
+    /// Type of authentication to use
     pub auth_type: Option<String>,
+    /// Authentication credentials
     pub auth_credentials: Option<JsonValue>,
+    /// Custom HTTP headers to include
     pub custom_headers: Option<JsonValue>,
+    /// Template for webhook payload
     pub payload_template: Option<String>,
+    /// Secret key for webhook signature verification
     pub secret_key: Option<String>,
+    /// Whether to verify SSL certificates
     pub verify_ssl: Option<bool>,
+    /// Timeout in seconds for webhook delivery
     pub timeout_seconds: Option<i32>,
 }
 

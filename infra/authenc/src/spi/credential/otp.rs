@@ -30,6 +30,7 @@ pub enum OtpAlgorithm {
 }
 
 impl OtpAlgorithm {
+    /// Returns the string representation of the OTP algorithm
     pub fn as_str(&self) -> &'static str {
         match self {
             OtpAlgorithm::HmacSha1 => "HmacSHA1",

@@ -16,6 +16,7 @@ use uuid::Uuid;
 /// Trait for MFA operations that can be performed by a secret client
 #[async_trait::async_trait]
 pub trait MfaClient: Send + Sync {
+    /// Set up MFA for a user by generating a secret and QR code
     async fn setup_mfa(
         &self,
         user_id: &str,
@@ -23,20 +24,26 @@ pub trait MfaClient: Send + Sync {
         account_name: &str,
     ) -> Result<MfaSetupData>;
 
+    /// Verify the MFA setup by validating the first TOTP code
     async fn verify_mfa_setup(&self, user_id: &str, code: &str) -> Result<()>;
 
+    /// Verify a TOTP code for MFA authentication
     async fn verify_mfa(&self, user_id: &str, code: &str) -> Result<()>;
 
+    /// Disable MFA for a user (requires admin context)
     async fn disable_mfa(
         &self,
         user_id: &str,
         admin_context: &crate::models::user::SecurityContext,
     ) -> Result<()>;
 
+    /// Get the current MFA status for a user
     async fn get_mfa_status(&self, user_id: &str) -> Result<MfaStatusResponse>;
 
+    /// Verify a recovery code for emergency access
     async fn verify_recovery_code(&self, user_id: &str, recovery_code: &str) -> Result<()>;
 
+    /// Regenerate backup recovery codes for a user
     async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>>;
 }
 

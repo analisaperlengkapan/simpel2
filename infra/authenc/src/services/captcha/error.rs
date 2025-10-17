@@ -10,110 +10,164 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, Serialize, Deserialize)]
 pub enum CaptchaError {
     // Challenge-related errors
+    /// Challenge generation failed due to internal error
     #[error("Challenge generation failed: {message}")]
     GenerationFailed {
+        /// Error message describing the failure
         message: String,
+        /// Whether the error is recoverable
         recoverable: bool,
+        /// Optional retry delay duration
         retry_after: Option<Duration>,
     },
 
+    /// Challenge validation failed due to incorrect answer
     #[error("Challenge validation failed: {message}")]
     ValidationFailed {
+        /// Error message describing the validation failure
         message: String,
+        /// Number of attempts remaining
         attempts_remaining: u32,
+        /// Suggested difficulty level for next attempt
         next_difficulty: u8,
     },
 
+    /// Requested challenge was not found in the system
     #[error("Challenge not found: {challenge_id}")]
     ChallengeNotFound {
+        /// Unique identifier of the challenge
         challenge_id: String,
+        /// Whether the challenge has expired
         expired: bool,
     },
 
+    /// Challenge has expired and is no longer valid
     #[error("Challenge expired: {challenge_id}")]
     ChallengeExpired {
+        /// Unique identifier of the expired challenge
         challenge_id: String,
+        /// Timestamp when the challenge expired
         expired_at: String,
     },
 
     // Service integration errors
+    /// Secreton service is unavailable for cryptographic operations
     #[error("Secreton service unavailable: {message}")]
     SecreonUnavailable {
+        /// Error message describing the unavailability
         message: String,
+        /// Whether fallback is available
         fallback_available: bool,
+        /// Optional retry delay duration
         retry_after: Option<Duration>,
     },
 
+    /// Authenc monitoring service is unavailable
     #[error("Authenc monitoring unavailable: {message}")]
     MonitoringUnavailable {
+        /// Error message describing the unavailability
         message: String,
+        /// Whether degraded mode is active
         degraded_mode: bool,
     },
 
+    /// Database connection or operation failed
     #[error("Database connection error: {message}")]
     DatabaseError {
+        /// Error message describing the database issue
         message: String,
+        /// Whether the error is transient and retryable
         transient: bool,
+        /// Optional retry delay duration
         retry_after: Option<Duration>,
     },
 
     // Rate limiting and security errors
+    /// Rate limit has been exceeded for this operation
     #[error("Rate limit exceeded")]
     RateLimitExceeded {
+        /// Time until rate limit resets
         reset_time: Duration,
+        /// Maximum allowed attempts
         max_attempts: u32,
     },
 
+    /// User account is temporarily locked out due to security policy
     #[error("User temporarily locked out")]
     UserLockedOut {
+        /// Duration of the lockout
         lockout_duration: Duration,
+        /// Reason for the lockout
         reason: String,
     },
 
+    /// Suspicious activity detected requiring additional verification
     #[error("Suspicious activity detected")]
     SuspiciousActivity {
+        /// Risk level assessment
         risk_level: String,
+        /// Whether additional verification is required
         additional_verification_required: bool,
     },
 
     // Accessibility and user experience errors
+    /// Requested accessibility feature is not available
     #[error("Accessibility feature unavailable: {feature}")]
     AccessibilityUnavailable {
+        /// Name of the unavailable accessibility feature
         feature: String,
+        /// Alternative features available
         alternatives: Vec<String>,
     },
 
+    /// Audio challenge generation failed due to system limitations
     #[error("Audio challenge generation failed")]
     AudioGenerationFailed {
+        /// Whether fallback to visual challenge is available
         fallback_to_visual: bool,
     },
 
     // Configuration and system errors
+    /// Configuration parameter has an invalid value
     #[error("Invalid configuration: {parameter}")]
     ConfigurationError {
+        /// Name of the invalid configuration parameter
         parameter: String,
+        /// Expected value or format
         expected: String,
+        /// Actual value that was provided
         actual: String,
     },
 
+    /// System is overloaded and cannot handle the request
     #[error("System overloaded")]
     SystemOverloaded {
+        /// Suggested retry delay duration
         retry_after: Duration,
+        /// Optional queue position for the request
         queue_position: Option<u32>,
     },
 
     // Network and external service errors
+    /// Network request to external service timed out
     #[error("Network timeout: {service}")]
     NetworkTimeout {
+        /// Name of the service that timed out
         service: String,
+        /// Duration of the timeout
         timeout_duration: Duration,
+        /// Number of retry attempts made
         retry_count: u32,
     },
 
+    /// External service returned an error
     #[error("External service error: {service}")]
     ExternalServiceError {
+        /// Name of the external service
         service: String,
+        /// Optional error code from the service
         error_code: Option<String>,
+        /// Whether the error is recoverable
         recoverable: bool,
     },
 }
@@ -123,23 +177,32 @@ pub enum CaptchaError {
 pub enum RecoveryStrategy {
     /// Retry the operation after a delay
     Retry {
+        /// Maximum number of retry attempts
         max_attempts: u32,
+        /// Delay between retry attempts
         delay: Duration,
+        /// Whether to use exponential backoff
         exponential_backoff: bool,
     },
     /// Fallback to alternative implementation
     Fallback {
+        /// Type of fallback mechanism to use
         fallback_type: FallbackType,
+        /// Whether functionality is degraded in fallback mode
         degraded_functionality: bool,
     },
     /// Manual intervention required
     ManualIntervention {
+        /// Contact information for support
         contact_info: String,
+        /// Optional ticket ID for tracking
         ticket_id: Option<String>,
     },
     /// Graceful degradation
     GracefulDegradation {
+        /// Whether security is reduced in degraded mode
         reduced_security: bool,
+        /// Description of the alternative flow
         alternative_flow: String,
     },
 }
@@ -147,35 +210,55 @@ pub enum RecoveryStrategy {
 /// Types of fallback mechanisms
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FallbackType {
+    /// Use local encryption instead of external service
     LocalEncryption,
+    /// Use simplified challenge generation
     SimplifiedChallenge,
+    /// Require manual verification
     ManualVerification,
+    /// Use alternative service provider
     AlternativeProvider,
+    /// Return cached response
     CachedResponse,
 }
 
 /// User-friendly error information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserErrorInfo {
+    /// Error title for display
     pub title: String,
+    /// Detailed error message
     pub message: String,
+    /// Suggested actions for the user
     pub suggested_actions: Vec<String>,
+    /// Optional help link
     pub help_link: Option<String>,
+    /// Whether to contact support
     pub contact_support: bool,
+    /// Error code for reference
     pub error_code: String,
 }
 
 /// Error context for debugging and monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorContext {
+    /// Timestamp when the error occurred
     pub timestamp: String,
+    /// Optional session identifier
     pub session_id: Option<String>,
+    /// Optional user identifier
     pub user_id: Option<String>,
+    /// Optional IP address of the client
     pub ip_address: Option<String>,
+    /// Optional user agent string
     pub user_agent: Option<String>,
+    /// Unique request identifier
     pub request_id: String,
+    /// Component where the error occurred
     pub component: String,
+    /// Operation that was being performed
     pub operation: String,
+    /// Additional contextual data
     pub additional_data: serde_json::Value,
 }
 
@@ -426,6 +509,7 @@ impl Default for ErrorRecovery {
 }
 
 impl ErrorRecovery {
+    /// Create a new error recovery configuration with retry parameters
     pub fn new(max_retry_attempts: u32, base_delay: Duration, max_delay: Duration) -> Self {
         Self {
             max_retry_attempts,
@@ -504,6 +588,7 @@ impl ErrorRecovery {
 
 /// Helper trait for converting standard errors to CAPTCHA errors
 pub trait IntoCaptchaError {
+    /// Convert this error into a CAPTCHA-specific error with context
     fn into_captcha_error(self, context: &str) -> CaptchaError;
 }
 
