@@ -192,57 +192,67 @@ SIMPelv2 menggunakan pipeline CI/CD modern dengan 9 stages dan 12+ security tool
 ```
 simpelv2/
 ├── 📁 antarmuka/                 # Microfrontend Leptos Applications
-│   ├── 🏛️ portal/              # Main Dashboard & Gateway (8080)
-│   ├── 🎓 badiklat/             # Training & Education (8081)
-│   ├── ⚖️ datun/               # Criminal Prosecution (8082)
-│   ├── � intel/               # Intelligence Analytics (8083)
-│   ├── 📋 pembinaan/           # Development Management
-│   │   ├── 💰 keuangan/        # Financial Management (8084)
-│   │   ├── 📊 perencanaan/     # Planning & Strategy (8085)
-│   │   └── 🛠️ perlengkapan/    # Equipment Management (8086)
-│   ├── 🔄 pemulihan_aset/      # Asset Recovery (8087)
-│   ├── �️ pengawasan/          # Monitoring & Compliance (8088)
-│   ├── 🪖 pidmil/             # Military Criminal Law (8089)
-│   ├── 🔒 pidsus/             # Special Crimes (8090)
-│   ├── 📜 pidum/              # General Crimes (8091)
-│   └── 🧩 shared/             # ⭐ Shared UI Components Library v0.2.0
-│       ├── src/
-│       │   ├── components.rs   # 40+ Optimized Components
-│       │   ├── types.rs        # Modern Type System
-│       │   ├── constants.rs    # Government Data Constants
-│       │   ├── theme.rs        # Kejaksaan RI Design System
-│       │   └── utils.rs        # Utility Functions
-│       └── Cargo.toml          # Leptos 0.8.x Dependencies
+│   ├── 🏛️ portal/              # Main Dashboard & Gateway
+│   ├── 🎓 badiklat/             # Training & Education Module
+│   ├── ⚖️ datun/               # Criminal Prosecution Module
+│   ├── 🔍 intel/               # Intelligence Analytics Module
+│   ├── 📋 pembinaan/           # Development Management Module
+│   ├──  pemulihan_aset/      # Asset Recovery Module
+│   ├── 🛡️ pengawasan/          # Monitoring & Compliance Module
+│   ├── 🪖 pidmil/             # Military Criminal Law Module
+│   ├── 🔒 pidsus/             # Special Crimes Module
+│   ├── 📜 pidum/              # General Crimes Module
+│   └── 🧩 shared/             # Shared UI Components Library v0.2.0
 ├── 📁 layanan/                   # Backend Microservices (Rust)
-│   ├── 🔐 keamanan/             # Security Service (3001)
-│   ├── 🤖 ai/                   # AI/ML Service (3002)
-│   ├── 📄 dokumen/              # Document Management (3003)
-│   ├── ⚙️ konfigurasi/          # Configuration Service (3004)
-│   ├── 🆘 bantuan/              # Help & Support (3005)
-│   ├── 📊 dasbor/               # Dashboard Service (3006)
-│   ├── 📋 laporan/              # Reporting Service (3007)
-│   ├── 🔗 integrasi/            # External Integration (3008)
-│   ├── 🔔 notifikasi/           # Notification Service (3009)
-│   └── 📁 pembinaan/            # Development Services
-│       └── 🛠️ perlengkapan/    # Equipment Management (3010)
-├── 📁 infra/                     # Infrastructure & DevOps
-│   ├── 🌐 nginx/                # Nginx Reverse Proxy
-│   ├── 🚪 gerbang/              # API Gateway (Envoy)
-│   ├── 📁 k8s/                  # Kubernetes Manifests
-│   ├── � vault/                # HashiCorp Vault Config
-│   └── � monitoring/           # Observability Stack
+│   ├── 🎓 badiklat/             # Training Service
+│   ├── ⚖️ datun/               # Criminal Prosecution Service
+│   ├── 🔍 intel/               # Intelligence Service
+│   ├── 📋 pembinaan/           # Development Service
+│   ├── � pemulihan_aset/      # Asset Recovery Service
+│   ├── �️ pengawasan/          # Monitoring Service
+│   ├── � pidmil/             # Military Criminal Law Service
+│   ├── � pidsus/             # Special Crimes Service
+│   ├── 📜 pidum/              # General Crimes Service
+│   └── 🧩 shared/             # Shared Backend Components
+├── � infra/                     # Infrastructure & DevOps
+│   ├── � authenc/             # Authentication Service
+│   ├── � gerbang/             # API Gateway (Envoy)
+│   ├── ☸️ k8s/                 # Kubernetes Manifests
+│   ├── 🌐 nginx/               # Nginx Reverse Proxy
+│   ├── � proto/               # Protocol Buffers
+│   └── � secreton/            # Custom Vault Service
+├── 📁 config/                    # Configuration Files
+│   ├── 📢 alertmanager/         # Alertmanager Config
+│   ├── 📊 prometheus/           # Prometheus Config
+│   ├── � authenc.production.toml
+│   ├── 🛡️ captcha.development.toml
+│   ├── 📊 captcha.monitoring.toml
+│   ├── 🛡️ captcha.production.toml
+│   └── 🔒 secreton.production.toml
 ├── 📁 scripts/                   # Build & Automation Scripts
-│   ├── 🔧 tools/                # Development Tools
+│   ├── 💾 backup/               # Backup Scripts
+│   ├── 💻 cli/                  # CLI Tools
+│   ├── 📦 makefiles/            # Make Configurations
 │   ├── 🧪 test/                 # Test Automation
-│   └── 📦 makefiles/            # Make Configurations
+│   ├── 🔧 tools/                # Development Tools
+│   ├── 📊 analyze-bundle-size.sh
+│   ├── 📊 analyze-bundle-sizes.sh
+│   ├── 📊 analyze-bundle.sh
+│   ├── 🚀 build-and-push-all.sh
+│   ├── � build-incremental.sh
+│   └── 🛡️ security_validation.sh
 ├── 📁 docs/                      # Comprehensive Documentation
-│   ├── 📚 api/                  # API Documentation
+│   ├── 📚 (40+ documentation files)
 │   ├── 🏗️ architecture/         # Architecture Diagrams
-│   └── � guides/               # Development Guides
+│   ├── 🔐 security/             # Security Guides
+│   ├── 🚀 deployment/           # Deployment Guides
+│   └── 📋 api/                  # API Documentation
+├── 📁 test/                      # Test Files
+│   └── ⚡ performance_test_runner.rs
 └── 📁 target/                    # Rust Build Artifacts
-    ├── debug/                   # Development Builds
-    ├── release/                 # Production Builds
-    └── wasm32-unknown-unknown/  # WebAssembly Builds
+    ├── 🐛 debug/                # Development Builds
+    ├── 🚀 release/              # Production Builds
+    └── 🕸️ wasm32-unknown-unknown/ # WebAssembly Builds
 ```
 
 ## 🎨 **Frontend Microfrontends**
