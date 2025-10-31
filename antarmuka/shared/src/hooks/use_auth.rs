@@ -8,6 +8,9 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::window;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::spawn_local;
+
 /// User session data (matches portal UserSession structure)
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct UserSession {
@@ -137,21 +140,50 @@ impl AuthContext {
 
     /// Logout user and redirect to portal
     pub fn logout(&self) {
-        // Clear session
+        // Clear session immediately for responsive UI
         self.session.set(None);
 
         // Clear localStorage
         if let Some(storage) = window().and_then(|w| w.local_storage().ok()).flatten() {
             let _ = storage.remove_item("user_session");
             let _ = storage.remove_item("auth_token");
+            let _ = storage.remove_item("refresh_token");
         }
 
-        // Redirect to portal logout
-        let portal_url = get_portal_url();
-        if let Some(window) = window() {
-            let _ = window
-                .location()
-                .set_href(&format!("{}/logout", portal_url));
+        // Call backend logout endpoint
+        #[cfg(target_arch = "wasm32")]
+        {
+            spawn_local(async move {
+                let authenc_url = std::env::var("AUTHENC_URL")
+                    .unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+                let portal_url = get_portal_url();
+                let redirect_uri = format!("{}/logged-out", portal_url);
+
+                let logout_url = format!(
+                    "{}/v1/oidc/logout?post_logout_redirect_uri={}",
+                    authenc_url,
+                    urlencoding::encode(&redirect_uri)
+                );
+
+                // Make request with credentials to include SSO cookie
+                if let Some(window) = window() {
+                    use wasm_bindgen::JsValue;
+                    use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
+
+                    let mut opts = RequestInit::new();
+                    opts.method("GET");
+                    opts.mode(RequestMode::Cors);
+                    opts.credentials(RequestCredentials::Include);
+
+                    if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
+                        let _ = wasm_bindgen_futures::JsFuture::from(
+                            window.fetch_with_request(&request),
+                        )
+                        .await;
+                    }
+                }
+            });
         }
     }
 

@@ -195,7 +195,8 @@
     // ========================================
     "git.enableCommitSigning": true,
     "git.signCommits": true,
-    "containers.composeCommand": "docker compose"
+    "containers.composeCommand": "docker compose",
+    "kiroAgent.configureMCP": "Enabled"
     // ========================================
     // RECOMMENDED EXTENSIONS (see extensions.json)
     // ========================================

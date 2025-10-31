@@ -10,6 +10,7 @@ use crate::features::auth::AuthService;
 use crate::pages::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use shared_microfrontend::components::BrandingProvider;
 
 use leptos_router::{
     StaticSegment,
@@ -19,6 +20,9 @@ use leptos_router::{
 /// Main application component with session management
 #[component]
 pub fn App() -> impl IntoView {
+    // Setup global search providers
+    setup_search_providers();
+
     // Global auth state - load from localStorage on mount
     let (user_session, set_user_session) = signal(AuthService::load_session());
 
@@ -130,8 +134,9 @@ pub fn App() -> impl IntoView {
     };
 
     view! {
-        <Router>
-            <Routes fallback=|| view! { <NotFoundPage /> }>
+        <BrandingProvider unit="portal".to_string()>
+            <Router>
+                <Routes fallback=|| view! { <NotFoundPage /> }>
                 // Public routes
                 <Route path=StaticSegment("") view=HomePage />
                 <Route path=StaticSegment("login") view=move || view! {
@@ -140,6 +145,12 @@ pub fn App() -> impl IntoView {
 
                 // OAuth callback route
                 <Route path=StaticSegment("callback") view=CallbackPage />
+
+                // Logout confirmation page
+                <Route path=StaticSegment("logged-out") view=LoggedOutPage />
+
+                // Password reset route
+                <Route path=StaticSegment("password-reset") view=PasswordResetPage />
 
                 // MFA routes
                 <Route path=StaticSegment("mfa/setup") view=MfaSetupPage />
@@ -208,6 +219,34 @@ pub fn App() -> impl IntoView {
                     match user_session.get() {
                         Some(session) => view! {
                             <NotificationsPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("monitoring") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <MonitoringPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("settings") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <SettingsPage
                                 user_session=session
                                 on_logout=Box::new(handle_logout)
                             />
@@ -288,5 +327,92 @@ pub fn App() -> impl IntoView {
                 None
             }
         }}
+        </BrandingProvider>
     }
+}
+
+/// Setup global search providers
+fn setup_search_providers() {
+    use crate::features::microfrontends::MicrofrontendRegistry;
+    use shared_microfrontend::hooks::{SearchCategory, SearchResult, use_search};
+
+    let search_ctx = use_search();
+
+    // Register applications
+    let apps: Vec<SearchResult> = MicrofrontendRegistry::get_all_apps()
+        .into_iter()
+        .map(|app| SearchResult {
+            id: app.id.clone(),
+            title: app.name,
+            description: app.description,
+            category: SearchCategory::Application,
+            url: app.url,
+            icon: app.icon,
+            module: None,
+        })
+        .collect();
+
+    search_ctx.register_data(apps);
+
+    // Register pages
+    let pages = vec![
+        SearchResult {
+            id: "dashboard".to_string(),
+            title: "Dashboard".to_string(),
+            description: "Dashboard utama dengan statistik dan aktivitas terbaru".to_string(),
+            category: SearchCategory::Page,
+            url: "/dashboard".to_string(),
+            icon: "📊".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "apps".to_string(),
+            title: "Aplikasi".to_string(),
+            description: "Daftar semua aplikasi SIMPelv2 yang tersedia".to_string(),
+            category: SearchCategory::Page,
+            url: "/apps".to_string(),
+            icon: "🚀".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "notifications".to_string(),
+            title: "Notifikasi".to_string(),
+            description: "Semua notifikasi dan pemberitahuan sistem".to_string(),
+            category: SearchCategory::Page,
+            url: "/notifications".to_string(),
+            icon: "🔔".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "monitoring".to_string(),
+            title: "Monitoring".to_string(),
+            description:
+                "Dashboard monitoring dengan metrik performa, error tracking, dan analytics"
+                    .to_string(),
+            category: SearchCategory::Page,
+            url: "/monitoring".to_string(),
+            icon: "📈".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "pembinaan".to_string(),
+            title: "Pembinaan".to_string(),
+            description: "Sistem pembinaan dan pengembangan SDM".to_string(),
+            category: SearchCategory::Page,
+            url: "/pembinaan".to_string(),
+            icon: "🌱".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "settings".to_string(),
+            title: "Pengaturan".to_string(),
+            description: "Kelola preferensi, tema, dan kustomisasi tampilan".to_string(),
+            category: SearchCategory::Page,
+            url: "/settings".to_string(),
+            icon: "⚙️".to_string(),
+            module: Some("Portal".to_string()),
+        },
+    ];
+
+    search_ctx.register_data(pages);
 }

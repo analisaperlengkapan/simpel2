@@ -4,10 +4,11 @@
 //! caching with support for TTL, atomic operations, and connection pooling.
 
 use super::{Cache, CacheConfig};
+use super::metrics::{CacheMetrics, CacheMetricsSnapshot, OperationTimer};
 use crate::config::RedisConfig;
 use crate::error::{AuthencError, Result};
 use async_trait::async_trait;
-use redis::{aio::ConnectionManager, AsyncCommands, Client, RedisResult};
+use redis::{AsyncCommands, Client, RedisResult, aio::ConnectionManager};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, warn};
@@ -18,6 +19,8 @@ pub struct RedisCache {
     connection_manager: Arc<ConnectionManager>,
     /// Cache configuration
     config: CacheConfig,
+    /// Metrics collector for monitoring cache performance
+    metrics: Arc<CacheMetrics>,
 }
 
 impl RedisCache {
@@ -28,9 +31,9 @@ impl RedisCache {
             .map_err(|e| AuthencError::internal(format!("Failed to create Redis client: {}", e)))?;
 
         // Create connection manager for connection pooling
-        let connection_manager = ConnectionManager::new(client)
-            .await
-            .map_err(|e| AuthencError::internal(format!("Failed to create Redis connection manager: {}", e)))?;
+        let connection_manager = ConnectionManager::new(client).await.map_err(|e| {
+            AuthencError::internal(format!("Failed to create Redis connection manager: {}", e))
+        })?;
 
         let config = CacheConfig {
             default_ttl: Duration::from_secs(redis_config.default_ttl),
@@ -43,6 +46,7 @@ impl RedisCache {
         Ok(Self {
             connection_manager: Arc::new(connection_manager),
             config,
+            metrics: Arc::new(CacheMetrics::new()),
         })
     }
 
@@ -66,60 +70,83 @@ impl RedisCache {
 #[async_trait]
 impl Cache for RedisCache {
     async fn get(&self, key: &str) -> Result<Option<serde_json::Value>> {
+        let timer = OperationTimer::start();
         let mut conn = self.get_connection().await?;
 
         let result: RedisResult<Option<String>> = conn.get(key).await;
 
+        let elapsed = timer.elapsed();
+        self.metrics.record_get(elapsed);
+
         match result {
             Ok(Some(data)) => {
                 debug!("Cache hit for key: {}", key);
-                let value: serde_json::Value = serde_json::from_str(&data)
-                    .map_err(|e| AuthencError::internal(format!("Failed to deserialize cache value: {}", e)))?;
+                self.metrics.record_hit();
+                let value: serde_json::Value = serde_json::from_str(&data).map_err(|e| {
+                    AuthencError::internal(format!("Failed to deserialize cache value: {}", e))
+                })?;
                 Ok(Some(value))
             }
             Ok(None) => {
                 debug!("Cache miss for key: {}", key);
+                self.metrics.record_miss();
                 Ok(None)
             }
             Err(e) => {
                 warn!("Cache get failed for key {}: {}", key, e);
+                self.metrics.record_error();
                 Err(self.handle_redis_error(e))
             }
         }
     }
 
     async fn set(&self, key: &str, value: &serde_json::Value, ttl: Duration) -> Result<()> {
+        let timer = OperationTimer::start();
         let mut conn = self.get_connection().await?;
-        let serialized = serde_json::to_string(value)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize cache value: {}", e)))?;
+        let serialized = serde_json::to_string(value).map_err(|e| {
+            AuthencError::internal(format!("Failed to serialize cache value: {}", e))
+        })?;
         let ttl_seconds = self.duration_to_seconds(ttl);
 
         let result: RedisResult<()> = conn.set_ex(key, serialized, ttl_seconds).await;
 
+        let elapsed = timer.elapsed();
+        self.metrics.record_set(elapsed);
+
         match result {
             Ok(()) => {
                 debug!("Cache set for key: {} with TTL: {}s", key, ttl_seconds);
+                self.metrics.increment_cache_size();
                 Ok(())
             }
             Err(e) => {
                 warn!("Cache set failed for key {}: {}", key, e);
+                self.metrics.record_error();
                 Err(self.handle_redis_error(e))
             }
         }
     }
 
     async fn delete(&self, key: &str) -> Result<()> {
+        let timer = OperationTimer::start();
         let mut conn = self.get_connection().await?;
 
         let result: RedisResult<i32> = conn.del(key).await;
 
+        let elapsed = timer.elapsed();
+        self.metrics.record_delete(elapsed);
+
         match result {
-            Ok(_) => {
+            Ok(deleted_count) => {
                 debug!("Cache delete for key: {}", key);
+                if deleted_count > 0 {
+                    self.metrics.decrement_cache_size();
+                }
                 Ok(())
             }
             Err(e) => {
                 warn!("Cache delete failed for key {}: {}", key, e);
+                self.metrics.record_error();
                 Err(self.handle_redis_error(e))
             }
         }
@@ -150,7 +177,10 @@ impl Cache for RedisCache {
 
         match result {
             Ok(_) => {
-                debug!("Cache expire set for key: {} with TTL: {}s", key, ttl_seconds);
+                debug!(
+                    "Cache expire set for key: {} with TTL: {}s",
+                    key, ttl_seconds
+                );
                 Ok(())
             }
             Err(e) => {
@@ -167,7 +197,10 @@ impl Cache for RedisCache {
 
         match result {
             Ok(new_value) => {
-                debug!("Cache increment for key: {} by {} = {}", key, delta, new_value);
+                debug!(
+                    "Cache increment for key: {} by {} = {}",
+                    key, delta, new_value
+                );
                 Ok(new_value)
             }
             Err(e) => {
@@ -179,8 +212,9 @@ impl Cache for RedisCache {
 
     async fn set_nx(&self, key: &str, value: &serde_json::Value, ttl: Duration) -> Result<bool> {
         let mut conn = self.get_connection().await?;
-        let serialized = serde_json::to_string(value)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize cache value: {}", e)))?;
+        let serialized = serde_json::to_string(value).map_err(|e| {
+            AuthencError::internal(format!("Failed to serialize cache value: {}", e))
+        })?;
         let ttl_seconds = self.duration_to_seconds(ttl);
 
         // Use SET with NX (only if not exists) and EX (expiration)
@@ -195,7 +229,10 @@ impl Cache for RedisCache {
 
         match result {
             Ok(Some(_)) => {
-                debug!("Cache set_nx succeeded for key: {} with TTL: {}s", key, ttl_seconds);
+                debug!(
+                    "Cache set_nx succeeded for key: {} with TTL: {}s",
+                    key, ttl_seconds
+                );
                 Ok(true)
             }
             Ok(None) => {
@@ -241,15 +278,13 @@ impl RedisCache {
                 let mut results = Vec::with_capacity(values.len());
                 for (i, value) in values.into_iter().enumerate() {
                     match value {
-                        Some(data) => {
-                            match serde_json::from_str(&data) {
-                                Ok(deserialized) => results.push(Some(deserialized)),
-                                Err(e) => {
-                                    warn!("Failed to deserialize value for key {}: {}", keys[i], e);
-                                    results.push(None);
-                                }
+                        Some(data) => match serde_json::from_str(&data) {
+                            Ok(deserialized) => results.push(Some(deserialized)),
+                            Err(e) => {
+                                warn!("Failed to deserialize value for key {}: {}", keys[i], e);
+                                results.push(None);
                             }
-                        }
+                        },
                         None => results.push(None),
                     }
                 }
@@ -276,8 +311,9 @@ impl RedisCache {
         let mut pipe = redis::pipe();
 
         for (key, value) in items {
-            let serialized = serde_json::to_string(value)
-                .map_err(|e| AuthencError::internal(format!("Failed to serialize cache value: {}", e)))?;
+            let serialized = serde_json::to_string(value).map_err(|e| {
+                AuthencError::internal(format!("Failed to serialize cache value: {}", e))
+            })?;
             pipe.set_ex(key, serialized, ttl_seconds);
         }
 
@@ -285,7 +321,11 @@ impl RedisCache {
 
         match result {
             Ok(()) => {
-                debug!("Batch set completed for {} items with TTL: {}s", items.len(), ttl_seconds);
+                debug!(
+                    "Batch set completed for {} items with TTL: {}s",
+                    items.len(),
+                    ttl_seconds
+                );
                 Ok(())
             }
             Err(e) => {
@@ -307,7 +347,10 @@ impl RedisCache {
                 Ok(())
             }
             Ok(response) => {
-                warn!("Redis health check returned unexpected response: {}", response);
+                warn!(
+                    "Redis health check returned unexpected response: {}",
+                    response
+                );
                 Err(AuthencError::internal("Redis health check failed"))
             }
             Err(e) => {
@@ -316,6 +359,124 @@ impl RedisCache {
             }
         }
     }
+
+    /// Get cache metrics
+    pub fn metrics(&self) -> Arc<CacheMetrics> {
+        Arc::clone(&self.metrics)
+    }
+
+    /// Get a snapshot of current cache metrics
+    pub fn metrics_snapshot(&self) -> CacheMetricsSnapshot {
+        self.metrics.snapshot()
+    }
+
+    /// Get cache hit ratio
+    pub fn hit_ratio(&self) -> f64 {
+        self.metrics.hit_ratio()
+    }
+
+    /// Get cache miss ratio
+    pub fn miss_ratio(&self) -> f64 {
+        self.metrics.miss_ratio()
+    }
+
+    /// Export metrics in Prometheus format
+    pub fn export_prometheus_metrics(&self) -> String {
+        self.metrics_snapshot().to_prometheus_format("redis_cache")
+    }
+
+    /// Get cache statistics for monitoring
+    pub async fn get_cache_stats(&self) -> Result<CacheStats> {
+        let mut conn = self.get_connection().await?;
+
+        // Get Redis INFO stats
+        let info: RedisResult<String> = redis::cmd("INFO")
+            .arg("stats")
+            .query_async(&mut conn)
+            .await;
+
+        let redis_stats = match info {
+            Ok(info_str) => {
+                // Parse keyspace_hits and keyspace_misses from INFO output
+                let mut keyspace_hits = 0u64;
+                let mut keyspace_misses = 0u64;
+
+                for line in info_str.lines() {
+                    if line.starts_with("keyspace_hits:") {
+                        keyspace_hits = line
+                            .split(':')
+                            .nth(1)
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(0);
+                    } else if line.starts_with("keyspace_misses:") {
+                        keyspace_misses = line
+                            .split(':')
+                            .nth(1)
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(0);
+                    }
+                }
+
+                Some((keyspace_hits, keyspace_misses))
+            }
+            Err(e) => {
+                warn!("Failed to get Redis INFO stats: {}", e);
+                None
+            }
+        };
+
+        let snapshot = self.metrics_snapshot();
+
+        Ok(CacheStats {
+            hits: snapshot.hits,
+            misses: snapshot.misses,
+            hit_ratio: snapshot.hit_ratio,
+            get_operations: snapshot.get_operations,
+            set_operations: snapshot.set_operations,
+            delete_operations: snapshot.delete_operations,
+            errors: snapshot.errors,
+            evictions: snapshot.evictions,
+            cache_size: snapshot.cache_size,
+            avg_get_latency_ms: snapshot.avg_get_latency_micros / 1000.0,
+            avg_set_latency_ms: snapshot.avg_set_latency_micros / 1000.0,
+            avg_delete_latency_ms: snapshot.avg_delete_latency_micros / 1000.0,
+            redis_keyspace_hits: redis_stats.map(|(h, _)| h),
+            redis_keyspace_misses: redis_stats.map(|(_, m)| m),
+        })
+    }
+}
+
+/// Cache statistics for monitoring and observability
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CacheStats {
+    /// Total cache hits
+    pub hits: u64,
+    /// Total cache misses
+    pub misses: u64,
+    /// Hit ratio (0.0 to 1.0)
+    pub hit_ratio: f64,
+    /// Total get operations
+    pub get_operations: u64,
+    /// Total set operations
+    pub set_operations: u64,
+    /// Total delete operations
+    pub delete_operations: u64,
+    /// Total errors
+    pub errors: u64,
+    /// Total evictions
+    pub evictions: u64,
+    /// Current cache size
+    pub cache_size: u64,
+    /// Average get latency in milliseconds
+    pub avg_get_latency_ms: f64,
+    /// Average set latency in milliseconds
+    pub avg_set_latency_ms: f64,
+    /// Average delete latency in milliseconds
+    pub avg_delete_latency_ms: f64,
+    /// Redis keyspace hits (from Redis INFO)
+    pub redis_keyspace_hits: Option<u64>,
+    /// Redis keyspace misses (from Redis INFO)
+    pub redis_keyspace_misses: Option<u64>,
 }
 
 #[cfg(test)]
@@ -350,9 +511,14 @@ mod tests {
 
         // Test set and get
         let test_value = serde_json::to_value(&test_data).unwrap();
-        cache.set(test_key, &test_value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(test_key, &test_value, Duration::from_secs(60))
+            .await
+            .unwrap();
         let retrieved = cache.get(test_key).await.unwrap();
-        let retrieved_data: Option<TestData> = retrieved.map(|v| serde_json::from_value(v).unwrap()).unwrap();
+        let retrieved_data: Option<TestData> = retrieved
+            .map(|v| serde_json::from_value(v).unwrap())
+            .unwrap();
         assert_eq!(retrieved_data, Some(test_data.clone()));
 
         // Test exists
@@ -385,11 +551,17 @@ mod tests {
 
         // First set_nx should succeed
         let test_value = serde_json::to_value(&test_data).unwrap();
-        let result = cache.set_nx(test_key, &test_value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(test_key, &test_value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(result);
 
         // Second set_nx should fail (key exists)
-        let result = cache.set_nx(test_key, &test_value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(test_key, &test_value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(!result);
 
         // Clean up

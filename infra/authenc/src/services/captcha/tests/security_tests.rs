@@ -21,7 +21,7 @@ fn generate_bot_behavioral_metrics(session_id: String) -> BehavioralMetrics {
                 y: 0.0,
                 timestamp: 1000,
                 event_type: "mousemove".to_string(),
-                velocity: Some(100.0), // Unnaturally fast
+                velocity: Some(100.0),   // Unnaturally fast
                 acceleration: Some(0.0), // No acceleration variation
             },
             MouseEvent {
@@ -59,10 +59,10 @@ fn generate_bot_behavioral_metrics(session_id: String) -> BehavioralMetrics {
             },
         ],
         timing_patterns: TimingAnalysis {
-            total_interaction_time: 100, // Suspiciously fast
+            total_interaction_time: 100,   // Suspiciously fast
             pause_patterns: vec![0, 0, 0], // No natural pauses
-            rhythm_consistency: 1.0, // Perfect consistency (unnatural)
-            typing_speed: Some(1200.0), // Impossibly fast typing
+            rhythm_consistency: 1.0,       // Perfect consistency (unnatural)
+            typing_speed: Some(1200.0),    // Impossibly fast typing
         },
         browser_fingerprint: BrowserFingerprint {
             user_agent: "HeadlessChrome/91.0.4472.124".to_string(), // Headless browser
@@ -127,10 +127,10 @@ fn generate_human_behavioral_metrics(session_id: String) -> BehavioralMetrics {
             },
         ],
         timing_patterns: TimingAnalysis {
-            total_interaction_time: 8500, // Natural interaction time
+            total_interaction_time: 8500,             // Natural interaction time
             pause_patterns: vec![200, 150, 350, 180], // Natural pauses
-            rhythm_consistency: 0.65, // Natural variation
-            typing_speed: Some(42.0), // Normal typing speed
+            rhythm_consistency: 0.65,                 // Natural variation
+            typing_speed: Some(42.0),                 // Normal typing speed
         },
         browser_fingerprint: BrowserFingerprint {
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36".to_string(),
@@ -169,26 +169,24 @@ fn generate_suspicious_behavioral_metrics(session_id: String) -> BehavioralMetri
                 acceleration: Some(0.0), // Some consistency but not perfect
             },
         ],
-        keystroke_dynamics: vec![
-            KeystrokeEvent {
-                key: "t".to_string(),
-                timestamp: 2000,
-                duration: 75,
-                dwell_time: 75,
-                flight_time: Some(5), // Very short flight time
-            },
-        ],
+        keystroke_dynamics: vec![KeystrokeEvent {
+            key: "t".to_string(),
+            timestamp: 2000,
+            duration: 75,
+            dwell_time: 75,
+            flight_time: Some(5), // Very short flight time
+        }],
         timing_patterns: TimingAnalysis {
             total_interaction_time: 2000, // Quite fast
             pause_patterns: vec![50, 50], // Very short pauses
-            rhythm_consistency: 0.85, // High consistency
-            typing_speed: Some(80.0), // Fast but possible
+            rhythm_consistency: 0.85,     // High consistency
+            typing_speed: Some(80.0),     // Fast but possible
         },
         browser_fingerprint: BrowserFingerprint {
             user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36".to_string(),
             screen_resolution: "1366x768".to_string(),
             timezone: "UTC".to_string(), // Generic timezone
-            language: "en".to_string(), // Generic language
+            language: "en".to_string(),  // Generic language
             plugins: vec!["Default Plugin".to_string()], // Minimal plugins
             canvas_fingerprint: Some("suspicious_canvas".to_string()),
             webgl_fingerprint: Some("suspicious_webgl".to_string()),
@@ -204,11 +202,7 @@ pub async fn test_bot_detection_accuracy_clear_bot() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Generate challenge
     let challenge = enhanced_service
@@ -245,11 +239,7 @@ pub async fn test_bot_detection_accuracy_clear_human() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Generate challenge
     let challenge = enhanced_service
@@ -278,7 +268,10 @@ pub async fn test_bot_detection_accuracy_clear_human() {
     // Should recognize human behavior
     assert!(validation_result.confidence_score > 0.0);
     // Risk assessment should be reasonable for human behavior
-    assert!(matches!(validation_result.risk_assessment, RiskLevel::Low | RiskLevel::Medium));
+    assert!(matches!(
+        validation_result.risk_assessment,
+        RiskLevel::Low | RiskLevel::Medium
+    ));
 }
 
 /// Test bot detection with suspicious behavior
@@ -288,11 +281,7 @@ async fn test_bot_detection_suspicious_behavior() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Generate challenge
     let challenge = enhanced_service
@@ -306,7 +295,8 @@ async fn test_bot_detection_suspicious_behavior() {
         .unwrap();
 
     // Create suspicious behavioral metrics
-    let suspicious_metrics = generate_suspicious_behavioral_metrics("suspicious_test_session".to_string());
+    let suspicious_metrics =
+        generate_suspicious_behavioral_metrics("suspicious_test_session".to_string());
 
     // Validate with suspicious behavior
     let validation_result = enhanced_service
@@ -320,7 +310,10 @@ async fn test_bot_detection_suspicious_behavior() {
 
     // Should flag as suspicious and increase difficulty
     assert!(validation_result.next_difficulty > 2);
-    assert!(matches!(validation_result.risk_assessment, RiskLevel::Medium | RiskLevel::High));
+    assert!(matches!(
+        validation_result.risk_assessment,
+        RiskLevel::Medium | RiskLevel::High
+    ));
 }
 
 /// Test adaptive difficulty based on bot detection
@@ -329,11 +322,7 @@ pub async fn test_adaptive_difficulty_bot_detection() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let ip_address = "192.168.1.203".to_string();
     let mut current_difficulty = 1u8;
@@ -377,11 +366,7 @@ async fn test_rate_limiting_bot_protection() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let ip_address = "192.168.1.204".to_string();
     let mut successful_attempts = 0;
@@ -403,13 +388,10 @@ async fn test_rate_limiting_bot_protection() {
                 successful_attempts += 1;
 
                 // Try to validate immediately (bot-like behavior)
-                let bot_metrics = generate_bot_behavioral_metrics(format!("rate_limit_session_{}", i));
+                let bot_metrics =
+                    generate_bot_behavioral_metrics(format!("rate_limit_session_{}", i));
                 let _ = enhanced_service
-                    .validate_challenge(
-                        challenge.id,
-                        "bot_answer".to_string(),
-                        Some(bot_metrics),
-                    )
+                    .validate_challenge(challenge.id, "bot_answer".to_string(), Some(bot_metrics))
                     .await;
             }
             Err(_) => {
@@ -423,7 +405,10 @@ async fn test_rate_limiting_bot_protection() {
 
     // Should have some successful attempts initially, then rate limiting should kick in
     assert!(successful_attempts > 0);
-    println!("Successful attempts: {}, Rate limited: {}", successful_attempts, rate_limited_attempts);
+    println!(
+        "Successful attempts: {}, Rate limited: {}",
+        successful_attempts, rate_limited_attempts
+    );
 }
 
 /// Test security event logging during bot attacks
@@ -433,11 +418,7 @@ async fn test_security_event_logging() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Simulate bot attack
     for i in 0..5 {
@@ -476,11 +457,7 @@ async fn test_captcha_resilience_automated_solving() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let mut successful_solves = 0;
     let total_attempts = 10;
@@ -501,7 +478,8 @@ async fn test_captcha_resilience_automated_solving() {
         let common_answers = vec!["123", "abc", "test", "captcha", "answer"];
 
         for answer in common_answers {
-            let bot_metrics = generate_bot_behavioral_metrics(format!("automated_solve_session_{}", i));
+            let bot_metrics =
+                generate_bot_behavioral_metrics(format!("automated_solve_session_{}", i));
 
             let validation_result = enhanced_service
                 .validate_challenge(
@@ -522,8 +500,15 @@ async fn test_captcha_resilience_automated_solving() {
 
     // Success rate should be very low for automated attempts
     let success_rate = successful_solves as f64 / total_attempts as f64;
-    assert!(success_rate < 0.1, "Success rate too high: {}", success_rate);
-    println!("Automated solving success rate: {:.2}%", success_rate * 100.0);
+    assert!(
+        success_rate < 0.1,
+        "Success rate too high: {}",
+        success_rate
+    );
+    println!(
+        "Automated solving success rate: {:.2}%",
+        success_rate * 100.0
+    );
 }
 
 /// Test fallback security when main systems are compromised
@@ -533,14 +518,12 @@ async fn test_fallback_security_compromised_systems() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Force degraded mode (simulating system compromise)
-    enhanced_service.force_degraded_mode("System compromise simulation").await;
+    enhanced_service
+        .force_degraded_mode("System compromise simulation")
+        .await;
 
     // Test that security is maintained even in degraded mode
     let challenge = enhanced_service
@@ -557,11 +540,7 @@ async fn test_fallback_security_compromised_systems() {
     let bot_metrics = generate_bot_behavioral_metrics("compromise_test_session".to_string());
 
     let validation_result = enhanced_service
-        .validate_challenge(
-            challenge.id,
-            "bot_attempt".to_string(),
-            Some(bot_metrics),
-        )
+        .validate_challenge(challenge.id, "bot_attempt".to_string(), Some(bot_metrics))
         .await
         .unwrap();
 
@@ -577,11 +556,7 @@ async fn test_timing_attack_resistance() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let mut validation_times = Vec::new();
 
@@ -600,11 +575,7 @@ async fn test_timing_attack_resistance() {
         let start_time = std::time::Instant::now();
 
         let _ = enhanced_service
-            .validate_challenge(
-                challenge.id,
-                "test_answer".to_string(),
-                None,
-            )
+            .validate_challenge(challenge.id, "test_answer".to_string(), None)
             .await;
 
         let validation_time = start_time.elapsed();
@@ -616,10 +587,15 @@ async fn test_timing_attack_resistance() {
     let variance = validation_times
         .iter()
         .map(|&time| {
-            let diff = if time > avg_time { time - avg_time } else { avg_time - time };
+            let diff = if time > avg_time {
+                time - avg_time
+            } else {
+                avg_time - time
+            };
             diff.as_nanos() as f64
         })
-        .sum::<f64>() / validation_times.len() as f64;
+        .sum::<f64>()
+        / validation_times.len() as f64;
 
     // Timing should be relatively consistent (low variance indicates timing attack resistance)
     println!("Average validation time: {:?}", avg_time);
@@ -636,11 +612,7 @@ async fn test_security_monitoring_integration() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Simulate coordinated attack from multiple IPs
     let attack_ips = vec![
@@ -664,14 +636,11 @@ async fn test_security_monitoring_integration() {
                 .await
                 .unwrap();
 
-            let bot_metrics = generate_bot_behavioral_metrics(format!("attack_session_{}_{}", i, j));
+            let bot_metrics =
+                generate_bot_behavioral_metrics(format!("attack_session_{}_{}", i, j));
 
             let _ = enhanced_service
-                .validate_challenge(
-                    challenge.id,
-                    "attack".to_string(),
-                    Some(bot_metrics),
-                )
+                .validate_challenge(challenge.id, "attack".to_string(), Some(bot_metrics))
                 .await;
         }
     }
@@ -690,11 +659,7 @@ async fn test_security_operations_performance() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let start_time = std::time::Instant::now();
     let iterations = 20;
@@ -731,5 +696,8 @@ async fn test_security_operations_performance() {
 
     // Security operations should maintain good performance
     assert!(avg_time_per_operation < Duration::from_millis(50));
-    println!("Average time per security operation: {:?}", avg_time_per_operation);
+    println!(
+        "Average time per security operation: {:?}",
+        avg_time_per_operation
+    );
 }

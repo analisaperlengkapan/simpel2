@@ -198,7 +198,7 @@ Kode cadangan adalah 10 kode 8-digit yang bisa digunakan sebagai pengganti kode 
 ⚠️ **PENTING**: Simpan kode cadangan dengan aman!
 
 **Cara Aman**:
-- Cetak dan simpan di tempat aman (brankas, laci terkunci)
+- Cetak dan simpan di tempat aman (Secreton, laci terkunci)
 - Simpan di password manager yang terenkripsi
 - Foto dan simpan di cloud storage pribadi yang aman
 

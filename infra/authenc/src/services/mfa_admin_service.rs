@@ -3,10 +3,10 @@
 use crate::error::AuthencError;
 use crate::middleware::MfaRateLimiterState;
 use crate::services::stores::user_store::UserStoreTrait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// MFA administration service for managing lockouts and settings
 pub struct MfaAdminService {
@@ -95,9 +95,14 @@ impl MfaAdminService {
                     failed_attempts: lockout.failed_attempts,
                     lockout_reason: lockout.lockout_reason.clone(),
                     locked_at: self.instant_to_datetime(
-                        lockout.locked_until - std::time::Duration::from_secs(
-                            self.mfa_rate_limiter.get_config().account_lockout_duration_minutes as u64 * 60
-                        )
+                        lockout.locked_until
+                            - std::time::Duration::from_secs(
+                                self.mfa_rate_limiter
+                                    .get_config()
+                                    .account_lockout_duration_minutes
+                                    as u64
+                                    * 60,
+                            ),
                     ),
                 };
                 locked_accounts.push(lockout_info);
@@ -114,11 +119,17 @@ impl MfaAdminService {
         admin_user_id: Uuid,
     ) -> Result<MfaAdminResult, AuthencError> {
         // Verify the user exists
-        let user = self.user_store.get_user(request.user_id).await?
+        let user = self
+            .user_store
+            .get_user(request.user_id)
+            .await?
             .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
         // Check if account is actually locked
-        let was_locked = self.mfa_rate_limiter.is_account_locked(request.user_id).is_some();
+        let was_locked = self
+            .mfa_rate_limiter
+            .is_account_locked(request.user_id)
+            .is_some();
 
         if !was_locked {
             return Ok(MfaAdminResult {
@@ -138,7 +149,8 @@ impl MfaAdminService {
                 request.user_id,
                 "account_unlock",
                 &request.admin_reason,
-            ).await?;
+            )
+            .await?;
 
             Ok(MfaAdminResult {
                 success: true,
@@ -161,11 +173,17 @@ impl MfaAdminService {
         admin_user_id: Uuid,
     ) -> Result<MfaAdminResult, AuthencError> {
         // Verify the user exists
-        let user = self.user_store.get_user(request.user_id).await?
+        let user = self
+            .user_store
+            .get_user(request.user_id)
+            .await?
             .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
         // Disable MFA in database
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let update_query = if request.force_reactivation {
@@ -176,7 +194,9 @@ impl MfaAdminService {
             "UPDATE users SET mfa_enabled = false WHERE id = $1"
         };
 
-        client.execute(update_query, &[&request.user_id]).await
+        client
+            .execute(update_query, &[&request.user_id])
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Also unlock the account if it's locked
@@ -194,7 +214,8 @@ impl MfaAdminService {
             request.user_id,
             action,
             &request.admin_reason,
-        ).await?;
+        )
+        .await?;
 
         Ok(MfaAdminResult {
             success: true,
@@ -210,7 +231,10 @@ impl MfaAdminService {
     ) -> Result<Option<AccountLockoutInfo>, AuthencError> {
         if let Some(lockout) = self.mfa_rate_limiter.is_account_locked(user_id) {
             // Get user information
-            let user = self.user_store.get_user(user_id).await?
+            let user = self
+                .user_store
+                .get_user(user_id)
+                .await?
                 .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
             Ok(Some(AccountLockoutInfo {
@@ -220,9 +244,14 @@ impl MfaAdminService {
                 failed_attempts: lockout.failed_attempts,
                 lockout_reason: lockout.lockout_reason,
                 locked_at: self.instant_to_datetime(
-                    lockout.locked_until - std::time::Duration::from_secs(
-                        self.mfa_rate_limiter.get_config().account_lockout_duration_minutes as u64 * 60
-                    )
+                    lockout.locked_until
+                        - std::time::Duration::from_secs(
+                            self.mfa_rate_limiter
+                                .get_config()
+                                .account_lockout_duration_minutes
+                                as u64
+                                * 60,
+                        ),
                 ),
             }))
         } else {
@@ -288,7 +317,8 @@ impl MfaAdminService {
                     user_id,
                     "automatic_unlock",
                     "Account lockout period expired",
-                ).await?;
+                )
+                .await?;
             }
         }
 
@@ -303,7 +333,10 @@ impl MfaAdminService {
         action: &str,
         reason: &str,
     ) -> Result<(), AuthencError> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         client.execute(
@@ -338,9 +371,7 @@ pub struct AutoUnlockService {
 impl AutoUnlockService {
     /// Create a new auto-unlock service
     pub fn new(mfa_admin_service: Arc<MfaAdminService>) -> Self {
-        Self {
-            mfa_admin_service,
-        }
+        Self { mfa_admin_service }
     }
 
     /// Start the background auto-unlock task

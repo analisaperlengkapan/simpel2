@@ -46,6 +46,22 @@ shared/
 shared-microfrontend = { path = "../../shared" }
 ```
 
+## 📚 Documentation
+
+### Guides
+
+- **[Asset Optimization Guide](./docs/ASSET_OPTIMIZATION.md)** - Complete guide for optimizing images, fonts, and assets
+- **[CSS Minification Guide](./docs/CSS_MINIFICATION.md)** - Tailwind CSS optimization and minification
+- **[Microfrontend Integration Guide](./docs/MICROFRONTEND_ASSET_INTEGRATION.md)** - Step-by-step integration for existing and new microfrontends
+- **[Component Reference](./COMPONENT_REFERENCE.md)** - Detailed component documentation
+- **[Integration Guide](./INTEGRATION_GUIDE.md)** - How to integrate the shared library
+- **[Code Splitting](./docs/CODE_SPLITTING.md)** - Code splitting strategies
+- **[Notification System](./docs/NOTIFICATION_SYSTEM.md)** - Real-time notification implementation
+
+### Examples
+
+- **[OptimizedImage Examples](./examples/optimized_image_example.rs)** - Image optimization examples
+
 ## 🚀 Quick Start
 
 ```rust
@@ -111,9 +127,9 @@ pub fn App() -> impl IntoView {
 - **Badge** - Status badge
 - **List** - Generic list component
 - **EmptyState** - Empty state placeholder
-- **Avatar** - User avatar
+- **Avatar** - User avatar with fallback to initials
 - **Pagination** - Pagination controls
-- **OptimizedImage** - Responsive image with lazy loading and error handling
+- **OptimizedImage** - Responsive image with lazy loading, WebP support, and error handling
 
 ## 🪝 Hooks
 
@@ -140,6 +156,76 @@ Debounce value changes:
 
 ```rust
 let debounced = use_debounce(search, 300);
+```
+
+## 🖼️ Image Optimization
+
+### OptimizedImage Component
+
+Responsive images with automatic optimization:
+
+```rust
+use shared_microfrontend::prelude::*;
+
+// Basic usage with lazy loading
+<OptimizedImage
+    src="/images/photo.jpg"
+    alt="Beautiful landscape"
+/>
+
+// Responsive images with srcset
+<OptimizedImage
+    src="/images/banner.jpg"
+    alt="Banner"
+    responsive=true
+    sizes=vec![640, 1280, 1920]
+    lazy=true
+/>
+
+// Custom styling
+<OptimizedImage
+    src="/images/hero.jpg"
+    alt="Hero"
+    class="rounded-lg shadow-md"
+    width=800
+    height=600
+    object_fit="cover"
+    lazy=false  // Don't lazy load above-the-fold images
+/>
+```
+
+### Avatar Component
+
+User avatars with automatic fallback:
+
+```rust
+// With image
+<Avatar
+    src=Some("/images/user.jpg".to_string())
+    name="Ahmad Wijaya"
+    size=AvatarSize::Large
+/>
+
+// Without image (shows initials "AW")
+<Avatar
+    name="Ahmad Wijaya"
+    size=AvatarSize::Medium
+/>
+```
+
+### Image Utilities
+
+```rust
+// Preload critical images
+preload_image("/images/logo.svg");
+
+// Check WebP support
+if is_webp_supported() {
+    // Serve WebP
+}
+
+// Get optimized URL (auto WebP if supported)
+let url = get_optimized_image_url("/images/photo.jpg");
 ```
 
 ## 🛠️ Utilities
@@ -949,3 +1035,147 @@ let sizes = generate_sizes("100vw", "50vw", "800px");
 ---
 
 **For more information, see the [Integration Guide](INTEGRATION_GUIDE.md)**
+
+
+## ⚡ Performance & Code Splitting
+
+### Code Splitting Strategy
+
+The library provides utilities for route-based code splitting to reduce initial bundle size:
+
+```rust
+use shared_microfrontend::utils::code_splitting::{lazy_route, RouteLoadingSkeleton};
+
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <Router>
+            <Routes>
+                // Eager load critical routes
+                <Route path="/" view=HomePage />
+                <Route path="/login" view=LoginPage />
+
+                // Lazy load feature routes
+                <Route path="/dashboard" view=|| {
+                    lazy_route(
+                        || async { DashboardPage() },
+                        || view! { <RouteLoadingSkeleton /> }.into_any()
+                    )
+                } />
+            </Routes>
+        </Router>
+    }
+}
+```
+
+### Bundle Size Analysis
+
+Analyze your bundle size on application load:
+
+```rust
+use shared_microfrontend::utils::code_splitting::analyze_bundle_size;
+
+#[component]
+pub fn App() -> impl IntoView {
+    // Analyze bundle size on mount (development only)
+    #[cfg(debug_assertions)]
+    create_effect(move |_| {
+        analyze_bundle_size();
+    });
+
+    view! { /* ... */ }
+}
+```
+
+### Performance Monitoring
+
+Track component render times:
+
+```rust
+use shared_microfrontend::utils::code_splitting::measure_render_time;
+
+#[component]
+pub fn ExpensiveComponent() -> impl IntoView {
+    measure_render_time("ExpensiveComponent", || {
+        view! {
+            // Complex rendering logic
+        }
+    })
+}
+```
+
+### Preloading Routes
+
+Improve perceived performance by preloading routes on hover:
+
+```rust
+use shared_microfrontend::utils::code_splitting::preload_route;
+
+#[component]
+pub fn NavLink() -> impl IntoView {
+    view! {
+        <a
+            href="/dashboard"
+            on:mouseenter=move |_| {
+                preload_route("dashboard");
+            }
+        >
+            "Dashboard"
+        </a>
+    }
+}
+```
+
+### Bundle Size Recommendations
+
+- **WASM Bundle**: < 400KB (gzipped)
+- **Total Bundle**: < 500KB (gzipped)
+- **Initial Load**: < 1.5s (First Contentful Paint)
+- **Interactive**: < 3s (Time to Interactive)
+
+### Optimization Tips
+
+1. **Use Lazy Loading**: Split routes with `lazy_route()`
+2. **Enable Compression**: Configure gzip/brotli in Nginx
+3. **Optimize Images**: Use WebP format and lazy loading
+4. **Minimize Dependencies**: Only import what you need
+5. **Use Production Builds**: Always build with `--release`
+
+### Build Configuration
+
+Optimize your `Trunk.toml` for code splitting:
+
+```toml
+[build]
+target = "index.html"
+dist = "dist"
+release = true
+
+[[build.wasm_opt]]
+args = [
+  "-Oz",           # Maximum size optimization
+  "--enable-all",
+  "--strip-debug",
+  "--vacuum",
+]
+
+[build.wasm-bindgen]
+target = "web"
+reference-types = true
+weak-refs = true
+
+[build.rust]
+optimization-level = "z"
+lto = true
+codegen-units = 1
+```
+
+### Measuring Performance
+
+Use browser DevTools to measure:
+
+1. **Network Tab**: Check bundle sizes
+2. **Performance Tab**: Analyze load times
+3. **Lighthouse**: Run audits for Core Web Vitals
+4. **Console**: View bundle analysis logs
+

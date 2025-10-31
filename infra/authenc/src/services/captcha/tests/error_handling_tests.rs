@@ -1,10 +1,10 @@
 //! Comprehensive tests for CAPTCHA error handling and fallback mechanisms
 
 use crate::services::captcha::{
-    error::{CaptchaError, ErrorRecovery, ErrorContext, RecoveryResult},
-    fallback::{FallbackService, FallbackConfig, FallbackState, LocalEncryptionFallback},
-    retry::{RetryExecutor, RetryConfig, CircuitBreaker},
     enhanced_service::{EnhancedCaptchaService, ServiceHealth},
+    error::{CaptchaError, ErrorContext, ErrorRecovery, RecoveryResult},
+    fallback::{FallbackConfig, FallbackService, FallbackState, LocalEncryptionFallback},
+    retry::{CircuitBreaker, RetryConfig, RetryExecutor},
     service::{CaptchaService, CaptchaServiceTrait},
     types::*,
 };
@@ -234,19 +234,31 @@ pub async fn test_fallback_service_state_management() {
     let service = FallbackService::new(config);
 
     // Initial state should be normal
-    assert_eq!(service.get_state().await, FallbackState::Normal);
+    assert_eq!(
+        service.get_state().await,
+        crate::services::captcha::FallbackState::Normal
+    );
 
     // Enter degraded mode
     service.enter_degraded_mode("Test degradation").await;
-    assert_eq!(service.get_state().await, FallbackState::Degraded);
+    assert_eq!(
+        service.get_state().await,
+        crate::services::captcha::FallbackState::Degraded
+    );
 
     // Enter emergency mode
     service.enter_emergency_mode("Test emergency").await;
-    assert_eq!(service.get_state().await, FallbackState::Emergency);
+    assert_eq!(
+        service.get_state().await,
+        crate::services::captcha::FallbackState::Emergency
+    );
 
     // Return to normal
     service.return_to_normal().await;
-    assert_eq!(service.get_state().await, FallbackState::Normal);
+    assert_eq!(
+        service.get_state().await,
+        crate::services::captcha::FallbackState::Normal
+    );
 }
 
 /// Test fallback challenge generation
@@ -283,11 +295,7 @@ async fn test_enhanced_service_error_handling() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Test health status
     let health = enhanced_service.get_health_status().await;
@@ -297,7 +305,10 @@ async fn test_enhanced_service_error_handling() {
 
     // Test fallback status
     let fallback_status = enhanced_service.get_fallback_status().await;
-    assert_eq!(fallback_status.state, FallbackState::Normal);
+    assert_eq!(
+        fallback_status.state,
+        crate::services::captcha::FallbackState::Normal
+    );
     assert!(fallback_status.local_encryption_enabled);
 }
 
@@ -308,20 +319,21 @@ async fn test_enhanced_service_degraded_mode() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Force degraded mode
-    enhanced_service.force_degraded_mode("Test degraded mode").await;
+    enhanced_service
+        .force_degraded_mode("Test degraded mode")
+        .await;
 
     let health = enhanced_service.get_health_status().await;
     assert!(health.degraded_mode_active);
 
     let fallback_status = enhanced_service.get_fallback_status().await;
-    assert_eq!(fallback_status.state, FallbackState::Degraded);
+    assert_eq!(
+        fallback_status.state,
+        crate::services::captcha::FallbackState::Degraded
+    );
 
     // Return to normal
     enhanced_service.force_normal_mode().await;
@@ -337,11 +349,7 @@ async fn test_comprehensive_metrics() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let metrics = enhanced_service.get_comprehensive_metrics().await.unwrap();
 
@@ -350,11 +358,24 @@ async fn test_comprehensive_metrics() {
     assert_eq!(metrics.service_health.error_count, 0);
 
     // Verify fallback status
-    assert_eq!(metrics.fallback_status.state, FallbackState::Normal);
+    assert_eq!(
+        metrics.fallback_status.state,
+        crate::services::captcha::FallbackState::Normal
+    );
 
     // Verify circuit breaker states
-    assert!(metrics.circuit_breaker_states.secreton_state.contains("Closed"));
-    assert!(metrics.circuit_breaker_states.authenc_state.contains("Closed"));
+    assert!(
+        metrics
+            .circuit_breaker_states
+            .secreton_state
+            .contains("Closed")
+    );
+    assert!(
+        metrics
+            .circuit_breaker_states
+            .authenc_state
+            .contains("Closed")
+    );
 }
 
 /// Test error message generation
@@ -414,11 +435,7 @@ async fn test_maintenance_operations() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Perform maintenance
     let result = enhanced_service.perform_maintenance().await;
@@ -441,7 +458,11 @@ async fn test_error_context_propagation() {
     // Test recovery strategy
     let strategy = error.recovery_strategy();
     match strategy {
-        crate::services::captcha::error::RecoveryStrategy::Retry { max_attempts, delay, .. } => {
+        crate::services::captcha::error::RecoveryStrategy::Retry {
+            max_attempts,
+            delay,
+            ..
+        } => {
             assert_eq!(max_attempts, 3);
             assert_eq!(delay, Duration::from_secs(1));
         }
@@ -468,14 +489,12 @@ async fn test_complete_error_handling_flow() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Force degraded mode to test fallback generation
-    enhanced_service.force_degraded_mode("Integration test").await;
+    enhanced_service
+        .force_degraded_mode("Integration test")
+        .await;
 
     // Test challenge generation with fallback
     let challenge = enhanced_service
@@ -495,11 +514,7 @@ async fn test_complete_error_handling_flow() {
 
     // Test validation with fallback
     let validation_result = enhanced_service
-        .validate_challenge(
-            challenge.id.clone(),
-            "wrong_answer".to_string(),
-            None,
-        )
+        .validate_challenge(challenge.id.clone(), "wrong_answer".to_string(), None)
         .await;
 
     // Should succeed with fallback validation
@@ -528,11 +543,7 @@ async fn test_error_handling_performance() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let start_time = std::time::Instant::now();
     let iterations = 100;
@@ -551,5 +562,8 @@ async fn test_error_handling_performance() {
 
     // Error handling operations should be fast (< 1ms average)
     assert!(avg_time_per_operation < Duration::from_millis(1));
-    println!("Average time per error handling operation: {:?}", avg_time_per_operation);
+    println!(
+        "Average time per error handling operation: {:?}",
+        avg_time_per_operation
+    );
 }

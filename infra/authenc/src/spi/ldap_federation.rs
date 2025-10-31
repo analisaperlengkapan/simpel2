@@ -231,8 +231,8 @@ impl DefaultLdapFederationProvider {
             username.to_string(),
             email.unwrap_or_else(|| format!("{}@ldap.local", username)),
             "DEFAULT".to_string(), // Default satker code for LDAP users
-            None,                 // No password hash for LDAP users
-            Some(Uuid::new_v4()), // Default realm - should be configurable
+            None,                  // No password hash for LDAP users
+            Some(Uuid::new_v4()),  // Default realm - should be configurable
         );
 
         user.first_name = first_name;

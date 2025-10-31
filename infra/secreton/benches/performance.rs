@@ -699,6 +699,360 @@ fn create_hierarchical_admin_tokens() -> Vec<String> {
     ]
 }
 
+/// Benchmark Classical vs Hybrid vs PostQuantum mode performance with real algorithms
+fn bench_crypto_mode_comparison(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let config = SecretonConfig::benchmark_config();
+
+    let test_message = b"Test message for Attorney General's Office cryptographic operations";
+    let test_data_sizes = vec![
+        ("1KB", 1024),
+        ("10KB", 10240),
+        ("100KB", 102400),
+    ];
+
+    let mut group = c.benchmark_group("crypto_mode_comparison");
+    group.measurement_time(Duration::from_secs(30));
+
+    // Create crypto instances for each mode
+    let mut classical_crypto = rt.block_on(async {
+        let mut crypto = HybridCrypto::new(
+            secreton_crypto::hybrid::CryptoMode::Classical,
+            secreton_crypto::hybrid::SecurityRequirements::default(),
+            secreton_crypto::hybrid::PerformancePriority::default(),
+        ).unwrap();
+        crypto.generate_signing_keypair().unwrap();
+        crypto.generate_kem_keypair().unwrap();
+        crypto
+    });
+
+    let mut hybrid_crypto = rt.block_on(async {
+        let mut crypto = HybridCrypto::new(
+            secreton_crypto::hybrid::CryptoMode::Hybrid,
+            secreton_crypto::hybrid::SecurityRequirements::default(),
+            secreton_crypto::hybrid::PerformancePriority::default(),
+        ).unwrap();
+        crypto.generate_signing_keypair().unwrap();
+        crypto.generate_kem_keypair().unwrap();
+        crypto
+    });
+
+    let mut pq_crypto = rt.block_on(async {
+        let mut crypto = HybridCrypto::new(
+            secreton_crypto::hybrid::CryptoMode::PostQuantum,
+            secreton_crypto::hybrid::SecurityRequirements::default(),
+            secreton_crypto::hybrid::PerformancePriority::default(),
+        ).unwrap();
+        crypto.generate_signing_keypair().unwrap();
+        crypto.generate_kem_keypair().unwrap();
+        crypto
+    });
+
+    // Benchmark signature generation across modes
+    group.bench_function("classical_signature_generation", |b| {
+        b.iter(|| {
+            let _signature = classical_crypto.sign(test_message).unwrap();
+            black_box(_signature);
+        });
+    });
+
+    group.bench_function("hybrid_signature_generation", |b| {
+        b.iter(|| {
+            let _signature = hybrid_crypto.sign(test_message).unwrap();
+            black_box(_signature);
+        });
+    });
+
+    group.bench_function("postquantum_signature_generation", |b| {
+        b.iter(|| {
+            let _signature = pq_crypto.sign(test_message).unwrap();
+            black_box(_signature);
+        });
+    });
+
+    // Benchmark signature verification across modes
+    let classical_sig = classical_crypto.sign(test_message).unwrap();
+    let hybrid_sig = hybrid_crypto.sign(test_message).unwrap();
+    let pq_sig = pq_crypto.sign(test_message).unwrap();
+
+    group.bench_function("classical_signature_verification", |b| {
+        b.iter(|| {
+            let _valid = classical_crypto.verify(test_message, &classical_sig).unwrap();
+            black_box(_valid);
+        });
+    });
+
+    group.bench_function("hybrid_signature_verification", |b| {
+        b.iter(|| {
+            let _valid = hybrid_crypto.verify(test_message, &hybrid_sig).unwrap();
+            black_box(_valid);
+        });
+    });
+
+    group.bench_function("postquantum_signature_verification", |b| {
+        b.iter(|| {
+            let _valid = pq_crypto.verify(test_message, &pq_sig).unwrap();
+            black_box(_valid);
+        });
+    });
+
+    // Benchmark encryption across modes for different data sizes
+    for (size_name, size_bytes) in test_data_sizes {
+        let test_data = vec![0u8; size_bytes];
+        let recipient_pk = hybrid_crypto.get_public_keys().unwrap().pq_kem_public_key.unwrap();
+
+        group.bench_with_input(
+            BenchmarkId::new("classical_encryption", size_name),
+            &test_data,
+            |b, data| {
+                b.iter(|| {
+                    let _encrypted = classical_crypto.encrypt(data, &recipient_pk).unwrap();
+                    black_box(_encrypted);
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hybrid_encryption", size_name),
+            &test_data,
+            |b, data| {
+                b.iter(|| {
+                    let _encrypted = hybrid_crypto.encrypt(data, &recipient_pk).unwrap();
+                    black_box(_encrypted);
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("postquantum_encryption", size_name),
+            &test_data,
+            |b, data| {
+                b.iter(|| {
+                    let _encrypted = pq_crypto.encrypt(data, &recipient_pk).unwrap();
+                    black_box(_encrypted);
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Measure overhead of hybrid signatures vs classical
+fn bench_hybrid_signature_overhead(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+
+    let test_message = b"Overhead measurement for hybrid cryptography in SIMKARI";
+
+    let mut classical_crypto = rt.block_on(async {
+        let mut crypto = HybridCrypto::new(
+            secreton_crypto::hybrid::CryptoMode::Classical,
+            secreton_crypto::hybrid::SecurityRequirements::default(),
+            secreton_crypto::hybrid::PerformancePriority::default(),
+        ).unwrap();
+        crypto.generate_signing_keypair().unwrap();
+        crypto
+    });
+
+    let mut hybrid_crypto = rt.block_on(async {
+        let mut crypto = HybridCrypto::new(
+            secreton_crypto::hybrid::CryptoMode::Hybrid,
+            secreton_crypto::hybrid::SecurityRequirements::default(),
+            secreton_crypto::hybrid::PerformancePriority::default(),
+        ).unwrap();
+        crypto.generate_signing_keypair().unwrap();
+        crypto
+    });
+
+    let mut group = c.benchmark_group("hybrid_signature_overhead");
+    group.measurement_time(Duration::from_secs(20));
+
+    // Measure baseline classical performance
+    group.bench_function("baseline_classical_sign_verify", |b| {
+        b.iter(|| {
+            let signature = classical_crypto.sign(test_message).unwrap();
+            let _valid = classical_crypto.verify(test_message, &signature).unwrap();
+            black_box(_valid);
+        });
+    });
+
+    // Measure hybrid performance
+    group.bench_function("hybrid_sign_verify", |b| {
+        b.iter(|| {
+            let signature = hybrid_crypto.sign(test_message).unwrap();
+            let _valid = hybrid_crypto.verify(test_message, &signature).unwrap();
+            black_box(_valid);
+        });
+    });
+
+    // Measure signature size overhead
+    let classical_sig = classical_crypto.sign(test_message).unwrap();
+    let hybrid_sig = hybrid_crypto.sign(test_message).unwrap();
+
+    let classical_size = classical_sig.classical_signature.len();
+    let hybrid_size = hybrid_sig.classical_signature.len() + hybrid_sig.pq_signature.len();
+
+    println!("\n=== Signature Size Overhead ===");
+    println!("Classical signature size: {} bytes", classical_size);
+    println!("Hybrid signature size: {} bytes", hybrid_size);
+    println!("Overhead: {} bytes ({:.2}x)",
+        hybrid_size - classical_size,
+        hybrid_size as f64 / classical_size as f64
+    );
+
+    // Batch operations overhead
+    let batch_sizes = vec![10, 50, 100];
+    for batch_size in batch_sizes {
+        group.bench_with_input(
+            BenchmarkId::new("classical_batch_sign", batch_size),
+            &batch_size,
+            |b, &size| {
+                b.iter(|| {
+                    for _ in 0..size {
+                        let _sig = classical_crypto.sign(test_message).unwrap();
+                        black_box(_sig);
+                    }
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hybrid_batch_sign", batch_size),
+            &batch_size,
+            |b, &size| {
+                b.iter(|| {
+                    for _ in 0..size {
+                        let _sig = hybrid_crypto.sign(test_message).unwrap();
+                        black_box(_sig);
+                    }
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Create load testing for hierarchical operations with PQ
+fn bench_hierarchical_operations_with_pq(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let config = SecretonConfig::benchmark_config_with_post_quantum();
+    let secret_engine = rt.block_on(async {
+        EnhancedSecretEngine::new(&config).await.unwrap()
+    });
+
+    // Create PQ-enabled admin tokens
+    let pq_admin_tokens = create_pq_hierarchical_admin_tokens();
+    let target_satker = vec![
+        "KEJATI_DKI_JAKPUS",
+        "KEJATI_DKI_JAKSEL",
+        "KEJATI_JABAR_BANDUNG",
+        "KEJARI_SOLO",
+        "KEJARI_YOGYA",
+    ];
+
+    let mut group = c.benchmark_group("hierarchical_operations_with_pq");
+    group.measurement_time(Duration::from_secs(30));
+
+    // Benchmark PQ admin operations at different hierarchy levels
+    group.bench_function("pq_admin_pusat_operations", |b| {
+        let pusat_token = &pq_admin_tokens[0]; // AdminPusat
+
+        b.to_async(&rt).iter(|| async {
+            for target in &target_satker {
+                let _result = secret_engine.perform_pq_admin_operation(pusat_token, "read_secret", target).await;
+                black_box(_result);
+            }
+        });
+    });
+
+    group.bench_function("pq_admin_wilayah_operations", |b| {
+        let wilayah_token = &pq_admin_tokens[2]; // AdminWilayah
+
+        b.to_async(&rt).iter(|| async {
+            for target in &target_satker[..2] { // Only DKI satker
+                let _result = secret_engine.perform_pq_admin_operation(wilayah_token, "read_secret", target).await;
+                black_box(_result);
+            }
+        });
+    });
+
+    group.bench_function("pq_admin_satker_operations", |b| {
+        let satker_token = &pq_admin_tokens[4]; // AdminSatker
+
+        b.to_async(&rt).iter(|| async {
+            let target = &target_satker[0]; // Own satker only
+            let _result = secret_engine.perform_pq_admin_operation(satker_token, "read_secret", target).await;
+            black_box(_result);
+        });
+    });
+
+    // Benchmark concurrent PQ operations across hierarchy
+    for concurrent_level in [10, 25, 50].iter() {
+        group.bench_with_input(
+            BenchmarkId::new("concurrent_pq_hierarchical_ops", concurrent_level),
+            concurrent_level,
+            |b, &level| {
+                b.to_async(&rt).iter(|| async {
+                    let futures: Vec<_> = (0..level).map(|i| {
+                        let token = &pq_admin_tokens[i % pq_admin_tokens.len()];
+                        let target = &target_satker[i % target_satker.len()];
+                        secret_engine.perform_pq_admin_operation(token, "read_secret", target)
+                    }).collect();
+
+                    let _results = futures::future::join_all(futures).await;
+                    black_box(_results);
+                });
+            },
+        );
+    }
+
+    // Benchmark PQ signature verification in hierarchical context
+    group.bench_function("pq_hierarchical_signature_verification", |b| {
+        b.to_async(&rt).iter(|| async {
+            for token in &pq_admin_tokens {
+                let _validation = secret_engine.validate_pq_admin_token(token).await;
+                black_box(_validation);
+            }
+        });
+    });
+
+    // Benchmark mixed classical and PQ operations
+    group.bench_function("mixed_classical_pq_operations", |b| {
+        let classical_tokens = create_hierarchical_admin_tokens();
+
+        b.to_async(&rt).iter(|| async {
+            // Half classical, half PQ
+            for i in 0..10 {
+                if i % 2 == 0 {
+                    let token = &classical_tokens[i % classical_tokens.len()];
+                    let target = &target_satker[i % target_satker.len()];
+                    let _result = secret_engine.perform_admin_operation(token, "read_secret", target).await;
+                    black_box(_result);
+                } else {
+                    let token = &pq_admin_tokens[i % pq_admin_tokens.len()];
+                    let target = &target_satker[i % target_satker.len()];
+                    let _result = secret_engine.perform_pq_admin_operation(token, "read_secret", target).await;
+                    black_box(_result);
+                }
+            }
+        });
+    });
+
+    group.finish();
+}
+
+fn create_pq_hierarchical_admin_tokens() -> Vec<String> {
+    vec![
+        "pq_admin_token_AdminPusat_KEJAGUNG".to_string(),
+        "pq_admin_token_AdminEselonI_KEJAGUNG".to_string(),
+        "pq_admin_token_AdminWilayah_KEJATI_DKI".to_string(),
+        "pq_admin_token_AdminWilayah_KEJATI_JABAR".to_string(),
+        "pq_admin_token_AdminSatker_KEJATI_DKI_JAKPUS".to_string(),
+        "pq_admin_token_AdminSatker_KEJATI_DKI_JAKSEL".to_string(),
+    ]
+}
+
 criterion_group!(
     benches,
     bench_secret_retrieval_by_role,
@@ -706,7 +1060,10 @@ criterion_group!(
     bench_satker_batch_operations,
     bench_audit_logging_performance,
     bench_post_quantum_operations,
-    bench_load_testing_hierarchical_operations
+    bench_load_testing_hierarchical_operations,
+    bench_crypto_mode_comparison,
+    bench_hybrid_signature_overhead,
+    bench_hierarchical_operations_with_pq
 );
 
 criterion_main!(benches);

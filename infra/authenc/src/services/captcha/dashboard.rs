@@ -288,7 +288,10 @@ impl DashboardService {
     /// Generate overview metrics
     async fn generate_overview_metrics(&self) -> Result<OverviewMetrics, CaptchaError> {
         let summary_24h = self.metrics_collector.generate_summary(24 * 60).await?;
-        let active_challenges = self.db_ops.get_active_challenges_count().await
+        let active_challenges = self
+            .db_ops
+            .get_active_challenges_count()
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -389,7 +392,9 @@ impl DashboardService {
     }
 
     /// Generate user experience chart data
-    async fn generate_user_experience_chart_data(&self) -> Result<UserExperienceChartData, CaptchaError> {
+    async fn generate_user_experience_chart_data(
+        &self,
+    ) -> Result<UserExperienceChartData, CaptchaError> {
         let summary = self.metrics_collector.generate_summary(24 * 60).await?;
 
         let mut completion_time_distribution = Vec::new();
@@ -435,7 +440,7 @@ impl DashboardService {
             abandonment_rate_over_time,
             accessibility_usage_over_time,
             satisfaction_score_over_time,
-            retry_rate_by_difficulty
+            retry_rate_by_difficulty,
         })
     }
 
@@ -462,7 +467,7 @@ impl DashboardService {
             overall_status,
             components,
             uptime_percentage: 99.9, // Would be calculated from actual uptime data
-            last_incident: None, // Would be retrieved from incident log
+            last_incident: None,     // Would be retrieved from incident log
         })
     }
 
@@ -476,7 +481,9 @@ impl DashboardService {
         Ok(distribution)
     }
 
-    async fn generate_challenge_type_distribution(&self) -> Result<HashMap<ChallengeType, u64>, CaptchaError> {
+    async fn generate_challenge_type_distribution(
+        &self,
+    ) -> Result<HashMap<ChallengeType, u64>, CaptchaError> {
         let mut distribution = HashMap::new();
         distribution.insert(ChallengeType::Visual, 150);
         distribution.insert(ChallengeType::Audio, 30);
@@ -486,25 +493,33 @@ impl DashboardService {
         Ok(distribution)
     }
 
-    async fn generate_geographic_threat_map(&self) -> Result<HashMap<String, ThreatData>, CaptchaError> {
+    async fn generate_geographic_threat_map(
+        &self,
+    ) -> Result<HashMap<String, ThreatData>, CaptchaError> {
         let mut threat_map = HashMap::new();
 
         // Mock geographic threat data
-        threat_map.insert("US".to_string(), ThreatData {
-            country_code: "US".to_string(),
-            country_name: "United States".to_string(),
-            threat_count: 45,
-            risk_level: RiskLevel::Medium,
-            coordinates: Some((39.8283, -98.5795)),
-        });
+        threat_map.insert(
+            "US".to_string(),
+            ThreatData {
+                country_code: "US".to_string(),
+                country_name: "United States".to_string(),
+                threat_count: 45,
+                risk_level: RiskLevel::Medium,
+                coordinates: Some((39.8283, -98.5795)),
+            },
+        );
 
-        threat_map.insert("CN".to_string(), ThreatData {
-            country_code: "CN".to_string(),
-            country_name: "China".to_string(),
-            threat_count: 120,
-            risk_level: RiskLevel::High,
-            coordinates: Some((35.8617, 104.1954)),
-        });
+        threat_map.insert(
+            "CN".to_string(),
+            ThreatData {
+                country_code: "CN".to_string(),
+                country_name: "China".to_string(),
+                threat_count: 120,
+                risk_level: RiskLevel::High,
+                coordinates: Some((35.8617, 104.1954)),
+            },
+        );
 
         Ok(threat_map)
     }
@@ -546,7 +561,11 @@ impl DashboardService {
             Ok(_) => {
                 let response_time = start_time.elapsed().as_millis() as u64;
                 ComponentHealth {
-                    status: if response_time < 100 { HealthStatus::Healthy } else { HealthStatus::Warning },
+                    status: if response_time < 100 {
+                        HealthStatus::Healthy
+                    } else {
+                        HealthStatus::Warning
+                    },
                     response_time_ms: Some(response_time),
                     error_rate: 0.0,
                     last_check: SystemTime::now(),
@@ -559,7 +578,7 @@ impl DashboardService {
                 error_rate: 1.0,
                 last_check: SystemTime::now(),
                 message: Some(format!("Database error: {}", e)),
-            }
+            },
         }
     }
 
@@ -583,7 +602,7 @@ impl DashboardService {
                 error_rate: 0.5,
                 last_check: SystemTime::now(),
                 message: Some(format!("Metrics collector warning: {}", e)),
-            }
+            },
         }
     }
 
@@ -598,7 +617,10 @@ impl DashboardService {
         }
     }
 
-    fn determine_overall_health(&self, components: &HashMap<String, ComponentHealth>) -> HealthStatus {
+    fn determine_overall_health(
+        &self,
+        components: &HashMap<String, ComponentHealth>,
+    ) -> HealthStatus {
         let mut has_critical = false;
         let mut has_warning = false;
 

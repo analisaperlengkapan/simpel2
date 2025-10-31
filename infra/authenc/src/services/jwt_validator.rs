@@ -1,0 +1,404 @@
+//! JWT Validation Service with Caching
+//!
+//! This module provides an optimized JWT validation service with multi-layer caching
+//! to achieve fast token validation (< 10ms for cached tokens).
+//!
+//! # Features
+//! - JWT signature verification result caching (TTL: 5 minutes)
+//! - Token blacklist checking with cache integration
+//! - Fast-path validation for cached results
+//! - Automatic cache invalidation on token revocation
+//!
+//! # Performance
+//! - Cached validation: < 10ms (target)
+//! - Uncached validation: < 50ms (includes signature verification)
+//! - Cache hit ratio target: > 80%
+
+use crate::error::{AuthencError, Result};
+use crate::services::cache::Cache;
+use crate::utils::crypto::jwt::{hash_token, verify_jwt, Claims};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
+use tracing::{debug, warn};
+
+/// JWT validation result that can be cached
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationResult {
+    /// Whether the token is valid
+    pub valid: bool,
+    /// User ID from token claims
+    pub user_id: Option<String>,
+    /// Token expiration timestamp
+    pub expires_at: Option<usize>,
+    /// Error message if validation failed
+    pub error: Option<String>,
+    /// Timestamp when this result was cached
+    pub cached_at: i64,
+}
+
+/// JWT Validator with caching support
+pub struct JwtValidator {
+    /// Redis cache for validation results
+    cache: Option<Arc<dyn Cache>>,
+    /// Cache TTL for validation results (default: 5 minutes)
+    cache_ttl: Duration,
+}
+
+impl JwtValidator {
+    /// Create a new JWT validator with optional cache
+    ///
+    /// # Arguments
+    /// * `cache` - Optional cache implementation for storing validation results
+    ///
+    /// # Returns
+    /// A new `JwtValidator` instance
+    pub fn new(cache: Option<Arc<dyn Cache>>) -> Self {
+        Self {
+            cache,
+            cache_ttl: Duration::from_secs(300), // 5 minutes
+        }
+    }
+
+    /// Create a new JWT validator with custom cache TTL
+    ///
+    /// # Arguments
+    /// * `cache` - Optional cache implementation
+    /// * `cache_ttl` - Custom TTL for cached validation results
+    ///
+    /// # Returns
+    /// A new `JwtValidator` instance with custom TTL
+    pub fn with_ttl(cache: Option<Arc<dyn Cache>>, cache_ttl: Duration) -> Self {
+        Self { cache, cache_ttl }
+    }
+
+    /// Validate a JWT token with caching support
+    ///
+    /// This method implements a fast-path for cached validation results:
+    /// 1. Check cache for previous validation result
+    /// 2. If cache hit and not expired, return cached result (< 10ms)
+    /// 3. If cache miss, perform full validation and cache result
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string to validate
+    ///
+    /// # Returns
+    /// A `Result` containing the validation result
+    ///
+    /// # Performance
+    /// - Cache hit: < 10ms (target)
+    /// - Cache miss: < 50ms (includes signature verification)
+    pub async fn validate_token(&self, token: &str) -> Result<ValidationResult> {
+        // Fast path: Check cache first
+        if let Some(cache) = &self.cache {
+            let cache_key = self.get_cache_key(token);
+
+            // Try to get cached validation result
+            match cache.get(&cache_key).await {
+                Ok(Some(cached_value)) => {
+                    if let Ok(result) = serde_json::from_value::<ValidationResult>(cached_value) {
+                        // Verify cached result is still valid (not expired)
+                        if self.is_cached_result_valid(&result) {
+                            debug!("JWT validation cache hit for token");
+                            return Ok(result);
+                        } else {
+                            debug!("Cached JWT validation result expired, re-validating");
+                        }
+                    }
+                }
+                Ok(None) => {
+                    debug!("JWT validation cache miss");
+                }
+                Err(e) => {
+                    warn!("Cache get failed during JWT validation: {}", e);
+                    // Continue with validation even if cache fails
+                }
+            }
+        }
+
+        // Slow path: Perform full JWT validation
+        let result = self.validate_token_full(token).await?;
+
+        // Cache the validation result (non-blocking)
+        if let Some(cache) = &self.cache {
+            let cache_key = self.get_cache_key(token);
+            let cache_value = serde_json::to_value(&result).unwrap_or_default();
+
+            // Spawn cache write in background to avoid blocking
+            let cache_clone = Arc::clone(cache);
+            let cache_ttl = self.cache_ttl;
+            tokio::spawn(async move {
+                if let Err(e) = cache_clone.set(&cache_key, &cache_value, cache_ttl).await {
+                    warn!("Failed to cache JWT validation result: {}", e);
+                }
+            });
+        }
+
+        Ok(result)
+    }
+
+    /// Perform full JWT validation without cache
+    ///
+    /// This method performs complete JWT validation including:
+    /// 1. Signature verification
+    /// 2. Expiration checking
+    /// 3. Blacklist checking
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string to validate
+    ///
+    /// # Returns
+    /// A `Result` containing the validation result
+    async fn validate_token_full(&self, token: &str) -> Result<ValidationResult> {
+        // Check blacklist first (fast check)
+        if self.is_token_blacklisted(token).await? {
+            return Ok(ValidationResult {
+                valid: false,
+                user_id: None,
+                expires_at: None,
+                error: Some("Token has been revoked".to_string()),
+                cached_at: chrono::Utc::now().timestamp(),
+            });
+        }
+
+        // Verify JWT signature and claims
+        match verify_jwt(token) {
+            Ok(claims) => Ok(ValidationResult {
+                valid: true,
+                user_id: Some(claims.sub.clone()),
+                expires_at: Some(claims.exp),
+                error: None,
+                cached_at: chrono::Utc::now().timestamp(),
+            }),
+            Err(e) => Ok(ValidationResult {
+                valid: false,
+                user_id: None,
+                expires_at: None,
+                error: Some(e),
+                cached_at: chrono::Utc::now().timestamp(),
+            }),
+        }
+    }
+
+    /// Check if a token is blacklisted
+    ///
+    /// Checks the cache for a blacklist entry for the given token.
+    /// Blacklisted tokens are those that have been explicitly revoked.
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string to check
+    ///
+    /// # Returns
+    /// `true` if the token is blacklisted, `false` otherwise
+    async fn is_token_blacklisted(&self, token: &str) -> Result<bool> {
+        if let Some(cache) = &self.cache {
+            let blacklist_key = self.get_blacklist_key(token);
+
+            match cache.exists(&blacklist_key).await {
+                Ok(exists) => Ok(exists),
+                Err(e) => {
+                    warn!("Failed to check token blacklist: {}", e);
+                    // Fail open: if we can't check blacklist, allow the token
+                    // (signature verification will still catch invalid tokens)
+                    Ok(false)
+                }
+            }
+        } else {
+            // No cache available, can't check blacklist
+            Ok(false)
+        }
+    }
+
+    /// Check if a cached validation result is still valid
+    ///
+    /// Validates that:
+    /// 1. The cached result hasn't expired based on token expiration
+    /// 2. The cached result is recent enough (within cache TTL)
+    ///
+    /// # Arguments
+    /// * `result` - The cached validation result to check
+    ///
+    /// # Returns
+    /// `true` if the cached result is still valid, `false` otherwise
+    fn is_cached_result_valid(&self, result: &ValidationResult) -> bool {
+        if !result.valid {
+            // Invalid results can be cached to prevent repeated validation attempts
+            return true;
+        }
+
+        // Check if token has expired since caching
+        if let Some(expires_at) = result.expires_at {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as usize;
+
+            if expires_at < now {
+                debug!("Cached token has expired");
+                return false;
+            }
+        }
+
+        // Check if cached result is too old
+        let now = chrono::Utc::now().timestamp();
+        let age = now - result.cached_at;
+        if age > self.cache_ttl.as_secs() as i64 {
+            debug!("Cached validation result is too old");
+            return false;
+        }
+
+        true
+    }
+
+    /// Revoke a token by adding it to the blacklist
+    ///
+    /// Adds the token to the blacklist cache and invalidates any cached
+    /// validation results for this token.
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string to revoke
+    /// * `claims` - The token claims (for determining TTL)
+    ///
+    /// # Returns
+    /// A `Result` indicating success or failure
+    pub async fn revoke_token(&self, token: &str, claims: &Claims) -> Result<()> {
+        if let Some(cache) = &self.cache {
+            // Add to blacklist with TTL equal to token expiration
+            let blacklist_key = self.get_blacklist_key(token);
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as usize;
+
+            let ttl = if claims.exp > now {
+                Duration::from_secs((claims.exp - now) as u64)
+            } else {
+                Duration::from_secs(60) // Already expired, short TTL
+            };
+
+            cache
+                .set(&blacklist_key, &serde_json::json!(true), ttl)
+                .await?;
+
+            // Invalidate cached validation result
+            let cache_key = self.get_cache_key(token);
+            cache.delete(&cache_key).await?;
+
+            debug!("Token revoked and added to blacklist");
+        }
+
+        Ok(())
+    }
+
+    /// Invalidate cached validation result for a token
+    ///
+    /// Removes the cached validation result, forcing re-validation on next check.
+    /// This is useful when token permissions change or other token metadata is updated.
+    //
+  /// # Arguments
+    /// * `token` - The JWT token string to invalidate
+    ///
+    /// # Returns
+    /// A `Result` indicating success or failure
+    pub async fn invalidate_cache(&self, token: &str) -> Result<()> {
+        if let Some(cache) = &self.cache {
+            let cache_key = self.get_cache_key(token);
+            cache.delete(&cache_key).await?;
+            debug!("JWT validation cache invalidated for token");
+        }
+
+        Ok(())
+    }
+
+    /// Get cache key for token validation result
+    ///
+    /// Generates a cache key based on the token hash to avoid storing
+    /// the full token in the cache key.
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string
+    ///
+    /// # Returns
+    /// A cache key string
+    fn get_cache_key(&self, token: &str) -> String {
+        format!("jwt:validation:{}", hash_token(token))
+    }
+
+    /// Get blacklist cache key for a token
+    ///
+    /// Generates a blacklist cache key based on the token hash.
+    ///
+    /// # Arguments
+    /// * `token` - The JWT token string
+    ///
+    /// # Returns
+    /// A blacklist cache key string
+    fn get_blacklist_key(&self, token: &str) -> String {
+        format!("jwt:blacklist:{}", hash_token(token))
+    }
+
+    /// Get cache statistics
+    ///
+    /// Returns statistics about cache performance if cache is available.
+    ///
+    /// # Returns
+    /// An optional tuple of (hits, misses, hit_ratio)
+    pub async fn get_cache_stats(&self) -> Option<(u64, u64, f64)> {
+        // This would require the cache to expose metrics
+        // For now, return None - can be implemented when cache metrics are available
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::crypto::jwt::generate_jwt;
+
+    #[tokio::test]
+    async fn test_jwt_validation_without_cache() {
+        let validator = JwtValidator::new(None);
+
+        // Generate a valid token
+        let token = generate_jwt("test_user").expect("Failed to generate token");
+
+        // Validate token
+        let result = validator.validate_token(&token).await.unwrap();
+
+        assert!(result.valid);
+        assert_eq!(result.user_id, Some("test_user".to_string()));
+        assert!(result.expires_at.is_some());
+        assert!(result.error.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_jwt_validation_with_invalid_token() {
+        let validator = JwtValidator::new(None);
+
+        // Invalid token
+        let token = "invalid.jwt.token";
+
+        // Validate token
+        let result = validator.validate_token(token).await.unwrap();
+
+        assert!(!result.valid);
+        assert!(result.user_id.is_none());
+        assert!(result.error.is_some());
+    }
+
+    #[test]
+    fn test_cache_key_generation() {
+        let validator = JwtValidator::new(None);
+        let token = "test.jwt.token";
+
+        let key1 = validator.get_cache_key(token);
+        let key2 = validator.get_cache_key(token);
+
+        // Same token should generate same cache key
+        assert_eq!(key1, key2);
+
+        // Different tokens should generate different keys
+        let key3 = validator.get_cache_key("different.jwt.token");
+        assert_ne!(key1, key3);
+    }
+}

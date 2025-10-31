@@ -83,10 +83,7 @@ pub struct CreateSessionParams<'a> {
 #[async_trait]
 pub trait SsoSessionManager: Send + Sync {
     /// Create a new SSO session
-    async fn create_session(
-        &self,
-        params: CreateSessionParams<'_>,
-    ) -> Result<SsoSession>;
+    async fn create_session(&self, params: CreateSessionParams<'_>) -> Result<SsoSession>;
 
     /// Get SSO session by session ID
     async fn get_session(&self, session_id: &str) -> Result<Option<SsoSession>>;
@@ -147,10 +144,7 @@ impl Default for DefaultSsoSessionManager {
 
 #[async_trait]
 impl SsoSessionManager for DefaultSsoSessionManager {
-    async fn create_session(
-        &self,
-        params: CreateSessionParams<'_>,
-    ) -> Result<SsoSession> {
+    async fn create_session(&self, params: CreateSessionParams<'_>) -> Result<SsoSession> {
         let session_id = Uuid::new_v4().to_string();
         let now = Utc::now();
 

@@ -11,9 +11,9 @@ use uuid::Uuid;
 
 use crate::config::AuthencConfig;
 use crate::crypto::CryptoEngine;
-use crate::models::{User, Role, RoleScope, AdminLevel, SecretonAccessPolicy, AccessLevel};
-use crate::vault::SecretonClient;
 use crate::error::AuthencError;
+use crate::models::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, User};
+use crate::vault::SecretonClient;
 
 /// Test suite for validating zero-trust architecture principles
 #[cfg(test)]
@@ -29,7 +29,12 @@ mod zero_trust_validation {
         // Test that authenc core functionality works independently
         let test_data = b"test authentication data";
         let signature = crypto_engine.sign_data(test_data).await.unwrap();
-        assert!(crypto_engine.verify_signature(test_data, &signature).await.unwrap());
+        assert!(
+            crypto_engine
+                .verify_signature(test_data, &signature)
+                .await
+                .unwrap()
+        );
 
         // Test JWT operations work independently
         let claims = serde_json::json!({
@@ -80,8 +85,9 @@ mod zero_trust_validation {
         // Test that authenc continues to function when secreton is unavailable
         let result = timeout(
             Duration::from_secs(5),
-            secreton_client.get_signing_key("test-key", &Default::default())
-        ).await;
+            secreton_client.get_signing_key("test-key", &Default::default()),
+        )
+        .await;
 
         match result {
             Ok(Err(AuthencError::SecretonCommunicationError { .. })) => {
@@ -113,7 +119,12 @@ mod zero_trust_validation {
 
         // Verify audit signature independently
         let audit_bytes = serde_json::to_vec(&audit_data).unwrap();
-        assert!(crypto_engine.verify_signature(&audit_bytes, &audit_signature).await.unwrap());
+        assert!(
+            crypto_engine
+                .verify_signature(&audit_bytes, &audit_signature)
+                .await
+                .unwrap()
+        );
     }
 }
 
@@ -260,7 +271,9 @@ mod mtls_communication_validation {
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         // Test secure channel establishment (mock)
-        let channel_result = secreton_client.establish_secure_channel("secreton.test").await;
+        let channel_result = secreton_client
+            .establish_secure_channel("secreton.test")
+            .await;
 
         match channel_result {
             Ok(channel) => {
@@ -312,7 +325,9 @@ fn create_test_security_context(satker_code: &str, access_level: AccessLevel) ->
 // Additional trait implementations for test helpers
 impl User {
     fn can_access_satker_secret(&self, satker_code: &str) -> bool {
-        self.secreton_access_policy.allowed_satker_secrets.contains(&satker_code.to_string())
+        self.secreton_access_policy
+            .allowed_satker_secrets
+            .contains(&satker_code.to_string())
     }
 }
 

@@ -8,6 +8,7 @@ mod push;
 mod queue;
 mod security;
 mod template;
+mod websocket;
 mod whatsapp;
 
 use crate::config::AppConfig;
@@ -55,10 +56,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]);
     // Rate limit state
     let rate_limit_state: RateLimitState = Arc::new(Mutex::new(HashMap::new()));
+    // WebSocket state
+    let ws_state = websocket::WsState::new(pool.clone());
     // Router
-    let app = handlers::routes(config.clone(), pool.clone(), rate_limit_state.clone())
-        .layer(cors)
-        .layer(TraceLayer::new_for_http());
+    let app = handlers::routes(
+        config.clone(),
+        pool.clone(),
+        rate_limit_state.clone(),
+        ws_state.clone(),
+    )
+    .layer(cors)
+    .layer(TraceLayer::new_for_http());
     // Health & metrics
     let metrics_route = Router::new().route(
         "/metrics",

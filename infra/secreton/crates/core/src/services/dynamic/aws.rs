@@ -1,6 +1,6 @@
-use crate::utils::config::Config;
 use chrono::{Duration, Utc};
 use serde::Serialize;
+use crate::config::Config;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct AwsCredential {
@@ -11,7 +11,6 @@ pub struct AwsCredential {
 }
 
 pub async fn generate_aws_credential(
-    _config: &Config,
     role: &str,
 ) -> Result<AwsCredential, String> {
     // Dummy: generate random access_key/secret_key, expiry

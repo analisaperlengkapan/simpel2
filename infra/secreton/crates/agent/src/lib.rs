@@ -1,332 +1,221 @@
-//! Brankas Agent Library
-
-//! Brankas Security Agent
+//! Secreton Vault Agent
 //!
-//! Real-time monitoring, alerting, and security enforcement agent
-//! for the Brankas security system.
+//! Auto-authentication, token renewal, and template rendering agent for Secreton vault.
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, warn};
-
-pub mod alerting;
+pub mod auth;
 pub mod config;
 pub mod health;
-pub mod metrics;
-pub mod monitoring;
-pub mod security;
+pub mod sink;
+pub mod template;
 
-pub use alerting::*;
-pub use config::*;
-pub use health::*;
-pub use metrics::*;
-pub use monitoring::*;
-pub use security::*;
+pub use config::AgentConfig;
 
-use secreton_core::{CoreError, CoreResult};
+use anyhow::Result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{error, info, warn};
 
 /// Main agent structure
-#[derive(Debug)]
-pub struct BrankasAgent {
+pub struct SecretonAgent {
     config: AgentConfig,
-    monitor: Arc<SystemMonitor>,
-    alerter: Arc<AlertManager>,
-    security_enforcer: Arc<SecurityEnforcer>,
-    health_checker: Arc<HealthChecker>,
-    metrics_collector: Arc<MetricsCollector>,
+    token: Arc<RwLock<Option<String>>>,
+    http_client: reqwest::Client,
     shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
 }
 
-impl BrankasAgent {
-    /// Create a new Brankas Agent
-    pub async fn new(config: AgentConfig) -> CoreResult<Self> {
-        info!(
-            "Initializing Brankas Security Agent v{}",
-            env!("CARGO_PKG_VERSION")
-        );
-
-        // Create monitoring event channel
-        let (monitoring_tx, _monitoring_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        // Create alert channel
-        let (_alert_tx, alert_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        // Create security event channel
-        let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        // Create health check channel
-        let (health_tx, _health_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        // Create metrics channel
-        let (_metrics_tx, metrics_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        let monitor = Arc::new(SystemMonitor::new(config.monitoring.clone(), monitoring_tx));
-        let alerter = Arc::new(AlertManager::new(config.alerting.clone(), alert_rx));
-        let security_enforcer = Arc::new(SecurityEnforcer::new(config.security.clone(), event_tx));
-        let health_checker = Arc::new(HealthChecker::new(config.health.clone(), health_tx));
-        let metrics_collector = Arc::new(MetricsCollector::new(config.metrics.clone(), metrics_rx));
+impl SecretonAgent {
+    /// Create new agent
+    pub fn new(config: AgentConfig) -> Result<Self> {
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()?;
 
         Ok(Self {
             config,
-            monitor,
-            alerter,
-            security_enforcer,
-            health_checker,
-            metrics_collector,
+            token: Arc::new(RwLock::new(None)),
+            http_client,
             shutdown_tx: None,
         })
     }
 
-    /// Start the agent with all monitoring services
-    pub async fn start(&mut self) -> CoreResult<()> {
-        info!("Starting Brankas Security Agent...");
+    /// Start the agent
+    pub async fn start(&mut self) -> Result<()> {
+        info!("Starting Secreton Agent");
 
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel(1);
         self.shutdown_tx = Some(shutdown_tx);
 
-        // Start all services
-        let monitor_task = self.start_monitoring_service(shutdown_rx.resubscribe());
-        let alert_task = self.start_alerting_service(shutdown_rx.resubscribe());
-        let security_task = self.start_security_service(shutdown_rx.resubscribe());
-        let health_task = self.start_health_service(shutdown_rx.resubscribe());
-        let metrics_task = self.start_metrics_service(shutdown_rx.resubscribe());
+        // Initial authentication
+        self.authenticate().await?;
 
-        info!("All agent services started successfully");
+        // Start token renewal task
+        let token_renewal = self.start_token_renewal(shutdown_rx.resubscribe());
 
-        // Wait for shutdown signal
+        // Start template rendering task
+        let template_rendering = self.start_template_rendering(shutdown_rx.resubscribe());
+
+        // Start health server if configured
+        let health_server = if let Some(port) = self.config.health_port {
+            Some(self.start_health_server(port, shutdown_rx.resubscribe()))
+        } else {
+            None
+        };
+
+        // Wait for shutdown
         tokio::select! {
-            _ = monitor_task => warn!("Monitoring service stopped"),
-            _ = alert_task => warn!("Alerting service stopped"),
-            _ = security_task => warn!("Security service stopped"),
-            _ = health_task => warn!("Health service stopped"),
-            _ = metrics_task => warn!("Metrics service stopped"),
+            _ = token_renewal => warn!("Token renewal stopped"),
+            _ = template_rendering => warn!("Template rendering stopped"),
+            _ = async {
+                if let Some(server) = health_server {
+                    server.await
+                } else {
+                    std::future::pending().await
+                }
+            } => warn!("Health server stopped"),
             _ = shutdown_rx.recv() => info!("Shutdown signal received"),
-            _ = tokio::signal::ctrl_c() => info!("Ctrl+C received, shutting down"),
+            _ = tokio::signal::ctrl_c() => info!("Ctrl+C received"),
         }
 
         self.shutdown().await
     }
 
-    /// Shutdown the agent gracefully
-    pub async fn shutdown(&self) -> CoreResult<()> {
-        info!("Shutting down Brankas Security Agent...");
+    /// Authenticate with vault
+    async fn authenticate(&self) -> Result<()> {
+        info!("Authenticating with Secreton vault");
+
+        let token = auth::authenticate(
+            &self.http_client,
+            &self.config.server_url,
+            &self.config.auth_method,
+            &self.config.auth_config,
+        )
+        .await?;
+
+        *self.token.write().await = Some(token.clone());
+
+        // Write token to sink if configured
+        if let Some(ref sink_config) = self.config.sink {
+            sink::write_token(&token, sink_config).await?;
+        }
+
+        info!("Authentication successful");
+        Ok(())
+    }
+
+    /// Start token renewal task
+    async fn start_token_renewal(
+        &self,
+        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+    ) -> Result<()> {
+        let token = Arc::clone(&self.token);
+        let http_client = self.http_client.clone();
+        let server_url = self.config.server_url.clone();
+        let renewal_interval = self.config.token_renewal_interval;
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(renewal_interval);
+
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        if let Some(ref current_token) = *token.read().await {
+                            match auth::renew_token(&http_client, &server_url, current_token).await {
+                                Ok(new_token) => {
+                                    *token.write().await = Some(new_token);
+                                    info!("Token renewed successfully");
+                                }
+                                Err(e) => {
+                                    error!("Failed to renew token: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    _ = shutdown_rx.recv() => {
+                        info!("Token renewal task shutting down");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Start template rendering task
+    async fn start_template_rendering(
+        &self,
+        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+    ) -> Result<()> {
+        let token = Arc::clone(&self.token);
+        let http_client = self.http_client.clone();
+        let server_url = self.config.server_url.clone();
+        let templates = self.config.templates.clone();
+        let render_interval = self.config.template_interval;
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(render_interval);
+
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {
+                        if let Some(ref current_token) = *token.read().await {
+                            for template_config in &templates {
+                                match template::render_template(
+                                    &http_client,
+                                    &server_url,
+                                    current_token,
+                                    template_config,
+                                )
+                                .await
+                                {
+                                    Ok(_) => {
+                                        info!("Template rendered: {}", template_config.dest);
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to render template {}: {}", template_config.dest, e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ = shutdown_rx.recv() => {
+                        info!("Template rendering task shutting down");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Start health server
+    async fn start_health_server(
+        &self,
+        port: u16,
+        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+    ) -> Result<()> {
+        let token = Arc::clone(&self.token);
+
+        tokio::spawn(async move {
+            if let Err(e) = health::start_server(port, token, shutdown_rx).await {
+                error!("Health server error: {}", e);
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Shutdown agent
+    async fn shutdown(&self) -> Result<()> {
+        info!("Shutting down Secreton Agent");
 
         if let Some(tx) = &self.shutdown_tx {
             let _ = tx.send(());
         }
 
-        // Give services time to cleanup
-        sleep(Duration::from_secs(2)).await;
-
-        info!("Brankas Security Agent shutdown complete");
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        info!("Secreton Agent stopped");
         Ok(())
     }
-
-    /// Start monitoring service
-    async fn start_monitoring_service(
-        &self,
-        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
-    ) -> CoreResult<()> {
-        let monitor = Arc::clone(&self.monitor);
-
-        tokio::spawn(async move {
-            tokio::select! {
-                result = monitor.start() => {
-                    if let Err(e) = result {
-                        error!("Monitoring service failed: {}", e);
-                    }
-                }
-                _ = shutdown_rx.recv() => {
-                    debug!("Monitoring service shutting down");
-                    if let Err(e) = monitor.stop().await {
-                        error!("Error stopping monitoring service: {}", e);
-                    }
-                }
-            }
-
-            Ok::<(), CoreError>(())
-        })
-        .await
-        .map_err(|e| {
-            CoreError::Internal(anyhow::anyhow!("Monitoring service task failed: {}", e))
-        })??;
-
-        Ok(())
-    }
-
-    /// Start alerting service  
-    async fn start_alerting_service(
-        &self,
-        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
-    ) -> CoreResult<()> {
-        let _alerter = Arc::clone(&self.alerter);
-
-        tokio::spawn(async move {
-            // We can't clone AlertManager, so we need to work around this
-            // For now, let's just run a simple loop that processes alerts
-            let interval = Duration::from_secs(10);
-            let mut interval_timer = tokio::time::interval(interval);
-
-            loop {
-                tokio::select! {
-                    _ = interval_timer.tick() => {
-                        // Since we can't call start() on a shared reference,
-                        // we'll need to redesign this or create a different approach
-                        tracing::debug!("Alerting service tick");
-                    }
-                    _ = shutdown_rx.recv() => {
-                        debug!("Alerting service shutting down");
-                        break;
-                    }
-                }
-            }
-
-            Ok::<(), CoreError>(())
-        })
-        .await
-        .map_err(|e| {
-            CoreError::Internal(anyhow::anyhow!("Alerting service task failed: {}", e))
-        })??;
-
-        Ok(())
-    }
-
-    /// Start security enforcement service
-    async fn start_security_service(
-        &self,
-        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
-    ) -> CoreResult<()> {
-        let _enforcer = Arc::clone(&self.security_enforcer);
-
-        tokio::spawn(async move {
-            let interval = Duration::from_secs(300); // 5 minutes
-            let mut interval_timer = tokio::time::interval(interval);
-
-            loop {
-                tokio::select! {
-                    _ = interval_timer.tick() => {
-                        tracing::debug!("Security enforcement service tick");
-                        // Perform security checks here
-                    }
-                    _ = shutdown_rx.recv() => {
-                        debug!("Security service shutting down");
-                        break;
-                    }
-                }
-            }
-
-            Ok::<(), CoreError>(())
-        })
-        .await
-        .map_err(|e| {
-            CoreError::Internal(anyhow::anyhow!("Security service task failed: {}", e))
-        })??;
-
-        Ok(())
-    }
-
-    /// Start health checking service
-    async fn start_health_service(
-        &self,
-        shutdown_rx: tokio::sync::broadcast::Receiver<()>,
-    ) -> CoreResult<()> {
-        let health_checker = Arc::clone(&self.health_checker);
-
-        if let Err(e) = health_checker.start(shutdown_rx).await {
-            tracing::error!("Health checker error: {}", e);
-        }
-
-        Ok(())
-    }
-
-    /// Start metrics collection service
-    async fn start_metrics_service(
-        &self,
-        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
-    ) -> CoreResult<()> {
-        let _collector = Arc::clone(&self.metrics_collector);
-
-        tokio::spawn(async move {
-            let interval = Duration::from_secs(60);
-            let mut interval_timer = tokio::time::interval(interval);
-
-            loop {
-                tokio::select! {
-                    _ = interval_timer.tick() => {
-                        tracing::debug!("Metrics collection service tick");
-                        // Collect metrics here
-                    }
-                    _ = shutdown_rx.recv() => {
-                        debug!("Metrics service shutting down");
-                        break;
-                    }
-                }
-            }
-
-            Ok::<(), CoreError>(())
-        })
-        .await
-        .map_err(|e| {
-            CoreError::Internal(anyhow::anyhow!("Metrics service task failed: {}", e))
-        })??;
-
-        Ok(())
-    }
-
-    /// Get current agent status
-    pub async fn get_status(&self) -> AgentStatus {
-        AgentStatus {
-            agent_id: self.config.agent_id.clone(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            started_at: Utc::now(), // Should track actual start time
-            uptime_seconds: 0,      // Should calculate actual uptime
-            monitoring_active: true,
-            alerting_active: true,
-            security_active: true,
-            health_active: true,
-            metrics_active: true,
-            last_monitoring_check: Utc::now(),
-            last_alert_processed: Utc::now(),
-            last_security_scan: Utc::now(),
-            last_health_check: Utc::now(),
-            last_metrics_collection: Utc::now(),
-        }
-    }
-}
-
-/// Agent runtime status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentStatus {
-    pub agent_id: String,
-    pub version: String,
-    pub started_at: DateTime<Utc>,
-    pub uptime_seconds: u64,
-    pub monitoring_active: bool,
-    pub alerting_active: bool,
-    pub security_active: bool,
-    pub health_active: bool,
-    pub metrics_active: bool,
-    pub last_monitoring_check: DateTime<Utc>,
-    pub last_alert_processed: DateTime<Utc>,
-    pub last_security_scan: DateTime<Utc>,
-    pub last_health_check: DateTime<Utc>,
-    pub last_metrics_collection: DateTime<Utc>,
-}
-
-/// Entry point function for running the agent
-pub async fn run_agent() -> CoreResult<()> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
-
-    // Load configuration
-    let config = AgentConfig::load_from_env().await.unwrap_or_else(|_| {
-        warn!("Failed to load config from environment, using defaults");
-        AgentConfig::default()
-    });
-
-    // Create and start agent
-    let mut agent = BrankasAgent::new(config).await?;
-    agent.start().await
 }

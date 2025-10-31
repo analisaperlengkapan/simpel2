@@ -3,14 +3,14 @@
 use crate::error::AuthencError;
 use crate::models::events::EventType;
 use crate::services::events::EventManager;
+use chrono::Timelike;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
+use tracing::{error, info, warn};
 use uuid::Uuid;
-use tracing::{warn, error, info};
-use chrono::Timelike;
 
 /// MFA security monitoring configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,7 +158,7 @@ struct IpTrackingInfo {
 /// User behavior pattern
 #[derive(Debug)]
 struct UserBehaviorPattern {
-    usual_login_hours: HashMap<u8, u32>, // Hour -> count
+    usual_login_hours: HashMap<u8, u32>,   // Hour -> count
     usual_locations: HashMap<String, u32>, // Location -> count
     last_successful_mfa: Option<Instant>,
     average_mfa_time: Duration,
@@ -229,10 +229,7 @@ impl AlertHandler for LoggingAlertHandler {
 
 impl MfaSecurityMonitor {
     /// Create a new MFA security monitor
-    pub fn new(
-        config: MfaSecurityMonitorConfig,
-        event_manager: Arc<RwLock<EventManager>>,
-    ) -> Self {
+    pub fn new(config: MfaSecurityMonitorConfig, event_manager: Arc<RwLock<EventManager>>) -> Self {
         let monitor = Self {
             config,
             event_manager,
@@ -263,16 +260,16 @@ impl MfaSecurityMonitor {
         let mut ip_tracking = self.ip_tracking.write().await;
         let now = Instant::now();
 
-        let tracking_info = ip_tracking.entry(ip.to_string()).or_insert_with(|| {
-            IpTrackingInfo {
+        let tracking_info = ip_tracking
+            .entry(ip.to_string())
+            .or_insert_with(|| IpTrackingInfo {
                 failed_attempts: 0,
                 mfa_setups: 0,
                 first_seen: now,
                 last_activity: now,
                 user_agents: Vec::new(),
                 targeted_users: Vec::new(),
-            }
-        });
+            });
 
         tracking_info.failed_attempts += 1;
         tracking_info.last_activity = now;
@@ -291,9 +288,10 @@ impl MfaSecurityMonitor {
 
         // Check for excessive failed attempts
         let should_alert_excessive = {
-            let window_start = now - Duration::from_secs(self.config.failed_attempts_window_seconds);
-            tracking_info.first_seen > window_start &&
-            tracking_info.failed_attempts >= self.config.max_failed_attempts_per_ip
+            let window_start =
+                now - Duration::from_secs(self.config.failed_attempts_window_seconds);
+            tracking_info.first_seen > window_start
+                && tracking_info.failed_attempts >= self.config.max_failed_attempts_per_ip
         };
 
         if should_alert_excessive {
@@ -305,12 +303,14 @@ impl MfaSecurityMonitor {
                 ip: ip.to_string(),
                 attempts,
                 time_window,
-            }).await?;
+            })
+            .await?;
             return Ok(());
         }
 
         // Check for brute force patterns (multiple users targeted)
-        let should_alert_brute_force = tracking_info.targeted_users.len() > 3 && tracking_info.failed_attempts > 10;
+        let should_alert_brute_force =
+            tracking_info.targeted_users.len() > 3 && tracking_info.failed_attempts > 10;
 
         if should_alert_brute_force {
             let target_users = tracking_info.targeted_users.clone();
@@ -321,7 +321,8 @@ impl MfaSecurityMonitor {
                 ip: ip.to_string(),
                 target_users,
                 attempts,
-            }).await?;
+            })
+            .await?;
         }
 
         Ok(())
@@ -338,14 +339,14 @@ impl MfaSecurityMonitor {
         let now = Instant::now();
         let current_hour = chrono::Utc::now().hour() as u8;
 
-        let pattern = user_patterns.entry(user_id).or_insert_with(|| {
-            UserBehaviorPattern {
+        let pattern = user_patterns
+            .entry(user_id)
+            .or_insert_with(|| UserBehaviorPattern {
                 usual_login_hours: HashMap::new(),
                 usual_locations: HashMap::new(),
                 last_successful_mfa: None,
                 average_mfa_time: Duration::from_secs(30),
-            }
-        });
+            });
 
         // Update login hour pattern
         *pattern.usual_login_hours.entry(current_hour).or_insert(0) += 1;
@@ -362,11 +363,15 @@ impl MfaSecurityMonitor {
             let total_logins: u32 = pattern.usual_login_hours.values().sum();
             let current_hour_count = pattern.usual_login_hours.get(&current_hour).unwrap_or(&0);
 
-            if total_logins > 10 { // Only check after sufficient data
+            if total_logins > 10 {
+                // Only check after sufficient data
                 let hour_probability = *current_hour_count as f64 / total_logins as f64;
 
-                if hour_probability < 0.1 { // Less than 10% of usual activity
-                    let usual_hours: Vec<u8> = pattern.usual_login_hours.iter()
+                if hour_probability < 0.1 {
+                    // Less than 10% of usual activity
+                    let usual_hours: Vec<u8> = pattern
+                        .usual_login_hours
+                        .iter()
                         .filter(|&(_, &count)| count > 0)
                         .map(|(&hour, _)| hour)
                         .collect();
@@ -378,7 +383,8 @@ impl MfaSecurityMonitor {
                         usual_hours,
                         current_hour,
                         anomaly_score: 1.0 - hour_probability,
-                    }).await?;
+                    })
+                    .await?;
                 }
             }
         }
@@ -391,16 +397,16 @@ impl MfaSecurityMonitor {
         let mut ip_tracking = self.ip_tracking.write().await;
         let now = Instant::now();
 
-        let tracking_info = ip_tracking.entry(ip.to_string()).or_insert_with(|| {
-            IpTrackingInfo {
+        let tracking_info = ip_tracking
+            .entry(ip.to_string())
+            .or_insert_with(|| IpTrackingInfo {
                 failed_attempts: 0,
                 mfa_setups: 0,
                 first_seen: now,
                 last_activity: now,
                 user_agents: Vec::new(),
                 targeted_users: Vec::new(),
-            }
-        });
+            });
 
         tracking_info.mfa_setups += 1;
         tracking_info.last_activity = now;
@@ -408,8 +414,8 @@ impl MfaSecurityMonitor {
         // Check for excessive MFA setups
         let should_alert_setup = {
             let one_hour_ago = now - Duration::from_secs(3600);
-            tracking_info.first_seen > one_hour_ago &&
-            tracking_info.mfa_setups >= self.config.max_setups_per_ip_per_hour
+            tracking_info.first_seen > one_hour_ago
+                && tracking_info.mfa_setups >= self.config.max_setups_per_ip_per_hour
         };
 
         if should_alert_setup {
@@ -420,7 +426,8 @@ impl MfaSecurityMonitor {
                 ip: ip.to_string(),
                 setups,
                 time_window: Duration::from_secs(3600),
-            }).await?;
+            })
+            .await?;
         }
 
         Ok(())
@@ -437,7 +444,8 @@ impl MfaSecurityMonitor {
             user_id,
             ip: ip.to_string(),
             failed_attempts,
-        }).await
+        })
+        .await
     }
 
     /// Generate and handle a security alert
@@ -493,7 +501,13 @@ impl MfaSecurityMonitor {
         .detail("description", alert.description.clone())
         .build();
 
-        if let Err(e) = self.event_manager.write().await.fire_event(security_event).await {
+        if let Err(e) = self
+            .event_manager
+            .write()
+            .await
+            .fire_event(security_event)
+            .await
+        {
             error!("Failed to fire security event: {}", e);
         }
 
@@ -501,17 +515,17 @@ impl MfaSecurityMonitor {
     }
 
     /// Analyze security event and determine response
-    fn analyze_event(&self, event_type: &MfaSecurityEventType) -> (
-        AlertSeverity,
-        String,
-        Vec<String>,
-        Vec<Uuid>,
-        Vec<String>,
-    ) {
+    fn analyze_event(
+        &self,
+        event_type: &MfaSecurityEventType,
+    ) -> (AlertSeverity, String, Vec<String>, Vec<Uuid>, Vec<String>) {
         match event_type {
             MfaSecurityEventType::ExcessiveFailedAttempts { ip, attempts, .. } => (
                 AlertSeverity::High,
-                format!("Excessive MFA failed attempts from IP {}: {} attempts", ip, attempts),
+                format!(
+                    "Excessive MFA failed attempts from IP {}: {} attempts",
+                    ip, attempts
+                ),
                 vec![
                     "Consider blocking IP address".to_string(),
                     "Review authentication logs".to_string(),
@@ -520,10 +534,18 @@ impl MfaSecurityMonitor {
                 vec![],
                 vec![ip.clone()],
             ),
-            MfaSecurityEventType::BruteForceAttackDetected { ip, target_users, attempts } => (
+            MfaSecurityEventType::BruteForceAttackDetected {
+                ip,
+                target_users,
+                attempts,
+            } => (
                 AlertSeverity::Critical,
-                format!("Brute force attack detected from IP {}: {} attempts against {} users",
-                       ip, attempts, target_users.len()),
+                format!(
+                    "Brute force attack detected from IP {}: {} attempts against {} users",
+                    ip,
+                    attempts,
+                    target_users.len()
+                ),
                 vec![
                     "IMMEDIATELY block IP address".to_string(),
                     "Lock affected user accounts".to_string(),
@@ -533,10 +555,16 @@ impl MfaSecurityMonitor {
                 target_users.clone(),
                 vec![ip.clone()],
             ),
-            MfaSecurityEventType::AccountLockoutTriggered { user_id, ip, failed_attempts } => (
+            MfaSecurityEventType::AccountLockoutTriggered {
+                user_id,
+                ip,
+                failed_attempts,
+            } => (
                 AlertSeverity::Medium,
-                format!("Account {} locked due to {} failed MFA attempts from {}",
-                       user_id, failed_attempts, ip),
+                format!(
+                    "Account {} locked due to {} failed MFA attempts from {}",
+                    user_id, failed_attempts, ip
+                ),
                 vec![
                     "Verify user identity before unlocking".to_string(),
                     "Check for account compromise".to_string(),
@@ -547,7 +575,10 @@ impl MfaSecurityMonitor {
             ),
             MfaSecurityEventType::SuspiciousMfaSetupPattern { ip, setups, .. } => (
                 AlertSeverity::Medium,
-                format!("Suspicious MFA setup pattern from IP {}: {} setups", ip, setups),
+                format!(
+                    "Suspicious MFA setup pattern from IP {}: {} setups",
+                    ip, setups
+                ),
                 vec![
                     "Review MFA setup requests".to_string(),
                     "Verify user identities".to_string(),
@@ -556,10 +587,17 @@ impl MfaSecurityMonitor {
                 vec![],
                 vec![ip.clone()],
             ),
-            MfaSecurityEventType::TimeBasedAnomaly { user_id, current_hour, anomaly_score, .. } => (
+            MfaSecurityEventType::TimeBasedAnomaly {
+                user_id,
+                current_hour,
+                anomaly_score,
+                ..
+            } => (
                 AlertSeverity::Low,
-                format!("Unusual login time for user {}: hour {} (anomaly score: {:.2})",
-                       user_id, current_hour, anomaly_score),
+                format!(
+                    "Unusual login time for user {}: hour {} (anomaly score: {:.2})",
+                    user_id, current_hour, anomaly_score
+                ),
                 vec![
                     "Verify user identity".to_string(),
                     "Check for account sharing".to_string(),
@@ -568,9 +606,16 @@ impl MfaSecurityMonitor {
                 vec![*user_id],
                 vec![],
             ),
-            MfaSecurityEventType::GeographicAnomaly { user_id, distance_km, .. } => (
+            MfaSecurityEventType::GeographicAnomaly {
+                user_id,
+                distance_km,
+                ..
+            } => (
                 AlertSeverity::High,
-                format!("Geographic anomaly for user {}: {:.0} km travel", user_id, distance_km),
+                format!(
+                    "Geographic anomaly for user {}: {:.0} km travel",
+                    user_id, distance_km
+                ),
                 vec![
                     "Verify user identity immediately".to_string(),
                     "Check for account compromise".to_string(),
@@ -660,7 +705,10 @@ mod tests {
 
         // Record failed attempts
         for _ in 0..4 {
-            monitor.record_failed_mfa_attempt(ip, Some(user_id), None).await.unwrap();
+            monitor
+                .record_failed_mfa_attempt(ip, Some(user_id), None)
+                .await
+                .unwrap();
         }
 
         // Should have generated an alert

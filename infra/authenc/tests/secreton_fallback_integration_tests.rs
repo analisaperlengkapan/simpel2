@@ -7,11 +7,11 @@ use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
 
-use authenc::vault::SecretonClient;
-use authenc::models::User;
+use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::OptimizedAuthencError;
-use authenc::config::AuthencConfig;
+use authenc::models::User;
+use authenc::vault::SecretonClient;
 
 /// Test suite for secreton fallback scenarios from authenc perspective
 #[cfg(test)]
@@ -25,7 +25,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test connection timeout scenarios
         let timeout_scenarios = vec![
@@ -35,29 +37,49 @@ mod secreton_fallback_tests {
         ];
 
         for (scenario, timeout_duration) in timeout_scenarios {
-            println!("Testing connection timeout scenario: {} ({:?})", scenario, timeout_duration);
+            println!(
+                "Testing connection timeout scenario: {} ({:?})",
+                scenario, timeout_duration
+            );
 
             let fallback_result = timeout(
                 timeout_duration + Duration::from_secs(1),
-                secreton_client.get_secret_with_timeout_fallback(&token, "secrets/KEJATI_DKI_JAKPUS/config", timeout_duration)
-            ).await;
+                secreton_client.get_secret_with_timeout_fallback(
+                    &token,
+                    "secrets/KEJATI_DKI_JAKPUS/config",
+                    timeout_duration,
+                ),
+            )
+            .await;
 
             match fallback_result {
                 Ok(Ok(secret_response)) => {
                     if secret_response.is_fallback {
                         assert!(secret_response.cached_value || secret_response.default_value);
-                        println!("Timeout fallback successful for {}: using {}",
-                                scenario,
-                                if secret_response.cached_value { "cached value" } else { "default value" });
+                        println!(
+                            "Timeout fallback successful for {}: using {}",
+                            scenario,
+                            if secret_response.cached_value {
+                                "cached value"
+                            } else {
+                                "default value"
+                            }
+                        );
                     } else {
                         println!("Connection successful within timeout for {}", scenario);
                     }
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Expected communication error for timeout scenario: {}", scenario);
+                    println!(
+                        "Expected communication error for timeout scenario: {}",
+                        scenario
+                    );
                 }
                 Err(_) => {
-                    println!("Timeout fallback test timed out for: {} (acceptable)", scenario);
+                    println!(
+                        "Timeout fallback test timed out for: {} (acceptable)",
+                        scenario
+                    );
                 }
             }
         }
@@ -70,7 +92,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test service unavailable scenarios
         let unavailable_scenarios = vec![
@@ -86,8 +110,9 @@ mod secreton_fallback_tests {
 
             let fallback_result = timeout(
                 Duration::from_secs(5),
-                secreton_client.handle_service_unavailable_fallback(&token, scenario)
-            ).await;
+                secreton_client.handle_service_unavailable_fallback(&token, scenario),
+            )
+            .await;
 
             match fallback_result {
                 Ok(Ok(fallback_response)) => {
@@ -118,10 +143,16 @@ mod secreton_fallback_tests {
                     }
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Expected communication error for unavailable scenario: {}", scenario);
+                    println!(
+                        "Expected communication error for unavailable scenario: {}",
+                        scenario
+                    );
                 }
                 Err(_) => {
-                    println!("Service unavailable test timeout: {} (acceptable)", scenario);
+                    println!(
+                        "Service unavailable test timeout: {} (acceptable)",
+                        scenario
+                    );
                 }
             }
         }
@@ -134,7 +165,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test partial failure scenarios
         let partial_failure_scenarios = vec![
@@ -146,18 +179,34 @@ mod secreton_fallback_tests {
         ];
 
         for (failing_component, working_component) in partial_failure_scenarios {
-            println!("Testing partial failure: {} fails, {} works", failing_component, working_component);
+            println!(
+                "Testing partial failure: {} fails, {} works",
+                failing_component, working_component
+            );
 
             let partial_result = timeout(
                 Duration::from_secs(10),
-                secreton_client.handle_partial_failure(&token, failing_component, working_component)
-            ).await;
+                secreton_client.handle_partial_failure(
+                    &token,
+                    failing_component,
+                    working_component,
+                ),
+            )
+            .await;
 
             match partial_result {
                 Ok(Ok(partial_response)) => {
                     assert!(partial_response.has_partial_failure);
-                    assert!(partial_response.working_components.contains(&working_component.to_string()));
-                    assert!(partial_response.failed_components.contains(&failing_component.to_string()));
+                    assert!(
+                        partial_response
+                            .working_components
+                            .contains(&working_component.to_string())
+                    );
+                    assert!(
+                        partial_response
+                            .failed_components
+                            .contains(&failing_component.to_string())
+                    );
 
                     // Verify fallback mechanisms are in place
                     match failing_component {
@@ -179,13 +228,22 @@ mod secreton_fallback_tests {
                         _ => {}
                     }
 
-                    println!("Partial failure handled correctly: {} -> {}", failing_component, working_component);
+                    println!(
+                        "Partial failure handled correctly: {} -> {}",
+                        failing_component, working_component
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for partial failure: {} (expected)", failing_component);
+                    println!(
+                        "Communication error for partial failure: {} (expected)",
+                        failing_component
+                    );
                 }
                 Err(_) => {
-                    println!("Partial failure test timeout: {} (acceptable)", failing_component);
+                    println!(
+                        "Partial failure test timeout: {} (acceptable)",
+                        failing_component
+                    );
                 }
             }
         }
@@ -198,7 +256,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test network instability scenarios
         let instability_scenarios = vec![
@@ -209,8 +269,10 @@ mod secreton_fallback_tests {
         ];
 
         for (scenario, total_attempts, expected_successes) in instability_scenarios {
-            println!("Testing network instability: {} ({} attempts, expect {} successes)",
-                    scenario, total_attempts, expected_successes);
+            println!(
+                "Testing network instability: {} ({} attempts, expect {} successes)",
+                scenario, total_attempts, expected_successes
+            );
 
             let mut successful_operations = 0;
             let mut fallback_operations = 0;
@@ -218,8 +280,9 @@ mod secreton_fallback_tests {
             for attempt in 1..=total_attempts {
                 let instability_result = timeout(
                     Duration::from_secs(5),
-                    secreton_client.test_network_instability(&token, scenario, attempt)
-                ).await;
+                    secreton_client.test_network_instability(&token, scenario, attempt),
+                )
+                .await;
 
                 match instability_result {
                     Ok(Ok(network_response)) => {
@@ -232,7 +295,10 @@ mod secreton_fallback_tests {
                         }
                     }
                     Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                        println!("Communication error on attempt {} for {} (expected)", attempt, scenario);
+                        println!(
+                            "Communication error on attempt {} for {} (expected)",
+                            attempt, scenario
+                        );
                     }
                     Err(_) => {
                         println!("Timeout on attempt {} for {} (expected)", attempt, scenario);
@@ -242,12 +308,18 @@ mod secreton_fallback_tests {
 
             // Verify that either direct operations or fallbacks worked
             let total_working_operations = successful_operations + fallback_operations;
-            assert!(total_working_operations >= expected_successes,
-                   "Network instability handling failed for {}: got {} working operations, expected at least {}",
-                   scenario, total_working_operations, expected_successes);
+            assert!(
+                total_working_operations >= expected_successes,
+                "Network instability handling failed for {}: got {} working operations, expected at least {}",
+                scenario,
+                total_working_operations,
+                expected_successes
+            );
 
-            println!("Network instability {} handled: {} direct + {} fallback = {} total working operations",
-                    scenario, successful_operations, fallback_operations, total_working_operations);
+            println!(
+                "Network instability {} handled: {} direct + {} fallback = {} total working operations",
+                scenario, successful_operations, fallback_operations, total_working_operations
+            );
         }
     }
 
@@ -258,7 +330,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test recovery scenarios after various failures
         let recovery_scenarios = vec![
@@ -274,8 +348,9 @@ mod secreton_fallback_tests {
             // First, simulate the failure
             let failure_result = timeout(
                 Duration::from_secs(3),
-                secreton_client.simulate_failure(&token, failure_type)
-            ).await;
+                secreton_client.simulate_failure(&token, failure_type),
+            )
+            .await;
 
             match failure_result {
                 Ok(Ok(failure_response)) => {
@@ -297,8 +372,9 @@ mod secreton_fallback_tests {
             // Test recovery
             let recovery_result = timeout(
                 Duration::from_secs(10),
-                secreton_client.test_recovery(&token, recovery_type)
-            ).await;
+                secreton_client.test_recovery(&token, recovery_type),
+            )
+            .await;
 
             match recovery_result {
                 Ok(Ok(recovery_response)) => {
@@ -322,13 +398,22 @@ mod secreton_fallback_tests {
                         _ => {}
                     }
 
-                    println!("Recovery {} successful after {}", recovery_type, failure_type);
+                    println!(
+                        "Recovery {} successful after {}",
+                        recovery_type, failure_type
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error during recovery test: {} (may indicate ongoing issues)", recovery_type);
+                    println!(
+                        "Communication error during recovery test: {} (may indicate ongoing issues)",
+                        recovery_type
+                    );
                 }
                 Err(_) => {
-                    println!("Recovery test timeout: {} (may indicate slow recovery)", recovery_type);
+                    println!(
+                        "Recovery test timeout: {} (may indicate slow recovery)",
+                        recovery_type
+                    );
                 }
             }
         }
@@ -341,7 +426,9 @@ mod secreton_fallback_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test data consistency during fallback scenarios
         let consistency_tests = vec![
@@ -356,40 +443,45 @@ mod secreton_fallback_tests {
 
             let consistency_result = timeout(
                 Duration::from_secs(15),
-                secreton_client.test_fallback_consistency(&token, consistency_test)
-            ).await;
+                secreton_client.test_fallback_consistency(&token, consistency_test),
+            )
+            .await;
 
             match consistency_result {
-                Ok(Ok(consistency_response)) => {
-                    match consistency_test {
-                        "cached_data_freshness" => {
-                            assert!(consistency_response.cache_timestamp_valid);
-                            assert!(consistency_response.data_within_ttl);
-                            println!("Cached data freshness validated");
-                        }
-                        "fallback_data_integrity" => {
-                            assert!(consistency_response.data_integrity_maintained);
-                            assert!(consistency_response.checksums_valid);
-                            println!("Fallback data integrity validated");
-                        }
-                        "cross_operation_consistency" => {
-                            assert!(consistency_response.operations_consistent);
-                            assert!(consistency_response.no_data_conflicts);
-                            println!("Cross-operation consistency validated");
-                        }
-                        "recovery_data_synchronization" => {
-                            assert!(consistency_response.data_synchronized);
-                            assert!(consistency_response.no_sync_conflicts);
-                            println!("Recovery data synchronization validated");
-                        }
-                        _ => {}
+                Ok(Ok(consistency_response)) => match consistency_test {
+                    "cached_data_freshness" => {
+                        assert!(consistency_response.cache_timestamp_valid);
+                        assert!(consistency_response.data_within_ttl);
+                        println!("Cached data freshness validated");
                     }
-                }
+                    "fallback_data_integrity" => {
+                        assert!(consistency_response.data_integrity_maintained);
+                        assert!(consistency_response.checksums_valid);
+                        println!("Fallback data integrity validated");
+                    }
+                    "cross_operation_consistency" => {
+                        assert!(consistency_response.operations_consistent);
+                        assert!(consistency_response.no_data_conflicts);
+                        println!("Cross-operation consistency validated");
+                    }
+                    "recovery_data_synchronization" => {
+                        assert!(consistency_response.data_synchronized);
+                        assert!(consistency_response.no_sync_conflicts);
+                        println!("Recovery data synchronization validated");
+                    }
+                    _ => {}
+                },
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for consistency test: {} (expected in some scenarios)", consistency_test);
+                    println!(
+                        "Communication error for consistency test: {} (expected in some scenarios)",
+                        consistency_test
+                    );
                 }
                 Err(_) => {
-                    println!("Consistency test timeout: {} (acceptable for complex checks)", consistency_test);
+                    println!(
+                        "Consistency test timeout: {} (acceptable for complex checks)",
+                        consistency_test
+                    );
                 }
             }
         }
@@ -415,7 +507,10 @@ fn create_test_user(nip: &str, satker_code: &str) -> User {
     }
 }
 
-async fn create_authenc_token(crypto_engine: &CryptoEngine, user: &User) -> Result<String, OptimizedAuthencError> {
+async fn create_authenc_token(
+    crypto_engine: &CryptoEngine,
+    user: &User,
+) -> Result<String, OptimizedAuthencError> {
     let claims = serde_json::json!({
         "sub": user.id,
         "nip": user.nip,

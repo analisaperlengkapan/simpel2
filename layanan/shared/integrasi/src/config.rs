@@ -1,58 +1,47 @@
-use crate::error::IntegrationError;
-use serde::Deserialize;
-use std::env;
+use crate::error::MonsaktiError;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Deserialize)]
+/// Konfigurasi untuk klien MonSAKTI
+#[derive(Debug, Clone)]
 pub struct Config {
-    pub host: String,
-    pub port: u16,
-    pub database_url: String,
+    /// URL dasar API MonSAKTI
+    pub base_url: String,
+    /// URL dasar API MySIMKARI
+    pub mysimkari_base_url: String,
+    /// Token autentikasi untuk setiap modul
+    pub tokens: HashMap<String, String>,
+    /// Direktori output untuk file
+    pub output_dir: String,
+    /// Konfigurasi database opsional
+    pub db_config: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct AppConfig {
-    pub host: String,
-    pub port: u16,
-    pub database_url: String,
-    pub redis_url: String,
-    pub api_key: String,
-    pub cors_origins: Vec<String>,
-    pub log_level: String,
-    pub metrics_port: u16,
-    pub sentry_dsn: Option<String>,
-}
-
-impl AppConfig {
-    pub fn from_env() -> Result<Self, IntegrationError> {
+    impl Config {
+    /// Membuat konfigurasi dari environment variables
+    pub fn from_env() -> Result<Self, MonsaktiError> {
         dotenvy::dotenv().ok();
-
-        let port_str = env::var("SERVER_PORT").unwrap_or_else(|_| "3008".to_string());
-        let port: u16 = port_str.parse().map_err(|_| {
-            IntegrationError::Internal(format!("Invalid SERVER_PORT: {}", port_str))
-        })?;
-
-        let metrics_port_str = env::var("METRICS_PORT").unwrap_or_else(|_| "9092".to_string());
-        let metrics_port: u16 = metrics_port_str.parse().map_err(|_| {
-            IntegrationError::Internal(format!("Invalid METRICS_PORT: {}", metrics_port_str))
-        })?;
-
-        Ok(Self {
-            host: env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
-            port,
-            database_url: env::var("DATABASE_URL")
-                .map_err(|_| IntegrationError::Internal("DATABASE_URL wajib di-set".to_string()))?,
-            redis_url: env::var("REDIS_URL")
-                .unwrap_or_else(|_| "redis://localhost:6379".to_string()),
-            api_key: env::var("API_KEY")
-                .map_err(|_| IntegrationError::Internal("API_KEY wajib di-set".to_string()))?,
-            cors_origins: env::var("CORS_ORIGINS")
-                .unwrap_or_else(|_| "*".to_string())
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect(),
-            log_level: env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string()),
-            metrics_port,
-            sentry_dsn: env::var("SENTRY_DSN").ok(),
-        })
+        
+        let base_url = std::env::var("MONSAKTI_BASE_URL")
+            .unwrap_or_else(|_| "https://monsakti.kemenkeu.go.id/sitp-monsakti-omspan/webservice".to_string());
+        
+        let mysimkari_base_url = std::env::var("MYSIMKARI_BASE_URL")
+            .unwrap_or_else(|_| "https://mysimkari.kejaksaan.go.id/api/anbut".to_string());
+        
+        let output_dir = std::env::var("OUTPUT_DIR").unwrap_or_else(|_| "./data".to_string());
+        let db_config = std::env::var("DATABASE_URL").ok();
+        
+        let mut tokens = HashMap::new();
+        for module in &["ADM", "ANG", "PEM", "BEN", "KOM", "AST", "PER", "GLP", "MYSIMKARI"] {
+            let env_var = if module == &"MYSIMKARI" { 
+                "MYSIMKARI_TOKEN".to_string() 
+            } else { 
+                format!("MONSAKTI_TOKEN_{}", module) 
+            };
+            if let Ok(token) = std::env::var(&env_var) {
+                tokens.insert(module.to_string(), token);
+            }
+        }
+        
+        Ok(Config { base_url, mysimkari_base_url, tokens, output_dir, db_config })
     }
 }

@@ -1,10 +1,7 @@
 // SAML Signature and Storage Implementation
 // Provides XML digital signature support and database storage for SAML requests/responses.
 
-use crate::{
-    database::Database,
-    error::Result,
-};
+use crate::{database::Database, error::Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

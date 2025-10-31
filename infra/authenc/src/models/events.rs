@@ -74,6 +74,10 @@ pub enum EventType {
     RemoveCredential,
     /// Failed credential removal attempt
     RemoveCredentialError,
+    /// Successful password change
+    UpdatePassword,
+    /// Failed password change attempt
+    UpdatePasswordError,
 
     // Federation events
     /// Successful federated identity link
@@ -130,6 +134,10 @@ pub enum EventType {
     MfaSetup,
     /// Failed MFA setup attempt
     MfaSetupError,
+    /// MFA enabled for user
+    MfaEnabled,
+    /// Failed to enable MFA
+    MfaEnabledError,
     /// Successful MFA verification
     MfaVerification,
     /// Failed MFA verification attempt
@@ -175,10 +183,12 @@ impl EventType {
             | EventType::RemoveFederatedIdentity
             | EventType::UpdateCredential
             | EventType::RemoveCredential
+            | EventType::UpdatePassword
             | EventType::UserDisabledByPermanentLockout
             | EventType::UserDisabledByTemporaryLockout
             | EventType::InviteOrg
             | EventType::MfaSetup
+            | EventType::MfaEnabled
             | EventType::MfaVerification
             | EventType::MfaDisabled
             | EventType::MfaReset
@@ -226,6 +236,8 @@ impl EventType {
             EventType::UpdateCredentialError => "UPDATE_CREDENTIAL_ERROR",
             EventType::RemoveCredential => "REMOVE_CREDENTIAL",
             EventType::RemoveCredentialError => "REMOVE_CREDENTIAL_ERROR",
+            EventType::UpdatePassword => "UPDATE_PASSWORD",
+            EventType::UpdatePasswordError => "UPDATE_PASSWORD_ERROR",
             EventType::FederatedIdentityLink => "FEDERATED_IDENTITY_LINK",
             EventType::FederatedIdentityLinkError => "FEDERATED_IDENTITY_LINK_ERROR",
             EventType::RemoveFederatedIdentity => "REMOVE_FEDERATED_IDENTITY",
@@ -254,6 +266,8 @@ impl EventType {
             EventType::InviteOrgError => "INVITE_ORG_ERROR",
             EventType::MfaSetup => "MFA_SETUP",
             EventType::MfaSetupError => "MFA_SETUP_ERROR",
+            EventType::MfaEnabled => "MFA_ENABLED",
+            EventType::MfaEnabledError => "MFA_ENABLED_ERROR",
             EventType::MfaVerification => "MFA_VERIFICATION",
             EventType::MfaVerificationError => "MFA_VERIFICATION_ERROR",
             EventType::MfaDisabled => "MFA_DISABLED",
@@ -303,6 +317,8 @@ impl EventType {
             "UPDATE_CREDENTIAL_ERROR" => Some(EventType::UpdateCredentialError),
             "REMOVE_CREDENTIAL" => Some(EventType::RemoveCredential),
             "REMOVE_CREDENTIAL_ERROR" => Some(EventType::RemoveCredentialError),
+            "UPDATE_PASSWORD" => Some(EventType::UpdatePassword),
+            "UPDATE_PASSWORD_ERROR" => Some(EventType::UpdatePasswordError),
             "FEDERATED_IDENTITY_LINK" => Some(EventType::FederatedIdentityLink),
             "FEDERATED_IDENTITY_LINK_ERROR" => Some(EventType::FederatedIdentityLinkError),
             "REMOVE_FEDERATED_IDENTITY" => Some(EventType::RemoveFederatedIdentity),
@@ -331,6 +347,8 @@ impl EventType {
             "INVITE_ORG_ERROR" => Some(EventType::InviteOrgError),
             "MFA_SETUP" => Some(EventType::MfaSetup),
             "MFA_SETUP_ERROR" => Some(EventType::MfaSetupError),
+            "MFA_ENABLED" => Some(EventType::MfaEnabled),
+            "MFA_ENABLED_ERROR" => Some(EventType::MfaEnabledError),
             "MFA_VERIFICATION" => Some(EventType::MfaVerification),
             "MFA_VERIFICATION_ERROR" => Some(EventType::MfaVerificationError),
             "MFA_DISABLED" => Some(EventType::MfaDisabled),
@@ -543,6 +561,8 @@ pub enum ResourceType {
     AuthorizationScope,
     /// Authorization policy
     AuthorizationPolicy,
+    /// Permission resource
+    Permission,
     /// Custom resource type
     Custom,
     /// User profile
@@ -589,6 +609,7 @@ impl ResourceType {
             ResourceType::AuthorizationResource => "AUTHORIZATION_RESOURCE",
             ResourceType::AuthorizationScope => "AUTHORIZATION_SCOPE",
             ResourceType::AuthorizationPolicy => "AUTHORIZATION_POLICY",
+            ResourceType::Permission => "PERMISSION",
             ResourceType::Custom => "CUSTOM",
             ResourceType::UserProfile => "USER_PROFILE",
             ResourceType::Organization => "ORGANIZATION",
@@ -631,6 +652,7 @@ impl ResourceType {
             "AUTHORIZATION_RESOURCE" => Some(ResourceType::AuthorizationResource),
             "AUTHORIZATION_SCOPE" => Some(ResourceType::AuthorizationScope),
             "AUTHORIZATION_POLICY" => Some(ResourceType::AuthorizationPolicy),
+            "PERMISSION" => Some(ResourceType::Permission),
             "CUSTOM" => Some(ResourceType::Custom),
             "USER_PROFILE" => Some(ResourceType::UserProfile),
             "ORGANIZATION" => Some(ResourceType::Organization),

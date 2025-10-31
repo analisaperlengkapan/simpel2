@@ -1,5 +1,5 @@
-//! HTTP request handlers for the Brankas API.
-//! 
+//! HTTP request handlers for the Secreton API.
+//!
 //! Provides comprehensive REST endpoints for vault operations,
 //! authentication, authorization, and administrative functions.
 
@@ -7,6 +7,13 @@ pub mod auth;
 pub mod vault;
 pub mod admin;
 pub mod health;
+pub mod seal;
+pub mod namespace;
+pub mod dynamic;
+pub mod lease;
+pub mod policy;
+pub mod wrapping;
+pub mod raft;
 
 use axum::{
     extract::{Path, Query, State},
@@ -35,6 +42,9 @@ use crate::{
 /// Application state shared across handlers
 pub type AppState = Arc<ServiceContainer>;
 
+// Re-export common types
+pub use vault::ListQuery;
+
 /// Create the main application router
 pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
     let app_state = services.clone();
@@ -44,6 +54,13 @@ pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Rou
         .nest("/auth", auth::create_routes())
         .nest("/vault", vault::create_routes())
         .nest("/admin", admin::create_routes())
+        .nest("/sys", seal::create_routes()
+            .merge(namespace::create_routes())
+            .merge(lease::create_routes())
+            .merge(policy::create_routes())
+            .merge(wrapping::create_routes())
+            .merge(raft::create_routes()))
+        .nest("/dynamic", dynamic::create_routes())
         .route("/health", get(health::health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics));
@@ -67,7 +84,7 @@ pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Rou
 /// Root endpoint handler
 async fn root_handler() -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     let data = serde_json::json!({
-        "service": "Brankas API",
+        "service": "Secreton API",
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Advanced Security Vault System",
         "documentation": "/api/v1/docs"
@@ -91,7 +108,7 @@ async fn get_version() -> ApiResult<Json<ApiResponse<VersionInfo>>> {
 /// Get Prometheus metrics
 async fn get_metrics(State(_state): State<AppState>) -> Result<String, StatusCode> {
     // TODO: Implement metrics collection
-    Ok("# Brankas API Metrics\n".to_string())
+    Ok("# Secreton API Metrics\n".to_string())
 }
 
 /// Version information
@@ -117,13 +134,13 @@ mod tests {
                 .await
                 .expect("Failed to create services")
         );
-        
+
         let app = create_router(&config, services);
-        let server = TestServer::new(app).unwrap();
-        
+        let server = TestServer::new(app);
+
         let response = server.get("/").await;
         response.assert_status_ok();
-        
+
         let body: ApiResponse<serde_json::Value> = response.json();
         assert!(body.success);
         assert!(body.data.is_some());
@@ -137,13 +154,13 @@ mod tests {
                 .await
                 .expect("Failed to create services")
         );
-        
+
         let app = create_router(&config, services);
-        let server = TestServer::new(app).unwrap();
-        
+        let server = TestServer::new(app);
+
         let response = server.get("/api/v1/version").await;
         response.assert_status_ok();
-        
+
         let body: ApiResponse<VersionInfo> = response.json();
         assert!(body.success);
         assert!(body.data.is_some());

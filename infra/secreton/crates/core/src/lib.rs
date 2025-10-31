@@ -1,6 +1,6 @@
-//! # Brankas Core
+//! # Secreton Core
 //!
-//! Core types, traits, and utilities shared across the Brankas security system.
+//! Core types, traits, and utilities shared across the Secreton security system.
 //! Provides foundational abstractions for security levels, audit logging,
 //! error handling, and common data structures.
 
@@ -16,38 +16,17 @@ pub mod audit;
 pub mod auth;
 pub mod config;
 pub mod crypto;
-pub mod engines;
 pub mod error;
+pub mod hsm;
 pub mod models;
+pub mod namespace;
+pub mod prelude;
 pub mod sdk_libraries;
+pub mod security;
 pub mod services;
 pub mod storage;
 pub mod types;
-
-// TODO: Fix missing dependencies (prometheus, etc)
-// pub mod metrics;
-// pub mod telemetry;
-
-// TODO: Review and fix these modules
-// pub mod server;
-// pub mod control_groups;
-// pub mod disaster_recovery;
-// pub mod secrets;
-// pub mod secrets_sync;
-
-// Feature-gated modules (need dependencies)
-// #[cfg(feature = "graphql")]
-// pub mod graphql_api;
-
-// #[cfg(feature = "grpc")]
-// pub mod grpc_api;
-
-// #[cfg(feature = "postgres-audit")]
-// pub mod audit_postgres;
-
-// Disabled: missing storage dependencies
-// #[cfg(any(test, feature = "test-utils"))]
-// pub mod test_utils;
+pub mod utils;
 
 pub use api::{start_security_server, SecurityAPI};
 pub use audit::{AuditLog, AuditLogger, AuditStatus};

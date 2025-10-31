@@ -2,14 +2,14 @@
 //!
 //! Main service orchestrating CAPTCHA operations with authenc integration
 
-use async_trait::async_trait;
-use std::sync::Arc;
-use std::time::Duration;
 use super::analyzer::BehavioralAnalyzerTrait;
 use super::error::CaptchaError;
 use super::generator::ChallengeGeneratorTrait;
-use super::validator::ChallengeValidatorTrait;
 use super::types::*;
+use super::validator::ChallengeValidatorTrait;
+use async_trait::async_trait;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// CAPTCHA service trait defining core operations
 #[async_trait]
@@ -32,16 +32,10 @@ pub trait CaptchaServiceTrait: Send + Sync {
     ) -> Result<ValidationResult, CaptchaError>;
 
     /// Refresh an existing challenge
-    async fn refresh_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError>;
+    async fn refresh_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError>;
 
     /// Get challenge by ID
-    async fn get_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError>;
+    async fn get_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError>;
 
     /// Clean up expired challenges
     async fn cleanup_expired_challenges(&self) -> Result<u64, CaptchaError>;
@@ -92,9 +86,18 @@ impl CaptchaService {
         let validator = Arc::new(super::validator::ValidationEngine::new());
         let analyzer = Arc::new(super::analyzer::BehavioralAnalyzer::new());
         let metrics_collector = Arc::new(super::metrics::MetricsCollector::new(db_ops.clone()));
-        let alert_manager = Arc::new(super::alerting::AlertManager::new(metrics_collector.clone()));
+        let alert_manager = Arc::new(super::alerting::AlertManager::new(
+            metrics_collector.clone(),
+        ));
 
-        Self::new(db_ops, generator, validator, analyzer, metrics_collector, alert_manager)
+        Self::new(
+            db_ops,
+            generator,
+            validator,
+            analyzer,
+            metrics_collector,
+            alert_manager,
+        )
     }
 }
 
@@ -149,7 +152,8 @@ impl CaptchaServiceTrait for CaptchaService {
 
         // 5. Record metrics
         let generation_time = start_time.elapsed();
-        if let Err(e) = self.metrics_collector
+        if let Err(e) = self
+            .metrics_collector
             .record_challenge_generation(generation_time, &challenge_type, difficulty)
             .await
         {
@@ -272,7 +276,8 @@ impl CaptchaServiceTrait for CaptchaService {
 
         // 7. Record validation metrics
         let validation_time = start_time.elapsed();
-        if let Err(e) = self.metrics_collector
+        if let Err(e) = self
+            .metrics_collector
             .record_challenge_validation(
                 validation_time,
                 validation_result,
@@ -287,7 +292,8 @@ impl CaptchaServiceTrait for CaptchaService {
 
         // 8. Check for security events that should trigger alerts
         if matches!(behavioral_classification, BehaviorClassification::Bot) {
-            if let Err(e) = self.alert_manager
+            if let Err(e) = self
+                .alert_manager
                 .record_security_event(
                     super::SecurityEventType::SuspiciousBehavior,
                     &challenge.ip_address,
@@ -302,7 +308,8 @@ impl CaptchaServiceTrait for CaptchaService {
 
         // Check for attack patterns
         if matches!(risk_assessment, RiskLevel::Critical | RiskLevel::High) && !validation_result {
-            if let Err(e) = self.alert_manager
+            if let Err(e) = self
+                .alert_manager
                 .record_security_event(
                     super::SecurityEventType::AttackAttempt,
                     &challenge.ip_address,
@@ -349,10 +356,7 @@ impl CaptchaServiceTrait for CaptchaService {
         })
     }
 
-    async fn refresh_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError> {
+    async fn refresh_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError> {
         // 1. Get existing challenge
         let existing_challenge = self
             .db_ops
@@ -380,10 +384,7 @@ impl CaptchaServiceTrait for CaptchaService {
         .await
     }
 
-    async fn get_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError> {
+    async fn get_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError> {
         self.db_ops
             .get_challenge(&challenge_id)
             .await
@@ -427,14 +428,17 @@ impl CaptchaService {
     }
 
     /// Get real-time metrics summary
-    pub async fn get_real_time_metrics(&self) -> Result<super::metrics::MetricsSummary, CaptchaError> {
-        self.metrics_collector
-            .get_real_time_metrics()
-            .await
+    pub async fn get_real_time_metrics(
+        &self,
+    ) -> Result<super::metrics::MetricsSummary, CaptchaError> {
+        self.metrics_collector.get_real_time_metrics().await
     }
 
     /// Generate metrics summary for a specific time window
-    pub async fn generate_metrics_summary(&self, time_window_minutes: u64) -> Result<super::metrics::MetricsSummary, CaptchaError> {
+    pub async fn generate_metrics_summary(
+        &self,
+        time_window_minutes: u64,
+    ) -> Result<super::metrics::MetricsSummary, CaptchaError> {
         self.metrics_collector
             .generate_summary(time_window_minutes)
             .await
@@ -513,7 +517,10 @@ impl CaptchaService {
     }
 
     /// Add a new alert rule
-    pub async fn add_alert_rule(&self, rule: super::alerting::AlertRule) -> Result<(), CaptchaError> {
+    pub async fn add_alert_rule(
+        &self,
+        rule: super::alerting::AlertRule,
+    ) -> Result<(), CaptchaError> {
         self.alert_manager
             .get_alerting_engine()
             .add_rule(rule)
@@ -522,9 +529,6 @@ impl CaptchaService {
 
     /// Get all alert rules
     pub async fn get_alert_rules(&self) -> Vec<super::alerting::AlertRule> {
-        self.alert_manager
-            .get_alerting_engine()
-            .get_rules()
-            .await
+        self.alert_manager.get_alerting_engine().get_rules().await
     }
 }

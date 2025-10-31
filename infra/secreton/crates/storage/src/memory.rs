@@ -1,0 +1,222 @@
+//! In-memory storage backend for development and testing
+
+use crate::{
+    HealthStatus, QueryParams, StorageBackend, StorageError, StorageResult, StorageStats,
+    StorageTransaction, VaultEntry,
+};
+use async_trait::async_trait;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use uuid::Uuid;
+
+/// In-memory storage backend
+#[derive(Clone)]
+pub struct MemoryBackend {
+    store: Arc<RwLock<HashMap<Uuid, VaultEntry>>>,
+    path_index: Arc<RwLock<HashMap<String, Uuid>>>,
+}
+
+impl MemoryBackend {
+    /// Create a new in-memory backend
+    pub fn new() -> Self {
+        Self {
+            store: Arc::new(RwLock::new(HashMap::new())),
+            path_index: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+impl Default for MemoryBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl StorageBackend for MemoryBackend {
+    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+
+        store.insert(entry.id, entry.clone());
+        path_index.insert(entry.path.clone(), entry.id);
+
+        Ok(())
+    }
+
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+        let store = self.store.read().await;
+        Ok(store.get(&id).cloned())
+    }
+
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+        let path_index = self.path_index.read().await;
+        if let Some(id) = path_index.get(path) {
+            let store = self.store.read().await;
+            Ok(store.get(id).cloned())
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+        let mut store = self.store.write().await;
+
+        if !store.contains_key(&entry.id) {
+            return Err(StorageError::NotFound {
+                resource_type: "VaultEntry".to_string(),
+                id: entry.id.to_string(),
+            });
+        }
+
+        store.insert(entry.id, entry.clone());
+        Ok(())
+    }
+
+    async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+
+        if let Some(entry) = store.remove(&id) {
+            path_index.remove(&entry.path);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+
+        if let Some(id) = path_index.remove(path) {
+            store.remove(&id);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
+        let entries = self.list(params).await?;
+        Ok(entries.len() as u64)
+    }
+
+    async fn exists(&self, path: &str) -> StorageResult<bool> {
+        let path_index = self.path_index.read().await;
+        Ok(path_index.contains_key(path))
+    }
+
+    async fn migrate(&self) -> StorageResult<()> {
+        // Memory backend doesn't need migration
+        Ok(())
+    }
+
+    async fn list(&self, _params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+        let store = self.store.read().await;
+        Ok(store.values().cloned().collect())
+    }
+
+    async fn health_check(&self) -> StorageResult<HealthStatus> {
+        Ok(HealthStatus {
+            is_healthy: true,
+            response_time_ms: 0.0,
+            connections_active: 0,
+            connections_idle: 0,
+            last_error: None,
+            uptime_seconds: 0,
+        })
+    }
+
+    async fn get_stats(&self) -> StorageResult<StorageStats> {
+        let store = self.store.read().await;
+        Ok(StorageStats {
+            backend_type: "memory".to_string(),
+            total_entries: store.len() as u64,
+            total_size_bytes: 0, // Not tracked in memory
+            average_entry_size: 0.0,
+            entries_by_security_level: HashMap::new(),
+            entries_created_today: 0,
+            entries_updated_today: 0,
+            expired_entries: 0,
+            last_backup: None,
+            metadata: serde_json::json!({}),
+        })
+    }
+
+    async fn begin_transaction(&self) -> StorageResult<Box<dyn StorageTransaction>> {
+        Err(StorageError::TransactionNotSupported {
+            backend: "memory".to_string(),
+        })
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SecurityLevel;
+
+    #[tokio::test]
+    async fn test_memory_backend_store_and_retrieve() {
+        let backend = MemoryBackend::new();
+
+        let entry = VaultEntry {
+            id: Uuid::new_v4(),
+            path: "test/secret".to_string(),
+            encrypted_data: vec![1, 2, 3, 4],
+            encryption_metadata: serde_json::json!({"algorithm": "aes256-gcm"}),
+            security_level: SecurityLevel::Confidential,
+            metadata: serde_json::json!({"owner": "test"}),
+            tags: vec!["test".to_string()],
+            version: 1,
+            owner_id: "user123".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            expires_at: None,
+        };
+
+        // Store
+        backend.store(&entry).await.unwrap();
+
+        // Retrieve by ID
+        let retrieved = backend.get_by_id(entry.id).await.unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().path, "test/secret");
+
+        // Retrieve by path
+        let retrieved = backend.get_by_path("test/secret").await.unwrap();
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().id, entry.id);
+    }
+
+    #[tokio::test]
+    async fn test_memory_backend_delete() {
+        let backend = MemoryBackend::new();
+
+        let entry = VaultEntry {
+            id: Uuid::new_v4(),
+            path: "test/secret".to_string(),
+            encrypted_data: vec![1, 2, 3, 4],
+            encryption_metadata: serde_json::json!({}),
+            security_level: SecurityLevel::Internal,
+            metadata: serde_json::json!({}),
+            tags: vec![],
+            version: 1,
+            owner_id: "user123".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            expires_at: None,
+        };
+
+        backend.store(&entry).await.unwrap();
+        backend.delete_by_id(entry.id).await.unwrap();
+
+        let retrieved = backend.get_by_id(entry.id).await.unwrap();
+        assert!(retrieved.is_none());
+    }
+}

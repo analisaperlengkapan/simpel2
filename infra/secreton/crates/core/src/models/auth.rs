@@ -56,7 +56,9 @@ pub struct AuthResponse {
 pub struct UserInfo {
     pub username: String,
     pub email: Option<String>,
+    pub display_name: Option<String>,
     pub groups: Vec<String>,
+    pub policies: Vec<String>,
     pub metadata: HashMap<String, String>,
 }
 

@@ -4,20 +4,20 @@
 //! including viewing user MFA status, resetting MFA settings, and bulk operations.
 
 use crate::error::{AuthencError, Result};
-use crate::services::mfa_service::{MfaService, MfaStatus, MfaStatistics};
 use crate::models::user::SecurityContext;
+use crate::services::mfa_service::{MfaService, MfaStatistics, MfaStatus};
 use crate::services::stores::user_store::UserStoreTrait;
 use crate::utils::jwt;
 use axum::{
     Router,
-    extract::{State, Path, Query, ConnectInfo},
+    extract::{ConnectInfo, Path, Query, State},
     response::Json,
-    routing::{get, post, put}
+    routing::{get, post, put},
 };
-use serde::{Deserialize, Serialize};
-use std::{sync::Arc, net::SocketAddr, collections::HashMap};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use uuid::Uuid;
 
 /// Create MFA management routes (requires admin authentication)
 pub fn create_mfa_management_routes() -> Router<Arc<crate::app::AppState>> {
@@ -28,25 +28,27 @@ pub fn create_mfa_management_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/users/:user_id/reset", post(reset_user_mfa))
         .route("/users/:user_id/disable", post(disable_user_mfa))
         .route("/users/:user_id/force-setup", post(force_mfa_setup))
-
         // Bulk operations
         .route("/bulk/reset", post(bulk_reset_mfa))
         .route("/bulk/disable", post(bulk_disable_mfa))
         .route("/bulk/force-setup", post(bulk_force_setup))
-
         // Organization-wide management
         .route("/organization/status", get(get_organization_mfa_status))
         .route("/organization/policy", get(get_mfa_policy))
         .route("/organization/policy", put(update_mfa_policy))
-
         // Reporting and analytics
         .route("/reports/adoption", get(get_mfa_adoption_report))
         .route("/reports/usage", get(get_mfa_usage_report))
         .route("/reports/compliance", get(get_compliance_report))
-
         // Recovery operations
-        .route("/users/:user_id/recovery-codes", get(get_user_recovery_codes))
-        .route("/users/:user_id/recovery-codes/regenerate", post(regenerate_recovery_codes))
+        .route(
+            "/users/:user_id/recovery-codes",
+            get(get_user_recovery_codes),
+        )
+        .route(
+            "/users/:user_id/recovery-codes/regenerate",
+            post(regenerate_recovery_codes),
+        )
 }
 
 // Request/Response structures
@@ -363,15 +365,17 @@ pub async fn get_users_mfa_status(
     };
 
     // Get total count
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
-    let count_query = format!(
-        "SELECT COUNT(*) FROM users u {}",
-        where_clause
-    );
+    let count_query = format!("SELECT COUNT(*) FROM users u {}", where_clause);
 
-    let total: i64 = client.query_one(&count_query, &params).await
+    let total: i64 = client
+        .query_one(&count_query, &params)
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?
         .get(0);
 
@@ -388,17 +392,18 @@ pub async fn get_users_mfa_status(
          {}
          ORDER BY u.nama, u.username
          LIMIT ${} OFFSET ${}",
-        where_clause, param_count - 1, param_count
+        where_clause,
+        param_count - 1,
+        param_count
     );
 
-    let rows = client.query(&query_sql, &params).await
+    let rows = client
+        .query(&query_sql, &params)
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Get MFA service for status details
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let mut users = Vec::new();
     for row in rows {
@@ -450,14 +455,14 @@ pub async fn get_user_mfa_status(
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
     // Get user info
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
     // Get MFA status
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
     let mfa_status = mfa_service.get_mfa_status(user_id).await?;
 
     let user_info = UserMfaInfo {
@@ -494,7 +499,10 @@ pub async fn reset_user_mfa(
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
     // Get user info
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
     // Create security context for admin operation
@@ -512,20 +520,23 @@ pub async fn reset_user_mfa(
     };
 
     // Reset MFA using MFA service
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let result = match mfa_service.disable_mfa(user_id, &security_context).await {
         Ok(_) => {
             // Log admin action
-            mfa_service.log_admin_action(
-                Some(admin_user_id),
-                user_id,
-                if req.force_reactivation { "mfa_reset_force_reactivation" } else { "mfa_reset" },
-                &req.reason,
-            ).await?;
+            mfa_service
+                .log_admin_action(
+                    Some(admin_user_id),
+                    user_id,
+                    if req.force_reactivation {
+                        "mfa_reset_force_reactivation"
+                    } else {
+                        "mfa_reset"
+                    },
+                    &req.reason,
+                )
+                .await?;
 
             MfaOperationResult {
                 user_id,
@@ -539,7 +550,7 @@ pub async fn reset_user_mfa(
             username: user.username.clone(),
             success: false,
             message: format!("Failed to reset MFA: {}", e),
-        }
+        },
     };
 
     // Log admin action
@@ -566,7 +577,10 @@ pub async fn disable_user_mfa(
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
     // Get user info
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
     // Create security context for admin operation
@@ -583,20 +597,14 @@ pub async fn disable_user_mfa(
     };
 
     // Disable MFA using MFA service
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let result = match mfa_service.disable_mfa(user_id, &security_context).await {
         Ok(_) => {
             // Log admin action
-            mfa_service.log_admin_action(
-                Some(admin_user_id),
-                user_id,
-                "mfa_disable",
-                &req.reason,
-            ).await?;
+            mfa_service
+                .log_admin_action(Some(admin_user_id), user_id, "mfa_disable", &req.reason)
+                .await?;
 
             MfaOperationResult {
                 user_id,
@@ -610,7 +618,7 @@ pub async fn disable_user_mfa(
             username: user.username.clone(),
             success: false,
             message: format!("Failed to disable MFA: {}", e),
-        }
+        },
     };
 
     // Log admin action
@@ -637,11 +645,17 @@ pub async fn force_mfa_setup(
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
     // Get user info
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
     // Update database to force MFA setup
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let result = match client.execute(
@@ -701,17 +715,16 @@ pub async fn bulk_reset_mfa(
 
     // Limit bulk operations to prevent abuse
     if req.user_ids.len() > 100 {
-        return Err(AuthencError::validation("Bulk operations limited to 100 users at once"));
+        return Err(AuthencError::validation(
+            "Bulk operations limited to 100 users at once",
+        ));
     }
 
     let mut results = Vec::new();
     let mut success_count = 0;
     let mut failure_count = 0;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     for user_id in &req.user_ids {
         // Get user info
@@ -736,12 +749,14 @@ pub async fn bulk_reset_mfa(
                 match mfa_service.disable_mfa(*user_id, &security_context).await {
                     Ok(_) => {
                         // Log admin action
-                        let _ = mfa_service.log_admin_action(
-                            Some(admin_user_id),
-                            *user_id,
-                            "bulk_mfa_reset",
-                            &req.reason,
-                        ).await;
+                        let _ = mfa_service
+                            .log_admin_action(
+                                Some(admin_user_id),
+                                *user_id,
+                                "bulk_mfa_reset",
+                                &req.reason,
+                            )
+                            .await;
 
                         success_count += 1;
                         MfaOperationResult {
@@ -805,27 +820,27 @@ pub async fn bulk_reset_mfa(
 }
 
 /// Verify admin token and return admin user ID
-async fn verify_admin_token(
-    token: &str,
-    state: &Arc<crate::app::AppState>,
-) -> Result<Uuid> {
+async fn verify_admin_token(token: &str, state: &Arc<crate::app::AppState>) -> Result<Uuid> {
     // Verify JWT token
-    let claims = jwt::verify_jwt(token)
-        .map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
+    let claims =
+        jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Get user and verify admin privileges
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
     // Check if user has admin role for MFA management
     let is_mfa_admin = user.roles.iter().any(|role| {
-        role.name == "admin" ||
-        role.name == "system_admin" ||
-        role.name == "mfa_admin" ||
-        role.name == "security_admin"
+        role.name == "admin"
+            || role.name == "system_admin"
+            || role.name == "mfa_admin"
+            || role.name == "security_admin"
     });
 
     if !is_mfa_admin {
@@ -845,17 +860,16 @@ pub async fn bulk_disable_mfa(
 
     // Limit bulk operations to prevent abuse
     if req.user_ids.len() > 100 {
-        return Err(AuthencError::validation("Bulk operations limited to 100 users at once"));
+        return Err(AuthencError::validation(
+            "Bulk operations limited to 100 users at once",
+        ));
     }
 
     let mut results = Vec::new();
     let mut success_count = 0;
     let mut failure_count = 0;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     for user_id in &req.user_ids {
         let user_result = state.user_store.get_user(*user_id).await;
@@ -877,12 +891,14 @@ pub async fn bulk_disable_mfa(
 
                 match mfa_service.disable_mfa(*user_id, &security_context).await {
                     Ok(_) => {
-                        let _ = mfa_service.log_admin_action(
-                            Some(admin_user_id),
-                            *user_id,
-                            "bulk_mfa_disable",
-                            &req.reason,
-                        ).await;
+                        let _ = mfa_service
+                            .log_admin_action(
+                                Some(admin_user_id),
+                                *user_id,
+                                "bulk_mfa_disable",
+                                &req.reason,
+                            )
+                            .await;
 
                         success_count += 1;
                         MfaOperationResult {
@@ -953,20 +969,22 @@ pub async fn bulk_force_setup(
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
     if req.user_ids.len() > 100 {
-        return Err(AuthencError::validation("Bulk operations limited to 100 users at once"));
+        return Err(AuthencError::validation(
+            "Bulk operations limited to 100 users at once",
+        ));
     }
 
     let mut results = Vec::new();
     let mut success_count = 0;
     let mut failure_count = 0;
 
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     for user_id in &req.user_ids {
         let user_result = state.user_store.get_user(*user_id).await;
@@ -1053,10 +1071,7 @@ pub async fn get_organization_mfa_status(
 ) -> Result<Json<OrganizationMfaStatus>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Get overall statistics
     let overall_stats = mfa_service.get_mfa_statistics(None).await?;
@@ -1067,14 +1082,19 @@ pub async fn get_organization_mfa_status(
     };
 
     // Get statistics by satker
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
-    let satker_rows = client.query(
-        "SELECT DISTINCT satker_code FROM users WHERE satker_code IS NOT NULL",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+    let satker_rows = client
+        .query(
+            "SELECT DISTINCT satker_code FROM users WHERE satker_code IS NOT NULL",
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut by_satker = HashMap::new();
     for row in satker_rows {
@@ -1133,7 +1153,10 @@ pub async fn get_mfa_policy(
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
     // Get MFA policy from configuration or database
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let policy_row = client.query_opt(
@@ -1175,7 +1198,8 @@ pub async fn update_mfa_policy(
     State(state): State<Arc<crate::app::AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<MfaPolicy>> {
-    let auth_token = req["admin_token"].as_str()
+    let auth_token = req["admin_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Admin token required"))?;
     let admin_user_id = verify_admin_token(auth_token, &state).await?;
 
@@ -1184,25 +1208,36 @@ pub async fn update_mfa_policy(
 
     // Validate policy
     if new_policy.grace_period_days > 365 {
-        return Err(AuthencError::validation("Grace period cannot exceed 365 days"));
+        return Err(AuthencError::validation(
+            "Grace period cannot exceed 365 days",
+        ));
     }
     if new_policy.max_failed_attempts > 20 {
-        return Err(AuthencError::validation("Max failed attempts cannot exceed 20"));
+        return Err(AuthencError::validation(
+            "Max failed attempts cannot exceed 20",
+        ));
     }
     if new_policy.lockout_duration_minutes > 1440 {
-        return Err(AuthencError::validation("Lockout duration cannot exceed 24 hours"));
+        return Err(AuthencError::validation(
+            "Lockout duration cannot exceed 24 hours",
+        ));
     }
 
     // Save policy to database
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Deactivate current policy
-    client.execute(
-        "UPDATE mfa_policies SET active = false WHERE active = true",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+    client
+        .execute(
+            "UPDATE mfa_policies SET active = false WHERE active = true",
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Insert new policy
     let policy_json = serde_json::to_value(&new_policy)
@@ -1234,10 +1269,7 @@ pub async fn get_user_recovery_codes(
 ) -> Result<Json<serde_json::Value>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let recovery_codes_count = mfa_service.get_recovery_codes_count(user_id).await?;
 
@@ -1264,20 +1296,19 @@ pub async fn regenerate_recovery_codes(
 ) -> Result<Json<serde_json::Value>> {
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let new_codes = mfa_service.regenerate_recovery_codes(user_id).await?;
 
     // Log admin action
-    mfa_service.log_admin_action(
-        Some(admin_user_id),
-        user_id,
-        "regenerate_recovery_codes",
-        &req.reason,
-    ).await?;
+    mfa_service
+        .log_admin_action(
+            Some(admin_user_id),
+            user_id,
+            "regenerate_recovery_codes",
+            &req.reason,
+        )
+        .await?;
 
     tracing::warn!(
         admin_user_id = %admin_user_id,
@@ -1327,7 +1358,7 @@ mod tests {
             enforce_for_satkers: vec![],
             grace_period_days: 400, // Invalid: > 365
             backup_codes_required: true,
-            max_failed_attempts: 25, // Invalid: > 20
+            max_failed_attempts: 25,        // Invalid: > 20
             lockout_duration_minutes: 2000, // Invalid: > 1440
         };
 
@@ -1345,19 +1376,24 @@ pub async fn get_mfa_adoption_report(
 ) -> Result<Json<MfaAdoptionReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Get overall adoption rate
-    let overall_row = client.query_one(
-        "SELECT
+    let overall_row = client
+        .query_one(
+            "SELECT
             COUNT(*) as total_users,
             COUNT(*) FILTER (WHERE mfa_enabled = true) as mfa_users
          FROM users
          WHERE enabled = true AND deleted_at IS NULL",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let total_users: i64 = overall_row.get(0);
     let mfa_users: i64 = overall_row.get(1);
@@ -1368,8 +1404,9 @@ pub async fn get_mfa_adoption_report(
     };
 
     // Get adoption by satker
-    let satker_rows = client.query(
-        "SELECT
+    let satker_rows = client
+        .query(
+            "SELECT
             satker_code,
             COUNT(*) as total_users,
             COUNT(*) FILTER (WHERE mfa_enabled = true) as mfa_users
@@ -1377,9 +1414,10 @@ pub async fn get_mfa_adoption_report(
          WHERE enabled = true AND deleted_at IS NULL AND satker_code IS NOT NULL
          GROUP BY satker_code
          ORDER BY satker_code",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut by_satker = HashMap::new();
     for row in satker_rows {
@@ -1395,8 +1433,9 @@ pub async fn get_mfa_adoption_report(
     }
 
     // Get adoption by role
-    let role_rows = client.query(
-        "SELECT
+    let role_rows = client
+        .query(
+            "SELECT
             r.name as role_name,
             COUNT(DISTINCT u.id) as total_users,
             COUNT(DISTINCT u.id) FILTER (WHERE u.mfa_enabled = true) as mfa_users
@@ -1406,9 +1445,10 @@ pub async fn get_mfa_adoption_report(
          WHERE u.enabled = true AND u.deleted_at IS NULL
          GROUP BY r.name
          ORDER BY r.name",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut by_role = HashMap::new();
     for row in role_rows {
@@ -1490,7 +1530,10 @@ pub async fn get_mfa_usage_report(
 ) -> Result<Json<MfaUsageReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Get daily verification statistics (last 30 days)
@@ -1548,8 +1591,9 @@ pub async fn get_mfa_usage_report(
     }
 
     // Analyze failure reasons
-    let failure_rows = client.query(
-        "SELECT
+    let failure_rows = client
+        .query(
+            "SELECT
             CASE
                 WHEN message ILIKE '%invalid code%' THEN 'Invalid OTP Code'
                 WHEN message ILIKE '%expired%' THEN 'Expired Code'
@@ -1563,9 +1607,10 @@ pub async fn get_mfa_usage_report(
            AND event_type = 'mfa_verification_failed'
          GROUP BY failure_reason
          ORDER BY count DESC",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut common_failure_reasons = HashMap::new();
     for row in failure_rows {
@@ -1575,8 +1620,9 @@ pub async fn get_mfa_usage_report(
     }
 
     // Find peak failure times (by hour of day)
-    let peak_rows = client.query(
-        "SELECT
+    let peak_rows = client
+        .query(
+            "SELECT
             EXTRACT(HOUR FROM created_at) as hour,
             COUNT(*) as failure_count
          FROM audit_logs
@@ -1585,9 +1631,10 @@ pub async fn get_mfa_usage_report(
          GROUP BY EXTRACT(HOUR FROM created_at)
          ORDER BY failure_count DESC
          LIMIT 5",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut peak_failure_times = Vec::new();
     for row in peak_rows {
@@ -1596,8 +1643,9 @@ pub async fn get_mfa_usage_report(
     }
 
     // Find users with frequent failures (more than 10 failures in last 7 days)
-    let frequent_failure_rows = client.query(
-        "SELECT
+    let frequent_failure_rows = client
+        .query(
+            "SELECT
             user_id,
             COUNT(*) as failure_count
          FROM audit_logs
@@ -1607,9 +1655,10 @@ pub async fn get_mfa_usage_report(
          HAVING COUNT(*) > 10
          ORDER BY failure_count DESC
          LIMIT 20",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let mut users_with_frequent_failures = Vec::new();
     for row in frequent_failure_rows {
@@ -1647,7 +1696,10 @@ pub async fn get_compliance_report(
 ) -> Result<Json<ComplianceReport>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Get current MFA policy
@@ -1695,10 +1747,12 @@ pub async fn get_compliance_report(
     let compliance_row = if policy.enforce_for_all {
         client.query_one(compliance_query, &[]).await
     } else {
-        client.query_one(
-            compliance_query,
-            &[&policy.enforce_for_roles, &policy.enforce_for_satkers]
-        ).await
+        client
+            .query_one(
+                compliance_query,
+                &[&policy.enforce_for_roles, &policy.enforce_for_satkers],
+            )
+            .await
     }
     .map_err(|e| AuthencError::database(e.to_string()))?;
 
@@ -1745,10 +1799,12 @@ pub async fn get_compliance_report(
     let non_compliant_rows = if policy.enforce_for_all {
         client.query(non_compliant_query, &[]).await
     } else {
-        client.query(
-            non_compliant_query,
-            &[&policy.enforce_for_roles, &policy.enforce_for_satkers]
-        ).await
+        client
+            .query(
+                non_compliant_query,
+                &[&policy.enforce_for_roles, &policy.enforce_for_satkers],
+            )
+            .await
     }
     .map_err(|e| AuthencError::database(e.to_string()))?;
 
@@ -1800,23 +1856,33 @@ pub async fn get_compliance_report(
     let mut recommendations = Vec::new();
 
     if compliance_percentage < 80.0 {
-        recommendations.push("Consider implementing mandatory MFA training for all users".to_string());
-        recommendations.push("Send automated reminders to users who haven't set up MFA".to_string());
+        recommendations
+            .push("Consider implementing mandatory MFA training for all users".to_string());
+        recommendations
+            .push("Send automated reminders to users who haven't set up MFA".to_string());
     }
 
     if non_compliant_users.len() > 50 {
-        recommendations.push("Consider implementing a phased MFA rollout by department".to_string());
+        recommendations
+            .push("Consider implementing a phased MFA rollout by department".to_string());
     }
 
-    if policy_violations.iter().any(|v| v.violation_type.contains("Excessive MFA Failures")) {
-        recommendations.push("Review MFA failure patterns and provide additional user support".to_string());
+    if policy_violations
+        .iter()
+        .any(|v| v.violation_type.contains("Excessive MFA Failures"))
+    {
+        recommendations
+            .push("Review MFA failure patterns and provide additional user support".to_string());
     }
 
     if policy.grace_period_days > 30 {
-        recommendations.push("Consider reducing MFA setup grace period to improve compliance".to_string());
+        recommendations
+            .push("Consider reducing MFA setup grace period to improve compliance".to_string());
     }
 
-    recommendations.push("Regularly review and update MFA policies based on security requirements".to_string());
+    recommendations.push(
+        "Regularly review and update MFA policies based on security requirements".to_string(),
+    );
     recommendations.push("Implement automated compliance monitoring and alerting".to_string());
 
     tracing::info!(

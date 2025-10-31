@@ -1,5 +1,7 @@
-//! Brankas CLI Library
+//! Secreton CLI Library
+//!
+//! Command-line interface for Secreton secret management system.
 
-pub fn placeholder() {
-    println!("Brankas CLI placeholder");
-}
+pub mod backup;
+pub mod config;
+pub mod seal;

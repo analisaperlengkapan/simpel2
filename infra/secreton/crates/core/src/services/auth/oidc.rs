@@ -8,25 +8,26 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use crate::config::Config;
 
 /// OIDC/JWT authentication errors
 #[derive(Debug, thiserror::Error)]
 pub enum OidcError {
     #[error("Invalid token: {0}")]
     InvalidToken(String),
-    
+
     #[error("Token expired")]
     TokenExpired,
-    
+
     #[error("Role not found: {0}")]
     RoleNotFound(String),
-    
+
     #[error("Claims validation failed: {0}")]
     ClaimsValidationFailed(String),
-    
+
     #[error("OIDC discovery failed: {0}")]
     DiscoveryFailed(String),
-    
+
     #[error("Invalid issuer")]
     InvalidIssuer,
 }
@@ -36,25 +37,25 @@ pub enum OidcError {
 pub struct OidcConfig {
     /// OIDC issuer URL
     pub issuer_url: String,
-    
+
     /// OIDC discovery URL (typically issuer + /.well-known/openid-configuration)
     pub discovery_url: String,
-    
+
     /// Client ID
     pub client_id: String,
-    
+
     /// Client secret
     pub client_secret: String,
-    
+
     /// Redirect URI
     pub redirect_uri: String,
-    
+
     /// Allowed redirect URIs
     pub allowed_redirect_uris: Vec<String>,
-    
+
     /// Default role
     pub default_role: Option<String>,
-    
+
     /// OIDC scopes
     pub oidc_scopes: Vec<String>,
 }
@@ -79,34 +80,34 @@ impl Default for OidcConfig {
 pub struct JwtClaims {
     /// Subject (user identifier)
     pub sub: String,
-    
+
     /// Issuer
     pub iss: String,
-    
+
     /// Audience
     pub aud: Vec<String>,
-    
+
     /// Expiration time
     pub exp: i64,
-    
+
     /// Issued at
     pub iat: i64,
-    
+
     /// Not before
     pub nbf: Option<i64>,
-    
+
     /// Email
     pub email: Option<String>,
-    
+
     /// Email verified
     pub email_verified: Option<bool>,
-    
+
     /// Name
     pub name: Option<String>,
-    
+
     /// Groups
     pub groups: Option<Vec<String>>,
-    
+
     /// Additional claims
     #[serde(flatten)]
     pub additional: HashMap<String, serde_json::Value>,
@@ -118,7 +119,7 @@ impl JwtClaims {
         let now = Utc::now().timestamp();
         self.exp < now
     }
-    
+
     /// Check if token is valid (not before)
     pub fn is_valid_now(&self) -> bool {
         let now = Utc::now().timestamp();
@@ -131,34 +132,34 @@ impl JwtClaims {
 pub struct OidcRole {
     /// Role name
     pub name: String,
-    
+
     /// Bound audiences
     pub bound_audiences: Vec<String>,
-    
+
     /// Bound subject
     pub bound_subject: Option<String>,
-    
+
     /// Bound claims (key -> expected values)
     pub bound_claims: HashMap<String, Vec<String>>,
-    
+
     /// User claim (claim to use as username)
     pub user_claim: String,
-    
+
     /// Groups claim (claim to use for groups)
     pub groups_claim: Option<String>,
-    
+
     /// Allowed redirect URIs
     pub allowed_redirect_uris: Vec<String>,
-    
+
     /// Token TTL
     pub token_ttl: u64,
-    
+
     /// Token max TTL
     pub token_max_ttl: u64,
-    
+
     /// Policies
     pub policies: Vec<String>,
-    
+
     /// Created at
     pub created_at: DateTime<Utc>,
 }
@@ -180,21 +181,21 @@ impl OidcRole {
             created_at: Utc::now(),
         }
     }
-    
+
     /// Validate claims against role constraints
     pub fn validate_claims(&self, claims: &JwtClaims) -> Result<(), OidcError> {
         // Check audience
         if !self.bound_audiences.is_empty() {
             let has_valid_audience = self.bound_audiences.iter()
                 .any(|aud| claims.aud.contains(aud));
-            
+
             if !has_valid_audience {
                 return Err(OidcError::ClaimsValidationFailed(
                     "Audience mismatch".to_string()
                 ));
             }
         }
-        
+
         // Check subject
         if let Some(ref bound_sub) = self.bound_subject {
             if &claims.sub != bound_sub {
@@ -203,13 +204,13 @@ impl OidcRole {
                 ));
             }
         }
-        
+
         // Check bound claims
         for (key, expected_values) in &self.bound_claims {
             if let Some(claim_value) = claims.additional.get(key) {
                 let value_str = claim_value.as_str()
                     .unwrap_or("");
-                
+
                 if !expected_values.contains(&value_str.to_string()) {
                     return Err(OidcError::ClaimsValidationFailed(
                         format!("Claim {} value mismatch", key)
@@ -221,7 +222,7 @@ impl OidcRole {
                 ));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -240,18 +241,18 @@ impl OidcAuth {
             roles: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Verify JWT token (simplified)
     pub async fn verify_jwt(&self, token: &str) -> Result<JwtClaims, OidcError> {
         // In production, this would:
         // 1. Fetch JWKS from OIDC discovery endpoint
         // 2. Verify JWT signature
         // 3. Validate claims (exp, iss, aud, nbf)
-        
+
         if token.is_empty() {
             return Err(OidcError::InvalidToken("Empty token".to_string()));
         }
-        
+
         // Simulated JWT parsing
         let claims = JwtClaims {
             sub: "user123".to_string(),
@@ -266,26 +267,26 @@ impl OidcAuth {
             groups: Some(vec!["developers".to_string(), "users".to_string()]),
             additional: HashMap::new(),
         };
-        
+
         // Validate expiration
         if claims.is_expired() {
             return Err(OidcError::TokenExpired);
         }
-        
+
         // Validate not before
         if !claims.is_valid_now() {
             return Err(OidcError::InvalidToken("Token not yet valid".to_string()));
         }
-        
+
         // Validate issuer
         let config = self.config.read().await;
         if !config.issuer_url.is_empty() && claims.iss != config.issuer_url {
             return Err(OidcError::InvalidIssuer);
         }
-        
+
         Ok(claims)
     }
-    
+
     /// Authenticate with JWT
     pub async fn authenticate(
         &self,
@@ -294,15 +295,15 @@ impl OidcAuth {
     ) -> Result<OidcAuthResponse, OidcError> {
         // Verify JWT
         let claims = self.verify_jwt(jwt).await?;
-        
+
         // Get role
         let roles = self.roles.read().await;
         let role = roles.get(role_name)
             .ok_or_else(|| OidcError::RoleNotFound(role_name.to_string()))?;
-        
+
         // Validate claims against role
         role.validate_claims(&claims)?;
-        
+
         // Extract username from user_claim
         let username = if role.user_claim == "sub" {
             claims.sub.clone()
@@ -314,7 +315,7 @@ impl OidcAuth {
                 .unwrap_or(&claims.sub)
                 .to_string()
         };
-        
+
         // Extract groups
         let groups = if let Some(ref groups_claim) = role.groups_claim {
             if groups_claim == "groups" {
@@ -332,7 +333,7 @@ impl OidcAuth {
         } else {
             Vec::new()
         };
-        
+
         Ok(OidcAuthResponse {
             username,
             email: claims.email,
@@ -341,26 +342,26 @@ impl OidcAuth {
             token_ttl: role.token_ttl,
         })
     }
-    
+
     /// Create role
     pub async fn create_role(&self, role: OidcRole) -> Result<(), OidcError> {
         let mut roles = self.roles.write().await;
         roles.insert(role.name.clone(), role);
         Ok(())
     }
-    
+
     /// Get role
     pub async fn get_role(&self, name: &str) -> Option<OidcRole> {
         let roles = self.roles.read().await;
         roles.get(name).cloned()
     }
-    
+
     /// List roles
     pub async fn list_roles(&self) -> Vec<String> {
         let roles = self.roles.read().await;
         roles.keys().cloned().collect()
     }
-    
+
     /// Delete role
     pub async fn delete_role(&self, name: &str) -> Result<(), OidcError> {
         let mut roles = self.roles.write().await;
@@ -368,7 +369,7 @@ impl OidcAuth {
             .ok_or_else(|| OidcError::RoleNotFound(name.to_string()))?;
         Ok(())
     }
-    
+
     /// Get authorization URL
     pub fn get_auth_url(&self, state: &str, nonce: &str) -> String {
         // In production, this would construct proper OAuth2 authorization URL
@@ -398,38 +399,38 @@ pub struct OidcAuthResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_create_role() {
         let oidc = OidcAuth::default();
-        
+
         let mut role = OidcRole::new("web-app".to_string());
         role.bound_audiences = vec!["my-client-id".to_string()];
         role.policies = vec!["read".to_string()];
-        
+
         oidc.create_role(role).await.unwrap();
-        
+
         let retrieved = oidc.get_role("web-app").await.unwrap();
         assert_eq!(retrieved.name, "web-app");
     }
-    
+
     #[tokio::test]
     async fn test_authenticate() {
         let oidc = OidcAuth::default();
-        
+
         let mut role = OidcRole::new("web-app".to_string());
         role.bound_audiences = vec!["my-client-id".to_string()];
         role.policies = vec!["read".to_string()];
-        
+
         oidc.create_role(role).await.unwrap();
-        
+
         let result = oidc.authenticate("web-app", "mock-jwt-token").await;
         assert!(result.is_ok());
-        
+
         let response = result.unwrap();
         assert!(!response.username.is_empty());
     }
-    
+
     #[test]
     fn test_jwt_expiration() {
         let mut claims = JwtClaims {
@@ -445,18 +446,17 @@ mod tests {
             groups: None,
             additional: HashMap::new(),
         };
-        
+
         assert!(claims.is_expired());
-        
+
         claims.exp = Utc::now().timestamp() + 3600; // Valid
         assert!(!claims.is_expired());
     }
 }
-use crate::utils::config::Config;
 
-pub fn build_authorize_url(_config: &Config) -> Option<String> {
-    // TODO: Implement Ed25519-based OAuth2 authorization URL
-    // Temporarily disabled due to RSA vulnerability migration
+// TODO: Implement Ed25519-based OAuth2 authorization URL
+// Temporarily disabled due to RSA vulnerability migration
+pub fn build_authorize_url() -> Option<String> {
     None
     /*
     let client_id = ClientId::new(config.oidc_client_id.clone()?);

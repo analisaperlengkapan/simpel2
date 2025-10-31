@@ -81,14 +81,19 @@ impl DatabaseOptimizer {
     /// Execute an MFA query with performance monitoring
     pub async fn execute_mfa_query<F, T>(&mut self, query_name: &str, query_fn: F) -> Result<T>
     where
-        F: FnOnce(deadpool_postgres::Client) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T>> + Send>>,
+        F: FnOnce(
+            deadpool_postgres::Client,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T>> + Send>>,
     {
         let start_time = Instant::now();
 
-        let client = self.mfa_pool
-            .get()
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to get connection for {}: {}", query_name, e)))?;
+        let client = self.mfa_pool.get().await.map_err(|e| {
+            AuthencError::database(format!(
+                "Failed to get connection for {}: {}",
+                query_name, e
+            ))
+        })?;
 
         let result = query_fn(client).await;
 
@@ -148,10 +153,9 @@ impl DatabaseOptimizer {
 
     /// Optimize database connections for MFA operations
     pub async fn optimize_connections(&self) -> Result<()> {
-        let client = self.mfa_pool
-            .get()
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to get connection for optimization: {}", e)))?;
+        let client = self.mfa_pool.get().await.map_err(|e| {
+            AuthencError::database(format!("Failed to get connection for optimization: {}", e))
+        })?;
 
         // Set connection-level optimizations for MFA queries
         client
@@ -162,7 +166,9 @@ impl DatabaseOptimizer {
         client
             .execute("SET random_page_cost = 1.1", &[])
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to set random_page_cost: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to set random_page_cost: {}", e))
+            })?;
 
         // Enable query plan caching for MFA queries
         client
@@ -176,10 +182,9 @@ impl DatabaseOptimizer {
 
     /// Analyze MFA table statistics for query optimization
     pub async fn analyze_mfa_tables(&self) -> Result<()> {
-        let client = self.mfa_pool
-            .get()
-            .await
-            .map_err(|e| AuthencError::database(format!("Failed to get connection for analysis: {}", e)))?;
+        let client = self.mfa_pool.get().await.map_err(|e| {
+            AuthencError::database(format!("Failed to get connection for analysis: {}", e))
+        })?;
 
         // Analyze MFA-related tables to update statistics
         let tables = vec!["users", "mfa_admin_actions"];
@@ -188,7 +193,9 @@ impl DatabaseOptimizer {
             client
                 .execute(&format!("ANALYZE {}", table), &[])
                 .await
-                .map_err(|e| AuthencError::database(format!("Failed to analyze table {}: {}", table, e)))?;
+                .map_err(|e| {
+                    AuthencError::database(format!("Failed to analyze table {}: {}", table, e))
+                })?;
 
             debug!("Analyzed table: {}", table);
         }
@@ -197,7 +204,9 @@ impl DatabaseOptimizer {
         client
             .execute("SELECT refresh_mfa_statistics()", &[])
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to refresh MFA statistics: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to refresh MFA statistics: {}", e))
+            })?;
 
         info!("MFA table statistics updated");
         Ok(())
@@ -212,10 +221,9 @@ impl DatabaseOptimizer {
     pub async fn health_check(&self) -> Result<DatabaseHealthStatus> {
         let start_time = Instant::now();
 
-        let client = self.mfa_pool
-            .get()
-            .await
-            .map_err(|e| AuthencError::database(format!("Health check failed to get connection: {}", e)))?;
+        let client = self.mfa_pool.get().await.map_err(|e| {
+            AuthencError::database(format!("Health check failed to get connection: {}", e))
+        })?;
 
         // Test basic connectivity
         let _ = client

@@ -17,6 +17,7 @@ pub mod app;
 pub mod components;
 pub mod features;
 pub mod pages;
+pub mod utils;
 
 // Re-export the main App component
 pub use app::App;
@@ -24,7 +25,9 @@ pub use app::App;
 /// Prelude for commonly used items in portal
 pub mod prelude {
     // Re-export specific items to avoid ambiguity
-    pub use crate::features::auth::{AuthService, UserSession as PortalUserSession};
+    pub use crate::features::auth::{
+        AuthService, MfaSetupData, MfaStatus, UserSession as PortalUserSession,
+    };
     pub use crate::features::microfrontends::{
         AppCategory, AppColor, AppStatus, MicrofrontendApp, MicrofrontendRegistry,
     };

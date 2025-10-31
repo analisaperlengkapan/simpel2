@@ -1,4 +1,4 @@
-//! Brankas Storage Abstraction Layer
+//! Secreton Storage Abstraction Layer
 //!
 //! Provides unified interface for different storage backends including
 //! PostgreSQL, Redis, file-based storage, and Raft integrated storage.
@@ -7,24 +7,32 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
 pub mod backends;
 pub mod cache;
+pub mod encrypted_storage;
 pub mod factory;
-pub mod models;
+pub mod memory;
+pub mod prelude;
 
-// Re-export common backends
-pub use backends::{FileBackend, PostgresBackend, RaftConfig, RaftStorageBackend, RedisBackend};
+// OpenRaft consensus module (migrated from old raft)
+#[cfg(feature = "raft-consensus")]
+pub mod raft;
 
-// Re-export new backends
-pub use backends::{ConsulStorage, ConsulStorageConfig};
-pub use backends::{DynamoDBStorage, DynamoDBStorageConfig};
-pub use backends::{EtcdStorage, EtcdStorageConfig};
-pub use backends::{MySQLStorage, MySQLStorageConfig};
-pub use backends::{S3Storage, S3StorageConfig};
+// Re-export essential backends
+pub use backends::PostgresBackend;
+pub use cache::{CacheBackend, CacheStats, CachedStorage, InMemoryCache};
+pub use encrypted_storage::EncryptedStorage;
+pub use memory::MemoryBackend;
+
+// Re-export OpenRaft components
+#[cfg(feature = "raft-consensus")]
+pub use raft::{
+    RaftCluster, RaftClusterConfig, RaftStatus, SecretonStateMachine, SecretonStorage,
+    StateMachineCommand, StateMachineResponse,
+};
 
 // Re-export factory
 pub use factory::{StorageBackendType, StorageFactory, StorageFactoryConfig};
@@ -71,17 +79,17 @@ pub struct VaultEntry {
     /// Encrypted secret data
     pub encrypted_data: Vec<u8>,
     /// Encryption metadata
-    pub encryption_metadata: EncryptionMetadata,
+    pub encryption_metadata: serde_json::Value,
     /// Security level of the data
     pub security_level: SecurityLevel,
     /// Additional metadata
-    pub metadata: HashMap<String, String>,
+    pub metadata: serde_json::Value,
     /// Tags for categorization
     pub tags: Vec<String>,
     /// Version number
     pub version: u32,
     /// Owner of the entry
-    pub owner_id: Uuid,
+    pub owner_id: String,
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
     /// Last update timestamp
@@ -95,9 +103,9 @@ impl VaultEntry {
     pub fn new(
         path: String,
         encrypted_data: Vec<u8>,
-        encryption_metadata: EncryptionMetadata,
+        encryption_metadata: serde_json::Value,
         security_level: SecurityLevel,
-        owner_id: Uuid,
+        owner_id: String,
     ) -> Self {
         let now = Utc::now();
         Self {
@@ -106,7 +114,7 @@ impl VaultEntry {
             encrypted_data,
             encryption_metadata,
             security_level,
-            metadata: HashMap::new(),
+            metadata: serde_json::json!({}),
             tags: Vec::new(),
             version: 1,
             owner_id,
@@ -132,8 +140,10 @@ impl VaultEntry {
     }
 
     /// Add metadata
-    pub fn add_metadata(mut self, key: String, value: String) -> Self {
-        self.metadata.insert(key, value);
+    pub fn add_metadata(mut self, key: String, value: serde_json::Value) -> Self {
+        if let serde_json::Value::Object(ref mut map) = self.metadata {
+            map.insert(key, value);
+        }
         self
     }
 
@@ -157,6 +167,22 @@ impl Default for EncryptionMetadata {
             kdf_params: None,
         }
     }
+}
+
+/// Options for listing entries
+#[derive(Debug, Clone, Default)]
+pub struct ListOptions {
+    /// Path prefix to filter by
+    pub prefix: Option<String>,
+
+    /// Maximum number of results
+    pub limit: Option<usize>,
+
+    /// Offset for pagination
+    pub offset: Option<usize>,
+
+    /// Include metadata in results
+    pub include_metadata: bool,
 }
 
 /// Query parameters for filtering vault entries
@@ -228,16 +254,32 @@ impl QueryParams {
 #[derive(Error, Debug)]
 pub enum StorageError {
     #[error("Connection failed: {message}")]
-    ConnectionFailed { message: String },
+    ConnectionFailed {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 
     #[error("Query failed: {message}")]
-    QueryFailed { message: String },
+    QueryFailed {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 
     #[error("Transaction failed: {message}")]
-    TransactionFailed { message: String },
+    TransactionFailed {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 
     #[error("Serialization error: {message}")]
-    SerializationError { message: String },
+    SerializationError {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 
     #[error("Not found: {resource_type} with ID {id}")]
     NotFound { resource_type: String, id: String },
@@ -259,10 +301,103 @@ pub enum StorageError {
 
     #[error("Migration error: {message}")]
     MigrationError { message: String },
+
+    #[error("Not leader, redirect to: {leader_id}")]
+    NotLeader { leader_id: String },
+
+    #[error("Replication error: {0}")]
+    ReplicationError(String),
+
+    #[error("Transaction not supported by backend: {backend}")]
+    TransactionNotSupported { backend: String },
+
+    #[error("Invalid query: {message}")]
+    InvalidQuery { message: String },
+
+    #[error("Timeout: {operation}")]
+    Timeout { operation: String },
 }
 
 /// Type alias for Results with StorageError
 pub type StorageResult<T> = Result<T, StorageError>;
+
+impl StorageError {
+    /// Create a connection failed error with context
+    pub fn connection_failed<S: Into<String>>(message: S) -> Self {
+        Self::ConnectionFailed {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Create a connection failed error with source
+    pub fn connection_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+        message: S,
+        source: E,
+    ) -> Self {
+        Self::ConnectionFailed {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
+    /// Create a query failed error with context
+    pub fn query_failed<S: Into<String>>(message: S) -> Self {
+        Self::QueryFailed {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Create a query failed error with source
+    pub fn query_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+        message: S,
+        source: E,
+    ) -> Self {
+        Self::QueryFailed {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
+    /// Create a transaction failed error with context
+    pub fn transaction_failed<S: Into<String>>(message: S) -> Self {
+        Self::TransactionFailed {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Create a transaction failed error with source
+    pub fn transaction_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+        message: S,
+        source: E,
+    ) -> Self {
+        Self::TransactionFailed {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
+    /// Create a serialization error with context
+    pub fn serialization_error<S: Into<String>>(message: S) -> Self {
+        Self::SerializationError {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Create a serialization error with source
+    pub fn serialization_error_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+        message: S,
+        source: E,
+    ) -> Self {
+        Self::SerializationError {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+}
 
 /// Storage backend trait for different implementations
 #[async_trait]
@@ -305,6 +440,11 @@ pub trait StorageBackend: Send + Sync {
 
     /// Run migrations
     async fn migrate(&self) -> StorageResult<()>;
+
+    /// Downcast to concrete type for specialized operations
+    ///
+    /// This allows accessing backend-specific functionality like Raft cluster operations.
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Transaction interface for atomic operations
@@ -326,7 +466,15 @@ pub trait StorageTransaction: Send + Sync {
     async fn rollback(self: Box<Self>) -> StorageResult<()>;
 }
 
-/// Storage health status
+/// Health status enum for simple status checks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HealthStatusEnum {
+    Healthy,
+    Degraded,
+    Unhealthy,
+}
+
+/// Storage health status with detailed information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthStatus {
     pub is_healthy: bool,
@@ -340,6 +488,7 @@ pub struct HealthStatus {
 /// Storage statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageStats {
+    pub backend_type: String,
     pub total_entries: u64,
     pub total_size_bytes: u64,
     pub average_entry_size: f64,
@@ -347,6 +496,8 @@ pub struct StorageStats {
     pub entries_created_today: u64,
     pub entries_updated_today: u64,
     pub expired_entries: u64,
+    pub last_backup: Option<DateTime<Utc>>,
+    pub metadata: serde_json::Value,
 }
 
 /// Storage configuration
@@ -396,201 +547,7 @@ impl Default for PoolSettings {
     }
 }
 
-/// Simple in-memory mock storage backend for testing and development
-#[derive(Debug, Clone)]
-pub struct MockStorageBackend {
-    data: Arc<std::sync::RwLock<HashMap<String, VaultEntry>>>,
-    id_index: Arc<std::sync::RwLock<HashMap<Uuid, String>>>,
-}
 
-impl Default for MockStorageBackend {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl MockStorageBackend {
-    pub fn new() -> Self {
-        Self {
-            data: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            id_index: Arc::new(std::sync::RwLock::new(HashMap::new())),
-        }
-    }
-}
-
-#[async_trait]
-impl StorageBackend for MockStorageBackend {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let mut data = self.data.write().unwrap();
-        let mut id_index = self.id_index.write().unwrap();
-
-        data.insert(entry.path.clone(), entry.clone());
-        id_index.insert(entry.id, entry.path.clone());
-
-        Ok(())
-    }
-
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
-        let id_index = self.id_index.read().unwrap();
-        if let Some(path) = id_index.get(&id) {
-            let data = self.data.read().unwrap();
-            Ok(data.get(path).cloned())
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
-        let data = self.data.read().unwrap();
-        Ok(data.get(path).cloned())
-    }
-
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let mut data = self.data.write().unwrap();
-        if data.contains_key(&entry.path) {
-            data.insert(entry.path.clone(), entry.clone());
-            Ok(())
-        } else {
-            Err(StorageError::NotFound {
-                resource_type: "VaultEntry".to_string(),
-                id: entry.id.to_string(),
-            })
-        }
-    }
-
-    async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
-        let mut id_index = self.id_index.write().unwrap();
-        if let Some(path) = id_index.remove(&id) {
-            let mut data = self.data.write().unwrap();
-            if data.remove(&path).is_some() {
-                Ok(true)
-            } else {
-                // restore index consistency if data missing unexpectedly
-                id_index.insert(id, path);
-                Ok(false)
-            }
-        } else {
-            Ok(false)
-        }
-    }
-
-    async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
-        let mut data = self.data.write().unwrap();
-        if let Some(entry) = data.remove(path) {
-            let mut id_index = self.id_index.write().unwrap();
-            id_index.remove(&entry.id);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
-        let data = self.data.read().unwrap();
-        let mut results: Vec<VaultEntry> = data
-            .values()
-            .filter(|entry| {
-                // Simple filtering logic
-                if let Some(prefix) = &params.path_prefix {
-                    if !entry.path.starts_with(prefix) {
-                        return false;
-                    }
-                }
-                if let Some(owner) = params.owner_id {
-                    if entry.owner_id != owner {
-                        return false;
-                    }
-                }
-                !entry.is_expired() || params.include_expired
-            })
-            .cloned()
-            .collect();
-
-        // Apply limit
-        if let Some(limit) = params.limit {
-            results.truncate(limit as usize);
-        }
-
-        Ok(results)
-    }
-
-    async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
-        let entries = self.list(params).await?;
-        Ok(entries.len() as u64)
-    }
-
-    async fn exists(&self, path: &str) -> StorageResult<bool> {
-        let data = self.data.read().unwrap();
-        Ok(data.contains_key(path))
-    }
-
-    async fn begin_transaction(&self) -> StorageResult<Box<dyn StorageTransaction>> {
-        // For mock, just return a no-op transaction
-        Ok(Box::new(MockTransaction))
-    }
-
-    async fn health_check(&self) -> StorageResult<HealthStatus> {
-        Ok(HealthStatus {
-            is_healthy: true,
-            response_time_ms: 1.0,
-            connections_active: 1,
-            connections_idle: 0,
-            last_error: None,
-            uptime_seconds: 3600,
-        })
-    }
-
-    async fn get_stats(&self) -> StorageResult<StorageStats> {
-        let data = self.data.read().unwrap();
-        let total_entries = data.len() as u64;
-        let total_size_bytes = data.values().map(|e| e.encrypted_data.len() as u64).sum();
-
-        Ok(StorageStats {
-            total_entries,
-            total_size_bytes,
-            average_entry_size: if total_entries > 0 {
-                total_size_bytes as f64 / total_entries as f64
-            } else {
-                0.0
-            },
-            entries_by_security_level: HashMap::new(),
-            entries_created_today: total_entries,
-            entries_updated_today: 0,
-            expired_entries: 0,
-        })
-    }
-
-    async fn migrate(&self) -> StorageResult<()> {
-        // Mock migration - nothing to do
-        Ok(())
-    }
-}
-
-/// Mock transaction for testing
-pub struct MockTransaction;
-
-#[async_trait]
-impl StorageTransaction for MockTransaction {
-    async fn store(&mut self, _entry: &VaultEntry) -> StorageResult<()> {
-        Ok(())
-    }
-
-    async fn update(&mut self, _entry: &VaultEntry) -> StorageResult<()> {
-        Ok(())
-    }
-
-    async fn delete(&mut self, _id: Uuid) -> StorageResult<bool> {
-        Ok(true)
-    }
-
-    async fn commit(self: Box<Self>) -> StorageResult<()> {
-        Ok(())
-    }
-
-    async fn rollback(self: Box<Self>) -> StorageResult<()> {
-        Ok(())
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -603,23 +560,19 @@ mod tests {
         let entry = VaultEntry::new(
             "secret/path".to_string(),
             vec![1, 2, 3],
-            EncryptionMetadata {
-                algorithm: "aes-256-gcm".to_string(),
-                key_id: "key-123".to_string(),
-                iv: vec![0; 12],
-                auth_tag: Some(vec![0; 16]),
-                aad: None,
-                kdf_params: None,
-            },
+            serde_json::json!({
+                "algorithm": "aes-256-gcm",
+                "key_id": "key-123"
+            }),
             SecurityLevel::Secret,
-            owner,
+            owner.to_string(),
         );
 
         assert_eq!(entry.path, "secret/path");
         assert_eq!(entry.version, 1);
         assert_eq!(entry.security_level, SecurityLevel::Secret);
-        assert_eq!(entry.owner_id, owner);
-        assert!(entry.metadata.is_empty());
+        assert_eq!(entry.owner_id, owner.to_string());
+        assert!(entry.metadata.is_object());
         assert!(entry.tags.is_empty());
         assert!(!entry.is_expired());
     }
@@ -630,25 +583,18 @@ mod tests {
         let entry = VaultEntry::new(
             "secret/path".to_string(),
             vec![],
-            EncryptionMetadata {
-                algorithm: "aes-256-gcm".to_string(),
-                key_id: "key-123".to_string(),
-                iv: vec![0; 12],
-                auth_tag: None,
-                aad: None,
-                kdf_params: None,
-            },
+            serde_json::json!({"algorithm": "aes-256-gcm"}),
             SecurityLevel::Confidential,
-            owner,
+            owner.to_string(),
         )
-        .add_metadata("env".to_string(), "prod".to_string())
-        .add_metadata("region".to_string(), "apac".to_string())
+        .add_metadata("env".to_string(), serde_json::json!("prod"))
+        .add_metadata("region".to_string(), serde_json::json!("apac"))
         .add_tag("finance".to_string())
         .add_tag("finance".to_string())
         .add_tag("internal".to_string());
 
-        assert_eq!(entry.metadata.get("env"), Some(&"prod".to_string()));
-        assert_eq!(entry.metadata.get("region"), Some(&"apac".to_string()));
+        assert_eq!(entry.metadata.get("env"), Some(&serde_json::json!("prod")));
+        assert_eq!(entry.metadata.get("region"), Some(&serde_json::json!("apac")));
 
         let tag_set: HashSet<String> = entry.tags.iter().cloned().collect();
         assert_eq!(tag_set.len(), 2);

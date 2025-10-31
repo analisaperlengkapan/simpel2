@@ -475,10 +475,23 @@ impl IdentityBroker for LdapIdentityBroker {
             email_verified: true, // LDAP users are typically pre-verified
             first_name: external_user.first_name.clone(),
             last_name: external_user.last_name.clone(),
-            nip: external_user.attributes.get("nip").map(|v| v.as_str().to_string()),
-            nama: external_user.attributes.get("nama").map(|v| v.as_str().to_string()),
-            jabatan: external_user.attributes.get("jabatan").map(|v| v.as_str().to_string()),
-            satker_code: external_user.attributes.get("satker_code").map(|v| v.as_str().to_string()).unwrap_or_default(),
+            nip: external_user
+                .attributes
+                .get("nip")
+                .map(|v| v.as_str().to_string()),
+            nama: external_user
+                .attributes
+                .get("nama")
+                .map(|v| v.as_str().to_string()),
+            jabatan: external_user
+                .attributes
+                .get("jabatan")
+                .map(|v| v.as_str().to_string()),
+            satker_code: external_user
+                .attributes
+                .get("satker_code")
+                .map(|v| v.as_str().to_string())
+                .unwrap_or_default(),
             phone_number: None,
             phone_verified: false,
             password_hash: None, // LDAP users don't have local passwords
@@ -498,11 +511,16 @@ impl IdentityBroker for LdapIdentityBroker {
             require_password_change: false,
             realm_id: None,
             organization_id: None,
-            roles: Vec::new(), // Roles would be loaded separately
+            roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None, // Default to None for now
+            session_data: None,      // Default to None for now
             secreton_access_policy: SecretonAccessPolicy {
-                allowed_satker_secrets: external_user.attributes.get("satker_code").map(|v| v.as_str().to_string()).into_iter().collect(),
+                allowed_satker_secrets: external_user
+                    .attributes
+                    .get("satker_code")
+                    .map(|v| v.as_str().to_string())
+                    .into_iter()
+                    .collect(),
                 access_level: crate::models::user::AccessLevel::ReadOnly,
                 time_restrictions: None,
                 audit_required: true,
@@ -583,7 +601,11 @@ fn create_user_from_ldap_entry(entry: &SearchEntry, config: &LdapConfig) -> Resu
         nip: attrs.get("nip").and_then(|v| v.first()).cloned(),
         nama: attrs.get("nama").and_then(|v| v.first()).cloned(),
         jabatan: attrs.get("jabatan").and_then(|v| v.first()).cloned(),
-        satker_code: attrs.get("satkerCode").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        satker_code: attrs
+            .get("satkerCode")
+            .and_then(|v| v.first())
+            .cloned()
+            .unwrap_or_default(),
         phone_number: None,
         phone_verified: false,
         password_hash: None, // LDAP users don't have local password
@@ -603,11 +625,16 @@ fn create_user_from_ldap_entry(entry: &SearchEntry, config: &LdapConfig) -> Resu
         require_password_change: false,
         realm_id: None,
         organization_id: None,
-        roles: Vec::new(), // Roles would be loaded separately
+        roles: Vec::new(),       // Roles would be loaded separately
         permissions: Vec::new(), // Permissions would be loaded separately
-        session_data: None, // Default to None for now
+        session_data: None,      // Default to None for now
         secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: attrs.get("satkerCode").and_then(|v| v.first()).cloned().into_iter().collect(),
+            allowed_satker_secrets: attrs
+                .get("satkerCode")
+                .and_then(|v| v.first())
+                .cloned()
+                .into_iter()
+                .collect(),
             access_level: crate::models::user::AccessLevel::ReadOnly,
             time_restrictions: None,
             audit_required: true,

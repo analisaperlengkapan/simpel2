@@ -2,16 +2,16 @@
 //!
 //! Provides encryption and decryption of CAPTCHA challenge data using Secreton transit engine
 
+use super::error::CaptchaError;
+use crate::models::user::SecurityContext;
+use crate::vault::secreton_client::SecretonClient;
+use crate::vault::{Vault, VaultError};
 use async_trait::async_trait;
+use base64;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use crate::vault::{Vault, VaultError};
-use crate::vault::secreton_client::SecretonClient;
-use crate::models::user::SecurityContext;
-use super::error::CaptchaError;
-use base64;
 
 /// Secreton client wrapper for CAPTCHA operations
 #[derive(Debug, Clone)]
@@ -39,10 +39,18 @@ pub struct EncryptedChallengeData {
 #[async_trait]
 pub trait CaptchaSecretonTrait: Send + Sync {
     /// Encrypt challenge data
-    async fn encrypt_challenge(&self, plaintext: &str, context: &SecurityContext) -> Result<EncryptedChallengeData, CaptchaError>;
+    async fn encrypt_challenge(
+        &self,
+        plaintext: &str,
+        context: &SecurityContext,
+    ) -> Result<EncryptedChallengeData, CaptchaError>;
 
     /// Decrypt challenge data
-    async fn decrypt_challenge(&self, encrypted_data: &EncryptedChallengeData, context: &SecurityContext) -> Result<String, CaptchaError>;
+    async fn decrypt_challenge(
+        &self,
+        encrypted_data: &EncryptedChallengeData,
+        context: &SecurityContext,
+    ) -> Result<String, CaptchaError>;
 
     /// Rotate encryption keys
     async fn rotate_keys(&self) -> Result<(), CaptchaError>;
@@ -61,15 +69,22 @@ impl CaptchaSecretonClient {
     }
 
     /// Get or create encryption key for CAPTCHA operations
-    async fn ensure_encryption_key(&self, context: &SecurityContext) -> Result<String, CaptchaError> {
+    async fn ensure_encryption_key(
+        &self,
+        context: &SecurityContext,
+    ) -> Result<String, CaptchaError> {
         // Try to get existing key first
-        match self.client.get_encryption_key(&self.encryption_key_id, context).await {
+        match self
+            .client
+            .get_encryption_key(&self.encryption_key_id, context)
+            .await
+        {
             Ok(key) => Ok(key.key_id),
             Err(VaultError::NotFound(_)) => {
                 // Key doesn't exist, we'll use HSM to generate one
                 // For now, return the configured key ID and let Secreton handle key generation
                 Ok(self.encryption_key_id.clone())
-            },
+            }
             Err(e) => Err(CaptchaError::SecreonUnavailable {
                 message: format!("Failed to get encryption key: {}", e),
                 fallback_available: false,
@@ -81,7 +96,11 @@ impl CaptchaSecretonClient {
 
 #[async_trait]
 impl CaptchaSecretonTrait for CaptchaSecretonClient {
-    async fn encrypt_challenge(&self, plaintext: &str, context: &SecurityContext) -> Result<EncryptedChallengeData, CaptchaError> {
+    async fn encrypt_challenge(
+        &self,
+        plaintext: &str,
+        context: &SecurityContext,
+    ) -> Result<EncryptedChallengeData, CaptchaError> {
         // Ensure we have an encryption key
         let key_id = self.ensure_encryption_key(context).await?;
 
@@ -96,26 +115,33 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
         })
     }
 
-    async fn decrypt_challenge(&self, encrypted_data: &EncryptedChallengeData, context: &SecurityContext) -> Result<String, CaptchaError> {
+    async fn decrypt_challenge(
+        &self,
+        encrypted_data: &EncryptedChallengeData,
+        context: &SecurityContext,
+    ) -> Result<String, CaptchaError> {
         // Decode base64 ciphertext
-        let ciphertext_bytes = BASE64.decode(&encrypted_data.ciphertext)
-            .map_err(|e| CaptchaError::SecreonUnavailable {
+        let ciphertext_bytes = BASE64.decode(&encrypted_data.ciphertext).map_err(|e| {
+            CaptchaError::SecreonUnavailable {
                 message: format!("Invalid base64 ciphertext: {}", e),
                 fallback_available: false,
                 retry_after: Some(Duration::from_secs(30)),
-            })?;
+            }
+        })?;
 
         // Use HSM decryption
-        let plaintext_bytes = Err(VaultError::Other("HSM decryption not implemented".to_string()))
-            .map_err(|_| CaptchaError::SecreonUnavailable {
-                message: "HSM decryption not implemented".to_string(),
-                fallback_available: false,
-                retry_after: Some(Duration::from_secs(30)),
-            })?;
+        let plaintext_bytes = Err(VaultError::Other(
+            "HSM decryption not implemented".to_string(),
+        ))
+        .map_err(|_| CaptchaError::SecreonUnavailable {
+            message: "HSM decryption not implemented".to_string(),
+            fallback_available: false,
+            retry_after: Some(Duration::from_secs(30)),
+        })?;
 
         // Convert bytes back to string
-        let plaintext = String::from_utf8(plaintext_bytes)
-            .map_err(|e| CaptchaError::SecreonUnavailable {
+        let plaintext =
+            String::from_utf8(plaintext_bytes).map_err(|e| CaptchaError::SecreonUnavailable {
                 message: format!("Invalid UTF-8 in decrypted data: {}", e),
                 fallback_available: false,
                 retry_after: Some(Duration::from_secs(30)),
@@ -136,7 +162,11 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
             metadata: None,
         }; // Use system context for key operations
 
-        match self.client.get_encryption_key(&self.encryption_key_id, &context).await {
+        match self
+            .client
+            .get_encryption_key(&self.encryption_key_id, &context)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => Err(CaptchaError::SecreonUnavailable {
                 message: format!("Key rotation check failed: {}", e),
@@ -159,7 +189,9 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
 }
 
 /// Create a default CAPTCHA Secreton client
-pub fn create_captcha_secreton_client(secreton_client: Arc<SecretonClient>) -> CaptchaSecretonClient {
+pub fn create_captcha_secreton_client(
+    secreton_client: Arc<SecretonClient>,
+) -> CaptchaSecretonClient {
     CaptchaSecretonClient::new(
         secreton_client,
         "captcha-encryption-key".to_string(), // Default key ID for CAPTCHA operations
@@ -176,9 +208,10 @@ mod tests {
         // This is a basic test to ensure the client can be created
         // Full integration tests would require a running Secreton instance
 
-        let secreton_client = Arc::new(
-            SecretonClient::new("http://localhost:8200".to_string(), "test-token".to_string())
-        );
+        let secreton_client = Arc::new(SecretonClient::new(
+            "http://localhost:8200".to_string(),
+            "test-token".to_string(),
+        ));
 
         let captcha_client = create_captcha_secreton_client(secreton_client);
 

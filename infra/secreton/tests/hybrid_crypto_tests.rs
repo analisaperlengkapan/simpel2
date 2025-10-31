@@ -1,889 +1,876 @@
 //! Hybrid Cryptography Tests for SIMKARI Secreton
 //!
 //! This test suite covers:
-//! - Hybrid cryptographic system functionality
-//! - Post-quantum key management
-//! - Migration strategy validation
-//! - Performance optimization testing
-//! - Dynamic configuration adaptation
-
-#[cfg(test)]
-mod hybrid_crypto_tests {
-    use secreton_crypto::{
-        hybrid::{self, CryptoMode, SecurityRequirements, PerformancePriority, MigrationStrategy, MigrationPhase},
-        pq_key_management::*,
-        enhanced::*,
-        error::CryptoError,
-    };
-    use chrono::{DateTime, TimeDelta, Utc};
-    use serde_json::json;
-    use std::collections::HashMap;
-    use std::sync::Arc;
-    use std::time::Instant;
-    use uuid::Uuid;
-
-    #[test]
-    fn test_crypto_mode_transitions() {
-        // Test valid mode transitions
-        let classical = CryptoMode::Classical;
-        let hybrid = CryptoMode::Hybrid;
-        let post_quantum = CryptoMode::PostQuantum;
-
-        // Test mode properties
-        assert_eq!(classical.to_string(), "Classical");
-        assert_eq!(hybrid.to_string(), "Hybrid");
-        assert_eq!(post_quantum.to_string(), "PostQuantum");
-
-        // Test serialization
-        let modes = vec![classical, hybrid, post_quantum];
-        for mode in modes {
-            let json = serde_json::to_string(&mode).unwrap();
-            let deserialized: CryptoMode = serde_json::from_str(&json).unwrap();
-            assert_eq!(
-                serde_json::to_string(&mode).unwrap(),
-                serde_json::to_string(&deserialized).unwrap()
-            );
-        }
-    }
-
-    #[test]
-    fn test_security_requirements_validation() {
-        let high_security = SecurityRequirements {
-            security_level: 256,
-            quantum_resistant: true,
-            performance_priority: PerformancePriority::Low,
-            compliance_requirements: vec![
-                "NIST_PQC".to_string(),
-                "FIPS_140_3".to_string(),
-                "KEJAKSAAN_SECURITY".to_string(),
-            ],
-        };
-
-        let balanced_security = SecurityRequirements {
-            security_level: 128,
-            quantum_resistant: false,
-            performance_priority: PerformancePriority::Medium,
-            compliance_requirements: vec!["FIPS_140_2".to_string()],
-        };
-
-        // Test security level validation
-        assert!(high_security.security_level >= 256);
-        assert!(balanced_security.security_level >= 128);
-
-        // Test quantum resistance
-        assert!(high_security.quantum_resistant);
-        assert!(!balanced_security.quantum_resistant);
-
-        // Test compliance requirements
-        assert!(high_security.compliance_requirements.contains(&"NIST_PQC".to_string()));
-        assert!(high_security.compliance_requirements.contains(&"KEJAKSAAN_SECURITY".to_string()));
-        assert!(!balanced_security.compliance_requirements.contains(&"NIST_PQC".to_string()));
-    }
-
-    #[test]
-    fn test_migration_strategy_phases() {
-        let phase1 = MigrationStrategy {
-            current_phase: MigrationPhase::ClassicalOnly,
-            target_date: Some(Utc::now() + TimeDelta::days(90)),
-            rollback_enabled: true,
-            rollout_percentage: 0,
-        };
-
-        let phase2 = MigrationStrategy {
-            current_phase: MigrationPhase::HybridDeployment,
-            target_date: Some(Utc::now() + TimeDelta::days(180)),
-            rollback_enabled: true,
-            rollout_percentage: 25,
-        };
-
-        let phase3 = MigrationStrategy {
-            current_phase: MigrationPhase::PostQuantumPreferred,
-            target_date: Some(Utc::now() + TimeDelta::days(270)),
-            rollback_enabled: true,
-            rollout_percentage: 75,
-        };
-
-        let phase4 = MigrationStrategy {
-            current_phase: MigrationPhase::PostQuantumOnly,
-            target_date: Some(Utc::now() + TimeDelta::days(365)),
-            rollback_enabled: false,
-            rollout_percentage: 100,
-        };
-
-        // Test phase progression
-        assert_eq!(phase1.rollout_percentage, 0);
-        assert_eq!(phase2.rollout_percentage, 25);
-        assert_eq!(phase3.rollout_percentage, 75);
-        assert_eq!(phase4.rollout_percentage, 100);
-
-        // Test rollback capability
-        assert!(phase1.rollback_enabled);
-        assert!(phase2.rollback_enabled);
-        assert!(phase3.rollback_enabled);
-        assert!(!phase4.rollback_enabled);
-
-        // Test target dates are in order
-        assert!(phase1.target_date < phase2.target_date);
-        assert!(phase2.target_date < phase3.target_date);
-        assert!(phase3.target_date < phase4.target_date);
-    }
-
-    #[tokio::test]
-    async fn test_hybrid_crypto_initialization() {
-        let config = HybridCryptoConfig {
-            mode: CryptoMode::Hybrid,
-            security_requirements: SecurityRequirements {
-                security_level: 256,
-                quantum_resistant: true,
-                performance_priority: PerformancePriority::Medium,
-                compliance_requirements: vec!["NIST_PQC".to_string()],
-            },
-            migration_strategy: MigrationStrategy {
-                current_phase: MigrationPhase::HybridDeployment,
-                target_date: Some(Utc::now() + TimeDelta::days(180)),
-                rollback_enabled: true,
-                rollout_percentage: 50,
-            },
-            performance_config: PerformanceConfig {
-                cache_size: 1000,
-                operation_timeout: TimeDelta::new(30, 0).unwrap(),
-                batch_size: 100,
-                enable_hardware_acceleration: true,
-            },
-        };
-
-        // Test configuration validation
-        assert_eq!(config.mode, CryptoMode::Hybrid);
-        assert!(config.security_requirements.quantum_resistant);
-        assert_eq!(config.migration_strategy.rollout_percentage, 50);
-        assert!(config.performance_config.enable_hardware_acceleration);
-
-        // Test hybrid mode requirements
-        if config.mode == CryptoMode::Hybrid || config.mode == CryptoMode::PostQuantum {
-            assert!(config.security_requirements.quantum_resistant);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_dynamic_configuration_adaptation() {
-        let mut dynamic_config = DynamicConfig {
-            crypto_mode: CryptoMode::Classical,
-            cache_settings: CacheConfig {
-                max_size: 1000,
-                ttl: TimeDelta::new(3600, 0).unwrap(),
-                eviction_policy: EvictionPolicy::LRU,
-            },
-            security_level: SecurityLevel::Medium,
-            performance_profile: PerformanceProfile::Balanced,
-        };
-
-        // Test load-based adaptation
-        let high_load_metrics = LoadMetrics {
-            cpu_usage: 0.8,
-            memory_usage: 0.7,
-            request_rate: 1000.0,
-            error_rate: 0.01,
-        };
-
-        dynamic_config.adapt_to_load(high_load_metrics);
-
-        // Under high load, should optimize for performance
-        assert_eq!(dynamic_config.performance_profile, PerformanceProfile::HighPerformance);
-
-        // Test threat-level adaptation
-        let high_threat = ThreatLevel::High;
-        dynamic_config.update_security_posture(high_threat);
-
-        // Under high threat, should increase security
-        assert_eq!(dynamic_config.security_level, SecurityLevel::High);
-        // May switch to more secure crypto mode
-        assert!(matches!(
-            dynamic_config.crypto_mode,
-            CryptoMode::Hybrid | CryptoMode::PostQuantum
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_post_quantum_key_management() {
-        let mut key_manager = PostQuantumKeyManager::new();
-
-        // Test ML-KEM key generation
-        let ml_kem_keypair = key_manager.generate_ml_kem_keypair(MLKemVariant::MlKem768).await;
-        assert!(ml_kem_keypair.is_ok());
-
-        let (public_key, private_key) = ml_kem_keypair.unwrap();
-        assert!(!public_key.is_empty());
-        assert!(!private_key.is_empty());
-
-        // Test ML-DSA key generation
-        let ml_dsa_keypair = key_manager.generate_ml_dsa_keypair(MLDsaVariant::MlDsa65).await;
-        assert!(ml_dsa_keypair.is_ok());
-
-        let (sig_public, sig_private) = ml_dsa_keypair.unwrap();
-        assert!(!sig_public.is_empty());
-        assert!(!sig_private.is_empty());
-
-        // Test key storage and retrieval
-        let key_id = "test_key_123";
-        let store_result = key_manager.store_key(key_id, &private_key, KeyType::MlKem).await;
-        assert!(store_result.is_ok());
-
-        let retrieved_key = key_manager.retrieve_key(key_id).await;
-        assert!(retrieved_key.is_ok());
-        assert_eq!(retrieved_key.unwrap(), private_key);
-    }
-
-    #[tokio::test]
-    async fn test_hybrid_encryption_operations() {
-        let hybrid_crypto = HybridCrypto::new();
-
-        let plaintext = b"Sensitive SIMKARI data for encryption test";
-        let associated_data = b"satker:KEJATI_DKI_JAKPUS";
-
-        // Test hybrid encryption
-        let encrypted_result = hybrid_crypto.encrypt(plaintext, Some(associated_data)).await;
-        assert!(encrypted_result.is_ok());
-
-        let encrypted_data = encrypted_result.unwrap();
-        assert!(!encrypted_data.ciphertext.is_empty());
-        assert!(encrypted_data.classical_component.is_some());
-        assert!(encrypted_data.post_quantum_component.is_some());
-
-        // Test hybrid decryption
-        let decrypted_result = hybrid_crypto.decrypt(&encrypted_data, Some(associated_data)).await;
-        assert!(decrypted_result.is_ok());
-
-        let decrypted_data = decrypted_result.unwrap();
-        assert_eq!(decrypted_data, plaintext);
-    }
-
-    #[tokio::test]
-    async fn test_hybrid_signature_operations() {
-        let hybrid_crypto = HybridCrypto::new();
-
-        let message = b"SIMKARI audit log entry for signature verification";
-        let context = SignatureContext {
-            signer_nip: Some("198501012010011001".to_string()),
-            satker_code: Some("KEJATI_DKI_JAKPUS".to_string()),
-            timestamp: Utc::now(),
-            purpose: "audit_log".to_string(),
-        };
-
-        // Test hybrid signing
-        let signature_result = hybrid_crypto.sign(message, &context).await;
-        assert!(signature_result.is_ok());
-
-        let signature = signature_result.unwrap();
-        assert!(!signature.classical_signature.is_empty());
-        assert!(!signature.post_quantum_signature.is_empty());
-        assert_eq!(signature.context, context);
-
-        // Test hybrid verification
-        let verification_result = hybrid_crypto.verify(message, &signature).await;
-        assert!(verification_result.is_ok());
-        assert!(verification_result.unwrap());
-
-        // Test verification with tampered message
-        let tampered_message = b"Tampered SIMKARI audit log entry";
-        let tampered_verification = hybrid_crypto.verify(tampered_message, &signature).await;
-        assert!(tampered_verification.is_ok());
-        assert!(!tampered_verification.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_performance_monitoring_and_optimization() {
-        let mut performance_monitor = PerformanceMonitor::new();
-
-        // Simulate classical operations
-        let classical_start = Instant::now();
-        simulate_crypto_operation(CryptoMode::Classical, 100).await;
-        let classical_duration = classical_start.elapsed();
-        performance_monitor.record_operation("classical_encrypt", classical_duration);
-
-        // Simulate hybrid operations
-        let hybrid_start = Instant::now();
-        simulate_crypto_operation(CryptoMode::Hybrid, 100).await;
-        let hybrid_duration = hybrid_start.elapsed();
-        performance_monitor.record_operation("hybrid_encrypt", hybrid_duration);
-
-        // Simulate post-quantum operations
-        let pq_start = Instant::now();
-        simulate_crypto_operation(CryptoMode::PostQuantum, 100).await;
-        let pq_duration = pq_start.elapsed();
-        performance_monitor.record_operation("pq_encrypt", pq_duration);
-
-        // Test performance metrics
-        let classical_avg = performance_monitor.get_average_duration("classical_encrypt");
-        let hybrid_avg = performance_monitor.get_average_duration("hybrid_encrypt");
-        let pq_avg = performance_monitor.get_average_duration("pq_encrypt");
-
-        assert!(classical_avg > std::time::Duration::from_nanos(0));
-        assert!(hybrid_avg > std::time::Duration::from_nanos(0));
-        assert!(pq_avg > std::time::Duration::from_nanos(0));
-
-        // Test performance optimization recommendations
-        let recommendations = performance_monitor.get_optimization_recommendations();
-        assert!(!recommendations.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_cache_optimization() {
-        let cache_config = CacheConfig {
-            max_size: 100,
-            ttl: TimeDelta::new(300, 0).unwrap(),
-            eviction_policy: EvictionPolicy::LRU,
-        };
-
-        let mut cache = LruCache::new(cache_config);
-
-        // Test cache operations
-        let key1 = "secret_key_1";
-        let value1 = CachedSecret {
-            data: b"secret_data_1".to_vec(),
-            encrypted_at: Utc::now(),
-            access_count: 1,
-        };
-
-        cache.insert(key1.to_string(), value1.clone());
-        assert!(cache.contains_key(key1));
-
-        let retrieved = cache.get(key1);
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().data, value1.data);
-
-        // Test TTL expiration
-        let expired_value = CachedSecret {
-            data: b"expired_data".to_vec(),
-            encrypted_at: Utc::now() - TimeDelta::new(400, 0).unwrap(), // Older than TTL
-            access_count: 1,
-        };
-
-        cache.insert("expired_key".to_string(), expired_value);
-        cache.cleanup_expired();
-        assert!(!cache.contains_key("expired_key"));
-    }
-
-    #[tokio::test]
-    async fn test_memory_optimization() {
-        let memory_limit = 100 * 1024 * 1024; // 100 MB
-        let memory_config = MemoryConfig {
-            enable_zeroization: true,
-            secure_allocation: true,
-            memory_limit,
-        };
-
-        let mut memory_manager = MemoryManager::new(memory_config);
-
-        // Test secure memory allocation
-        let secure_buffer = memory_manager.allocate_secure(1024);
-        assert!(secure_buffer.is_ok());
-
-        let mut buffer = secure_buffer.unwrap();
-        buffer.fill(0x42); // Fill with test data
-
-        // Test zeroization
-        memory_manager.zeroize(&mut buffer);
-        assert!(buffer.iter().all(|&b| b == 0));
-
-        // Test memory usage tracking
-        let usage = memory_manager.get_memory_usage();
-        assert!(usage.allocated_bytes > 0);
-        assert!(usage.allocated_bytes <= memory_limit);
-    }
-
-    #[tokio::test]
-    async fn test_connection_pooling() {
-        let min_connections = 2;
-        let pool_config = ConnectionPoolConfig {
-            max_connections: 10,
-            min_connections,
-            connection_timeout: TimeDelta::new(30, 0).unwrap(),
-            idle_timeout: TimeDelta::new(300, 0).unwrap(),
-        };
-
-        let mut connection_pool = ConnectionPool::new(pool_config);
-
-        // Test connection acquisition
-        let conn1 = connection_pool.acquire().await;
-        assert!(conn1.is_ok());
-
-        let conn2 = connection_pool.acquire().await;
-        assert!(conn2.is_ok());
-
-        // Test connection release
-        connection_pool.release(conn1.unwrap()).await;
-        connection_pool.release(conn2.unwrap()).await;
-
-        // Test pool statistics
-        let stats = connection_pool.get_statistics();
-        assert_eq!(stats.active_connections, 0);
-        assert!(stats.idle_connections >= min_connections);
-    }
-
-    // Mock helper functions and structures for testing
-
-    async fn simulate_crypto_operation(mode: CryptoMode, iterations: usize) {
-        let base_delay_nanos = match mode {
-            CryptoMode::Classical => 100,
-            CryptoMode::Hybrid => 200,
-            CryptoMode::PostQuantum => 300,
-        };
-
-        for _ in 0..iterations {
-            tokio::time::sleep(std::time::Duration::from_nanos(base_delay_nanos)).await;
-        }
-    }
-
-    // Mock structures for testing
-
-    #[derive(Debug, Clone)]
-    struct HybridCryptoConfig {
-        mode: CryptoMode,
-        security_requirements: SecurityRequirements,
-        migration_strategy: MigrationStrategy,
-        performance_config: PerformanceConfig,
-    }
-
-    #[derive(Debug, Clone)]
-    struct PerformanceConfig {
-        cache_size: usize,
-        operation_timeout: TimeDelta,
-        batch_size: usize,
-        enable_hardware_acceleration: bool,
-    }
-
-    #[derive(Debug, Clone)]
-    struct DynamicConfig {
-        crypto_mode: CryptoMode,
-        cache_settings: CacheConfig,
-        security_level: SecurityLevel,
-        performance_profile: PerformanceProfile,
-    }
-
-    impl DynamicConfig {
-        fn adapt_to_load(&mut self, load_metrics: LoadMetrics) {
-            if load_metrics.cpu_usage > 0.8 || load_metrics.request_rate > 500.0 {
-                self.performance_profile = PerformanceProfile::HighPerformance;
-            }
-        }
-
-        fn update_security_posture(&mut self, threat_level: ThreatLevel) {
-            match threat_level {
-                ThreatLevel::Low => self.security_level = SecurityLevel::Medium,
-                ThreatLevel::Medium => self.security_level = SecurityLevel::High,
-                ThreatLevel::High => {
-                    self.security_level = SecurityLevel::Critical;
-                    self.crypto_mode = CryptoMode::PostQuantum;
-                }
-            }
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct CacheConfig {
-        max_size: usize,
-        ttl: TimeDelta,
-        eviction_policy: EvictionPolicy,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum EvictionPolicy {
-        LRU,
-        FIFO,
-        Random,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum SecurityLevel {
-        Low,
-        Medium,
-        High,
-        Critical,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum PerformanceProfile {
-        HighPerformance,
-        Balanced,
-        HighSecurity,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    enum ThreatLevel {
-        Low,
-        Medium,
-        High,
-    }
-
-    #[derive(Debug, Clone)]
-    struct LoadMetrics {
-        cpu_usage: f64,
-        memory_usage: f64,
-        request_rate: f64,
-        error_rate: f64,
-    }
-
-    struct PostQuantumKeyManager {
-        keys: HashMap<String, Vec<u8>>,
-    }
-
-    impl PostQuantumKeyManager {
-        fn new() -> Self {
-            Self {
-                keys: HashMap::new(),
-            }
-        }
-
-        async fn generate_ml_kem_keypair(&self, _variant: MLKemVariant) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
-            // Mock key generation
-            let public_key = b"mock_ml_kem_public_key".to_vec();
-            let private_key = b"mock_ml_kem_private_key".to_vec();
-            Ok((public_key, private_key))
-        }
-
-        async fn generate_ml_dsa_keypair(&self, _variant: MLDsaVariant) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
-            // Mock key generation
-            let public_key = b"mock_ml_dsa_public_key".to_vec();
-            let private_key = b"mock_ml_dsa_private_key".to_vec();
-            Ok((public_key, private_key))
-        }
-
-        async fn store_key(&mut self, key_id: &str, key_data: &[u8], _key_type: KeyType) -> Result<(), CryptoError> {
-            self.keys.insert(key_id.to_string(), key_data.to_vec());
-            Ok(())
-        }
-
-        async fn retrieve_key(&self, key_id: &str) -> Result<Vec<u8>, CryptoError> {
-            self.keys
-                .get(key_id)
-                .cloned()
-                .ok_or(CryptoError::KeyNotFound(key_id.to_string()))
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    enum MLKemVariant {
-        MlKem512,
-        MlKem768,
-        MlKem1024,
-    }
-
-    #[derive(Debug, Clone)]
-    enum MLDsaVariant {
-        MlDsa44,
-        MlDsa65,
-        MlDsa87,
-    }
-
-    #[derive(Debug, Clone)]
-    enum KeyType {
-        MlKem,
-        MlDsa,
-        Classical,
-    }
-
-    struct HybridCrypto {
-        mode: CryptoMode,
-    }
-
-    impl HybridCrypto {
-        fn new() -> Self {
-            Self { mode: CryptoMode::Hybrid }
-        }
-
-        async fn encrypt(&self, plaintext: &[u8], _associated_data: Option<&[u8]>) -> Result<HybridEncryptedData, CryptoError> {
-            // Mock hybrid encryption
-            Ok(HybridEncryptedData {
-                ciphertext: format!("encrypted_{}", String::from_utf8_lossy(plaintext)).into_bytes(),
-                classical_component: Some(b"classical_part".to_vec()),
-                post_quantum_component: Some(b"pq_part".to_vec()),
-                algorithm: self.mode,
-            })
-        }
-
-        async fn decrypt(&self, encrypted_data: &HybridEncryptedData, _associated_data: Option<&[u8]>) -> Result<Vec<u8>, CryptoError> {
-            // Mock hybrid decryption
-            let plaintext = encrypted_data.ciphertext
-                .strip_prefix(b"encrypted_")
-                .unwrap_or(&encrypted_data.ciphertext)
-                .to_vec();
-            Ok(plaintext)
-        }
-
-        async fn sign(&self, message: &[u8], context: &SignatureContext) -> Result<HybridSignature, CryptoError> {
-            // Mock hybrid signing
-            Ok(HybridSignature {
-                classical_signature: format!("classical_sig_{}", String::from_utf8_lossy(message)).into_bytes(),
-                post_quantum_signature: format!("pq_sig_{}", String::from_utf8_lossy(message)).into_bytes(),
-                context: context.clone(),
-                algorithm: self.mode,
-            })
-        }
-
-        async fn verify(&self, message: &[u8], signature: &HybridSignature) -> Result<bool, CryptoError> {
-            // Mock hybrid verification
-            let expected_classical = format!("classical_sig_{}", String::from_utf8_lossy(message)).into_bytes();
-            let expected_pq = format!("pq_sig_{}", String::from_utf8_lossy(message)).into_bytes();
-
-            Ok(signature.classical_signature == expected_classical &&
-               signature.post_quantum_signature == expected_pq)
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct HybridEncryptedData {
-        ciphertext: Vec<u8>,
-        classical_component: Option<Vec<u8>>,
-        post_quantum_component: Option<Vec<u8>>,
-        algorithm: CryptoMode,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct SignatureContext {
-        signer_nip: Option<String>,
-        satker_code: Option<String>,
-        timestamp: DateTime<Utc>,
-        purpose: String,
-    }
-
-    #[derive(Debug, Clone)]
-    struct HybridSignature {
-        classical_signature: Vec<u8>,
-        post_quantum_signature: Vec<u8>,
-        context: SignatureContext,
-        algorithm: CryptoMode,
-    }
-
-    struct PerformanceMonitor {
-        operations: HashMap<String, Vec<std::time::Duration>>,
-    }
-
-    impl PerformanceMonitor {
-        fn new() -> Self {
-            Self {
-                operations: HashMap::new(),
-            }
-        }
-
-        fn record_operation(&mut self, operation: &str, duration: std::time::Duration) {
-            self.operations
-                .entry(operation.to_string())
-                .or_insert_with(Vec::new)
-                .push(duration);
-        }
-
-        fn get_average_duration(&self, operation: &str) -> std::time::Duration {
-            if let Some(durations) = self.operations.get(operation) {
-                if !durations.is_empty() {
-                    let total: std::time::Duration = durations.iter().sum();
-                    total / durations.len() as u32
-                } else {
-                    std::time::Duration::from_nanos(0)
-                }
-            } else {
-                std::time::Duration::from_nanos(0)
-            }
-        }
-
-        fn get_optimization_recommendations(&self) -> Vec<String> {
-            let mut recommendations = Vec::new();
-
-            for (operation, durations) in &self.operations {
-                let avg_duration = self.get_average_duration(operation);
-                if avg_duration > std::time::Duration::from_millis(100) {
-                    recommendations.push(format!("Consider optimizing {}", operation));
-                }
-            }
-
-            recommendations
-        }
-    }
-
-    struct LruCache {
-        config: CacheConfig,
-        data: HashMap<String, CachedSecret>,
-    }
-
-    impl LruCache {
-        fn new(config: CacheConfig) -> Self {
-            Self {
-                config,
-                data: HashMap::new(),
-            }
-        }
-
-        fn insert(&mut self, key: String, value: CachedSecret) {
-            if self.data.len() >= self.config.max_size {
-                // Simple eviction - remove oldest entry
-                if let Some(oldest_key) = self.data.keys().next().cloned() {
-                    self.data.remove(&oldest_key);
-                }
-            }
-            self.data.insert(key, value);
-        }
-
-        fn get(&mut self, key: &str) -> Option<&CachedSecret> {
-            self.data.get(key)
-        }
-
-        fn contains_key(&self, key: &str) -> bool {
-            self.data.contains_key(key)
-        }
-
-        fn cleanup_expired(&mut self) {
-            let now = Utc::now();
-            let ttl = self.config.ttl;
-
-            self.data.retain(|_, value| {
-                now.signed_duration_since(value.encrypted_at) < ttl
-            });
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct CachedSecret {
-        data: Vec<u8>,
-        encrypted_at: DateTime<Utc>,
-        access_count: u64,
-    }
-
-    struct MemoryManager {
-        config: MemoryConfig,
-        allocated_bytes: usize,
-    }
-
-    impl MemoryManager {
-        fn new(config: MemoryConfig) -> Self {
-            Self {
-                config: config.clone(),
-                allocated_bytes: 0,
-            }
-        }
-
-        fn allocate_secure(&mut self, size: usize) -> Result<Vec<u8>, CryptoError> {
-            if self.allocated_bytes + size > self.config.memory_limit {
-                return Err(CryptoError::InvalidInput("Memory limit exceeded".to_string()));
-            }
-
-            self.allocated_bytes += size;
-            Ok(vec![0; size])
-        }
-
-        fn zeroize(&self, buffer: &mut [u8]) {
-            buffer.fill(0);
-        }
-
-        fn get_memory_usage(&self) -> MemoryUsage {
-            MemoryUsage {
-                allocated_bytes: self.allocated_bytes,
-                peak_usage: self.allocated_bytes, // Simplified
-            }
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct MemoryConfig {
-        enable_zeroization: bool,
-        secure_allocation: bool,
-        memory_limit: usize,
-    }
-
-    #[derive(Debug, Clone)]
-    struct MemoryUsage {
-        allocated_bytes: usize,
-        peak_usage: usize,
-    }
-
-    struct ConnectionPool {
-        config: ConnectionPoolConfig,
-        active_connections: usize,
-        idle_connections: usize,
-    }
-
-    impl ConnectionPool {
-        fn new(config: ConnectionPoolConfig) -> Self {
-            let min_connections = config.min_connections;
-            Self {
-                config: config.clone(),
-                active_connections: 0,
-                idle_connections: min_connections,
-            }
-        }
-
-        async fn acquire(&mut self) -> Result<Connection, CryptoError> {
-            if self.idle_connections > 0 {
-                self.idle_connections -= 1;
-                self.active_connections += 1;
-                Ok(Connection { id: self.active_connections })
-            } else if self.active_connections < self.config.max_connections {
-                self.active_connections += 1;
-                Ok(Connection { id: self.active_connections })
-            } else {
-                Err(CryptoError::RateLimitExceeded("Connection pool exhausted".to_string()))
-            }
-        }
-
-        async fn release(&mut self, _connection: Connection) {
-            if self.active_connections > 0 {
-                self.active_connections -= 1;
-                self.idle_connections += 1;
-            }
-        }
-
-        fn get_statistics(&self) -> ConnectionPoolStats {
-            ConnectionPoolStats {
-                active_connections: self.active_connections,
-                idle_connections: self.idle_connections,
-                max_connections: self.config.max_connections,
-            }
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    struct ConnectionPoolConfig {
-        max_connections: usize,
-        min_connections: usize,
-        connection_timeout: TimeDelta,
-        idle_timeout: TimeDelta,
-    }
-
-    #[derive(Debug, Clone)]
-    struct Connection {
-        id: usize,
-    }
-
-    #[derive(Debug, Clone)]
-    struct ConnectionPoolStats {
-        active_connections: usize,
-        idle_connections: usize,
-        max_connections: usize,
+//! - Hybrid cryptographic system functionality with actual implementations
+//! - Post-quantum key management with real ML-KEM and ML-DSA algorithms
+//! - Migration strategy validation with actual key transitions
+//! - Algorithm selection based on security requirements
+//! - Real hybrid encryption and decryption operations
+//! - Real hybrid signature generation and verification with Ed25519 + ML-DSA
+//!
+//! All tests use actual cryptographic implementations - no mocks.
+
+use secreton_crypto::{
+    CryptoMode, HybridCrypto, HybridEncryptedData, HybridSignatureData, MigrationPhase,
+    MigrationStrategy, PerformancePriority, SecurityRequirements,
+};
+
+#[test]
+fn test_crypto_mode_transitions() {
+    // Test valid mode transitions
+    let classical = CryptoMode::Classical;
+    let hybrid = CryptoMode::Hybrid;
+    let post_quantum = CryptoMode::PostQuantum;
+
+    // Test mode properties
+    assert_eq!(classical, CryptoMode::Classical);
+    assert_eq!(hybrid, CryptoMode::Hybrid);
+    assert_eq!(post_quantum, CryptoMode::PostQuantum);
+
+    // Test serialization
+    let modes = vec![classical, hybrid, post_quantum];
+    for mode in modes {
+        let json = serde_json::to_string(&mode).unwrap();
+        let deserialized: CryptoMode = serde_json::from_str(&json).unwrap();
+        assert_eq!(mode, deserialized);
     }
 }
 
-// Mock secreton_crypto module for testing
-mod secreton_crypto {
-    pub mod hybrid {
-        pub use super::super::hybrid_crypto_tests::*;
-    }
+#[test]
+fn test_security_requirements_validation() {
+    let high_security = SecurityRequirements {
+        security_level: 256,
+        quantum_safe: true,
+        audit_required: true,
+        compliance_flags: vec![
+            "NIST_PQC".to_string(),
+            "FIPS_140_3".to_string(),
+            "KEJAKSAAN_SECURITY".to_string(),
+        ],
+    };
 
-    pub mod pq_key_management {
-        pub use super::super::hybrid_crypto_tests::*;
-    }
+    let balanced_security = SecurityRequirements {
+        security_level: 128,
+        quantum_safe: false,
+        audit_required: false,
+        compliance_flags: vec!["FIPS_140_2".to_string()],
+    };
 
-    pub mod enhanced {
-        pub use super::super::hybrid_crypto_tests::*;
-    }
+    // Test security level validation
+    assert!(high_security.security_level >= 256);
+    assert!(balanced_security.security_level >= 128);
 
-    pub mod error {
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        pub enum CryptoError {
-            KeyNotFound,
-            MemoryLimitExceeded,
-            ConnectionPoolExhausted,
-            EncryptionFailed,
-            DecryptionFailed,
-            SignatureFailed,
-            VerificationFailed,
-        }
+    // Test quantum resistance
+    assert!(high_security.quantum_safe);
+    assert!(!balanced_security.quantum_safe);
+
+    // Test compliance requirements
+    assert!(high_security
+        .compliance_flags
+        .contains(&"NIST_PQC".to_string()));
+    assert!(high_security
+        .compliance_flags
+        .contains(&"KEJAKSAAN_SECURITY".to_string()));
+    assert!(!balanced_security
+        .compliance_flags
+        .contains(&"NIST_PQC".to_string()));
+}
+
+#[test]
+fn test_migration_strategy_phases() {
+    let phase1 = MigrationStrategy {
+        phase: MigrationPhase::ClassicalOnly,
+        target_date: Some(chrono::Utc::now().timestamp() + 90 * 24 * 3600),
+        pq_adoption_rate: 0,
+    };
+
+    let phase2 = MigrationStrategy {
+        phase: MigrationPhase::HybridTransition,
+        target_date: Some(chrono::Utc::now().timestamp() + 180 * 24 * 3600),
+        pq_adoption_rate: 50,
+    };
+
+    let phase3 = MigrationStrategy {
+        phase: MigrationPhase::PostQuantumOnly,
+        target_date: Some(chrono::Utc::now().timestamp() + 365 * 24 * 3600),
+        pq_adoption_rate: 100,
+    };
+
+    // Test phase progression
+    assert_eq!(phase1.pq_adoption_rate, 0);
+    assert_eq!(phase2.pq_adoption_rate, 50);
+    assert_eq!(phase3.pq_adoption_rate, 100);
+
+    // Test phase types
+    assert_eq!(phase1.phase, MigrationPhase::ClassicalOnly);
+    assert_eq!(phase2.phase, MigrationPhase::HybridTransition);
+    assert_eq!(phase3.phase, MigrationPhase::PostQuantumOnly);
+}
+
+#[test]
+fn test_hybrid_crypto_initialization() {
+    // Test default initialization
+    let crypto = HybridCrypto::new_default().unwrap();
+    assert_eq!(crypto.mode(), CryptoMode::Hybrid);
+    assert_eq!(crypto.security_requirements().security_level, 192);
+
+    // Test custom initialization
+    let custom_crypto = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec!["NIST_PQC".to_string()],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+
+    assert_eq!(custom_crypto.mode(), CryptoMode::PostQuantum);
+    assert_eq!(custom_crypto.security_requirements().security_level, 256);
+}
+
+#[test]
+fn test_classical_mode_signing_with_real_crypto() {
+    let mut crypto = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Test message for Attorney General's Office";
+    let signature = crypto.sign(message).unwrap();
+
+    // Verify signature structure
+    assert!(!signature.classical_signature.is_empty());
+    assert!(signature.pq_signature.is_empty());
+    assert_eq!(signature.algorithm_info, "Ed25519");
+
+    // Verify signature is valid
+    let is_valid = crypto.verify(message, &signature).unwrap();
+    assert!(is_valid);
+
+    // Verify tampered message fails
+    let tampered_message = b"Tampered message";
+    let is_invalid = crypto.verify(tampered_message, &signature).unwrap();
+    assert!(!is_invalid);
+}
+
+#[test]
+fn test_hybrid_mode_signing_with_real_crypto() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Hybrid signature test for SIMKARI";
+    let signature = crypto.sign(message).unwrap();
+
+    // Verify both signatures are present
+    assert!(!signature.classical_signature.is_empty());
+    assert!(!signature.pq_signature.is_empty());
+    assert!(signature.algorithm_info.contains("Ed25519"));
+    assert!(signature.algorithm_info.contains("ML-DSA"));
+
+    // Verify signature is valid
+    let is_valid = crypto.verify(message, &signature).unwrap();
+    assert!(is_valid);
+
+    // Test that tampering with either signature fails verification
+    let mut tampered_sig = signature.clone();
+    tampered_sig.classical_signature[0] ^= 0xFF;
+    let is_invalid = crypto.verify(message, &tampered_sig).unwrap();
+    assert!(!is_invalid, "Tampered classical signature should fail");
+
+    let mut tampered_pq = signature.clone();
+    tampered_pq.pq_signature[0] ^= 0xFF;
+    let is_invalid_pq = crypto.verify(message, &tampered_pq).unwrap();
+    assert!(!is_invalid_pq, "Tampered PQ signature should fail");
+}
+
+#[test]
+fn test_post_quantum_mode_signing_with_real_crypto() {
+    let mut crypto = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Pure PQ signature test";
+    let signature = crypto.sign(message).unwrap();
+
+    // Verify only PQ signature is present
+    assert!(signature.classical_signature.is_empty());
+    assert!(!signature.pq_signature.is_empty());
+    assert!(signature.algorithm_info.contains("ML-DSA"));
+
+    // Verify signature is valid
+    let is_valid = crypto.verify(message, &signature).unwrap();
+    assert!(is_valid);
+}
+
+#[test]
+fn test_security_level_variant_selection() {
+    // Test 128-bit security level
+    let mut crypto_128 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 128,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Speed,
+    )
+    .unwrap();
+
+    crypto_128.generate_signing_keypair().unwrap();
+    let message = b"Test 128-bit security";
+    let signature = crypto_128.sign(message).unwrap();
+    assert!(crypto_128.verify(message, &signature).unwrap());
+
+    // Test 256-bit security level
+    let mut crypto_256 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+
+    crypto_256.generate_signing_keypair().unwrap();
+    let message = b"Test 256-bit security";
+    let signature = crypto_256.sign(message).unwrap();
+    assert!(crypto_256.verify(message, &signature).unwrap());
+}
+
+#[test]
+fn test_migration_strategy_configuration() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+
+    let strategy = MigrationStrategy {
+        phase: MigrationPhase::HybridTransition,
+        target_date: Some(1735689600), // 2025-01-01
+        pq_adoption_rate: 75,
+    };
+
+    crypto.set_migration_strategy(strategy.clone());
+    assert_eq!(
+        crypto.migration_strategy().phase,
+        MigrationPhase::HybridTransition
+    );
+    assert_eq!(crypto.migration_strategy().pq_adoption_rate, 75);
+    assert_eq!(crypto.migration_strategy().target_date, Some(1735689600));
+}
+
+#[test]
+fn test_public_keys_export() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+    crypto.generate_signing_keypair().unwrap();
+    crypto.generate_kem_keypair().unwrap();
+
+    let public_keys = crypto.get_public_keys().unwrap();
+
+    // Verify all keys are present for hybrid mode
+    assert!(public_keys.classical_verifying_key.is_some());
+    assert!(public_keys.pq_signing_public_key.is_some());
+    assert!(public_keys.pq_kem_public_key.is_some());
+
+    // Verify key sizes match expected values
+    assert_eq!(public_keys.classical_verifying_key.unwrap().len(), 32); // Ed25519
+    assert_eq!(public_keys.pq_signing_public_key.unwrap().len(), 1952); // ML-DSA-65
+    assert_eq!(public_keys.pq_kem_public_key.unwrap().len(), 1184); // ML-KEM-768
+}
+
+#[test]
+fn test_kem_keypair_generation() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+    crypto.generate_kem_keypair().unwrap();
+
+    let public_keys = crypto.get_public_keys().unwrap();
+    assert!(public_keys.pq_kem_public_key.is_some());
+
+    // Verify ML-KEM-768 key size (192-bit security)
+    assert_eq!(public_keys.pq_kem_public_key.unwrap().len(), 1184);
+}
+
+#[test]
+fn test_different_crypto_modes() {
+    for mode in [
+        CryptoMode::Classical,
+        CryptoMode::Hybrid,
+        CryptoMode::PostQuantum,
+    ] {
+        let mut crypto = HybridCrypto::new(
+            mode,
+            SecurityRequirements::default(),
+            PerformancePriority::default(),
+        )
+        .unwrap();
+
+        crypto.generate_signing_keypair().unwrap();
+        let message = b"Test message for all modes";
+        let signature = crypto.sign(message).unwrap();
+        let is_valid = crypto.verify(message, &signature).unwrap();
+
+        assert!(
+            is_valid,
+            "Signature verification failed for mode {:?}",
+            mode
+        );
     }
+}
+
+#[test]
+fn test_performance_priorities() {
+    for priority in [
+        PerformancePriority::Speed,
+        PerformancePriority::Balanced,
+        PerformancePriority::Security,
+    ] {
+        let mut crypto = HybridCrypto::new(
+            CryptoMode::Hybrid,
+            SecurityRequirements {
+                security_level: 192,
+                quantum_safe: true,
+                audit_required: true,
+                compliance_flags: vec![],
+            },
+            priority,
+        )
+        .unwrap();
+
+        crypto.generate_signing_keypair().unwrap();
+        let message = b"Performance priority test";
+        let signature = crypto.sign(message).unwrap();
+        assert!(crypto.verify(message, &signature).unwrap());
+    }
+}
+
+#[test]
+fn test_hybrid_signature_both_components_required() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Test message";
+    let signature = crypto.sign(message).unwrap();
+
+    // Both signatures must be valid for hybrid mode
+    assert!(!signature.classical_signature.is_empty());
+    assert!(!signature.pq_signature.is_empty());
+
+    // Valid signature should verify
+    assert!(crypto.verify(message, &signature).unwrap());
+
+    // Create invalid signature with empty classical component
+    let invalid_sig = HybridSignatureData {
+        classical_signature: Vec::new(),
+        pq_signature: signature.pq_signature.clone(),
+        algorithm_info: signature.algorithm_info.clone(),
+    };
+    assert!(!crypto.verify(message, &invalid_sig).unwrap());
+
+    // Create invalid signature with empty PQ component
+    let invalid_sig2 = HybridSignatureData {
+        classical_signature: signature.classical_signature.clone(),
+        pq_signature: Vec::new(),
+        algorithm_info: signature.algorithm_info.clone(),
+    };
+    assert!(!crypto.verify(message, &invalid_sig2).unwrap());
+}
+
+#[test]
+fn test_compliance_flags() {
+    let crypto = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![
+                "KEJAKSAAN_RI".to_string(),
+                "NIST_PQC".to_string(),
+                "FIPS_203".to_string(),
+                "FIPS_204".to_string(),
+            ],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+
+    let requirements = crypto.security_requirements();
+    assert!(requirements
+        .compliance_flags
+        .contains(&"KEJAKSAAN_RI".to_string()));
+    assert!(requirements
+        .compliance_flags
+        .contains(&"NIST_PQC".to_string()));
+    assert!(requirements
+        .compliance_flags
+        .contains(&"FIPS_203".to_string()));
+    assert!(requirements
+        .compliance_flags
+        .contains(&"FIPS_204".to_string()));
+}
+
+#[test]
+fn test_audit_requirements() {
+    let crypto_with_audit = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 192,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec!["KEJAKSAAN_RI".to_string()],
+        },
+        PerformancePriority::Balanced,
+    )
+    .unwrap();
+
+    assert!(crypto_with_audit.security_requirements().audit_required);
+
+    let crypto_without_audit = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements {
+            security_level: 128,
+            quantum_safe: false,
+            audit_required: false,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Speed,
+    )
+    .unwrap();
+
+    assert!(!crypto_without_audit.security_requirements().audit_required);
+}
+
+#[test]
+fn test_hybrid_encryption_with_real_algorithms() {
+    let mut sender = HybridCrypto::new_default().unwrap();
+    sender.generate_kem_keypair().unwrap();
+
+    let mut receiver = HybridCrypto::new_default().unwrap();
+    receiver.generate_kem_keypair().unwrap();
+
+    // Get receiver's public key
+    let receiver_keys = receiver.get_public_keys().unwrap();
+    let receiver_public_key = receiver_keys.pq_kem_public_key.unwrap();
+
+    // Encrypt data with hybrid encryption
+    let plaintext = b"Sensitive data for Attorney General's Office - SIMKARI";
+    let encrypted = sender.encrypt(plaintext, &receiver_public_key).unwrap();
+
+    // Verify encrypted data structure
+    assert!(!encrypted.classical_data.ciphertext.is_empty());
+    assert!(!encrypted.pq_ciphertext.is_empty());
+    assert_eq!(encrypted.metadata.mlkem_variant, "ML-KEM-768");
+    assert_eq!(encrypted.metadata.security_level, 192);
+
+    // Decrypt with receiver's private key
+    let decrypted = receiver.decrypt(&encrypted).unwrap();
+    assert_eq!(decrypted, plaintext);
+}
+
+#[test]
+fn test_classical_encryption_with_real_aes_gcm() {
+    let sender = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    let plaintext = b"Classical encryption test data";
+    let dummy_public_key = vec![0u8; 32]; // Not used in classical mode
+
+    let encrypted = sender.encrypt(plaintext, &dummy_public_key).unwrap();
+
+    // Verify classical encryption structure
+    assert!(!encrypted.classical_data.ciphertext.is_empty());
+    assert!(encrypted.pq_ciphertext.is_empty());
+    assert_eq!(encrypted.metadata.mlkem_variant, "None");
+    assert_eq!(encrypted.metadata.security_level, 256);
+}
+
+#[test]
+fn test_post_quantum_encryption_with_real_mlkem() {
+    let mut sender = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    sender.generate_kem_keypair().unwrap();
+
+    let mut receiver = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    receiver.generate_kem_keypair().unwrap();
+
+    let receiver_keys = receiver.get_public_keys().unwrap();
+    let receiver_public_key = receiver_keys.pq_kem_public_key.unwrap();
+
+    let plaintext = b"Pure post-quantum encrypted data";
+    let encrypted = sender.encrypt(plaintext, &receiver_public_key).unwrap();
+
+    // Verify PQ encryption structure
+    assert!(!encrypted.classical_data.ciphertext.is_empty());
+    assert!(!encrypted.pq_ciphertext.is_empty());
+    assert!(encrypted.metadata.mlkem_variant.contains("ML-KEM"));
+
+    // Decrypt and verify
+    let decrypted = receiver.decrypt(&encrypted).unwrap();
+    assert_eq!(decrypted, plaintext);
+}
+
+#[test]
+fn test_migration_strategy_execution_phase_transitions() {
+    // Phase 1: Classical Only
+    let mut crypto_phase1 = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    let strategy_phase1 = MigrationStrategy {
+        phase: MigrationPhase::ClassicalOnly,
+        target_date: Some(chrono::Utc::now().timestamp() + 90 * 24 * 3600),
+        pq_adoption_rate: 0,
+    };
+    crypto_phase1.set_migration_strategy(strategy_phase1);
+
+    crypto_phase1.generate_signing_keypair().unwrap();
+    let message = b"Phase 1 message";
+    let sig_phase1 = crypto_phase1.sign(message).unwrap();
+
+    // Verify classical-only signature
+    assert!(!sig_phase1.classical_signature.is_empty());
+    assert!(sig_phase1.pq_signature.is_empty());
+    assert!(crypto_phase1.verify(message, &sig_phase1).unwrap());
+
+    // Phase 2: Hybrid Transition
+    let mut crypto_phase2 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    let strategy_phase2 = MigrationStrategy {
+        phase: MigrationPhase::HybridTransition,
+        target_date: Some(chrono::Utc::now().timestamp() + 180 * 24 * 3600),
+        pq_adoption_rate: 50,
+    };
+    crypto_phase2.set_migration_strategy(strategy_phase2);
+
+    crypto_phase2.generate_signing_keypair().unwrap();
+    let sig_phase2 = crypto_phase2.sign(message).unwrap();
+
+    // Verify hybrid signature with both components
+    assert!(!sig_phase2.classical_signature.is_empty());
+    assert!(!sig_phase2.pq_signature.is_empty());
+    assert!(crypto_phase2.verify(message, &sig_phase2).unwrap());
+
+    // Phase 3: Post-Quantum Only
+    let mut crypto_phase3 = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+
+    let strategy_phase3 = MigrationStrategy {
+        phase: MigrationPhase::PostQuantumOnly,
+        target_date: Some(chrono::Utc::now().timestamp() + 365 * 24 * 3600),
+        pq_adoption_rate: 100,
+    };
+    crypto_phase3.set_migration_strategy(strategy_phase3);
+
+    crypto_phase3.generate_signing_keypair().unwrap();
+    let sig_phase3 = crypto_phase3.sign(message).unwrap();
+
+    // Verify PQ-only signature
+    assert!(sig_phase3.classical_signature.is_empty());
+    assert!(!sig_phase3.pq_signature.is_empty());
+    assert!(crypto_phase3.verify(message, &sig_phase3).unwrap());
+}
+
+#[test]
+fn test_algorithm_selection_based_on_security_requirements() {
+    // Test ML-DSA-44 selection for 128-bit security
+    let mut crypto_128 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 128,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Speed,
+    )
+    .unwrap();
+    crypto_128.generate_signing_keypair().unwrap();
+    crypto_128.generate_kem_keypair().unwrap();
+
+    let keys_128 = crypto_128.get_public_keys().unwrap();
+    // ML-DSA-44 public key size is 1312 bytes
+    assert_eq!(keys_128.pq_signing_public_key.unwrap().len(), 1312);
+    // ML-KEM-512 public key size is 800 bytes
+    assert_eq!(keys_128.pq_kem_public_key.unwrap().len(), 800);
+
+    // Test ML-DSA-65 selection for 192-bit security (default)
+    let mut crypto_192 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 192,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Balanced,
+    )
+    .unwrap();
+    crypto_192.generate_signing_keypair().unwrap();
+    crypto_192.generate_kem_keypair().unwrap();
+
+    let keys_192 = crypto_192.get_public_keys().unwrap();
+    // ML-DSA-65 public key size is 1952 bytes
+    assert_eq!(keys_192.pq_signing_public_key.unwrap().len(), 1952);
+    // ML-KEM-768 public key size is 1184 bytes
+    assert_eq!(keys_192.pq_kem_public_key.unwrap().len(), 1184);
+
+    // Test ML-DSA-87 selection for 256-bit security
+    let mut crypto_256 = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+    crypto_256.generate_signing_keypair().unwrap();
+    crypto_256.generate_kem_keypair().unwrap();
+
+    let keys_256 = crypto_256.get_public_keys().unwrap();
+    // ML-DSA-87 public key size is 2592 bytes
+    assert_eq!(keys_256.pq_signing_public_key.unwrap().len(), 2592);
+    // ML-KEM-1024 public key size is 1568 bytes
+    assert_eq!(keys_256.pq_kem_public_key.unwrap().len(), 1568);
+}
+
+#[test]
+fn test_real_key_transitions_during_migration() {
+    // Start with classical keys
+    let mut crypto = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Migration test message";
+    let classical_sig = crypto.sign(message).unwrap();
+    assert!(crypto.verify(message, &classical_sig).unwrap());
+
+    // Transition to hybrid mode - generate PQ keys
+    let mut crypto_hybrid = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    crypto_hybrid.generate_signing_keypair().unwrap();
+
+    let hybrid_sig = crypto_hybrid.sign(message).unwrap();
+    assert!(crypto_hybrid.verify(message, &hybrid_sig).unwrap());
+
+    // Verify hybrid signature has both components
+    assert!(!hybrid_sig.classical_signature.is_empty());
+    assert!(!hybrid_sig.pq_signature.is_empty());
+
+    // Transition to pure PQ mode
+    let mut crypto_pq = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    crypto_pq.generate_signing_keypair().unwrap();
+
+    let pq_sig = crypto_pq.sign(message).unwrap();
+    assert!(crypto_pq.verify(message, &pq_sig).unwrap());
+
+    // Verify PQ signature has only PQ component
+    assert!(pq_sig.classical_signature.is_empty());
+    assert!(!pq_sig.pq_signature.is_empty());
+}
+
+#[test]
+fn test_hybrid_signature_verification_with_ed25519_and_mldsa() {
+    let mut crypto = HybridCrypto::new_default().unwrap();
+    crypto.generate_signing_keypair().unwrap();
+
+    let message = b"Test Ed25519 + ML-DSA hybrid signature";
+    let signature = crypto.sign(message).unwrap();
+
+    // Verify signature structure
+    assert_eq!(signature.classical_signature.len(), 64); // Ed25519 signature is 64 bytes
+    assert!(!signature.pq_signature.is_empty()); // ML-DSA signature varies by variant
+    assert!(signature.algorithm_info.contains("Ed25519"));
+    assert!(signature.algorithm_info.contains("ML-DSA"));
+
+    // Verify signature is valid
+    assert!(crypto.verify(message, &signature).unwrap());
+
+    // Verify tampering detection on Ed25519 component
+    let mut tampered_ed25519 = signature.clone();
+    tampered_ed25519.classical_signature[0] ^= 0xFF;
+    assert!(!crypto.verify(message, &tampered_ed25519).unwrap());
+
+    // Verify tampering detection on ML-DSA component
+    let mut tampered_mldsa = signature.clone();
+    tampered_mldsa.pq_signature[0] ^= 0xFF;
+    assert!(!crypto.verify(message, &tampered_mldsa).unwrap());
+
+    // Verify wrong message detection
+    let wrong_message = b"Different message";
+    assert!(!crypto.verify(wrong_message, &signature).unwrap());
+}
+
+#[test]
+fn test_encryption_metadata_accuracy() {
+    let mut crypto = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec!["KEJAKSAAN_RI".to_string()],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+    crypto.generate_kem_keypair().unwrap();
+
+    let receiver_keys = crypto.get_public_keys().unwrap();
+    let receiver_public_key = receiver_keys.pq_kem_public_key.unwrap();
+
+    let plaintext = b"Test metadata";
+    let encrypted = crypto.encrypt(plaintext, &receiver_public_key).unwrap();
+
+    // Verify metadata
+    assert_eq!(encrypted.metadata.mlkem_variant, "ML-KEM-1024");
+    assert_eq!(encrypted.metadata.security_level, 256);
+    assert!(encrypted.metadata.timestamp > 0);
+    assert!(encrypted.metadata.timestamp <= chrono::Utc::now().timestamp());
+}
+
+#[test]
+fn test_performance_priority_affects_algorithm_selection() {
+    // Speed priority should select faster variants
+    let mut crypto_speed = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 128,
+            quantum_safe: true,
+            audit_required: false,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Speed,
+    )
+    .unwrap();
+    crypto_speed.generate_signing_keypair().unwrap();
+    crypto_speed.generate_kem_keypair().unwrap();
+
+    let keys_speed = crypto_speed.get_public_keys().unwrap();
+    // Should use ML-DSA-44 and ML-KEM-512 for speed
+    assert_eq!(keys_speed.pq_signing_public_key.unwrap().len(), 1312);
+    assert_eq!(keys_speed.pq_kem_public_key.unwrap().len(), 800);
+
+    // Security priority should select stronger variants
+    let mut crypto_security = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements {
+            security_level: 256,
+            quantum_safe: true,
+            audit_required: true,
+            compliance_flags: vec![],
+        },
+        PerformancePriority::Security,
+    )
+    .unwrap();
+    crypto_security.generate_signing_keypair().unwrap();
+    crypto_security.generate_kem_keypair().unwrap();
+
+    let keys_security = crypto_security.get_public_keys().unwrap();
+    // Should use ML-DSA-87 and ML-KEM-1024 for security
+    assert_eq!(keys_security.pq_signing_public_key.unwrap().len(), 2592);
+    assert_eq!(keys_security.pq_kem_public_key.unwrap().len(), 1568);
+}
+
+#[test]
+fn test_cross_mode_signature_compatibility() {
+    // Generate signatures in different modes
+    let mut classical = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    classical.generate_signing_keypair().unwrap();
+
+    let mut hybrid = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    hybrid.generate_signing_keypair().unwrap();
+
+    let mut pq = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )
+    .unwrap();
+    pq.generate_signing_keypair().unwrap();
+
+    let message = b"Cross-mode test";
+
+    // Each mode should produce valid signatures
+    let classical_sig = classical.sign(message).unwrap();
+    assert!(classical.verify(message, &classical_sig).unwrap());
+
+    let hybrid_sig = hybrid.sign(message).unwrap();
+    assert!(hybrid.verify(message, &hybrid_sig).unwrap());
+
+    let pq_sig = pq.sign(message).unwrap();
+    assert!(pq.verify(message, &pq_sig).unwrap());
+
+    // Verify signature structures are mode-appropriate
+    assert!(!classical_sig.classical_signature.is_empty());
+    assert!(classical_sig.pq_signature.is_empty());
+
+    assert!(!hybrid_sig.classical_signature.is_empty());
+    assert!(!hybrid_sig.pq_signature.is_empty());
+
+    assert!(pq_sig.classical_signature.is_empty());
+    assert!(!pq_sig.pq_signature.is_empty());
 }

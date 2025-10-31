@@ -104,8 +104,10 @@ pub async fn get_mfa_metrics(
 
     let avg_response_time = if total_operations > 0 {
         (metrics.setup_metrics.avg_response_time_ms * metrics.setup_metrics.total_operations as f64
-            + metrics.verification_metrics.avg_response_time_ms * metrics.verification_metrics.total_operations as f64
-            + metrics.status_lookup_metrics.avg_response_time_ms * metrics.status_lookup_metrics.total_operations as f64)
+            + metrics.verification_metrics.avg_response_time_ms
+                * metrics.verification_metrics.total_operations as f64
+            + metrics.status_lookup_metrics.avg_response_time_ms
+                * metrics.status_lookup_metrics.total_operations as f64)
             / total_operations as f64
     } else {
         0.0
@@ -130,7 +132,7 @@ pub async fn get_mfa_metrics(
         } else {
             "critical".to_string()
         },
-        active_alerts: 0, // Would be calculated from actual alerts
+        active_alerts: 0,            // Would be calculated from actual alerts
         trend: "stable".to_string(), // Would be calculated from historical data
         last_updated: chrono::Utc::now(),
     };
@@ -173,7 +175,10 @@ pub async fn get_mfa_alerts(
     // In a real implementation, this would fetch active alerts from the monitor
     let alerts = Vec::new(); // Placeholder
 
-    info!(alert_count = alerts.len(), "MFA performance alerts retrieved");
+    info!(
+        alert_count = alerts.len(),
+        "MFA performance alerts retrieved"
+    );
 
     Ok(Json(alerts))
 }
@@ -223,7 +228,10 @@ pub async fn get_operation_stats(
         OperationStats::from_metrics(&metrics.status_lookup_metrics),
     );
 
-    info!(operation_count = stats.len(), "Operation statistics retrieved");
+    info!(
+        operation_count = stats.len(),
+        "Operation statistics retrieved"
+    );
 
     Ok(Json(stats))
 }

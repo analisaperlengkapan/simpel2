@@ -81,6 +81,7 @@ where
                 .get("user-agent")
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_string()),
+            namespace: None, // TODO: Extract namespace from path
             metadata,
         };
 
@@ -140,6 +141,7 @@ pub async fn audit_middleware(
                 status,
                 ip: None,         // Will be set by the AuditExt
                 user_agent: None, // Will be set by the AuditExt
+                namespace: None,  // TODO: Extract namespace from path
                 metadata,
             })
             .await;

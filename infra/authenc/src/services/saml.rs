@@ -337,7 +337,8 @@ impl SamlService {
 
         // Verify signature if IdP is configured
         if let Some(idp) = self.identity_providers.get(expected_idp_entity_id)
-            && !idp.certificate.is_empty() {
+            && !idp.certificate.is_empty()
+        {
             self.verify_saml_signature(&xml, &idp.certificate)?;
         }
 

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use brankas_adhyaksa::{
+use Secreton_adhyaksa::{
     auth::mfa::{MfaMethod, MfaStatus, MfaStorage},
     storage::StorageError,
 };
@@ -13,46 +13,46 @@ mock! {
     #[async_trait]
     impl MfaStorage for MfaStorage {
         async fn get_mfa_status(&self, user_id: &str) -> Result<MfaStatus, StorageError>;
-        
+
         async fn save_totp_secret(
             &self,
             user_id: &str,
             secret: &str,
             issuer: &str,
         ) -> Result<(), StorageError>;
-        
+
         async fn verify_totp_code(
             &self,
             user_id: &str,
             code: &str,
         ) -> Result<bool, StorageError>;
-        
+
         async fn save_recovery_codes(
             &self,
             user_id: &str,
             codes: Vec<String>,
         ) -> Result<(), StorageError>;
-        
+
         async fn verify_recovery_code(
             &self,
             user_id: &str,
             code: &str,
         ) -> Result<bool, StorageError>;
-        
+
         async fn disable_mfa(&self, user_id: &str) -> Result<(), StorageError>;
-        
+
         async fn get_mfa_attempts(
             &self,
             user_id: &str,
         ) -> Result<Vec<(String, i64)>, StorageError>;
-        
+
         async fn record_mfa_attempt(
             &self,
             user_id: &str,
             code: &str,
             timestamp: i64,
         ) -> Result<(), StorageError>;
-        
+
         async fn clear_mfa_attempts(&self, user_id: &str) -> Result<(), StorageError>;
     }
 }
@@ -97,7 +97,7 @@ impl MfaStorage for InMemoryMfaStorage {
             .write()
             .unwrap()
             .insert(user_id.to_string(), secret.to_string());
-        
+
         // Update status
         let mut statuses = self.statuses.write().unwrap();
         let status = statuses.entry(user_id.to_string()).or_default();
@@ -105,7 +105,7 @@ impl MfaStorage for InMemoryMfaStorage {
         if !status.methods.contains(&MfaMethod::Totp) {
             status.methods.push(MfaMethod::Totp);
         }
-        
+
         Ok(())
     }
 
@@ -128,12 +128,12 @@ impl MfaStorage for InMemoryMfaStorage {
             .write()
             .unwrap()
             .insert(user_id.to_string(), codes);
-        
+
         // Update status
         let mut statuses = self.statuses.write().unwrap();
         let status = statuses.entry(user_id.to_string()).or_default();
         status.recovery_codes = Some(true);
-        
+
         Ok(())
     }
 

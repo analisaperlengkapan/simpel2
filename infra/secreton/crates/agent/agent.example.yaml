@@ -1,0 +1,65 @@
+# Secreton Agent Configuration Example
+
+# Vault server URL
+server_url: "https://vault.example.com:8200"
+
+# Fallback servers (optional)
+server_urls:
+  - "https://vault1.example.com:8200"
+  - "https://vault2.example.com:8200"
+
+# Authentication method: userpass, approle, kubernetes
+auth_method: "userpass"
+
+# Authentication configuration
+auth_config:
+  username: "myuser"
+  password: "mypassword"
+  # For approle:
+  # role_id: "..."
+  # secret_id: "..."
+  # For kubernetes:
+  # role: "myrol
+jwt_path: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+# Templates to render
+templates:
+  - source: "secret/data/myapp/config"
+    dest: "/etc/myapp/config.json"
+    permissions: "0600"
+  - source: "secret/data/myapp/database"
+    dest: "/etc/myapp/database.conf"
+    permissions: "0600"
+    template: |
+      host={{host}}
+      port={{port}}
+      username={{username}}
+      password={{password}}
+
+# Token renewal interval (seconds)
+token_renewal_interval_secs: 300
+
+# Template rendering interval (seconds)
+template_interval_secs: 60
+
+# Token sink configuration
+sink:
+  types: ["file", "env"]
+  file_path: "/var/run/secrets/vault-token"
+  file_permissions: "0600"
+  env_var: "VAULT_TOKEN"
+
+# Health check port
+health_port: 9900
+
+# Child process to run (optional)
+run:
+  - "/usr/bin/myapp"
+  - "--config"
+  - "/etc/myapp/config.json"
+
+# Restart child on failure
+restart_child: true
+
+# Restart delay (seconds)
+restart_delay_secs: 5

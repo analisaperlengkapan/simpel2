@@ -1332,7 +1332,8 @@ impl Oid4VcService for EnhancedOid4VcManager {
     ) -> Result<String, String> {
         // Validate PKCE if present
         if let Some(_code_challenge) = &request.code_challenge
-            && request.code_challenge_method.as_deref() != Some("S256") {
+            && request.code_challenge_method.as_deref() != Some("S256")
+        {
             return Err("Invalid code challenge method".to_string());
         }
         // In production, store code_challenge for later verification
@@ -1450,7 +1451,8 @@ impl Oid4VcService for EnhancedOid4VcManager {
 
         // Check if credential is revoked
         if let Some(status) = &credential.status
-            && self.is_credential_revoked(&status.id).await {
+            && self.is_credential_revoked(&status.id).await
+        {
             return Ok(false);
         }
 

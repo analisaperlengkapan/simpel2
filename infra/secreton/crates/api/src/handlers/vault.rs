@@ -1,5 +1,5 @@
 //! Vault operations handlers.
-//! 
+//!
 //! Provides endpoints for secret management, key operations,
 //! policy management, and vault administration.
 
@@ -18,8 +18,7 @@ use crate::{
     handlers::AppState,
     ApiResponse, ApiResult, ApiError,
 };
-use brankas_core::audit::SecurityEventType;
-use brankas_core::audit::{AuditFilters, ExportFormat};
+use secreton_core::models::audit::AuditEventType;
 
 /// Create vault operation routes
 pub fn create_routes() -> Router<AppState> {
@@ -30,7 +29,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/secrets/:path", put(update_secret))
         .route("/secrets/:path", delete(delete_secret))
         .route("/secrets", get(list_secrets))
-        
+
         // Key operations
         .route("/keys", get(list_keys))
         .route("/keys", post(create_key))
@@ -39,25 +38,25 @@ pub fn create_routes() -> Router<AppState> {
         .route("/keys/:key_id", delete(delete_key))
         .route("/keys/:key_id/rotate", post(rotate_key))
         .route("/keys/:key_id/versions", get(list_key_versions))
-        
+
         // Encryption operations
         .route("/encrypt", post(encrypt_data))
         .route("/decrypt", post(decrypt_data))
         .route("/sign", post(sign_data))
         .route("/verify", post(verify_signature))
         .route("/hash", post(hash_data))
-        
+
         // Policy operations
         .route("/policies", get(list_policies))
         .route("/policies/:name", get(get_policy))
         .route("/policies/:name", post(create_policy))
         .route("/policies/:name", put(update_policy))
         .route("/policies/:name", delete(delete_policy))
-        
+
         // Audit operations
         .route("/audit", get(get_audit_logs))
         .route("/audit/export", get(export_audit_logs))
-        
+
         // Backup operations
         .route("/backup", post(create_backup))
         .route("/backup", get(list_backups))
@@ -77,7 +76,7 @@ pub struct AuditQuery {
 pub async fn get_audit_logs(
     State(state): State<AppState>,
     Query(query): Query<AuditQuery>,
-) -> ApiResult<Json<ApiResponse<Vec<brankas_core::audit::AuditEntry>>>> {
+) -> ApiResult<Json<ApiResponse<Vec<secreton_core::audit::AuditEntry>>>> {
     let mut builder = AuditFilters::builder();
     if let Some(user_id) = query.user_id.clone() {
         builder = builder.user_id(user_id);
@@ -469,7 +468,7 @@ pub async fn create_secret(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::SecretCreation {
+            AuditEventType::SecretCreation {
                 secret_path: path.clone(),
                 user: "unknown".to_string(),
             },
@@ -507,7 +506,7 @@ pub async fn update_secret(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::SecretVersionChange {
+            AuditEventType::SecretVersionChange {
                 secret_path: path.clone(),
                 old_version: 1,
                 new_version: 2,
@@ -541,7 +540,7 @@ pub async fn delete_secret(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::SecretDeletion {
+            AuditEventType::SecretDeletion {
                 secret_path: path.clone(),
                 user: "unknown".to_string(),
             },
@@ -610,7 +609,7 @@ pub async fn create_key(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::KeyGeneration {
+            AuditEventType::KeyGeneration {
                 key_type: key.key_type.clone(),
                 key_id: key.id.clone(),
                 algorithm: key.algorithm.clone(),
@@ -661,7 +660,6 @@ pub async fn list_keys(
     // TODO: Implement key listing
     let keys = vec![
         KeyResponse {
-            id: "key-1".to_string(),
             name: "signing-key".to_string(),
             key_type: "Ed25519".to_string(), // Changed from RSA to Ed25519
             algorithm: "Ed25519".to_string(), // Changed from RS256 to Ed25519
@@ -705,7 +703,7 @@ pub async fn rotate_key(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::KeyRotation {
+            AuditEventType::KeyRotation {
                 old_key_id: key_id.clone(),
                 new_key_id: key.id.clone(),
                 algorithm: key.algorithm.clone(),
@@ -740,7 +738,7 @@ pub async fn encrypt_data(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::EncryptionOperation {
+            AuditEventType::EncryptionOperation {
                 key_id: request.key_id.clone(),
                 user: "unknown".to_string(),
                 data_size: request.plaintext.len() as u64,
@@ -773,7 +771,7 @@ pub async fn decrypt_data(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::DecryptionOperation {
+            AuditEventType::DecryptionOperation {
                 key_id: request.key_id.clone(),
                 user: "unknown".to_string(),
                 data_size: request.ciphertext.len() as u64,
@@ -849,4 +847,94 @@ impl Default for KeyMetadata {
             purpose: None,
         }
     }
+}
+
+
+// Stub handlers for missing functions
+pub async fn update_key(
+    State(_state): State<AppState>,
+    Path(_key_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
+    Err(ApiError::NotImplemented("update_key not yet implemented".to_string()))
+}
+
+pub async fn delete_key(
+    State(_state): State<AppState>,
+    Path(_key_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("delete_key not yet implemented".to_string()))
+}
+
+pub async fn list_key_versions(
+    State(_state): State<AppState>,
+    Path(_key_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
+    Err(ApiError::NotImplemented("list_key_versions not yet implemented".to_string()))
+}
+
+pub async fn list_policies(
+    State(_state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
+    Err(ApiError::NotImplemented("list_policies not yet implemented".to_string()))
+}
+
+pub async fn get_policy(
+    State(_state): State<AppState>,
+    Path(_name): Path<String>,
+) -> ApiResult<Json<ApiResponse<String>>> {
+    Err(ApiError::NotImplemented("get_policy not yet implemented".to_string()))
+}
+
+pub async fn create_policy(
+    State(_state): State<AppState>,
+    Path(_name): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("create_policy not yet implemented".to_string()))
+}
+
+pub async fn update_policy(
+    State(_state): State<AppState>,
+    Path(_name): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("update_policy not yet implemented".to_string()))
+}
+
+pub async fn delete_policy(
+    State(_state): State<AppState>,
+    Path(_name): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("delete_policy not yet implemented".to_string()))
+}
+
+pub async fn create_backup(
+    State(_state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<String>>> {
+    Err(ApiError::NotImplemented("create_backup not yet implemented".to_string()))
+}
+
+pub async fn list_backups(
+    State(_state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
+    Err(ApiError::NotImplemented("list_backups not yet implemented".to_string()))
+}
+
+pub async fn get_backup(
+    State(_state): State<AppState>,
+    Path(_backup_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<String>>> {
+    Err(ApiError::NotImplemented("get_backup not yet implemented".to_string()))
+}
+
+pub async fn restore_backup(
+    State(_state): State<AppState>,
+    Path(_backup_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("restore_backup not yet implemented".to_string()))
+}
+
+pub async fn delete_backup(
+    State(_state): State<AppState>,
+    Path(_backup_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented("delete_backup not yet implemented".to_string()))
 }

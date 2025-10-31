@@ -10,7 +10,9 @@ use uuid::Uuid;
 
 use authenc::error::{AuthencError, Result};
 use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
-use authenc::services::mfa_service::{MfaClient, MfaService, MfaSetupResponse, MfaStatistics, MfaStatus};
+use authenc::services::mfa_service::{
+    MfaClient, MfaService, MfaSetupResponse, MfaStatistics, MfaStatus,
+};
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
 use authenc::vault::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
@@ -68,7 +70,9 @@ impl MockSecretonClient {
         account_name: &str,
     ) -> Result<MfaSetupData> {
         if self.should_fail {
-            return Err(AuthencError::ExternalServiceError { service: "Secreton setup failed".to_string() });
+            return Err(AuthencError::ExternalServiceError {
+                service: "Secreton setup failed".to_string(),
+            });
         }
 
         Ok(MfaSetupData {
@@ -81,21 +85,23 @@ impl MockSecretonClient {
     async fn verify_mfa_setup(&self, user_id: &str, code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
-                service: "Secreton verification failed".to_string()
+                service: "Secreton verification failed".to_string(),
             });
         }
 
         if code == "123456" {
             Ok(())
         } else {
-            Err(AuthencError::ValidationError { message: "Invalid MFA code".to_string() })
+            Err(AuthencError::ValidationError {
+                message: "Invalid MFA code".to_string(),
+            })
         }
     }
 
     async fn verify_mfa(&self, user_id: &str, code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
-                service: "Secreton verification failed".to_string()
+                service: "Secreton verification failed".to_string(),
             });
         }
 
@@ -108,20 +114,20 @@ impl MockSecretonClient {
         }
     }
 
-    async fn disable_mfa(
-        &self,
-        user_id: &str,
-        admin_context: &SecurityContext,
-    ) -> Result<()> {
+    async fn disable_mfa(&self, user_id: &str, admin_context: &SecurityContext) -> Result<()> {
         if self.should_fail {
-            return Err(AuthencError::ExternalServiceError { service: "Secreton disable failed".to_string() });
+            return Err(AuthencError::ExternalServiceError {
+                service: "Secreton disable failed".to_string(),
+            });
         }
         Ok(())
     }
 
     async fn get_mfa_status(&self, user_id: &str) -> Result<MfaStatusResponse> {
         if self.should_fail {
-            return Err(AuthencError::ExternalServiceError { service: "Secreton status check failed".to_string() });
+            return Err(AuthencError::ExternalServiceError {
+                service: "Secreton status check failed".to_string(),
+            });
         }
 
         Ok(MfaStatusResponse {
@@ -131,14 +137,10 @@ impl MockSecretonClient {
         })
     }
 
-    async fn verify_recovery_code(
-        &self,
-        user_id: &str,
-        recovery_code: &str,
-    ) -> Result<()> {
+    async fn verify_recovery_code(&self, user_id: &str, recovery_code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
-                service: "Secreton recovery verification failed".to_string()
+                service: "Secreton recovery verification failed".to_string(),
             });
         }
 
@@ -154,7 +156,7 @@ impl MockSecretonClient {
     async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
-                service: "Secreton regeneration failed".to_string()
+                service: "Secreton regeneration failed".to_string(),
             });
         }
 
@@ -164,8 +166,6 @@ impl MockSecretonClient {
             "33333333".to_string(),
         ])
     }
-
-
 }
 
 #[async_trait::async_trait]
@@ -187,11 +187,7 @@ impl MfaClient for MockSecretonClient {
         self.verify_mfa(user_id, code).await
     }
 
-    async fn disable_mfa(
-        &self,
-        user_id: &str,
-        admin_context: &SecurityContext,
-    ) -> Result<()> {
+    async fn disable_mfa(&self, user_id: &str, admin_context: &SecurityContext) -> Result<()> {
         self.disable_mfa(user_id, admin_context).await
     }
 

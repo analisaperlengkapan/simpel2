@@ -119,18 +119,24 @@ pub fn AccessibleImage(
     #[prop(default = "lazy".to_string(), into)]
     loading: String,
 ) -> impl IntoView {
+    use crate::components::optimized_image::OptimizedImage;
+
     let class = class.unwrap_or_default();
     let alt_text = if decorative { String::new() } else { alt };
+    let lazy = loading == "lazy";
 
     view! {
-        <img
-            src=src
-            alt=alt_text
-            class=class
-            loading=loading
+        <div
             role=if decorative { Some("presentation") } else { None }
             aria-hidden=if decorative { Some("true") } else { None }
-        />
+        >
+            <OptimizedImage
+                src=src
+                alt=alt_text
+                class=class
+                lazy=lazy
+            />
+        </div>
     }
 }
 

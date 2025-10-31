@@ -5,6 +5,7 @@
 use crate::components::layout::AuthLayout;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use shared_microfrontend::components::captcha::Captcha;
 use shared_microfrontend::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
@@ -28,6 +29,9 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (error_message, set_error_message) = signal(String::new());
     let (is_loading, set_is_loading) = signal(false);
     let (is_generating, set_is_generating) = signal(true);
+    let (_captcha_token, set_captcha_token) = signal(None::<String>);
+    let (show_captcha, set_show_captcha) = signal(false);
+    let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
     let navigate_clone = navigate.clone();
@@ -35,10 +39,51 @@ pub fn MfaSetupPage() -> impl IntoView {
     // Generate MFA setup data on component mount
     Effect::new(move |_| {
         spawn_local(async move {
-            match generate_mfa_setup().await {
+            // Check risk score to determine if CAPTCHA is needed
+            match check_mfa_setup_risk().await {
+                Ok(score) => {
+                    set_risk_score.set(score);
+                    // Show CAPTCHA if risk score > 0.5 (medium risk or higher)
+                    if score > 0.5 {
+                        set_show_captcha.set(true);
+                        set_is_generating.set(false);
+                    } else {
+                        // Low risk - proceed directly to MFA setup
+                        match generate_mfa_setup(None).await {
+                            Ok(data) => {
+                                set_mfa_data.set(Some(data));
+                                set_is_generating.set(false);
+                            }
+                            Err(e) => {
+                                set_error_message
+                                    .set(format!("Failed to generate MFA setup: {}", e));
+                                set_is_generating.set(false);
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    // On error, default to showing CAPTCHA for safety
+                    set_show_captcha.set(true);
+                    set_is_generating.set(false);
+                }
+            }
+        });
+    });
+
+    // Handle CAPTCHA completion for high-risk scenarios
+    let handle_captcha_success = move |token: String| {
+        set_captcha_token.set(Some(token.clone()));
+        set_error_message.set(String::new());
+        set_is_generating.set(true);
+
+        // Generate MFA setup with CAPTCHA token
+        spawn_local(async move {
+            match generate_mfa_setup(Some(&token)).await {
                 Ok(data) => {
                     set_mfa_data.set(Some(data));
                     set_is_generating.set(false);
+                    set_show_captcha.set(false);
                 }
                 Err(e) => {
                     set_error_message.set(format!("Failed to generate MFA setup: {}", e));
@@ -46,7 +91,12 @@ pub fn MfaSetupPage() -> impl IntoView {
                 }
             }
         });
-    });
+    };
+
+    let handle_captcha_failure = move |error: String| {
+        set_error_message.set(format!("CAPTCHA verification failed: {}", error));
+        set_captcha_token.set(None);
+    };
 
     view! {
         <AuthLayout>
@@ -87,6 +137,36 @@ pub fn MfaSetupPage() -> impl IntoView {
 
                     <Show when=move || !setup_complete.get()>
                         <div class="space-y-8">
+                            // Risk-based CAPTCHA verification (shown for high-risk scenarios)
+                            <Show when=move || show_captcha.get()>
+                                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+                                    <div class="flex items-start mb-4">
+                                        <svg class="w-6 h-6 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <div>
+                                            <h3 class="text-lg font-medium text-yellow-800 dark:text-yellow-300">
+                                                "Additional Security Verification Required"
+                                            </h3>
+                                            <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
+                                                "We've detected unusual activity. Please complete the security verification to proceed with MFA setup."
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+                                        <Captcha
+                                            on_success=Callback::new(handle_captcha_success)
+                                            on_failure=Callback::new(handle_captcha_failure)
+                                            difficulty=5u8
+                                            accessibility_enabled=true
+                                            behavioral_analysis=true
+                                            class="captcha-mfa-setup"
+                                        />
+                                    </div>
+                                </div>
+                            </Show>
+
                             // Step 1: QR Code Display
                             <div>
                                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
@@ -192,6 +272,8 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                             set_setup_complete.set(true);
                                                             // Update session to mark MFA as enabled
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
+                                                            // Clear temp token as setup is complete
+                                                            crate::features::auth::AuthService::clear_temp_token();
                                                             // Redirect to dashboard after 2 seconds
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
                                                             navigate("/dashboard", Default::default());
@@ -260,28 +342,152 @@ pub fn MfaSetupPage() -> impl IntoView {
 // API FUNCTIONS
 // ============================================================================
 
-/// Generate MFA setup data from authenc API
-async fn generate_mfa_setup() -> Result<MfaSetupData, Box<dyn std::error::Error>> {
+/// API response structure for MFA setup
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MfaSetupResponse {
+    success: bool,
+    data: MfaSetupData,
+    message: String,
+}
+
+/// API response structure for MFA verification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MfaVerifyResponse {
+    success: bool,
+    data: MfaVerifyData,
+    message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MfaVerifyData {
+    mfa_enabled: bool,
+    setup_completed_at: String,
+}
+
+/// API error response structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ApiErrorResponse {
+    success: bool,
+    error: ApiError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ApiError {
+    code: String,
+    message: String,
+}
+
+/// Get authenc API base URL
+fn get_authenc_api_url() -> String {
+    std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+}
+
+/// Get authentication token from storage
+#[cfg(target_arch = "wasm32")]
+fn get_auth_token() -> Option<String> {
+    use crate::features::auth::AuthService;
+
+    // Try to get temp_token first (for MFA flow), then fall back to access_token
+    AuthService::get_temp_token().or_else(|| AuthService::get_token())
+}
+
+/// Check risk score for MFA setup
+async fn check_mfa_setup_risk() -> Result<f64, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
-        // For demo purposes, return mock data
-        // In production, this would call the authenc API
-        let mock_data = MfaSetupData {
-            qr_code_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string(),
-            secret_key: "JBSWY3DPEHPK3PXP".to_string(),
-            backup_codes: vec![
-                "12345678".to_string(),
-                "87654321".to_string(),
-                "11223344".to_string(),
-                "44332211".to_string(),
-                "55667788".to_string(),
-            ],
+        use gloo_net::http::Request;
+
+        let api_url = get_authenc_api_url();
+        let risk_url = format!("{}/api/auth/mfa/setup/risk", api_url);
+
+        // Get authentication token
+        let token =
+            get_auth_token().ok_or("No authentication token found. Please log in again.")?;
+
+        // Make API request
+        let response = Request::get(&risk_url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
+
+        if response.ok() {
+            #[derive(Deserialize)]
+            struct RiskResponse {
+                risk_score: f64,
+            }
+
+            let risk_response: RiskResponse = response
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            Ok(risk_response.risk_score)
+        } else {
+            // On error, return high risk score to be safe
+            Ok(1.0)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Ok(0.0) // Low risk in non-WASM environment
+    }
+}
+
+/// Generate MFA setup data from authenc API
+async fn generate_mfa_setup(
+    captcha_token: Option<&str>,
+) -> Result<MfaSetupData, Box<dyn std::error::Error>> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use gloo_net::http::Request;
+
+        let api_url = get_authenc_api_url();
+        let setup_url = format!("{}/api/auth/mfa/setup", api_url);
+
+        // Get authentication token
+        let token =
+            get_auth_token().ok_or("No authentication token found. Please log in again.")?;
+
+        // Prepare request body with optional CAPTCHA token
+        let body = if let Some(captcha) = captcha_token {
+            serde_json::json!({
+                "captcha_token": captcha
+            })
+        } else {
+            serde_json::json!({})
         };
 
-        // Simulate API delay
-        gloo_timers::future::TimeoutFuture::new(1000).await;
+        // Make API request
+        let response = Request::post(&setup_url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .json(&body)?
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
 
-        Ok(mock_data)
+        if response.ok() {
+            let setup_response: MfaSetupResponse = response
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            Ok(setup_response.data)
+        } else {
+            // Try to parse error response
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+
+            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+                Err(error_response.error.message.into())
+            } else {
+                Err(format!("MFA setup failed: HTTP {}", response.status()).into())
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -291,14 +497,52 @@ async fn generate_mfa_setup() -> Result<MfaSetupData, Box<dyn std::error::Error>
 }
 
 /// Verify MFA setup with authenc API
-async fn verify_mfa_setup(_code: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
-        // For demo purposes, accept any 6-digit code
-        // In production, this would call the authenc API
-        // Simulate API delay
-        gloo_timers::future::TimeoutFuture::new(500).await;
-        Ok(())
+        use gloo_net::http::Request;
+
+        let api_url = get_authenc_api_url();
+        let verify_url = format!("{}/api/auth/mfa/verify-setup", api_url);
+
+        // Get authentication token
+        let token =
+            get_auth_token().ok_or("No authentication token found. Please log in again.")?;
+
+        // Prepare request body
+        let request_body = serde_json::json!({
+            "code": code
+        });
+
+        // Make API request
+        let response = Request::post(&verify_url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Content-Type", "application/json")
+            .json(&request_body)?
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
+
+        if response.ok() {
+            let _verify_response: MfaVerifyResponse = response
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            Ok(())
+        } else {
+            // Try to parse error response
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+
+            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+                Err(error_response.error.message.into())
+            } else {
+                Err(format!("Verification failed: HTTP {}", response.status()).into())
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

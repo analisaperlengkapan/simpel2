@@ -507,7 +507,8 @@ impl DeviceService {
 
         // Increase score for known browsers
         if let Some(browser) = &device_info.browser
-            && ["chrome", "firefox", "safari", "edge"].contains(&browser.to_lowercase().as_str()) {
+            && ["chrome", "firefox", "safari", "edge"].contains(&browser.to_lowercase().as_str())
+        {
             score += 0.1;
         }
 
@@ -547,7 +548,11 @@ impl DeviceService {
                 }
                 TrustCondition::LocationIn(countries) => {
                     if let Some(location) = &device.location
-                        && location.country.as_ref().is_some_and(|c| countries.contains(c)) {
+                        && location
+                            .country
+                            .as_ref()
+                            .is_some_and(|c| countries.contains(c))
+                    {
                         true
                     } else {
                         false
@@ -555,7 +560,11 @@ impl DeviceService {
                 }
                 TrustCondition::LocationNotIn(countries) => {
                     if let Some(location) = &device.location
-                        && location.country.as_ref().is_none_or(|c| !countries.contains(c)) {
+                        && location
+                            .country
+                            .as_ref()
+                            .is_none_or(|c| !countries.contains(c))
+                    {
                         true
                     } else {
                         false

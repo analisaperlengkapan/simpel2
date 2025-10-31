@@ -111,10 +111,12 @@ impl AuditEvent {
     }
 }
 
-/// Audit logger for vault operations
-#[derive(Debug, Clone)]
+/// Audit logger for vault operations (API-specific wrapper)
+#[derive(Clone)]
 pub struct AuditLogger {
-    /// In-memory event buffer (for demo; use database in production)
+    /// Core audit logger
+    core_logger: Arc<secreton_core::audit::AuditLogger>,
+    /// In-memory event buffer for API-specific events
     events: Arc<RwLock<VecDeque<AuditEvent>>>,
     /// Maximum events to keep in memory
     max_events: usize,
@@ -129,7 +131,13 @@ impl Default for AuditLogger {
 impl AuditLogger {
     /// Create a new audit logger
     pub fn new(max_events: usize) -> Self {
+        // Create core logger with memory backend
+        let core_logger = secreton_core::audit::AuditLogger::new(vec![
+            Arc::new(secreton_core::audit::MemoryBackend::default())
+        ]);
+
         Self {
+            core_logger: Arc::new(core_logger),
             events: Arc::new(RwLock::new(VecDeque::with_capacity(max_events))),
             max_events,
         }

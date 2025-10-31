@@ -72,9 +72,11 @@ impl InMemoryCache {
         let mut stats = self.stats.write().unwrap();
 
         let original_count = data.len();
-        data.retain(|_, entry| entry.expires_at.is_none_or(|expires| expires > now));
+        data.retain(|_, entry| {
+            entry.expires_at.map_or(true, |expires| expires > now)
+        });
 
-        let evicted_count = original_count - data.len();
+        let evicted_count = original_count.saturating_sub(data.len());
         stats.eviction_count += evicted_count as u64;
         stats.entry_count = data.len() as u64;
     }
@@ -94,23 +96,21 @@ impl CacheBackend for InMemoryCache {
         let data = self.data.read().unwrap();
         let mut stats = self.stats.write().unwrap();
 
-        match data.get(key) {
-            Some(entry) => {
-                if let Some(expires_at) = entry.expires_at {
-                    if std::time::Instant::now() > expires_at {
-                        stats.miss_count += 1;
-                        return Ok(None);
-                    }
-                }
+        let result = data.get(key).and_then(|entry| {
+            if entry.expires_at.map_or(true, |expires| std::time::Instant::now() <= expires) {
+                Some(entry.data.clone())
+            } else {
+                None
+            }
+        });
 
-                stats.hit_count += 1;
-                Ok(Some(entry.data.clone()))
-            }
-            None => {
-                stats.miss_count += 1;
-                Ok(None)
-            }
+        if result.is_some() {
+            stats.hit_count += 1;
+        } else {
+            stats.miss_count += 1;
         }
+
+        Ok(result)
     }
 
     async fn set(&self, key: &str, value: Vec<u8>, ttl: Option<Duration>) -> StorageResult<()> {
@@ -119,20 +119,18 @@ impl CacheBackend for InMemoryCache {
         let mut data = self.data.write().unwrap();
         let mut stats = self.stats.write().unwrap();
 
-        let entry = CacheEntry {
-            data: value.clone(),
-            expires_at,
-        };
+        let memory_delta = data.get(key)
+            .map(|old| value.len() as i64 - old.data.len() as i64)
+            .unwrap_or_else(|| (value.len() + key.len()) as i64);
 
-        let memory_delta = if let Some(old_entry) = data.get(key) {
-            value.len() as i64 - old_entry.data.len() as i64
-        } else {
-            value.len() as i64 + key.len() as i64
+        let entry = CacheEntry {
+            data: value,
+            expires_at,
         };
 
         data.insert(key.to_string(), entry);
         stats.entry_count = data.len() as u64;
-        stats.memory_usage_bytes = (stats.memory_usage_bytes as i64 + memory_delta) as u64;
+        stats.memory_usage_bytes = stats.memory_usage_bytes.saturating_add_signed(memory_delta);
 
         Ok(())
     }
@@ -172,7 +170,7 @@ impl CacheBackend for InMemoryCache {
         self.cleanup_expired();
 
         let mut stats = self.stats.write().unwrap();
-        let total_requests = stats.hit_count + stats.miss_count;
+        let total_requests = stats.hit_count.saturating_add(stats.miss_count);
         stats.hit_rate = if total_requests > 0 {
             stats.hit_count as f64 / total_requests as f64
         } else {
@@ -282,56 +280,42 @@ where
 #[async_trait]
 impl<S, C> crate::StorageBackend for CachedStorage<S, C>
 where
-    S: crate::StorageBackend,
-    C: CacheBackend,
+    S: crate::StorageBackend + 'static,
+    C: CacheBackend + 'static,
 {
     async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let result = self.storage.store(entry).await;
+        self.storage.store(entry).await?;
 
-        if result.is_ok() {
-            // Cache the entry on successful store
-            let serialized = serde_json::to_vec(entry).unwrap_or_default();
-            let _ = self
-                .cache
-                .set(
-                    &Self::cache_key_for_id(entry.id),
-                    serialized.clone(),
-                    Some(self.default_ttl),
-                )
-                .await;
-            let _ = self
-                .cache
-                .set(
-                    &Self::cache_key_for_path(&entry.path),
-                    serialized,
-                    Some(self.default_ttl),
-                )
-                .await;
+        if let Ok(serialized) = serde_json::to_vec(entry) {
+            let _ = self.cache.set(
+                &Self::cache_key_for_id(entry.id),
+                serialized.clone(),
+                Some(self.default_ttl),
+            ).await;
+            let _ = self.cache.set(
+                &Self::cache_key_for_path(&entry.path),
+                serialized,
+                Some(self.default_ttl),
+            ).await;
         }
 
-        result
+        Ok(())
     }
 
     async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
         let cache_key = Self::cache_key_for_id(id);
 
-        // Try cache first
         if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await {
             if let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
                 return Ok(Some(entry));
             }
         }
 
-        // Fall back to storage
         let entry = self.storage.get_by_id(id).await?;
 
-        // Cache the result if found
         if let Some(ref entry) = entry {
             if let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self
-                    .cache
-                    .set(&cache_key, serialized, Some(self.default_ttl))
-                    .await;
+                let _ = self.cache.set(&cache_key, serialized, Some(self.default_ttl)).await;
             }
         }
 
@@ -341,23 +325,17 @@ where
     async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
         let cache_key = Self::cache_key_for_path(path);
 
-        // Try cache first
         if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await {
             if let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
                 return Ok(Some(entry));
             }
         }
 
-        // Fall back to storage
         let entry = self.storage.get_by_path(path).await?;
 
-        // Cache the result if found
         if let Some(ref entry) = entry {
             if let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self
-                    .cache
-                    .set(&cache_key, serialized, Some(self.default_ttl))
-                    .await;
+                let _ = self.cache.set(&cache_key, serialized, Some(self.default_ttl)).await;
             }
         }
 
@@ -365,47 +343,32 @@ where
     }
 
     async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let result = self.storage.update(entry).await;
+        self.storage.update(entry).await?;
 
-        if result.is_ok() {
-            // Update cache
-            if let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self
-                    .cache
-                    .set(
-                        &Self::cache_key_for_id(entry.id),
-                        serialized.clone(),
-                        Some(self.default_ttl),
-                    )
-                    .await;
-                let _ = self
-                    .cache
-                    .set(
-                        &Self::cache_key_for_path(&entry.path),
-                        serialized,
-                        Some(self.default_ttl),
-                    )
-                    .await;
-            }
+        if let Ok(serialized) = serde_json::to_vec(entry) {
+            let _ = self.cache.set(
+                &Self::cache_key_for_id(entry.id),
+                serialized.clone(),
+                Some(self.default_ttl),
+            ).await;
+            let _ = self.cache.set(
+                &Self::cache_key_for_path(&entry.path),
+                serialized,
+                Some(self.default_ttl),
+            ).await;
         }
 
-        result
+        Ok(())
     }
 
     async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
-        // Get the entry first to find the path for cache invalidation
         let entry = self.storage.get_by_id(id).await?;
-
         let result = self.storage.delete_by_id(id).await?;
 
         if result {
-            // Invalidate cache
             let _ = self.cache.delete(&Self::cache_key_for_id(id)).await;
             if let Some(entry) = entry {
-                let _ = self
-                    .cache
-                    .delete(&Self::cache_key_for_path(&entry.path))
-                    .await;
+                let _ = self.cache.delete(&Self::cache_key_for_path(&entry.path)).await;
             }
         }
 
@@ -413,13 +376,10 @@ where
     }
 
     async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
-        // Get the entry first to find the ID for cache invalidation
         let entry = self.storage.get_by_path(path).await?;
-
         let result = self.storage.delete_by_path(path).await?;
 
         if result {
-            // Invalidate cache
             let _ = self.cache.delete(&Self::cache_key_for_path(path)).await;
             if let Some(entry) = entry {
                 let _ = self.cache.delete(&Self::cache_key_for_id(entry.id)).await;
@@ -429,8 +389,6 @@ where
         Ok(result)
     }
 
-    // For operations that return multiple entries, we don't cache them as they can be large
-    // and the cache keys would be complex to manage
     async fn list(&self, params: &crate::QueryParams) -> StorageResult<Vec<VaultEntry>> {
         self.storage.list(params).await
     }
@@ -440,16 +398,9 @@ where
     }
 
     async fn exists(&self, path: &str) -> StorageResult<bool> {
-        // Check cache first
-        if self
-            .cache
-            .exists(&Self::cache_key_for_path(path))
-            .await
-            .unwrap_or(false)
-        {
+        if self.cache.exists(&Self::cache_key_for_path(path)).await.unwrap_or(false) {
             return Ok(true);
         }
-
         self.storage.exists(path).await
     }
 
@@ -467,5 +418,9 @@ where
 
     async fn migrate(&self) -> StorageResult<()> {
         self.storage.migrate().await
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

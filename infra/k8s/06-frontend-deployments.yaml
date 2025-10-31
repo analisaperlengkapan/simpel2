@@ -1,0 +1,729 @@
+# SIMPelv2 Frontend Microfrontend Deployments
+# All frontend microfrontends (Leptos + WebAssembly)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portal
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: portal
+          image: registry.kejaksaan.go.id/simpelv2/portal:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+            - name: AUTHENC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: AUTHENC_HTTP_URL
+            - name: SECRETON_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: SECRETON_HTTP_URL
+            - name: MODULE_FEDERATION_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: MODULE_FEDERATION_URL
+            - name: JWT_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: JWT_ISSUER
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: badiklat
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: badiklat
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: badiklat
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: badiklat
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: badiklat
+          image: registry.kejaksaan.go.id/simpelv2/badiklat:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datun
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: datun
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: datun
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: datun
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: datun
+          image: registry.kejaksaan.go.id/simpelv2/datun:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: intel
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: intel
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: intel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: intel
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: intel
+          image: registry.kejaksaan.go.id/simpelv2/intel:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keuangan
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: keuangan
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keuangan
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keuangan
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: keuangan
+          image: registry.kejaksaan.go.id/simpelv2/keuangan:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pemulihan-aset
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pemulihan-aset
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pemulihan-aset
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pemulihan-aset
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: pemulihan-aset
+          image: registry.kejaksaan.go.id/simpelv2/pemulihan-aset:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pengawasan
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pengawasan
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pengawasan
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pengawasan
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: pengawasan
+          image: registry.kejaksaan.go.id/simpelv2/pengawasan:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perencanaan
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: perencanaan
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: perencanaan
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: perencanaan
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: perencanaan
+          image: registry.kejaksaan.go.id/simpelv2/perencanaan:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perlengkapan
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: perlengkapan
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: perlengkapan
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: perlengkapan
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: perlengkapan
+          image: registry.kejaksaan.go.id/simpelv2/perlengkapan:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pidmil
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pidmil
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pidmil
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pidmil
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: pidmil
+          image: registry.kejaksaan.go.id/simpelv2/pidmil:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pidsus
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pidsus
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pidsus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pidsus
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: pidsus
+          image: registry.kejaksaan.go.id/simpelv2/pidsus:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pidum
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pidum
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: simpelv2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pidum
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pidum
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: pidum
+          image: registry.kejaksaan.go.id/simpelv2/pidum:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: NODE_ENV
+              value: "production"
+            - name: GERBANG_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: GERBANG_HTTP_URL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "125m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: docker-registry-secret

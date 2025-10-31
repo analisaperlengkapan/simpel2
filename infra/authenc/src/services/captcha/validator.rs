@@ -3,18 +3,20 @@
 //! Validates CAPTCHA responses and manages progressive penalties
 
 use async_trait::async_trait;
+use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
-use serde_json;
 
-use super::error::CaptchaError;
-use super::types::*;
 use super::analyzer::{BehavioralAnalyzer, BehavioralAnalyzerTrait};
+use super::error::CaptchaError;
 use super::rate_limiting::CaptchaRateLimitState;
-use super::security_monitoring::{CaptchaSecurityEventData, CaptchaSecurityEvent, CaptchaSecurityMonitoringState};
+use super::security_monitoring::{
+    CaptchaSecurityEvent, CaptchaSecurityEventData, CaptchaSecurityMonitoringState,
+};
+use super::types::*;
 use crate::utils::crypto::password::{hash_password, verify_password};
 
 /// Challenge validator trait
@@ -45,11 +47,7 @@ pub trait ChallengeValidatorTrait: Send + Sync {
     ) -> u8;
 
     /// Check if retry is allowed
-    async fn is_retry_allowed(
-        &self,
-        attempt_count: u32,
-        risk_level: RiskLevel,
-    ) -> bool;
+    async fn is_retry_allowed(&self, attempt_count: u32, risk_level: RiskLevel) -> bool;
 }
 
 /// Validation attempt tracking
@@ -173,7 +171,9 @@ impl ValidationEngine {
     }
 
     /// Create a new validation engine with security monitoring
-    pub fn with_security_monitoring(security_monitoring_state: Arc<CaptchaSecurityMonitoringState>) -> Self {
+    pub fn with_security_monitoring(
+        security_monitoring_state: Arc<CaptchaSecurityMonitoringState>,
+    ) -> Self {
         Self {
             behavioral_analyzer: Arc::new(BehavioralAnalyzer::new()),
             rate_limit_state: None,
@@ -243,23 +243,26 @@ impl ValidationEngine {
     /// Hash an answer for comparison using authenc crypto module
     fn hash_answer(&self, answer: &str, salt: &str) -> Result<String, CaptchaError> {
         let input = format!("{}:{}", answer.trim().to_lowercase(), salt);
-        hash_password(&input)
-            .map_err(|e| CaptchaError::ValidationFailed {
-                message: format!("Hash generation failed: {}", e),
-                attempts_remaining: 0,
-                next_difficulty: 1,
-            })
+        hash_password(&input).map_err(|e| CaptchaError::ValidationFailed {
+            message: format!("Hash generation failed: {}", e),
+            attempts_remaining: 0,
+            next_difficulty: 1,
+        })
     }
 
     /// Verify answer hash
-    fn verify_answer_hash(&self, answer: &str, salt: &str, expected_hash: &str) -> Result<bool, CaptchaError> {
+    fn verify_answer_hash(
+        &self,
+        answer: &str,
+        salt: &str,
+        expected_hash: &str,
+    ) -> Result<bool, CaptchaError> {
         let input = format!("{}:{}", answer.trim().to_lowercase(), salt);
-        verify_password(expected_hash, &input)
-            .map_err(|e| CaptchaError::ValidationFailed {
-                message: format!("Hash verification failed: {}", e),
-                attempts_remaining: 0,
-                next_difficulty: 1,
-            })
+        verify_password(expected_hash, &input).map_err(|e| CaptchaError::ValidationFailed {
+            message: format!("Hash verification failed: {}", e),
+            attempts_remaining: 0,
+            next_difficulty: 1,
+        })
     }
 
     /// Calculate confidence score based on multiple factors
@@ -274,7 +277,10 @@ impl ValidationEngine {
 
         // Adjust based on behavioral analysis if available
         if let Some(behavioral) = behavioral_data {
-            let analysis = self.behavioral_analyzer.analyze_behavior(behavioral).await?;
+            let analysis = self
+                .behavioral_analyzer
+                .analyze_behavior(behavioral)
+                .await?;
 
             match analysis.classification {
                 BehaviorClassification::Human => {
@@ -293,7 +299,10 @@ impl ValidationEngine {
 
             debug!(
                 "Behavioral analysis for challenge {}: classification={:?}, risk_score={:.2}, confidence={:.2}",
-                challenge.id, analysis.classification, analysis.overall_risk_score, analysis.confidence
+                challenge.id,
+                analysis.classification,
+                analysis.overall_risk_score,
+                analysis.confidence
             );
         }
 
@@ -306,10 +315,16 @@ impl ValidationEngine {
             let response_time_secs = elapsed.as_secs_f64();
 
             // Penalize very fast responses (< 2 seconds for visual challenges)
-            if matches!(challenge.challenge_type, ChallengeType::Visual | ChallengeType::Logical)
-                && response_time_secs < 2.0 {
+            if matches!(
+                challenge.challenge_type,
+                ChallengeType::Visual | ChallengeType::Logical
+            ) && response_time_secs < 2.0
+            {
                 confidence -= 0.2;
-                warn!("Suspiciously fast response time: {:.2}s for challenge {}", response_time_secs, challenge.id);
+                warn!(
+                    "Suspiciously fast response time: {:.2}s for challenge {}",
+                    response_time_secs, challenge.id
+                );
             }
 
             // Penalize very slow responses (> 5 minutes)
@@ -350,7 +365,10 @@ impl ValidationEngine {
 
         // Adjust based on behavioral analysis
         if let Some(behavioral) = behavioral_data {
-            let analysis = self.behavioral_analyzer.analyze_behavior(behavioral).await?;
+            let analysis = self
+                .behavioral_analyzer
+                .analyze_behavior(behavioral)
+                .await?;
 
             match analysis.classification {
                 BehaviorClassification::Bot => {
@@ -378,7 +396,9 @@ impl ValidationEngine {
     ) -> Result<(), CaptchaError> {
         let mut tracker = self.attempt_tracker.write().await;
 
-        let attempt = tracker.entry(tracking_key.to_string()).or_insert_with(ValidationAttempt::new);
+        let attempt = tracker
+            .entry(tracking_key.to_string())
+            .or_insert_with(ValidationAttempt::new);
 
         if validation_success {
             attempt.reset_on_success();
@@ -396,7 +416,10 @@ impl ValidationEngine {
     }
 
     /// Check if user is currently locked out
-    async fn check_lockout_status(&self, tracking_key: &str) -> Result<Option<Duration>, CaptchaError> {
+    async fn check_lockout_status(
+        &self,
+        tracking_key: &str,
+    ) -> Result<Option<Duration>, CaptchaError> {
         let tracker = self.attempt_tracker.read().await;
 
         if let Some(attempts) = tracker.get(tracking_key) {
@@ -415,7 +438,8 @@ impl ValidationEngine {
         answer: &str,
         behavioral_data: Option<&BehavioralMetrics>,
     ) -> Result<ValidationResult, CaptchaError> {
-        let tracking_key = self.get_tracking_key(&challenge.ip_address, challenge.session_id.as_deref());
+        let tracking_key =
+            self.get_tracking_key(&challenge.ip_address, challenge.session_id.as_deref());
 
         // Check if challenge is expired
         if challenge.is_expired() {
@@ -440,24 +464,25 @@ impl ValidationEngine {
         }
 
         // Validate the answer
-        let answer_correct = self.verify_answer_hash(answer, &challenge.id, &challenge.expected_answer_hash)?;
+        let answer_correct =
+            self.verify_answer_hash(answer, &challenge.id, &challenge.expected_answer_hash)?;
 
         // Calculate confidence score
-        let confidence_score = self.calculate_confidence_score(
-            challenge,
-            answer,
-            behavioral_data,
-            answer_correct,
-        ).await?;
+        let confidence_score = self
+            .calculate_confidence_score(challenge, answer, behavioral_data, answer_correct)
+            .await?;
 
         // Assess risk level
-        let risk_level = self.assess_risk_level(&tracking_key, behavioral_data, answer_correct).await?;
+        let risk_level = self
+            .assess_risk_level(&tracking_key, behavioral_data, answer_correct)
+            .await?;
 
         // Determine if validation is successful based on answer correctness and confidence
         let validation_success = answer_correct && confidence_score >= self.confidence_threshold;
 
         // Update attempt tracking
-        self.update_attempt_tracking(&tracking_key, validation_success, risk_level.clone()).await?;
+        self.update_attempt_tracking(&tracking_key, validation_success, risk_level.clone())
+            .await?;
 
         // Update rate limiting state if available
         if let Some(rate_limiter) = &self.rate_limit_state {
@@ -465,7 +490,9 @@ impl ValidationEngine {
                 if validation_success {
                     rate_limiter.record_captcha_success(&socket_addr).await;
                 } else {
-                    rate_limiter.record_captcha_failure(&socket_addr, risk_level.clone()).await;
+                    rate_limiter
+                        .record_captcha_failure(&socket_addr, risk_level.clone())
+                        .await;
                 }
             }
         }
@@ -487,7 +514,8 @@ impl ValidationEngine {
 
             // Add behavioral classification if available
             if let Some(behavioral) = behavioral_data {
-                event_data = event_data.with_behavior_classification(behavioral.classification.clone());
+                event_data =
+                    event_data.with_behavior_classification(behavioral.classification.clone());
             }
 
             // Add attempt count
@@ -501,7 +529,10 @@ impl ValidationEngine {
             let security_monitor_clone = security_monitor.clone();
             let event_data_clone = event_data.clone();
             tokio::spawn(async move {
-                if let Err(e) = security_monitor_clone.log_security_event(event_data_clone).await {
+                if let Err(e) = security_monitor_clone
+                    .log_security_event(event_data_clone)
+                    .await
+                {
                     error!("Failed to log CAPTCHA security event: {}", e);
                 }
             });
@@ -532,24 +563,31 @@ impl ValidationEngine {
         }
 
         // Determine next difficulty level
-        let next_difficulty = self.determine_next_difficulty(
-            challenge.difficulty_level,
-            validation_success,
-            risk_level.clone(),
-            {
-                let tracker = self.attempt_tracker.read().await;
-                tracker.get(&tracking_key).map(|a| a.count).unwrap_or(1)
-            },
-        ).await;
+        let next_difficulty = self
+            .determine_next_difficulty(
+                challenge.difficulty_level,
+                validation_success,
+                risk_level.clone(),
+                {
+                    let tracker = self.attempt_tracker.read().await;
+                    tracker.get(&tracking_key).map(|a| a.count).unwrap_or(1)
+                },
+            )
+            .await;
 
         // Check if retry is allowed
-        let retry_allowed = self.is_retry_allowed(
-            {
-                let tracker = self.attempt_tracker.read().await;
-                tracker.get(&tracking_key).map(|a| a.consecutive_failures).unwrap_or(0)
-            },
-            risk_level.clone(),
-        ).await;
+        let retry_allowed = self
+            .is_retry_allowed(
+                {
+                    let tracker = self.attempt_tracker.read().await;
+                    tracker
+                        .get(&tracking_key)
+                        .map(|a| a.consecutive_failures)
+                        .unwrap_or(0)
+                },
+                risk_level.clone(),
+            )
+            .await;
 
         // Generate appropriate message
         let message = if validation_success {
@@ -657,11 +695,7 @@ impl ChallengeValidatorTrait for ValidationEngine {
         next_difficulty.clamp(1, 10)
     }
 
-    async fn is_retry_allowed(
-        &self,
-        attempt_count: u32,
-        risk_level: RiskLevel,
-    ) -> bool {
+    async fn is_retry_allowed(&self, attempt_count: u32, risk_level: RiskLevel) -> bool {
         let max_attempts = match risk_level {
             RiskLevel::Low => 5,
             RiskLevel::Medium => 3,

@@ -96,31 +96,31 @@ pub enum NotificationChannel {
     /// Send alerts via email to specified addresses
     Email {
         /// List of email addresses to send alerts to
-        addresses: Vec<String>
+        addresses: Vec<String>,
     },
     /// Send alerts via HTTP webhook
     Webhook {
         /// URL of the webhook endpoint
         url: String,
         /// HTTP headers to include in webhook requests
-        headers: HashMap<String, String>
+        headers: HashMap<String, String>,
     },
     /// Send alerts to Slack channel
     Slack {
         /// Slack webhook URL for posting messages
         webhook_url: String,
         /// Slack channel name to post alerts to
-        channel: String
+        channel: String,
     },
     /// Send alerts to PagerDuty
     PagerDuty {
         /// PagerDuty integration key for routing alerts
-        integration_key: String
+        integration_key: String,
     },
     /// Log alerts to system logs
     Log {
         /// Log level to use for logging alerts
-        level: LogLevel
+        level: LogLevel,
     },
 }
 
@@ -198,9 +198,11 @@ impl AlertingEngine {
                 enabled: true,
                 cooldown_minutes: 30,
                 notification_channels: vec![
-                    NotificationChannel::Log { level: LogLevel::Warn },
+                    NotificationChannel::Log {
+                        level: LogLevel::Warn,
+                    },
                     NotificationChannel::Email {
-                        addresses: vec!["security@example.com".to_string()]
+                        addresses: vec!["security@example.com".to_string()],
                     },
                 ],
             },
@@ -221,9 +223,11 @@ impl AlertingEngine {
                 enabled: true,
                 cooldown_minutes: 60,
                 notification_channels: vec![
-                    NotificationChannel::Log { level: LogLevel::Error },
+                    NotificationChannel::Log {
+                        level: LogLevel::Error,
+                    },
                     NotificationChannel::Email {
-                        addresses: vec!["ops@example.com".to_string()]
+                        addresses: vec!["ops@example.com".to_string()],
                     },
                 ],
             },
@@ -243,9 +247,9 @@ impl AlertingEngine {
                 severity: AlertSeverity::Warning,
                 enabled: true,
                 cooldown_minutes: 20,
-                notification_channels: vec![
-                    NotificationChannel::Log { level: LogLevel::Warn },
-                ],
+                notification_channels: vec![NotificationChannel::Log {
+                    level: LogLevel::Warn,
+                }],
             },
             // Security incident alert
             AlertRule {
@@ -264,9 +268,11 @@ impl AlertingEngine {
                 enabled: true,
                 cooldown_minutes: 15,
                 notification_channels: vec![
-                    NotificationChannel::Log { level: LogLevel::Critical },
+                    NotificationChannel::Log {
+                        level: LogLevel::Critical,
+                    },
                     NotificationChannel::Email {
-                        addresses: vec!["security@example.com".to_string()]
+                        addresses: vec!["security@example.com".to_string()],
                     },
                 ],
             },
@@ -311,7 +317,8 @@ impl AlertingEngine {
     /// Evaluate a single alert rule
     async fn evaluate_rule(&self, rule: &AlertRule) -> Result<(), CaptchaError> {
         // Get current metrics
-        let metrics = self.metrics_collector
+        let metrics = self
+            .metrics_collector
             .generate_summary(rule.condition.time_window_minutes)
             .await?;
 
@@ -323,13 +330,15 @@ impl AlertingEngine {
 
         // Update alert state
         let mut alert_states = self.alert_states.write().await;
-        let state = alert_states.entry(rule.id.clone()).or_insert_with(|| AlertState {
-            rule_id: rule.id.clone(),
-            consecutive_violations: 0,
-            last_triggered: None,
-            last_resolved: None,
-            active_alert_id: None,
-        });
+        let state = alert_states
+            .entry(rule.id.clone())
+            .or_insert_with(|| AlertState {
+                rule_id: rule.id.clone(),
+                consecutive_violations: 0,
+                last_triggered: None,
+                last_resolved: None,
+                active_alert_id: None,
+            });
 
         if condition_met {
             state.consecutive_violations += 1;
@@ -339,7 +348,11 @@ impl AlertingEngine {
                 // Check cooldown period
                 if let Some(last_triggered) = state.last_triggered {
                     let cooldown_duration = Duration::from_secs(rule.cooldown_minutes * 60);
-                    if SystemTime::now().duration_since(last_triggered).unwrap_or(Duration::ZERO) < cooldown_duration {
+                    if SystemTime::now()
+                        .duration_since(last_triggered)
+                        .unwrap_or(Duration::ZERO)
+                        < cooldown_duration
+                    {
                         return Ok(()); // Still in cooldown
                     }
                 }
@@ -364,7 +377,11 @@ impl AlertingEngine {
     }
 
     /// Extract metric value from metrics summary
-    fn extract_metric_value(&self, metrics: &MetricsSummary, rule: &AlertRule) -> Result<f64, CaptchaError> {
+    fn extract_metric_value(
+        &self,
+        metrics: &MetricsSummary,
+        rule: &AlertRule,
+    ) -> Result<f64, CaptchaError> {
         let value = match rule.rule_type {
             AlertRuleType::BotDetectionRate => metrics.bot_detection.accuracy_rate,
             AlertRuleType::SuccessRate => metrics.performance.success_rate,
@@ -375,7 +392,7 @@ impl AlertingEngine {
             AlertRuleType::SystemHealth => {
                 // For system health, we could use CPU or memory usage
                 metrics.performance.cpu_usage_percent
-            },
+            }
             AlertRuleType::UserExperience => metrics.user_experience.user_satisfaction_score,
         };
 
@@ -395,7 +412,12 @@ impl AlertingEngine {
     }
 
     /// Trigger an alert
-    async fn trigger_alert(&self, rule: &AlertRule, metric_value: f64, state: &mut AlertState) -> Result<(), CaptchaError> {
+    async fn trigger_alert(
+        &self,
+        rule: &AlertRule,
+        metric_value: f64,
+        state: &mut AlertState,
+    ) -> Result<(), CaptchaError> {
         let alert_id = Uuid::new_v4().to_string();
 
         let alert = Alert {
@@ -417,7 +439,10 @@ impl AlertingEngine {
                 let mut metadata = HashMap::new();
                 metadata.insert("rule_id".to_string(), rule.id.clone());
                 metadata.insert("metric_value".to_string(), metric_value.to_string());
-                metadata.insert("threshold".to_string(), rule.condition.threshold.to_string());
+                metadata.insert(
+                    "threshold".to_string(),
+                    rule.condition.threshold.to_string(),
+                );
                 metadata
             },
         };
@@ -432,7 +457,11 @@ impl AlertingEngine {
 
         // Send notifications
         for channel in &rule.notification_channels {
-            if let Err(e) = self.notification_sender.send_notification(channel, &alert).await {
+            if let Err(e) = self
+                .notification_sender
+                .send_notification(channel, &alert)
+                .await
+            {
                 eprintln!("Failed to send notification: {}", e);
             }
         }
@@ -491,7 +520,11 @@ impl AlertingEngine {
     }
 
     /// Update an existing alert rule
-    pub async fn update_rule(&self, rule_id: &str, updated_rule: AlertRule) -> Result<(), CaptchaError> {
+    pub async fn update_rule(
+        &self,
+        rule_id: &str,
+        updated_rule: AlertRule,
+    ) -> Result<(), CaptchaError> {
         let mut rules = self.rules.write().await;
 
         if let Some(rule) = rules.iter_mut().find(|r| r.id == rule_id) {
@@ -552,56 +585,97 @@ impl NotificationSender {
     }
 
     /// Send notification through specified channel
-    pub async fn send_notification(&self, channel: &NotificationChannel, alert: &Alert) -> Result<(), CaptchaError> {
+    pub async fn send_notification(
+        &self,
+        channel: &NotificationChannel,
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         match channel {
             NotificationChannel::Email { addresses } => {
                 self.send_email_notification(addresses, alert).await
-            },
+            }
             NotificationChannel::Webhook { url, headers } => {
                 self.send_webhook_notification(url, headers, alert).await
-            },
-            NotificationChannel::Slack { webhook_url, channel } => {
-                self.send_slack_notification(webhook_url, channel, alert).await
-            },
+            }
+            NotificationChannel::Slack {
+                webhook_url,
+                channel,
+            } => {
+                self.send_slack_notification(webhook_url, channel, alert)
+                    .await
+            }
             NotificationChannel::PagerDuty { integration_key } => {
-                self.send_pagerduty_notification(integration_key, alert).await
-            },
-            NotificationChannel::Log { level } => {
-                self.send_log_notification(level, alert).await
-            },
+                self.send_pagerduty_notification(integration_key, alert)
+                    .await
+            }
+            NotificationChannel::Log { level } => self.send_log_notification(level, alert).await,
         }
     }
 
     /// Send email notification
-    async fn send_email_notification(&self, addresses: &[String], alert: &Alert) -> Result<(), CaptchaError> {
+    async fn send_email_notification(
+        &self,
+        addresses: &[String],
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         // In a real implementation, this would integrate with an email service
-        println!("EMAIL ALERT to {:?}: {} - {}", addresses, alert.title, alert.description);
+        println!(
+            "EMAIL ALERT to {:?}: {} - {}",
+            addresses, alert.title, alert.description
+        );
         Ok(())
     }
 
     /// Send webhook notification
-    async fn send_webhook_notification(&self, url: &str, headers: &HashMap<String, String>, alert: &Alert) -> Result<(), CaptchaError> {
+    async fn send_webhook_notification(
+        &self,
+        url: &str,
+        headers: &HashMap<String, String>,
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         // In a real implementation, this would make an HTTP POST request
-        println!("WEBHOOK ALERT to {}: {} - {}", url, alert.title, alert.description);
+        println!(
+            "WEBHOOK ALERT to {}: {} - {}",
+            url, alert.title, alert.description
+        );
         Ok(())
     }
 
     /// Send Slack notification
-    async fn send_slack_notification(&self, webhook_url: &str, channel: &str, alert: &Alert) -> Result<(), CaptchaError> {
+    async fn send_slack_notification(
+        &self,
+        webhook_url: &str,
+        channel: &str,
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         // In a real implementation, this would send to Slack webhook
-        println!("SLACK ALERT to {} ({}): {} - {}", channel, webhook_url, alert.title, alert.description);
+        println!(
+            "SLACK ALERT to {} ({}): {} - {}",
+            channel, webhook_url, alert.title, alert.description
+        );
         Ok(())
     }
 
     /// Send PagerDuty notification
-    async fn send_pagerduty_notification(&self, integration_key: &str, alert: &Alert) -> Result<(), CaptchaError> {
+    async fn send_pagerduty_notification(
+        &self,
+        integration_key: &str,
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         // In a real implementation, this would integrate with PagerDuty API
-        println!("PAGERDUTY ALERT ({}): {} - {}", integration_key, alert.title, alert.description);
+        println!(
+            "PAGERDUTY ALERT ({}): {} - {}",
+            integration_key, alert.title, alert.description
+        );
         Ok(())
     }
 
     /// Send log notification
-    async fn send_log_notification(&self, level: &LogLevel, alert: &Alert) -> Result<(), CaptchaError> {
+    async fn send_log_notification(
+        &self,
+        level: &LogLevel,
+        alert: &Alert,
+    ) -> Result<(), CaptchaError> {
         match level {
             LogLevel::Info => println!("INFO: {} - {}", alert.title, alert.description),
             LogLevel::Warn => println!("WARN: {} - {}", alert.title, alert.description),
@@ -639,7 +713,12 @@ impl AlertManager {
     }
 
     /// Manually trigger an alert for testing
-    pub async fn trigger_test_alert(&self, severity: AlertSeverity, title: String, description: String) -> Result<(), CaptchaError> {
+    pub async fn trigger_test_alert(
+        &self,
+        severity: AlertSeverity,
+        title: String,
+        description: String,
+    ) -> Result<(), CaptchaError> {
         let alert = Alert {
             id: Uuid::new_v4().to_string(),
             severity,
@@ -661,8 +740,12 @@ impl AlertManager {
 
         // Send test notification
         let notification_sender = Arc::new(NotificationSender::new());
-        let log_channel = NotificationChannel::Log { level: LogLevel::Info };
-        notification_sender.send_notification(&log_channel, &alert).await?;
+        let log_channel = NotificationChannel::Log {
+            level: LogLevel::Info,
+        };
+        notification_sender
+            .send_notification(&log_channel, &alert)
+            .await?;
 
         Ok(())
     }
@@ -692,16 +775,18 @@ impl AlertManager {
                     AlertSeverity::Critical,
                     "Critical Security Event".to_string(),
                     format!("Critical security event detected from IP: {}", ip_address),
-                ).await?;
-            },
+                )
+                .await?;
+            }
             RiskLevel::High => {
                 self.trigger_test_alert(
                     AlertSeverity::Warning,
                     "High Risk Security Event".to_string(),
                     format!("High risk security event detected from IP: {}", ip_address),
-                ).await?;
-            },
-            _ => {}, // Lower risk levels handled by regular rule evaluation
+                )
+                .await?;
+            }
+            _ => {} // Lower risk levels handled by regular rule evaluation
         }
 
         Ok(())
@@ -716,8 +801,12 @@ impl AlertManager {
             self.trigger_test_alert(
                 AlertSeverity::Critical,
                 "System Performance Critical".to_string(),
-                format!("CAPTCHA validation latency is {}ms, exceeding critical threshold", metrics.performance.validation_latency_ms),
-            ).await?;
+                format!(
+                    "CAPTCHA validation latency is {}ms, exceeding critical threshold",
+                    metrics.performance.validation_latency_ms
+                ),
+            )
+            .await?;
         }
 
         // Check for high error rates
@@ -725,8 +814,12 @@ impl AlertManager {
             self.trigger_test_alert(
                 AlertSeverity::Warning,
                 "High Error Rate".to_string(),
-                format!("CAPTCHA failure rate is {:.1}%, exceeding warning threshold", metrics.performance.failure_rate * 100.0),
-            ).await?;
+                format!(
+                    "CAPTCHA failure rate is {:.1}%, exceeding warning threshold",
+                    metrics.performance.failure_rate * 100.0
+                ),
+            )
+            .await?;
         }
 
         Ok(())
@@ -747,9 +840,9 @@ mod tests {
             consecutive_violations: 1,
         };
 
-        let metrics_collector = Arc::new(MetricsCollector::new(
-            Arc::new(crate::database::CaptchaOperations::new(crate::database::Database::mock().await))
-        ));
+        let metrics_collector = Arc::new(MetricsCollector::new(Arc::new(
+            crate::database::CaptchaOperations::new(crate::database::Database::mock().await),
+        )));
         let notification_sender = Arc::new(NotificationSender::new());
         let engine = AlertingEngine::new(metrics_collector, notification_sender);
 
@@ -760,14 +853,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_operator_to_string() {
-        let metrics_collector = Arc::new(MetricsCollector::new(
-            Arc::new(crate::database::CaptchaOperations::new(crate::database::Database::mock().await))
-        ));
+        let metrics_collector = Arc::new(MetricsCollector::new(Arc::new(
+            crate::database::CaptchaOperations::new(crate::database::Database::mock().await),
+        )));
         let notification_sender = Arc::new(NotificationSender::new());
         let engine = AlertingEngine::new(metrics_collector, notification_sender);
 
-        assert_eq!(engine.operator_to_string(&ComparisonOperator::GreaterThan), ">");
-        assert_eq!(engine.operator_to_string(&ComparisonOperator::LessThan), "<");
+        assert_eq!(
+            engine.operator_to_string(&ComparisonOperator::GreaterThan),
+            ">"
+        );
+        assert_eq!(
+            engine.operator_to_string(&ComparisonOperator::LessThan),
+            "<"
+        );
         assert_eq!(engine.operator_to_string(&ComparisonOperator::Equal), "==");
     }
 
@@ -788,9 +887,9 @@ mod tests {
             severity: AlertSeverity::Warning,
             enabled: true,
             cooldown_minutes: 30,
-            notification_channels: vec![
-                NotificationChannel::Log { level: LogLevel::Warn }
-            ],
+            notification_channels: vec![NotificationChannel::Log {
+                level: LogLevel::Warn,
+            }],
         };
 
         assert_eq!(rule.id, "test_rule");

@@ -3,11 +3,23 @@
 //! This module provides caching implementations for various data types
 //! to improve performance and reduce database load.
 
-pub mod redis_cache;
+pub mod event_consumer;
+pub mod in_memory_cache;
+pub mod invalidation;
 pub mod mfa_cache;
+pub mod metrics;
+pub mod multi_layer_cache;
+pub mod redis_cache;
 
-pub use redis_cache::RedisCache;
+pub use event_consumer::{EventConsumerConfig, EventConsumerStats, EventDrivenCacheInvalidator};
+pub use in_memory_cache::InMemoryCache;
+pub use invalidation::{
+    CacheInvalidationService, CacheWarmingService, InvalidationEvent, InvalidationStats,
+};
 pub use mfa_cache::{MfaCache, MfaCacheEntry, MfaVerificationResult};
+pub use metrics::{CacheMetrics, CacheMetricsSnapshot, OperationTimer};
+pub use multi_layer_cache::{MultiLayerCache, MultiLayerCacheConfig};
+pub use redis_cache::RedisCache;
 
 use crate::error::Result;
 use async_trait::async_trait;
@@ -98,8 +110,8 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            default_ttl: Duration::from_secs(3600), // 1 hour
-            mfa_cache_ttl: Duration::from_secs(300), // 5 minutes
+            default_ttl: Duration::from_secs(3600),        // 1 hour
+            mfa_cache_ttl: Duration::from_secs(300),       // 5 minutes
             otp_verification_ttl: Duration::from_secs(90), // 1.5 minutes
         }
     }

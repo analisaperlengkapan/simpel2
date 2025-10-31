@@ -1,4 +1,4 @@
-//! Configuration management for the Brankas API server.
+//! Configuration management for the Secreton API server.
 //!
 //! Provides comprehensive configuration options for HTTP/gRPC servers,
 //! authentication, authorization, rate limiting, and security features.
@@ -8,6 +8,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+
+// Re-export HSM configuration from core
+pub use secreton_core::hsm::HsmConfig;
 
 /// Main API configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -35,6 +38,14 @@ pub struct ApiConfig {
 
     /// Logging configuration
     pub logging: LoggingConfig,
+
+    /// HSM configuration
+    #[serde(default)]
+    pub hsm: HsmConfig,
+
+    /// Database configuration
+    #[serde(default)]
+    pub database: DatabaseConfig,
 }
 
 /// HTTP server configuration
@@ -734,6 +745,45 @@ pub struct LogRotationConfig {
     pub frequency: String,
 }
 
+/// Database configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseConfig {
+    /// Database host
+    pub host: String,
+
+    /// Database port
+    pub port: u16,
+
+    /// Database name
+    pub database: String,
+
+    /// Database username
+    pub username: String,
+
+    /// Database password
+    pub password: String,
+
+    /// Maximum connections in pool
+    pub max_connections: u32,
+
+    /// Connection timeout in seconds
+    pub connection_timeout: u64,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            host: "localhost".to_string(),
+            port: 5432,
+            database: "secreton".to_string(),
+            username: "secreton".to_string(),
+            password: "secreton".to_string(),
+            max_connections: 20,
+            connection_timeout: 30,
+        }
+    }
+}
+
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
@@ -767,7 +817,7 @@ impl Default for JwtConfig {
             expiration: Duration::from_secs(3600), // 1 hour
             refresh_expiration: Duration::from_secs(86400 * 7), // 7 days
             algorithm: "HS256".to_string(),
-            issuer: "brankas".to_string(),
+            issuer: "Secreton".to_string(),
             audience: "secreton-api".to_string(),
         }
     }

@@ -1,5 +1,5 @@
 //! Health check and system status handlers.
-//! 
+//!
 //! Provides endpoints for monitoring system health,
 //! readiness, and liveness checks.
 
@@ -67,15 +67,15 @@ pub async fn health_check(
     State(_state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<HealthCheckResponse>>> {
     // TODO: Implement actual health checks
-    
+
     let health = HealthCheckResponse {
         status: "healthy".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        uptime: get_uptime_seconds(),
+        uptime_seconds: get_uptime_seconds(),
         dependencies: HealthCheckDependencies {
-            database: "healthy".to_string(),
-            cache: "healthy".to_string(),
-            crypto: "healthy".to_string(),
+            storage: DependencyStatus::healthy(),
+            crypto: DependencyStatus::healthy(),
+            audit: DependencyStatus::healthy(),
         },
     };
 
@@ -116,6 +116,12 @@ pub async fn detailed_health_check(
     let storage_check = check_storage_health(&state).await;
     checks.insert("storage".to_string(), storage_check);
 
+    // HSM health check (if enabled)
+    if let Some(ref hsm) = state.hsm {
+        let hsm_check = check_hsm_health(hsm).await;
+        checks.insert("hsm".to_string(), hsm_check);
+    }
+
     // Determine overall status
     let overall_status = if checks.values().all(|check| check.status == "healthy") {
         "healthy"
@@ -137,6 +143,10 @@ pub async fn detailed_health_check(
 }
 
 /// Readiness check - determines if the service is ready to accept traffic
+///
+/// CRITICAL: Returns 503 Service Unavailable if vault is sealed.
+/// This follows HashiCorp Vault best practices where Kubernetes/load balancers
+/// should not route traffic to a sealed vault instance.
 pub async fn readiness_check(
     State(state): State<AppState>,
 ) -> ApiResult<Json<ReadinessResponse>> {
@@ -154,7 +164,12 @@ pub async fn readiness_check(
     let crypto_check = check_crypto_readiness(&state).await;
     checks.insert("crypto".to_string(), crypto_check);
 
-    // Service is ready if all critical components are ready
+    // CRITICAL: Check seal status - vault must be unsealed to be ready
+    let seal_check = check_seal_status(&state).await;
+    checks.insert("seal".to_string(), seal_check);
+
+    // Service is ready if all critical components are ready AND vault is unsealed
+    // CRITICAL: Sealed vault means NOT ready (status != "ready")
     let ready = checks.values().all(|check| check.status == "ready");
 
     let readiness = ReadinessResponse {
@@ -163,6 +178,16 @@ pub async fn readiness_check(
         checks,
         timestamp: chrono::Utc::now(),
     };
+
+    // CRITICAL: Return 503 if not ready (including when sealed)
+    // This tells Kubernetes/load balancers to not route traffic here
+    if !ready {
+        tracing::warn!("Readiness check failed - vault not ready (possibly sealed)");
+        return Err((
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "Service not ready".to_string(),
+        ));
+    }
 
     Ok(Json(readiness))
 }
@@ -184,17 +209,17 @@ pub async fn liveness_check(
 /// Check database health
 async fn check_database_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
-    
+
     // TODO: Implement actual database health check
     // - Test connection
     // - Execute simple query
     // - Check response time
-    
+
     let response_time = start_time.elapsed().as_millis() as u64;
-    
+
     HealthCheck {
         status: "healthy".to_string(),
-        message: Some("Database connection successful".to_string()),
+        message: None,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -210,17 +235,17 @@ async fn check_database_health(_state: &AppState) -> HealthCheck {
 /// Check cache health
 async fn check_cache_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
-    
+
     // TODO: Implement actual cache health check
     // - Test Redis connection
     // - Execute ping command
     // - Check memory usage
-    
+
     let response_time = start_time.elapsed().as_millis() as u64;
-    
+
     HealthCheck {
         status: "healthy".to_string(),
-        message: Some("Cache connection successful".to_string()),
+        message: None,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -236,17 +261,17 @@ async fn check_cache_health(_state: &AppState) -> HealthCheck {
 /// Check crypto service health
 async fn check_crypto_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
-    
+
     // TODO: Implement actual crypto service health check
     // - Test encryption/decryption
     // - Verify key accessibility
     // - Check HSM connectivity if used
-    
+
     let response_time = start_time.elapsed().as_millis() as u64;
-    
+
     HealthCheck {
         status: "healthy".to_string(),
-        message: Some("Crypto service operational".to_string()),
+        message: None,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -262,17 +287,17 @@ async fn check_crypto_health(_state: &AppState) -> HealthCheck {
 /// Check storage health
 async fn check_storage_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
-    
+
     // TODO: Implement actual storage health check
     // - Test file system access
     // - Check disk space
     // - Verify backup systems
-    
+
     let response_time = start_time.elapsed().as_millis() as u64;
-    
+
     HealthCheck {
         status: "healthy".to_string(),
-        message: Some("Storage system accessible".to_string()),
+        message: None,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -307,6 +332,80 @@ async fn check_crypto_readiness(_state: &AppState) -> HealthCheck {
     check
 }
 
+/// Check HSM health
+async fn check_hsm_health(hsm: &secreton_core::hsm::HsmBackend) -> HealthCheck {
+    let start_time = std::time::Instant::now();
+
+    // Check HSM connectivity and health
+    let hsm_healthy = match hsm.health_check().await {
+        Ok(true) => true,
+        Ok(false) => false,
+        Err(e) => {
+            tracing::error!("HSM health check failed: {:?}", e);
+            false
+        }
+    };
+
+    let response_time = start_time.elapsed().as_millis() as u64;
+
+    let status = if hsm_healthy { "healthy" } else { "unhealthy" };
+    let message = if hsm_healthy {
+        Some("HSM is connected and operational".to_string())
+    } else {
+        Some("HSM is not responding or unavailable".to_string())
+    };
+
+    HealthCheck {
+        status: status.to_string(),
+        message,
+        response_time_ms: response_time,
+        last_check: chrono::Utc::now(),
+        details: Some({
+            let mut details = HashMap::new();
+            details.insert("connected".to_string(), serde_json::Value::Bool(hsm_healthy));
+            details.insert("provider".to_string(), serde_json::Value::String("pkcs11".to_string()));
+            details
+        }),
+    }
+}
+
+/// Check seal status
+///
+/// CRITICAL: Vault must be unsealed to be considered "ready"
+/// This follows HashiCorp Vault best practices where a sealed vault
+/// returns 503 Service Unavailable for readiness checks.
+async fn check_seal_status(state: &AppState) -> HealthCheck {
+    let start_time = std::time::Instant::now();
+
+    // CRITICAL SECURITY FIX: Get SealService from state and check if unsealed
+    let is_unsealed = state.seal.is_unsealed().await;
+
+    let response_time = start_time.elapsed().as_millis() as u64;
+
+    // CRITICAL: Sealed vault is NOT ready
+    // Status should be "sealed" not "ready" when vault is sealed
+    let status = if is_unsealed { "ready" } else { "sealed" };
+    let message = if is_unsealed {
+        "Vault is unsealed and ready for operations"
+    } else {
+        "Vault is SEALED - unseal with threshold shares required before operations"
+    };
+
+    HealthCheck {
+        status: status.to_string(),
+        message: Some(message.to_string()),
+        response_time_ms: response_time,
+        last_check: chrono::Utc::now(),
+        details: Some({
+            let mut details = HashMap::new();
+            details.insert("unsealed".to_string(), serde_json::Value::Bool(is_unsealed));
+            details.insert("seal_type".to_string(), serde_json::Value::String("shamir".to_string()));
+            details.insert("initialized".to_string(), serde_json::Value::Bool(true));
+            details
+        }),
+    }
+}
+
 /// Get system uptime in seconds
 fn get_uptime_seconds() -> u64 {
     // TODO: Implement actual uptime calculation
@@ -324,7 +423,7 @@ mod tests {
     fn create_state() -> Arc<ServiceContainer> {
         let config = ApiConfig::default();
         tokio::runtime::Runtime::new()
-            .unwrap()
+
             .block_on(ServiceContainer::new(&config))
             .expect("Failed to create services")
             .into()
@@ -336,8 +435,8 @@ mod tests {
 
         let result = simple_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
-        
-        let response = result.unwrap().0;
+
+        let response = result.0;
         assert_eq!(response.status, "ok");
     }
 
@@ -347,8 +446,8 @@ mod tests {
 
         let result = liveness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
-        
-        let response = result.unwrap().0;
+
+        let response = result.0;
         assert!(response.alive);
     }
 
@@ -358,7 +457,7 @@ mod tests {
         let result = health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.unwrap().0;
+        let response = result.0;
         assert!(response.success);
         let health = response.data.expect("health data");
         assert_eq!(health.status, "healthy");
@@ -371,7 +470,7 @@ mod tests {
         let result = readiness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.unwrap().0;
+        let response = result.0;
         assert!(response.ready);
         assert_eq!(response.version, env!("CARGO_PKG_VERSION"));
         assert!(response.checks.contains_key("database"));
@@ -385,7 +484,7 @@ mod tests {
         let result = detailed_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.unwrap().0;
+        let response = result.0;
         assert!(response.success);
         let payload = response.data.expect("detailed data");
         assert_eq!(payload.status, "healthy");

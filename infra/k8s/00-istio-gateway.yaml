@@ -1,0 +1,37 @@
+# SIMPelv2 Istio Gateway - Production Configuration
+# Uses real TLS certificate: simpelv2-tls-secret
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: simpelv2-gateway
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    # HTTPS (443) - Primary with real DigiCert certificate
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: simpelv2-tls-secret
+      hosts:
+        - simpel.kejaksaan.go.id
+        - "*.simpel.kejaksaan.go.id"
+
+    # HTTP (80) - Redirect to HTTPS
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - simpel.kejaksaan.go.id
+        - "*.simpel.kejaksaan.go.id"
+      tls:
+        httpsRedirect: true

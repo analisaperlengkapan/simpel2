@@ -4,20 +4,20 @@
 //! and self-service options for users to diagnose and resolve common MFA problems.
 
 use crate::error::{AuthencError, Result};
-use crate::services::mfa_service::MfaService;
 use crate::models::user::SecurityContext;
+use crate::services::mfa_service::MfaService;
 use crate::services::stores::user_store::UserStoreTrait;
 use crate::utils::jwt;
 use axum::{
     Router,
-    extract::{State, Path, ConnectInfo},
+    extract::{ConnectInfo, Path, State},
     response::Json,
-    routing::{get, post}
+    routing::{get, post},
 };
-use serde::{Deserialize, Serialize};
-use std::{sync::Arc, net::SocketAddr};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::{net::SocketAddr, sync::Arc};
+use uuid::Uuid;
 
 /// Create MFA troubleshooting routes
 pub fn create_mfa_troubleshooting_routes() -> Router<Arc<crate::app::AppState>> {
@@ -27,22 +27,34 @@ pub fn create_mfa_troubleshooting_routes() -> Router<Arc<crate::app::AppState>> 
         .route("/admin/health-check", get(admin_mfa_health_check))
         .route("/admin/system-status", get(get_mfa_system_status))
         .route("/admin/fix-common-issues", post(fix_common_mfa_issues))
-
         // User self-service troubleshooting
         .route("/self-service/diagnose", post(self_service_diagnose))
         .route("/self-service/guided-setup", get(get_guided_setup_steps))
         .route("/self-service/test-connection", post(test_mfa_connection))
         .route("/self-service/reset-request", post(request_mfa_reset))
-
         // Diagnostic tools
         .route("/diagnostics/qr-code-test", post(test_qr_code_generation))
-        .route("/diagnostics/time-sync-check", get(check_time_synchronization))
-        .route("/diagnostics/authenticator-compatibility", post(test_authenticator_compatibility))
-
+        .route(
+            "/diagnostics/time-sync-check",
+            get(check_time_synchronization),
+        )
+        .route(
+            "/diagnostics/authenticator-compatibility",
+            post(test_authenticator_compatibility),
+        )
         // Troubleshooting workflows
-        .route("/workflows/setup-issues", get(get_setup_troubleshooting_workflow))
-        .route("/workflows/verification-issues", get(get_verification_troubleshooting_workflow))
-        .route("/workflows/recovery-issues", get(get_recovery_troubleshooting_workflow))
+        .route(
+            "/workflows/setup-issues",
+            get(get_setup_troubleshooting_workflow),
+        )
+        .route(
+            "/workflows/verification-issues",
+            get(get_verification_troubleshooting_workflow),
+        )
+        .route(
+            "/workflows/recovery-issues",
+            get(get_recovery_troubleshooting_workflow),
+        )
 }
 
 // Request/Response structures
@@ -307,30 +319,35 @@ pub async fn admin_diagnose_user_mfa(
     let admin_user_id = verify_admin_token(&req.admin_token, &state).await?;
 
     // Get user information
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Get MFA status
     let mfa_status = mfa_service.get_mfa_status(user_id).await?;
 
     // Check recent failures
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
-    let failure_count: i64 = client.query_one(
-        "SELECT COUNT(*) FROM audit_logs
+    let failure_count: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM audit_logs
          WHERE user_id = $1
            AND event_type = 'mfa_verification_failed'
            AND created_at >= NOW() - INTERVAL '24 hours'",
-        &[&user_id],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?
-    .get(0);
+            &[&user_id],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?
+        .get(0);
 
     // Check account lockout status
     let account_locked = user.account_locked;
@@ -340,7 +357,10 @@ pub async fn admin_diagnose_user_mfa(
 
     // Get backup codes count
     let backup_codes_count = if mfa_status.enabled {
-        mfa_service.get_recovery_codes_count(user_id).await.unwrap_or(0)
+        mfa_service
+            .get_recovery_codes_count(user_id)
+            .await
+            .unwrap_or(0)
     } else {
         0
     };
@@ -385,8 +405,12 @@ pub async fn admin_diagnose_user_mfa(
         issues_found.push(MfaIssue {
             issue_type: "excessive_failures".to_string(),
             severity: "medium".to_string(),
-            description: format!("User has {} failed MFA attempts in the last 24 hours", failure_count),
-            suggested_fix: "Check if user needs help with authenticator app or consider MFA reset".to_string(),
+            description: format!(
+                "User has {} failed MFA attempts in the last 24 hours",
+                failure_count
+            ),
+            suggested_fix: "Check if user needs help with authenticator app or consider MFA reset"
+                .to_string(),
             auto_fixable: false,
         });
         recommendations.push("Contact user to provide MFA support".to_string());
@@ -477,19 +501,24 @@ pub async fn get_mfa_system_status(
 ) -> Result<Json<MfaSystemStatus>> {
     let admin_user_id = verify_admin_token(&auth.admin_token, &state).await?;
 
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     // Get user statistics
-    let user_stats = client.query_one(
-        "SELECT
+    let user_stats = client
+        .query_one(
+            "SELECT
             COUNT(*) as total_users,
             COUNT(*) FILTER (WHERE mfa_enabled = true) as mfa_enabled_users
          FROM users
          WHERE enabled = true AND deleted_at IS NULL",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?;
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?;
 
     let total_users: i64 = user_stats.get(0);
     let mfa_enabled_users: i64 = user_stats.get(1);
@@ -498,14 +527,16 @@ pub async fn get_mfa_system_status(
     let active_sessions = 0u64; // Placeholder
 
     // Get recent failures
-    let recent_failures: i64 = client.query_one(
-        "SELECT COUNT(*) FROM audit_logs
+    let recent_failures: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM audit_logs
          WHERE event_type = 'mfa_verification_failed'
            AND created_at >= NOW() - INTERVAL '24 hours'",
-        &[],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?
-    .get(0);
+            &[],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?
+        .get(0);
 
     // Get performance metrics
     let perf_metrics = client.query_one(
@@ -537,7 +568,10 @@ pub async fn get_mfa_system_status(
         alerts.push(SystemAlert {
             alert_type: "low_success_rate".to_string(),
             severity: "high".to_string(),
-            message: format!("MFA success rate is {}%, below 90% threshold", performance_metrics.success_rate_24h),
+            message: format!(
+                "MFA success rate is {}%, below 90% threshold",
+                performance_metrics.success_rate_24h
+            ),
             timestamp: Utc::now(),
             affected_users: None,
         });
@@ -547,7 +581,10 @@ pub async fn get_mfa_system_status(
         alerts.push(SystemAlert {
             alert_type: "slow_verification".to_string(),
             severity: "medium".to_string(),
-            message: format!("Average MFA verification time is {:.0}ms, above 1000ms threshold", performance_metrics.avg_verification_time_ms),
+            message: format!(
+                "Average MFA verification time is {:.0}ms, above 1000ms threshold",
+                performance_metrics.avg_verification_time_ms
+            ),
             timestamp: Utc::now(),
             affected_users: None,
         });
@@ -557,7 +594,10 @@ pub async fn get_mfa_system_status(
         alerts.push(SystemAlert {
             alert_type: "high_failure_rate".to_string(),
             severity: "high".to_string(),
-            message: format!("High number of MFA failures in last 24h: {}", recent_failures),
+            message: format!(
+                "High number of MFA failures in last 24h: {}",
+                recent_failures
+            ),
             timestamp: Utc::now(),
             affected_users: Some(recent_failures as u32),
         });
@@ -595,30 +635,35 @@ pub async fn self_service_diagnose(
     let user_id = verify_user_token(&req.user_token, &state).await?;
 
     // Get user information
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::not_found("User not found"))?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Get MFA status (limited information for self-service)
     let mfa_status = mfa_service.get_mfa_status(user_id).await?;
 
     // Check recent failures (limited to user's own data)
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
-    let failure_count: i64 = client.query_one(
-        "SELECT COUNT(*) FROM audit_logs
+    let failure_count: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM audit_logs
          WHERE user_id = $1
            AND event_type = 'mfa_verification_failed'
            AND created_at >= NOW() - INTERVAL '24 hours'",
-        &[&user_id],
-    ).await
-    .map_err(|e| AuthencError::database(e.to_string()))?
-    .get(0);
+            &[&user_id],
+        )
+        .await
+        .map_err(|e| AuthencError::database(e.to_string()))?
+        .get(0);
 
     let mfa_status_diagnostic = MfaStatusDiagnostic {
         enabled: mfa_status.enabled,
@@ -796,24 +841,24 @@ pub async fn get_guided_setup_steps(
 
 // Helper functions
 
-async fn verify_admin_token(
-    token: &str,
-    state: &Arc<crate::app::AppState>,
-) -> Result<Uuid> {
-    let claims = jwt::verify_jwt(token)
-        .map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
+async fn verify_admin_token(token: &str, state: &Arc<crate::app::AppState>) -> Result<Uuid> {
+    let claims =
+        jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
     let is_admin = user.roles.iter().any(|role| {
-        role.name == "admin" ||
-        role.name == "system_admin" ||
-        role.name == "mfa_admin" ||
-        role.name == "security_admin"
+        role.name == "admin"
+            || role.name == "system_admin"
+            || role.name == "mfa_admin"
+            || role.name == "security_admin"
     });
 
     if !is_admin {
@@ -823,18 +868,18 @@ async fn verify_admin_token(
     Ok(user_id)
 }
 
-async fn verify_user_token(
-    token: &str,
-    state: &Arc<crate::app::AppState>,
-) -> Result<Uuid> {
-    let claims = jwt::verify_jwt(token)
-        .map_err(|_| AuthencError::unauthorized("Invalid user token"))?;
+async fn verify_user_token(token: &str, state: &Arc<crate::app::AppState>) -> Result<Uuid> {
+    let claims =
+        jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid user token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Verify user exists and is active
-    let _user = state.user_store.get_user(user_id).await?
+    let _user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
 
     Ok(user_id)
@@ -884,10 +929,7 @@ pub async fn test_qr_code_generation(
 ) -> Result<Json<QrCodeTestResult>> {
     let user_id = verify_user_token(&req.user_token, &state).await?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let mut issues = Vec::new();
     let mut qr_code_generated = false;
@@ -908,8 +950,12 @@ pub async fn test_qr_code_generation(
             }
 
             // Validate secret format (should be base32)
-            if setup_data.secret_key.len() >= 16 &&
-               setup_data.secret_key.chars().all(|c| "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".contains(c)) {
+            if setup_data.secret_key.len() >= 16
+                && setup_data
+                    .secret_key
+                    .chars()
+                    .all(|c| "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".contains(c))
+            {
                 secret_format_valid = true;
             } else {
                 issues.push("Secret key format is invalid (should be base32)".to_string());
@@ -972,7 +1018,8 @@ pub async fn check_time_synchronization(
 
     match sync_status {
         "drift_detected" => {
-            recommendations.push("Consider synchronizing your device time with NTP servers".to_string());
+            recommendations
+                .push("Consider synchronizing your device time with NTP servers".to_string());
             recommendations.push("Check your device's automatic time sync settings".to_string());
         }
         "major_drift" => {
@@ -1010,10 +1057,7 @@ pub async fn test_authenticator_compatibility(
 ) -> Result<Json<AuthenticatorTestResult>> {
     let user_id = verify_user_token(&req.user_token, &state).await?;
 
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let mut detected_issues = Vec::new();
     let mut compatibility_notes = Vec::new();
@@ -1024,7 +1068,10 @@ pub async fn test_authenticator_compatibility(
     match mfa_service.verify_mfa(user_id, &req.test_code).await {
         Ok(_) => {
             test_successful = true;
-            compatibility_notes.push(format!("{} authenticator is working correctly", req.authenticator_type));
+            compatibility_notes.push(format!(
+                "{} authenticator is working correctly",
+                req.authenticator_type
+            ));
         }
         Err(e) => {
             detected_issues.push(format!("Code verification failed: {}", e));
@@ -1033,22 +1080,33 @@ pub async fn test_authenticator_compatibility(
             match req.authenticator_type.as_str() {
                 "google" => {
                     compatibility_notes.push("Google Authenticator is fully supported".to_string());
-                    compatibility_notes.push("Ensure you're using the latest version of the app".to_string());
+                    compatibility_notes
+                        .push("Ensure you're using the latest version of the app".to_string());
                 }
                 "microsoft" => {
-                    compatibility_notes.push("Microsoft Authenticator is fully supported".to_string());
-                    compatibility_notes.push("Make sure push notifications are enabled if using that feature".to_string());
+                    compatibility_notes
+                        .push("Microsoft Authenticator is fully supported".to_string());
+                    compatibility_notes.push(
+                        "Make sure push notifications are enabled if using that feature"
+                            .to_string(),
+                    );
                 }
                 "authy" => {
-                    compatibility_notes.push("Authy is supported but may have sync delays".to_string());
-                    compatibility_notes.push("Try disabling multi-device sync if experiencing issues".to_string());
+                    compatibility_notes
+                        .push("Authy is supported but may have sync delays".to_string());
+                    compatibility_notes
+                        .push("Try disabling multi-device sync if experiencing issues".to_string());
                 }
                 "freeotp" => {
-                    compatibility_notes.push("FreeOTP is supported and recommended for privacy".to_string());
-                    compatibility_notes.push("Ensure manual time sync if automatic sync is disabled".to_string());
+                    compatibility_notes
+                        .push("FreeOTP is supported and recommended for privacy".to_string());
+                    compatibility_notes
+                        .push("Ensure manual time sync if automatic sync is disabled".to_string());
                 }
                 _ => {
-                    compatibility_notes.push("Unknown authenticator app - compatibility not guaranteed".to_string());
+                    compatibility_notes.push(
+                        "Unknown authenticator app - compatibility not guaranteed".to_string(),
+                    );
                     detected_issues.push("Consider using a verified authenticator app".to_string());
                     compatible = false;
                 }
@@ -1115,7 +1173,8 @@ pub async fn get_setup_troubleshooting_workflow(
             TroubleshootingStep {
                 step_id: "check_qr_code".to_string(),
                 title: "Verify QR Code Display".to_string(),
-                description: "Ensure the QR code is displaying correctly on your screen".to_string(),
+                description: "Ensure the QR code is displaying correctly on your screen"
+                    .to_string(),
                 action_type: "check".to_string(),
                 automated: true,
                 expected_outcome: "QR code is visible and not distorted".to_string(),
@@ -1127,7 +1186,8 @@ pub async fn get_setup_troubleshooting_workflow(
                 description: "Use your authenticator app to scan the QR code".to_string(),
                 action_type: "manual".to_string(),
                 automated: false,
-                expected_outcome: "QR code is successfully scanned and account is added".to_string(),
+                expected_outcome: "QR code is successfully scanned and account is added"
+                    .to_string(),
                 next_steps: vec!["verify_code".to_string()],
             },
             TroubleshootingStep {
@@ -1182,7 +1242,8 @@ pub async fn get_verification_troubleshooting_workflow(
             TroubleshootingStep {
                 step_id: "check_time_sync".to_string(),
                 title: "Check Device Time Synchronization".to_string(),
-                description: "Verify your device time is synchronized with network time".to_string(),
+                description: "Verify your device time is synchronized with network time"
+                    .to_string(),
                 action_type: "check".to_string(),
                 automated: true,
                 expected_outcome: "Device time is synchronized within 30 seconds".to_string(),
@@ -1262,7 +1323,10 @@ pub async fn get_recovery_troubleshooting_workflow(
                 action_type: "manual".to_string(),
                 automated: false,
                 expected_outcome: "Backup codes are located and accessible".to_string(),
-                next_steps: vec!["use_backup_code".to_string(), "check_alternative_device".to_string()],
+                next_steps: vec![
+                    "use_backup_code".to_string(),
+                    "check_alternative_device".to_string(),
+                ],
             },
             TroubleshootingStep {
                 step_id: "use_backup_code".to_string(),
@@ -1280,7 +1344,10 @@ pub async fn get_recovery_troubleshooting_workflow(
                 action_type: "check".to_string(),
                 automated: false,
                 expected_outcome: "Alternative device has working authenticator access".to_string(),
-                next_steps: vec!["use_alternative_device".to_string(), "contact_admin_recovery".to_string()],
+                next_steps: vec![
+                    "use_alternative_device".to_string(),
+                    "contact_admin_recovery".to_string(),
+                ],
             },
             TroubleshootingStep {
                 step_id: "use_alternative_device".to_string(),
@@ -1303,7 +1370,8 @@ pub async fn get_recovery_troubleshooting_workflow(
             TroubleshootingStep {
                 step_id: "verify_identity".to_string(),
                 title: "Verify Identity".to_string(),
-                description: "Complete identity verification process with administrator".to_string(),
+                description: "Complete identity verification process with administrator"
+                    .to_string(),
                 action_type: "manual".to_string(),
                 automated: false,
                 expected_outcome: "Identity is verified and MFA is reset".to_string(),
@@ -1345,25 +1413,26 @@ pub async fn fix_common_mfa_issues(
     State(state): State<Arc<crate::app::AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>> {
-    let admin_token = req["admin_token"].as_str()
+    let admin_token = req["admin_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Admin token required"))?;
     let admin_user_id = verify_admin_token(admin_token, &state).await?;
 
-    let user_ids: Vec<Uuid> = req["user_ids"].as_array()
+    let user_ids: Vec<Uuid> = req["user_ids"]
+        .as_array()
         .ok_or_else(|| AuthencError::validation("user_ids array required"))?
         .iter()
         .filter_map(|v| v.as_str().and_then(|s| Uuid::parse_str(s).ok()))
         .collect();
 
     if user_ids.is_empty() {
-        return Err(AuthencError::validation("At least one valid user ID required"));
+        return Err(AuthencError::validation(
+            "At least one valid user ID required",
+        ));
     }
 
     let mut results = Vec::new();
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     for user_id in user_ids {
         let mut fixes_applied = Vec::new();
@@ -1398,7 +1467,9 @@ pub async fn fix_common_mfa_issues(
                             };
 
                             match mfa_service.disable_mfa(user_id, &security_context).await {
-                                Ok(_) => fixes_applied.push("Reset inconsistent MFA state".to_string()),
+                                Ok(_) => {
+                                    fixes_applied.push("Reset inconsistent MFA state".to_string())
+                                }
                                 Err(e) => errors.push(format!("Failed to reset MFA: {}", e)),
                             }
                         }
@@ -1406,8 +1477,12 @@ pub async fn fix_common_mfa_issues(
                         // Fix 3: Generate backup codes if missing
                         if status.enabled && status.backup_codes_remaining == 0 {
                             match mfa_service.regenerate_recovery_codes(user_id).await {
-                                Ok(_) => fixes_applied.push("Generated new backup codes".to_string()),
-                                Err(e) => errors.push(format!("Failed to generate backup codes: {}", e)),
+                                Ok(_) => {
+                                    fixes_applied.push("Generated new backup codes".to_string())
+                                }
+                                Err(e) => {
+                                    errors.push(format!("Failed to generate backup codes: {}", e))
+                                }
                             }
                         }
                     }
@@ -1454,7 +1529,10 @@ pub async fn test_mfa_connection(
         Ok(_) => "passed",
         Err(_) => "failed",
     };
-    test_results.insert("database_connection".to_string(), serde_json::Value::String(db_test.to_string()));
+    test_results.insert(
+        "database_connection".to_string(),
+        serde_json::Value::String(db_test.to_string()),
+    );
 
     // Test 2: Secreton connectivity
     let secreton_test = if test_secreton_connection(&state).await {
@@ -1462,27 +1540,34 @@ pub async fn test_mfa_connection(
     } else {
         "failed"
     };
-    test_results.insert("secreton_connection".to_string(), serde_json::Value::String(secreton_test.to_string()));
+    test_results.insert(
+        "secreton_connection".to_string(),
+        serde_json::Value::String(secreton_test.to_string()),
+    );
 
     // Test 3: User MFA status retrieval
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     let mfa_status_test = match mfa_service.get_mfa_status(user_id).await {
         Ok(_) => "passed",
         Err(_) => "failed",
     };
-    test_results.insert("mfa_status_retrieval".to_string(), serde_json::Value::String(mfa_status_test.to_string()));
+    test_results.insert(
+        "mfa_status_retrieval".to_string(),
+        serde_json::Value::String(mfa_status_test.to_string()),
+    );
 
-    let overall_status = if db_test == "passed" && secreton_test == "passed" && mfa_status_test == "passed" {
-        "healthy"
-    } else {
-        "issues_detected"
-    };
+    let overall_status =
+        if db_test == "passed" && secreton_test == "passed" && mfa_status_test == "passed" {
+            "healthy"
+        } else {
+            "issues_detected"
+        };
 
-    test_results.insert("overall_status".to_string(), serde_json::Value::String(overall_status.to_string()));
+    test_results.insert(
+        "overall_status".to_string(),
+        serde_json::Value::String(overall_status.to_string()),
+    );
 
     tracing::info!(
         user_id = %user_id,
@@ -1501,14 +1586,18 @@ pub async fn request_mfa_reset(
     State(state): State<Arc<crate::app::AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>> {
-    let user_token = req["user_token"].as_str()
+    let user_token = req["user_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("User token required"))?;
     let user_id = verify_user_token(user_token, &state).await?;
 
     let reason = req["reason"].as_str().unwrap_or("User requested MFA reset");
 
     // Log the reset request
-    let client = state.db_pool.get().await
+    let client = state
+        .db_pool
+        .get()
+        .await
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
     client.execute(
@@ -1548,7 +1637,7 @@ mod tests {
             "Install Authenticator App",
             "Scan QR Code",
             "Enter Verification Code",
-            "Save Backup Codes"
+            "Save Backup Codes",
         ];
 
         assert_eq!(steps.len(), 4);

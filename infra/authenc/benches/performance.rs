@@ -3,24 +3,22 @@
 //! This module contains comprehensive performance benchmarks for authenc functionality,
 //! focusing on the enhanced features for SIMKARI super app integration with secreton.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use serde_json::json;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
-use serde_json::json;
 
-use authenc::crypto::CryptoEngine;
-use authenc::vault::SecretonClient;
-use authenc::models::{User, OptimizedToken, Role, RoleScope, AdminLevel};
 use authenc::config::AuthencConfig;
+use authenc::crypto::CryptoEngine;
+use authenc::models::{AdminLevel, OptimizedToken, Role, RoleScope, User};
+use authenc::vault::SecretonClient;
 
 /// Benchmark JWT signing for pegawai authentication
 fn bench_pegawai_jwt_signing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     let test_users = create_benchmark_users(100);
 
@@ -36,7 +34,10 @@ fn bench_pegawai_jwt_signing(c: &mut Criterion) {
                 b.to_async(&rt).iter(|| async {
                     for user in users {
                         let claims = create_pegawai_claims(user);
-                        let _token = crypto_engine.sign_jwt_for_government(&claims).await.unwrap();
+                        let _token = crypto_engine
+                            .sign_jwt_for_government(&claims)
+                            .await
+                            .unwrap();
                         black_box(_token);
                     }
                 });
@@ -47,11 +48,15 @@ fn bench_pegawai_jwt_signing(c: &mut Criterion) {
     // Benchmark batch JWT signing
     group.bench_function("batch_jwt_signing_100", |b| {
         b.to_async(&rt).iter(|| async {
-            let claims_batch: Vec<_> = test_users.iter()
+            let claims_batch: Vec<_> = test_users
+                .iter()
                 .map(|user| create_pegawai_claims(user))
                 .collect();
 
-            let _tokens = crypto_engine.batch_sign_jwt_for_government(&claims_batch).await.unwrap();
+            let _tokens = crypto_engine
+                .batch_sign_jwt_for_government(&claims_batch)
+                .await
+                .unwrap();
             black_box(_tokens);
         });
     });
@@ -63,9 +68,7 @@ fn bench_pegawai_jwt_signing(c: &mut Criterion) {
 fn bench_batch_nip_validation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     let test_tokens = rt.block_on(async {
         let users = create_benchmark_users(1000);
@@ -73,7 +76,10 @@ fn bench_batch_nip_validation(c: &mut Criterion) {
 
         for user in &users {
             let claims = create_pegawai_claims(user);
-            let token = crypto_engine.sign_jwt_for_government(&claims).await.unwrap();
+            let token = crypto_engine
+                .sign_jwt_for_government(&claims)
+                .await
+                .unwrap();
             tokens.push(token);
         }
 
@@ -104,12 +110,9 @@ fn bench_batch_nip_validation(c: &mut Criterion) {
 fn bench_satker_secreton_integration(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let secreton_client = rt.block_on(async {
-        SecretonClient::new(&config.secreton).await.unwrap()
-    });
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let secreton_client =
+        rt.block_on(async { SecretonClient::new(&config.secreton).await.unwrap() });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     let satker_codes = vec![
         "KEJATI_DKI_JAKPUS",
@@ -125,7 +128,10 @@ fn bench_satker_secreton_integration(c: &mut Criterion) {
             for i in 0..20 {
                 let user = create_test_user(&format!("19800101200001100{}", i), satker_code);
                 let claims = create_pegawai_claims(&user);
-                let token = crypto_engine.sign_jwt_for_government(&claims).await.unwrap();
+                let token = crypto_engine
+                    .sign_jwt_for_government(&claims)
+                    .await
+                    .unwrap();
                 tokens.push((token, satker_code.to_string()));
             }
         }
@@ -140,7 +146,9 @@ fn bench_satker_secreton_integration(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             for (token, satker_code) in &test_tokens {
                 let secret_path = format!("secrets/{}/config", satker_code);
-                let _result = secreton_client.get_secret_with_token(token, &secret_path).await;
+                let _result = secreton_client
+                    .get_secret_with_token(token, &secret_path)
+                    .await;
                 black_box(_result);
             }
         });
@@ -149,14 +157,17 @@ fn bench_satker_secreton_integration(c: &mut Criterion) {
     // Benchmark concurrent secret retrieval
     group.bench_function("concurrent_secret_retrieval", |b| {
         b.to_async(&rt).iter(|| async {
-            let futures: Vec<_> = test_tokens.iter().map(|(token, satker_code)| {
-                let secret_path = format!("secrets/{}/config", satker_code);
-                secreton_client.get_secret_with_token(token, &secret_path)
-            }).collect();
+            let futures: Vec<_> = test_tokens
+                .iter()
+                .map(|(token, satker_code)| {
+                    let secret_path = format!("secrets/{}/config", satker_code);
+                    secreton_client.get_secret_with_token(token, &secret_path)
+                })
+                .collect();
 
             let _results = futures::future::join_all(futures).await;
             black_box(_results);
-;
+        });
     });
 
     // Benchmark application config retrieval
@@ -177,9 +188,7 @@ fn bench_satker_secreton_integration(c: &mut Criterion) {
 fn bench_role_based_access_control(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     // Create users with different role combinations
     let test_users = create_users_with_various_roles(500);
@@ -187,7 +196,10 @@ fn bench_role_based_access_control(c: &mut Criterion) {
         let mut tokens = Vec::new();
         for user in &test_users {
             let claims = create_pegawai_claims(user);
-            let token = crypto_engine.sign_jwt_for_government(&claims).await.unwrap();
+            let token = crypto_engine
+                .sign_jwt_for_government(&claims)
+                .await
+                .unwrap();
             tokens.push((token, user.clone()));
         }
         tokens
@@ -211,7 +223,9 @@ fn bench_role_based_access_control(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             for (token, user) in &test_tokens {
                 let resource_path = format!("secrets/{}/sensitive_data", user.satker_code);
-                let _has_permission = crypto_engine.check_resource_permission(token, &resource_path).await;
+                let _has_permission = crypto_engine
+                    .check_resource_permission(token, &resource_path)
+                    .await;
                 black_box(_has_permission);
             }
         });
@@ -222,9 +236,9 @@ fn bench_role_based_access_control(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             for (token, user) in &test_tokens {
                 for target_satker in ["KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKSEL", "KEJARI_SOLO"] {
-                    let _can_access = crypto_engine.validate_hierarchical_access(
-                        token, &user.satker_code, target_satker
-                    ).await;
+                    let _can_access = crypto_engine
+                        .validate_hierarchical_access(token, &user.satker_code, target_satker)
+                        .await;
                     black_box(_can_access);
                 }
             }
@@ -238,12 +252,9 @@ fn bench_role_based_access_control(c: &mut Criterion) {
 fn bench_hierarchical_admin_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let secreton_client = rt.block_on(async {
-        SecretonClient::new(&config.secreton).await.unwrap()
-    });
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let secreton_client =
+        rt.block_on(async { SecretonClient::new(&config.secreton).await.unwrap() });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     // Create admin users at different levels
     let admin_users = create_admin_users_at_all_levels();
@@ -251,7 +262,10 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
         let mut tokens = Vec::new();
         for user in &admin_users {
             let claims = create_pegawai_claims(user);
-            let token = crypto_engine.sign_jwt_for_government(&claims).await.unwrap();
+            let token = crypto_engine
+                .sign_jwt_for_government(&claims)
+                .await
+                .unwrap();
             tokens.push((token, user.clone()));
         }
         tokens
@@ -274,7 +288,9 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
             for (token, admin_user) in &admin_tokens {
                 for target in &target_satker {
                     let operation = "create_secret";
-                    let _result = secreton_client.perform_admin_operation(token, operation, target).await;
+                    let _result = secreton_client
+                        .perform_admin_operation(token, operation, target)
+                        .await;
                     black_box(_result);
                 }
             }
@@ -286,9 +302,9 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             for (token, admin_user) in &admin_tokens {
                 for target in &target_satker {
-                    let _can_admin = crypto_engine.validate_admin_access(
-                        token, &admin_user.satker_code, target
-                    ).await;
+                    let _can_admin = crypto_engine
+                        .validate_admin_access(token, &admin_user.satker_code, target)
+                        .await;
                     black_box(_can_admin);
                 }
             }
@@ -302,7 +318,9 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
                 let operations = ["read_secret", "update_secret", "delete_secret"];
                 for operation in &operations {
                     for target in &target_satker {
-                        let _result = secreton_client.perform_admin_operation(token, operation, target).await;
+                        let _result = secreton_client
+                            .perform_admin_operation(token, operation, target)
+                            .await;
                         black_box(_result);
                     }
                 }
@@ -317,12 +335,9 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
 fn bench_post_quantum_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config_with_post_quantum();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
-    let secreton_client = rt.block_on(async {
-        SecretonClient::new(&config.secreton).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
+    let secreton_client =
+        rt.block_on(async { SecretonClient::new(&config.secreton).await.unwrap() });
 
     let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
 
@@ -361,9 +376,8 @@ fn bench_post_quantum_operations(c: &mut Criterion) {
 
     // Benchmark ML-KEM key decapsulation
     group.bench_function("ml_kem_key_decapsulation", |b| {
-        let (ciphertext, _) = rt.block_on(async {
-            crypto_engine.ml_kem_encapsulate().await.unwrap()
-        });
+        let (ciphertext, _) =
+            rt.block_on(async { crypto_engine.ml_kem_encapsulate().await.unwrap() });
 
         b.to_async(&rt).iter(|| async {
             let _shared_secret = crypto_engine.ml_kem_decapsulate(&ciphertext).await.unwrap();
@@ -388,7 +402,9 @@ fn bench_post_quantum_operations(c: &mut Criterion) {
         });
 
         b.to_async(&rt).iter(|| async {
-            let _pq_key = secreton_client.get_post_quantum_key(&pq_token, "ML-KEM").await;
+            let _pq_key = secreton_client
+                .get_post_quantum_key(&pq_token, "ML-KEM")
+                .await;
             black_box(_pq_key);
         });
     });
@@ -400,15 +416,13 @@ fn bench_post_quantum_operations(c: &mut Criterion) {
 fn bench_session_data_encryption(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     let session_data_sizes = vec![
-        ("small", 1024),      // 1KB
-        ("medium", 10240),    // 10KB
-        ("large", 102400),    // 100KB
-        ("xlarge", 1048576),  // 1MB
+        ("small", 1024),     // 1KB
+        ("medium", 10240),   // 10KB
+        ("large", 102400),   // 100KB
+        ("xlarge", 1048576), // 1MB
     ];
 
     let mut group = c.benchmark_group("session_data_encryption");
@@ -429,7 +443,10 @@ fn bench_session_data_encryption(c: &mut Criterion) {
         );
 
         let encrypted_data = rt.block_on(async {
-            crypto_engine.encrypt_session_data(&test_data).await.unwrap()
+            crypto_engine
+                .encrypt_session_data(&test_data)
+                .await
+                .unwrap()
         });
 
         group.bench_with_input(
@@ -451,9 +468,7 @@ fn bench_session_data_encryption(c: &mut Criterion) {
 fn bench_audit_signature_generation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
-    let crypto_engine = rt.block_on(async {
-        CryptoEngine::new(&config.crypto).await.unwrap()
-    });
+    let crypto_engine = rt.block_on(async { CryptoEngine::new(&config.crypto).await.unwrap() });
 
     let audit_data_samples = create_audit_data_samples(1000);
 
@@ -464,7 +479,10 @@ fn bench_audit_signature_generation(c: &mut Criterion) {
     group.bench_function("single_audit_signature", |b| {
         b.to_async(&rt).iter(|| async {
             for audit_data in &audit_data_samples {
-                let _signature = crypto_engine.generate_government_audit_signature(audit_data).await.unwrap();
+                let _signature = crypto_engine
+                    .generate_government_audit_signature(audit_data)
+                    .await
+                    .unwrap();
                 black_box(_signature);
             }
         });
@@ -473,7 +491,10 @@ fn bench_audit_signature_generation(c: &mut Criterion) {
     // Benchmark batch audit signatures
     group.bench_function("batch_audit_signatures", |b| {
         b.to_async(&rt).iter(|| async {
-            let _signatures = crypto_engine.batch_generate_audit_signatures(&audit_data_samples).await.unwrap();
+            let _signatures = crypto_engine
+                .batch_generate_audit_signatures(&audit_data_samples)
+                .await
+                .unwrap();
             black_box(_signatures);
         });
     });
@@ -654,6 +675,491 @@ fn create_audit_data_samples(count: usize) -> Vec<authenc::models::AuditData> {
         .collect()
 }
 
+/// Benchmark Classical vs Hybrid vs PostQuantum JWT signing performance
+fn bench_jwt_crypto_mode_comparison(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+
+    let classical_config = AuthencConfig::benchmark_config_classical();
+    let hybrid_config = AuthencConfig::benchmark_config();
+    let pq_config = AuthencConfig::benchmark_config_with_post_quantum();
+
+    let classical_engine =
+        rt.block_on(async { CryptoEngine::new(&classical_config.crypto).await.unwrap() });
+    let hybrid_engine =
+        rt.block_on(async { CryptoEngine::new(&hybrid_config.crypto).await.unwrap() });
+    let pq_engine = rt.block_on(async { CryptoEngine::new(&pq_config.crypto).await.unwrap() });
+
+    let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
+    let claims = create_pegawai_claims(&test_user);
+
+    let mut group = c.benchmark_group("jwt_crypto_mode_comparison");
+    group.measurement_time(Duration::from_secs(20));
+
+    // Benchmark JWT signing across modes
+    group.bench_function("classical_jwt_signing", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _token = classical_engine
+                .sign_jwt_for_government(&claims)
+                .await
+                .unwrap();
+            black_box(_token);
+        });
+    });
+
+    group.bench_function("hybrid_jwt_signing", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _token = hybrid_engine.sign_jwt_hybrid(&claims).await.unwrap();
+            black_box(_token);
+        });
+    });
+
+    group.bench_function("postquantum_jwt_signing", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _token = pq_engine.sign_jwt_with_ml_dsa(&claims).await.unwrap();
+            black_box(_token);
+        });
+    });
+
+    // Benchmark JWT verification across modes
+    let classical_token = rt.block_on(async {
+        classical_engine
+            .sign_jwt_for_government(&claims)
+            .await
+            .unwrap()
+    });
+    let hybrid_token = rt.block_on(async { hybrid_engine.sign_jwt_hybrid(&claims).await.unwrap() });
+    let pq_token = rt.block_on(async { pq_engine.sign_jwt_with_ml_dsa(&claims).await.unwrap() });
+
+    group.bench_function("classical_jwt_verification", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _valid = classical_engine.verify_jwt(&classical_token).await.unwrap();
+            black_box(_valid);
+        });
+    });
+
+    group.bench_function("hybrid_jwt_verification", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _valid = hybrid_engine
+                .verify_hybrid_jwt(&hybrid_token)
+                .await
+                .unwrap();
+            black_box(_valid);
+        });
+    });
+
+    group.bench_function("postquantum_jwt_verification", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _valid = pq_engine.verify_ml_dsa_token(&pq_token).await.unwrap();
+            black_box(_valid);
+        });
+    });
+
+    // Measure token size overhead
+    println!("\n=== JWT Token Size Comparison ===");
+    println!("Classical JWT size: {} bytes", classical_token.len());
+    println!("Hybrid JWT size: {} bytes", hybrid_token.len());
+    println!("PostQuantum JWT size: {} bytes", pq_token.len());
+    println!(
+        "Hybrid overhead: {} bytes ({:.2}x)",
+        hybrid_token.len() - classical_token.len(),
+        hybrid_token.len() as f64 / classical_token.len() as f64
+    );
+    println!(
+        "PQ overhead: {} bytes ({:.2}x)",
+        pq_token.len() - classical_token.len(),
+        pq_token.len() as f64 / classical_token.len() as f64
+    );
+
+    group.finish();
+}
+
+/// Measure overhead of hybrid cryptography in batch operations
+fn bench_batch_operations_overhead(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+
+    let classical_config = AuthencConfig::benchmark_config_classical();
+    let hybrid_config = AuthencConfig::benchmark_config();
+
+    let classical_engine =
+        rt.block_on(async { CryptoEngine::new(&classical_config.crypto).await.unwrap() });
+    let hybrid_engine =
+        rt.block_on(async { CryptoEngine::new(&hybrid_config.crypto).await.unwrap() });
+
+    let test_users = create_benchmark_users(100);
+    let claims_batch: Vec<_> = test_users
+        .iter()
+        .map(|user| create_pegawai_claims(user))
+        .collect();
+
+    let mut group = c.benchmark_group("batch_operations_overhead");
+    group.measurement_time(Duration::from_secs(25));
+
+    // Benchmark batch signing overhead
+    for batch_size in [10, 50, 100].iter() {
+        let claims = &claims_batch[..*batch_size];
+
+        group.bench_with_input(
+            BenchmarkId::new("classical_batch_sign", batch_size),
+            &claims,
+            |b, claims| {
+                b.to_async(&rt).iter(|| async {
+                    let _tokens = classical_engine
+                        .batch_sign_jwt_for_government(claims)
+                        .await
+                        .unwrap();
+                    black_box(_tokens);
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hybrid_batch_sign", batch_size),
+            &claims,
+            |b, claims| {
+                b.to_async(&rt).iter(|| async {
+                    let _tokens = hybrid_engine.batch_sign_jwt_hybrid(claims).await.unwrap();
+                    black_box(_tokens);
+                });
+            },
+        );
+    }
+
+    // Benchmark batch verification overhead
+    let classical_tokens = rt.block_on(async {
+        classical_engine
+            .batch_sign_jwt_for_government(&claims_batch)
+            .await
+            .unwrap()
+    });
+    let hybrid_tokens = rt.block_on(async {
+        hybrid_engine
+            .batch_sign_jwt_hybrid(&claims_batch)
+            .await
+            .unwrap()
+    });
+
+    for batch_size in [10, 50, 100].iter() {
+        let c_tokens = &classical_tokens[..*batch_size];
+        let h_tokens = &hybrid_tokens[..*batch_size];
+
+        group.bench_with_input(
+            BenchmarkId::new("classical_batch_verify", batch_size),
+            &c_tokens,
+            |b, tokens| {
+                b.to_async(&rt).iter(|| async {
+                    let _results = classical_engine.verify_token_batch(tokens).await.unwrap();
+                    black_box(_results);
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("hybrid_batch_verify", batch_size),
+            &h_tokens,
+            |b, tokens| {
+                b.to_async(&rt).iter(|| async {
+                    let _results = hybrid_engine
+                        .verify_hybrid_token_batch(tokens)
+                        .await
+                        .unwrap();
+                    black_box(_results);
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark PQ operations in hierarchical admin context
+fn bench_pq_hierarchical_admin_operations(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+    let pq_config = AuthencConfig::benchmark_config_with_post_quantum();
+    let pq_engine = rt.block_on(async { CryptoEngine::new(&pq_config.crypto).await.unwrap() });
+    let secreton_client =
+        rt.block_on(async { SecretonClient::new(&pq_config.secreton).await.unwrap() });
+
+    // Create PQ admin users at different levels
+    let pq_admin_users = create_pq_admin_users_at_all_levels();
+    let pq_admin_tokens = rt.block_on(async {
+        let mut tokens = Vec::new();
+        for user in &pq_admin_users {
+            let claims = create_pegawai_claims(user);
+            let token = pq_engine.sign_jwt_with_ml_dsa(&claims).await.unwrap();
+            tokens.push((token, user.clone()));
+        }
+        tokens
+    });
+
+    let target_satker = vec![
+        "KEJATI_DKI_JAKPUS",
+        "KEJATI_DKI_JAKSEL",
+        "KEJATI_JABAR_BANDUNG",
+        "KEJARI_SOLO",
+        "KEJARI_YOGYA",
+    ];
+
+    let mut group = c.benchmark_group("pq_hierarchical_admin_operations");
+    group.measurement_time(Duration::from_secs(30));
+
+    // Benchmark PQ admin token validation
+    group.bench_function("pq_admin_token_validation", |b| {
+        b.to_async(&rt).iter(|| async {
+            for (token, _) in &pq_admin_tokens {
+                let _valid = pq_engine.verify_ml_dsa_token(token).await.unwrap();
+                black_box(_valid);
+            }
+        });
+    });
+
+    // Benchmark PQ admin secret operations
+    group.bench_function("pq_admin_secret_operations", |b| {
+        b.to_async(&rt).iter(|| async {
+            for (token, admin_user) in &pq_admin_tokens {
+                for target in &target_satker {
+                    let _result = secreton_client
+                        .perform_pq_admin_operation(token, "read_secret", target)
+                        .await;
+                    black_box(_result);
+                }
+            }
+        });
+    });
+
+    // Benchmark concurrent PQ admin operations
+    for concurrent_ops in [10, 25, 50].iter() {
+        group.bench_with_input(
+            BenchmarkId::new("concurrent_pq_admin_ops", concurrent_ops),
+            concurrent_ops,
+            |b, &ops| {
+                b.to_async(&rt).iter(|| async {
+                    let futures: Vec<_> = (0..ops)
+                        .map(|i| {
+                            let (token, _) = &pq_admin_tokens[i % pq_admin_tokens.len()];
+                            let target = &target_satker[i % target_satker.len()];
+                            secreton_client.perform_pq_admin_operation(token, "read_secret", target)
+                        })
+                        .collect();
+
+                    let _results = futures::future::join_all(futures).await;
+                    black_box(_results);
+                });
+            },
+        );
+    }
+
+    // Benchmark PQ key retrieval for hierarchical operations
+    group.bench_function("pq_key_retrieval_hierarchical", |b| {
+        b.to_async(&rt).iter(|| async {
+            for (token, _) in &pq_admin_tokens {
+                let _pq_key = secreton_client.get_post_quantum_key(token, "ML-KEM").await;
+                black_box(_pq_key);
+            }
+        });
+    });
+
+    // Benchmark mixed classical and PQ admin operations
+    let classical_admin_users = create_admin_users_at_all_levels();
+    let classical_admin_tokens = rt.block_on(async {
+        let classical_engine = CryptoEngine::new(&AuthencConfig::benchmark_config().crypto)
+            .await
+            .unwrap();
+        let mut tokens = Vec::new();
+        for user in &classical_admin_users {
+            let claims = create_pegawai_claims(user);
+            let token = classical_engine
+                .sign_jwt_for_government(&claims)
+                .await
+                .unwrap();
+            tokens.push(token);
+        }
+        tokens
+    });
+
+    group.bench_function("mixed_classical_pq_admin_ops", |b| {
+        b.to_async(&rt).iter(|| async {
+            for i in 0..20 {
+                if i % 2 == 0 {
+                    let token = &classical_admin_tokens[i % classical_admin_tokens.len()];
+                    let target = &target_satker[i % target_satker.len()];
+                    let _result = secreton_client
+                        .perform_admin_operation(token, "read_secret", target)
+                        .await;
+                    black_box(_result);
+                } else {
+                    let (token, _) = &pq_admin_tokens[i % pq_admin_tokens.len()];
+                    let target = &target_satker[i % target_satker.len()];
+                    let _result = secreton_client
+                        .perform_pq_admin_operation(token, "read_secret", target)
+                        .await;
+                    black_box(_result);
+                }
+            }
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark session encryption with different crypto modes
+fn bench_session_encryption_modes(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
+
+    let classical_config = AuthencConfig::benchmark_config_classical();
+    let hybrid_config = AuthencConfig::benchmark_config();
+    let pq_config = AuthencConfig::benchmark_config_with_post_quantum();
+
+    let classical_engine =
+        rt.block_on(async { CryptoEngine::new(&classical_config.crypto).await.unwrap() });
+    let hybrid_engine =
+        rt.block_on(async { CryptoEngine::new(&hybrid_config.crypto).await.unwrap() });
+    let pq_engine = rt.block_on(async { CryptoEngine::new(&pq_config.crypto).await.unwrap() });
+
+    let session_data = create_test_session_data(10240); // 10KB session data
+
+    let mut group = c.benchmark_group("session_encryption_modes");
+    group.measurement_time(Duration::from_secs(20));
+
+    // Benchmark encryption across modes
+    group.bench_function("classical_session_encryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _encrypted = classical_engine
+                .encrypt_session_data(&session_data)
+                .await
+                .unwrap();
+            black_box(_encrypted);
+        });
+    });
+
+    group.bench_function("hybrid_session_encryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _encrypted = hybrid_engine
+                .encrypt_session_data_hybrid(&session_data)
+                .await
+                .unwrap();
+            black_box(_encrypted);
+        });
+    });
+
+    group.bench_function("postquantum_session_encryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _encrypted = pq_engine
+                .encrypt_session_data_pq(&session_data)
+                .await
+                .unwrap();
+            black_box(_encrypted);
+        });
+    });
+
+    // Benchmark decryption across modes
+    let classical_encrypted = rt.block_on(async {
+        classical_engine
+            .encrypt_session_data(&session_data)
+            .await
+            .unwrap()
+    });
+    let hybrid_encrypted = rt.block_on(async {
+        hybrid_engine
+            .encrypt_session_data_hybrid(&session_data)
+            .await
+            .unwrap()
+    });
+    let pq_encrypted = rt.block_on(async {
+        pq_engine
+            .encrypt_session_data_pq(&session_data)
+            .await
+            .unwrap()
+    });
+
+    group.bench_function("classical_session_decryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _decrypted = classical_engine
+                .decrypt_session_data(&classical_encrypted)
+                .await
+                .unwrap();
+            black_box(_decrypted);
+        });
+    });
+
+    group.bench_function("hybrid_session_decryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _decrypted = hybrid_engine
+                .decrypt_session_data_hybrid(&hybrid_encrypted)
+                .await
+                .unwrap();
+            black_box(_decrypted);
+        });
+    });
+
+    group.bench_function("postquantum_session_decryption", |b| {
+        b.to_async(&rt).iter(|| async {
+            let _decrypted = pq_engine
+                .decrypt_session_data_pq(&pq_encrypted)
+                .await
+                .unwrap();
+            black_box(_decrypted);
+        });
+    });
+
+    group.finish();
+}
+
+fn create_pq_admin_users_at_all_levels() -> Vec<User> {
+    let mut admin_users = Vec::new();
+
+    // AdminPusat with PQ
+    let mut pusat_admin = create_test_user("198001012000010001", "KEJAGUNG");
+    pusat_admin.roles = vec![Role {
+        id: Uuid::new_v4(),
+        name: "SecretonAdminPusat_PQ".to_string(),
+        scope: RoleScope::Pusat,
+        permissions: vec![],
+        managed_by: AdminLevel::AdminPusat,
+    }];
+    admin_users.push(pusat_admin);
+
+    // AdminEselonI with PQ
+    let mut eselon_admin = create_test_user("198001012000010002", "KEJAGUNG");
+    eselon_admin.roles = vec![Role {
+        id: Uuid::new_v4(),
+        name: "SecretonAdminEselonI_PQ".to_string(),
+        scope: RoleScope::Pusat,
+        permissions: vec![],
+        managed_by: AdminLevel::AdminEselonI,
+    }];
+    admin_users.push(eselon_admin);
+
+    // AdminWilayah with PQ
+    let wilayah_codes = vec!["KEJATI_DKI", "KEJATI_JABAR"];
+    for (i, wilayah) in wilayah_codes.iter().enumerate() {
+        let mut wilayah_admin = create_test_user(&format!("19800101200001000{}", i + 3), wilayah);
+        wilayah_admin.roles = vec![Role {
+            id: Uuid::new_v4(),
+            name: "SecretonAdminWilayah_PQ".to_string(),
+            scope: RoleScope::Wilayah(wilayah.to_string()),
+            permissions: vec![],
+            managed_by: AdminLevel::AdminWilayah(wilayah.to_string()),
+        }];
+        admin_users.push(wilayah_admin);
+    }
+
+    // AdminSatker with PQ
+    let satker_codes = vec!["KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKSEL"];
+    for (i, satker) in satker_codes.iter().enumerate() {
+        let mut satker_admin = create_test_user(&format!("19800101200001001{}", i), satker);
+        satker_admin.roles = vec![Role {
+            id: Uuid::new_v4(),
+            name: "SecretonAdminSatker_PQ".to_string(),
+            scope: RoleScope::Satker(satker.to_string()),
+            permissions: vec![],
+            managed_by: AdminLevel::AdminSatker(satker.to_string()),
+        }];
+        admin_users.push(satker_admin);
+    }
+
+    admin_users
+}
+
 criterion_group!(
     benches,
     bench_pegawai_jwt_signing,
@@ -663,7 +1169,11 @@ criterion_group!(
     bench_hierarchical_admin_operations,
     bench_post_quantum_operations,
     bench_session_data_encryption,
-    bench_audit_signature_generation
+    bench_audit_signature_generation,
+    bench_jwt_crypto_mode_comparison,
+    bench_batch_operations_overhead,
+    bench_pq_hierarchical_admin_operations,
+    bench_session_encryption_modes
 );
 
 criterion_main!(benches);

@@ -19,48 +19,26 @@ uuid.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
 
-# HTTP client for Consul/etcd
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
-base64 = "0.21"
-
-# Database - Using postgres crate for better dependency isolation
-postgres = { version = "0.19", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
-postgres-types = { version = "0.2", features = ["derive"] }
-
-# Database
-tokio-postgres.workspace = true
-deadpool-postgres.workspace = true
-redis.workspace = true
-# SQLx temporarily disabled due to RSA vulnerability in MySQL backend
-# sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }
-mysql = { version = "26.0.1", features = ["chrono"] }
-aws-sdk-dynamodb = "1.0"
-aws-sdk-s3 = "1.0"
-aws-config = "1.0"
-aws-smithy-types = "1.0"
-aws-types = "1.0"
-
-# Azure Storage
-azure_storage = "0.20"
-azure_storage_blobs = "0.20"
-azure_core = "0.20"
+# Database backends (optional)
+tokio-postgres = { workspace = true, optional = true }
+deadpool-postgres = { workspace = true, optional = true }
 
 # Cryptography
-secreton-crypto = { path = "../crypto" }
+secreton-crypto.workspace = true
 zeroize.workspace = true
-secrecy.workspace = true
 
-# Configuration
-toml.workspace = true
-
-# Utilities
+# OpenRaft consensus (modern alternative to raft)
+openraft = { workspace = true, optional = true }
+slog = { workspace = true, optional = true }
+slog-term = { workspace = true, optional = true }
+slog-async = { workspace = true, optional = true }
 bincode.workspace = true
-ciborium = "0.2"
 
-# Google Cloud Storage Dependencies
-google-cloud-storage = "0.16"
-futures = "0.3"
+[features]
+default = ["postgres"]
+postgres = ["tokio-postgres", "deadpool-postgres"]
+raft-consensus = ["openraft", "slog", "slog-term", "slog-async"]
 
 [dev-dependencies]
 criterion.workspace = true
-proptest.workspace = true
+tempfile.workspace = true

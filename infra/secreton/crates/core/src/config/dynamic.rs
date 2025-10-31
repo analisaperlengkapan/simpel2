@@ -408,17 +408,16 @@ impl DynamicConfigManager {
     pub fn get_config(&self) -> Result<DynamicConfig> {
         self.config
             .read()
-            .map_err(|_| {
-                CoreError::Internal(anyhow::anyhow!("Failed to read dynamic config".to_string()))
-            })
+            .map_err(|_| CoreError::internal("Failed to read dynamic config"))
             .map(|config| config.clone())
     }
 
     /// Update configuration based on load metrics
     pub fn update_for_load(&self, load_metrics: &LoadMetrics) -> Result<()> {
-        let mut config = self.config.write().map_err(|_| {
-            CoreError::Internal(anyhow::anyhow!("Failed to write dynamic config".to_string()))
-        })?;
+        let mut config = self
+            .config
+            .write()
+            .map_err(|_| CoreError::internal("Failed to write dynamic config"))?;
 
         config.adapt_to_load(load_metrics);
 
@@ -432,9 +431,10 @@ impl DynamicConfigManager {
 
     /// Update security posture based on threat level
     pub fn update_security_posture(&self, threat_level: ThreatLevel) -> Result<()> {
-        let mut config = self.config.write().map_err(|_| {
-            CoreError::Internal(anyhow::anyhow!("Failed to write dynamic config".to_string()))
-        })?;
+        let mut config = self
+            .config
+            .write()
+            .map_err(|_| CoreError::internal("Failed to write dynamic config"))?;
 
         config.update_security_posture(threat_level);
 
@@ -453,9 +453,10 @@ impl DynamicConfigManager {
 
     /// Force update the entire configuration
     pub fn update_config(&self, new_config: DynamicConfig) -> Result<()> {
-        let mut config = self.config.write().map_err(|_| {
-            CoreError::Internal(anyhow::anyhow!("Failed to write dynamic config".to_string()))
-        })?;
+        let mut config = self
+            .config
+            .write()
+            .map_err(|_| CoreError::internal("Failed to write dynamic config"))?;
 
         *config = new_config.clone();
 

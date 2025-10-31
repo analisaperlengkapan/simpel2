@@ -1,4 +1,4 @@
-//! Data models and DTOs for the Brankas API.
+//! Data models and DTOs for the Secreton API.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -9,10 +9,10 @@ use uuid::Uuid;
 pub struct PaginationQuery {
     #[serde(default = "default_limit")]
     pub limit: u32,
-    
+
     #[serde(default)]
     pub offset: u32,
-    
+
     pub sort: Option<String>,
     pub order: Option<SortOrder>,
     pub filter: Option<String>,
@@ -121,21 +121,21 @@ pub struct BulkOperationSummary {
 #[derive(Debug, Deserialize)]
 pub struct SearchQuery {
     pub q: String,
-    
+
     #[serde(default)]
     pub fields: Vec<String>,
-    
+
     #[serde(default = "default_limit")]
     pub limit: u32,
-    
+
     #[serde(default)]
     pub offset: u32,
-    
+
     pub sort: Option<String>,
-    
+
     #[serde(default)]
     pub highlight: bool,
-    
+
     pub filters: Option<HashMap<String, String>>,
 }
 
@@ -191,13 +191,13 @@ pub enum CompressionType {
 pub struct ImportRequest {
     pub format: ExportFormat,
     pub data: String,
-    
+
     #[serde(default)]
     pub overwrite: bool,
-    
+
     #[serde(default)]
     pub validate_only: bool,
-    
+
     pub mapping: Option<HashMap<String, String>>,
 }
 
@@ -435,6 +435,45 @@ pub struct BatchJobProgress {
     pub percentage: f64,
 }
 
+/// Lease information attached to secret responses
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LeaseInfo {
+    /// Lease ID
+    pub lease_id: String,
+
+    /// Lease duration in seconds
+    pub lease_duration: i64,
+
+    /// Whether the lease is renewable
+    pub renewable: bool,
+
+    /// Time-to-live in seconds (time remaining until expiration)
+    pub ttl: i64,
+
+    /// Expiration timestamp
+    pub expired_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl LeaseInfo {
+    /// Create lease info from lease data
+    pub fn new(
+        lease_id: String,
+        lease_duration: i64,
+        renewable: bool,
+        expired_at: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
+        let ttl = (expired_at - chrono::Utc::now()).num_seconds().max(0);
+
+        Self {
+            lease_id,
+            lease_duration,
+            renewable,
+            ttl,
+            expired_at,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,7 +482,7 @@ mod tests {
     fn test_paginated_response() {
         let items = vec!["item1".to_string(), "item2".to_string()];
         let response = PaginatedResponse::new(items, 10, 5, 0);
-        
+
         assert_eq!(response.items.len(), 2);
         assert_eq!(response.pagination.total, 10);
         assert_eq!(response.pagination.limit, 5);
@@ -457,11 +496,11 @@ mod tests {
         let result = OperationResult::success("test data".to_string());
         assert!(result.success);
         assert_eq!(result.data, Some("test data".to_string()));
-        
+
         let empty_result = OperationResult::success_empty();
         assert!(empty_result.success);
         assert!(empty_result.data.is_none());
-        
+
         let failure_result = OperationResult::failure("error message".to_string());
         assert!(!failure_result.success);
         assert_eq!(failure_result.message, Some("error message".to_string()));
@@ -478,7 +517,7 @@ mod tests {
             highlight: false,
             filters: None,
         };
-        
+
         assert_eq!(query.q, "test");
         assert_eq!(query.limit, 50);
         assert!(!query.highlight);

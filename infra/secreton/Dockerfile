@@ -4,12 +4,13 @@ FROM rust:1.90-slim AS builder
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Cargo.toml and Cargo.lock files (if exists)
-COPY Cargo.toml ./
-COPY Cargo.lock* ./
+# Copy the Cargo files
+COPY Cargo.toml Cargo.lock ./
 
-# Copy the source code
+# Copy all necessary directories
 COPY crates ./crates
+COPY config ./config
+COPY benches ./benches
 
 # Build the application in release mode
 RUN cargo build --release --bin secreton

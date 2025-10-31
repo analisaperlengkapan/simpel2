@@ -1,0 +1,57 @@
+# SIMPelv2 Kubernetes Namespaces
+# Organizes services into logical groups for better management and security
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2
+  labels:
+    name: simpelv2
+    istio-injection: enabled
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: namespace
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2-frontend
+  labels:
+    name: simpelv2-frontend
+    istio-injection: enabled
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: frontend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2-backend
+  labels:
+    name: simpelv2-backend
+    istio-injection: enabled
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: backend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2-infra
+  labels:
+    name: simpelv2-infra
+    istio-injection: enabled
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: infrastructure
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: simpelv2-monitoring
+  labels:
+    name: simpelv2-monitoring
+    istio-injection: enabled
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: monitoring

@@ -3,28 +3,56 @@
 //! Handles Multi-Factor Authentication verification during login
 
 use crate::components::layout::AuthLayout;
+use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_router;
 use serde::{Deserialize, Serialize};
 use shared_microfrontend::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
-/// MFA verification request
+/// MFA verification request body
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaVerificationRequest {
-    /// Temporary token from login
-    pub temp_token: String,
     /// OTP code from authenticator
-    pub otp_code: String,
+    pub code: String,
 }
 
-/// MFA verification response
-#[derive(Debug, Clone, Serialize)]
+/// MFA verification response from authenc API
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MfaVerificationResponse {
+    /// Success status
+    pub success: bool,
+    /// Response data
+    pub data: MfaVerificationData,
+    /// Response message
+    pub message: String,
+}
+
+/// MFA verification data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MfaVerificationData {
     /// JWT access token
     pub access_token: String,
     /// User session data
-    pub user_session: serde_json::Value,
+    pub user: serde_json::Value,
+}
+
+/// API error response structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiErrorResponse {
+    /// Success status (false for errors)
+    pub success: bool,
+    /// Error details
+    pub error: ApiError,
+}
+
+/// API error details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiError {
+    /// Error code
+    pub code: String,
+    /// Error message
+    pub message: String,
 }
 
 /// MFA Verification page
@@ -36,8 +64,8 @@ pub fn MfaVerificationPage() -> impl IntoView {
     let (attempts_remaining, set_attempts_remaining) = signal(3);
     let (is_locked, set_is_locked) = signal(false);
 
-    // Get temp token from URL params or localStorage
-    let temp_token = "temp_token_placeholder".to_string(); // In real implementation, get from URL params
+    // Get temp token from localStorage and store in signal
+    let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
 
     view! {
         <AuthLayout>
@@ -144,17 +172,61 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         return;
                                     }
 
+                                    // Check if temp_token is available
+                                    let temp_token = match temp_token_value.get() {
+                                        Some(token) => token,
+                                        None => {
+                                            set_error_message.set("No authentication token found. Please log in again.".to_string());
+                                            return;
+                                        }
+                                    };
+
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let temp_token = "temp_token_placeholder".to_string();
                                     let navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match verify_mfa_code(&temp_token, &code).await {
-                                            Ok(_response) => {
-                                                // Store session and redirect to dashboard
-                                                navigate("/dashboard", Default::default());
+                                            Ok(response) => {
+                                                // Store access token and upgrade session
+                                                #[cfg(target_arch = "wasm32")]
+                                                {
+                                                    use crate::features::auth::AuthService;
+
+                                                    // Save the access token
+                                                    AuthService::save_token(&response.data.access_token);
+
+                                                    // Decode JWT and create session
+                                                    match AuthService::decode_jwt_claims(&response.data.access_token) {
+                                                        Ok(mut session) => {
+                                                            // Mark MFA as enabled in session
+                                                            session.mfa_enabled = true;
+                                                            session.mfa_setup_required = false;
+                                                            session.access_token = Some(response.data.access_token);
+
+                                                            // Save session
+                                                            AuthService::save_session(&session);
+
+                                                            // Clear temp token
+                                                            AuthService::clear_temp_token();
+
+                                                            // Redirect to dashboard
+                                                            navigate("/dashboard", Default::default());
+                                                        }
+                                                        Err(e) => {
+                                                            set_error_message.set(format!("Failed to decode token: {}", e));
+                                                            set_is_loading.set(false);
+                                                        }
+                                                    }
+                                                }
+
+                                                #[cfg(not(target_arch = "wasm32"))]
+                                                {
+                                                    let _ = response; // Suppress unused warning
+                                                    set_error_message.set("Session management not available in non-WASM environment".to_string());
+                                                    set_is_loading.set(false);
+                                                }
                                             }
                                             Err(e) => {
                                                 set_error_message.set(format!("Verification failed: {}", e));
@@ -205,7 +277,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
                                             let navigate = leptos_router::hooks::use_navigate();
-                                            navigate("/mfa/backup-code", Default::default());
+                                            navigate("/mfa/backup-verify", Default::default());
                                         }
                                     >
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,39 +324,60 @@ pub fn MfaVerificationPage() -> impl IntoView {
 // API FUNCTIONS
 // ============================================================================
 
+/// Get authenc API base URL
+#[cfg(target_arch = "wasm32")]
+fn get_api_url() -> String {
+    std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+}
+
 /// Verify MFA code with authenc API
 async fn verify_mfa_code(
-    _temp_token: &str,
-    _code: &str,
+    temp_token: &str,
+    code: &str,
 ) -> Result<MfaVerificationResponse, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
-        // For demo purposes, accept any 6-digit code
-        // In production, this would call the authenc API with temp_token and code
+        use gloo_net::http::Request;
 
-        // Simulate API delay
-        gloo_timers::future::TimeoutFuture::new(800).await;
+        let api_url = get_api_url();
+        let verify_url = format!("{}/api/auth/mfa/verify", api_url);
 
-        // Simulate random failure for demo (20% chance)
-        if js_sys::Math::random() < 0.2 {
-            return Err("Invalid verification code".into());
-        }
-
-        let response = MfaVerificationResponse {
-            access_token: "mock_access_token".to_string(),
-            user_session: serde_json::json!({
-                "id": "user123",
-                "username": "user@kejaksaan.go.id",
-                "name": "User Name",
-                "role": "User"
-            }),
+        // Prepare request body
+        let request_body = MfaVerificationRequest {
+            code: code.to_string(),
         };
 
-        Ok(response)
+        // Make API request
+        let response = Request::post(&verify_url)
+            .header("Content-Type", "application/json")
+            .header("Authorization", &format!("Bearer {}", temp_token))
+            .json(&request_body)?
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
+
+        if response.ok() {
+            // Parse success response
+            let verification_response: MfaVerificationResponse = response
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            Ok(verification_response)
+        } else {
+            // Try to parse error response
+            match response.json::<ApiErrorResponse>().await {
+                Ok(error_response) => Err(error_response.error.message.into()),
+                Err(_) => {
+                    Err(format!("MFA verification failed: HTTP {}", response.status()).into())
+                }
+            }
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let _ = (temp_token, code); // Suppress unused warnings
         Err("MFA verification not available in non-WASM environment".into())
     }
 }

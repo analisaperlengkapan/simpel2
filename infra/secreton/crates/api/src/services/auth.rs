@@ -1,6 +1,6 @@
 //! Authentication service for user management and token validation.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,8 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::config::AuthConfig;
-use brankas_crypto::CryptoService;
-use brankas_storage::StorageBackend;
+use secreton_crypto::CryptoEngine;
+use secreton_storage::StorageBackend;
 
 // Use canonical User from core
 pub use secreton_core::models::User;
@@ -42,10 +42,10 @@ pub enum AuthError {
     PermissionDenied,
 
     #[error("Storage error: {0}")]
-    Storage(#[from] brankas_storage::StorageError),
+    Storage(#[from] secreton_storage::StorageError),
 
     #[error("Crypto error: {0}")]
-    Crypto(#[from] brankas_crypto::CryptoError),
+    Crypto(#[from] secreton_crypto::CryptoError),
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
@@ -91,7 +91,7 @@ pub struct AuthToken {
 /// Authentication service
 pub struct AuthService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
-    crypto: Arc<CryptoService>,
+    crypto: Arc<CryptoEngine>,
     config: AuthConfig,
 }
 
@@ -99,7 +99,7 @@ impl AuthService {
     /// Create new authentication service
     pub async fn new(
         storage: Arc<dyn StorageBackend + Send + Sync>,
-        crypto: Arc<CryptoService>,
+        crypto: Arc<CryptoEngine>,
         config: &AuthConfig,
     ) -> Result<Self> {
         let service = Self {
@@ -125,8 +125,8 @@ impl AuthService {
     ) -> Result<AuthToken, AuthError> {
         // Get user from storage
         let user = self.get_user_by_username(username).await?;
-        
-        if !user.enabled {
+
+        if !user.is_active {
             return Err(AuthError::InvalidCredentials);
         }
 
@@ -152,7 +152,7 @@ impl AuthService {
         // Store session
         let session = Session {
             id: session_id,
-            user_id: user.id.clone(),
+            user_id: user.username.clone(),
             token: access_token.clone(),
             refresh_token: Some(refresh_token.clone()),
             ip_address: ip_address.to_string(),
@@ -165,7 +165,7 @@ impl AuthService {
         self.store_session(&session).await?;
 
         // Update last login
-        self.update_last_login(&user.id).await?;
+        self.update_last_login(&user.id.to_string()).await?;
 
         Ok(AuthToken {
             access_token,
@@ -187,19 +187,22 @@ impl AuthService {
 
         // For now, return mock user
         Ok(User {
-            id: "user_1".to_string(),
+            id: Uuid::new_v4(),
             username: "testuser".to_string(),
             email: "test@example.com".to_string(),
             password_hash: String::new(),
             full_name: Some("Test User".to_string()),
-            enabled: true,
-            roles: vec!["user".to_string()],
-            mfa_enabled: false,
-            mfa_secret: None,
-            last_login: Some(chrono::Utc::now()),
+            is_active: true,
+            is_superuser: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            last_login: Some(chrono::Utc::now()),
+            mfa_enabled: false,
+            roles: HashSet::new(),
+            namespace: "default".to_string(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
         })
     }
 
@@ -232,19 +235,22 @@ impl AuthService {
         let password_hash = self.hash_password(password)?;
 
         let user = User {
-            id: Uuid::new_v4().to_string(),
+            id: Uuid::new_v4(),
             username: username.to_string(),
             email: email.to_string(),
             password_hash,
             full_name: full_name.map(|s| s.to_string()),
-            enabled: true,
-            roles,
-            mfa_enabled: false,
-            mfa_secret: None,
-            last_login: None,
+            is_active: true,
+            is_superuser: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            last_login: None,
+            mfa_enabled: false,
+            roles,
+            namespace: "default".to_string(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
         };
 
         self.store_user(&user).await?;
@@ -267,7 +273,7 @@ impl AuthService {
     pub async fn has_permission(&self, user: &User, permission: &str) -> Result<bool, AuthError> {
         // Get user roles and their permissions
         let mut all_permissions = Vec::new();
-        
+
         for role_name in &user.roles {
             if let Ok(role) = self.get_role(role_name).await {
                 all_permissions.extend(role.permissions);
@@ -364,19 +370,19 @@ impl AuthService {
 
     /// Hash password using crypto service
     fn hash_password(&self, password: &str) -> Result<String, AuthError> {
-        use secreton_crypto::hashing::HashingService;
-        
-        let result = HashingService::hash_password_argon2(password)
+        use secreton_crypto::hashing;
+
+        let result = hashing::hash_password_argon2(password)
             .map_err(|e| AuthError::InternalError(format!("Password hashing failed: {}", e)))?;
-        
+
         Ok(result.hash)
     }
 
     /// Verify password using crypto service
     fn verify_password(&self, password: &str, hash: &str) -> Result<bool, AuthError> {
-        use secreton_crypto::hashing::HashingService;
-        
-        HashingService::verify_password_argon2(password, hash)
+        use secreton_crypto::hashing;
+
+        hashing::verify_password_argon2(password, hash)
             .map_err(|e| AuthError::InternalError(format!("Password verification failed: {}", e)))
     }
 
@@ -440,13 +446,13 @@ impl AuthService {
 mod tests {
     use super::*;
     use crate::config::AuthConfig;
-    use brankas_crypto::{CryptoService, SecurityParams};
-    use brankas_storage::MockStorageBackend;
+    use secreton_crypto::{CryptoEngine, SecurityParams};
+    use secreton_storage::MemoryBackend;
 
     #[tokio::test]
     async fn test_auth_service_creation() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
         let config = AuthConfig::default();
 
         let auth_service = AuthService::new(storage, crypto, &config).await;
@@ -455,8 +461,8 @@ mod tests {
 
     #[test]
     fn test_password_hashing() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
         let config = AuthConfig::default();
         let auth_service = AuthService {
             storage,
@@ -465,15 +471,15 @@ mod tests {
         };
 
         let password = "test_password";
-        let hash = auth_service.hash_password(password).unwrap();
-        assert!(auth_service.verify_password(password, &hash).unwrap());
-        assert!(!auth_service.verify_password("wrong_password", &hash).unwrap());
+        let hash = auth_service.hash_password(password);
+        assert!(auth_service.verify_password(password, &hash));
+        assert!(!auth_service.verify_password("wrong_password", &hash));
     }
 
     #[tokio::test]
     async fn test_authenticate_requires_mfa_code() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
         let mut config = AuthConfig::default();
         config.jwt_secret = "secret".into();
         let auth_service = AuthService::new(storage.clone(), crypto, &config)
@@ -485,10 +491,9 @@ mod tests {
             id: "user123".into(),
             username: "alice".into(),
             email: "alice@example.com".into(),
-            password_hash: auth_service.hash_password("password").unwrap(),
+            password_hash: auth_service.hash_password("password"),
             full_name: None,
             enabled: true,
-            roles: vec!["user".into()],
             mfa_enabled: true,
             mfa_secret: Some("secret".into()),
             last_login: None,
@@ -497,7 +502,7 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        auth_service.store_user(&user).await.unwrap();
+        auth_service.store_user(&user).await;
 
         let result = auth_service
             .authenticate("alice", "password", None, "127.0.0.1", "test-agent")
@@ -518,8 +523,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_has_permission_with_wildcard_role() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
         let auth_service = AuthService::new(storage.clone(), crypto, &AuthConfig::default())
             .await
             .expect("service");
@@ -531,7 +536,6 @@ mod tests {
             password_hash: "".into(),
             full_name: None,
             enabled: true,
-            roles: vec!["admin".into()],
             mfa_enabled: false,
             mfa_secret: None,
             last_login: None,
@@ -550,8 +554,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_initialize_default_roles_only_once() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
         let config = AuthConfig::default();
 
         // First creation initializes roles
@@ -569,7 +573,6 @@ mod tests {
             password_hash: "".into(),
             full_name: None,
             enabled: true,
-            roles: vec!["viewer".into()],
             mfa_enabled: false,
             mfa_secret: None,
             last_login: None,
@@ -582,5 +585,19 @@ mod tests {
             .await
             .expect("permission");
         assert!(allowed);
+    }
+}
+
+impl AuthService {
+    /// Create mock auth service for testing
+    pub fn new_mock(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+    ) -> Self {
+        Self {
+            storage,
+            crypto,
+            config: AuthConfig::default(),
+        }
     }
 }

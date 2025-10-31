@@ -135,7 +135,8 @@ impl SamlIdentityProvider {
                     if let Some(ext) = path.extension()
                         && (ext == "pem" || ext == "crt")
                         && let Ok(pem_data) = std::fs::read(&path)
-                        && let Ok(certs) = X509::stack_from_pem(&pem_data) {
+                        && let Ok(certs) = X509::stack_from_pem(&pem_data)
+                    {
                         all_certs.extend(certs.into_iter());
                     }
                 }
@@ -425,13 +426,15 @@ impl SamlIdentityProvider {
 
         // Check NotBefore
         if let Some(not_before) = assertion.not_before
-            && now < not_before {
+            && now < not_before
+        {
             return Err(anyhow!("Assertion not yet valid (NotBefore)"));
         }
 
         // Check NotOnOrAfter
         if let Some(not_on_or_after) = assertion.not_on_or_after
-            && now >= not_on_or_after {
+            && now >= not_on_or_after
+        {
             return Err(anyhow!("Assertion expired (NotOnOrOrAfter)"));
         }
 
@@ -566,7 +569,8 @@ impl IdentityProvider for SamlIdentityProvider {
 
             // 1. XML Security Validation (FIRST - prevents attacks before expensive operations)
             if let Some(validator) = &self.security_validator
-                && let Err(e) = validator.validate_xml_security(&xml) {
+                && let Err(e) = validator.validate_xml_security(&xml)
+            {
                 tracing::warn!("XML security validation failed: {}", e);
                 return Ok(AuthResponse {
                     success: false,
@@ -639,7 +643,8 @@ impl IdentityProvider for SamlIdentityProvider {
 
             // 5. Check for replay attack
             if let Ok(is_replay) = self.check_replay(&assertion.id).await
-                && is_replay {
+                && is_replay
+            {
                 return Ok(AuthResponse {
                     success: false,
                     user_id: None,

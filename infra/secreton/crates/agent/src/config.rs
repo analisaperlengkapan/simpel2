@@ -1,561 +1,123 @@
-//! Agent configuration management
+//! Agent configuration
 
-use secreton_core::CoreResult;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::Duration;
 
-/// Main agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// Unique agent identifier
-    pub agent_id: String,
+    /// Vault server URL
+    pub server_url: String,
 
-    /// Agent name/description
-    pub name: String,
+    /// Fallback server URLs
+    #[serde(default)]
+    pub server_urls: Vec<String>,
 
-    /// Monitoring configuration
-    pub monitoring: MonitoringConfig,
+    /// Authentication method
+    pub auth_method: String,
 
-    /// Alerting configuration
-    pub alerting: AlertingConfig,
+    /// Authentication configuration
+    pub auth_config: HashMap<String, String>,
 
-    /// Security configuration
-    pub security: SecurityConfig,
+    /// Templates to render
+    #[serde(default)]
+    pub templates: Vec<TemplateConfig>,
 
-    /// Health checking configuration
-    pub health: HealthConfig,
+    /// Token renewal interval in seconds
+    #[serde(default = "default_renewal_interval")]
+    pub token_renewal_interval_secs: u64,
 
-    /// Metrics configuration
-    pub metrics: MetricsConfig,
+    /// Template rendering interval in seconds
+    #[serde(default = "default_template_interval")]
+    pub template_interval_secs: u64,
 
-    /// Logging configuration
-    pub logging: LoggingConfig,
-}
+    /// Token sink configuration
+    pub sink: Option<SinkConfig>,
 
-impl Default for AgentConfig {
-    fn default() -> Self {
-        Self {
-            agent_id: uuid::Uuid::new_v4().to_string(),
-            name: "Brankas Security Agent".to_string(),
-            monitoring: MonitoringConfig::default(),
-            alerting: AlertingConfig::default(),
-            security: SecurityConfig::default(),
-            health: HealthConfig::default(),
-            metrics: MetricsConfig::default(),
-            logging: LoggingConfig::default(),
-        }
-    }
-}
+    /// Health check port
+    pub health_port: Option<u16>,
 
-/// Monitoring configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MonitoringConfig {
-    /// Check interval in seconds
-    pub check_interval_seconds: u64,
+    /// Child process to run
+    pub run: Option<Vec<String>>,
 
-    /// Enable file system monitoring
-    pub filesystem_enabled: bool,
+    /// Restart child on failure
+    #[serde(default)]
+    pub restart_child: bool,
 
-    /// Enable network monitoring
-    pub network_enabled: bool,
-
-    /// Enable process monitoring
-    pub process_enabled: bool,
-
-    /// Enable log file monitoring
-    pub logs_enabled: bool,
-
-    /// Maximum events to buffer
-    pub max_events_buffer: usize,
-}
-
-impl Default for MonitoringConfig {
-    fn default() -> Self {
-        Self {
-            check_interval_seconds: 30,
-            filesystem_enabled: true,
-            network_enabled: true,
-            process_enabled: true,
-            logs_enabled: true,
-            max_events_buffer: 1000,
-        }
-    }
-}
-
-/// Alerting configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AlertingConfig {
-    /// Processing interval in seconds
-    pub processing_interval_seconds: u64,
-
-    /// Enable email alerts
-    pub email_enabled: bool,
-
-    /// Enable webhook alerts
-    pub webhook_enabled: bool,
-
-    /// Enable Slack alerts
-    pub slack_enabled: bool,
-
-    /// Maximum alerts per minute
-    pub rate_limit: u32,
-
-    /// Alert severity thresholds
-    pub severity_thresholds: SeverityThresholds,
-
-    /// Email settings
-    pub email: EmailConfig,
-
-    /// Webhook settings
-    pub webhook: WebhookConfig,
-
-    /// Slack settings
-    pub slack: SlackConfig,
-}
-
-impl Default for AlertingConfig {
-    fn default() -> Self {
-        Self {
-            processing_interval_seconds: 10,
-            email_enabled: false,
-            webhook_enabled: false,
-            slack_enabled: false,
-            rate_limit: 60,
-            severity_thresholds: SeverityThresholds::default(),
-            email: EmailConfig::default(),
-            webhook: WebhookConfig::default(),
-            slack: SlackConfig::default(),
-        }
-    }
-}
-
-/// Alert severity thresholds
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SeverityThresholds {
-    /// CPU usage threshold for warning (percentage)
-    pub cpu_warning_threshold: f64,
-
-    /// CPU usage threshold for critical (percentage)
-    pub cpu_critical_threshold: f64,
-
-    /// Memory usage threshold for warning (percentage)
-    pub memory_warning_threshold: f64,
-
-    /// Memory usage threshold for critical (percentage)
-    pub memory_critical_threshold: f64,
-
-    /// Disk usage threshold for warning (percentage)
-    pub disk_warning_threshold: f64,
-
-    /// Disk usage threshold for critical (percentage)
-    pub disk_critical_threshold: f64,
-
-    /// Failed login attempts threshold
-    pub failed_login_threshold: u32,
-
-    /// Suspicious activity threshold
-    pub suspicious_activity_threshold: u32,
-}
-
-impl Default for SeverityThresholds {
-    fn default() -> Self {
-        Self {
-            cpu_warning_threshold: 80.0,
-            cpu_critical_threshold: 95.0,
-            memory_warning_threshold: 85.0,
-            memory_critical_threshold: 95.0,
-            disk_warning_threshold: 90.0,
-            disk_critical_threshold: 98.0,
-            failed_login_threshold: 5,
-            suspicious_activity_threshold: 3,
-        }
-    }
-}
-
-/// Email alert configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailConfig {
-    /// SMTP server
-    pub smtp_server: String,
-
-    /// SMTP port
-    pub smtp_port: u16,
-
-    /// Username
-    pub username: String,
-
-    /// Password
-    pub password: String,
-
-    /// From address
-    pub from_address: String,
-
-    /// To addresses
-    pub to_addresses: Vec<String>,
-
-    /// Use TLS
-    pub use_tls: bool,
-}
-
-impl Default for EmailConfig {
-    fn default() -> Self {
-        Self {
-            smtp_server: "localhost".to_string(),
-            smtp_port: 587,
-            username: "".to_string(),
-            password: "".to_string(),
-            from_address: "secreton-agent@localhost".to_string(),
-            to_addresses: Vec::new(),
-            use_tls: true,
-        }
-    }
-}
-
-/// Webhook alert configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebhookConfig {
-    /// Webhook URL
-    pub url: String,
-
-    /// HTTP method
-    pub method: String,
-
-    /// Headers to include
-    pub headers: std::collections::HashMap<String, String>,
-
-    /// Request timeout in seconds
-    pub timeout_seconds: u64,
-
-    /// Retry attempts
-    pub retry_attempts: u32,
-}
-
-impl Default for WebhookConfig {
-    fn default() -> Self {
-        Self {
-            url: "".to_string(),
-            method: "POST".to_string(),
-            headers: std::collections::HashMap::new(),
-            timeout_seconds: 30,
-            retry_attempts: 3,
-        }
-    }
-}
-
-/// Slack alert configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SlackConfig {
-    /// Slack webhook URL
-    pub webhook_url: String,
-
-    /// Channel to post to
-    pub channel: String,
-
-    /// Username for the bot
-    pub username: String,
-
-    /// Icon emoji for the bot
-    pub icon_emoji: String,
-}
-
-impl Default for SlackConfig {
-    fn default() -> Self {
-        Self {
-            webhook_url: "".to_string(),
-            channel: "#security-alerts".to_string(),
-            username: "Brankas Agent".to_string(),
-            icon_emoji: ":shield:".to_string(),
-        }
-    }
-}
-
-/// Security configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SecurityConfig {
-    /// Security scan interval in seconds
-    pub scan_interval_seconds: u64,
-
-    /// Enable intrusion detection
-    pub intrusion_detection_enabled: bool,
-
-    /// Enable malware scanning
-    pub malware_scan_enabled: bool,
-
-    /// Enable vulnerability scanning
-    pub vulnerability_scan_enabled: bool,
-
-    /// Enable compliance checking
-    pub compliance_check_enabled: bool,
-
-    /// Quarantine suspicious files
-    pub auto_quarantine: bool,
-
-    /// Block suspicious IPs
-    pub auto_block_ips: bool,
-
-    /// Enable encryption compliance checking
-    pub encryption_enabled: bool,
-
-    /// Enable access control compliance checking
-    pub access_control_enabled: bool,
-
-    /// Enable data protection compliance checking
-    pub data_protection_enabled: bool,
-}
-
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            scan_interval_seconds: 300, // 5 minutes
-            intrusion_detection_enabled: true,
-            malware_scan_enabled: true,
-            vulnerability_scan_enabled: true,
-            compliance_check_enabled: true,
-            auto_quarantine: false, // Require manual confirmation
-            auto_block_ips: false,  // Require manual confirmation
-            encryption_enabled: true,
-            access_control_enabled: true,
-            data_protection_enabled: true,
-        }
-    }
-}
-
-/// Health checking configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HealthConfig {
-    /// Health check interval in seconds
-    pub check_interval_seconds: u64,
-
-    /// Enable database health checks
-    pub database_enabled: bool,
-
-    /// Enable API health checks
-    pub api_enabled: bool,
-
-    /// Enable external service health checks
-    pub external_services_enabled: bool,
-
-    /// Health check timeout in seconds
-    pub timeout_seconds: u64,
-
-    /// External services to check
-    pub external_services: Vec<ExternalServiceConfig>,
-}
-
-impl Default for HealthConfig {
-    fn default() -> Self {
-        Self {
-            check_interval_seconds: 60,
-            database_enabled: true,
-            api_enabled: true,
-            external_services_enabled: true,
-            timeout_seconds: 30,
-            external_services: Vec::new(),
-        }
-    }
-}
-
-/// External service health check configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalServiceConfig {
-    /// Service name
-    pub name: String,
-
-    /// Service URL
-    pub url: String,
-
-    /// Expected HTTP status code
-    pub expected_status: u16,
-
-    /// Request timeout in seconds
-    pub timeout_seconds: u64,
-}
-
-/// Metrics configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetricsConfig {
-    /// Metrics collection interval in seconds
-    pub collection_interval_seconds: u64,
-
-    /// Enable Prometheus metrics
-    pub prometheus_enabled: bool,
-
-    /// Prometheus metrics port
-    pub prometheus_port: u16,
-
-    /// Enable StatsD metrics
-    pub statsd_enabled: bool,
-
-    /// StatsD server address
-    pub statsd_address: String,
-
-    /// Metrics retention period in seconds
-    pub retention_seconds: u64,
-}
-
-impl Default for MetricsConfig {
-    fn default() -> Self {
-        Self {
-            collection_interval_seconds: 60,
-            prometheus_enabled: true,
-            prometheus_port: 9090,
-            statsd_enabled: false,
-            statsd_address: "localhost:8125".to_string(),
-            retention_seconds: 86400 * 7, // 7 days
-        }
-    }
-}
-
-/// Logging configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LoggingConfig {
-    /// Log level
-    pub level: String,
-
-    /// Log format (json or text)
-    pub format: String,
-
-    /// Enable file logging
-    pub file_enabled: bool,
-
-    /// Log file path
-    pub file_path: String,
-
-    /// Maximum log file size in MB
-    pub max_file_size_mb: u64,
-
-    /// Number of log files to retain
-    pub max_files: u32,
-
-    /// Enable structured logging
-    pub structured: bool,
-}
-
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            level: "info".to_string(),
-            format: "text".to_string(),
-            file_enabled: true,
-            file_path: "/var/log/secreton-agent.log".to_string(),
-            max_file_size_mb: 100,
-            max_files: 10,
-            structured: true,
-        }
-    }
+    /// Restart delay in seconds
+    #[serde(default = "default_restart_delay")]
+    pub restart_delay_secs: u64,
 }
 
 impl AgentConfig {
-    /// Load configuration from environment variables
-    pub async fn load_from_env() -> CoreResult<Self> {
-        let mut config = AgentConfig::default();
+    /// Load from file
+    pub fn load_from_file(path: &str) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
 
-        // Override with environment variables
-        if let Ok(agent_id) = std::env::var("BRANKAS_AGENT_ID") {
-            config.agent_id = agent_id;
+        if path.ends_with(".yaml") || path.ends_with(".yml") {
+            Ok(serde_yaml::from_str(&content)?)
+        } else if path.ends_with(".toml") {
+            Ok(toml::from_str(&content)?)
+        } else {
+            Err(anyhow::anyhow!("Unsupported config format"))
         }
-
-        if let Ok(name) = std::env::var("BRANKAS_AGENT_NAME") {
-            config.name = name;
-        }
-
-        if let Ok(interval) = std::env::var("BRANKAS_MONITOR_INTERVAL") {
-            if let Ok(interval_val) = interval.parse::<u64>() {
-                config.monitoring.check_interval_seconds = interval_val;
-            }
-        }
-
-        if let Ok(log_level) = std::env::var("BRANKAS_LOG_LEVEL") {
-            config.logging.level = log_level;
-        }
-
-        Ok(config)
     }
 
-    /// Load configuration from file
-    pub async fn load_from_file(path: &str) -> CoreResult<Self> {
-        let content = std::fs::read_to_string(path).map_err(secreton_core::CoreError::Io)?;
-
-        let config: AgentConfig = toml::from_str(&content).map_err(|e| {
-            secreton_core::CoreError::configuration(format!("Failed to parse config: {}", e))
-        })?;
-
-        Ok(config)
+    /// Get token renewal interval
+    pub fn token_renewal_interval(&self) -> Duration {
+        Duration::from_secs(self.token_renewal_interval_secs)
     }
 
-    /// Save configuration to file
-    #[allow(dead_code)]
-    pub fn save_to_file(&self, path: &str) -> CoreResult<()> {
-        let content = toml::to_string_pretty(self).map_err(|e| {
-            secreton_core::CoreError::configuration(format!("Failed to serialize config: {}", e))
-        })?;
-
-        std::fs::write(path, content).map_err(secreton_core::CoreError::Io)?;
-
-        tracing::info!("Configuration saved to {}", path);
-        Ok(())
+    /// Get template rendering interval
+    pub fn template_interval(&self) -> Duration {
+        Duration::from_secs(self.template_interval_secs)
     }
 
-    /// Validate configuration
-    #[allow(dead_code)]
-    pub fn validate(&self) -> CoreResult<()> {
-        if self.agent_id.is_empty() {
-            return Err(secreton_core::CoreError::configuration(
-                "Agent ID cannot be empty",
-            ));
-        }
-
-        if self.monitoring.check_interval_seconds == 0 {
-            return Err(secreton_core::CoreError::configuration(
-                "Monitoring interval must be greater than 0",
-            ));
-        }
-
-        if self.alerting.processing_interval_seconds == 0 {
-            return Err(secreton_core::CoreError::configuration(
-                "Alerting interval must be greater than 0",
-            ));
-        }
-
-        if self.security.scan_interval_seconds == 0 {
-            return Err(secreton_core::CoreError::configuration(
-                "Security scan interval must be greater than 0",
-            ));
-        }
-
-        Ok(())
+    /// Get restart delay
+    pub fn restart_delay(&self) -> Duration {
+        Duration::from_secs(self.restart_delay_secs)
     }
+}
 
-    /// Convenience method to load config - tries file first, then env
-    pub async fn load() -> CoreResult<Self> {
-        // Try to load from common config file locations
-        let config_paths = [
-            "agent.toml",
-            "config/agent.toml",
-            "/etc/secreton/agent.toml",
-        ];
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateConfig {
+    /// Secret path in vault
+    pub source: String,
 
-        for path in &config_paths {
-            if std::path::Path::new(path).exists() {
-                return Self::load_from_file(path).await;
-            }
-        }
+    /// Destination file path
+    pub dest: String,
 
-        // Fall back to environment variables
-        Self::load_from_env().await
-    }
+    /// File permissions (octal)
+    pub permissions: Option<String>,
 
-    /// Get collection interval in seconds (convenience method)
-    pub fn collection_interval(&self) -> u64 {
-        self.monitoring.check_interval_seconds
-    }
+    /// Template content (optional, for inline templates)
+    pub template: Option<String>,
+}
 
-    /// Get report interval in seconds (convenience method)
-    pub fn report_interval(&self) -> u64 {
-        self.alerting.processing_interval_seconds
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SinkConfig {
+    /// Sink types: file, env, child
+    pub types: Vec<String>,
 
-    /// Get metrics port (convenience method)
-    pub fn metrics_port(&self) -> u16 {
-        self.metrics.prometheus_port
-    }
+    /// File path for file sink
+    pub file_path: Option<String>,
+
+    /// File permissions
+    pub file_permissions: Option<String>,
+
+    /// Environment variable name for env sink
+    pub env_var: Option<String>,
+}
+
+fn default_renewal_interval() -> u64 {
+    300 // 5 minutes
+}
+
+fn default_template_interval() -> u64 {
+    60 // 1 minute
+}
+
+fn default_restart_delay() -> u64 {
+    5
 }

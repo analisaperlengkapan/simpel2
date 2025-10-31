@@ -14,14 +14,21 @@ mod tests {
         // Test different difficulty levels
         for difficulty in 1..=10 {
             let result = generator.generate_visual_challenge(difficulty).await;
-            assert!(result.is_ok(), "Failed to generate visual challenge for difficulty {}", difficulty);
+            assert!(
+                result.is_ok(),
+                "Failed to generate visual challenge for difficulty {}",
+                difficulty
+            );
 
             let challenge_data = result.unwrap();
-            assert!(!challenge_data.is_empty(), "Challenge data should not be empty");
+            assert!(
+                !challenge_data.is_empty(),
+                "Challenge data should not be empty"
+            );
 
             // Verify it's valid JSON
-            let parsed: serde_json::Value = serde_json::from_str(&challenge_data)
-                .expect("Challenge data should be valid JSON");
+            let parsed: serde_json::Value =
+                serde_json::from_str(&challenge_data).expect("Challenge data should be valid JSON");
             assert!(parsed.is_object(), "Challenge data should be a JSON object");
         }
     }
@@ -33,14 +40,21 @@ mod tests {
         // Test different difficulty levels
         for difficulty in 1..=10 {
             let result = generator.generate_logical_challenge(difficulty).await;
-            assert!(result.is_ok(), "Failed to generate logical challenge for difficulty {}", difficulty);
+            assert!(
+                result.is_ok(),
+                "Failed to generate logical challenge for difficulty {}",
+                difficulty
+            );
 
             let challenge_data = result.unwrap();
-            assert!(!challenge_data.is_empty(), "Challenge data should not be empty");
+            assert!(
+                !challenge_data.is_empty(),
+                "Challenge data should not be empty"
+            );
 
             // Verify it's valid JSON
-            let parsed: serde_json::Value = serde_json::from_str(&challenge_data)
-                .expect("Challenge data should be valid JSON");
+            let parsed: serde_json::Value =
+                serde_json::from_str(&challenge_data).expect("Challenge data should be valid JSON");
             assert!(parsed.is_object(), "Challenge data should be a JSON object");
         }
     }
@@ -59,13 +73,19 @@ mod tests {
         ];
 
         for challenge_type in challenge_types {
-            let result = generator.generate_challenge(
-                challenge_type.clone(),
-                5, // Medium difficulty
-                Some("test_session".to_string())
-            ).await;
+            let result = generator
+                .generate_challenge(
+                    challenge_type.clone(),
+                    5, // Medium difficulty
+                    Some("test_session".to_string()),
+                )
+                .await;
 
-            assert!(result.is_ok(), "Failed to generate {:?} challenge", challenge_type);
+            assert!(
+                result.is_ok(),
+                "Failed to generate {:?} challenge",
+                challenge_type
+            );
 
             let challenge = result.unwrap();
             assert_eq!(challenge.challenge_type, challenge_type);
@@ -83,13 +103,15 @@ mod tests {
         let invalid_difficulties = vec![0, 11, 255];
 
         for difficulty in invalid_difficulties {
-            let result = generator.generate_challenge(
-                ChallengeType::Visual,
-                difficulty,
-                None
-            ).await;
+            let result = generator
+                .generate_challenge(ChallengeType::Visual, difficulty, None)
+                .await;
 
-            assert!(result.is_err(), "Should fail for invalid difficulty {}", difficulty);
+            assert!(
+                result.is_err(),
+                "Should fail for invalid difficulty {}",
+                difficulty
+            );
         }
     }
 
@@ -102,20 +124,25 @@ mod tests {
         let mut challenge_data = std::collections::HashSet::new();
 
         for _ in 0..10 {
-            let challenge = generator.generate_challenge(
-                ChallengeType::Visual,
-                5,
-                None
-            ).await.unwrap();
+            let challenge = generator
+                .generate_challenge(ChallengeType::Visual, 5, None)
+                .await
+                .unwrap();
 
             // IDs should be unique
-            assert!(challenge_ids.insert(challenge.id.clone()), "Challenge IDs should be unique");
+            assert!(
+                challenge_ids.insert(challenge.id.clone()),
+                "Challenge IDs should be unique"
+            );
 
             // Challenge data should be unique (high probability)
             challenge_data.insert(challenge.encrypted_data.clone());
         }
 
         // We should have generated unique challenges
-        assert!(challenge_data.len() > 1, "Challenges should have different data");
+        assert!(
+            challenge_data.len() > 1,
+            "Challenges should have different data"
+        );
     }
 }

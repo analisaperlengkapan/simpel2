@@ -23,7 +23,7 @@ use subtle::ConstantTimeEq;
 ///
 /// # Example
 /// ```ignore
-/// use brankas_crypto::pqc::constant_time::ct_eq;
+/// use Secreton_crypto::pqc::constant_time::ct_eq;
 ///
 /// let secret1 = vec![0x42; 32];
 /// let secret2 = vec![0x42; 32];
@@ -48,7 +48,7 @@ pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
 ///
 /// # Example
 /// ```ignore
-/// use brankas_crypto::pqc::constant_time::ct_ne;
+/// use Secreton_crypto::pqc::constant_time::ct_ne;
 ///
 /// let secret1 = vec![0x42; 32];
 /// let secret2 = vec![0x43; 32];
@@ -75,7 +75,7 @@ pub fn ct_ne(a: &[u8], b: &[u8]) -> bool {
 ///
 /// # Example
 /// ```ignore
-/// use brankas_crypto::pqc::constant_time::validate_key_size;
+/// use Secreton_crypto::pqc::constant_time::validate_key_size;
 ///
 /// let key = vec![0x42; 2560]; // ML-DSA-44 private key
 /// validate_key_size(&key, 2560).unwrap(); // OK
@@ -115,7 +115,7 @@ pub fn validate_key_size(key: &[u8], expected_size: usize) -> Result<(), String>
 ///
 /// # Example
 /// ```ignore
-/// use brankas_crypto::pqc::constant_time::ct_select;
+/// use Secreton_crypto::pqc::constant_time::ct_select;
 ///
 /// let secret_a = vec![0xAA; 32];
 /// let secret_b = vec![0xBB; 32];

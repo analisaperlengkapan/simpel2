@@ -11,10 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{info, warn};
 
-// TODO: Replace with actual KV engine implementation
-// use brankas_crypto::{KVEngine, SecretMetadata};
-
-// Placeholder types until brankas_crypto is available
+/// Secret metadata for versioning
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretMetadata {
     pub created_time: chrono::DateTime<chrono::Utc>,
@@ -35,7 +32,7 @@ struct SecretVersion {
     metadata: SecretMetadata,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct KVEngine {
     // In-memory storage: path -> Vec<versions>
     store: std::sync::Arc<tokio::sync::RwLock<HashMap<String, Vec<SecretVersion>>>>,
@@ -157,7 +154,7 @@ impl KVEngine {
         let event = crate::audit::AuditEvent::new(
             crate::audit::AuditEventType::SecretRead,
             principal.unwrap_or("system").to_string(),
-            result.is_ok() && result.as_ref().unwrap().is_some(),
+            result.is_ok() && result.as_ref().map(|r| r.is_some()).unwrap_or(false),
         )
         .with_secret_key(path.to_string());
 

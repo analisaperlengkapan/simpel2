@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::analyzer::*;
 use super::error::CaptchaError;
 use super::types::*;
-use super::analyzer::*;
 
 /// Machine learning model types for bot detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,22 +201,41 @@ pub struct BotDetectionResult {
 #[async_trait]
 pub trait BotDetectionEngine: Send + Sync {
     /// Extract features from behavioral analysis
-    async fn extract_features(&self, analysis: &BehavioralAnalysisResult) -> Result<FeatureVector, CaptchaError>;
+    async fn extract_features(
+        &self,
+        analysis: &BehavioralAnalysisResult,
+    ) -> Result<FeatureVector, CaptchaError>;
 
     /// Predict bot probability using machine learning models
     async fn predict_bot_probability(&self, features: &FeatureVector) -> Result<f64, CaptchaError>;
 
     /// Detect anomalies in behavioral patterns
-    async fn detect_anomalies(&self, features: &FeatureVector) -> Result<HashMap<String, f64>, CaptchaError>;
+    async fn detect_anomalies(
+        &self,
+        features: &FeatureVector,
+    ) -> Result<HashMap<String, f64>, CaptchaError>;
 
     /// Calculate real-time risk score
-    async fn calculate_risk_score(&self, session_id: &str, current_score: f64, new_evidence: f64) -> Result<f64, CaptchaError>;
+    async fn calculate_risk_score(
+        &self,
+        session_id: &str,
+        current_score: f64,
+        new_evidence: f64,
+    ) -> Result<f64, CaptchaError>;
 
     /// Perform comprehensive bot detection
-    async fn detect_bot(&self, analysis: &BehavioralAnalysisResult, session_id: &str) -> Result<BotDetectionResult, CaptchaError>;
+    async fn detect_bot(
+        &self,
+        analysis: &BehavioralAnalysisResult,
+        session_id: &str,
+    ) -> Result<BotDetectionResult, CaptchaError>;
 
     /// Update model with new training data
-    async fn update_model(&mut self, features: &FeatureVector, label: bool) -> Result<(), CaptchaError>;
+    async fn update_model(
+        &mut self,
+        features: &FeatureVector,
+        label: bool,
+    ) -> Result<(), CaptchaError>;
 }
 
 /// Default bot detection engine implementation
@@ -260,13 +279,20 @@ impl DefaultBotDetectionEngine {
     /// Initialize baseline statistics (would be loaded from database in production)
     pub fn initialize_baselines(&mut self) {
         // Initialize with typical human behavior baselines
-        self.feature_baselines.insert("mouse_velocity_mean".to_string(), (150.0, 50.0));
-        self.feature_baselines.insert("mouse_velocity_std".to_string(), (75.0, 25.0));
-        self.feature_baselines.insert("mouse_trajectory_smoothness".to_string(), (0.7, 0.15));
-        self.feature_baselines.insert("keystroke_dwell_mean".to_string(), (100.0, 30.0));
-        self.feature_baselines.insert("keystroke_dwell_std".to_string(), (40.0, 15.0));
-        self.feature_baselines.insert("keystroke_rhythm_consistency".to_string(), (0.6, 0.2));
-        self.feature_baselines.insert("automation_indicator_count".to_string(), (0.0, 0.5));
+        self.feature_baselines
+            .insert("mouse_velocity_mean".to_string(), (150.0, 50.0));
+        self.feature_baselines
+            .insert("mouse_velocity_std".to_string(), (75.0, 25.0));
+        self.feature_baselines
+            .insert("mouse_trajectory_smoothness".to_string(), (0.7, 0.15));
+        self.feature_baselines
+            .insert("keystroke_dwell_mean".to_string(), (100.0, 30.0));
+        self.feature_baselines
+            .insert("keystroke_dwell_std".to_string(), (40.0, 15.0));
+        self.feature_baselines
+            .insert("keystroke_rhythm_consistency".to_string(), (0.6, 0.2));
+        self.feature_baselines
+            .insert("automation_indicator_count".to_string(), (0.0, 0.5));
     }
 
     /// Calculate z-score for anomaly detection
@@ -358,17 +384,20 @@ impl DefaultBotDetectionEngine {
         let mut tree_predictions = Vec::new();
 
         // Tree 1: Focus on mouse behavior
-        let tree1_score = if features.mouse_velocity_mean > 500.0 && features.mouse_trajectory_smoothness > 0.9 {
-            0.8
-        } else if features.mouse_velocity_std < 20.0 {
-            0.6
-        } else {
-            0.2
-        };
+        let tree1_score =
+            if features.mouse_velocity_mean > 500.0 && features.mouse_trajectory_smoothness > 0.9 {
+                0.8
+            } else if features.mouse_velocity_std < 20.0 {
+                0.6
+            } else {
+                0.2
+            };
         tree_predictions.push(tree1_score);
 
         // Tree 2: Focus on keystroke behavior
-        let tree2_score = if features.keystroke_rhythm_consistency > 0.85 && features.keystroke_dwell_std < 15.0 {
+        let tree2_score = if features.keystroke_rhythm_consistency > 0.85
+            && features.keystroke_dwell_std < 15.0
+        {
             0.9
         } else if features.keystroke_dwell_mean < 50.0 || features.keystroke_dwell_mean > 300.0 {
             0.7
@@ -441,34 +470,48 @@ impl Default for DefaultBotDetectionEngine {
 
 #[async_trait]
 impl BotDetectionEngine for DefaultBotDetectionEngine {
-    async fn extract_features(&self, analysis: &BehavioralAnalysisResult) -> Result<FeatureVector, CaptchaError> {
+    async fn extract_features(
+        &self,
+        analysis: &BehavioralAnalysisResult,
+    ) -> Result<FeatureVector, CaptchaError> {
         // Extract mouse features
-        let (mouse_velocity_mean, mouse_velocity_std, mouse_trajectory_smoothness, mouse_pause_ratio, mouse_direction_changes) =
-            if let Some(ref mouse) = analysis.mouse_analysis {
-                (
-                    mouse.average_velocity,
-                    mouse.velocity_variance.sqrt(),
-                    mouse.trajectory_smoothness,
-                    mouse.pause_count as f64 / (mouse.pause_count + mouse.direction_changes).max(1) as f64,
-                    mouse.direction_changes as f64,
-                )
-            } else {
-                (0.0, 0.0, 1.0, 0.0, 0.0)
-            };
+        let (
+            mouse_velocity_mean,
+            mouse_velocity_std,
+            mouse_trajectory_smoothness,
+            mouse_pause_ratio,
+            mouse_direction_changes,
+        ) = if let Some(ref mouse) = analysis.mouse_analysis {
+            (
+                mouse.average_velocity,
+                mouse.velocity_variance.sqrt(),
+                mouse.trajectory_smoothness,
+                mouse.pause_count as f64
+                    / (mouse.pause_count + mouse.direction_changes).max(1) as f64,
+                mouse.direction_changes as f64,
+            )
+        } else {
+            (0.0, 0.0, 1.0, 0.0, 0.0)
+        };
 
         // Extract keystroke features
-        let (keystroke_dwell_mean, keystroke_dwell_std, keystroke_flight_mean, keystroke_flight_std, keystroke_rhythm_consistency) =
-            if let Some(ref keystroke) = analysis.keystroke_analysis {
-                (
-                    keystroke.average_dwell_time,
-                    keystroke.dwell_time_variance.sqrt(),
-                    keystroke.average_flight_time,
-                    keystroke.flight_time_variance.sqrt(),
-                    keystroke.typing_rhythm_consistency,
-                )
-            } else {
-                (0.0, 0.0, 0.0, 0.0, 0.0)
-            };
+        let (
+            keystroke_dwell_mean,
+            keystroke_dwell_std,
+            keystroke_flight_mean,
+            keystroke_flight_std,
+            keystroke_rhythm_consistency,
+        ) = if let Some(ref keystroke) = analysis.keystroke_analysis {
+            (
+                keystroke.average_dwell_time,
+                keystroke.dwell_time_variance.sqrt(),
+                keystroke.average_flight_time,
+                keystroke.flight_time_variance.sqrt(),
+                keystroke.typing_rhythm_consistency,
+            )
+        } else {
+            (0.0, 0.0, 0.0, 0.0, 0.0)
+        };
 
         // Extract timing features
         let interaction_duration = analysis.timing_analysis.interaction_duration as f64;
@@ -477,7 +520,8 @@ impl BotDetectionEngine for DefaultBotDetectionEngine {
 
         // Extract fingerprint features
         let fingerprint_uniqueness = analysis.fingerprint_analysis.uniqueness_score;
-        let automation_indicator_count = analysis.fingerprint_analysis.automation_indicators.len() as f64;
+        let automation_indicator_count =
+            analysis.fingerprint_analysis.automation_indicators.len() as f64;
         let plugin_count = 0.0; // Would be extracted from fingerprint data
 
         // Calculate derived features
@@ -529,25 +573,37 @@ impl BotDetectionEngine for DefaultBotDetectionEngine {
             MLModelType::NeuralNetwork => {
                 // Placeholder for neural network - would use actual ML library
                 self.ensemble_predict(features)
-            },
+            }
             MLModelType::Ensemble => self.ensemble_predict(features),
         };
 
         Ok(prediction.clamp(0.0, 1.0))
     }
 
-    async fn detect_anomalies(&self, features: &FeatureVector) -> Result<HashMap<String, f64>, CaptchaError> {
+    async fn detect_anomalies(
+        &self,
+        features: &FeatureVector,
+    ) -> Result<HashMap<String, f64>, CaptchaError> {
         let mut anomaly_scores = HashMap::new();
 
         // Calculate z-scores for key features
         let feature_values = vec![
             ("mouse_velocity_mean", features.mouse_velocity_mean),
             ("mouse_velocity_std", features.mouse_velocity_std),
-            ("mouse_trajectory_smoothness", features.mouse_trajectory_smoothness),
+            (
+                "mouse_trajectory_smoothness",
+                features.mouse_trajectory_smoothness,
+            ),
             ("keystroke_dwell_mean", features.keystroke_dwell_mean),
             ("keystroke_dwell_std", features.keystroke_dwell_std),
-            ("keystroke_rhythm_consistency", features.keystroke_rhythm_consistency),
-            ("automation_indicator_count", features.automation_indicator_count),
+            (
+                "keystroke_rhythm_consistency",
+                features.keystroke_rhythm_consistency,
+            ),
+            (
+                "automation_indicator_count",
+                features.automation_indicator_count,
+            ),
         ];
 
         for (feature_name, value) in feature_values {
@@ -563,28 +619,39 @@ impl BotDetectionEngine for DefaultBotDetectionEngine {
         Ok(anomaly_scores)
     }
 
-    async fn calculate_risk_score(&self, session_id: &str, current_score: f64, new_evidence: f64) -> Result<f64, CaptchaError> {
+    async fn calculate_risk_score(
+        &self,
+        session_id: &str,
+        current_score: f64,
+        new_evidence: f64,
+    ) -> Result<f64, CaptchaError> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
 
         // Apply time decay to existing risk score
-        let decayed_score = if let Some((last_score, last_update)) = self.session_risk_scores.get(session_id) {
-            let time_diff = (now - last_update) as f64 / 60.0; // minutes
-            let decay_factor = (-self.risk_config.decay_rate * time_diff).exp();
-            last_score * decay_factor
-        } else {
-            self.risk_config.base_risk_score
-        };
+        let decayed_score =
+            if let Some((last_score, last_update)) = self.session_risk_scores.get(session_id) {
+                let time_diff = (now - last_update) as f64 / 60.0; // minutes
+                let decay_factor = (-self.risk_config.decay_rate * time_diff).exp();
+                last_score * decay_factor
+            } else {
+                self.risk_config.base_risk_score
+            };
 
         // Combine with new evidence
-        let updated_score = (decayed_score + new_evidence * 0.3).min(self.risk_config.max_risk_score);
+        let updated_score =
+            (decayed_score + new_evidence * 0.3).min(self.risk_config.max_risk_score);
 
         Ok(updated_score)
     }
 
-    async fn detect_bot(&self, analysis: &BehavioralAnalysisResult, session_id: &str) -> Result<BotDetectionResult, CaptchaError> {
+    async fn detect_bot(
+        &self,
+        analysis: &BehavioralAnalysisResult,
+        session_id: &str,
+    ) -> Result<BotDetectionResult, CaptchaError> {
         // Extract features
         let features = self.extract_features(analysis).await?;
 
@@ -602,7 +669,9 @@ impl BotDetectionEngine for DefaultBotDetectionEngine {
         };
 
         // Update risk score
-        let risk_score = self.calculate_risk_score(session_id, 0.0, bot_probability).await?;
+        let risk_score = self
+            .calculate_risk_score(session_id, 0.0, bot_probability)
+            .await?;
 
         // Determine classification
         let is_bot = bot_probability >= self.ml_config.confidence_threshold;
@@ -636,7 +705,11 @@ impl BotDetectionEngine for DefaultBotDetectionEngine {
         })
     }
 
-    async fn update_model(&mut self, features: &FeatureVector, label: bool) -> Result<(), CaptchaError> {
+    async fn update_model(
+        &mut self,
+        features: &FeatureVector,
+        label: bool,
+    ) -> Result<(), CaptchaError> {
         // In a real implementation, this would update the ML models with new training data
         // For now, we'll update the baseline statistics
 

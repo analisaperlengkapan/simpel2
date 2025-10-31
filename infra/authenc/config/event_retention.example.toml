@@ -1,0 +1,90 @@
+# Event Retention Configuration Example
+# This file demonstrates how to configure event retention with cold storage archiving
+
+[events]
+# Enable event retention management
+enabled = true
+
+# Retention period for user events in days (default: 90)
+user_event_retention_days = 90
+
+# Retention period for admin events in days (default: 365)
+admin_event_retention_days = 365
+
+# Maximum number of events to process in a single cleanup batch
+max_cleanup_batch_size = 10000
+
+# Cleanup interval in hours (default: 24 = daily)
+cleanup_interval_hours = 24
+
+# Archive events to cold storage before deletion
+archive_before_delete = true
+
+# Optional: Local archive directory (if not using cold storage)
+# archive_directory = "/var/lib/authenc/archive"
+
+# Cold storage configuration (S3/MinIO)
+[events.cold_storage]
+# Enable cold storage archiving
+enabled = true
+
+# Storage type: "s3" or "minio"
+storage_type = "s3"
+
+# S3/MinIO endpoint URL
+# For AWS S3, leave empty to use default endpoint
+# For MinIO or custom S3-compatible storage, specify the endpoint
+endpoint = "" # e.g., "http://localhost:9000" for MinIO
+
+# AWS region (default: us-east-1)
+region = "us-east-1"
+
+# S3 bucket name for archived events
+bucket = "authenc-events-archive"
+
+# AWS credentials (optional if using IAM roles or instance profiles)
+# access_key_id = "YOUR_ACCESS_KEY"
+# secret_access_key = "YOUR_SECRET_KEY"
+
+# Path prefix for archived events in the bucket
+path_prefix = "authenc/events/archive"
+
+# Force path-style addressing (required for MinIO, optional for S3)
+# Set to true for MinIO: http://endpoint/bucket/key
+# Set to false for S3: http://bucket.endpoint/key
+force_path_style = false
+
+# Example MinIO Configuration
+# [events.cold_storage]
+# enabled = true
+# storage_type = "minio"
+# endpoint = "http://minio.simpelv2-infra.svc.cluster.local:9000"
+# region = "us-east-1"
+# bucket = "authenc-events"
+# access_key_id = "minioadmin"
+# secret_access_key = "minioadmin"
+# path_prefix = "archive"
+# force_path_style = true
+
+# Example AWS S3 Configuration with IAM Role
+# [events.cold_storage]
+# enabled = true
+# storage_type = "s3"
+# endpoint = ""  # Use default AWS S3 endpoint
+# region = "ap-southeast-1"
+# bucket = "kejaksaan-authenc-events"
+# path_prefix = "production/events/archive"
+# force_path_style = false
+# # No credentials needed when using IAM roles
+
+# Monitoring and Metrics
+# The event retention service exposes the following Prometheus metrics:
+# - authenc.event_retention.cleanup_total: Total number of cleanup operations
+# - authenc.event_retention.events_deleted_total: Total events deleted
+# - authenc.event_retention.events_archived_total: Total events archived
+# - authenc.event_retention.cleanup_duration_ms: Cleanup operation duration
+# - authenc.event_retention.archive_batches_total: Archive batches uploaded
+# - authenc.event_retention.total_user_events: Current user events count
+# - authenc.event_retention.total_admin_events: Current admin events count
+# - authenc.event_retention.expired_user_events: Expired user events count
+# - authenc.event_retention.expired_admin_events: Expired admin events count

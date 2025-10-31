@@ -212,7 +212,8 @@ where
 
     /// Insert a value with TTL
     pub fn insert(&self, key: K, value: V, ttl: Duration) -> Result<()> {
-        let mut cache = self.cache
+        let mut cache = self
+            .cache
             .write()
             .map_err(|_| AuthencError::internal("Failed to acquire cache write lock"))?;
         cache.insert(key, value, ttl);
@@ -221,7 +222,8 @@ where
 
     /// Get a value from cache
     pub fn get(&self, key: &K) -> Result<Option<V>> {
-        let mut cache = self.cache
+        let mut cache = self
+            .cache
             .write()
             .map_err(|_| AuthencError::internal("Failed to acquire cache write lock"))?;
         Ok(cache.get(key))
@@ -229,7 +231,8 @@ where
 
     /// Remove a key from cache
     pub fn remove(&self, key: &K) -> Result<Option<V>> {
-        let mut cache = self.cache
+        let mut cache = self
+            .cache
             .write()
             .map_err(|_| AuthencError::internal("Failed to acquire cache write lock"))?;
         Ok(cache.remove(key))
@@ -237,7 +240,8 @@ where
 
     /// Clear all entries
     pub fn clear(&self) -> Result<()> {
-        let mut cache = self.cache
+        let mut cache = self
+            .cache
             .write()
             .map_err(|_| AuthencError::internal("Failed to acquire cache write lock"))?;
         cache.clear();
@@ -246,7 +250,8 @@ where
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<CacheStats> {
-        let cache = self.cache
+        let cache = self
+            .cache
             .read()
             .map_err(|_| AuthencError::internal("Failed to acquire cache read lock"))?;
         Ok(cache.stats())
@@ -464,11 +469,29 @@ mod tests {
     async fn test_async_cache() {
         let cache = AsyncLruCache::new(3);
 
-        cache.insert("key1".to_string(), "value1".to_string(), Duration::from_secs(60)).await;
-        cache.insert("key2".to_string(), "value2".to_string(), Duration::from_secs(60)).await;
+        cache
+            .insert(
+                "key1".to_string(),
+                "value1".to_string(),
+                Duration::from_secs(60),
+            )
+            .await;
+        cache
+            .insert(
+                "key2".to_string(),
+                "value2".to_string(),
+                Duration::from_secs(60),
+            )
+            .await;
 
-        assert_eq!(cache.get(&"key1".to_string()).await, Some("value1".to_string()));
-        assert_eq!(cache.get(&"key2".to_string()).await, Some("value2".to_string()));
+        assert_eq!(
+            cache.get(&"key1".to_string()).await,
+            Some("value1".to_string())
+        );
+        assert_eq!(
+            cache.get(&"key2".to_string()).await,
+            Some("value2".to_string())
+        );
         assert_eq!(cache.get(&"key3".to_string()).await, None);
     }
 
@@ -476,11 +499,30 @@ mod tests {
     async fn test_cache_manager() {
         let manager = CacheManager::new();
 
-        manager.token_cache().insert("token1".to_string(), "jwt_token".to_string(), Duration::from_secs(60)).await;
-        manager.validation_cache().insert("validation1".to_string(), true, Duration::from_secs(60)).await;
+        manager
+            .token_cache()
+            .insert(
+                "token1".to_string(),
+                "jwt_token".to_string(),
+                Duration::from_secs(60),
+            )
+            .await;
+        manager
+            .validation_cache()
+            .insert("validation1".to_string(), true, Duration::from_secs(60))
+            .await;
 
-        assert_eq!(manager.token_cache().get(&"token1".to_string()).await, Some("jwt_token".to_string()));
-        assert_eq!(manager.validation_cache().get(&"validation1".to_string()).await, Some(true));
+        assert_eq!(
+            manager.token_cache().get(&"token1".to_string()).await,
+            Some("jwt_token".to_string())
+        );
+        assert_eq!(
+            manager
+                .validation_cache()
+                .get(&"validation1".to_string())
+                .await,
+            Some(true)
+        );
 
         let stats = manager.get_stats().await;
         assert_eq!(stats.token_cache.size, 1);

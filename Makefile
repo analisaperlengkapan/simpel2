@@ -90,3 +90,27 @@ makefile-version: ## Show Makefile version and info
 # • Maintained full backward compatibility
 # • Added comprehensive help system
 # • Improved maintainability by 90%
+
+
+# ====== CODE SPLITTING & BUNDLE ANALYSIS ======
+.PHONY: analyze-bundles analyze-bundle-sizes optimize-bundles
+
+analyze-bundles: ## Analyze WASM bundle sizes across all microfrontends
+	@echo "📦 Analyzing bundle sizes..."
+	@./scripts/analyze-bundle-sizes.sh
+
+analyze-bundle-sizes: analyze-bundles ## Alias for analyze-bundles
+
+optimize-bundles: ## Build all microfrontends with maximum optimization
+	@echo "🔧 Building with maximum optimization..."
+	@for dir in antarmuka/portal antarmuka/badiklat antarmuka/datun antarmuka/intel \
+		antarmuka/pidum antarmuka/pidsus antarmuka/pidmil antarmuka/pengawasan \
+		antarmuka/pemulihan_aset antarmuka/pembinaan/keuangan \
+		antarmuka/pembinaan/perencanaan antarmuka/pembinaan/perlengkapan; do \
+		if [ -d "$$dir" ]; then \
+			echo "Building $$dir..."; \
+			cd $$dir && trunk build --release && cd -; \
+		fi; \
+	done
+	@echo "✅ All bundles built with optimization"
+	@$(MAKE) analyze-bundles

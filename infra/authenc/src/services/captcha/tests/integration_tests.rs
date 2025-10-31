@@ -27,7 +27,8 @@ impl MockSecretonClient {
 
     pub async fn encrypt(&self, data: &str) -> Result<String, String> {
         if self.should_fail {
-            self.failure_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.failure_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             return Err("Secreton unavailable".to_string());
         }
 
@@ -37,7 +38,8 @@ impl MockSecretonClient {
 
     pub async fn decrypt(&self, encrypted_data: &str) -> Result<String, String> {
         if self.should_fail {
-            self.failure_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.failure_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             return Err("Secreton unavailable".to_string());
         }
 
@@ -115,11 +117,7 @@ pub async fn test_captcha_with_working_secreton() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Test challenge generation
     let challenge = enhanced_service
@@ -151,14 +149,12 @@ pub async fn test_captcha_with_secreton_failure() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Force degraded mode to simulate Secreton failure
-    enhanced_service.force_degraded_mode("Secreton unavailable").await;
+    enhanced_service
+        .force_degraded_mode("Secreton unavailable")
+        .await;
 
     // Test challenge generation with fallback
     let challenge = enhanced_service
@@ -177,7 +173,10 @@ pub async fn test_captcha_with_secreton_failure() {
 
     // Verify fallback state
     let fallback_status = enhanced_service.get_fallback_status().await;
-    assert_eq!(fallback_status.state, FallbackState::Degraded);
+    assert_eq!(
+        fallback_status.state,
+        crate::services::captcha::FallbackState::Degraded
+    );
 }
 
 /// Test CAPTCHA system with Authenc monitoring failure
@@ -187,11 +186,7 @@ async fn test_captcha_with_authenc_monitoring_failure() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let mock_monitoring = MockAuthencMonitoring::new(true); // Simulate failure
 
@@ -218,11 +213,7 @@ async fn test_rate_limiting_with_fallback() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let ip_address = "192.168.1.103".to_string();
 
@@ -262,11 +253,7 @@ async fn test_behavioral_analysis_integration() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Generate challenge
     let challenge = enhanced_service
@@ -300,15 +287,13 @@ async fn test_behavioral_analysis_integration() {
                 acceleration: Some(-0.2),
             },
         ],
-        keystroke_dynamics: vec![
-            KeystrokeEvent {
-                key: "a".to_string(),
-                timestamp: 2000,
-                duration: 100,
-                dwell_time: 80,
-                flight_time: Some(20),
-            },
-        ],
+        keystroke_dynamics: vec![KeystrokeEvent {
+            key: "a".to_string(),
+            timestamp: 2000,
+            duration: 100,
+            dwell_time: 80,
+            flight_time: Some(20),
+        }],
         timing_patterns: TimingAnalysis {
             total_interaction_time: 5000,
             pause_patterns: vec![200, 150, 300],
@@ -352,11 +337,7 @@ async fn test_accessibility_features_with_fallback() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Test audio challenge generation
     let audio_challenge = enhanced_service
@@ -398,14 +379,12 @@ pub async fn test_system_recovery_after_failures() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Simulate system failure
-    enhanced_service.force_degraded_mode("System failure simulation").await;
+    enhanced_service
+        .force_degraded_mode("System failure simulation")
+        .await;
 
     let health = enhanced_service.get_health_status().await;
     assert!(health.degraded_mode_active);
@@ -490,11 +469,7 @@ async fn test_metrics_collection_during_errors() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Generate some challenges and validations
     for i in 0..5 {
@@ -510,11 +485,7 @@ async fn test_metrics_collection_during_errors() {
 
         // Validate with wrong answer to generate failure metrics
         let _ = enhanced_service
-            .validate_challenge(
-                challenge.id,
-                "wrong_answer".to_string(),
-                None,
-            )
+            .validate_challenge(challenge.id, "wrong_answer".to_string(), None)
             .await;
     }
 
@@ -524,7 +495,10 @@ async fn test_metrics_collection_during_errors() {
 
     let metrics = metrics.unwrap();
     assert!(!metrics.service_health.degraded_mode_active);
-    assert_eq!(metrics.fallback_status.state, FallbackState::Normal);
+    assert_eq!(
+        metrics.fallback_status.state,
+        crate::services::captcha::FallbackState::Normal
+    );
 }
 
 /// Test maintenance operations during various states
@@ -534,18 +508,16 @@ async fn test_maintenance_operations() {
     let fallback_config = FallbackConfig::default();
     let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Test maintenance in normal mode
     let result = enhanced_service.perform_maintenance().await;
     assert!(result.is_ok());
 
     // Test maintenance in degraded mode
-    enhanced_service.force_degraded_mode("Maintenance test").await;
+    enhanced_service
+        .force_degraded_mode("Maintenance test")
+        .await;
     let result = enhanced_service.perform_maintenance().await;
     assert!(result.is_ok());
 
@@ -568,11 +540,7 @@ async fn test_integration_performance() {
         jitter: false,
     };
 
-    let enhanced_service = EnhancedCaptchaService::new(
-        core_service,
-        fallback_config,
-        retry_config,
-    );
+    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let start_time = std::time::Instant::now();
     let iterations = 50;
@@ -593,5 +561,8 @@ async fn test_integration_performance() {
 
     // Integration operations should be reasonably fast (< 5ms average)
     assert!(avg_time_per_operation < Duration::from_millis(5));
-    println!("Average time per integration operation: {:?}", avg_time_per_operation);
+    println!(
+        "Average time per integration operation: {:?}",
+        avg_time_per_operation
+    );
 }

@@ -14,7 +14,7 @@ use axum::{
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use tokio::sync::RwLock;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -163,9 +163,8 @@ impl MfaRateLimiterState {
         let now = Instant::now();
 
         // Clean up expired account lockouts
-        self.locked_accounts.retain(|_, lockout| {
-            now < lockout.locked_until
-        });
+        self.locked_accounts
+            .retain(|_, lockout| now < lockout.locked_until);
 
         // Clean up old progressive delay entries (older than 1 hour)
         self.progressive_delays.retain(|_, delay_entry| {
@@ -178,7 +177,9 @@ impl MfaRateLimiterState {
 
     /// Check if an account is currently locked
     pub fn is_account_locked(&self, user_id: Uuid) -> Option<AccountLockout> {
-        self.locked_accounts.get(&user_id).map(|entry| entry.clone())
+        self.locked_accounts
+            .get(&user_id)
+            .map(|entry| entry.clone())
     }
 
     /// Lock an account due to excessive failed MFA attempts
@@ -187,9 +188,8 @@ impl MfaRateLimiterState {
             return;
         }
 
-        let lockout_duration = Duration::from_secs(
-            self.config.account_lockout_duration_minutes as u64 * 60
-        );
+        let lockout_duration =
+            Duration::from_secs(self.config.account_lockout_duration_minutes as u64 * 60);
         let locked_until = Instant::now() + lockout_duration;
 
         let lockout = AccountLockout {
@@ -239,7 +239,8 @@ impl MfaRateLimiterState {
 
     /// Check MFA setup rate limits
     pub async fn check_mfa_setup_rate_limit(&self, ip: &str) -> Result<(), AuthencError> {
-        let counter_ref = self.ip_setup_counters
+        let counter_ref = self
+            .ip_setup_counters
             .entry(ip.to_string())
             .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
 
@@ -263,7 +264,8 @@ impl MfaRateLimiterState {
         user_id: Uuid,
     ) -> Result<(), AuthencError> {
         // Record failed attempt for user
-        let user_counter_ref = self.user_verify_counters
+        let user_counter_ref = self
+            .user_verify_counters
             .entry(user_id)
             .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
 
@@ -271,18 +273,18 @@ impl MfaRateLimiterState {
         let failed_count = user_counter.increment_failed();
 
         // Check if we should lock the account
-        if self.config.enable_account_lockout &&
-           failed_count >= self.config.account_lockout_threshold {
+        if self.config.enable_account_lockout
+            && failed_count >= self.config.account_lockout_threshold
+        {
             drop(user_counter); // Release the lock before calling lock_account
             self.lock_account(
                 user_id,
-                format!("Excessive failed MFA attempts: {}", failed_count)
+                format!("Excessive failed MFA attempts: {}", failed_count),
             );
             return Err(AuthencError::AccountLocked {
                 reason: "Too many failed MFA attempts".to_string(),
-                locked_until: Instant::now() + Duration::from_secs(
-                    self.config.account_lockout_duration_minutes as u64 * 60
-                ),
+                locked_until: Instant::now()
+                    + Duration::from_secs(self.config.account_lockout_duration_minutes as u64 * 60),
             });
         }
 
@@ -300,7 +302,8 @@ impl MfaRateLimiterState {
             return;
         }
 
-        let delay_ms = self.progressive_delays
+        let delay_ms = self
+            .progressive_delays
             .get(ip)
             .map(|entry| entry.load(Ordering::Relaxed))
             .unwrap_or(0);
@@ -314,13 +317,16 @@ impl MfaRateLimiterState {
 
     /// Update progressive delay for an IP based on failed attempts
     fn update_progressive_delay(&self, ip: &str, failed_attempts: u32) {
-        let delay_entry = self.progressive_delays
+        let delay_entry = self
+            .progressive_delays
             .entry(ip.to_string())
             .or_insert_with(|| AtomicU64::new(0));
 
         // Calculate exponential backoff: base_delay * 2^(failed_attempts - 1)
         let multiplier = 1u64 << (failed_attempts.saturating_sub(1).min(10)); // Cap at 2^10
-        let delay_ms = self.config.progressive_delay_base_ms
+        let delay_ms = self
+            .config
+            .progressive_delay_base_ms
             .saturating_mul(multiplier)
             .min(self.config.progressive_delay_max_ms);
 
@@ -336,7 +342,8 @@ impl MfaRateLimiterState {
 
     /// Check IP-based verification rate limit
     async fn check_ip_verify_rate_limit(&self, ip: &str) -> Result<(), AuthencError> {
-        let counter_ref = self.ip_verify_counters
+        let counter_ref = self
+            .ip_verify_counters
             .entry(ip.to_string())
             .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
 
@@ -355,7 +362,8 @@ impl MfaRateLimiterState {
 
     /// Check user-based verification rate limit
     async fn check_user_verify_rate_limit(&self, user_id: Uuid) -> Result<(), AuthencError> {
-        let counter_ref = self.user_verify_counters
+        let counter_ref = self
+            .user_verify_counters
             .entry(user_id)
             .or_insert_with(|| RwLock::new(RateLimitCounter::new()));
 
@@ -417,7 +425,10 @@ pub async fn mfa_rate_limit_middleware(
             warn!(%ip, %path, "MFA rate limit exceeded");
             Err(StatusCode::TOO_MANY_REQUESTS)
         }
-        Err(AuthencError::AccountLocked { reason, locked_until: _ }) => {
+        Err(AuthencError::AccountLocked {
+            reason,
+            locked_until: _,
+        }) => {
             warn!(%ip, %path, %reason, "Account locked");
             Err(StatusCode::LOCKED)
         }
@@ -446,11 +457,26 @@ mod tests {
         let user_id = Uuid::new_v4();
 
         // First two requests should succeed
-        assert!(state.check_mfa_verify_rate_limit("127.0.0.1", Some(user_id)).await.is_ok());
-        assert!(state.check_mfa_verify_rate_limit("127.0.0.1", Some(user_id)).await.is_ok());
+        assert!(
+            state
+                .check_mfa_verify_rate_limit("127.0.0.1", Some(user_id))
+                .await
+                .is_ok()
+        );
+        assert!(
+            state
+                .check_mfa_verify_rate_limit("127.0.0.1", Some(user_id))
+                .await
+                .is_ok()
+        );
 
         // Third request should be rate limited
-        assert!(state.check_mfa_verify_rate_limit("127.0.0.1", Some(user_id)).await.is_err());
+        assert!(
+            state
+                .check_mfa_verify_rate_limit("127.0.0.1", Some(user_id))
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -465,10 +491,20 @@ mod tests {
         let user_id = Uuid::new_v4();
 
         // Record failed attempts
-        assert!(state.record_failed_mfa_attempt("127.0.0.1", user_id).await.is_ok());
+        assert!(
+            state
+                .record_failed_mfa_attempt("127.0.0.1", user_id)
+                .await
+                .is_ok()
+        );
 
         // Second failed attempt should trigger lockout
-        assert!(state.record_failed_mfa_attempt("127.0.0.1", user_id).await.is_err());
+        assert!(
+            state
+                .record_failed_mfa_attempt("127.0.0.1", user_id)
+                .await
+                .is_err()
+        );
 
         // Account should be locked
         assert!(state.is_account_locked(user_id).is_some());

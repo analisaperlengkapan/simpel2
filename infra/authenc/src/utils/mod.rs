@@ -72,9 +72,44 @@ pub mod connection_pool;
 /// Includes automatic zeroization and memory usage tracking.
 pub mod memory;
 
+/// Input validation and sanitization utilities
+///
+/// Provides comprehensive input validation using garde and custom validators.
+/// Includes sanitization functions to prevent injection attacks.
+pub mod validation;
+
+/// SSO cookie management utilities
+///
+/// Provides secure SSO cookie creation, validation, and session management.
+/// Implements secure cookie attributes (Secure, HttpOnly, SameSite) for Portal integration.
+pub mod sso_cookie;
+
+/// Request context extraction utilities
+///
+/// Extracts IP address, user agent, and other contextual information from HTTP requests.
+/// Used for comprehensive audit logging and security monitoring.
+pub mod request_context;
+
+/// Geolocation utilities for IP address lookup
+///
+/// Provides optional geolocation data for audit logging.
+/// Supports integration with external geolocation services.
+pub mod geolocation;
+
+/// Payload sanitization utilities for audit logging
+///
+/// Sanitizes request/response payloads by removing PII and sensitive data.
+/// Ensures compliance with data protection regulations in audit logs.
+pub mod payload_sanitizer;
+
 // Re-exports for convenience
 pub use auth_context::*;
 pub use cache::*;
 pub use connection_pool::*;
+pub use geolocation::*;
 pub use i18n::*;
 pub use memory::*;
+pub use payload_sanitizer::*;
+pub use request_context::*;
+pub use sso_cookie::*;
+pub use validation::*;

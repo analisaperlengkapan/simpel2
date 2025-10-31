@@ -35,7 +35,7 @@ impl Default for BehavioralAnalysisConfig {
             min_keystroke_events: 3,
             bot_detection_threshold: 0.8,
             suspicious_threshold: 0.6,
-            max_human_velocity: 2000.0, // pixels per second
+            max_human_velocity: 2000.0,         // pixels per second
             min_human_keystroke_interval: 50,   // milliseconds
             max_human_keystroke_interval: 2000, // milliseconds
         }
@@ -125,22 +125,41 @@ pub struct BehavioralAnalysisResult {
 #[async_trait]
 pub trait BehavioralAnalyzerTrait: Send + Sync {
     /// Analyze mouse movement patterns
-    async fn analyze_mouse_behavior(&self, events: &[MouseEvent]) -> Result<MouseAnalysisResult, CaptchaError>;
+    async fn analyze_mouse_behavior(
+        &self,
+        events: &[MouseEvent],
+    ) -> Result<MouseAnalysisResult, CaptchaError>;
 
     /// Analyze keystroke dynamics
-    async fn analyze_keystroke_behavior(&self, events: &[KeystrokeEvent]) -> Result<KeystrokeAnalysisResult, CaptchaError>;
+    async fn analyze_keystroke_behavior(
+        &self,
+        events: &[KeystrokeEvent],
+    ) -> Result<KeystrokeAnalysisResult, CaptchaError>;
 
     /// Analyze timing patterns
-    async fn analyze_timing_patterns(&self, timing: &TimingAnalysis) -> Result<TimingAnalysisResult, CaptchaError>;
+    async fn analyze_timing_patterns(
+        &self,
+        timing: &TimingAnalysis,
+    ) -> Result<TimingAnalysisResult, CaptchaError>;
 
     /// Analyze browser fingerprint
-    async fn analyze_browser_fingerprint(&self, fingerprint: &BrowserFingerprint) -> Result<FingerprintAnalysisResult, CaptchaError>;
+    async fn analyze_browser_fingerprint(
+        &self,
+        fingerprint: &BrowserFingerprint,
+    ) -> Result<FingerprintAnalysisResult, CaptchaError>;
 
     /// Perform comprehensive behavioral analysis
-    async fn analyze_behavior(&self, metrics: &BehavioralMetrics) -> Result<BehavioralAnalysisResult, CaptchaError>;
+    async fn analyze_behavior(
+        &self,
+        metrics: &BehavioralMetrics,
+    ) -> Result<BehavioralAnalysisResult, CaptchaError>;
 
     /// Update behavioral metrics with new analysis
-    async fn update_behavioral_metrics(&self, metrics: &mut BehavioralMetrics, analysis: &BehavioralAnalysisResult) -> Result<(), CaptchaError>;
+    async fn update_behavioral_metrics(
+        &self,
+        metrics: &mut BehavioralMetrics,
+        analysis: &BehavioralAnalysisResult,
+    ) -> Result<(), CaptchaError>;
 }
 
 /// Default behavioral analyzer implementation
@@ -235,9 +254,14 @@ impl BehavioralAnalyzer {
 
                 if let Some(last_dir) = last_direction {
                     let angle_diff = (current_direction as i32 - last_dir as i32).abs() as i32;
-                    let normalized_diff = if angle_diff > 180 { 360 - angle_diff } else { angle_diff };
+                    let normalized_diff = if angle_diff > 180 {
+                        360 - angle_diff
+                    } else {
+                        angle_diff
+                    };
 
-                    if normalized_diff > 45 { // Significant direction change
+                    if normalized_diff > 45 {
+                        // Significant direction change
                         direction_changes += 1;
                     }
                 }
@@ -256,9 +280,7 @@ impl BehavioralAnalyzer {
         }
 
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
         variance
     }
@@ -268,15 +290,17 @@ impl BehavioralAnalyzer {
         let mut indicators = Vec::new();
 
         // Check for headless browser indicators
-        if fingerprint.user_agent.contains("HeadlessChrome") ||
-           fingerprint.user_agent.contains("PhantomJS") ||
-           fingerprint.user_agent.contains("Selenium") {
+        if fingerprint.user_agent.contains("HeadlessChrome")
+            || fingerprint.user_agent.contains("PhantomJS")
+            || fingerprint.user_agent.contains("Selenium")
+        {
             indicators.push("headless_browser".to_string());
         }
 
         // Check for automation frameworks
-        if fingerprint.user_agent.contains("WebDriver") ||
-           fingerprint.user_agent.contains("Puppeteer") {
+        if fingerprint.user_agent.contains("WebDriver")
+            || fingerprint.user_agent.contains("Puppeteer")
+        {
             indicators.push("automation_framework".to_string());
         }
 
@@ -306,7 +330,10 @@ impl Default for BehavioralAnalyzer {
 
 #[async_trait]
 impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
-    async fn analyze_mouse_behavior(&self, events: &[MouseEvent]) -> Result<MouseAnalysisResult, CaptchaError> {
+    async fn analyze_mouse_behavior(
+        &self,
+        events: &[MouseEvent],
+    ) -> Result<MouseAnalysisResult, CaptchaError> {
         if events.len() < self.config.min_mouse_events {
             return Ok(MouseAnalysisResult {
                 average_velocity: 0.0,
@@ -378,7 +405,10 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         })
     }
 
-    async fn analyze_keystroke_behavior(&self, events: &[KeystrokeEvent]) -> Result<KeystrokeAnalysisResult, CaptchaError> {
+    async fn analyze_keystroke_behavior(
+        &self,
+        events: &[KeystrokeEvent],
+    ) -> Result<KeystrokeAnalysisResult, CaptchaError> {
         if events.len() < self.config.min_keystroke_events {
             return Ok(KeystrokeAnalysisResult {
                 average_dwell_time: 0.0,
@@ -396,7 +426,8 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         let dwell_time_variance = self.calculate_variance(&dwell_times);
 
         // Calculate flight times
-        let flight_times: Vec<f64> = events.iter()
+        let flight_times: Vec<f64> = events
+            .iter()
             .filter_map(|e| e.flight_time.map(|ft| ft as f64))
             .collect();
 
@@ -431,8 +462,9 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         }
 
         // Dwell times outside human range
-        if average_dwell_time < self.config.min_human_keystroke_interval as f64 ||
-           average_dwell_time > self.config.max_human_keystroke_interval as f64 {
+        if average_dwell_time < self.config.min_human_keystroke_interval as f64
+            || average_dwell_time > self.config.max_human_keystroke_interval as f64
+        {
             bot_score += 0.2;
         }
 
@@ -458,7 +490,10 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         })
     }
 
-    async fn analyze_timing_patterns(&self, timing: &TimingAnalysis) -> Result<TimingAnalysisResult, CaptchaError> {
+    async fn analyze_timing_patterns(
+        &self,
+        timing: &TimingAnalysis,
+    ) -> Result<TimingAnalysisResult, CaptchaError> {
         let interaction_duration = timing.total_interaction_time;
 
         // Calculate pause frequency
@@ -474,7 +509,8 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         let mut bot_score: f32 = 0.0;
 
         // Very short interaction time
-        if interaction_duration < 1000 { // Less than 1 second
+        if interaction_duration < 1000 {
+            // Less than 1 second
             bot_score += 0.3;
         }
 
@@ -503,19 +539,36 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         })
     }
 
-    async fn analyze_browser_fingerprint(&self, fingerprint: &BrowserFingerprint) -> Result<FingerprintAnalysisResult, CaptchaError> {
+    async fn analyze_browser_fingerprint(
+        &self,
+        fingerprint: &BrowserFingerprint,
+    ) -> Result<FingerprintAnalysisResult, CaptchaError> {
         // Detect automation indicators
         let automation_indicators = self.detect_automation_indicators(fingerprint);
 
         // Calculate uniqueness score based on fingerprint components
         let mut uniqueness_factors = 0;
-        if !fingerprint.user_agent.is_empty() { uniqueness_factors += 1; }
-        if !fingerprint.screen_resolution.is_empty() { uniqueness_factors += 1; }
-        if !fingerprint.timezone.is_empty() { uniqueness_factors += 1; }
-        if !fingerprint.language.is_empty() { uniqueness_factors += 1; }
-        if !fingerprint.plugins.is_empty() { uniqueness_factors += 1; }
-        if fingerprint.canvas_fingerprint.is_some() { uniqueness_factors += 1; }
-        if fingerprint.webgl_fingerprint.is_some() { uniqueness_factors += 1; }
+        if !fingerprint.user_agent.is_empty() {
+            uniqueness_factors += 1;
+        }
+        if !fingerprint.screen_resolution.is_empty() {
+            uniqueness_factors += 1;
+        }
+        if !fingerprint.timezone.is_empty() {
+            uniqueness_factors += 1;
+        }
+        if !fingerprint.language.is_empty() {
+            uniqueness_factors += 1;
+        }
+        if !fingerprint.plugins.is_empty() {
+            uniqueness_factors += 1;
+        }
+        if fingerprint.canvas_fingerprint.is_some() {
+            uniqueness_factors += 1;
+        }
+        if fingerprint.webgl_fingerprint.is_some() {
+            uniqueness_factors += 1;
+        }
 
         let uniqueness_score = uniqueness_factors as f64 / 7.0; // Normalize to 0-1
 
@@ -552,22 +605,35 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         })
     }
 
-    async fn analyze_behavior(&self, metrics: &BehavioralMetrics) -> Result<BehavioralAnalysisResult, CaptchaError> {
+    async fn analyze_behavior(
+        &self,
+        metrics: &BehavioralMetrics,
+    ) -> Result<BehavioralAnalysisResult, CaptchaError> {
         // Analyze each component
         let mouse_analysis = if !metrics.mouse_movements.is_empty() {
-            Some(self.analyze_mouse_behavior(&metrics.mouse_movements).await?)
+            Some(
+                self.analyze_mouse_behavior(&metrics.mouse_movements)
+                    .await?,
+            )
         } else {
             None
         };
 
         let keystroke_analysis = if !metrics.keystroke_dynamics.is_empty() {
-            Some(self.analyze_keystroke_behavior(&metrics.keystroke_dynamics).await?)
+            Some(
+                self.analyze_keystroke_behavior(&metrics.keystroke_dynamics)
+                    .await?,
+            )
         } else {
             None
         };
 
-        let timing_analysis = self.analyze_timing_patterns(&metrics.timing_patterns).await?;
-        let fingerprint_analysis = self.analyze_browser_fingerprint(&metrics.browser_fingerprint).await?;
+        let timing_analysis = self
+            .analyze_timing_patterns(&metrics.timing_patterns)
+            .await?;
+        let fingerprint_analysis = self
+            .analyze_browser_fingerprint(&metrics.browser_fingerprint)
+            .await?;
 
         // Calculate overall risk score
         let mut risk_components = Vec::new();
@@ -600,8 +666,12 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
 
         // Calculate confidence based on amount of data available
         let mut confidence_factors = 0.0;
-        if mouse_analysis.is_some() { confidence_factors += 0.3; }
-        if keystroke_analysis.is_some() { confidence_factors += 0.3; }
+        if mouse_analysis.is_some() {
+            confidence_factors += 0.3;
+        }
+        if keystroke_analysis.is_some() {
+            confidence_factors += 0.3;
+        }
         confidence_factors += 0.2; // Timing analysis always available
         confidence_factors += 0.2; // Fingerprint analysis always available
 
@@ -618,14 +688,19 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
         })
     }
 
-    async fn update_behavioral_metrics(&self, metrics: &mut BehavioralMetrics, analysis: &BehavioralAnalysisResult) -> Result<(), CaptchaError> {
+    async fn update_behavioral_metrics(
+        &self,
+        metrics: &mut BehavioralMetrics,
+        analysis: &BehavioralAnalysisResult,
+    ) -> Result<(), CaptchaError> {
         // Update risk score and classification
         metrics.risk_score = analysis.overall_risk_score;
         metrics.classification = analysis.classification.clone();
 
         // Update timing patterns if we have keystroke data
         if let Some(ref keystroke_analysis) = analysis.keystroke_analysis {
-            metrics.timing_patterns.rhythm_consistency = keystroke_analysis.typing_rhythm_consistency;
+            metrics.timing_patterns.rhythm_consistency =
+                keystroke_analysis.typing_rhythm_consistency;
 
             if let Some(typing_speed) = metrics.timing_patterns.typing_speed {
                 // Update typing speed if we have keystroke data
@@ -634,7 +709,8 @@ impl BehavioralAnalyzerTrait for BehavioralAnalyzer {
                     metrics.timing_patterns.typing_speed = Some((typing_speed + new_speed) / 2.0);
                 }
             } else if keystroke_analysis.average_dwell_time > 0.0 {
-                metrics.timing_patterns.typing_speed = Some(60000.0 / keystroke_analysis.average_dwell_time);
+                metrics.timing_patterns.typing_speed =
+                    Some(60000.0 / keystroke_analysis.average_dwell_time);
             }
         }
 

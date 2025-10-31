@@ -1,4 +1,4 @@
-//! Brankas Cryptographic Library
+//! Secreton Cryptographic Library
 //!
 //! High-performance, secure cryptographic primitives and protocols
 //! with comprehensive RustCrypto integration and transit engine support.
@@ -8,37 +8,37 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+// Re-export zeroize for use by other crates
+pub use zeroize;
+
 pub mod encryption;
-pub mod enhanced;
 pub mod error;
 pub mod hashing;
 pub mod hybrid;
 pub mod key_derivation;
-pub mod kmip;
 pub mod kv_engine;
 pub mod pq_key_management;
 pub mod pqc;
+pub mod prelude;
 pub mod shamir;
+pub mod storage_integration;
 pub mod transit;
 
-// TODO: Fix compilation errors in these modules
-// pub mod integration;
-// pub mod quantum_safe_crypto;
-
-pub use encryption::*;
-pub use enhanced::{
-    BatchSecretRequest, BatchSecretResponse, EnhancedSecretRequest, EnhancedSecretResponse,
-    EnhancedSecretonCrypto, PostQuantumKeyPair,
+pub use encryption::{
+    Aes256GcmCipher, ChaCha20Poly1305Cipher, CryptoEngine, EncryptedData, SymmetricCipher,
 };
-pub use error::*;
 pub use hybrid::{
-    CryptoMode, HybridCrypto, HybridEncryptionResult, MigrationPhase, MigrationStrategy,
-    PerformancePriority, PostQuantumEncryption, SecurityRequirements,
+    CryptoMode, HybridCrypto, HybridEncryptedData, HybridEncryptionMetadata, HybridPublicKeys,
+    HybridSignatureData, MigrationPhase, MigrationStrategy, PerformancePriority,
+    SecurityRequirements,
 };
+
+// Alias for backward compatibility
+pub type EncryptionService = CryptoEngine;
+pub use error::*;
 pub use key_derivation::{
     derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch, DerivedKey, KdfParams,
 };
-pub use kmip::*;
 pub use kv_engine::*;
 pub use pq_key_management::{
     ArchiveEncryptionResult, ArchiveKeyEntry, ArchivePurpose, HybridKeyEntry,
@@ -47,6 +47,9 @@ pub use pq_key_management::{
 };
 pub use pqc::*;
 pub use shamir::*;
+pub use storage_integration::{
+    CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata, KeyInfo,
+};
 pub use transit::{
     algorithms,
     batch,
@@ -69,7 +72,7 @@ pub use transit::{
     DeriveKeyResponse,
     EncryptRequest,
     EncryptResponse,
-    KeyInfo,
+    // KeyInfo, // Removed duplicate - already exported from storage_integration
     KeyOptions,
     KeyType,
     KeyUsage,

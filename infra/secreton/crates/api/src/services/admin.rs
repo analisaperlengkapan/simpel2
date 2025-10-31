@@ -6,8 +6,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use brankas_core::audit::AuditLogger;
-use brankas_storage::StorageBackend;
+use secreton_core::audit::AuditLogger;
+use secreton_storage::StorageBackend;
 use crate::services::auth::AuthService;
 
 /// Admin service errors
@@ -29,7 +29,7 @@ pub enum AdminError {
     Auth(#[from] crate::services::auth::AuthError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] brankas_storage::StorageError),
+    Storage(#[from] secreton_storage::StorageError),
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
@@ -109,7 +109,7 @@ impl AdminService {
     pub async fn create_backup(&self) -> Result<BackupInfo, AdminError> {
         // TODO: Implement backup creation
         let backup_id = uuid::Uuid::new_v4().to_string();
-        
+
         Ok(BackupInfo {
             id: backup_id,
             created_at: chrono::Utc::now(),
@@ -135,9 +135,9 @@ impl AdminService {
     /// Restore from backup
     pub async fn restore_backup(&self, backup_id: &str) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
-        
+
         // TODO: Implement backup restoration
-        
+
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {
             operation: "restore_backup".to_string(),
@@ -154,12 +154,12 @@ impl AdminService {
     /// Run garbage collection
     pub async fn run_garbage_collection(&self) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
-        
+
         // TODO: Implement garbage collection
         // - Clean expired sessions
         // - Remove deleted secrets
         // - Compact storage
-        
+
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {
             operation: "garbage_collection".to_string(),
@@ -177,9 +177,9 @@ impl AdminService {
     /// Compact database
     pub async fn compact_database(&self) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
-        
+
         // TODO: Implement database compaction
-        
+
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {
             operation: "compact_database".to_string(),
@@ -237,9 +237,9 @@ impl AdminService {
         config_updates: HashMap<String, serde_json::Value>,
     ) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
-        
+
         // TODO: Validate and apply configuration updates
-        
+
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {
             operation: "update_config".to_string(),
@@ -295,18 +295,18 @@ pub struct SecurityFinding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brankas_crypto::SecurityParams;
-    use brankas_storage::MockStorageBackend;
+    use secreton_crypto::SecurityParams;
+    use secreton_storage::MemoryBackend;
     use crate::config::AuthConfig;
-    use brankas_core::audit::AuditLogger;
+    use secreton_core::audit::AuditLogger;
 
     #[tokio::test]
     async fn test_admin_service_creation() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(brankas_crypto::CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await.unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
+        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
 
         let admin_service = AdminService::new(storage, auth, audit).await;
         assert!(admin_service.is_ok());
@@ -314,12 +314,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_system_stats_placeholder() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(brankas_crypto::CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await.unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = AdminService::new(storage, auth, audit).await.unwrap();
+        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = AdminService::new(storage, auth, audit).await;
 
         let stats = service.get_system_stats().await.expect("stats");
         assert_eq!(stats.uptime_seconds, 86400);
@@ -329,12 +329,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_backup_returns_metadata() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(brankas_crypto::CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await.unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = AdminService::new(storage, auth, audit).await.unwrap();
+        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = AdminService::new(storage, auth, audit).await;
 
         let backup = service.create_backup().await.expect("backup");
         assert!(backup.encrypted);
@@ -343,15 +343,29 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_garbage_collection_returns_details() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(brankas_crypto::CryptoService::new(SecurityParams::default()).unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await.unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = AdminService::new(storage, auth, audit).await.unwrap();
+        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = AdminService::new(storage, auth, audit).await;
 
         let result = service.run_garbage_collection().await.expect("gc");
         assert_eq!(result.operation, "garbage_collection");
         assert!(result.details.contains_key("cleaned_objects"));
+    }
+}
+
+impl AdminService {
+    /// Create mock admin service for testing
+    pub fn new_mock(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
+        Self {
+            storage,
+            auth: Arc::new(AuthService::new_mock(
+                storage.clone(),
+                Arc::new(CryptoEngine::new().expect("crypto")),
+            )),
+            audit: Arc::new(AuditLogger::new(vec![])),
+        }
     }
 }

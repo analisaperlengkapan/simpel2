@@ -27,7 +27,7 @@ impl SessionCache {
     }
 
     pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self.sessions.lock();
         if let Some((session, timestamp)) = sessions.get(key) {
             if timestamp.elapsed() < self.ttl {
                 return Some(session.clone());
@@ -39,7 +39,7 @@ impl SessionCache {
     }
 
     pub fn insert(&self, key: Vec<u8>, session: Vec<u8>) {
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self.sessions.lock();
 
         // Remove expired entries if we're at capacity
         if sessions.len() >= self.max_entries {
@@ -85,14 +85,14 @@ static SESSION_CACHE: Mutex<Option<Arc<SessionCache>>> = Mutex::new(None);
 
 /// Initialize session cache
 pub fn init_session_cache(max_entries: usize, ttl_seconds: u64) {
-    let mut cache = SESSION_CACHE.lock().unwrap();
+    let mut cache = SESSION_CACHE.lock();
     *cache = Some(Arc::new(SessionCache::new(max_entries, ttl_seconds)));
     info!("TLS session cache initialized with {} max entries, {}s TTL", max_entries, ttl_seconds);
 }
 
 /// Get session cache instance
 fn get_session_cache() -> Option<Arc<SessionCache>> {
-    SESSION_CACHE.lock().unwrap().as_ref().cloned()
+    SESSION_CACHE.lock().as_ref().cloned()
 }
 
 /// Create optimized TLS configuration for server
@@ -242,11 +242,11 @@ static TLS_METRICS: Mutex<TlsMetrics> = Mutex::new(TlsMetrics::default());
 
 /// Record TLS handshake metrics
 pub fn record_tls_handshake(success: bool, resumption: bool, duration_ms: u64) {
-    let mut metrics = TLS_METRICS.lock().unwrap();
+    let mut metrics = TLS_METRICS.lock();
     metrics.record_handshake(success, resumption, duration_ms);
 }
 
 /// Get TLS performance metrics
 pub fn get_tls_metrics() -> TlsMetrics {
-    TLS_METRICS.lock().unwrap().clone()
+    TLS_METRICS.lock().clone()
 }

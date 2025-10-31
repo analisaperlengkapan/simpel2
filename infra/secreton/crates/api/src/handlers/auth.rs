@@ -1,5 +1,5 @@
 //! Authentication and authorization handlers.
-//! 
+//!
 //! Provides endpoints for user login, token management, MFA,
 //! and OAuth2 integration.
 
@@ -21,7 +21,7 @@ use crate::{
     handlers::AppState,
     ApiResponse, ApiResult, ApiError,
 };
-use brankas_core::audit::SecurityEventType;
+use secreton_core::models::audit::AuditEventType;
 
 /// Create authentication routes
 pub fn create_routes() -> Router<AppState> {
@@ -107,7 +107,7 @@ mod tests {
         assert!(body.success);
         let data = body.data.expect("oauth payload");
         assert_eq!(data["provider"], "github");
-        assert!(data["auth_url"].as_str().unwrap().contains("https://oauth.provider.com"));
+        assert!(data["auth_url"].as_str().contains("https://oauth.provider.com"));
     }
 }
 
@@ -176,24 +176,20 @@ pub async fn login(
         token_type: "Bearer".to_string(),
         expires_in: 3600,
         user: UserInfo {
-            id: "user_123".to_string(),
             username: request.username,
-            email: "user@example.com".to_string(),
-            roles: vec!["user".to_string()],
-            permissions: vec!["vault:read".to_string()],
-            last_login: chrono::Utc::now(),
-        },
+            email: Some("user@example.com".to_string()),
+            },
         mfa_required: false,
     };
     // Audit: authentication success (placeholder always success here)
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::AuthenticationSuccess {
+            AuditEventType::AuthenticationSuccess {
                 user: response.user.username.clone(),
                 method: "password".to_string(),
             },
-            Some(response.user.id.clone()),
+            Some(response.user.username.clone()),
             None,
             None,
             Default::default(),
@@ -221,10 +217,9 @@ pub async fn logout(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::SessionTerminated {
+            AuditEventType::SessionTerminated {
                 user: "unknown".to_string(),
-                session_id: "unknown".to_string(),
-                reason: "logout".to_string(),
+                session_reason: "logout".to_string(),
             },
             None,
             None,
@@ -254,24 +249,20 @@ pub async fn refresh_token(
         token_type: "Bearer".to_string(),
         expires_in: 3600,
         user: UserInfo {
-            id: "user_123".to_string(),
             username: "user".to_string(),
-            email: "user@example.com".to_string(),
-            roles: vec!["user".to_string()],
-            permissions: vec!["vault:read".to_string()],
-            last_login: chrono::Utc::now(),
-        },
+            email: Some("user@example.com".to_string()),
+            },
         mfa_required: false,
     };
     // Audit: token refresh
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::AuthenticationSuccess {
+            AuditEventType::AuthenticationSuccess {
                 user: response.user.username.clone(),
                 method: "refresh_token".to_string(),
             },
-            Some(response.user.id.clone()),
+            Some(response.user.username.clone()),
             None,
             None,
             Default::default(),
@@ -293,13 +284,9 @@ pub async fn verify_token(
     // 4. Return user information
 
     let user = UserInfo {
-        id: "user_123".to_string(),
         username: "user".to_string(),
-        email: "user@example.com".to_string(),
-        roles: vec!["user".to_string()],
-        permissions: vec!["vault:read".to_string()],
-        last_login: chrono::Utc::now(),
-    };
+        email: Some("user@example.com".to_string()),
+        };
 
     Ok(Json(ApiResponse::success(user)))
 }
@@ -353,7 +340,7 @@ pub async fn verify_mfa(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::MFASuccess {
+            AuditEventType::MFASuccess {
                 user: "unknown".to_string(),
                 method: request.method.clone(),
             },
@@ -384,7 +371,7 @@ pub async fn disable_mfa(
     let _ = state
         .audit
         .log_event(
-            SecurityEventType::MFARemoval {
+            AuditEventType::MFARemoval {
                 user: "unknown".to_string(),
                 method: "unknown".to_string(),
             },
@@ -410,7 +397,7 @@ pub async fn oauth_login(
     // 4. Store state for callback verification
 
     let auth_url = format!("https://oauth.provider.com/authorize?client_id=123&state=abc");
-    
+
     let data = serde_json::json!({
         "provider": provider,
         "auth_url": auth_url,
@@ -439,13 +426,9 @@ pub async fn oauth_callback(
         token_type: "Bearer".to_string(),
         expires_in: 3600,
         user: UserInfo {
-            id: "oauth_user_123".to_string(),
             username: "oauth_user".to_string(),
-            email: "oauth@example.com".to_string(),
-            roles: vec!["user".to_string()],
-            permissions: vec!["vault:read".to_string()],
-            last_login: chrono::Utc::now(),
-        },
+            email: Some("oauth@example.com".to_string()),
+            },
         mfa_required: false,
     };
 
@@ -463,9 +446,7 @@ pub async fn list_sessions(
 
     let sessions = vec![
         SessionInfo {
-            id: "session_1".to_string(),
-            user_id: "user_123".to_string(),
-            ip_address: "192.168.1.1".to_string(),
+            user_ip_address: "192.168.1.1".to_string(),
             user_agent: "Mozilla/5.0".to_string(),
             created_at: chrono::Utc::now() - chrono::Duration::hours(2),
             last_accessed: chrono::Utc::now(),
@@ -473,9 +454,7 @@ pub async fn list_sessions(
             is_current: true,
         },
         SessionInfo {
-            id: "session_2".to_string(),
-            user_id: "user_123".to_string(),
-            ip_address: "10.0.0.1".to_string(),
+            user_ip_address: "10.0.0.1".to_string(),
             user_agent: "curl/7.68.0".to_string(),
             created_at: chrono::Utc::now() - chrono::Duration::days(1),
             last_accessed: chrono::Utc::now() - chrono::Duration::hours(6),

@@ -3,10 +3,7 @@
 //! Username/password authentication for Secreton.
 //! Provides simple credential-based authentication with secure password hashing.
 
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
+// Removed: using secreton-crypto instead of direct argon2
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -22,25 +19,25 @@ use crate::models::auth::{AuthRequest, AuthResponse, UserInfo};
 pub enum UserPassError {
     #[error("Invalid credentials")]
     InvalidCredentials,
-    
+
     #[error("User not found: {0}")]
     UserNotFound(String),
-    
+
     #[error("User already exists: {0}")]
     UserAlreadyExists(String),
-    
+
     #[error("Password hashing error: {0}")]
     HashingError(String),
-    
+
     #[error("User account is disabled")]
     AccountDisabled,
-    
+
     #[error("User account is locked")]
     AccountLocked,
-    
+
     #[error("Password expired")]
     PasswordExpired,
-    
+
     #[error("Storage error: {0}")]
     StorageError(String),
 }
@@ -50,43 +47,43 @@ pub enum UserPassError {
 pub struct UserPassUser {
     /// Username
     pub username: String,
-    
+
     /// Password hash (Argon2id)
     pub password_hash: String,
-    
+
     /// User metadata
     pub metadata: HashMap<String, String>,
-    
+
     /// Associated policies
     pub policies: Vec<String>,
-    
+
     /// Token TTL in seconds
     pub token_ttl: Option<u32>,
-    
+
     /// Maximum token TTL in seconds
     pub token_max_ttl: Option<u32>,
-    
+
     /// Account enabled
     pub enabled: bool,
-    
+
     /// Account locked
     pub locked: bool,
-    
+
     /// Password expiration date
     pub password_expires_at: Option<DateTime<Utc>>,
-    
+
     /// Failed login attempts
     pub failed_attempts: u32,
-    
+
     /// Last failed login
     pub last_failed_login: Option<DateTime<Utc>>,
-    
+
     /// Last successful login
     pub last_login: Option<DateTime<Utc>>,
-    
+
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
-    
+
     /// Last updated timestamp
     pub updated_at: DateTime<Utc>,
 }
@@ -95,7 +92,7 @@ impl UserPassUser {
     /// Create a new user with hashed password
     pub fn new(username: String, password: &str, policies: Vec<String>) -> Result<Self, UserPassError> {
         let password_hash = Self::hash_password(password)?;
-        
+
         Ok(Self {
             username,
             password_hash,
@@ -113,28 +110,24 @@ impl UserPassUser {
             updated_at: Utc::now(),
         })
     }
-    
-    /// Hash a password using Argon2id
+
+    /// Hash a password using Argon2id via crypto crate
     fn hash_password(password: &str) -> Result<String, UserPassError> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        
-        argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map(|hash| hash.to_string())
+        use secreton_crypto::hashing::password::hash_password_argon2;
+
+        hash_password_argon2(password)
+            .map(|result| result.hash)
             .map_err(|e| UserPassError::HashingError(e.to_string()))
     }
-    
-    /// Verify a password against the stored hash
+
+    /// Verify a password against the stored hash via crypto crate
     pub fn verify_password(&self, password: &str) -> Result<bool, UserPassError> {
-        let parsed_hash = PasswordHash::new(&self.password_hash)
-            .map_err(|e| UserPassError::HashingError(e.to_string()))?;
-        
-        Ok(Argon2::default()
-            .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok())
+        use secreton_crypto::hashing::password::verify_password_argon2;
+
+        verify_password_argon2(&self.password_hash, password)
+            .map_err(|e| UserPassError::HashingError(e.to_string()))
     }
-    
+
     /// Update password with new hash
     pub fn update_password(&mut self, new_password: &str) -> Result<(), UserPassError> {
         self.password_hash = Self::hash_password(new_password)?;
@@ -142,39 +135,39 @@ impl UserPassUser {
         self.failed_attempts = 0;
         Ok(())
     }
-    
+
     /// Check if account can login
     pub fn can_login(&self) -> Result<(), UserPassError> {
         if !self.enabled {
             return Err(UserPassError::AccountDisabled);
         }
-        
+
         if self.locked {
             return Err(UserPassError::AccountLocked);
         }
-        
+
         if let Some(expires_at) = self.password_expires_at {
             if Utc::now() > expires_at {
                 return Err(UserPassError::PasswordExpired);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Record successful login
     pub fn record_success(&mut self) {
         self.last_login = Some(Utc::now());
         self.failed_attempts = 0;
         self.updated_at = Utc::now();
     }
-    
+
     /// Record failed login attempt
     pub fn record_failure(&mut self, max_attempts: u32) {
         self.failed_attempts += 1;
         self.last_failed_login = Some(Utc::now());
         self.updated_at = Utc::now();
-        
+
         if self.failed_attempts >= max_attempts {
             self.locked = true;
         }
@@ -186,16 +179,16 @@ impl UserPassUser {
 pub struct UserPassConfig {
     /// Default token TTL in seconds
     pub default_token_ttl: u32,
-    
+
     /// Maximum token TTL in seconds
     pub max_token_ttl: u32,
-    
+
     /// Password policies
     pub password_policy: PasswordPolicy,
-    
+
     /// Maximum failed login attempts before locking
     pub max_failed_attempts: u32,
-    
+
     /// Account lockout duration in seconds
     pub lockout_duration: u32,
 }
@@ -217,19 +210,19 @@ impl Default for UserPassConfig {
 pub struct PasswordPolicy {
     /// Minimum password length
     pub min_length: usize,
-    
+
     /// Require uppercase letters
     pub require_uppercase: bool,
-    
+
     /// Require lowercase letters
     pub require_lowercase: bool,
-    
+
     /// Require numbers
     pub require_numbers: bool,
-    
+
     /// Require special characters
     pub require_special: bool,
-    
+
     /// Password expiration in days (None = never expires)
     pub expiration_days: Option<u32>,
 }
@@ -253,23 +246,23 @@ impl PasswordPolicy {
         if password.len() < self.min_length {
             return Err(format!("Password must be at least {} characters", self.min_length));
         }
-        
+
         if self.require_uppercase && !password.chars().any(|c| c.is_uppercase()) {
             return Err("Password must contain at least one uppercase letter".to_string());
         }
-        
+
         if self.require_lowercase && !password.chars().any(|c| c.is_lowercase()) {
             return Err("Password must contain at least one lowercase letter".to_string());
         }
-        
+
         if self.require_numbers && !password.chars().any(|c| c.is_numeric()) {
             return Err("Password must contain at least one number".to_string());
         }
-        
+
         if self.require_special && !password.chars().any(|c| !c.is_alphanumeric()) {
             return Err("Password must contain at least one special character".to_string());
         }
-        
+
         Ok(())
     }
 }
@@ -288,7 +281,7 @@ impl UserPassAuth {
             users: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Create a new user
     pub async fn create_user(
         &self,
@@ -300,47 +293,47 @@ impl UserPassAuth {
         // Validate password policy
         self.config.password_policy.validate(password)
             .map_err(|e| UserPassError::HashingError(e))?;
-        
+
         let mut users = self.users.write().await;
-        
+
         if users.contains_key(&username) {
             return Err(UserPassError::UserAlreadyExists(username));
         }
-        
+
         let mut user = UserPassUser::new(username.clone(), password, policies)?;
         user.metadata = metadata;
-        
+
         // Set password expiration if configured
         if let Some(days) = self.config.password_policy.expiration_days {
             user.password_expires_at = Some(Utc::now() + Duration::days(days as i64));
         }
-        
+
         users.insert(username, user);
         Ok(())
     }
-    
+
     /// Update user password
     pub async fn update_password(&self, username: &str, new_password: &str) -> Result<(), UserPassError> {
         // Validate password policy
         self.config.password_policy.validate(new_password)
             .map_err(|e| UserPassError::HashingError(e))?;
-        
+
         let mut users = self.users.write().await;
-        
+
         let user = users
             .get_mut(username)
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))?;
-        
+
         user.update_password(new_password)?;
-        
+
         // Update expiration
         if let Some(days) = self.config.password_policy.expiration_days {
             user.password_expires_at = Some(Utc::now() + Duration::days(days as i64));
         }
-        
+
         Ok(())
     }
-    
+
     /// Delete a user
     pub async fn delete_user(&self, username: &str) -> Result<(), UserPassError> {
         let mut users = self.users.write().await;
@@ -349,13 +342,13 @@ impl UserPassAuth {
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))?;
         Ok(())
     }
-    
+
     /// List all users
     pub async fn list_users(&self) -> Vec<String> {
         let users = self.users.read().await;
         users.keys().cloned().collect()
     }
-    
+
     /// Get user information
     pub async fn get_user(&self, username: &str) -> Result<UserPassUser, UserPassError> {
         let users = self.users.read().await;
@@ -364,55 +357,56 @@ impl UserPassAuth {
             .cloned()
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))
     }
-    
+
     /// Authenticate user
     pub async fn authenticate(&self, username: &str, password: &str) -> Result<UserInfo, UserPassError> {
         let mut users = self.users.write().await;
-        
+
         let user = users
             .get_mut(username)
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))?;
-        
+
         // Check if account can login
         user.can_login()?;
-        
+
         // Verify password
         if !user.verify_password(password)? {
             user.record_failure(self.config.max_failed_attempts);
             return Err(UserPassError::InvalidCredentials);
         }
-        
+
         // Success!
         user.record_success();
-        
+
         Ok(UserInfo {
             username: user.username.clone(),
             email: user.metadata.get("email").cloned(),
             display_name: user.metadata.get("display_name").cloned(),
+            groups: Vec::new(),
             policies: user.policies.clone(),
             metadata: user.metadata.clone(),
         })
     }
-    
+
     /// Enable/disable user
     pub async fn set_user_enabled(&self, username: &str, enabled: bool) -> Result<(), UserPassError> {
         let mut users = self.users.write().await;
         let user = users
             .get_mut(username)
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))?;
-        
+
         user.enabled = enabled;
         user.updated_at = Utc::now();
         Ok(())
     }
-    
+
     /// Lock/unlock user
     pub async fn set_user_locked(&self, username: &str, locked: bool) -> Result<(), UserPassError> {
         let mut users = self.users.write().await;
         let user = users
             .get_mut(username)
             .ok_or_else(|| UserPassError::UserNotFound(username.to_string()))?;
-        
+
         user.locked = locked;
         if !locked {
             user.failed_attempts = 0;
@@ -430,7 +424,7 @@ mod tests {
     async fn test_create_and_authenticate() {
         let config = UserPassConfig::default();
         let auth = UserPassAuth::new(config);
-        
+
         // Create user
         auth.create_user(
             "testuser".to_string(),
@@ -440,20 +434,20 @@ mod tests {
         )
         .await
         .unwrap();
-        
+
         // Authenticate successfully
         let user_info = auth.authenticate("testuser", "TestPass123!").await.unwrap();
         assert_eq!(user_info.username, "testuser");
-        
+
         // Wrong password
         let result = auth.authenticate("testuser", "wrongpass").await;
         assert!(result.is_err());
     }
-    
+
     #[tokio::test]
     async fn test_password_policy() {
         let policy = PasswordPolicy::default();
-        
+
         assert!(policy.validate("short").is_err());
         assert!(policy.validate("nouppercase123!").is_err());
         assert!(policy.validate("NOLOWERCASE123!").is_err());
@@ -461,13 +455,13 @@ mod tests {
         assert!(policy.validate("NoSpecial123").is_err());
         assert!(policy.validate("ValidPass123!").is_ok());
     }
-    
+
     #[tokio::test]
     async fn test_account_lockout() {
         let mut config = UserPassConfig::default();
         config.max_failed_attempts = 3;
         let auth = UserPassAuth::new(config);
-        
+
         auth.create_user(
             "locktest".to_string(),
             "TestPass123!",
@@ -476,12 +470,12 @@ mod tests {
         )
         .await
         .unwrap();
-        
+
         // Fail 3 times
         for _ in 0..3 {
             let _ = auth.authenticate("locktest", "wrongpass").await;
         }
-        
+
         // Account should be locked
         let result = auth.authenticate("locktest", "TestPass123!").await;
         assert!(matches!(result, Err(UserPassError::AccountLocked)));

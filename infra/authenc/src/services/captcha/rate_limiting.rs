@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
-use crate::middleware::rate_limit_axum::{RateLimitConfig, RateLimiterState};
 use super::error::CaptchaError;
 use super::types::RiskLevel;
+use crate::middleware::rate_limit_axum::{RateLimitConfig, RateLimiterState};
 
 /// CAPTCHA-specific rate limiting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,8 +69,8 @@ impl Default for CaptchaRateLimitConfig {
                 excluded_paths: vec![],
                 enabled: true,
                 progressive_delays: true,
-                base_delay_ms: 2000,  // 2 second base delay
-                max_delay_ms: 30000,  // 30 second max delay
+                base_delay_ms: 2000, // 2 second base delay
+                max_delay_ms: 30000, // 30 second max delay
             },
             progressive_limits: ProgressiveLimits {
                 low_failure_rpm: 20,     // 1-2 failures
@@ -182,9 +182,7 @@ impl CaptchaRateLimitState {
                 let mut tracker = failure_tracker.write().await;
                 let cutoff_time = SystemTime::now() - Duration::from_secs(3600); // Keep 1 hour of history
 
-                tracker.retain(|_, failure_data| {
-                    failure_data.last_failure > cutoff_time
-                });
+                tracker.retain(|_, failure_data| failure_data.last_failure > cutoff_time);
             }
         });
 
@@ -228,12 +226,17 @@ impl CaptchaRateLimitState {
         let tracking_key = self.get_tracking_key(addr);
         let mut tracker = self.failure_tracker.write().await;
 
-        let failure_data = tracker.entry(tracking_key.clone()).or_insert_with(CaptchaFailureTracker::new);
+        let failure_data = tracker
+            .entry(tracking_key.clone())
+            .or_insert_with(CaptchaFailureTracker::new);
         failure_data.record_failure(risk_level.clone());
 
         info!(
             "Recorded CAPTCHA failure for {}: failures={}, consecutive={}, risk={:?}",
-            addr.ip(), failure_data.failure_count, failure_data.consecutive_failures, risk_level
+            addr.ip(),
+            failure_data.failure_count,
+            failure_data.consecutive_failures,
+            risk_level
         );
     }
 
@@ -244,7 +247,10 @@ impl CaptchaRateLimitState {
 
         if let Some(failure_data) = tracker.get_mut(&tracking_key) {
             failure_data.record_success();
-            debug!("Recorded CAPTCHA success for {}: reset consecutive failures", addr.ip());
+            debug!(
+                "Recorded CAPTCHA success for {}: reset consecutive failures",
+                addr.ip()
+            );
         }
     }
 
@@ -312,8 +318,7 @@ pub async fn captcha_rate_limit_middleware(
 ) -> Result<Response, StatusCode> {
     // Check if this is a CAPTCHA endpoint
     let path = request.uri().path();
-    let is_captcha_endpoint = path.contains("/captcha/") ||
-                             path.contains("/api/v1/captcha");
+    let is_captcha_endpoint = path.contains("/captcha/") || path.contains("/api/v1/captcha");
 
     if !is_captcha_endpoint {
         // Not a CAPTCHA endpoint, proceed normally
@@ -327,7 +332,8 @@ pub async fn captcha_rate_limit_middleware(
                 let delay = rate_limit_state.get_delay_duration(&addr).await;
                 warn!(
                     "Rate limiting CAPTCHA request from {}: delay={:?}",
-                    addr.ip(), delay
+                    addr.ip(),
+                    delay
                 );
 
                 // Apply progressive delay
@@ -351,16 +357,29 @@ pub async fn captcha_rate_limit_middleware(
     let status = response.status();
     if status.is_client_error() || status.is_server_error() {
         // Record as potential failure (actual failure recording should be done in the handler)
-        debug!("CAPTCHA endpoint returned error status {} for {}", status, addr.ip());
+        debug!(
+            "CAPTCHA endpoint returned error status {} for {}",
+            status,
+            addr.ip()
+        );
     }
 
     Ok(response)
 }
 
 /// Helper function to create CAPTCHA rate limiting layer
-pub fn create_captcha_rate_limit_layer(config: CaptchaRateLimitConfig) -> impl tower::Layer<CaptchaRateLimitState> + Clone + Send + Sync + 'static {
+pub fn create_captcha_rate_limit_layer(
+    config: CaptchaRateLimitConfig,
+) -> impl tower::Layer<CaptchaRateLimitState> + Clone + Send + Sync + 'static {
     let state = CaptchaRateLimitState::new(config);
-    axum::middleware::from_fn_with_state::<_, CaptchaRateLimitState, (axum::extract::ConnectInfo<std::net::SocketAddr>, axum::extract::State<CaptchaRateLimitState>)>(state, captcha_rate_limit_middleware)
+    axum::middleware::from_fn_with_state::<
+        _,
+        CaptchaRateLimitState,
+        (
+            axum::extract::ConnectInfo<std::net::SocketAddr>,
+            axum::extract::State<CaptchaRateLimitState>,
+        ),
+    >(state, captcha_rate_limit_middleware)
 }
 
 #[cfg(test)]

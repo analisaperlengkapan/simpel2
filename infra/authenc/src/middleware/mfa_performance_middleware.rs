@@ -76,12 +76,16 @@ pub async fn mfa_performance_middleware(
             monitor.record_setup_operation(duration, success).await;
         }
         "mfa_verification" => {
-            monitor.record_verification_operation(duration, success, error_type).await;
+            monitor
+                .record_verification_operation(duration, success, error_type)
+                .await;
         }
         "mfa_status_lookup" => {
             // For status lookup, we assume cache hit if response is fast (<50ms)
             let cache_hit = success && duration.as_millis() < 50;
-            monitor.record_status_lookup(duration, success, cache_hit).await;
+            monitor
+                .record_status_lookup(duration, success, cache_hit)
+                .await;
         }
         _ => {
             // Record as generic MFA operation
@@ -129,7 +133,11 @@ impl MfaDatabaseMiddleware {
     }
 
     /// Monitor a database query execution
-    pub async fn monitor_query<F, T>(&self, query_type: &str, query_fn: F) -> crate::error::Result<T>
+    pub async fn monitor_query<F, T>(
+        &self,
+        query_type: &str,
+        query_fn: F,
+    ) -> crate::error::Result<T>
     where
         F: std::future::Future<Output = crate::error::Result<T>>,
     {
@@ -138,7 +146,9 @@ impl MfaDatabaseMiddleware {
         let duration = start_time.elapsed();
         let success = result.is_ok();
 
-        self.monitor.record_database_query(query_type, duration, success).await;
+        self.monitor
+            .record_database_query(query_type, duration, success)
+            .await;
 
         result
     }
@@ -156,7 +166,11 @@ impl MfaCacheMiddleware {
     }
 
     /// Monitor a cache operation execution
-    pub async fn monitor_cache_operation<F, T>(&self, operation: &str, cache_fn: F) -> crate::error::Result<T>
+    pub async fn monitor_cache_operation<F, T>(
+        &self,
+        operation: &str,
+        cache_fn: F,
+    ) -> crate::error::Result<T>
     where
         F: std::future::Future<Output = crate::error::Result<T>>,
     {
@@ -165,7 +179,9 @@ impl MfaCacheMiddleware {
         let duration = start_time.elapsed();
         let success = result.is_ok();
 
-        self.monitor.record_cache_operation(operation, duration, success).await;
+        self.monitor
+            .record_cache_operation(operation, duration, success)
+            .await;
 
         result
     }
@@ -218,13 +234,19 @@ impl MfaServiceMonitor {
             None
         };
 
-        self.monitor.record_verification_operation(duration, success, error_type).await;
+        self.monitor
+            .record_verification_operation(duration, success, error_type)
+            .await;
 
         result
     }
 
     /// Monitor MFA status lookup operation
-    pub async fn monitor_status_lookup<F, T>(&self, lookup_fn: F, cache_hit: bool) -> crate::error::Result<T>
+    pub async fn monitor_status_lookup<F, T>(
+        &self,
+        lookup_fn: F,
+        cache_hit: bool,
+    ) -> crate::error::Result<T>
     where
         F: std::future::Future<Output = crate::error::Result<T>>,
     {
@@ -233,7 +255,9 @@ impl MfaServiceMonitor {
         let duration = start_time.elapsed();
         let success = result.is_ok();
 
-        self.monitor.record_status_lookup(duration, success, cache_hit).await;
+        self.monitor
+            .record_status_lookup(duration, success, cache_hit)
+            .await;
 
         result
     }
@@ -252,7 +276,9 @@ impl MfaServiceMonitor {
             _ => false,
         };
 
-        self.monitor.record_rate_limit_check(duration, violated).await;
+        self.monitor
+            .record_rate_limit_check(duration, violated)
+            .await;
 
         result
     }
@@ -263,12 +289,12 @@ mod tests {
     use super::*;
     use crate::services::mfa_performance_monitor::MfaPerformanceMonitor;
     use axum::{
+        Router,
         body::Body,
         http::{Method, Request, StatusCode},
         middleware,
         response::Response,
         routing::get,
-        Router,
     };
     use std::sync::Arc;
     use tower::ServiceExt;

@@ -11,6 +11,75 @@ pub struct OidcConfig {
     pub redirect_uri: String,
 }
 
+/// SSO Cookie configuration for secure session management
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SsoCookieConfig {
+    /// Cookie name (default: AUTHENC_SSO)
+    #[serde(default = "default_cookie_name")]
+    pub name: String,
+
+    /// Cookie domain (e.g., simpel.kejaksaan.go.id)
+    pub domain: Option<String>,
+
+    /// Cookie path (default: /)
+    #[serde(default = "default_cookie_path")]
+    pub path: String,
+
+    /// Cookie max age in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_cookie_max_age")]
+    pub max_age: i64,
+
+    /// Enable Secure flag (HTTPS only)
+    #[serde(default = "default_cookie_secure")]
+    pub secure: bool,
+
+    /// Enable HttpOnly flag (prevent JavaScript access)
+    #[serde(default = "default_cookie_http_only")]
+    pub http_only: bool,
+
+    /// SameSite policy (Lax, Strict, None)
+    #[serde(default = "default_cookie_same_site")]
+    pub same_site: String,
+}
+
+impl Default for SsoCookieConfig {
+    fn default() -> Self {
+        Self {
+            name: default_cookie_name(),
+            domain: None,
+            path: default_cookie_path(),
+            max_age: default_cookie_max_age(),
+            secure: default_cookie_secure(),
+            http_only: default_cookie_http_only(),
+            same_site: default_cookie_same_site(),
+        }
+    }
+}
+
+fn default_cookie_name() -> String {
+    "AUTHENC_SSO".to_string()
+}
+
+fn default_cookie_path() -> String {
+    "/".to_string()
+}
+
+fn default_cookie_max_age() -> i64 {
+    3600 // 1 hour
+}
+
+fn default_cookie_secure() -> bool {
+    true // Always use Secure flag for production
+}
+
+fn default_cookie_http_only() -> bool {
+    true // Prevent XSS attacks
+}
+
+fn default_cookie_same_site() -> String {
+    "Lax".to_string() // Balance security and usability
+}
+
 /// SAML configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SamlConfig {
@@ -145,6 +214,8 @@ pub struct EventsConfig {
     pub archive_before_delete: bool,
     /// Archive directory path (if archiving is enabled)
     pub archive_directory: Option<String>,
+    /// Cold storage configuration for event archiving
+    pub cold_storage: Option<ColdStorageConfig>,
 }
 
 impl Default for EventsConfig {
@@ -157,8 +228,69 @@ impl Default for EventsConfig {
             cleanup_interval_hours: default_cleanup_interval_hours(),
             archive_before_delete: false,
             archive_directory: None,
+            cold_storage: None,
         }
     }
+}
+
+/// Cold storage configuration for event archiving (S3/MinIO)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColdStorageConfig {
+    /// Whether cold storage is enabled
+    #[serde(default)]
+    pub enabled: bool,
+    /// Storage type (s3 or minio)
+    #[serde(default = "default_storage_type")]
+    pub storage_type: String,
+    /// S3/MinIO endpoint URL
+    pub endpoint: String,
+    /// S3/MinIO region
+    #[serde(default = "default_region")]
+    pub region: String,
+    /// S3/MinIO bucket name for archived events
+    pub bucket: String,
+    /// Access key ID
+    pub access_key_id: Option<String>,
+    /// Secret access key
+    pub secret_access_key: Option<String>,
+    /// Path prefix for archived events
+    #[serde(default = "default_path_prefix")]
+    pub path_prefix: String,
+    /// Whether to use path-style addressing (for MinIO)
+    #[serde(default = "default_path_style")]
+    pub force_path_style: bool,
+}
+
+impl Default for ColdStorageConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            storage_type: default_storage_type(),
+            endpoint: String::new(),
+            region: default_region(),
+            bucket: String::new(),
+            access_key_id: None,
+            secret_access_key: None,
+            path_prefix: default_path_prefix(),
+            force_path_style: default_path_style(),
+        }
+    }
+}
+
+fn default_storage_type() -> String {
+    "s3".to_string()
+}
+
+fn default_region() -> String {
+    "us-east-1".to_string()
+}
+
+fn default_path_prefix() -> String {
+    "authenc/events/archive".to_string()
+}
+
+fn default_path_style() -> bool {
+    false
 }
 
 fn default_user_event_retention_days() -> u32 {
@@ -217,6 +349,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Level;
 
 use crate::error::{AuthencError, Result};
+use crate::middleware::adaptive_rate_limit::AdaptiveRateLimitConfig;
 use crate::middleware::rate_limit_axum::RateLimitConfig;
 
 /// Dynamic configuration management for adaptive security and performance
@@ -229,6 +362,10 @@ pub use dynamic::{
     CryptoMode, DynamicConfig, DynamicConfigManager, LoadMetrics, PerformanceProfile,
     PerformanceProfiler, ThreatLevel,
 };
+
+/// MFA fallback configuration for local encrypted storage
+pub mod mfa_fallback;
+pub use mfa_fallback::MfaFallbackConfig;
 
 /// Cluster configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -296,6 +433,9 @@ pub struct AppConfig {
     /// Rate limiting configuration
     pub rate_limit: RateLimitConfig,
 
+    /// Adaptive rate limiting configuration
+    pub adaptive_rate_limit: AdaptiveRateLimitConfig,
+
     /// MFA-specific rate limiting configuration
     pub mfa_rate_limit: crate::middleware::MfaRateLimitConfig,
 
@@ -313,6 +453,10 @@ pub struct AppConfig {
 
     /// Optional SAML configuration
     pub saml: Option<SamlConfig>,
+
+    /// SSO Cookie configuration
+    #[serde(default)]
+    pub sso_cookie: SsoCookieConfig,
 
     /// UI configuration
     pub ui: Option<UiConfig>,
@@ -339,6 +483,9 @@ pub struct AppConfig {
     /// Clustering configuration for high availability
     #[serde(default)]
     pub clustering: ClusterConfig,
+
+    /// Key rotation configuration for automatic key rotation
+    pub key_rotation: Option<crate::services::key_rotation::KeyRotationConfig>,
 }
 
 /// Server configuration options
@@ -348,9 +495,17 @@ pub struct ServerConfig {
     #[serde(default = "default_host")]
     pub host: String,
 
-    /// Port to listen on
+    /// Port to listen on (HTTP/REST)
     #[serde(default = "default_port")]
     pub port: u16,
+
+    /// gRPC server port
+    #[serde(default = "default_grpc_port")]
+    pub grpc_port: u16,
+
+    /// Enable gRPC server
+    #[serde(default = "default_grpc_enabled")]
+    pub grpc_enabled: bool,
 
     /// Number of worker threads to use (defaults to number of CPU cores)
     pub workers: Option<usize>,
@@ -406,6 +561,14 @@ fn default_port() -> u16 {
     3000
 }
 
+fn default_grpc_port() -> u16 {
+    9088
+}
+
+fn default_grpc_enabled() -> bool {
+    true
+}
+
 fn default_keep_alive() -> u64 {
     75
 }
@@ -453,12 +616,54 @@ pub struct DatabaseConfig {
     pub database: String,
     /// Maximum number of database connections
     pub max_connections: u32,
+    /// Minimum number of idle connections to maintain
+    #[serde(default = "default_min_connections")]
+    pub min_connections: u32,
     /// Connection timeout in seconds
     pub connection_timeout: u64,
+    /// Idle connection timeout in seconds (how long before an idle connection is closed)
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout: u64,
+    /// Maximum connection lifetime in seconds (how long a connection can live)
+    #[serde(default = "default_max_lifetime")]
+    pub max_lifetime: u64,
     /// Optional audit log database URL
     pub audit_log_url: Option<String>,
     /// Connection timeout in seconds (alternative field)
     pub connection_timeout_seconds: u64,
+}
+
+fn default_min_connections() -> u32 {
+    10
+}
+
+fn default_idle_timeout() -> u64 {
+    600 // 10 minutes
+}
+
+fn default_max_lifetime() -> u64 {
+    1800 // 30 minutes
+}
+
+impl DatabaseConfig {
+    /// Create a test database configuration with sensible defaults
+    #[cfg(test)]
+    pub fn test_config() -> Self {
+        Self {
+            host: "localhost".to_string(),
+            port: 5432,
+            username: "postgres".to_string(),
+            password: "postgres".to_string(),
+            database: "test_authenc".to_string(),
+            max_connections: 5,
+            min_connections: 1,
+            connection_timeout: 5,
+            idle_timeout: 60,
+            max_lifetime: 120,
+            audit_log_url: None,
+            connection_timeout_seconds: 5,
+        }
+    }
 }
 
 /// Security configuration for the authentication platform
@@ -814,6 +1019,8 @@ impl Default for AppConfig {
             server: ServerConfig {
                 host: default_host(),
                 port: default_port(),
+                grpc_port: default_grpc_port(),
+                grpc_enabled: default_grpc_enabled(),
                 workers: None,
                 keep_alive: default_keep_alive(),
                 client_timeout: default_client_timeout(),
@@ -834,7 +1041,10 @@ impl Default for AppConfig {
                 password: "postgres".to_string(),
                 database: "authenc".to_string(),
                 max_connections: 10,
+                min_connections: default_min_connections(),
                 connection_timeout: 30,
+                idle_timeout: default_idle_timeout(),
+                max_lifetime: default_max_lifetime(),
                 audit_log_url: None,
                 connection_timeout_seconds: 30,
             },
@@ -874,9 +1084,11 @@ impl Default for AppConfig {
                 enable_input_validation: true,
             },
             rate_limit: RateLimitConfig::default(),
+            adaptive_rate_limit: AdaptiveRateLimitConfig::default(),
             mfa_rate_limit: crate::middleware::MfaRateLimitConfig::default(),
             oidc: None,
             saml: None,
+            sso_cookie: SsoCookieConfig::default(),
             ui: None,
             multi_db: None,
             secreton: None,
@@ -885,6 +1097,7 @@ impl Default for AppConfig {
             events: EventsConfig::default(),
             spi: SpiConfig::default(),
             clustering: ClusterConfig::default(),
+            key_rotation: None,
         }
     }
 }

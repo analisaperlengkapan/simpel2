@@ -1,4 +1,4 @@
-//! Authentication and authorization for the Brankas API
+//! Authentication and authorization for the Secreton API
 //!
 //! Provides JWT-based authentication, role-based access control,
 //! and integration with external identity providers.
@@ -381,9 +381,9 @@ mod tests {
                 "test@example.com",
                 vec!["crypto-user".to_string()],
             )
-            .unwrap();
+            ;
 
-        let token_data = auth_service.validate_token(&token).unwrap();
+        let token_data = auth_service.validate_token(&token);
 
         assert_eq!(token_data.claims.sub, "user123");
         assert_eq!(token_data.claims.name, "Test User");
@@ -465,17 +465,17 @@ mod tests {
 
     #[test]
     fn test_extract_bearer_token() {
-        let header = HeaderValue::from_str("Bearer secret-token").unwrap();
+        let header = HeaderValue::from_str("Bearer secret-token");
         let token = extract_bearer_token(&header).expect("token expected");
         assert_eq!(token, "secret-token");
     }
 
     #[test]
     fn test_extract_bearer_token_invalid_format() {
-        let header = HeaderValue::from_str("Basic abc123").unwrap();
+        let header = HeaderValue::from_str("Basic abc123");
         assert!(extract_bearer_token(&header).is_none());
 
-        let header = HeaderValue::from_str("Bearer").unwrap();
+        let header = HeaderValue::from_str("Bearer");
         assert!(extract_bearer_token(&header).is_none());
     }
 }

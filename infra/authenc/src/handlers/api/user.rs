@@ -93,8 +93,8 @@ pub async fn create_user(
         password: Some(request.password),
         first_name: request.first_name,
         last_name: request.last_name,
-        nip: None, // TODO: Add nip to handler request
-        nama: None, // TODO: Add nama to handler request
+        nip: None,     // TODO: Add nip to handler request
+        nama: None,    // TODO: Add nama to handler request
         jabatan: None, // TODO: Add jabatan to handler request
         phone_number: request.phone_number,
         realm_id: request.realm_id,

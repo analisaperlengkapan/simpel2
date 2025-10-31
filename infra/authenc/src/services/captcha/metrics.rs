@@ -162,8 +162,8 @@ impl MetricsCollector {
             timestamp: SystemTime::now(),
             challenge_generation_latency_ms: generation_time.as_millis() as u64,
             validation_latency_ms: 0, // Will be updated during validation
-            success_rate: 0.0, // Will be calculated in aggregation
-            failure_rate: 0.0, // Will be calculated in aggregation
+            success_rate: 0.0,        // Will be calculated in aggregation
+            failure_rate: 0.0,        // Will be calculated in aggregation
             average_difficulty: difficulty as f64,
             concurrent_challenges: self.get_concurrent_challenges_count().await?,
             memory_usage_mb: self.get_memory_usage(),
@@ -174,7 +174,9 @@ impl MetricsCollector {
         buffer.push(metric);
 
         // Store in database for persistence
-        self.db_ops.store_performance_metrics(&buffer.last().unwrap()).await
+        self.db_ops
+            .store_performance_metrics(&buffer.last().unwrap())
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -211,7 +213,10 @@ impl MetricsCollector {
 
         // Record bot detection metrics
         let is_bot = matches!(behavioral_classification, BehaviorClassification::Bot);
-        let is_suspicious = matches!(behavioral_classification, BehaviorClassification::Suspicious);
+        let is_suspicious = matches!(
+            behavioral_classification,
+            BehaviorClassification::Suspicious
+        );
 
         let bot_metric = BotDetectionMetrics {
             metric_id: Uuid::new_v4().to_string(),
@@ -222,9 +227,9 @@ impl MetricsCollector {
             true_negatives: if !is_bot && success { 1 } else { 0 },
             false_negatives: if !is_bot && !success { 1 } else { 0 },
             accuracy_rate: 0.0, // Will be calculated in aggregation
-            precision: 0.0, // Will be calculated in aggregation
-            recall: 0.0, // Will be calculated in aggregation
-            f1_score: 0.0, // Will be calculated in aggregation
+            precision: 0.0,     // Will be calculated in aggregation
+            recall: 0.0,        // Will be calculated in aggregation
+            f1_score: 0.0,      // Will be calculated in aggregation
             risk_distribution: {
                 let mut dist = HashMap::new();
                 dist.insert(risk_level.clone(), 1);
@@ -236,7 +241,9 @@ impl MetricsCollector {
         bot_buffer.push(bot_metric);
 
         // Store in database
-        self.db_ops.store_bot_detection_metrics(&bot_buffer.last().unwrap()).await
+        self.db_ops
+            .store_bot_detection_metrics(&bot_buffer.last().unwrap())
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -263,7 +270,11 @@ impl MetricsCollector {
             abandonment_rate: if abandoned { 1.0 } else { 0.0 },
             retry_rate: if retry_count > 0 { 1.0 } else { 0.0 },
             accessibility_usage_rate: if accessibility_used { 1.0 } else { 0.0 },
-            user_satisfaction_score: self.calculate_satisfaction_score(completion_time, retry_count, abandoned),
+            user_satisfaction_score: self.calculate_satisfaction_score(
+                completion_time,
+                retry_count,
+                abandoned,
+            ),
             challenge_type_preferences: {
                 let mut prefs = HashMap::new();
                 prefs.insert(challenge_type.clone(), 1);
@@ -280,7 +291,9 @@ impl MetricsCollector {
         buffer.push(metric);
 
         // Store in database
-        self.db_ops.store_user_experience_metrics(&buffer.last().unwrap()).await
+        self.db_ops
+            .store_user_experience_metrics(&buffer.last().unwrap())
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -301,11 +314,34 @@ impl MetricsCollector {
         let metric = SecurityEventMetrics {
             metric_id: Uuid::new_v4().to_string(),
             timestamp: SystemTime::now(),
-            attack_attempts: if matches!(event_type, SecurityEventType::AttackAttempt) { 1 } else { 0 },
-            blocked_ips: if matches!(event_type, SecurityEventType::IpBlocked) { 1 } else { 0 },
-            rate_limit_triggers: if matches!(event_type, SecurityEventType::RateLimitTriggered) { 1 } else { 0 },
-            lockout_events: if matches!(event_type, SecurityEventType::UserLockedOut) { 1 } else { 0 },
-            suspicious_behavior_count: if matches!(event_type, SecurityEventType::SuspiciousBehavior) { 1 } else { 0 },
+            attack_attempts: if matches!(event_type, SecurityEventType::AttackAttempt) {
+                1
+            } else {
+                0
+            },
+            blocked_ips: if matches!(event_type, SecurityEventType::IpBlocked) {
+                1
+            } else {
+                0
+            },
+            rate_limit_triggers: if matches!(event_type, SecurityEventType::RateLimitTriggered) {
+                1
+            } else {
+                0
+            },
+            lockout_events: if matches!(event_type, SecurityEventType::UserLockedOut) {
+                1
+            } else {
+                0
+            },
+            suspicious_behavior_count: if matches!(
+                event_type,
+                SecurityEventType::SuspiciousBehavior
+            ) {
+                1
+            } else {
+                0
+            },
             threat_level_distribution: {
                 let mut dist = HashMap::new();
                 dist.insert(risk_level.clone(), 1);
@@ -324,7 +360,9 @@ impl MetricsCollector {
         buffer.push(metric);
 
         // Store in database
-        self.db_ops.store_security_event_metrics(&buffer.last().unwrap()).await
+        self.db_ops
+            .store_security_event_metrics(&buffer.last().unwrap())
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -335,12 +373,16 @@ impl MetricsCollector {
     }
 
     /// Generate aggregated metrics summary
-    pub async fn generate_summary(&self, time_window_minutes: u64) -> Result<MetricsSummary, CaptchaError> {
+    pub async fn generate_summary(
+        &self,
+        time_window_minutes: u64,
+    ) -> Result<MetricsSummary, CaptchaError> {
         let cutoff_time = SystemTime::now() - Duration::from_secs(time_window_minutes * 60);
 
         // Aggregate performance metrics
         let perf_buffer = self.performance_buffer.read().await;
-        let recent_perf: Vec<_> = perf_buffer.iter()
+        let recent_perf: Vec<_> = perf_buffer
+            .iter()
             .filter(|m| m.timestamp > cutoff_time)
             .collect();
 
@@ -348,7 +390,8 @@ impl MetricsCollector {
 
         // Aggregate bot detection metrics
         let bot_buffer = self.bot_detection_buffer.read().await;
-        let recent_bot: Vec<_> = bot_buffer.iter()
+        let recent_bot: Vec<_> = bot_buffer
+            .iter()
             .filter(|m| m.timestamp > cutoff_time)
             .collect();
 
@@ -356,7 +399,8 @@ impl MetricsCollector {
 
         // Aggregate user experience metrics
         let ux_buffer = self.user_experience_buffer.read().await;
-        let recent_ux: Vec<_> = ux_buffer.iter()
+        let recent_ux: Vec<_> = ux_buffer
+            .iter()
             .filter(|m| m.timestamp > cutoff_time)
             .collect();
 
@@ -364,7 +408,8 @@ impl MetricsCollector {
 
         // Aggregate security event metrics
         let security_buffer = self.security_events_buffer.read().await;
-        let recent_security: Vec<_> = security_buffer.iter()
+        let recent_security: Vec<_> = security_buffer
+            .iter()
             .filter(|m| m.timestamp > cutoff_time)
             .collect();
 
@@ -406,7 +451,9 @@ impl MetricsCollector {
 
     // Private helper methods
     async fn get_concurrent_challenges_count(&self) -> Result<u64, CaptchaError> {
-        self.db_ops.get_active_challenges_count().await
+        self.db_ops
+            .get_active_challenges_count()
+            .await
             .map_err(|e| CaptchaError::DatabaseError {
                 message: e.to_string(),
                 transient: true,
@@ -424,7 +471,12 @@ impl MetricsCollector {
         0.0
     }
 
-    fn calculate_satisfaction_score(&self, completion_time: Duration, retry_count: u32, abandoned: bool) -> f64 {
+    fn calculate_satisfaction_score(
+        &self,
+        completion_time: Duration,
+        retry_count: u32,
+        abandoned: bool,
+    ) -> f64 {
         if abandoned {
             return 0.0;
         }
@@ -433,7 +485,9 @@ impl MetricsCollector {
         let time_penalty = (completion_time.as_secs() as f64 / 60.0) * 0.1; // Penalty for long completion times
         let retry_penalty = retry_count as f64 * 0.2; // Penalty for retries
 
-        (base_score - time_penalty - retry_penalty).max(0.0).min(1.0)
+        (base_score - time_penalty - retry_penalty)
+            .max(0.0)
+            .min(1.0)
     }
 
     fn aggregate_performance_metrics(&self, metrics: &[&PerformanceMetrics]) -> PerformanceMetrics {
@@ -453,12 +507,16 @@ impl MetricsCollector {
         }
 
         let count = metrics.len() as f64;
-        let total_gen_latency: u64 = metrics.iter().map(|m| m.challenge_generation_latency_ms).sum();
+        let total_gen_latency: u64 = metrics
+            .iter()
+            .map(|m| m.challenge_generation_latency_ms)
+            .sum();
         let total_val_latency: u64 = metrics.iter().map(|m| m.validation_latency_ms).sum();
         let total_success_rate: f64 = metrics.iter().map(|m| m.success_rate).sum();
         let total_failure_rate: f64 = metrics.iter().map(|m| m.failure_rate).sum();
         let total_difficulty: f64 = metrics.iter().map(|m| m.average_difficulty).sum();
-        let avg_concurrent: u64 = (metrics.iter().map(|m| m.concurrent_challenges).sum::<u64>() as f64 / count) as u64;
+        let avg_concurrent: u64 =
+            (metrics.iter().map(|m| m.concurrent_challenges).sum::<u64>() as f64 / count) as u64;
         let avg_memory: f64 = metrics.iter().map(|m| m.memory_usage_mb).sum::<f64>() / count;
         let avg_cpu: f64 = metrics.iter().map(|m| m.cpu_usage_percent).sum::<f64>() / count;
 
@@ -476,7 +534,10 @@ impl MetricsCollector {
         }
     }
 
-    fn aggregate_bot_detection_metrics(&self, metrics: &[&BotDetectionMetrics]) -> BotDetectionMetrics {
+    fn aggregate_bot_detection_metrics(
+        &self,
+        metrics: &[&BotDetectionMetrics],
+    ) -> BotDetectionMetrics {
         if metrics.is_empty() {
             return BotDetectionMetrics {
                 metric_id: Uuid::new_v4().to_string(),
@@ -549,7 +610,10 @@ impl MetricsCollector {
         }
     }
 
-    fn aggregate_user_experience_metrics(&self, metrics: &[&UserExperienceMetrics]) -> UserExperienceMetrics {
+    fn aggregate_user_experience_metrics(
+        &self,
+        metrics: &[&UserExperienceMetrics],
+    ) -> UserExperienceMetrics {
         if metrics.is_empty() {
             return UserExperienceMetrics {
                 metric_id: Uuid::new_v4().to_string(),
@@ -565,17 +629,31 @@ impl MetricsCollector {
         }
 
         let count = metrics.len() as f64;
-        let avg_completion_time: u64 = (metrics.iter().map(|m| m.average_completion_time_ms).sum::<u64>() as f64 / count) as u64;
+        let avg_completion_time: u64 = (metrics
+            .iter()
+            .map(|m| m.average_completion_time_ms)
+            .sum::<u64>() as f64
+            / count) as u64;
         let abandonment_rate: f64 = metrics.iter().map(|m| m.abandonment_rate).sum::<f64>() / count;
         let retry_rate: f64 = metrics.iter().map(|m| m.retry_rate).sum::<f64>() / count;
-        let accessibility_usage_rate: f64 = metrics.iter().map(|m| m.accessibility_usage_rate).sum::<f64>() / count;
-        let user_satisfaction_score: f64 = metrics.iter().map(|m| m.user_satisfaction_score).sum::<f64>() / count;
+        let accessibility_usage_rate: f64 = metrics
+            .iter()
+            .map(|m| m.accessibility_usage_rate)
+            .sum::<f64>()
+            / count;
+        let user_satisfaction_score: f64 = metrics
+            .iter()
+            .map(|m| m.user_satisfaction_score)
+            .sum::<f64>()
+            / count;
 
         // Aggregate challenge type preferences
         let mut challenge_type_preferences = HashMap::new();
         for metric in metrics {
             for (challenge_type, count) in &metric.challenge_type_preferences {
-                *challenge_type_preferences.entry(challenge_type.clone()).or_insert(0) += count;
+                *challenge_type_preferences
+                    .entry(challenge_type.clone())
+                    .or_insert(0) += count;
             }
         }
 
@@ -600,7 +678,10 @@ impl MetricsCollector {
         }
     }
 
-    fn aggregate_security_event_metrics(&self, metrics: &[&SecurityEventMetrics]) -> SecurityEventMetrics {
+    fn aggregate_security_event_metrics(
+        &self,
+        metrics: &[&SecurityEventMetrics],
+    ) -> SecurityEventMetrics {
         if metrics.is_empty() {
             return SecurityEventMetrics {
                 metric_id: Uuid::new_v4().to_string(),
@@ -619,13 +700,16 @@ impl MetricsCollector {
         let blocked_ips: u64 = metrics.iter().map(|m| m.blocked_ips).sum();
         let rate_limit_triggers: u64 = metrics.iter().map(|m| m.rate_limit_triggers).sum();
         let lockout_events: u64 = metrics.iter().map(|m| m.lockout_events).sum();
-        let suspicious_behavior_count: u64 = metrics.iter().map(|m| m.suspicious_behavior_count).sum();
+        let suspicious_behavior_count: u64 =
+            metrics.iter().map(|m| m.suspicious_behavior_count).sum();
 
         // Aggregate threat level distribution
         let mut threat_level_distribution = HashMap::new();
         for metric in metrics {
             for (threat_level, count) in &metric.threat_level_distribution {
-                *threat_level_distribution.entry(threat_level.clone()).or_insert(0) += count;
+                *threat_level_distribution
+                    .entry(threat_level.clone())
+                    .or_insert(0) += count;
             }
         }
 

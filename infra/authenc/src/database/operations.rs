@@ -1900,7 +1900,13 @@ pub mod users {
     use crate::{
         database::Database,
         error::Result,
-        models::{User, user::{CreateUserRequest, UpdateUserRequest, SecretonAccessPolicy, SecurityContext, AccessLevel}},
+        models::{
+            User,
+            user::{
+                AccessLevel, CreateUserRequest, SecretonAccessPolicy, SecurityContext,
+                UpdateUserRequest,
+            },
+        },
     };
     use chrono::{DateTime, Utc};
     use uuid::Uuid;
@@ -2023,9 +2029,9 @@ pub mod users {
             require_password_change: row.get("require_password_change"),
             realm_id: row.get("realm_id"),
             organization_id: row.get("organization_id"),
-            roles: Vec::new(), // Roles would be loaded separately
+            roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None, // Default to None for now
+            session_data: None,      // Default to None for now
             secreton_access_policy: SecretonAccessPolicy {
                 allowed_satker_secrets: vec![row.get::<&str, String>("satker_code")],
                 access_level: crate::models::user::AccessLevel::ReadOnly,
@@ -2057,7 +2063,6 @@ pub mod users {
 
     /// Get user by ID
     pub async fn get_user_by_id(db: &Database, user_id: Uuid) -> Result<Option<User>> {
-        let client = db.get_connection().await?;
         let query = r#"
             SELECT
                 id, username, email, email_verified, first_name, last_name,
@@ -2071,7 +2076,7 @@ pub mod users {
             WHERE id = $1 AND deleted_at IS NULL
         "#;
 
-        let row = client.query_opt(query, &[&user_id]).await?;
+        let row = db.query_opt_prepared(query, &[&user_id]).await?;
         Ok(row.map(|r| User {
             id: r.get("id"),
             username: r.get("username"),
@@ -2102,9 +2107,9 @@ pub mod users {
             require_password_change: r.get("require_password_change"),
             realm_id: r.get("realm_id"),
             organization_id: r.get("organization_id"),
-            roles: Vec::new(), // Roles would be loaded separately
+            roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None, // Default to None for now
+            session_data: None,      // Default to None for now
             secreton_access_policy: SecretonAccessPolicy {
                 allowed_satker_secrets: vec![r.get::<&str, String>("satker_code")],
                 access_level: crate::models::user::AccessLevel::ReadOnly,
@@ -2134,7 +2139,6 @@ pub mod users {
 
     /// Get user by username
     pub async fn get_user_by_username(db: &Database, username: &str) -> Result<Option<User>> {
-        let client = db.get_connection().await?;
         let query = r#"
             SELECT
                 id, username, email, email_verified, first_name, last_name,
@@ -2148,7 +2152,7 @@ pub mod users {
             WHERE username = $1 AND deleted_at IS NULL
         "#;
 
-        let row = client.query_opt(query, &[&username]).await?;
+        let row = db.query_opt_prepared(query, &[&username]).await?;
         Ok(row.map(|r| User {
             id: r.get("id"),
             username: r.get("username"),
@@ -2179,9 +2183,9 @@ pub mod users {
             require_password_change: r.get("require_password_change"),
             realm_id: r.get("realm_id"),
             organization_id: r.get("organization_id"),
-            roles: Vec::new(), // Roles would be loaded separately
+            roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None, // Default to None for now
+            session_data: None,      // Default to None for now
             secreton_access_policy: SecretonAccessPolicy {
                 allowed_satker_secrets: vec![r.get::<&str, String>("satker_code")],
                 access_level: crate::models::user::AccessLevel::ReadOnly,
@@ -2291,7 +2295,7 @@ pub mod users {
     pub async fn delete_user(db: &Database, user_id: Uuid) -> Result<()> {
         let now = Utc::now();
         let query = "UPDATE users SET deleted_at = $2, updated_at = $2 WHERE id = $1";
-        db.execute(query, &[&user_id, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &now]).await?;
         Ok(())
     }
 
@@ -2307,7 +2311,7 @@ pub mod users {
                 updated_at = $2
             WHERE id = $1
         "#;
-        db.execute(query, &[&user_id, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &now]).await?;
         Ok(())
     }
 
@@ -2321,7 +2325,7 @@ pub mod users {
                 updated_at = $2
             WHERE id = $1
         "#;
-        db.execute(query, &[&user_id, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &now]).await?;
         Ok(())
     }
 
@@ -2336,7 +2340,7 @@ pub mod users {
                 updated_at = $3
             WHERE id = $1
         "#;
-        db.execute(query, &[&user_id, &password_hash, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &password_hash, &now]).await?;
         Ok(())
     }
 
@@ -2344,7 +2348,7 @@ pub mod users {
     pub async fn enable_webauthn(db: &Database, user_id: Uuid) -> Result<()> {
         let now = Utc::now();
         let query = "UPDATE users SET webauthn_enabled = true, updated_at = $2 WHERE id = $1";
-        db.execute(query, &[&user_id, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &now]).await?;
         Ok(())
     }
 
@@ -2352,7 +2356,7 @@ pub mod users {
     pub async fn disable_webauthn(db: &Database, user_id: Uuid) -> Result<()> {
         let now = Utc::now();
         let query = "UPDATE users SET webauthn_enabled = false, updated_at = $2 WHERE id = $1";
-        db.execute(query, &[&user_id, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &now]).await?;
         Ok(())
     }
 
@@ -2421,9 +2425,9 @@ pub mod users {
             require_password_change: row.get(26),
             realm_id: row.get(27),
             organization_id: row.get(28),
-            roles: Vec::new(), // Roles would be loaded separately
+            roles: Vec::new(),       // Roles would be loaded separately
             permissions: Vec::new(), // Permissions would be loaded separately
-            session_data: None, // Default to None for now
+            session_data: None,      // Default to None for now
             secreton_access_policy: SecretonAccessPolicy {
                 allowed_satker_secrets: vec![row.get::<usize, String>(9)], // satker_code at index 9
                 access_level: crate::models::user::AccessLevel::ReadOnly,
@@ -2501,9 +2505,9 @@ pub mod users {
                 password_expires_at: row.get("password_expires_at"),
                 require_password_change: row.get("require_password_change"),
                 organization_id: row.get("organization_id"),
-                roles: Vec::new(), // Roles would be loaded separately
+                roles: Vec::new(),       // Roles would be loaded separately
                 permissions: Vec::new(), // Permissions would be loaded separately
-                session_data: None, // Default to None for now
+                session_data: None,      // Default to None for now
                 secreton_access_policy: SecretonAccessPolicy {
                     allowed_satker_secrets: vec![row.get::<&str, String>("satker_code")],
                     access_level: crate::models::user::AccessLevel::ReadOnly,
@@ -2581,11 +2585,19 @@ pub mod users {
                 },
                 jabatan: {
                     let jabatan: String = row.get("jabatan");
-                    if jabatan.is_empty() { None } else { Some(jabatan) }
+                    if jabatan.is_empty() {
+                        None
+                    } else {
+                        Some(jabatan)
+                    }
                 },
                 satker_code: {
                     let satker_code: String = row.get("satker_code");
-                    if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }
+                    if satker_code.is_empty() {
+                        "UNKNOWN".to_string()
+                    } else {
+                        satker_code
+                    }
                 },
                 phone_number: row.get("phone_number"),
                 phone_verified: row.get("phone_verified"),
@@ -2604,13 +2616,17 @@ pub mod users {
                 password_expires_at: row.get("password_expires_at"),
                 require_password_change: row.get("require_password_change"),
                 organization_id: row.get("organization_id"),
-                roles: Vec::new(), // TODO: Load roles separately
+                roles: Vec::new(),       // TODO: Load roles separately
                 permissions: Vec::new(), // TODO: Load permissions separately
                 session_data: None,
                 secreton_access_policy: SecretonAccessPolicy {
                     allowed_satker_secrets: vec![{
                         let satker_code: String = row.get("satker_code");
-                        if satker_code.is_empty() { "UNKNOWN".to_string() } else { satker_code }
+                        if satker_code.is_empty() {
+                            "UNKNOWN".to_string()
+                        } else {
+                            satker_code
+                        }
                     }],
                     access_level: AccessLevel::ReadOnly,
                     time_restrictions: None,
@@ -6545,7 +6561,6 @@ pub mod roles {
         user_id: &Uuid,
         permission: &str,
     ) -> Result<bool> {
-        let client = db.get_connection().await?;
         let query = r#"
             SELECT COUNT(*) > 0
             FROM user_roles ur
@@ -6554,7 +6569,7 @@ pub mod roles {
             WHERE ur.user_id = $1 AND p.name = $2 AND p.deleted_at IS NULL
         "#;
 
-        let row = client.query_one(query, &[&user_id, &permission]).await?;
+        let row = db.query_one_prepared(query, &[&user_id, &permission]).await?;
         let has_permission: bool = row.get(0);
 
         Ok(has_permission)
@@ -6562,7 +6577,6 @@ pub mod roles {
 
     /// Get all permissions for a user
     pub async fn get_user_permissions(db: &Database, user_id: &Uuid) -> Result<Vec<String>> {
-        let client = db.get_connection().await?;
         let query = r#"
             SELECT DISTINCT p.name
             FROM user_roles ur
@@ -6572,7 +6586,7 @@ pub mod roles {
             ORDER BY p.name
         "#;
 
-        let rows = client.query(query, &[&user_id]).await?;
+        let rows = db.query_prepared(query, &[&user_id]).await?;
         let permissions = rows
             .into_iter()
             .map(|row| row.get::<_, String>(0))
@@ -6587,7 +6601,6 @@ pub mod roles {
         role_id: &Uuid,
         permission_id: &Uuid,
     ) -> Result<()> {
-        let client = db.get_connection().await?;
         let now = Utc::now();
 
         let query = r#"
@@ -6596,8 +6609,7 @@ pub mod roles {
             ON CONFLICT (role_id, permission_id) DO NOTHING
         "#;
 
-        client
-            .execute(query, &[&role_id, &permission_id, &now])
+        db.execute_prepared(query, &[&role_id, &permission_id, &now])
             .await?;
 
         Ok(())
@@ -6609,14 +6621,12 @@ pub mod roles {
         role_id: &Uuid,
         permission_id: &Uuid,
     ) -> Result<()> {
-        let client = db.get_connection().await?;
-
         let query = r#"
             DELETE FROM role_permissions
             WHERE role_id = $1 AND permission_id = $2
         "#;
 
-        client.execute(query, &[&role_id, &permission_id]).await?;
+        db.execute_prepared(query, &[&role_id, &permission_id]).await?;
 
         Ok(())
     }
@@ -9753,7 +9763,7 @@ pub mod sessions {
         let ip_addr: Option<std::net::IpAddr> = ip_address.and_then(|ip| ip.parse().ok());
 
         let row: tokio_postgres::Row = db
-            .query_one(
+            .query_one_prepared(
                 query,
                 &[
                     &user_id,
@@ -9807,7 +9817,7 @@ pub mod sessions {
             WHERE token_hash = $1
         "#;
 
-        let rows: Vec<tokio_postgres::Row> = db.query(query, &[&token_hash]).await?;
+        let rows: Vec<tokio_postgres::Row> = db.query_prepared(query, &[&token_hash]).await?;
 
         if rows.is_empty() {
             return Ok(None);
@@ -9851,7 +9861,7 @@ pub mod sessions {
             ORDER BY last_accessed DESC
         "#;
 
-        let rows: Vec<tokio_postgres::Row> = db.query(query, &[&user_id]).await?;
+        let rows: Vec<tokio_postgres::Row> = db.query_prepared(query, &[&user_id]).await?;
 
         let mut sessions = Vec::new();
         for row in rows {
@@ -9884,7 +9894,7 @@ pub mod sessions {
             WHERE id = $1 AND NOT revoked
         "#;
 
-        db.execute(query, &[&session_id]).await?;
+        db.execute_prepared(query, &[&session_id]).await?;
         Ok(())
     }
 
@@ -9907,7 +9917,7 @@ pub mod sessions {
         "#;
 
         let rows: Vec<tokio_postgres::Row> =
-            db.query(verify_query, &[&session_id, &old_hash]).await?;
+            db.query_prepared(verify_query, &[&session_id, &old_hash]).await?;
         if rows.is_empty() {
             return Ok(false);
         }
@@ -9922,7 +9932,7 @@ pub mod sessions {
             WHERE id = $2
         "#;
 
-        db.execute(update_query, &[&new_hash, &session_id]).await?;
+        db.execute_prepared(update_query, &[&new_hash, &session_id]).await?;
 
         // Log rotation
         let ip_addr: Option<std::net::IpAddr> = client_ip.and_then(|ip| ip.parse().ok());
@@ -9935,7 +9945,7 @@ pub mod sessions {
             VALUES ($1, $2, $3, $4, $5)
         "#;
 
-        db.execute(
+        db.execute_prepared(
             log_query,
             &[&session_id, &old_hash, &new_hash, &ip_addr, &user_agent],
         )
@@ -9959,7 +9969,7 @@ pub mod sessions {
             WHERE id = $1
         "#;
 
-        db.execute(query, &[&session_id, &reason]).await?;
+        db.execute_prepared(query, &[&session_id, &reason]).await?;
         Ok(())
     }
 
@@ -9978,7 +9988,7 @@ pub mod sessions {
             WHERE user_id = $1 AND NOT revoked
         "#;
 
-        let count = db.execute(query, &[&user_id, &reason]).await?;
+        let count = db.execute_prepared(query, &[&user_id, &reason]).await?;
         Ok(count as i64)
     }
 
@@ -9989,7 +9999,7 @@ pub mod sessions {
             WHERE expires_at < NOW() OR (idle_expires_at IS NOT NULL AND idle_expires_at < NOW())
         "#;
 
-        let count = db.execute(query, &[]).await?;
+        let count = db.execute_prepared(query, &[]).await?;
         Ok(count as i64)
     }
 

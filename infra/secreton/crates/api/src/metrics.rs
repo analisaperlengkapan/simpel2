@@ -1,4 +1,4 @@
-//! Performance metrics for vault operations
+//! Performance metrics for secreton operations
 //! Tracks operation latency, throughput, and error rates
 
 use serde::{Deserialize, Serialize};
@@ -260,6 +260,139 @@ impl OperationTimer {
 
     pub fn elapsed(&self) -> Duration {
         self.start.elapsed()
+    }
+}
+
+/// gRPC TLS metrics
+#[derive(Debug, Clone)]
+pub struct GrpcTlsMetrics {
+    // Connection counters
+    total_connections: Arc<AtomicU64>,
+    successful_handshakes: Arc<AtomicU64>,
+    failed_handshakes: Arc<AtomicU64>,
+
+    // Client certificate verification
+    client_cert_verifications: Arc<AtomicU64>,
+    failed_client_cert_verifications: Arc<AtomicU64>,
+}
+
+impl Default for GrpcTlsMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GrpcTlsMetrics {
+    /// Create new gRPC TLS metrics tracker
+    pub fn new() -> Self {
+        Self {
+            total_connections: Arc::new(AtomicU64::new(0)),
+            successful_handshakes: Arc::new(AtomicU64::new(0)),
+            failed_handshakes: Arc::new(AtomicU64::new(0)),
+            client_cert_verifications: Arc::new(AtomicU64::new(0)),
+            failed_client_cert_verifications: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    /// Record TLS connection attempt
+    pub fn record_connection(&self, success: bool) {
+        self.total_connections.fetch_add(1, Ordering::Relaxed);
+        if success {
+            self.successful_handshakes.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.failed_handshakes.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Record client certificate verification
+    pub fn record_client_cert_verification(&self, success: bool) {
+        self.client_cert_verifications
+            .fetch_add(1, Ordering::Relaxed);
+        if !success {
+            self.failed_client_cert_verifications
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Get metrics snapshot
+    pub fn snapshot(&self) -> GrpcTlsMetricsSnapshot {
+        GrpcTlsMetricsSnapshot {
+            total_connections: self.total_connections.load(Ordering::Relaxed),
+            successful_handshakes: self.successful_handshakes.load(Ordering::Relaxed),
+            failed_handshakes: self.failed_handshakes.load(Ordering::Relaxed),
+            client_cert_verifications: self.client_cert_verifications.load(Ordering::Relaxed),
+            failed_client_cert_verifications: self
+                .failed_client_cert_verifications
+                .load(Ordering::Relaxed),
+        }
+    }
+
+    /// Export metrics in Prometheus format
+    pub fn to_prometheus(&self) -> String {
+        let snapshot = self.snapshot();
+        format!(
+            r#"# HELP grpc_tls_connections_total Total number of gRPC TLS connections
+# TYPE grpc_tls_connections_total counter
+grpc_tls_connections_total {}
+
+# HELP grpc_tls_handshakes_successful Successful TLS handshakes
+# TYPE grpc_tls_handshakes_successful counter
+grpc_tls_handshakes_successful {}
+
+# HELP grpc_tls_handshakes_failed Failed TLS handshakes
+# TYPE grpc_tls_handshakes_failed counter
+grpc_tls_handshakes_failed {}
+
+# HELP grpc_tls_client_cert_verifications_total Total client certificate verifications
+# TYPE grpc_tls_client_cert_verifications_total counter
+grpc_tls_client_cert_verifications_total {}
+
+# HELP grpc_tls_client_cert_verifications_failed Failed client certificate verifications
+# TYPE grpc_tls_client_cert_verifications_failed counter
+grpc_tls_client_cert_verifications_failed {}
+
+# HELP grpc_tls_success_rate TLS handshake success rate percentage
+# TYPE grpc_tls_success_rate gauge
+grpc_tls_success_rate {}
+"#,
+            snapshot.total_connections,
+            snapshot.successful_handshakes,
+            snapshot.failed_handshakes,
+            snapshot.client_cert_verifications,
+            snapshot.failed_client_cert_verifications,
+            snapshot.success_rate(),
+        )
+    }
+}
+
+/// gRPC TLS metrics snapshot
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GrpcTlsMetricsSnapshot {
+    pub total_connections: u64,
+    pub successful_handshakes: u64,
+    pub failed_handshakes: u64,
+    pub client_cert_verifications: u64,
+    pub failed_client_cert_verifications: u64,
+}
+
+impl GrpcTlsMetricsSnapshot {
+    /// Calculate success rate
+    pub fn success_rate(&self) -> f64 {
+        if self.total_connections == 0 {
+            0.0
+        } else {
+            (self.successful_handshakes as f64 / self.total_connections as f64) * 100.0
+        }
+    }
+
+    /// Calculate client cert verification rate
+    pub fn client_cert_success_rate(&self) -> f64 {
+        if self.client_cert_verifications == 0 {
+            0.0
+        } else {
+            let successful = self.client_cert_verifications - self.failed_client_cert_verifications;
+            (successful as f64 / self.client_cert_verifications as f64) * 100.0
+        }
     }
 }
 

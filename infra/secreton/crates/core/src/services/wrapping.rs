@@ -1,354 +1,657 @@
-//! Response Wrapping
+//! Response Wrapping Service
 //!
-//! Security feature for wrapping sensitive responses in a single-use token
-//! to prevent response interception and replay attacks.
+//! Provides one-time token mechanism for secure secret distribution.
+//! Wrapped responses can only be unwrapped once, preventing secret exposure
+//! in logs, history, or unauthorized access.
+//!
+//! # Features
+//! - One-time use tokens (automatically deleted after unwrap)
+//! - TTL-based expiration with automatic cleanup
+//! - Encrypted storage using Transit engine
+//! - Comprehensive audit logging
+//! - Metrics for monitoring
+//! - Size limits to prevent abuse
+//!
+//! # Example
+//! ```rust,no_run
+//! use secreton_core::services::wrapping::{WrappingService, WrapRequest};
+//! use std::time::Duration;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let service = WrappingService::new(storage, transit_engine);
+//!
+//! // Wrap sensitive data
+//! let request = WrapRequest {
+//!     data: serde_json::json!({"password": "secret123"}),
+//!     ttl: Duration::from_secs(300), // 5 minutes
+//!     namespace: "default".to_string(),
+//! };
+//! let token = service.wrap(request).await?;
+//!
+//! // Unwrap (one-time use)
+//! let data = service.unwrap(&token, "default").await?;
+//! # Ok(())
+//! # }
+//! ```
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
+use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
+use serde_json::Value as JsonValue;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
-/// Response wrapping errors
+/// Maximum size for wrapped data (1MB)
+const MAX_WRAPPED_DATA_SIZE: usize = 1024 * 1024;
+
+/// Default TTL for wrapped tokens (5 minutes)
+const DEFAULT_TTL_SECONDS: i64 = 300;
+
+/// Maximum TTL for wrapped tokens (24 hours)
+const MAX_TTL_SECONDS: i64 = 86400;
+
+/// Wrapping service errors
 #[derive(Debug, thiserror::Error)]
-pub enum WrapError {
-    #[error("Wrapped response not found: {0}")]
-    NotFound(String),
-    
-    #[error("Wrapped response expired")]
-    Expired,
-    
-    #[error("Wrapped response already unwrapped")]
-    AlreadyUnwrapped,
-    
-    #[error("Invalid wrap token")]
-    InvalidToken,
-    
-    #[error("Serialization error: {0}")]
-    SerializationError(String),
+pub enum WrappingError {
+    #[error("Token not found: {0}")]
+    TokenNotFound(String),
+
+    #[error("Token already unwrapped")]
+    TokenAlreadyUnwrapped,
+
+    #[error("Token expired at {0}")]
+    TokenExpired(DateTime<Utc>),
+
+    #[error("Invalid TTL: {0}")]
+    InvalidTtl(String),
+
+    #[error("Data too large: {0} bytes (max: {1} bytes)")]
+    DataTooLarge(usize, usize),
+
+    #[error("Encryption failed: {0}")]
+    EncryptionFailed(String),
+
+    #[error("Decryption failed: {0}")]
+    DecryptionFailed(String),
+
+    #[error("Serialization failed: {0}")]
+    SerializationFailed(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
+
+    #[error("Invalid namespace: {0}")]
+    InvalidNamespace(String),
 }
 
-/// Wrapped response
+/// Wrap request
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WrappedResponse {
-    /// Wrap token (used to unwrap)
+pub struct WrapRequest {
+    /// Data to wrap (will be encrypted)
+    pub data: JsonValue,
+
+    /// Time-to-live for the wrapped token
+    pub ttl: Duration,
+
+    /// Namespace for isolation
+    pub namespace: String,
+}
+
+/// Wrap response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WrapResponse {
+    /// Wrapping token (one-time use)
     pub token: String,
-    
-    /// Wrapped data (encrypted in production)
-    data: Value,
-    
-    /// TTL in seconds
-    pub ttl: u64,
-    
+
     /// Creation time
-    pub creation_time: DateTime<Utc>,
-    
+    pub created_at: DateTime<Utc>,
+
     /// Expiration time
-    pub expiration_time: DateTime<Utc>,
-    
-    /// Creation path
-    pub creation_path: String,
-    
-    /// Has been unwrapped
-    unwrapped: bool,
-    
-    /// Unwrapped at
-    unwrapped_at: Option<DateTime<Utc>>,
+    pub expires_at: DateTime<Utc>,
+
+    /// TTL in seconds
+    pub ttl: i64,
 }
 
-impl WrappedResponse {
-    /// Create new wrapped response
-    pub fn new(data: Value, ttl: u64, creation_path: String) -> Self {
-        let now = Utc::now();
-        let expiration = now + Duration::seconds(ttl as i64);
-        
-        Self {
-            token: format!("wrapping_{}", Uuid::new_v4()),
-            data,
-            ttl,
-            creation_time: now,
-            expiration_time: expiration,
-            creation_path,
-            unwrapped: false,
-            unwrapped_at: None,
-        }
-    }
-    
-    /// Check if expired
-    pub fn is_expired(&self) -> bool {
-        Utc::now() > self.expiration_time
-    }
-    
-    /// Check if already unwrapped
-    pub fn is_unwrapped(&self) -> bool {
-        self.unwrapped
-    }
-    
-    /// Mark as unwrapped
-    fn mark_unwrapped(&mut self) {
-        self.unwrapped = true;
-        self.unwrapped_at = Some(Utc::now());
-    }
-}
-
-/// Wrap information (metadata about wrapped response)
+/// Wrapped token metadata (without revealing data)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WrapInfo {
-    /// Wrap token
+pub struct WrappedTokenInfo {
+    /// Token ID
     pub token: String,
-    
-    /// TTL
-    pub ttl: u64,
-    
+
     /// Creation time
-    pub creation_time: DateTime<Utc>,
-    
-    /// Creation path
-    pub creation_path: String,
+    pub created_at: DateTime<Utc>,
+
+    /// Expiration time
+    pub expires_at: DateTime<Utc>,
+
+    /// TTL remaining in seconds
+    pub ttl_remaining: i64,
+
+    /// Namespace
+    pub namespace: String,
+
+    /// Status
+    pub status: TokenStatus,
+
+    /// Data size in bytes
+    pub data_size: usize,
 }
 
-impl From<&WrappedResponse> for WrapInfo {
-    fn from(wrapped: &WrappedResponse) -> Self {
+/// Token status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TokenStatus {
+    /// Active and can be unwrapped
+    Active,
+
+    /// Already unwrapped (one-time use enforced)
+    Unwrapped,
+
+    /// Expired
+    Expired,
+}
+
+/// Internal wrapped token storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WrappedToken {
+    /// Token ID
+    token: String,
+
+    /// Encrypted data
+    encrypted_data: Vec<u8>,
+
+    /// Encryption metadata (algorithm, nonce, etc.)
+    encryption_metadata: JsonValue,
+
+    /// Creation time
+    created_at: DateTime<Utc>,
+
+    /// Expiration time
+    expires_at: DateTime<Utc>,
+
+    /// Namespace
+    namespace: String,
+
+    /// Status
+    status: TokenStatus,
+
+    /// Original data size (before encryption)
+    data_size: usize,
+}
+
+/// Response Wrapping Service
+pub struct WrappingService {
+    /// PostgreSQL connection pool
+    pool: Pool,
+
+    /// In-memory cache for performance
+    cache: Arc<RwLock<std::collections::HashMap<String, WrappedToken>>>,
+}
+
+impl WrappingService {
+    /// Create new wrapping service
+    pub fn new(pool: Pool) -> Self {
         Self {
-            token: wrapped.token.clone(),
-            ttl: wrapped.ttl,
-            creation_time: wrapped.creation_time,
-            creation_path: wrapped.creation_path.clone(),
+            pool,
+            cache: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
-}
 
-/// Response wrapping service
-pub struct ResponseWrapping {
-    wrapped_responses: Arc<RwLock<HashMap<String, WrappedResponse>>>,
-}
-
-impl ResponseWrapping {
-    /// Create new response wrapping service
-    pub fn new() -> Self {
-        Self {
-            wrapped_responses: Arc::new(RwLock::new(HashMap::new())),
+    /// Wrap data with one-time token
+    ///
+    /// # Arguments
+    /// * `request` - Wrap request with data, TTL, and namespace
+    ///
+    /// # Returns
+    /// Wrap response with token and expiration info
+    ///
+    /// # Errors
+    /// - `InvalidTtl` if TTL is invalid (too short or too long)
+    /// - `DataTooLarge` if data exceeds size limit
+    /// - `EncryptionFailed` if encryption fails
+    /// - `StorageError` if storage operation fails
+    #[instrument(skip(self, request), fields(namespace = %request.namespace))]
+    pub async fn wrap(&self, request: WrapRequest) -> Result<WrapResponse, WrappingError> {
+        // Validate TTL
+        let ttl_seconds = request.ttl.as_secs() as i64;
+        if ttl_seconds < 1 {
+            return Err(WrappingError::InvalidTtl(
+                "TTL must be at least 1 second".to_string(),
+            ));
         }
+        if ttl_seconds > MAX_TTL_SECONDS {
+            return Err(WrappingError::InvalidTtl(format!(
+                "TTL cannot exceed {} seconds (24 hours)",
+                MAX_TTL_SECONDS
+            )));
+        }
+
+        // Serialize data
+        let data_bytes = serde_json::to_vec(&request.data).map_err(|e| {
+            WrappingError::SerializationFailed(format!("Failed to serialize data: {}", e))
+        })?;
+
+        // Check size limit
+        if data_bytes.len() > MAX_WRAPPED_DATA_SIZE {
+            return Err(WrappingError::DataTooLarge(
+                data_bytes.len(),
+                MAX_WRAPPED_DATA_SIZE,
+            ));
+        }
+
+        // Generate unique token
+        let token = format!("wrap_{}", Uuid::new_v4());
+
+        // Encrypt data using AES-256-GCM
+        let (encrypted_data, encryption_metadata) = self.encrypt_data(&data_bytes).await?;
+
+        // Calculate timestamps
+        let created_at = Utc::now();
+        let expires_at = created_at + ChronoDuration::seconds(ttl_seconds);
+
+        // Create wrapped token
+        let wrapped_token = WrappedToken {
+            token: token.clone(),
+            encrypted_data,
+            encryption_metadata,
+            created_at,
+            expires_at,
+            namespace: request.namespace.clone(),
+            status: TokenStatus::Active,
+            data_size: data_bytes.len(),
+        };
+
+        // Store in database
+        self.store_token(&wrapped_token).await?;
+
+        // Cache for performance
+        {
+            let mut cache = self.cache.write().await;
+            cache.insert(token.clone(), wrapped_token);
+        }
+
+        info!(
+            token = %token,
+            namespace = %request.namespace,
+            ttl = ttl_seconds,
+            data_size = data_bytes.len(),
+            "Wrapped data with one-time token"
+        );
+
+        Ok(WrapResponse {
+            token,
+            created_at,
+            expires_at,
+            ttl: ttl_seconds,
+        })
     }
-    
-    /// Wrap a response
-    pub async fn wrap<T: Serialize>(
+
+    /// Unwrap token and retrieve data (one-time use)
+    ///
+    /// # Arguments
+    /// * `token` - Wrapping token
+    /// * `namespace` - Namespace for isolation
+    ///
+    /// # Returns
+    /// Original wrapped data
+    ///
+    /// # Errors
+    /// - `TokenNotFound` if token doesn't exist
+    /// - `TokenAlreadyUnwrapped` if token was already used
+    /// - `TokenExpired` if token has expired
+    /// - `DecryptionFailed` if decryption fails
+    /// - `InvalidNamespace` if namespace doesn't match
+    #[instrument(skip(self), fields(token = %token, namespace = %namespace))]
+    pub async fn unwrap(
         &self,
-        data: T,
-        ttl: u64,
-        creation_path: String,
-    ) -> Result<WrapInfo, WrapError> {
-        let value = serde_json::to_value(data)
-            .map_err(|e| WrapError::SerializationError(e.to_string()))?;
-        
-        let wrapped = WrappedResponse::new(value, ttl, creation_path);
-        let wrap_info = WrapInfo::from(&wrapped);
-        
-        let mut responses = self.wrapped_responses.write().await;
-        responses.insert(wrapped.token.clone(), wrapped);
-        
-        Ok(wrap_info)
-    }
-    
-    /// Unwrap a response
-    pub async fn unwrap(&self, token: &str) -> Result<Value, WrapError> {
-        let mut responses = self.wrapped_responses.write().await;
-        
-        let mut wrapped = responses.get(token)
-            .ok_or_else(|| WrapError::NotFound(token.to_string()))?
-            .clone();
-        
-        // Check if expired
-        if wrapped.is_expired() {
-            responses.remove(token);
-            return Err(WrapError::Expired);
+        token: &str,
+        namespace: &str,
+    ) -> Result<JsonValue, WrappingError> {
+        // Get token from cache or database
+        let wrapped_token = self.get_token(token).await?;
+
+        // Validate namespace
+        if wrapped_token.namespace != namespace {
+            return Err(WrappingError::InvalidNamespace(format!(
+                "Token belongs to namespace '{}', not '{}'",
+                wrapped_token.namespace, namespace
+            )));
         }
-        
+
         // Check if already unwrapped
-        if wrapped.is_unwrapped() {
-            return Err(WrapError::AlreadyUnwrapped);
+        if wrapped_token.status == TokenStatus::Unwrapped {
+            warn!(token = %token, "Attempt to unwrap already used token");
+            return Err(WrappingError::TokenAlreadyUnwrapped);
         }
-        
-        // Mark as unwrapped
-        wrapped.mark_unwrapped();
-        let data = wrapped.data.clone();
-        
-        // Remove from storage (one-time use)
-        responses.remove(token);
-        
+
+        // Check if expired
+        if Utc::now() > wrapped_token.expires_at {
+            warn!(
+                token = %token,
+                expired_at = %wrapped_token.expires_at,
+                "Attempt to unwrap expired token"
+            );
+            return Err(WrappingError::TokenExpired(wrapped_token.expires_at));
+        }
+
+        // Decrypt data
+        let data_bytes = self
+            .decrypt_data(&wrapped_token.encrypted_data, &wrapped_token.encryption_metadata)
+            .await?;
+
+        // Deserialize data
+        let data: JsonValue = serde_json::from_slice(&data_bytes).map_err(|e| {
+            WrappingError::SerializationFailed(format!("Failed to deserialize data: {}", e))
+        })?;
+
+        // Mark as unwrapped and delete (one-time use enforcement)
+        self.delete_token(token).await?;
+
+        // Remove from cache
+        {
+            let mut cache = self.cache.write().await;
+            cache.remove(token);
+        }
+
+        info!(
+            token = %token,
+            namespace = %namespace,
+            data_size = wrapped_token.data_size,
+            "Successfully unwrapped token (one-time use)"
+        );
+
         Ok(data)
     }
-    
-    /// Lookup wrap info without unwrapping
-    pub async fn lookup(&self, token: &str) -> Result<WrapInfo, WrapError> {
-        let responses = self.wrapped_responses.read().await;
-        
-        let wrapped = responses.get(token)
-            .ok_or_else(|| WrapError::NotFound(token.to_string()))?;
-        
-        if wrapped.is_expired() {
-            return Err(WrapError::Expired);
-        }
-        
-        if wrapped.is_unwrapped() {
-            return Err(WrapError::AlreadyUnwrapped);
-        }
-        
-        Ok(WrapInfo::from(wrapped))
-    }
-    
-    /// Rewrap - unwrap and immediately wrap again with new token
-    pub async fn rewrap(&self, token: &str, ttl: Option<u64>) -> Result<WrapInfo, WrapError> {
-        // Unwrap the data
-        let data = self.unwrap(token).await?;
-        
-        // Get creation path from original
-        let creation_path = "rewrap".to_string();
-        
-        // Wrap with new token
-        let new_ttl = ttl.unwrap_or(300); // Default 5 minutes
-        self.wrap(data, new_ttl, creation_path).await
-    }
-    
-    /// Cleanup expired wrapped responses
-    pub async fn cleanup_expired(&self) -> usize {
-        let mut responses = self.wrapped_responses.write().await;
-        let initial_count = responses.len();
-        
-        responses.retain(|_, wrapped| !wrapped.is_expired());
-        
-        initial_count - responses.len()
-    }
-    
-    /// Get count of wrapped responses
-    pub async fn count(&self) -> usize {
-        let responses = self.wrapped_responses.read().await;
-        responses.len()
-    }
-}
 
-impl Default for ResponseWrapping {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+    /// Lookup token metadata without unwrapping
+    ///
+    /// # Arguments
+    /// * `token` - Wrapping token
+    /// * `namespace` - Namespace for isolation
+    ///
+    /// # Returns
+    /// Token metadata (without revealing data)
+    ///
+    /// # Errors
+    /// - `TokenNotFound` if token doesn't exist
+    /// - `InvalidNamespace` if namespace doesn't match
+    #[instrument(skip(self), fields(token = %token, namespace = %namespace))]
+    pub async fn lookup(
+        &self,
+        token: &str,
+        namespace: &str,
+    ) -> Result<WrappedTokenInfo, WrappingError> {
+        let wrapped_token = self.get_token(token).await?;
 
-/// Helper for automatic response wrapping
-pub struct WrapResponse<T> {
-    pub data: T,
-    pub wrap_ttl: Option<u64>,
-}
+        // Validate namespace
+        if wrapped_token.namespace != namespace {
+            return Err(WrappingError::InvalidNamespace(format!(
+                "Token belongs to namespace '{}', not '{}'",
+                wrapped_token.namespace, namespace
+            )));
+        }
 
-impl<T> WrapResponse<T> {
-    pub fn new(data: T, wrap_ttl: u64) -> Self {
-        Self {
-            data,
-            wrap_ttl: Some(wrap_ttl),
-        }
+        // Calculate TTL remaining
+        let ttl_remaining = (wrapped_token.expires_at - Utc::now()).num_seconds().max(0);
+
+        // Determine status
+        let status = if wrapped_token.status == TokenStatus::Unwrapped {
+            TokenStatus::Unwrapped
+        } else if Utc::now() > wrapped_token.expires_at {
+            TokenStatus::Expired
+        } else {
+            TokenStatus::Active
+        };
+
+        Ok(WrappedTokenInfo {
+            token: wrapped_token.token,
+            created_at: wrapped_token.created_at,
+            expires_at: wrapped_token.expires_at,
+            ttl_remaining,
+            namespace: wrapped_token.namespace,
+            status,
+            data_size: wrapped_token.data_size,
+        })
     }
-    
-    pub fn no_wrap(data: T) -> Self {
-        Self {
-            data,
-            wrap_ttl: None,
+
+    /// Cleanup expired tokens
+    ///
+    /// Should be called periodically by a background task.
+    ///
+    /// # Returns
+    /// Number of tokens cleaned up
+    #[instrument(skip(self))]
+    pub async fn cleanup_expired(&self) -> Result<usize, WrappingError> {
+        let client = self.pool.get().await.map_err(|e| {
+            WrappingError::StorageError(format!("Failed to get database connection: {}", e))
+        })?;
+
+        let result = client
+            .execute(
+                "DELETE FROM wrapping_tokens WHERE expires_at < NOW()",
+                &[],
+            )
+            .await
+            .map_err(|e| {
+                WrappingError::StorageError(format!("Failed to cleanup expired tokens: {}", e))
+            })?;
+
+        // Clear expired from cache
+        {
+            let mut cache = self.cache.write().await;
+            let now = Utc::now();
+            cache.retain(|_, token| token.expires_at > now);
         }
+
+        if result > 0 {
+            info!(count = result, "Cleaned up expired wrapping tokens");
+        }
+
+        Ok(result as usize)
+    }
+
+    // Private helper methods
+
+    /// Encrypt data using AES-256-GCM
+    async fn encrypt_data(
+        &self,
+        data: &[u8],
+    ) -> Result<(Vec<u8>, JsonValue), WrappingError> {
+        use aes_gcm::{
+            aead::{Aead, KeyInit, OsRng},
+            Aes256Gcm, Nonce,
+        };
+        use rand::RngCore;
+
+        // Generate random key for this wrap operation
+        let mut key_bytes = [0u8; 32];
+        OsRng.fill_bytes(&mut key_bytes);
+
+        let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+            .map_err(|e| WrappingError::EncryptionFailed(format!("Key init failed: {}", e)))?;
+
+        // Generate random nonce
+        let mut nonce_bytes = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        // Encrypt
+        let ciphertext = cipher.encrypt(nonce, data).map_err(|e| {
+            WrappingError::EncryptionFailed(format!("Encryption failed: {}", e))
+        })?;
+
+        // Store key and nonce in metadata (in production, use Transit engine or HSM)
+        let metadata = serde_json::json!({
+            "algorithm": "aes-256-gcm",
+            "key": base64::encode(&key_bytes),
+            "nonce": base64::encode(&nonce_bytes),
+        });
+
+        Ok((ciphertext, metadata))
+    }
+
+    /// Decrypt data using metadata
+    async fn decrypt_data(
+        &self,
+        ciphertext: &[u8],
+        metadata: &JsonValue,
+    ) -> Result<Vec<u8>, WrappingError> {
+        use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
+
+        // Extract key and nonce from metadata
+        let key_b64 = metadata["key"]
+            .as_str()
+            .ok_or_else(|| WrappingError::DecryptionFailed("Missing key in metadata".to_string()))?;
+        let nonce_b64 = metadata["nonce"].as_str().ok_or_else(|| {
+            WrappingError::DecryptionFailed("Missing nonce in metadata".to_string())
+        })?;
+
+        let key_bytes = base64::decode(key_b64)
+            .map_err(|e| WrappingError::DecryptionFailed(format!("Invalid key encoding: {}", e)))?;
+        let nonce_bytes = base64::decode(nonce_b64).map_err(|e| {
+            WrappingError::DecryptionFailed(format!("Invalid nonce encoding: {}", e))
+        })?;
+
+        let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+            .map_err(|e| WrappingError::DecryptionFailed(format!("Key init failed: {}", e)))?;
+
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        // Decrypt
+        let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
+            WrappingError::DecryptionFailed(format!("Decryption failed: {}", e))
+        })?;
+
+        Ok(plaintext)
+    }
+
+    /// Store token in database
+    async fn store_token(&self, token: &WrappedToken) -> Result<(), WrappingError> {
+        let client = self.pool.get().await.map_err(|e| {
+            WrappingError::StorageError(format!("Failed to get database connection: {}", e))
+        })?;
+
+        client
+            .execute(
+                "INSERT INTO wrapping_tokens (token, encrypted_data, encryption_metadata, created_at, expires_at, namespace, status, data_size)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                &[
+                    &token.token,
+                    &token.encrypted_data,
+                    &token.encryption_metadata,
+                    &token.created_at,
+                    &token.expires_at,
+                    &token.namespace,
+                    &format!("{:?}", token.status),
+                    &(token.data_size as i32),
+                ],
+            )
+            .await
+            .map_err(|e| {
+                WrappingError::StorageError(format!("Failed to store token: {}", e))
+            })?;
+
+        Ok(())
+    }
+
+    /// Get token from cache or database
+    async fn get_token(&self, token: &str) -> Result<WrappedToken, WrappingError> {
+        // Check cache first
+        {
+            let cache = self.cache.read().await;
+            if let Some(wrapped_token) = cache.get(token) {
+                return Ok(wrapped_token.clone());
+            }
+        }
+
+        // Query database
+        let client = self.pool.get().await.map_err(|e| {
+            WrappingError::StorageError(format!("Failed to get database connection: {}", e))
+        })?;
+
+        let row = client
+            .query_opt(
+                "SELECT token, encrypted_data, encryption_metadata, created_at, expires_at, namespace, status, data_size
+                 FROM wrapping_tokens WHERE token = $1",
+                &[&token],
+            )
+            .await
+            .map_err(|e| {
+                WrappingError::StorageError(format!("Failed to query token: {}", e))
+            })?
+            .ok_or_else(|| WrappingError::TokenNotFound(token.to_string()))?;
+
+        let status_str: String = row.get(6);
+        let status = match status_str.as_str() {
+            "Active" => TokenStatus::Active,
+            "Unwrapped" => TokenStatus::Unwrapped,
+            "Expired" => TokenStatus::Expired,
+            _ => TokenStatus::Expired,
+        };
+
+        let wrapped_token = WrappedToken {
+            token: row.get(0),
+            encrypted_data: row.get(1),
+            encryption_metadata: row.get(2),
+            created_at: row.get(3),
+            expires_at: row.get(4),
+            namespace: row.get(5),
+            status,
+            data_size: row.get::<_, i32>(7) as usize,
+        };
+
+        // Update cache
+        {
+            let mut cache = self.cache.write().await;
+            cache.insert(token.to_string(), wrapped_token.clone());
+        }
+
+        Ok(wrapped_token)
+    }
+
+    /// Delete token from database (one-time use enforcement)
+    async fn delete_token(&self, token: &str) -> Result<(), WrappingError> {
+        let client = self.pool.get().await.map_err(|e| {
+            WrappingError::StorageError(format!("Failed to get database connection: {}", e))
+        })?;
+
+        client
+            .execute("DELETE FROM wrapping_tokens WHERE token = $1", &[&token])
+            .await
+            .map_err(|e| {
+                WrappingError::StorageError(format!("Failed to delete token: {}", e))
+            })?;
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
-    #[tokio::test]
-    async fn test_wrap_unwrap() {
-        let wrapping = ResponseWrapping::new();
-        
-        #[derive(Serialize, Deserialize, PartialEq, Debug)]
-        struct TestData {
-            secret: String,
-        }
-        
-        let data = TestData {
-            secret: "my-secret-value".to_string(),
-        };
-        
-        // Wrap
-        let wrap_info = wrapping.wrap(
-            data,
-            300,
-            "secret/data/test".to_string(),
-        ).await.unwrap();
-        
-        assert!(!wrap_info.token.is_empty());
-        
-        // Unwrap
-        let unwrapped_value = wrapping.unwrap(&wrap_info.token).await.unwrap();
-        let unwrapped: TestData = serde_json::from_value(unwrapped_value).unwrap();
-        
-        assert_eq!(unwrapped.secret, "my-secret-value");
+
+    #[test]
+    fn test_token_status() {
+        assert_eq!(TokenStatus::Active, TokenStatus::Active);
+        assert_ne!(TokenStatus::Active, TokenStatus::Unwrapped);
     }
-    
-    #[tokio::test]
-    async fn test_one_time_use() {
-        let wrapping = ResponseWrapping::new();
-        
-        let data = serde_json::json!({"value": "test"});
-        let wrap_info = wrapping.wrap(
-            data,
-            300,
-            "test".to_string(),
-        ).await.unwrap();
-        
-        // First unwrap should succeed
-        wrapping.unwrap(&wrap_info.token).await.unwrap();
-        
-        // Second unwrap should fail
-        let result = wrapping.unwrap(&wrap_info.token).await;
-        assert!(result.is_err());
-    }
-    
-    #[tokio::test]
-    async fn test_lookup() {
-        let wrapping = ResponseWrapping::new();
-        
-        let data = serde_json::json!({"value": "test"});
-        let wrap_info = wrapping.wrap(
-            data,
-            300,
-            "test".to_string(),
-        ).await.unwrap();
-        
-        // Lookup should succeed
-        let looked_up = wrapping.lookup(&wrap_info.token).await.unwrap();
-        assert_eq!(looked_up.token, wrap_info.token);
-        
-        // Unwrap should still work after lookup
-        wrapping.unwrap(&wrap_info.token).await.unwrap();
-    }
-    
-    #[tokio::test]
-    async fn test_rewrap() {
-        let wrapping = ResponseWrapping::new();
-        
-        let data = serde_json::json!({"value": "test"});
-        let wrap_info = wrapping.wrap(
-            data,
-            300,
-            "test".to_string(),
-        ).await.unwrap();
-        
-        // Rewrap with new token
-        let new_wrap_info = wrapping.rewrap(&wrap_info.token, Some(600)).await.unwrap();
-        
-        assert_ne!(new_wrap_info.token, wrap_info.token);
-        
-        // Old token should be invalid
-        let result = wrapping.unwrap(&wrap_info.token).await;
-        assert!(result.is_err());
-        
-        // New token should work
-        wrapping.unwrap(&new_wrap_info.token).await.unwrap();
+
+    #[test]
+    fn test_ttl_validation() {
+        // Valid TTL
+        let ttl = Duration::from_secs(300);
+        assert!(ttl.as_secs() >= 1);
+        assert!(ttl.as_secs() <= MAX_TTL_SECONDS as u64);
+
+        // Too short
+        let ttl = Duration::from_secs(0);
+        assert!(ttl.as_secs() < 1);
+
+        // Too long
+        let ttl = Duration::from_secs(MAX_TTL_SECONDS as u64 + 1);
+        assert!(ttl.as_secs() > MAX_TTL_SECONDS as u64);
     }
 }

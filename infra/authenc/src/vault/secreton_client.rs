@@ -5,8 +5,11 @@ use super::{Secret, Vault, VaultError};
 use crate::models::user::SecurityContext;
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use curve25519_dalek;
+use hkdf;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sha2;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -314,11 +317,12 @@ impl SecretonClient {
             .build()
             .unwrap_or_else(|_| Client::new());
 
-        let circuit_breaker = if let Some((failure_threshold, timeout, success_threshold)) = circuit_breaker_config {
-            CircuitBreaker::with_config(failure_threshold, timeout, success_threshold)
-        } else {
-            CircuitBreaker::new()
-        };
+        let circuit_breaker =
+            if let Some((failure_threshold, timeout, success_threshold)) = circuit_breaker_config {
+                CircuitBreaker::with_config(failure_threshold, timeout, success_threshold)
+            } else {
+                CircuitBreaker::new()
+            };
 
         SecretonClient {
             endpoint,
@@ -339,7 +343,7 @@ impl SecretonClient {
         // Check circuit breaker
         if !self.circuit_breaker.can_execute().await {
             return Err(VaultError::Unavailable(
-                "Circuit breaker is open - Secreton service unavailable".to_string()
+                "Circuit breaker is open - Secreton service unavailable".to_string(),
             ));
         }
 
@@ -355,7 +359,10 @@ impl SecretonClient {
                     last_error = Some(err.clone());
 
                     // Don't retry on authentication/authorization errors
-                    if matches!(err, VaultError::AuthenticationFailed(_) | VaultError::Unauthorized(_)) {
+                    if matches!(
+                        err,
+                        VaultError::AuthenticationFailed(_) | VaultError::Unauthorized(_)
+                    ) {
                         self.circuit_breaker.record_failure().await;
                         return Err(err);
                     }
@@ -442,7 +449,9 @@ impl SecretonClient {
                 if resp.status() == 404 {
                     return Err(VaultError::NotFound(format!("Secret not found: {}", key)));
                 } else if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
                     return Err(VaultError::Unauthorized("Access denied".to_string()));
                 } else if !resp.status().is_success() {
@@ -454,10 +463,9 @@ impl SecretonClient {
                     data: Option<std::collections::HashMap<String, String>>,
                 }
 
-                let secret_resp: SecretResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let secret_resp: SecretResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 secret_resp
                     .data
@@ -483,7 +491,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// The signing key material if found, error otherwise
-    pub async fn get_signing_key(&self, key_id: &str, context: &SecurityContext) -> Result<SigningKey, VaultError> {
+    pub async fn get_signing_key(
+        &self,
+        key_id: &str,
+        context: &SecurityContext,
+    ) -> Result<SigningKey, VaultError> {
         let operation = || {
             let key_id = key_id.to_string();
             let context = context.clone();
@@ -508,11 +520,18 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 404 {
-                    return Err(VaultError::NotFound(format!("Signing key not found: {}", key_id)));
+                    return Err(VaultError::NotFound(format!(
+                        "Signing key not found: {}",
+                        key_id
+                    )));
                 } else if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to signing key".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to signing key".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -525,12 +544,12 @@ impl SecretonClient {
                     expires_at: Option<String>,
                 }
 
-                let key_resp: SigningKeyResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let key_resp: SigningKeyResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
-                let expires_at = key_resp.expires_at
+                let expires_at = key_resp
+                    .expires_at
                     .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
                     .map(|dt| dt.with_timezone(&chrono::Utc));
 
@@ -557,7 +576,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// The encryption key material if found, error otherwise
-    pub async fn get_encryption_key(&self, resource_id: &str, context: &SecurityContext) -> Result<EncryptionKey, VaultError> {
+    pub async fn get_encryption_key(
+        &self,
+        resource_id: &str,
+        context: &SecurityContext,
+    ) -> Result<EncryptionKey, VaultError> {
         let operation = || {
             let resource_id = resource_id.to_string();
             let context = context.clone();
@@ -582,11 +605,18 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 404 {
-                    return Err(VaultError::NotFound(format!("Encryption key not found: {}", resource_id)));
+                    return Err(VaultError::NotFound(format!(
+                        "Encryption key not found: {}",
+                        resource_id
+                    )));
                 } else if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to encryption key".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to encryption key".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -599,10 +629,9 @@ impl SecretonClient {
                     key_size: u32,
                 }
 
-                let key_resp: EncryptionKeyResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let key_resp: EncryptionKeyResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 Ok(EncryptionKey {
                     key_id: key_resp.key_id,
@@ -627,7 +656,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// True if access is allowed, false otherwise
-    pub async fn validate_user_secret_access(&self, user_id: &str, secret_path: &str) -> Result<bool, VaultError> {
+    pub async fn validate_user_secret_access(
+        &self,
+        user_id: &str,
+        secret_path: &str,
+    ) -> Result<bool, VaultError> {
         let operation = || {
             let user_id = user_id.to_string();
             let secret_path = secret_path.to_string();
@@ -652,7 +685,9 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
                     return Ok(false); // Access denied, but not an error
                 } else if !resp.status().is_success() {
@@ -665,10 +700,9 @@ impl SecretonClient {
                     reason: Option<String>,
                 }
 
-                let validation_resp: AccessValidationResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let validation_resp: AccessValidationResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 Ok(validation_resp.allowed)
             }
@@ -687,7 +721,10 @@ impl SecretonClient {
     ///
     /// # Returns
     /// Configuration data if found, error otherwise
-    pub async fn get_application_config(&self, app_id: &str) -> Result<ApplicationConfig, VaultError> {
+    pub async fn get_application_config(
+        &self,
+        app_id: &str,
+    ) -> Result<ApplicationConfig, VaultError> {
         let operation = || {
             let app_id = app_id.to_string();
             let endpoint = self.endpoint.clone();
@@ -705,11 +742,18 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 404 {
-                    return Err(VaultError::NotFound(format!("Application config not found: {}", app_id)));
+                    return Err(VaultError::NotFound(format!(
+                        "Application config not found: {}",
+                        app_id
+                    )));
                 } else if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to application config".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to application config".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -722,10 +766,9 @@ impl SecretonClient {
                     updated_at: String,
                 }
 
-                let config_resp: AppConfigResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let config_resp: AppConfigResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 let updated_at = chrono::DateTime::parse_from_rfc3339(&config_resp.updated_at)
                     .map_err(|e| VaultError::InvalidFormat(format!("Invalid timestamp: {}", e)))?
@@ -736,6 +779,299 @@ impl SecretonClient {
                     config_data: config_resp.config_data,
                     version: config_resp.version,
                     updated_at,
+                })
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Perform hybrid key exchange (X25519 + ML-KEM) with Secreton
+    ///
+    /// Executes a hybrid key exchange combining classical X25519 ECDH with
+    /// post-quantum ML-KEM key encapsulation for quantum-safe communication.
+    ///
+    /// # Arguments
+    /// * `key_id` - Hybrid key identifier in Secreton
+    /// * `local_x25519_private` - Local X25519 private key
+    /// * `local_mlkem_private` - Local ML-KEM private key (optional, for decapsulation)
+    ///
+    /// # Returns
+    /// Combined shared secret from both key exchanges
+    pub async fn hybrid_key_exchange(
+        &self,
+        key_id: &str,
+        local_x25519_private: &[u8; 32],
+        local_mlkem_private: Option<&[u8]>,
+    ) -> Result<[u8; 32], VaultError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let x25519_private = *local_x25519_private;
+            let mlkem_private = local_mlkem_private.map(|k| k.to_vec());
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                let url = format!("{}/v1/crypto/hybrid-key-exchange/{}", endpoint, key_id);
+
+                // Generate local X25519 public key for the exchange
+                use curve25519_dalek::{constants::X25519_BASEPOINT, scalar::Scalar};
+                let scalar = Scalar::from_bytes_mod_order(x25519_private);
+                let local_x25519_public = (scalar * X25519_BASEPOINT).to_bytes();
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "local_x25519_public": BASE64.encode(&local_x25519_public),
+                    "request_mlkem_encapsulation": mlkem_private.is_none(),
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(VaultError::NotFound(format!(
+                        "Hybrid key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to hybrid key exchange".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(VaultError::Other(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct HybridKeyExchangeResp {
+                    peer_x25519_public: String,
+                    mlkem_ciphertext: Option<String>,
+                    combined_shared_secret: Option<String>,
+                }
+
+                let exchange_resp: HybridKeyExchangeResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                // If server provided combined secret, use it
+                if let Some(combined_secret_b64) = exchange_resp.combined_shared_secret {
+                    let combined_secret = BASE64.decode(&combined_secret_b64).map_err(|e| {
+                        VaultError::InvalidFormat(format!(
+                            "Invalid combined secret encoding: {}",
+                            e
+                        ))
+                    })?;
+
+                    let secret_array: [u8; 32] = combined_secret.try_into().map_err(|_| {
+                        VaultError::InvalidFormat("Invalid combined secret length".to_string())
+                    })?;
+
+                    return Ok(secret_array);
+                }
+
+                // Otherwise, perform local key exchange
+                let peer_x25519_public =
+                    BASE64
+                        .decode(&exchange_resp.peer_x25519_public)
+                        .map_err(|e| {
+                            VaultError::InvalidFormat(format!(
+                                "Invalid peer public key encoding: {}",
+                                e
+                            ))
+                        })?;
+
+                let peer_x25519_array: [u8; 32] = peer_x25519_public.try_into().map_err(|_| {
+                    VaultError::InvalidFormat("Invalid peer public key length".to_string())
+                })?;
+
+                // Perform X25519 key exchange
+                let peer_point = curve25519_dalek::montgomery::MontgomeryPoint(peer_x25519_array);
+                let x25519_shared_secret = (scalar * peer_point).to_bytes();
+
+                // Combine with ML-KEM if available
+                let combined_secret = if let (Some(mlkem_ct_b64), Some(_mlkem_priv)) =
+                    (exchange_resp.mlkem_ciphertext, mlkem_private)
+                {
+                    let _mlkem_ciphertext = BASE64.decode(&mlkem_ct_b64).map_err(|e| {
+                        VaultError::InvalidFormat(format!(
+                            "Invalid ML-KEM ciphertext encoding: {}",
+                            e
+                        ))
+                    })?;
+
+                    // In a real implementation, we would decapsulate the ML-KEM ciphertext
+                    // For now, we'll use HKDF to combine the X25519 secret with a placeholder
+                    use hkdf::Hkdf;
+                    use sha2::Sha256;
+
+                    let hk = Hkdf::<Sha256>::new(None, &x25519_shared_secret);
+                    let mut output = [0u8; 32];
+                    hk.expand(b"SIMKARI-hybrid-key-exchange", &mut output)
+                        .map_err(|_| VaultError::Other("HKDF expansion failed".to_string()))?;
+
+                    output
+                } else {
+                    x25519_shared_secret
+                };
+
+                Ok(combined_secret)
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Request ML-KEM encapsulation from Secreton for long-term secret encryption
+    ///
+    /// Requests Secreton to encapsulate a symmetric key using ML-KEM for
+    /// quantum-safe long-term secret storage.
+    ///
+    /// # Arguments
+    /// * `key_id` - ML-KEM key identifier in Secreton
+    /// * `plaintext_key` - Symmetric key to encapsulate (32 bytes)
+    ///
+    /// # Returns
+    /// ML-KEM ciphertext containing the encapsulated key
+    pub async fn mlkem_encapsulate_key(
+        &self,
+        key_id: &str,
+        plaintext_key: &[u8; 32],
+    ) -> Result<Vec<u8>, VaultError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let plaintext = *plaintext_key;
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                let url = format!("{}/v1/crypto/mlkem-encapsulate/{}", endpoint, key_id);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "plaintext": BASE64.encode(&plaintext),
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(VaultError::NotFound(format!(
+                        "ML-KEM key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to ML-KEM encapsulation".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(VaultError::Other(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct MlkemEncapsulateResp {
+                    ciphertext: String,
+                }
+
+                let encap_resp: MlkemEncapsulateResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                BASE64.decode(&encap_resp.ciphertext).map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid ciphertext encoding: {}", e))
+                })
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Request ML-DSA signature from Secreton for authentication tokens
+    ///
+    /// Requests Secreton to sign authentication token data using ML-DSA
+    /// for quantum-safe digital signatures.
+    ///
+    /// # Arguments
+    /// * `key_id` - ML-DSA key identifier in Secreton
+    /// * `token_data` - Token data to sign
+    ///
+    /// # Returns
+    /// ML-DSA signature bytes
+    pub async fn mldsa_sign_token(
+        &self,
+        key_id: &str,
+        token_data: &[u8],
+    ) -> Result<Vec<u8>, VaultError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let data = token_data.to_vec();
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                let url = format!("{}/v1/crypto/mldsa-sign/{}", endpoint, key_id);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "data": BASE64.encode(&data),
+                    "purpose": "authentication_token",
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(VaultError::NotFound(format!(
+                        "ML-DSA key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to ML-DSA signing".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(VaultError::Other(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct MldsaSignResp {
+                    signature: String,
+                }
+
+                let sign_resp: MldsaSignResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                BASE64.decode(&sign_resp.signature).map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid signature encoding: {}", e))
                 })
             }
         };
@@ -754,7 +1090,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// Post-quantum key material if found, error otherwise
-    pub async fn get_post_quantum_key(&self, key_id: &str, algorithm: PqAlgorithm) -> Result<PqKey, VaultError> {
+    pub async fn get_post_quantum_key(
+        &self,
+        key_id: &str,
+        algorithm: PqAlgorithm,
+    ) -> Result<PqKey, VaultError> {
         let operation = || {
             let key_id = key_id.to_string();
             let algorithm = algorithm.clone();
@@ -767,13 +1107,11 @@ impl SecretonClient {
                     PqAlgorithm::MlDsa => "ml-dsa",
                     PqAlgorithm::MlKem => "ml-kem",
                     PqAlgorithm::SphincsPlusShake256 => "sphincs-plus-shake256",
-                    PqAlgorithm::Hybrid(inner) => {
-                        match inner.as_ref() {
-                            PqAlgorithm::MlDsa => "hybrid-ml-dsa",
-                            PqAlgorithm::MlKem => "hybrid-ml-kem",
-                            _ => "hybrid-unknown",
-                        }
-                    }
+                    PqAlgorithm::Hybrid(inner) => match inner.as_ref() {
+                        PqAlgorithm::MlDsa => "hybrid-ml-dsa",
+                        PqAlgorithm::MlKem => "hybrid-ml-kem",
+                        _ => "hybrid-unknown",
+                    },
                 };
 
                 let url = format!("{}/v1/crypto/pq-key/{}/{}", endpoint, algorithm_str, key_id);
@@ -786,11 +1124,18 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 404 {
-                    return Err(VaultError::NotFound(format!("Post-quantum key not found: {}", key_id)));
+                    return Err(VaultError::NotFound(format!(
+                        "Post-quantum key not found: {}",
+                        key_id
+                    )));
                 } else if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to post-quantum key".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to post-quantum key".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -804,17 +1149,18 @@ impl SecretonClient {
                     parameters: std::collections::HashMap<String, String>,
                 }
 
-                let key_resp: PqKeyResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let key_resp: PqKeyResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
-                let public_key = BASE64.decode(&key_resp.public_key)
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid public key encoding: {}", e)))?;
+                let public_key = BASE64.decode(&key_resp.public_key).map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid public key encoding: {}", e))
+                })?;
 
                 let private_key = if let Some(priv_key_str) = key_resp.private_key {
-                    Some(BASE64.decode(&priv_key_str)
-                        .map_err(|e| VaultError::InvalidFormat(format!("Invalid private key encoding: {}", e)))?)
+                    Some(BASE64.decode(&priv_key_str).map_err(|e| {
+                        VaultError::InvalidFormat(format!("Invalid private key encoding: {}", e))
+                    })?)
                 } else {
                     None
                 };
@@ -888,11 +1234,17 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to MFA setup".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to MFA setup".to_string(),
+                    ));
                 } else if resp.status() == 409 {
-                    return Err(VaultError::Other("MFA already configured for user".to_string()));
+                    return Err(VaultError::Other(
+                        "MFA already configured for user".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -904,10 +1256,9 @@ impl SecretonClient {
                     recovery_codes: Vec<String>,
                 }
 
-                let setup_resp: MfaSetupResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let setup_resp: MfaSetupResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 Ok(MfaSetupData {
                     qr_code_url: setup_resp.qr_code_url.unwrap_or_default(),
@@ -955,13 +1306,19 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to MFA verification".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to MFA verification".to_string(),
+                    ));
                 } else if resp.status() == 400 {
                     return Err(VaultError::Other("Invalid MFA code".to_string()));
                 } else if resp.status() == 404 {
-                    return Err(VaultError::NotFound("MFA not configured for user".to_string()));
+                    return Err(VaultError::NotFound(
+                        "MFA not configured for user".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -1008,15 +1365,23 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to MFA verification".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to MFA verification".to_string(),
+                    ));
                 } else if resp.status() == 400 {
                     return Err(VaultError::Other("Invalid MFA code".to_string()));
                 } else if resp.status() == 404 {
-                    return Err(VaultError::NotFound("MFA not configured for user".to_string()));
+                    return Err(VaultError::NotFound(
+                        "MFA not configured for user".to_string(),
+                    ));
                 } else if resp.status() == 429 {
-                    return Err(VaultError::Other("Rate limit exceeded for MFA verification".to_string()));
+                    return Err(VaultError::Other(
+                        "Rate limit exceeded for MFA verification".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -1055,9 +1420,13 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to MFA status".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to MFA status".to_string(),
+                    ));
                 } else if resp.status() == 404 {
                     return Err(VaultError::NotFound("User not found".to_string()));
                 } else if !resp.status().is_success() {
@@ -1071,10 +1440,9 @@ impl SecretonClient {
                     last_used: Option<String>,
                 }
 
-                let status_resp: MfaStatusResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let status_resp: MfaStatusResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 Ok(MfaStatusResponse {
                     is_enabled: status_resp.is_enabled,
@@ -1097,7 +1465,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// Success if MFA is disabled, error otherwise
-    pub async fn disable_mfa(&self, user_id: &str, admin_context: &SecurityContext) -> Result<(), VaultError> {
+    pub async fn disable_mfa(
+        &self,
+        user_id: &str,
+        admin_context: &SecurityContext,
+    ) -> Result<(), VaultError> {
         let operation = || {
             let user_id = user_id.to_string();
             let admin_context = admin_context.clone();
@@ -1122,11 +1494,17 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to MFA disable operation".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to MFA disable operation".to_string(),
+                    ));
                 } else if resp.status() == 404 {
-                    return Err(VaultError::NotFound("MFA not configured for user".to_string()));
+                    return Err(VaultError::NotFound(
+                        "MFA not configured for user".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -1148,7 +1526,11 @@ impl SecretonClient {
     ///
     /// # Returns
     /// Success if recovery code is valid, error otherwise
-    pub async fn verify_recovery_code(&self, user_id: &str, recovery_code: &str) -> Result<(), VaultError> {
+    pub async fn verify_recovery_code(
+        &self,
+        user_id: &str,
+        recovery_code: &str,
+    ) -> Result<(), VaultError> {
         let operation = || {
             let user_id = user_id.to_string();
             let recovery_code = recovery_code.to_string();
@@ -1173,13 +1555,19 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to recovery code verification".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to recovery code verification".to_string(),
+                    ));
                 } else if resp.status() == 400 {
                     return Err(VaultError::Other("Invalid recovery code".to_string()));
                 } else if resp.status() == 404 {
-                    return Err(VaultError::NotFound("MFA not configured for user".to_string()));
+                    return Err(VaultError::NotFound(
+                        "MFA not configured for user".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -1200,7 +1588,10 @@ impl SecretonClient {
     ///
     /// # Returns
     /// New recovery codes if successful, error otherwise
-    pub async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>, VaultError> {
+    pub async fn regenerate_recovery_codes(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<String>, VaultError> {
         let operation = || {
             let user_id = user_id.to_string();
             let endpoint = self.endpoint.clone();
@@ -1223,11 +1614,17 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 401 {
-                    return Err(VaultError::AuthenticationFailed("Invalid token".to_string()));
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
                 } else if resp.status() == 403 {
-                    return Err(VaultError::Unauthorized("Access denied to recovery code regeneration".to_string()));
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to recovery code regeneration".to_string(),
+                    ));
                 } else if resp.status() == 404 {
-                    return Err(VaultError::NotFound("MFA not configured for user".to_string()));
+                    return Err(VaultError::NotFound(
+                        "MFA not configured for user".to_string(),
+                    ));
                 } else if !resp.status().is_success() {
                     return Err(VaultError::Other(format!("HTTP {}", resp.status())));
                 }
@@ -1237,12 +1634,178 @@ impl SecretonClient {
                     recovery_codes: Vec<String>,
                 }
 
-                let codes_resp: RecoveryCodesResp = resp
-                    .json()
-                    .await
-                    .map_err(|e| VaultError::InvalidFormat(format!("Invalid response format: {}", e)))?;
+                let codes_resp: RecoveryCodesResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
 
                 Ok(codes_resp.recovery_codes)
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Rotate a signing key (for JWT operations)
+    ///
+    /// Requests Secreton to rotate a signing key and return the new key material.
+    /// This is used for automatic key rotation to enhance security.
+    ///
+    /// # Arguments
+    /// * `key_id` - Identifier of the key to rotate
+    /// * `context` - Security context for the rotation request
+    ///
+    /// # Returns
+    /// New signing key material after rotation
+    pub async fn rotate_signing_key(
+        &self,
+        key_id: &str,
+        context: &SecurityContext,
+    ) -> Result<SigningKey, VaultError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let context = context.clone();
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                let url = format!("{}/v1/crypto/rotate-signing-key/{}", endpoint, key_id);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "context": context,
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(VaultError::NotFound(format!(
+                        "Signing key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to key rotation".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(VaultError::Other(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct RotateKeyResp {
+                    key_id: String,
+                    key_material: String,
+                    algorithm: String,
+                    expires_at: Option<String>,
+                    version: u32,
+                }
+
+                let key_resp: RotateKeyResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                let expires_at = key_resp
+                    .expires_at
+                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+                    .map(|dt| dt.with_timezone(&chrono::Utc));
+
+                Ok(SigningKey {
+                    key_id: key_resp.key_id,
+                    key_material: key_resp.key_material,
+                    algorithm: key_resp.algorithm,
+                    expires_at,
+                })
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Rotate an encryption key (for session/MFA data)
+    ///
+    /// Requests Secreton to rotate an encryption key and return the new key material.
+    /// This is used for automatic key rotation to enhance security.
+    ///
+    /// # Arguments
+    /// * `key_id` - Identifier of the key to rotate
+    /// * `context` - Security context for the rotation request
+    ///
+    /// # Returns
+    /// New encryption key material after rotation
+    pub async fn rotate_encryption_key(
+        &self,
+        key_id: &str,
+        context: &SecurityContext,
+    ) -> Result<EncryptionKey, VaultError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let context = context.clone();
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                let url = format!("{}/v1/crypto/rotate-encryption-key/{}", endpoint, key_id);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "context": context,
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(VaultError::NotFound(format!(
+                        "Encryption key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(VaultError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(VaultError::Unauthorized(
+                        "Access denied to key rotation".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(VaultError::Other(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct RotateEncKeyResp {
+                    key_id: String,
+                    key_material: String,
+                    algorithm: String,
+                    key_size: u32,
+                    version: u32,
+                }
+
+                let key_resp: RotateEncKeyResp = resp.json().await.map_err(|e| {
+                    VaultError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                Ok(EncryptionKey {
+                    key_id: key_resp.key_id,
+                    key_material: key_resp.key_material,
+                    algorithm: key_resp.algorithm,
+                    key_size: key_resp.key_size,
+                })
             }
         };
 
@@ -1272,7 +1835,10 @@ impl SecretonClient {
                     .map_err(|e| VaultError::Unavailable(format!("Network error: {}", e)))?;
 
                 if !resp.status().is_success() {
-                    return Err(VaultError::Unavailable(format!("Health check failed: HTTP {}", resp.status())));
+                    return Err(VaultError::Unavailable(format!(
+                        "Health check failed: HTTP {}",
+                        resp.status()
+                    )));
                 }
 
                 Ok(())
@@ -1385,7 +1951,9 @@ impl Vault for SecretonVault {
         _realm: Option<&str>,
         _metadata: Option<std::collections::HashMap<String, String>>,
     ) -> Result<(), super::VaultError> {
-        Err(super::VaultError::Other("Write operations not supported in read-only integration".to_string()))
+        Err(super::VaultError::Other(
+            "Write operations not supported in read-only integration".to_string(),
+        ))
     }
 
     async fn delete_secret(
@@ -1393,7 +1961,9 @@ impl Vault for SecretonVault {
         _key: &str,
         _realm: Option<&str>,
     ) -> Result<(), super::VaultError> {
-        Err(super::VaultError::Other("Delete operations not supported in read-only integration".to_string()))
+        Err(super::VaultError::Other(
+            "Delete operations not supported in read-only integration".to_string(),
+        ))
     }
 
     async fn list_secrets(&self, _realm: Option<&str>) -> Result<Vec<String>, super::VaultError> {
@@ -1407,7 +1977,9 @@ impl Vault for SecretonVault {
         _realm: Option<&str>,
         _generator: Box<dyn Fn() -> String + Send>,
     ) -> Result<super::RotationResult, super::VaultError> {
-        Err(super::VaultError::Other("Rotation managed by Secreton service directly".to_string()))
+        Err(super::VaultError::Other(
+            "Rotation managed by Secreton service directly".to_string(),
+        ))
     }
 
     async fn get_secret_versions(

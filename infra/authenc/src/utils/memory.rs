@@ -188,7 +188,8 @@ impl<T> LazyCryptoContext<T> {
         }
 
         let context = (self.initializer)()?;
-        self.context.set(context)
+        self.context
+            .set(context)
             .map_err(|_| AuthencError::internal("Failed to initialize crypto context"))?;
 
         Ok(self.context.get().unwrap())
@@ -306,14 +307,20 @@ impl MemoryTracker {
             *peak = *total;
         }
 
-        debug!("Tracked allocation: {} bytes, total: {} bytes", size, *total);
+        debug!(
+            "Tracked allocation: {} bytes, total: {} bytes",
+            size, *total
+        );
     }
 
     /// Track a deallocation
     pub async fn track_deallocation(&self, size: usize) {
         let mut total = self.total_allocated.lock().await;
         *total = total.saturating_sub(size);
-        debug!("Tracked deallocation: {} bytes, total: {} bytes", size, *total);
+        debug!(
+            "Tracked deallocation: {} bytes, total: {} bytes",
+            size, *total
+        );
     }
 
     /// Get current memory usage
@@ -348,7 +355,10 @@ impl MemoryTracker {
         let cutoff = Instant::now() - max_age;
 
         allocations.retain(|alloc| alloc.timestamp > cutoff);
-        debug!("Cleaned up old allocation records, {} remaining", allocations.len());
+        debug!(
+            "Cleaned up old allocation records, {} remaining",
+            allocations.len()
+        );
     }
 }
 
@@ -509,7 +519,9 @@ mod tests {
     async fn test_memory_tracker() {
         let tracker = MemoryTracker::new();
 
-        tracker.track_allocation(1024, "test_allocation".to_string()).await;
+        tracker
+            .track_allocation(1024, "test_allocation".to_string())
+            .await;
         assert_eq!(tracker.current_usage().await, 1024);
         assert_eq!(tracker.peak_usage().await, 1024);
 

@@ -322,18 +322,83 @@ pub fn MfaBackupCodesPage(
 // API FUNCTIONS
 // ============================================================================
 
+/// Request payload for backup codes management
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+struct MfaBackupCodesRequest {
+    /// Authorization token
+    token: String,
+    /// Action to perform (generate, list, verify)
+    action: String,
+    /// Backup code to verify (for verify action)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<String>,
+}
+
+/// Response payload from authenc backup codes API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+struct MfaBackupCodesApiResponse {
+    /// Success message
+    message: String,
+    /// Backup codes (for generate action)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    codes: Option<Vec<String>>,
+    /// Number of remaining codes (for list action)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    remaining: Option<i32>,
+}
+
+/// Get authentication token from storage
+#[cfg(target_arch = "wasm32")]
+fn get_auth_token() -> Option<String> {
+    use crate::features::auth::AuthService;
+
+    // Try to get access_token first (for authenticated users)
+    AuthService::get_token()
+}
+
 /// Generate new backup codes via authenc API
 async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
-        let response = gloo_net::http::Request::post("/api/auth/mfa/backup-codes/generate")
+        // Get authentication token
+        let token =
+            get_auth_token().ok_or("No authentication token found. Please log in again.")?;
+
+        // Prepare request body
+        let request_body = MfaBackupCodesRequest {
+            token,
+            action: "generate".to_string(),
+            code: None,
+        };
+
+        // Make API request
+        let response = gloo_net::http::Request::post("/api/auth/mfa/backup-codes")
+            .json(&request_body)?
             .send()
             .await?;
 
         if response.ok() {
-            Ok(response.json().await?)
+            let api_response: MfaBackupCodesApiResponse = response.json().await?;
+
+            // Convert to frontend response format
+            Ok(BackupCodesResponse {
+                codes: api_response.codes.unwrap_or_default(),
+                count: api_response.codes.as_ref().map(|c| c.len()).unwrap_or(0),
+                warning: "⚠️ IMPORTANT: Save these codes immediately! Each code can only be used once. Store them in a secure, offline location.".to_string(),
+            })
         } else {
-            Err(format!("Failed to generate backup codes: {}", response.status()).into())
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            Err(format!(
+                "Failed to generate backup codes: {} - {}",
+                response.status(),
+                error_text
+            )
+            .into())
         }
     }
 
@@ -347,14 +412,44 @@ async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::err
 async fn get_backup_code_status() -> Result<BackupCodeStatusResponse, Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
-        let response = gloo_net::http::Request::get("/api/auth/mfa/backup-codes/status")
+        // Get authentication token
+        let token =
+            get_auth_token().ok_or("No authentication token found. Please log in again.")?;
+
+        // Prepare request body
+        let request_body = MfaBackupCodesRequest {
+            token,
+            action: "list".to_string(),
+            code: None,
+        };
+
+        // Make API request
+        let response = gloo_net::http::Request::post("/api/auth/mfa/backup-codes")
+            .json(&request_body)?
             .send()
             .await?;
 
         if response.ok() {
-            Ok(response.json().await?)
+            let api_response: MfaBackupCodesApiResponse = response.json().await?;
+
+            // Convert to frontend response format
+            let remaining = api_response.remaining.unwrap_or(0);
+            Ok(BackupCodeStatusResponse {
+                available: remaining > 0,
+                remaining_codes: remaining as usize,
+                last_generated: None, // Backend doesn't provide this yet
+            })
         } else {
-            Err(format!("Failed to get backup code status: {}", response.status()).into())
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            Err(format!(
+                "Failed to get backup code status: {} - {}",
+                response.status(),
+                error_text
+            )
+            .into())
         }
     }
 

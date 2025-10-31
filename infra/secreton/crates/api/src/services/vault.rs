@@ -6,9 +6,9 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use brankas_core::audit::AuditLogger;
-use brankas_crypto::CryptoService;
-use brankas_storage::StorageBackend;
+use secreton_core::audit::AuditLogger;
+use secreton_crypto::CryptoEngine;
+use secreton_storage::StorageBackend;
 
 /// Vault service errors
 #[derive(Error, Debug)]
@@ -29,10 +29,10 @@ pub enum VaultError {
     PermissionDenied(String),
 
     #[error("Crypto error: {0}")]
-    Crypto(#[from] brankas_crypto::CryptoError),
+    Crypto(#[from] secreton_crypto::CryptoError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] brankas_storage::StorageError),
+    Storage(#[from] secreton_storage::StorageError),
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
@@ -41,7 +41,7 @@ pub enum VaultError {
 /// Vault service for business logic operations
 pub struct VaultService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
-    crypto: Arc<CryptoService>,
+    crypto: Arc<CryptoEngine>,
     audit: Arc<AuditLogger>,
 }
 
@@ -49,7 +49,7 @@ impl VaultService {
     /// Create new vault service
     pub async fn new(
         storage: Arc<dyn StorageBackend + Send + Sync>,
-        crypto: Arc<CryptoService>,
+        crypto: Arc<CryptoEngine>,
         audit: Arc<AuditLogger>,
     ) -> Result<Self> {
         Ok(Self {
@@ -223,17 +223,17 @@ pub struct DecryptResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brankas_crypto::SecurityParams;
-    use brankas_storage::MockStorageBackend;
+    use secreton_crypto::SecurityParams;
+    use secreton_storage::MemoryBackend;
     use crate::config::AuthConfig;
     use crate::services::auth::AuthService;
-    use brankas_core::audit::AuditLogger;
+    use secreton_core::audit::AuditLogger;
 
     #[tokio::test]
     async fn test_vault_service_creation() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
 
         let vault_service = VaultService::new(storage, crypto, audit).await;
         assert!(vault_service.is_ok());
@@ -241,39 +241,53 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_secret_placeholder() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = VaultService::new(storage, crypto, audit).await.unwrap();
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = VaultService::new(storage, crypto, audit).await;
 
-        let secret = service.get_secret("app/config", "user1").await.unwrap();
+        let secret = service.get_secret("app/config", "user1").await;
         assert_eq!(secret.path, "app/config");
         assert!(secret.data.contains_key("key1"));
     }
 
     #[tokio::test]
     async fn test_put_secret_placeholder() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = VaultService::new(storage, crypto, audit).await.unwrap();
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = VaultService::new(storage, crypto, audit).await;
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
-        let secret = service.put_secret("app/admin", data, "user1").await.unwrap();
+        let secret = service.put_secret("app/admin", data, "user1").await;
         assert_eq!(secret.path, "app/admin");
         assert!(secret.data.contains_key("username"));
     }
 
     #[tokio::test]
     async fn test_encrypt_placeholder_response() {
-        let storage = Arc::new(MockStorageBackend::new());
-        let crypto = Arc::new(CryptoService::new(SecurityParams::default()).unwrap());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await.unwrap());
-        let service = VaultService::new(storage, crypto, audit).await.unwrap();
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let service = VaultService::new(storage, crypto, audit).await;
 
-        let result = service.encrypt("key1", "plaintext", "user1").await.unwrap();
+        let result = service.encrypt("key1", "plaintext", "user1").await;
         assert_eq!(result.ciphertext, "encrypted_data");
         assert_eq!(result.key_version, 1);
+    }
+}
+
+impl VaultService {
+    /// Create mock vault service for testing
+    pub fn new_mock(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+    ) -> Self {
+        Self {
+            storage,
+            crypto,
+            audit: Arc::new(AuditLogger::new(vec![])),
+        }
     }
 }

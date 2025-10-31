@@ -353,9 +353,11 @@ mod satker_hierarchy_tests {
         // Validate satker context in audit
         assert_eq!(audit_event.satker_code, Some(satker_code));
         assert_eq!(audit_event.nip, Some(nip));
-        assert!(audit_event
-            .compliance_flags
-            .contains(&"KEJAKSAAN_AUDIT".to_string()));
+        assert!(
+            audit_event
+                .compliance_flags
+                .contains(&"KEJAKSAAN_AUDIT".to_string())
+        );
 
         // Test audit event filtering by satker
         let audit_events = vec![

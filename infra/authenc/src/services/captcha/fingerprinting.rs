@@ -4,8 +4,8 @@
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 
 use super::error::CaptchaError;
 use super::types::*;
@@ -195,25 +195,47 @@ impl Default for FingerprintingConfig {
 #[async_trait]
 pub trait FingerprintingEngine: Send + Sync {
     /// Analyze basic browser fingerprint
-    async fn analyze_basic_fingerprint(&self, fingerprint: &BrowserFingerprint) -> Result<FingerprintAnalysis, CaptchaError>;
+    async fn analyze_basic_fingerprint(
+        &self,
+        fingerprint: &BrowserFingerprint,
+    ) -> Result<FingerprintAnalysis, CaptchaError>;
 
     /// Create extended fingerprint from client data
-    async fn create_extended_fingerprint(&self, client_data: &HashMap<String, serde_json::Value>) -> Result<ExtendedBrowserFingerprint, CaptchaError>;
+    async fn create_extended_fingerprint(
+        &self,
+        client_data: &HashMap<String, serde_json::Value>,
+    ) -> Result<ExtendedBrowserFingerprint, CaptchaError>;
 
     /// Detect automation indicators
-    async fn detect_automation_indicators(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<Vec<AutomationIndicator>, CaptchaError>;
+    async fn detect_automation_indicators(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<Vec<AutomationIndicator>, CaptchaError>;
 
     /// Calculate fingerprint uniqueness
-    async fn calculate_uniqueness(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<f64, CaptchaError>;
+    async fn calculate_uniqueness(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<f64, CaptchaError>;
 
     /// Compare fingerprints for consistency
-    async fn compare_fingerprints(&self, fp1: &ExtendedBrowserFingerprint, fp2: &ExtendedBrowserFingerprint) -> Result<f64, CaptchaError>;
+    async fn compare_fingerprints(
+        &self,
+        fp1: &ExtendedBrowserFingerprint,
+        fp2: &ExtendedBrowserFingerprint,
+    ) -> Result<f64, CaptchaError>;
 
     /// Generate privacy-compliant hashes
-    async fn generate_hashed_identifiers(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<HashedIdentifiers, CaptchaError>;
+    async fn generate_hashed_identifiers(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<HashedIdentifiers, CaptchaError>;
 
     /// Assess privacy risk
-    async fn assess_privacy_risk(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<PrivacyRisk, CaptchaError>;
+    async fn assess_privacy_risk(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<PrivacyRisk, CaptchaError>;
 }
 
 /// Default fingerprinting engine implementation
@@ -250,7 +272,10 @@ impl DefaultFingerprintingEngine {
     }
 
     /// Detect headless browser indicators
-    fn detect_headless_indicators(&self, fingerprint: &ExtendedBrowserFingerprint) -> Vec<AutomationIndicator> {
+    fn detect_headless_indicators(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Vec<AutomationIndicator> {
         let mut indicators = Vec::new();
 
         // Check user agent for headless indicators
@@ -294,7 +319,10 @@ impl DefaultFingerprintingEngine {
     }
 
     /// Detect automation framework indicators
-    fn detect_automation_frameworks(&self, fingerprint: &ExtendedBrowserFingerprint) -> Vec<AutomationIndicator> {
+    fn detect_automation_frameworks(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Vec<AutomationIndicator> {
         let mut indicators = Vec::new();
 
         let user_agent = &fingerprint.basic.user_agent.to_lowercase();
@@ -321,7 +349,10 @@ impl DefaultFingerprintingEngine {
     }
 
     /// Detect virtual machine indicators
-    fn detect_vm_indicators(&self, fingerprint: &ExtendedBrowserFingerprint) -> Vec<AutomationIndicator> {
+    fn detect_vm_indicators(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Vec<AutomationIndicator> {
         let mut indicators = Vec::new();
 
         // Check for VM-specific hardware configurations
@@ -386,9 +417,11 @@ impl DefaultFingerprintingEngine {
             return 0.0;
         }
 
-        let variance = entropy_components.iter()
+        let variance = entropy_components
+            .iter()
             .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / entropy_components.len() as f64;
+            .sum::<f64>()
+            / entropy_components.len() as f64;
 
         // Normalize to 0-1 range
         (variance.sqrt() / mean).min(1.0)
@@ -403,97 +436,149 @@ impl Default for DefaultFingerprintingEngine {
 
 #[async_trait]
 impl FingerprintingEngine for DefaultFingerprintingEngine {
-    async fn analyze_basic_fingerprint(&self, fingerprint: &BrowserFingerprint) -> Result<FingerprintAnalysis, CaptchaError> {
+    async fn analyze_basic_fingerprint(
+        &self,
+        fingerprint: &BrowserFingerprint,
+    ) -> Result<FingerprintAnalysis, CaptchaError> {
         // Create extended fingerprint from basic data
         let mut client_data = HashMap::new();
-        client_data.insert("user_agent".to_string(), serde_json::Value::String(fingerprint.user_agent.clone()));
-        client_data.insert("screen_resolution".to_string(), serde_json::Value::String(fingerprint.screen_resolution.clone()));
-        client_data.insert("timezone".to_string(), serde_json::Value::String(fingerprint.timezone.clone()));
-        client_data.insert("language".to_string(), serde_json::Value::String(fingerprint.language.clone()));
-        client_data.insert("plugins".to_string(), serde_json::Value::Array(
-            fingerprint.plugins.iter().map(|p| serde_json::Value::String(p.clone())).collect()
-        ));
+        client_data.insert(
+            "user_agent".to_string(),
+            serde_json::Value::String(fingerprint.user_agent.clone()),
+        );
+        client_data.insert(
+            "screen_resolution".to_string(),
+            serde_json::Value::String(fingerprint.screen_resolution.clone()),
+        );
+        client_data.insert(
+            "timezone".to_string(),
+            serde_json::Value::String(fingerprint.timezone.clone()),
+        );
+        client_data.insert(
+            "language".to_string(),
+            serde_json::Value::String(fingerprint.language.clone()),
+        );
+        client_data.insert(
+            "plugins".to_string(),
+            serde_json::Value::Array(
+                fingerprint
+                    .plugins
+                    .iter()
+                    .map(|p| serde_json::Value::String(p.clone()))
+                    .collect(),
+            ),
+        );
 
         let extended_fp = self.create_extended_fingerprint(&client_data).await?;
         Ok(extended_fp.analysis)
     }
 
-    async fn create_extended_fingerprint(&self, client_data: &HashMap<String, serde_json::Value>) -> Result<ExtendedBrowserFingerprint, CaptchaError> {
+    async fn create_extended_fingerprint(
+        &self,
+        client_data: &HashMap<String, serde_json::Value>,
+    ) -> Result<ExtendedBrowserFingerprint, CaptchaError> {
         // Extract basic fingerprint data
         let basic = BrowserFingerprint {
-            user_agent: client_data.get("user_agent")
+            user_agent: client_data
+                .get("user_agent")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            screen_resolution: client_data.get("screen_resolution")
+            screen_resolution: client_data
+                .get("screen_resolution")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            timezone: client_data.get("timezone")
+            timezone: client_data
+                .get("timezone")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            language: client_data.get("language")
+            language: client_data
+                .get("language")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            plugins: client_data.get("plugins")
+            plugins: client_data
+                .get("plugins")
                 .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default(),
-            canvas_fingerprint: client_data.get("canvas_fingerprint")
+            canvas_fingerprint: client_data
+                .get("canvas_fingerprint")
                 .and_then(|v| v.as_str())
-       .map(|s| s.to_string()),
-            webgl_fingerprint: client_data.get("webgl_fingerprint")
+                .map(|s| s.to_string()),
+            webgl_fingerprint: client_data
+                .get("webgl_fingerprint")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
         };
 
         // Extract advanced fingerprint data
         let advanced = AdvancedFingerprint {
-            hardware_concurrency: client_data.get("hardware_concurrency")
+            hardware_concurrency: client_data
+                .get("hardware_concurrency")
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
-            device_memory: client_data.get("device_memory")
+            device_memory: client_data.get("device_memory").and_then(|v| v.as_f64()),
+            max_touch_points: client_data
+                .get("max_touch_points")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32),
+            color_depth: client_data
+                .get("color_depth")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32),
+            pixel_depth: client_data
+                .get("pixel_depth")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32),
+            screen_orientation: client_data
+                .get("screen_orientation")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            connection_type: client_data
+                .get("connection_type")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            connection_downlink: client_data
+                .get("connection_downlink")
                 .and_then(|v| v.as_f64()),
-            max_touch_points: client_data.get("max_touch_points")
+            connection_rtt: client_data
+                .get("connection_rtt")
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
-            color_depth: client_data.get("color_depth")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32),
-            pixel_depth: client_data.get("pixel_depth")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32),
-            screen_orientation: client_data.get("screen_orientation")
+            audio_context_fingerprint: client_data
+                .get("audio_context_fingerprint")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            connection_type: client_data.get("connection_type")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            connection_downlink: client_data.get("connection_downlink")
-                .and_then(|v| v.as_f64()),
-            connection_rtt: client_data.get("connection_rtt")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as u32),
-            audio_context_fingerprint: client_data.get("audio_context_fingerprint")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            available_fonts: client_data.get("available_fonts")
+            available_fonts: client_data
+                .get("available_fonts")
                 .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default(),
-            webrtc_fingerprint: client_data.get("webrtc_fingerprint")
+            webrtc_fingerprint: client_data
+                .get("webrtc_fingerprint")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            battery_level: client_data.get("battery_level")
-                .and_then(|v| v.as_f64()),
-            battery_charging: client_data.get("battery_charging")
+            battery_level: client_data.get("battery_level").and_then(|v| v.as_f64()),
+            battery_charging: client_data
+                .get("battery_charging")
                 .and_then(|v| v.as_bool()),
-            media_devices_count: client_data.get("media_devices_count")
+            media_devices_count: client_data
+                .get("media_devices_count")
                 .and_then(|v| v.as_u64())
                 .map(|v| v as u32),
-            performance_fingerprint: client_data.get("performance_fingerprint")
+            performance_fingerprint: client_data
+                .get("performance_fingerprint")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
         };
@@ -525,7 +610,8 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         extended_fp.hashed_identifiers = self.generate_hashed_identifiers(&extended_fp).await?;
 
         // Detect automation indicators
-        extended_fp.analysis.automation_indicators = self.detect_automation_indicators(&extended_fp).await?;
+        extended_fp.analysis.automation_indicators =
+            self.detect_automation_indicators(&extended_fp).await?;
 
         // Calculate uniqueness
         extended_fp.analysis.uniqueness_score = self.calculate_uniqueness(&extended_fp).await?;
@@ -534,7 +620,10 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         extended_fp.analysis.privacy_risk = self.assess_privacy_risk(&extended_fp).await?;
 
         // Calculate bot probability based on indicators
-        let indicator_score = extended_fp.analysis.automation_indicators.iter()
+        let indicator_score = extended_fp
+            .analysis
+            .automation_indicators
+            .iter()
             .map(|indicator| match indicator.severity {
                 IndicatorSeverity::Critical => indicator.confidence * 0.4,
                 IndicatorSeverity::High => indicator.confidence * 0.3,
@@ -548,7 +637,10 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         Ok(extended_fp)
     }
 
-    async fn detect_automation_indicators(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<Vec<AutomationIndicator>, CaptchaError> {
+    async fn detect_automation_indicators(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<Vec<AutomationIndicator>, CaptchaError> {
         let mut indicators = Vec::new();
 
         // Detect headless browsers
@@ -563,25 +655,48 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         Ok(indicators)
     }
 
-    async fn calculate_uniqueness(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<f64, CaptchaError> {
+    async fn calculate_uniqueness(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<f64, CaptchaError> {
         // Calculate entropy-based uniqueness score
         let entropy = self.calculate_fingerprint_entropy(fingerprint);
 
         // Factor in the number of unique components
         let mut unique_components = 0;
 
-        if !fingerprint.basic.user_agent.is_empty() { unique_components += 1; }
-        if !fingerprint.basic.screen_resolution.is_empty() { unique_components += 1; }
-        if !fingerprint.basic.timezone.is_empty() { unique_components += 1; }
-        if !fingerprint.basic.language.is_empty() { unique_components += 1; }
-        if !fingerprint.basic.plugins.is_empty() { unique_components += 1; }
-        if fingerprint.basic.canvas_fingerprint.is_some() { unique_components += 1; }
-        if fingerprint.basic.webgl_fingerprint.is_some() { unique_components += 1; }
+        if !fingerprint.basic.user_agent.is_empty() {
+            unique_components += 1;
+        }
+        if !fingerprint.basic.screen_resolution.is_empty() {
+            unique_components += 1;
+        }
+        if !fingerprint.basic.timezone.is_empty() {
+            unique_components += 1;
+        }
+        if !fingerprint.basic.language.is_empty() {
+            unique_components += 1;
+        }
+        if !fingerprint.basic.plugins.is_empty() {
+            unique_components += 1;
+        }
+        if fingerprint.basic.canvas_fingerprint.is_some() {
+            unique_components += 1;
+        }
+        if fingerprint.basic.webgl_fingerprint.is_some() {
+            unique_components += 1;
+        }
 
         // Advanced components
-        if fingerprint.advanced.hardware_concurrency.is_some() { unique_components += 1; }
-        if fingerprint.advanced.device_memory.is_some() { unique_components += 1; }
-        if !fingerprint.advanced.available_fonts.is_empty() { unique_components += 1; }
+        if fingerprint.advanced.hardware_concurrency.is_some() {
+            unique_components += 1;
+        }
+        if fingerprint.advanced.device_memory.is_some() {
+            unique_components += 1;
+        }
+        if !fingerprint.advanced.available_fonts.is_empty() {
+            unique_components += 1;
+        }
 
         let component_score = unique_components as f64 / 10.0; // Normalize to 0-1
 
@@ -591,32 +706,50 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         Ok(uniqueness_score)
     }
 
-    async fn compare_fingerprints(&self, fp1: &ExtendedBrowserFingerprint, fp2: &ExtendedBrowserFingerprint) -> Result<f64, CaptchaError> {
+    async fn compare_fingerprints(
+        &self,
+        fp1: &ExtendedBrowserFingerprint,
+        fp2: &ExtendedBrowserFingerprint,
+    ) -> Result<f64, CaptchaError> {
         let mut similarity_score = 0.0;
         let mut total_components = 0;
 
         // Compare basic components
-        if fp1.basic.user_agent == fp2.basic.user_agent { similarity_score += 1.0; }
+        if fp1.basic.user_agent == fp2.basic.user_agent {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
-        if fp1.basic.screen_resolution == fp2.basic.screen_resolution { similarity_score += 1.0; }
+        if fp1.basic.screen_resolution == fp2.basic.screen_resolution {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
-        if fp1.basic.timezone == fp2.basic.timezone { similarity_score += 1.0; }
+        if fp1.basic.timezone == fp2.basic.timezone {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
-        if fp1.basic.language == fp2.basic.language { similarity_score += 1.0; }
+        if fp1.basic.language == fp2.basic.language {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
         // Compare advanced components
-        if fp1.advanced.hardware_concurrency == fp2.advanced.hardware_concurrency { similarity_score += 1.0; }
+        if fp1.advanced.hardware_concurrency == fp2.advanced.hardware_concurrency {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
-        if fp1.advanced.device_memory == fp2.advanced.device_memory { similarity_score += 1.0; }
+        if fp1.advanced.device_memory == fp2.advanced.device_memory {
+            similarity_score += 1.0;
+        }
         total_components += 1;
 
         // Compare hashed identifiers
-        if fp1.hashed_identifiers.device_hash == fp2.hashed_identifiers.device_hash { similarity_score += 2.0; }
+        if fp1.hashed_identifiers.device_hash == fp2.hashed_identifiers.device_hash {
+            similarity_score += 2.0;
+        }
         total_components += 2;
 
         let consistency_score = if total_components > 0 {
@@ -628,7 +761,10 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         Ok(consistency_score)
     }
 
-    async fn generate_hashed_identifiers(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<HashedIdentifiers, CaptchaError> {
+    async fn generate_hashed_identifiers(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<HashedIdentifiers, CaptchaError> {
         // Generate device hash from stable hardware characteristics
         let device_components = format!(
             "{}|{}|{}|{}",
@@ -677,24 +813,37 @@ impl FingerprintingEngine for DefaultFingerprintingEngine {
         })
     }
 
-    async fn assess_privacy_risk(&self, fingerprint: &ExtendedBrowserFingerprint) -> Result<PrivacyRisk, CaptchaError> {
+    async fn assess_privacy_risk(
+        &self,
+        fingerprint: &ExtendedBrowserFingerprint,
+    ) -> Result<PrivacyRisk, CaptchaError> {
         let mut tracking_factors = 0;
         let mut total_factors = 0;
 
         // Assess tracking potential of each component
-        if !fingerprint.basic.user_agent.is_empty() { tracking_factors += 1; }
+        if !fingerprint.basic.user_agent.is_empty() {
+            tracking_factors += 1;
+        }
         total_factors += 1;
 
-        if !fingerprint.basic.screen_resolution.is_empty() { tracking_factors += 1; }
+        if !fingerprint.basic.screen_resolution.is_empty() {
+            tracking_factors += 1;
+        }
         total_factors += 1;
 
-        if fingerprint.basic.canvas_fingerprint.is_some() { tracking_factors += 2; } // Higher tracking potential
+        if fingerprint.basic.canvas_fingerprint.is_some() {
+            tracking_factors += 2;
+        } // Higher tracking potential
         total_factors += 2;
 
-        if fingerprint.basic.webgl_fingerprint.is_some() { tracking_factors += 2; }
+        if fingerprint.basic.webgl_fingerprint.is_some() {
+            tracking_factors += 2;
+        }
         total_factors += 2;
 
-        if !fingerprint.advanced.available_fonts.is_empty() { tracking_factors += 1; }
+        if !fingerprint.advanced.available_fonts.is_empty() {
+            tracking_factors += 1;
+        }
         total_factors += 1;
 
         let tracking_resistance = if total_factors > 0 {

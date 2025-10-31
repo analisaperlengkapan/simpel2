@@ -2,6 +2,7 @@
 
 pub mod accessibility;
 pub mod analytics;
+pub mod auth_validation;
 pub mod caching;
 pub mod code_splitting;
 pub mod csrf;
@@ -13,10 +14,12 @@ pub mod monitoring;
 pub mod monitoring_init;
 pub mod secure_storage;
 pub mod security;
+pub mod sso_cookie;
 pub mod validation;
 
 pub use accessibility::*;
 pub use analytics::*;
+pub use auth_validation::*;
 pub use caching::*;
 pub use code_splitting::*;
 pub use csrf::*;
@@ -28,4 +31,5 @@ pub use monitoring::*;
 pub use monitoring_init::*;
 pub use secure_storage::*;
 pub use security::*;
+pub use sso_cookie::*;
 pub use validation::*;

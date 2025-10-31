@@ -82,6 +82,8 @@ pub struct AppState {
     pub redis_cache: Option<Arc<crate::services::cache::RedisCache>>,
     /// MFA cache service for MFA operations
     pub mfa_cache: Option<Arc<crate::services::cache::MfaCache>>,
+    /// Key rotation service for automatic key rotation
+    pub key_rotation_service: Option<Arc<crate::services::key_rotation::KeyRotationService>>,
 }
 
 impl AppState {
@@ -289,7 +291,8 @@ impl AppState {
                 config.events.clone(),
                 database.clone(),
                 event_store,
-            ),
+            )
+            .await?,
         );
 
         // Start the retention cleanup task if enabled
@@ -444,8 +447,8 @@ impl AppState {
         // Initialize Secreton client for MFA secret management
         let secreton_endpoint = std::env::var("SECRETON_ENDPOINT")
             .unwrap_or_else(|_| "http://localhost:8200".to_string());
-        let secreton_token = std::env::var("SECRETON_TOKEN")
-            .unwrap_or_else(|_| "dev-token".to_string());
+        let secreton_token =
+            std::env::var("SECRETON_TOKEN").unwrap_or_else(|_| "dev-token".to_string());
 
         let secreton_client = Arc::new(crate::vault::secreton_client::SecretonClient::new(
             secreton_endpoint,
@@ -470,7 +473,10 @@ impl AppState {
                         (Some(redis_cache), Some(mfa_cache))
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to initialize Redis cache: {}. Continuing without cache.", e);
+                        tracing::warn!(
+                            "Failed to initialize Redis cache: {}. Continuing without cache.",
+                            e
+                        );
                         (None, None)
                     }
                 }
@@ -481,6 +487,32 @@ impl AppState {
         } else {
             tracing::info!("No Redis configuration found, running without cache");
             (None, None)
+        };
+
+        // Initialize key rotation service if configured
+        let key_rotation_service = if let Some(key_rotation_config) = &config.key_rotation {
+            if key_rotation_config.enabled {
+                let service = Arc::new(crate::services::key_rotation::KeyRotationService::new(
+                    secreton_client.clone(),
+                    database.clone(),
+                    key_rotation_config.clone(),
+                ));
+
+                // Start the rotation scheduler
+                if let Err(e) = service.start() {
+                    tracing::warn!("Failed to start key rotation scheduler: {}", e);
+                    None
+                } else {
+                    tracing::info!("Key rotation service initialized and started");
+                    Some(service)
+                }
+            } else {
+                tracing::info!("Key rotation disabled in configuration");
+                None
+            }
+        } else {
+            tracing::info!("No key rotation configuration found");
+            None
         };
 
         Ok(Self {
@@ -519,6 +551,7 @@ impl AppState {
             db_pool,
             redis_cache,
             mfa_cache,
+            key_rotation_service,
         })
     }
 
@@ -660,9 +693,18 @@ impl ApplicationBuilder {
 
         #[cfg(feature = "axum")]
         {
-            use crate::axum_app::AxumApp;
-            let app = AxumApp::new(state);
-            app.run().await?;
+            // Check if gRPC is enabled
+            if state.config.server.grpc_enabled {
+                // Run both HTTP and gRPC servers
+                use crate::server::DualServer;
+                let server = DualServer::new(state);
+                server.run().await?;
+            } else {
+                // Run HTTP server only
+                use crate::axum_app::AxumApp;
+                let app = AxumApp::new(state);
+                app.run().await?;
+            }
         }
 
         #[cfg(not(feature = "axum"))]

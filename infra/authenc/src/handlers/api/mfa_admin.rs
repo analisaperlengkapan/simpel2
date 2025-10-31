@@ -2,19 +2,18 @@
 
 use crate::error::AuthencError;
 use crate::services::mfa_admin_service::{
-    MfaAdminService, AccountLockoutInfo, MfaAdminResult,
-    UnlockAccountRequest, ResetMfaRequest
+    AccountLockoutInfo, MfaAdminResult, MfaAdminService, ResetMfaRequest, UnlockAccountRequest,
 };
 use crate::services::stores::user_store::UserStoreTrait;
 use crate::utils::jwt;
 use axum::{
     Router,
-    extract::{State, Path, ConnectInfo},
+    extract::{ConnectInfo, Path, State},
     response::Json,
-    routing::{get, post}
+    routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, net::SocketAddr};
+use std::{net::SocketAddr, sync::Arc};
 use uuid::Uuid;
 
 /// Create MFA admin routes (requires admin authentication)
@@ -78,14 +77,15 @@ pub async fn get_locked_accounts(
     let ip = addr.ip().to_string();
 
     // Extract and verify admin token
-    let admin_token = req["admin_token"].as_str()
+    let admin_token = req["admin_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Admin token required"))?;
 
     let admin_user_id = verify_admin_token(admin_token, &state).await?;
 
     // Create MFA admin service
     let mfa_rate_limiter = Arc::new(crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
+        state.config.mfa_rate_limit.clone(),
     ));
 
     let mfa_admin_service = MfaAdminService::new(
@@ -122,7 +122,7 @@ pub async fn unlock_account(
 
     // Create MFA admin service
     let mfa_rate_limiter = Arc::new(crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
+        state.config.mfa_rate_limit.clone(),
     ));
 
     let mfa_admin_service = MfaAdminService::new(
@@ -132,7 +132,9 @@ pub async fn unlock_account(
     );
 
     // Unlock the account
-    let result = mfa_admin_service.unlock_account(req.unlock_request, admin_user_id).await?;
+    let result = mfa_admin_service
+        .unlock_account(req.unlock_request, admin_user_id)
+        .await?;
 
     // Log admin action
     tracing::info!(
@@ -160,7 +162,7 @@ pub async fn reset_mfa(
 
     // Create MFA admin service
     let mfa_rate_limiter = Arc::new(crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
+        state.config.mfa_rate_limit.clone(),
     ));
 
     let mfa_admin_service = MfaAdminService::new(
@@ -170,7 +172,9 @@ pub async fn reset_mfa(
     );
 
     // Reset MFA
-    let result = mfa_admin_service.reset_mfa(req.reset_request, admin_user_id).await?;
+    let result = mfa_admin_service
+        .reset_mfa(req.reset_request, admin_user_id)
+        .await?;
 
     // Log admin action
     tracing::info!(
@@ -195,14 +199,15 @@ pub async fn get_account_status(
     let ip = addr.ip().to_string();
 
     // Extract and verify admin token
-    let admin_token = req["admin_token"].as_str()
+    let admin_token = req["admin_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Admin token required"))?;
 
     let admin_user_id = verify_admin_token(admin_token, &state).await?;
 
     // Create MFA admin service
     let mfa_rate_limiter = Arc::new(crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
+        state.config.mfa_rate_limit.clone(),
     ));
 
     let mfa_admin_service = MfaAdminService::new(
@@ -212,7 +217,9 @@ pub async fn get_account_status(
     );
 
     // Get account status
-    let status = mfa_admin_service.get_account_lockout_status(user_id).await?;
+    let status = mfa_admin_service
+        .get_account_lockout_status(user_id)
+        .await?;
 
     // Log admin action
     tracing::info!(
@@ -240,12 +247,14 @@ pub async fn bulk_unlock_accounts(
 
     // Limit bulk operations to prevent abuse
     if req.user_ids.len() > 100 {
-        return Err(AuthencError::validation("Bulk unlock limited to 100 accounts at once"));
+        return Err(AuthencError::validation(
+            "Bulk unlock limited to 100 accounts at once",
+        ));
     }
 
     // Create MFA admin service
     let mfa_rate_limiter = Arc::new(crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
+        state.config.mfa_rate_limit.clone(),
     ));
 
     let mfa_admin_service = MfaAdminService::new(
@@ -255,11 +264,13 @@ pub async fn bulk_unlock_accounts(
     );
 
     // Perform bulk unlock
-    let results = mfa_admin_service.bulk_unlock_accounts(
-        req.user_ids.clone(),
-        admin_user_id,
-        req.admin_reason.clone(),
-    ).await?;
+    let results = mfa_admin_service
+        .bulk_unlock_accounts(
+            req.user_ids.clone(),
+            admin_user_id,
+            req.admin_reason.clone(),
+        )
+        .await?;
 
     let success_count = results.iter().filter(|r| r.success).count();
     let total_count = results.len();
@@ -288,25 +299,28 @@ async fn verify_admin_token(
     state: &Arc<crate::app::AppState>,
 ) -> Result<Uuid, AuthencError> {
     // Verify JWT token
-    let claims = jwt::verify_jwt(token)
-        .map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
+    let claims =
+        jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Get user and verify admin privileges
-    let user = state.user_store.get_user(user_id).await?
+    let user = state
+        .user_store
+        .get_user(user_id)
+        .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
     // Check if user has admin role (simplified check - in production, use proper RBAC)
     let is_admin = user.roles.iter().any(|role| {
-        role.name == "admin" ||
-        role.name == "system_admin" ||
-        role.name == "mfa_admin"
+        role.name == "admin" || role.name == "system_admin" || role.name == "mfa_admin"
     });
 
     if !is_admin {
-        return Err(AuthencError::forbidden("Admin privileges required for MFA management"));
+        return Err(AuthencError::forbidden(
+            "Admin privileges required for MFA management",
+        ));
     }
 
     Ok(user_id)

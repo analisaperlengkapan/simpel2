@@ -3,35 +3,37 @@
 //! Provides REST API endpoints for CAPTCHA operations integrated with authenc middleware
 
 use crate::error::AuthencError;
-use crate::services::captcha::{
-    CaptchaService, CaptchaServiceTrait, BehavioralMetrics,
-    ChallengeType, CaptchaError,
-};
-use crate::services::captcha::dashboard::{DashboardService, DashboardConfig, DashboardData, Alert, AlertSeverity};
-use crate::services::captcha::alerting::AlertRule;
 use crate::middleware::{
-    rate_limit_axum::{RateLimitConfig, RateLimiterState},
     csrf_protection_axum::{CsrfConfig, CsrfState},
+    rate_limit_axum::{RateLimitConfig, RateLimiterState},
     security_monitoring_axum::SecurityMonitoringConfig,
+};
+use crate::services::captcha::alerting::AlertRule;
+use crate::services::captcha::dashboard::{
+    Alert, AlertSeverity, DashboardConfig, DashboardData, DashboardService,
+};
+use crate::services::captcha::{
+    BehavioralMetrics, CaptchaError, CaptchaService, CaptchaServiceTrait, ChallengeType,
+    RiskAssessmentService,
 };
 use axum::{
     Router,
-    extract::{State, ConnectInfo, Path, Query},
+    extract::{ConnectInfo, Path, Query, State},
+    middleware,
     response::Json,
     routing::{get, post},
-    middleware,
 };
-use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
 
 /// Create CAPTCHA API routes with integrated middleware
 pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
     // Create CAPTCHA-specific rate limiting configuration
     let captcha_rate_limit_config = RateLimitConfig {
         requests_per_minute: 30, // More restrictive for CAPTCHA operations
-        excluded_paths: vec![], // No exclusions for CAPTCHA endpoints
+        excluded_paths: vec![],  // No exclusions for CAPTCHA endpoints
         enabled: true,
         progressive_delays: true,
         base_delay_ms: 2000, // 2 second base delay
@@ -71,7 +73,10 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/captcha/dashboard", get(get_dashboard_data))
         .route("/captcha/dashboard/metrics", get(get_metrics_summary))
         .route("/captcha/dashboard/alerts", get(get_alerts))
-        .route("/captcha/dashboard/alerts/:id/acknowledge", post(acknowledge_alert))
+        .route(
+            "/captcha/dashboard/alerts/:id/acknowledge",
+            post(acknowledge_alert),
+        )
         .route("/captcha/dashboard/alerts/:id/resolve", post(resolve_alert))
         .route("/captcha/dashboard/health", get(get_system_health))
         // Alerting endpoints
@@ -79,6 +84,10 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/captcha/alerts/rules", post(add_alert_rule))
         .route("/captcha/alerts/test", post(trigger_test_alert))
         .route("/captcha/alerts/health-check", post(check_system_health))
+        // Risk assessment endpoints
+        .route("/captcha/risk/login", post(assess_login_risk))
+        .route("/captcha/risk/mfa-setup", get(assess_mfa_setup_risk))
+        .route("/captcha/risk/password-reset", post(assess_password_reset_risk))
         // Apply rate limiting middleware to all CAPTCHA endpoints
         .layer(middleware::from_fn_with_state(
             Arc::new(RateLimiterState::new(captcha_rate_limit_config)),
@@ -89,8 +98,8 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
             Arc::new(CsrfState::new(csrf_config)),
             crate::middleware::csrf_protection_axum::csrf_protection_middleware,
         ))
-        // Security monitoring will be applied at the router level in main handlers/mod.rs
-        // to have access to the audit store from AppState
+    // Security monitoring will be applied at the router level in main handlers/mod.rs
+    // to have access to the audit store from AppState
 }
 
 #[derive(Deserialize)]
@@ -207,7 +216,9 @@ pub async fn generate_challenge(
         .await
         .map_err(|e| match e {
             CaptchaError::GenerationFailed { message, .. } => AuthencError::internal(&message),
-            CaptchaError::RateLimitExceeded { .. } => AuthencError::too_many_requests("CAPTCHA generation rate limit exceeded"),
+            CaptchaError::RateLimitExceeded { .. } => {
+                AuthencError::too_many_requests("CAPTCHA generation rate limit exceeded")
+            }
             _ => AuthencError::internal("CAPTCHA generation failed"),
         })?;
 
@@ -233,7 +244,11 @@ pub async fn generate_challenge(
         challenge_data: challenge.encrypted_data,
         difficulty: challenge.difficulty_level,
         expires_at,
-        metadata: if metadata.is_empty() { None } else { Some(metadata) },
+        metadata: if metadata.is_empty() {
+            None
+        } else {
+            Some(metadata)
+        },
     };
 
     Ok(Json(response))
@@ -252,8 +267,12 @@ pub async fn get_challenge(
         .get_challenge(challenge_id)
         .await
         .map_err(|e| match e {
-            CaptchaError::ChallengeNotFound { challenge_id, .. } => AuthencError::not_found(&format!("Challenge {} not found", challenge_id)),
-            CaptchaError::ChallengeExpired { challenge_id, .. } => AuthencError::validation(&format!("Challenge {} has expired", challenge_id)),
+            CaptchaError::ChallengeNotFound { challenge_id, .. } => {
+                AuthencError::not_found(&format!("Challenge {} not found", challenge_id))
+            }
+            CaptchaError::ChallengeExpired { challenge_id, .. } => {
+                AuthencError::validation(&format!("Challenge {} has expired", challenge_id))
+            }
             _ => AuthencError::internal("Failed to retrieve challenge"),
         })?;
 
@@ -289,18 +308,22 @@ pub async fn validate_challenge(
 
     // Validate challenge
     let result = captcha_service
-        .validate_challenge(
-            req.challenge_id,
-            req.answer,
-            req.behavioral_data,
-        )
+        .validate_challenge(req.challenge_id, req.answer, req.behavioral_data)
         .await
         .map_err(|e| match e {
             CaptchaError::ValidationFailed { message, .. } => AuthencError::validation(&message),
-            CaptchaError::ChallengeNotFound { challenge_id, .. } => AuthencError::not_found(&format!("Challenge {} not found", challenge_id)),
-            CaptchaError::ChallengeExpired { challenge_id, .. } => AuthencError::validation(&format!("Challenge {} has expired", challenge_id)),
-            CaptchaError::RateLimitExceeded { .. } => AuthencError::too_many_requests("CAPTCHA validation rate limit exceeded"),
-            CaptchaError::UserLockedOut { .. } => AuthencError::forbidden("User account locked due to suspicious activity"),
+            CaptchaError::ChallengeNotFound { challenge_id, .. } => {
+                AuthencError::not_found(&format!("Challenge {} not found", challenge_id))
+            }
+            CaptchaError::ChallengeExpired { challenge_id, .. } => {
+                AuthencError::validation(&format!("Challenge {} has expired", challenge_id))
+            }
+            CaptchaError::RateLimitExceeded { .. } => {
+                AuthencError::too_many_requests("CAPTCHA validation rate limit exceeded")
+            }
+            CaptchaError::UserLockedOut { .. } => {
+                AuthencError::forbidden("User account locked due to suspicious activity")
+            }
             _ => AuthencError::internal("CAPTCHA validation failed"),
         })?;
 
@@ -310,7 +333,8 @@ pub async fn validate_challenge(
         crate::services::captcha::RiskLevel::Medium => "medium",
         crate::services::captcha::RiskLevel::High => "high",
         crate::services::captcha::RiskLevel::Critical => "critical",
-    }.to_string();
+    }
+    .to_string();
 
     // Convert lockout duration to seconds
     let lockout_duration = result.lockout_duration.map(|d| d.as_secs());
@@ -344,9 +368,13 @@ pub async fn refresh_challenge(
         .refresh_challenge(challenge_id)
         .await
         .map_err(|e| match e {
-            CaptchaError::ChallengeNotFound { challenge_id, .. } => AuthencError::not_found(&format!("Challenge {} not found", challenge_id)),
+            CaptchaError::ChallengeNotFound { challenge_id, .. } => {
+                AuthencError::not_found(&format!("Challenge {} not found", challenge_id))
+            }
             CaptchaError::GenerationFailed { message, .. } => AuthencError::internal(&message),
-            CaptchaError::RateLimitExceeded { .. } => AuthencError::too_many_requests("CAPTCHA refresh rate limit exceeded"),
+            CaptchaError::RateLimitExceeded { .. } => {
+                AuthencError::too_many_requests("CAPTCHA refresh rate limit exceeded")
+            }
             _ => AuthencError::internal("CAPTCHA refresh failed"),
         })?;
 
@@ -377,7 +405,9 @@ pub async fn adjust_difficulty(
 ) -> Result<Json<DifficultyResponse>, AuthencError> {
     // Validate difficulty level
     if req.difficulty < 1 || req.difficulty > 10 {
-        return Err(AuthencError::validation("Difficulty must be between 1 and 10"));
+        return Err(AuthencError::validation(
+            "Difficulty must be between 1 and 10",
+        ));
     }
 
     // TODO: Implement difficulty adjustment logic
@@ -390,7 +420,8 @@ pub async fn adjust_difficulty(
         message: format!(
             "Difficulty adjusted to {} for {}",
             req.difficulty,
-            query.ip_pattern
+            query
+                .ip_pattern
                 .as_deref()
                 .or(query.session_id.as_deref())
                 .unwrap_or("global")
@@ -416,7 +447,9 @@ pub async fn get_dashboard_data(
     let dashboard_data = dashboard_service
         .generate_dashboard_data()
         .await
-        .map_err(|e| AuthencError::internal(&format!("Failed to generate dashboard data: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::internal(&format!("Failed to generate dashboard data: {}", e))
+        })?;
 
     Ok(Json(dashboard_data))
 }
@@ -439,7 +472,9 @@ pub async fn get_metrics_summary(
     let metrics_summary = captcha_service
         .generate_metrics_summary(time_window)
         .await
-        .map_err(|e| AuthencError::internal(&format!("Failed to generate metrics summary: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::internal(&format!("Failed to generate metrics summary: {}", e))
+        })?;
 
     Ok(Json(metrics_summary))
 }
@@ -534,9 +569,7 @@ pub async fn get_alert_rules(
 ) -> Result<Json<Vec<AlertRule>>, AuthencError> {
     let captcha_service = CaptchaService::simple().await;
 
-    let rules = captcha_service
-        .get_alert_rules()
-        .await;
+    let rules = captcha_service.get_alert_rules().await;
 
     Ok(Json(rules))
 }
@@ -660,4 +693,141 @@ mod tests {
 
         // Invalid difficulty would be caught by validation in the handler
     }
+}
+
+// ============================================================================
+// RISK ASSESSMENT ENDPOINTS
+// ============================================================================
+
+#[derive(Deserialize)]
+/// Request to assess login risk
+pub struct AssessLoginRiskRequest {
+    /// Username attempting to log in
+    pub username: String,
+    /// User agent string
+    pub user_agent: Option<String>,
+}
+
+#[derive(Serialize)]
+/// Response with risk assessment
+pub struct RiskAssessmentResponse {
+    /// Risk score (0.0 - 1.0)
+    pub risk_score: f64,
+    /// Whether CAPTCHA is required
+    pub captcha_required: bool,
+    /// Risk level description
+    pub risk_level: String,
+    /// Explanation of risk factors
+    pub factors: Option<Vec<String>>,
+}
+
+/// Assess risk for login attempt
+pub async fn assess_login_risk(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(_state): State<Arc<crate::app::AppState>>,
+    Json(req): Json<AssessLoginRiskRequest>,
+) -> Result<Json<RiskAssessmentResponse>, AuthencError> {
+    let ip = addr.ip().to_string();
+
+    let risk_service = RiskAssessmentService::default();
+
+    let (risk_score, captcha_required) = risk_service
+        .assess_login_risk(&req.username, &ip, req.user_agent.as_deref())
+        .await
+        .map_err(|e| AuthencError::internal(&format!("Risk assessment failed: {}", e)))?;
+
+    let risk_level = risk_service.risk_score_to_level(risk_score);
+    let risk_level_str = match risk_level {
+        crate::services::captcha::RiskLevel::Low => "low",
+        crate::services::captcha::RiskLevel::Medium => "medium",
+        crate::services::captcha::RiskLevel::High => "high",
+        crate::services::captcha::RiskLevel::Critical => "critical",
+    }
+    .to_string();
+
+    Ok(Json(RiskAssessmentResponse {
+        risk_score,
+        captcha_required,
+        risk_level: risk_level_str,
+        factors: None, // TODO: Add detailed factor breakdown
+    }))
+}
+
+/// Assess risk for MFA setup
+pub async fn assess_mfa_setup_risk(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(_state): State<Arc<crate::app::AppState>>,
+) -> Result<Json<RiskAssessmentResponse>, AuthencError> {
+    let ip = addr.ip().to_string();
+
+    // TODO: Extract user_id from JWT token
+    let user_id = "current_user"; // Placeholder
+
+    let risk_service = RiskAssessmentService::default();
+
+    let risk_score = risk_service
+        .assess_mfa_setup_risk(user_id, &ip)
+        .await
+        .map_err(|e| AuthencError::internal(&format!("Risk assessment failed: {}", e)))?;
+
+    let captcha_required = risk_score > 0.5;
+    let risk_level = risk_service.risk_score_to_level(risk_score);
+    let risk_level_str = match risk_level {
+        crate::services::captcha::RiskLevel::Low => "low",
+        crate::services::captcha::RiskLevel::Medium => "medium",
+        crate::services::captcha::RiskLevel::High => "high",
+        crate::services::captcha::RiskLevel::Critical => "critical",
+    }
+    .to_string();
+
+    Ok(Json(RiskAssessmentResponse {
+        risk_score,
+        captcha_required,
+        risk_level: risk_level_str,
+        factors: None,
+    }))
+}
+
+#[derive(Deserialize)]
+/// Request to assess password reset risk
+pub struct AssessPasswordResetRiskRequest {
+    /// Email address for password reset
+    pub email: String,
+}
+
+/// Assess risk for password reset
+pub async fn assess_password_reset_risk(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(_state): State<Arc<crate::app::AppState>>,
+    Json(req): Json<AssessPasswordResetRiskRequest>,
+) -> Result<Json<RiskAssessmentResponse>, AuthencError> {
+    let ip = addr.ip().to_string();
+
+    let risk_service = RiskAssessmentService::default();
+
+    let risk_score = risk_service
+        .assess_password_reset_risk(&req.email, &ip)
+        .await
+        .map_err(|e| AuthencError::internal(&format!("Risk assessment failed: {}", e)))?;
+
+    // Password reset always requires CAPTCHA
+    let captcha_required = true;
+    let risk_level = risk_service.risk_score_to_level(risk_score);
+    let risk_level_str = match risk_level {
+        crate::services::captcha::RiskLevel::Low => "low",
+        crate::services::captcha::RiskLevel::Medium => "medium",
+        crate::services::captcha::RiskLevel::High => "high",
+        crate::services::captcha::RiskLevel::Critical => "critical",
+    }
+    .to_string();
+
+    Ok(Json(RiskAssessmentResponse {
+        risk_score,
+        captcha_required,
+        risk_level: risk_level_str,
+        factors: Some(vec![
+            "Password reset is a sensitive operation".to_string(),
+            "CAPTCHA is always required for security".to_string(),
+        ]),
+    }))
 }

@@ -806,7 +806,10 @@ impl AdminService for AdminManager {
         let create_request = crate::models::user::CreateUserRequest {
             username: request.username.clone(),
             email: request.email.clone(),
-            satker_code: request.satker_code.clone().unwrap_or_else(|| "default".to_string()),
+            satker_code: request
+                .satker_code
+                .clone()
+                .unwrap_or_else(|| "default".to_string()),
             password: request.password.clone(),
             first_name: request.first_name.clone(),
             last_name: request.last_name.clone(),
@@ -997,7 +1000,8 @@ impl AdminService for AdminManager {
                     WHERE s.user_id = $1 AND NOT s.revoked AND s.expires_at > NOW()
                     ORDER BY s.last_accessed DESC
                     LIMIT $2 OFFSET $3
-                    "#.to_string(),
+                    "#
+                .to_string(),
                 vec![
                     Box::new(uid) as Box<dyn tokio_postgres::types::ToSql + Sync + Send>,
                     Box::new(limit as i64) as Box<dyn tokio_postgres::types::ToSql + Sync + Send>,
@@ -1014,7 +1018,8 @@ impl AdminService for AdminManager {
                     WHERE NOT s.revoked AND s.expires_at > NOW()
                     ORDER BY s.last_accessed DESC
                     LIMIT $1 OFFSET $2
-                    "#.to_string(),
+                    "#
+                .to_string(),
                 vec![
                     Box::new(limit as i64) as Box<dyn tokio_postgres::types::ToSql + Sync + Send>,
                     Box::new(offset as i64) as Box<dyn tokio_postgres::types::ToSql + Sync + Send>,

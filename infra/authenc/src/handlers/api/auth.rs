@@ -1,10 +1,17 @@
 use crate::error::AuthencError;
-use crate::services::stores::user_store::UserStoreTrait;
 use crate::services::mfa_service::MfaService;
+use crate::services::stores::user_store::UserStoreTrait;
 use crate::utils::jwt;
-use axum::{Router, extract::{State, ConnectInfo}, response::Json, routing::post};
-use std::net::SocketAddr;
+use crate::utils::validation::{sanitize_string, sanitize_username};
+use axum::{
+    Router,
+    extract::{ConnectInfo, State},
+    response::Json,
+    routing::post,
+};
+use garde::Validate;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -22,15 +29,29 @@ pub fn create_auth_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/mfa/backup-codes", post(mfa_backup_codes))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 /// Request payload for user login
 pub struct LoginRequest {
     /// The username for authentication
+    #[garde(length(min = 3, max = 50))]
+    #[garde(pattern(r"^[a-zA-Z0-9_-]+$"))]
     pub username: String,
+
     /// The password for authentication
+    #[garde(length(min = 8, max = 128))]
     pub password: String,
+
     /// The realm the user belongs to
+    #[garde(length(min = 1, max = 100))]
     pub realm: String,
+}
+
+impl LoginRequest {
+    /// Sanitize the request fields
+    pub fn sanitize(&mut self) {
+        self.username = sanitize_username(&self.username);
+        self.realm = sanitize_string(&self.realm, 100);
+    }
 }
 
 #[derive(Serialize)]
@@ -48,21 +69,29 @@ pub struct LoginResponse {
     pub message: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 /// Request payload for MFA verification
 pub struct MfaVerifyRequest {
     /// Temporary token from login response
+    #[garde(length(min = 10, max = 1000))]
     pub temp_token: String,
+
     /// 6-digit OTP code from authenticator app
+    #[garde(length(min = 6, max = 6))]
+    #[garde(pattern(r"^\d{6}$"))]
     pub code: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 /// Request payload for MFA setup verification
 pub struct MfaSetupVerifyRequest {
     /// Temporary token from login response
+    #[garde(length(min = 10, max = 1000))]
     pub temp_token: String,
+
     /// 6-digit OTP code from authenticator app
+    #[garde(length(min = 6, max = 6))]
+    #[garde(pattern(r"^\d{6}$"))]
     pub code: String,
 }
 
@@ -318,7 +347,8 @@ pub async fn mfa_setup(
     let ip = addr.ip().to_string();
 
     // Extract and verify temporary token
-    let temp_token = req["temp_token"].as_str()
+    let temp_token = req["temp_token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Temporary token required"))?;
 
     let claims = jwt::verify_jwt(temp_token)
@@ -328,9 +358,8 @@ pub async fn mfa_setup(
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Create MFA rate limiter (in production, this would be shared state)
-    let mfa_rate_limiter = crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
-    );
+    let mfa_rate_limiter =
+        crate::middleware::MfaRateLimiterState::new(state.config.mfa_rate_limit.clone());
 
     // Create MFA security monitor
     let mfa_security_monitor = crate::services::MfaSecurityMonitor::new(
@@ -347,10 +376,7 @@ pub async fn mfa_setup(
     }
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Setup MFA for the user
     let setup_response = mfa_service.setup_mfa(user_id).await?;
@@ -388,18 +414,16 @@ pub async fn mfa_verify_setup(
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Create MFA rate limiter (in production, this would be shared state)
-    let mfa_rate_limiter = crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
-    );
+    let mfa_rate_limiter =
+        crate::middleware::MfaRateLimiterState::new(state.config.mfa_rate_limit.clone());
 
     // Check rate limits before processing
-    mfa_rate_limiter.check_mfa_verify_rate_limit(&ip, Some(user_id)).await?;
+    mfa_rate_limiter
+        .check_mfa_verify_rate_limit(&ip, Some(user_id))
+        .await?;
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Verify setup with OTP code
     match mfa_service.verify_setup(user_id, &req.code).await {
@@ -409,7 +433,10 @@ pub async fn mfa_verify_setup(
         }
         Err(e) => {
             // Record failed attempt for rate limiting
-            if let Err(lockout_err) = mfa_rate_limiter.record_failed_mfa_attempt(&ip, user_id).await {
+            if let Err(lockout_err) = mfa_rate_limiter
+                .record_failed_mfa_attempt(&ip, user_id)
+                .await
+            {
                 return Err(lockout_err);
             }
             return Err(e);
@@ -456,9 +483,8 @@ pub async fn mfa_verify(
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Create MFA rate limiter (in production, this would be shared state)
-    let mfa_rate_limiter = crate::middleware::MfaRateLimiterState::new(
-        state.config.mfa_rate_limit.clone()
-    );
+    let mfa_rate_limiter =
+        crate::middleware::MfaRateLimiterState::new(state.config.mfa_rate_limit.clone());
 
     // Create MFA security monitor
     let mfa_security_monitor = crate::services::MfaSecurityMonitor::new(
@@ -467,13 +493,12 @@ pub async fn mfa_verify(
     );
 
     // Check rate limits before processing
-    mfa_rate_limiter.check_mfa_verify_rate_limit(&ip, Some(user_id)).await?;
+    mfa_rate_limiter
+        .check_mfa_verify_rate_limit(&ip, Some(user_id))
+        .await?;
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Verify MFA code
     match mfa_service.verify_mfa(user_id, &req.code).await {
@@ -482,20 +507,32 @@ pub async fn mfa_verify(
             mfa_rate_limiter.reset_progressive_delay(&ip);
 
             // Record successful MFA for pattern learning
-            if let Err(e) = mfa_security_monitor.record_successful_mfa(user_id, &ip, None).await {
+            if let Err(e) = mfa_security_monitor
+                .record_successful_mfa(user_id, &ip, None)
+                .await
+            {
                 tracing::error!("Failed to record successful MFA: {}", e);
             }
         }
         Err(e) => {
             // Record failed attempt for security monitoring
-            if let Err(monitor_err) = mfa_security_monitor.record_failed_mfa_attempt(&ip, Some(user_id), None).await {
+            if let Err(monitor_err) = mfa_security_monitor
+                .record_failed_mfa_attempt(&ip, Some(user_id), None)
+                .await
+            {
                 tracing::error!("Failed to record failed MFA attempt: {}", monitor_err);
             }
 
             // Record failed attempt for rate limiting and account lockout
-            if let Err(lockout_err) = mfa_rate_limiter.record_failed_mfa_attempt(&ip, user_id).await {
+            if let Err(lockout_err) = mfa_rate_limiter
+                .record_failed_mfa_attempt(&ip, user_id)
+                .await
+            {
                 // Also record the lockout event
-                if let Err(monitor_err) = mfa_security_monitor.record_account_lockout(user_id, &ip, 5).await {
+                if let Err(monitor_err) = mfa_security_monitor
+                    .record_account_lockout(user_id, &ip, 5)
+                    .await
+                {
                     tracing::error!("Failed to record account lockout: {}", monitor_err);
                 }
                 return Err(lockout_err);
@@ -534,20 +571,17 @@ pub async fn mfa_status(
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<crate::services::mfa_service::MfaStatus>, AuthencError> {
     // Extract and verify token (can be temp or full token)
-    let token = req["token"].as_str()
+    let token = req["token"]
+        .as_str()
         .ok_or_else(|| AuthencError::unauthorized("Token required"))?;
 
-    let claims = jwt::verify_jwt(token)
-        .map_err(|_| AuthencError::unauthorized("Invalid token"))?;
+    let claims = jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Get MFA status
     let status = mfa_service.get_mfa_status(user_id).await?;
@@ -568,17 +602,23 @@ pub async fn mfa_disable(
         .map_err(|_| AuthencError::internal("Invalid admin user ID in token"))?;
 
     // Check if user has admin privileges
-    let admin_user = state.user_store.get_user(admin_user_id).await?
+    let admin_user = state
+        .user_store
+        .get_user(admin_user_id)
+        .await?
         .ok_or_else(|| AuthencError::unauthorized("Admin user not found"))?;
 
     // Check if user has admin role (simplified check - in production, use proper RBAC)
-    let is_admin = admin_user.roles.iter().any(|role| role.name == "admin" || role.name == "system_admin");
+    let is_admin = admin_user
+        .roles
+        .iter()
+        .any(|role| role.name == "admin" || role.name == "system_admin");
     if !is_admin {
         return Err(AuthencError::forbidden("Admin privileges required"));
     }
 
-    let target_user_id = Uuid::parse_str(&req.user_id)
-        .map_err(|_| AuthencError::validation("Invalid user ID"))?;
+    let target_user_id =
+        Uuid::parse_str(&req.user_id).map_err(|_| AuthencError::validation("Invalid user ID"))?;
 
     // Create admin security context
     let admin_context = crate::models::user::SecurityContext {
@@ -595,13 +635,12 @@ pub async fn mfa_disable(
     };
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Disable MFA for the target user
-    mfa_service.disable_mfa(target_user_id, &admin_context).await?;
+    mfa_service
+        .disable_mfa(target_user_id, &admin_context)
+        .await?;
 
     // Fire MFA disabled event
     let event = crate::services::events::EventBuilder::new(
@@ -611,7 +650,10 @@ pub async fn mfa_disable(
     .user_id(target_user_id.to_string())
     .client_id("api".to_string())
     .detail("admin_user_id", admin_user_id.to_string())
-    .detail("reason", req.reason.unwrap_or_else(|| "Admin disable".to_string()))
+    .detail(
+        "reason",
+        req.reason.unwrap_or_else(|| "Admin disable".to_string()),
+    )
     .build();
 
     if let Err(e) = state.event_manager.write().await.fire_event(event).await {
@@ -630,8 +672,8 @@ pub async fn mfa_reset(
     Json(req): Json<MfaResetRequest>,
 ) -> Result<Json<MfaResponse>, AuthencError> {
     // Verify token
-    let claims = jwt::verify_jwt(&req.token)
-        .map_err(|_| AuthencError::unauthorized("Invalid token"))?;
+    let claims =
+        jwt::verify_jwt(&req.token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
 
     let requesting_user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
@@ -642,12 +684,20 @@ pub async fn mfa_reset(
             .map_err(|_| AuthencError::validation("Invalid target user ID"))?;
 
         // Check if requesting user has admin privileges
-        let admin_user = state.user_store.get_user(requesting_user_id).await?
+        let admin_user = state
+            .user_store
+            .get_user(requesting_user_id)
+            .await?
             .ok_or_else(|| AuthencError::unauthorized("User not found"))?;
 
-        let is_admin = admin_user.roles.iter().any(|role| role.name == "admin" || role.name == "system_admin");
+        let is_admin = admin_user
+            .roles
+            .iter()
+            .any(|role| role.name == "admin" || role.name == "system_admin");
         if !is_admin {
-            return Err(AuthencError::forbidden("Admin privileges required for resetting other users' MFA"));
+            return Err(AuthencError::forbidden(
+                "Admin privileges required for resetting other users' MFA",
+            ));
         }
 
         target_id
@@ -673,13 +723,12 @@ pub async fn mfa_reset(
     };
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     // Reset MFA (disable and allow re-setup)
-    mfa_service.disable_mfa(target_user_id, &security_context).await?;
+    mfa_service
+        .disable_mfa(target_user_id, &security_context)
+        .await?;
 
     // Fire MFA reset event
     let event = crate::services::events::EventBuilder::new(
@@ -689,7 +738,10 @@ pub async fn mfa_reset(
     .user_id(target_user_id.to_string())
     .client_id("api".to_string())
     .detail("requesting_user_id", requesting_user_id.to_string())
-    .detail("reason", req.reason.unwrap_or_else(|| "MFA reset".to_string()))
+    .detail(
+        "reason",
+        req.reason.unwrap_or_else(|| "MFA reset".to_string()),
+    )
     .detail("is_admin_operation", req.user_id.is_some().to_string())
     .build();
 
@@ -709,17 +761,14 @@ pub async fn mfa_backup_codes(
     Json(req): Json<MfaBackupCodesRequest>,
 ) -> Result<Json<MfaBackupCodesResponse>, AuthencError> {
     // Verify token
-    let claims = jwt::verify_jwt(&req.token)
-        .map_err(|_| AuthencError::unauthorized("Invalid token"))?;
+    let claims =
+        jwt::verify_jwt(&req.token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
     // Create MFA service instance
-    let mfa_service = MfaService::new(
-        state.secreton_client.clone(),
-        state.db_pool.clone(),
-    );
+    let mfa_service = MfaService::new(state.secreton_client.clone(), state.db_pool.clone());
 
     match req.action.as_str() {
         "generate" => {
@@ -759,7 +808,9 @@ pub async fn mfa_backup_codes(
         }
         "verify" => {
             // Verify a backup code
-            let code = req.code.ok_or_else(|| AuthencError::validation("Code required for verify action"))?;
+            let code = req
+                .code
+                .ok_or_else(|| AuthencError::validation("Code required for verify action"))?;
 
             mfa_service.verify_recovery_code(user_id, &code).await?;
 
@@ -783,6 +834,8 @@ pub async fn mfa_backup_codes(
                 remaining: None,
             }))
         }
-        _ => Err(AuthencError::validation("Invalid action. Supported actions: generate, list, verify")),
+        _ => Err(AuthencError::validation(
+            "Invalid action. Supported actions: generate, list, verify",
+        )),
     }
 }

@@ -252,28 +252,10 @@ impl DefaultThemeProviderFactory {
 
 impl ProviderFactory<dyn ThemeProvider> for DefaultThemeProviderFactory {
     fn create(&self, _config: &ProviderConfig) -> Result<Box<dyn ThemeProvider>, SpiError> {
-        let mut provider = DefaultThemeProvider::new(self.theme_name.clone());
+        let provider = DefaultThemeProvider::new(self.theme_name.clone());
 
-        // Add some basic theme resources
-        provider.add_resource(
-            "login/login.ftl".to_string(),
-            ThemeResource {
-                path: "login/login.ftl".to_string(),
-                content: include_bytes!("../../templates/login.ftl").to_vec(),
-                content_type: "text/html".to_string(),
-                last_modified: None,
-            },
-        );
-
-        provider.add_resource(
-            "common/keycloak.ftl".to_string(),
-            ThemeResource {
-                path: "common/keycloak.ftl".to_string(),
-                content: include_bytes!("../../templates/keycloak.ftl").to_vec(),
-                content_type: "text/html".to_string(),
-                last_modified: None,
-            },
-        );
+        // No theme resources - authenc is a backend microservice only
+        // Theme resources would be served by frontend microfrontends
 
         Ok(Box::new(provider))
     }

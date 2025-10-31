@@ -186,6 +186,19 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Invalidate all sessions for a user (alias for delete_user_sessions)
+    ///
+    /// This method is used during logout to terminate all active sessions for a user.
+    ///
+    /// # Arguments
+    /// * `user_id` - The user ID to invalidate sessions for
+    ///
+    /// # Returns
+    /// * `Result<(), AuthencError>` indicating success or failure
+    pub async fn invalidate_user_sessions(&self, user_id: Uuid) -> Result<(), AuthencError> {
+        self.delete_user_sessions(user_id).await
+    }
+
     /// Create a temporary session for MFA verification
     ///
     /// # Arguments

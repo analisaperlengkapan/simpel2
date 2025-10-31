@@ -124,7 +124,7 @@ postgres-types = { version = "0.2.10", features = [
     "with-serde_json-1",
     "with-time-0_3",
 ] }
-refinery = { version = "0.8.16", features = ["tokio-postgres"] }
+refinery = { version = "0.9.0", features = ["tokio-postgres"] }
 sea-query = { version = "0.32.7", features = [
     "postgres-array",
     "with-chrono",
@@ -134,7 +134,7 @@ sea-query = { version = "0.32.7", features = [
 # Security & Authentication (Updated for latest security)
 # Ed25519 preferred over RSA for better security and performance
 argon2 = "0.5.3"
-jsonwebtoken = { version = "10.0", default-features = false, features = [
+jsonwebtoken = { version = "10.1.0", default-features = false, features = [
     "aws_lc_rs",
 ] } # Updated to v10 with aws_lc_rs backend
 oauth2 = "5.0.0"
@@ -155,14 +155,14 @@ x25519-dalek = { version = "2.0.1", features = [
 vaultrs = "0.7.4"
 
 # Proc Macro Dependencies (secure alternatives)
-syn = { version = "2.0", features = [
+syn = { version = "2.0.108", features = [
     "full",
     "parsing",
     "printing",
     "proc-macro",
 ] }
 quote = "1.0"
-proc-macro2 = "1.0"
+proc-macro2 = "1.0.103"
 # Note: Removed paste/pastey - using inline macros instead (paste is unmaintained)
 
 # Frontend Shared Dependencies
@@ -184,7 +184,7 @@ tokio-stream = "0.1"
 
 # Configuration & Templates (Updated)
 config = "0.15" # Updated for better features
-tera = "1.20"
+tera = "1.20.1"
 
 # HTTP Client - Unified version
 reqwest = { version = "0.12", features = [
@@ -208,7 +208,7 @@ nutype = { version = "0.6.2", features = [
 opentelemetry = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
 prometheus = "0.14"
-sentry = { version = "0.44", features = ["tracing"] }
+sentry = { version = "0.45.0", features = ["tracing"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
 tracing-opentelemetry = "0.32.0"
@@ -248,7 +248,7 @@ rustls-webpki = "0.103.7"
 rustls-pemfile = "2.2"
 rustls-native-certs = "0.8"
 webpki-roots = "1.0.2"
-flate2 = { version = "1.0", features = ["zlib"] }
+flate2 = { version = "1.1.5", features = ["zlib"] }
 tss-esapi = "7.4"
 pqcrypto-mldsa = "0.1.2"
 pqcrypto-mlkem = "0.1.1"
@@ -284,7 +284,7 @@ qrcode = { version = "0.14.1", features = ["svg"] }
 base32 = "0.5.1"
 
 # Decimal calculations for financial data
-bigdecimal = { version = "0.4.8", features = ["serde"] }
+bigdecimal = { version = "0.4.9", features = ["serde"] }
 
 # Antivirus scanning
 clamav-client = "2.1.0"
@@ -293,7 +293,7 @@ clamav-client = "2.1.0"
 handlebars = "6.3.2"
 
 # Additional utilities
-rust-embed = "8.7.2"
+rust-embed = "8.8.0"
 captcha = "1.0"
 ndarray = "0.16"
 ring = "0.17"
@@ -301,13 +301,13 @@ notify = "8.2"
 serde_yaml = "0.9.34-deprecated"
 toml = "0.9.7"
 calamine = "0.31"                # Excel reading
-rust_xlsxwriter = "0.90"         # Excel writing
+rust_xlsxwriter = "0.91.0"       # Excel writing
 
 # Utility libraries
 tokio-util = "0.7.16"
 walkdir = "2"
 mime = "0.3"
-sentry-tracing = "0.44.0"
+sentry-tracing = "0.45.0"
 tempfile = "3"
 
 # Dev dependencies (for testing)
@@ -317,17 +317,17 @@ serial_test = "3"
 assert-json-diff = "2"
 
 # Leptos Frontend Dependencies - Latest Available Stable
-leptos = { version = "0.8.10" }
+leptos = { version = "0.8.12" }
 leptos_meta = { version = "0.8.5" }
-leptos_router = { version = "0.8.8" }
+leptos_router = { version = "0.8.9" }
 leptos_dom = { version = "0.8.7" }
-leptos_macro = { version = "0.8.9" }
-server_fn = { version = "0.8.7" }
+leptos_macro = { version = "0.8.11" }
+server_fn = { version = "0.8.8" }
 
 # WASM specific - Latest Stable Versions (Updated)
-wasm-bindgen = "0.2.104"
-wasm-bindgen-futures = "0.4.54"
-wasm-bindgen-test = "0.3.54"
+wasm-bindgen = "0.2.105"
+wasm-bindgen-futures = "0.4.55"
+wasm-bindgen-test = "0.3.55"
 js-sys = "0.3.81"
 gloo-net = { version = "0.6", features = ["http"] }
 gloo-utils = { version = "0.2", features = ["serde"] }
@@ -397,10 +397,10 @@ bytes = "1.10.1"
 # AI and ML Dependencies
 qdrant-client = "1.11"
 tiktoken-rs = "0.7.0"
-tonic = { version = "0.12", features = ["tls", "tls-roots"] }
+tonic = { version = "0.14.2", features = ["tls", "tls-roots"] }
 
 # CLI tools
-clap = { version = "4.5.48", features = ["derive"] }
+clap = { version = "4.5.51", features = ["derive"] }
 colored = "3.0"
 shellexpand = "3.1"
 which = "8.0"

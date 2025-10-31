@@ -39,7 +39,7 @@ impl Default for FallbackConfig {
             enable_manual_verification: true,
             enable_cached_responses: true,
             degraded_mode_timeout: Duration::from_secs(300), // 5 minutes
-            cache_ttl: Duration::from_secs(3600), // 1 hour
+            cache_ttl: Duration::from_secs(3600),            // 1 hour
         }
     }
 }
@@ -70,10 +70,7 @@ impl LocalEncryptionFallback {
         use rand::RngCore;
         rand::thread_rng().fill_bytes(&mut key);
 
-        Self {
-            key,
-            enabled: true,
-        }
+        Self { key, enabled: true }
     }
 
     /// Encrypt data using local fallback encryption
@@ -107,13 +104,14 @@ impl LocalEncryptionFallback {
             });
         }
 
-        let encrypted = BASE64.decode(encrypted_data).map_err(|e| {
-            CaptchaError::ValidationFailed {
-                message: format!("Invalid encrypted data: {}", e),
-                attempts_remaining: 0,
-                next_difficulty: 1,
-            }
-        })?;
+        let encrypted =
+            BASE64
+                .decode(encrypted_data)
+                .map_err(|e| CaptchaError::ValidationFailed {
+                    message: format!("Invalid encrypted data: {}", e),
+                    attempts_remaining: 0,
+                    next_difficulty: 1,
+                })?;
 
         let decrypted: Vec<u8> = encrypted
             .iter()
@@ -158,7 +156,7 @@ impl SimplifiedChallengeGenerator {
         let encrypted_data = local_crypto.encrypt(&question)?;
 
         // Simple hash for answer verification
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(answer.as_bytes());
         let answer_hash = format!("{:x}", hasher.finalize());
@@ -198,7 +196,10 @@ impl SimplifiedChallengeGenerator {
                 let b = rng.gen_range(2..=10);
                 let c = rng.gen_range(1..=20);
                 let result = (a + b) * c;
-                (format!("What is ({} + {}) × {}?", a, b, c), result.to_string())
+                (
+                    format!("What is ({} + {}) × {}?", a, b, c),
+                    result.to_string(),
+                )
             }
             _ => {
                 // Default to simple addition
@@ -272,7 +273,8 @@ impl ManualVerificationSystem {
         if let Some(verification) = pending.get(verification_id) {
             // In a real implementation, this would check with an external system
             // For now, we'll simulate approval after 5 minutes
-            if verification.timestamp.elapsed().unwrap_or(Duration::ZERO) > Duration::from_secs(300) {
+            if verification.timestamp.elapsed().unwrap_or(Duration::ZERO) > Duration::from_secs(300)
+            {
                 Some(true)
             } else {
                 Some(false)
@@ -338,10 +340,13 @@ impl ResponseCache {
         }
 
         let mut cache = self.cache.write().await;
-        cache.insert(key, CachedResponse {
-            data: value,
-            timestamp: SystemTime::now(),
-        });
+        cache.insert(
+            key,
+            CachedResponse {
+                data: value,
+                timestamp: SystemTime::now(),
+            },
+        );
     }
 
     /// Clean up expired cached responses
@@ -349,9 +354,7 @@ impl ResponseCache {
         let mut cache = self.cache.write().await;
         let now = SystemTime::now();
 
-        cache.retain(|_, cached| {
-            cached.timestamp.elapsed().unwrap_or(Duration::ZERO) < self.ttl
-        });
+        cache.retain(|_, cached| cached.timestamp.elapsed().unwrap_or(Duration::ZERO) < self.ttl);
     }
 }
 
@@ -452,7 +455,8 @@ impl FallbackService {
                 // Use simplified challenge generation
                 if self.config.enable_simplified_challenges {
                     debug!("Using simplified challenge generation in degraded mode");
-                    self.simplified_generator.generate_simple_challenge(difficulty)
+                    self.simplified_generator
+                        .generate_simple_challenge(difficulty)
                 } else {
                     Err(CaptchaError::GenerationFailed {
                         message: "Challenge generation unavailable in current mode".to_string(),
@@ -490,7 +494,10 @@ impl FallbackService {
     }
 
     /// Decrypt data with fallback
-    pub async fn decrypt_with_fallback(&self, encrypted_data: &str) -> Result<String, CaptchaError> {
+    pub async fn decrypt_with_fallback(
+        &self,
+        encrypted_data: &str,
+    ) -> Result<String, CaptchaError> {
         let state = self.get_state().await;
 
         match state {
@@ -515,10 +522,7 @@ impl FallbackService {
     }
 
     /// Validate with cached response fallback
-    pub async fn validate_with_cache_fallback(
-        &self,
-        cache_key: &str,
-    ) -> Option<ValidationResult> {
+    pub async fn validate_with_cache_fallback(&self, cache_key: &str) -> Option<ValidationResult> {
         if self.config.enable_cached_responses {
             self.response_cache.get(cache_key).await
         } else {
@@ -560,7 +564,9 @@ impl FallbackService {
     /// Cleanup expired data
     pub async fn cleanup(&self) {
         self.response_cache.cleanup_expired().await;
-        self.manual_verification.cleanup_expired_verifications().await;
+        self.manual_verification
+            .cleanup_expired_verifications()
+            .await;
         self.check_degraded_mode_timeout().await;
     }
 

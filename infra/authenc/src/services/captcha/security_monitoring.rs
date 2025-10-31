@@ -19,11 +19,11 @@ use serde_json::json;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
+use super::error::CaptchaError;
+use super::types::{BehaviorClassification, Challenge, RiskLevel, ValidationResult};
 use crate::middleware::security_monitoring_axum::SecurityMonitoringConfig;
 use crate::models::audit_log::AuditLog;
 use crate::services::pg_audit_log_store::PgAuditLogStore;
-use super::error::CaptchaError;
-use super::types::{BehaviorClassification, Challenge, RiskLevel, ValidationResult};
 
 /// CAPTCHA security monitoring configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -275,10 +275,7 @@ pub struct CaptchaSecurityMonitoringState {
 
 impl CaptchaSecurityMonitoringState {
     /// Create a new CAPTCHA security monitoring state
-    pub fn new(
-        config: CaptchaSecurityConfig,
-        audit_store: Option<Arc<PgAuditLogStore>>,
-    ) -> Self {
+    pub fn new(config: CaptchaSecurityConfig, audit_store: Option<Arc<PgAuditLogStore>>) -> Self {
         let state = Self {
             config,
             audit_store,
@@ -294,9 +291,7 @@ impl CaptchaSecurityMonitoringState {
                 let mut tracker = activity_tracker.write().await;
                 let cutoff_time = SystemTime::now() - std::time::Duration::from_secs(3600); // Keep 1 hour of history
 
-                tracker.retain(|_, activity_data| {
-                    activity_data.last_activity > cutoff_time
-                });
+                tracker.retain(|_, activity_data| activity_data.last_activity > cutoff_time);
             }
         });
 
@@ -304,7 +299,10 @@ impl CaptchaSecurityMonitoringState {
     }
 
     /// Log a CAPTCHA security event
-    pub async fn log_security_event(&self, event_data: CaptchaSecurityEventData) -> Result<(), CaptchaError> {
+    pub async fn log_security_event(
+        &self,
+        event_data: CaptchaSecurityEventData,
+    ) -> Result<(), CaptchaError> {
         if !self.config.base_config.enabled {
             return Ok(());
         }
@@ -326,7 +324,9 @@ impl CaptchaSecurityMonitoringState {
         let tracking_key = event_data.ip_address.clone();
         {
             let mut tracker = self.activity_tracker.write().await;
-            let activity = tracker.entry(tracking_key.clone()).or_insert_with(ActivityTracker::new);
+            let activity = tracker
+                .entry(tracking_key.clone())
+                .or_insert_with(ActivityTracker::new);
             activity.record_event(event_data.event_type.clone());
         }
 
@@ -338,9 +338,9 @@ impl CaptchaSecurityMonitoringState {
             client_id: None,
             status: match event_data.event_type {
                 CaptchaSecurityEvent::ChallengeValidated => "success".to_string(),
-                CaptchaSecurityEvent::ValidationFailed |
-                CaptchaSecurityEvent::BotDetected |
-                CaptchaSecurityEvent::SuspiciousActivity => "failure".to_string(),
+                CaptchaSecurityEvent::ValidationFailed
+                | CaptchaSecurityEvent::BotDetected
+                | CaptchaSecurityEvent::SuspiciousActivity => "failure".to_string(),
                 _ => "info".to_string(),
             },
             detail: Some(serde_json::to_string(&event_data).unwrap_or_default()),
@@ -364,7 +364,8 @@ impl CaptchaSecurityMonitoringState {
 
         // Check for suspicious activity and generate alerts
         if self.config.enable_real_time_alerts {
-            self.check_and_generate_alerts(&tracking_key, &event_data).await?;
+            self.check_and_generate_alerts(&tracking_key, &event_data)
+                .await?;
         }
 
         Ok(())
@@ -396,13 +397,15 @@ impl CaptchaSecurityMonitoringState {
 
                 warn!(
                     "Suspicious CAPTCHA activity detected from {}: {} attempts in last minute",
-                    event_data.ip_address, activity.get_recent_activity_rate()
+                    event_data.ip_address,
+                    activity.get_recent_activity_rate()
                 );
 
                 // Log the alert directly without recursion
                 warn!(
                     "CAPTCHA security alert: Suspicious activity detected from {}: {} attempts in last minute",
-                    event_data.ip_address, activity.get_recent_activity_rate()
+                    event_data.ip_address,
+                    activity.get_recent_activity_rate()
                 );
             }
 
@@ -465,7 +468,10 @@ pub async fn captcha_security_monitoring_middleware(
         .map(|s| s.to_string());
 
     // Check if this is a monitored CAPTCHA endpoint
-    let is_monitored = security_state.config.base_config.monitored_paths
+    let is_monitored = security_state
+        .config
+        .base_config
+        .monitored_paths
         .iter()
         .any(|monitored_path| path.contains(monitored_path));
 
@@ -507,14 +513,8 @@ pub async fn captcha_security_monitoring_middleware(
         "response_status".to_string(),
         json!(response.status().as_u16()),
     )
-    .with_additional_data(
-        "request_path".to_string(),
-        json!(path),
-    )
-    .with_additional_data(
-        "request_method".to_string(),
-        json!(method.as_str()),
-    );
+    .with_additional_data("request_path".to_string(), json!(path))
+    .with_additional_data("request_method".to_string(), json!(method.as_str()));
 
     // Log the event asynchronously
     let security_state_clone = security_state.clone();
@@ -533,7 +533,14 @@ pub fn create_captcha_security_monitoring_layer(
     audit_store: Option<Arc<PgAuditLogStore>>,
 ) -> impl tower::Layer<CaptchaSecurityMonitoringState> + Clone + Send + Sync + 'static {
     let state = CaptchaSecurityMonitoringState::new(config, audit_store);
-    axum::middleware::from_fn_with_state::<_, CaptchaSecurityMonitoringState, (axum::extract::ConnectInfo<std::net::SocketAddr>, axum::extract::State<CaptchaSecurityMonitoringState>)>(state, captcha_security_monitoring_middleware)
+    axum::middleware::from_fn_with_state::<
+        _,
+        CaptchaSecurityMonitoringState,
+        (
+            axum::extract::ConnectInfo<std::net::SocketAddr>,
+            axum::extract::State<CaptchaSecurityMonitoringState>,
+        ),
+    >(state, captcha_security_monitoring_middleware)
 }
 
 #[cfg(test)]

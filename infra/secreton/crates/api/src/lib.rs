@@ -1,6 +1,6 @@
-//! Brankas API Library
+//! Secreton API Library
 //!
-//! Simple HTTP API for the Brankas transit engine
+//! Simple HTTP API for the Secreton transit engine
 
 use axum::{routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -8,19 +8,35 @@ use serde::{Deserialize, Serialize};
 pub mod audit;
 pub mod auth;
 pub mod config;
+pub mod error;
+pub mod grpc;
+pub mod handlers;
 pub mod kv;
 pub mod metrics;
 pub mod middleware;
-// TODO: Update TLS optimization module for rustls 0.23 API changes
-// pub mod tls_optimization;
+pub mod models;
+pub mod prelude;
+pub mod response;
+// TODO: Re-enable after OpenRaft migration is complete
+// pub mod raft;
+pub mod services;
 pub mod transit;
 
+pub use error::{ApiError, ApiResult};
 pub use kv::{create_kv_router, KVApiState, KVEngine};
+pub use models::PaginatedResponse;
+pub use response::{
+    ApiResponse, DependencyStatus, ErrorDetails, HealthCheckDependencies, HealthCheckResponse,
+    ResponseMetadata,
+};
+// TODO: Re-enable after OpenRaft migration
+// pub use raft::{create_raft_router, RaftApiState};
 pub use transit::{create_transit_router, TransitApiState};
 #[derive(Clone)]
 pub struct ApiState {
     pub transit: TransitApiState,
     pub kv: KVApiState,
+    pub services: std::sync::Arc<crate::services::ServiceContainer>,
 }
 
 #[derive(Clone)]
@@ -68,9 +84,32 @@ pub fn create_api_router(state: ApiState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         .route("/version", get(get_version))
+        .route("/metrics", get(get_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
         .nest("/v1/transit", create_transit_router(state.transit))
         .nest("/v1/secret", create_kv_router(state.kv))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MetricsResponse {
+    pub rest_requests_total: u64,
+    pub grpc_requests_total: u64,
+    pub transit_operations_total: u64,
+    pub kv_operations_total: u64,
+    pub active_connections: u64,
+    pub uptime_seconds: u64,
+}
+
+pub async fn get_metrics() -> Json<MetricsResponse> {
+    // TODO: Implement actual metrics collection
+    Json(MetricsResponse {
+        rest_requests_total: 0,
+        grpc_requests_total: 0,
+        transit_operations_total: 0,
+        kv_operations_total: 0,
+        active_connections: 0,
+        uptime_seconds: 0,
+    })
 }
 
 pub async fn health_check() -> Json<HealthResponse> {
@@ -90,8 +129,7 @@ pub async fn get_version() -> Json<VersionResponse> {
 }
 
 pub async fn get_tls_metrics() -> Json<TlsMetricsResponse> {
-    // TODO: Re-enable when tls_optimization module is updated
-    // let metrics = tls_optimization::get_tls_metrics();
+    // Placeholder metrics - implement when TLS monitoring is needed
     Json(TlsMetricsResponse {
         total_handshakes: 0,
         successful_handshakes: 0,

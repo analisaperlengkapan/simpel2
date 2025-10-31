@@ -402,7 +402,8 @@ impl IdentityProvider for OidcIdentityProvider {
         // Try to decode as JWT first
         if let Ok(header) = decode_header(token)
             && let Some(kid) = header.kid
-            && let Ok(decoding_key) = self.get_decoding_key(&kid).await {
+            && let Ok(decoding_key) = self.get_decoding_key(&kid).await
+        {
             let mut validation = Validation::new(header.alg);
             validation.set_issuer(&[&self.issuer_url]);
             // For access tokens, audience might be different - don't validate

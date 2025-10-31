@@ -327,7 +327,7 @@ pub mod jit_provisioning {
                     .clone()
                     .unwrap_or_else(|| format!("{}@federated.local", username)),
                 satker_code: String::new(), // Will be set later for federated users
-                password: None, // No password for federated users
+                password: None,             // No password for federated users
                 first_name: request.first_name.clone(),
                 last_name: request.last_name.clone(),
                 nip: None,

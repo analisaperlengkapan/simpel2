@@ -174,20 +174,40 @@ pub fn DashboardPage(
                             </a>
 
                             <a
-                                href="/profile"
+                                href="/monitoring"
                                 class="block p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:shadow-md transition-all group border border-green-200 dark:border-green-800"
                             >
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-3">
                                         <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                                            <span class="text-xl">"📊"</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900 dark:text-white">"Monitoring"</p>
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Pantau performa sistem"</p>
+                                        </div>
+                                    </div>
+                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </a>
+
+                            <a
+                                href="/settings"
+                                class="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:shadow-md transition-all group border border-orange-200 dark:border-orange-800"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                                             <span class="text-xl">"⚙️"</span>
                                         </div>
                                         <div>
                                             <p class="font-semibold text-gray-900 dark:text-white">"Pengaturan"</p>
-                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil Anda"</p>
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola profil dan tema"</p>
                                         </div>
                                     </div>
-                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-5 h-5 text-orange-600 dark:text-orange-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </div>

@@ -4,17 +4,20 @@ use clap::{Parser, Subcommand};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
+mod backup;
 mod config;
-mod output;
+mod seal;
 
+use backup::{execute_backup_command, BackupCommand};
 use config::CliConfig;
+use seal::{execute_seal_command, SealCommand};
 
 #[derive(Parser)]
 #[command(
     name = "secreton-cli",
-    about = "Command line interface for Brankas vault system",
+    about = "Command line interface for Secreton vault system",
     version = "1.0.0",
-    author = "Brankas Team"
+    author = "Secreton Team"
 )]
 struct Cli {
     #[arg(short, long, global = true)]
@@ -34,6 +37,12 @@ struct Cli {
 enum Commands {
     /// System health and status commands
     Status,
+    /// Seal/unseal operations
+    #[command(subcommand)]
+    Seal(SealCommand),
+    /// Backup and restore operations
+    #[command(subcommand)]
+    Backup(BackupCommand),
     /// Transit engine operations (encryption/decryption)
     Transit {
         #[command(subcommand)]
@@ -112,6 +121,8 @@ async fn main() -> Result<()> {
     // Execute commands
     match cli.command {
         Commands::Status => status_command(&config).await,
+        Commands::Seal(cmd) => execute_seal_command(cmd, &config).await,
+        Commands::Backup(cmd) => execute_backup_command(cmd, &config).await,
         Commands::Transit { cmd } => transit_command(cmd, &config).await,
         Commands::Secret { cmd } => secret_command(cmd, &config).await,
     }
@@ -126,7 +137,7 @@ async fn status_command(config: &CliConfig) -> Result<()> {
 
     if health_response.status().is_success() {
         let health: serde_json::Value = health_response.json().await?;
-        println!("🟢 Brankas Vault Status: HEALTHY");
+        println!("🟢 Secreton Vault Status: HEALTHY");
         println!("   Server: {}", config.server_url);
         println!(
             "   Version: {}",
@@ -141,7 +152,7 @@ async fn status_command(config: &CliConfig) -> Result<()> {
                 .unwrap_or(&serde_json::Value::String("unknown".to_string()))
         );
     } else {
-        println!("🔴 Brankas Vault Status: UNHEALTHY");
+        println!("🔴 Secreton Vault Status: UNHEALTHY");
         println!("   HTTP Status: {}", health_response.status());
     }
 

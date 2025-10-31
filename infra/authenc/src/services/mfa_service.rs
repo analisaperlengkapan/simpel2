@@ -102,10 +102,7 @@ pub struct MfaService {
 
 impl MfaService {
     /// Create a new MFA service instance
-    pub fn new(
-        secreton_client: Arc<dyn MfaClient>,
-        db_pool: deadpool_postgres::Pool,
-    ) -> Self {
+    pub fn new(secreton_client: Arc<dyn MfaClient>, db_pool: deadpool_postgres::Pool) -> Self {
         Self {
             otp_provider: OtpCredentialProvider::new(),
             secreton_client,
@@ -133,10 +130,14 @@ impl MfaService {
         // Get user info for MFA setup
         let user = self.get_user(user_id).await?;
         let issuer = "SIMPelv2 Kejaksaan RI";
-        let account_name = format!("{}@kejaksaan.go.id", user.nip.unwrap_or_else(|| user.username.clone()));
+        let account_name = format!(
+            "{}@kejaksaan.go.id",
+            user.nip.unwrap_or_else(|| user.username.clone())
+        );
 
         // Use secreton MfaManager for setup via API
-        let setup_data = self.secreton_client
+        let setup_data = self
+            .secreton_client
             .setup_mfa(&user_id.to_string(), issuer, &account_name)
             .await
             .map_err(|e| AuthencError::internal(format!("Secreton MFA setup failed: {}", e)))?;
@@ -156,14 +157,19 @@ impl MfaService {
             .await?;
 
         // Mark MFA as enabled in database
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        client.execute(
-            "UPDATE users SET mfa_enabled = true, mfa_setup_at = NOW() WHERE id = $1",
-            &[&user_id],
-        ).await
-        .map_err(|e| AuthencError::database(e.to_string()))?;
+        client
+            .execute(
+                "UPDATE users SET mfa_enabled = true, mfa_setup_at = NOW() WHERE id = $1",
+                &[&user_id],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data
         if let Some(cache) = &self.mfa_cache {
@@ -199,14 +205,19 @@ impl MfaService {
         }
 
         // Update last used timestamp in database
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        client.execute(
-            "UPDATE users SET mfa_last_used = NOW() WHERE id = $1",
-            &[&user_id],
-        ).await
-        .map_err(|e| AuthencError::database(e.to_string()))?;
+        client
+            .execute(
+                "UPDATE users SET mfa_last_used = NOW() WHERE id = $1",
+                &[&user_id],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data on next request
         if let Some(cache) = &self.mfa_cache {
@@ -243,7 +254,11 @@ impl MfaService {
     }
 
     /// Disable MFA for a user (admin operation)
-    pub async fn disable_mfa(&self, user_id: Uuid, admin_context: &crate::models::user::SecurityContext) -> Result<()> {
+    pub async fn disable_mfa(
+        &self,
+        user_id: Uuid,
+        admin_context: &crate::models::user::SecurityContext,
+    ) -> Result<()> {
         // Use secreton MfaManager to disable MFA
         self.secreton_client
             .disable_mfa(&user_id.to_string(), admin_context)
@@ -251,7 +266,10 @@ impl MfaService {
             .map_err(|e| AuthencError::internal(format!("Secreton MFA disable failed: {}", e)))?;
 
         // Update database
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         client.execute(
@@ -278,14 +296,19 @@ impl MfaService {
             .await?;
 
         // Update last used timestamp and log recovery code usage
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        client.execute(
-            "UPDATE users SET mfa_last_used = NOW() WHERE id = $1",
-            &[&user_id],
-        ).await
-        .map_err(|e| AuthencError::database(e.to_string()))?;
+        client
+            .execute(
+                "UPDATE users SET mfa_last_used = NOW() WHERE id = $1",
+                &[&user_id],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Log recovery code usage for audit
         tracing::warn!(
@@ -300,10 +323,13 @@ impl MfaService {
     /// Regenerate recovery codes for a user
     pub async fn regenerate_recovery_codes(&self, user_id: Uuid) -> Result<Vec<String>> {
         // Use secreton MfaManager to regenerate recovery codes
-        let new_codes = self.secreton_client
+        let new_codes = self
+            .secreton_client
             .regenerate_recovery_codes(&user_id.to_string())
             .await
-            .map_err(|e| AuthencError::internal(format!("Secreton recovery code regeneration failed: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::internal(format!("Secreton recovery code regeneration failed: {}", e))
+            })?;
 
         // Log recovery code regeneration for audit
         tracing::info!(
@@ -319,7 +345,8 @@ impl MfaService {
     /// Get remaining recovery codes count for a user
     pub async fn get_recovery_codes_count(&self, user_id: Uuid) -> Result<usize> {
         // Use secreton MfaManager to get recovery codes status
-        let status = self.secreton_client
+        let status = self
+            .secreton_client
             .get_mfa_status(&user_id.to_string())
             .await
             .map_err(|e| AuthencError::internal(format!("Secreton MFA status failed: {}", e)))?;
@@ -378,8 +405,14 @@ impl MfaService {
     }
 
     /// Batch get MFA status from database using optimized query
-    async fn batch_get_mfa_status_from_db(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, MfaStatus)>> {
-        let client = self.db_pool.get().await
+    async fn batch_get_mfa_status_from_db(
+        &self,
+        user_ids: &[Uuid],
+    ) -> Result<Vec<(Uuid, MfaStatus)>> {
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Use the optimized batch function from migration
@@ -415,15 +448,20 @@ impl MfaService {
 
     /// Get MFA status using optimized database function
     async fn get_mfa_status_from_db(&self, user_id: Uuid) -> Result<MfaStatus> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Use the optimized function from migration
-        let row = client.query_one(
-            "SELECT mfa_enabled, mfa_setup_at, mfa_last_used FROM get_user_mfa_status($1)",
-            &[&user_id],
-        ).await
-        .map_err(|e| AuthencError::database(e.to_string()))?;
+        let row = client
+            .query_one(
+                "SELECT mfa_enabled, mfa_setup_at, mfa_last_used FROM get_user_mfa_status($1)",
+                &[&user_id],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let enabled: bool = row.get(0);
         let setup_at: Option<DateTime<Utc>> = row.get(1);
@@ -431,7 +469,11 @@ impl MfaService {
 
         // Get backup codes count from secreton if enabled
         let backup_codes_remaining = if enabled {
-            match self.secreton_client.get_mfa_status(&user_id.to_string()).await {
+            match self
+                .secreton_client
+                .get_mfa_status(&user_id.to_string())
+                .await
+            {
                 Ok(_status) => 10, // Default count
                 Err(_) => 0,
             }
@@ -455,15 +497,20 @@ impl MfaService {
         action: &str,
         reason: &str,
     ) -> Result<Uuid> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        let action_id: Uuid = client.query_one(
-            "SELECT log_mfa_admin_action($1, $2, $3, $4)",
-            &[&admin_user_id, &target_user_id, &action, &reason],
-        ).await
-        .map_err(|e| AuthencError::database(e.to_string()))?
-        .get(0);
+        let action_id: Uuid = client
+            .query_one(
+                "SELECT log_mfa_admin_action($1, $2, $3, $4)",
+                &[&admin_user_id, &target_user_id, &action, &reason],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?
+            .get(0);
 
         tracing::info!(
             admin_user_id = ?admin_user_id,
@@ -478,7 +525,10 @@ impl MfaService {
 
     /// Get MFA statistics for monitoring and reporting
     pub async fn get_mfa_statistics(&self, satker_code: Option<&str>) -> Result<MfaStatistics> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let query = if let Some(satker) = satker_code {
@@ -506,21 +556,27 @@ impl MfaService {
 
     /// Refresh MFA statistics materialized view
     pub async fn refresh_mfa_statistics(&self) -> Result<()> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
-        client.execute("SELECT refresh_mfa_statistics()", &[]).await
+        client
+            .execute("SELECT refresh_mfa_statistics()", &[])
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         tracing::info!("MFA statistics materialized view refreshed");
         Ok(())
     }
 
-
-
     /// Get user information from database
     async fn get_user(&self, user_id: Uuid) -> Result<User> {
-        let client = self.db_pool.get().await
+        let client = self
+            .db_pool
+            .get()
+            .await
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         let row = client.query_one(
@@ -598,15 +654,27 @@ impl MfaClient for SecretonClient {
         issuer: &str,
         account_name: &str,
     ) -> Result<MfaSetupData> {
-        self.setup_mfa(user_id, issuer, account_name).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.setup_mfa(user_id, issuer, account_name)
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            })
     }
 
     async fn verify_mfa_setup(&self, user_id: &str, code: &str) -> Result<()> {
-        self.verify_mfa_setup(user_id, code).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.verify_mfa_setup(user_id, code)
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            })
     }
 
     async fn verify_mfa(&self, user_id: &str, code: &str) -> Result<()> {
-        self.verify_mfa(user_id, code).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.verify_mfa(user_id, code)
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            })
     }
 
     async fn disable_mfa(
@@ -614,18 +682,34 @@ impl MfaClient for SecretonClient {
         user_id: &str,
         admin_context: &crate::models::user::SecurityContext,
     ) -> Result<()> {
-        self.disable_mfa(user_id, admin_context).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.disable_mfa(user_id, admin_context).await.map_err(|e| {
+            AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            }
+        })
     }
 
     async fn get_mfa_status(&self, user_id: &str) -> Result<MfaStatusResponse> {
-        self.get_mfa_status(user_id).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.get_mfa_status(user_id)
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            })
     }
 
     async fn verify_recovery_code(&self, user_id: &str, recovery_code: &str) -> Result<()> {
-        self.verify_recovery_code(user_id, recovery_code).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.verify_recovery_code(user_id, recovery_code)
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            })
     }
 
     async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>> {
-        self.regenerate_recovery_codes(user_id).await.map_err(|e| AuthencError::ExternalServiceError { service: "secreton".to_string() })
+        self.regenerate_recovery_codes(user_id).await.map_err(|e| {
+            AuthencError::ExternalServiceError {
+                service: "secreton".to_string(),
+            }
+        })
     }
 }

@@ -10,20 +10,18 @@
 
 use crate::crypto::{
     aes_gcm::{AesGcmService, EncryptedData},
-    ed25519_keys::{sign_ed25519, verify_ed25519, ED25519_KEYPAIR},
+    ed25519_keys::{ED25519_KEYPAIR, sign_ed25519, verify_ed25519},
 };
 
 #[cfg(feature = "quantum")]
-use crate::crypto::pqc::{hybrid, mldsa, mlkem, PqcError};
+use crate::crypto::pqc::{PqcError, hybrid, mldsa, mlkem};
 use crate::error::{AuthencError, Result};
-use crate::models::{
-    user::UserClaims,
-};
+use crate::models::user::UserClaims;
 use crate::utils::crypto_monitor::CryptoMonitor;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use chrono::{DateTime, Utc};
 use ed25519_dalek::Signature;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -200,12 +198,16 @@ pub struct AuditSignature {
 /// Signer information for audit trails
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignerInfo {
-    /// NIP of the signer
+    /// Signer user ID
+    pub user_id: Uuid,
+    /// Signer NIP
     pub nip: String,
-    /// Satker code of the signer
-    pub satker_code: String,
-    /// Role of the signer
+    /// Signer name
+    pub name: String,
+    /// Signer role
     pub role: String,
+    /// Satker code
+    pub satker_code: String,
     /// Admin level of the signer
     pub admin_level: Option<AdminLevel>,
 }
@@ -224,25 +226,23 @@ pub struct BatchValidationRequest {
 /// Batch validation response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchValidationResponse {
-    /// Validation results for each token
+    /// Validation results
     pub results: Vec<TokenValidationResult>,
-    /// Performance metrics for the batch operation
-    pub metrics: BatchMetrics,
+    /// Total processing time (milliseconds)
+    pub processing_time_ms: u64,
 }
 
-/// Individual token validation result
+/// Token validation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenValidationResult {
-    /// Token index in the original request
+    /// Token index in the batch
     pub index: usize,
     /// Whether the token is valid
     pub valid: bool,
-    /// Error message if validation failed
+    /// User claims if valid
+    pub claims: Option<UserClaims>,
+    /// Error message if invalid
     pub error: Option<String>,
-    /// User claims if token is valid
-    pub claims: Option<PegawaiClaims>,
-    /// Whether result came from cache
-    pub from_cache: bool,
 }
 
 /// Batch operation performance metrics
@@ -293,26 +293,43 @@ impl EnhancedCryptoEngine {
 
         let result = CryptoMonitor::monitor_rsa_operation("jwt_sign_pegawai", || {
             // Create JWT header
-            let mut header = Header::new(Algorithm::EdDSA);
-            header.kid = Some("authenc-ed25519-key".to_string());
+            let header = serde_json::json!({
+                "alg": "EdDSA",
+                "typ": "JWT",
+                "kid": "authenc-ed25519-key"
+            });
 
-            // Serialize claims
-            let jwt_claims = serde_json::to_value(claims)
+            // Serialize header and claims
+            let header_json =
+                serde_json::to_string(&header).map_err(|e| AuthencError::SerializationError {
+                    message: format!("Failed to serialize header: {}", e),
+                })?;
+
+            let claims_json = serde_json::to_value(claims)
+                .and_then(|v| serde_json::to_string(&v))
                 .map_err(|e| AuthencError::SerializationError {
                     message: format!("Failed to serialize pegawai claims: {}", e),
                 })?;
 
-            // Sign with Ed25519
-            let verifying_key = ED25519_KEYPAIR.verifying_key();
-            let encoding_key = EncodingKey::from_ed_der(verifying_key.as_bytes());
+            // Base64URL encode header and payload
+            let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
+            let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
 
-            encode(&header, &jwt_claims, &encoding_key)
-                .map_err(|_e| AuthencError::CryptographicError)
+            // Create signing input
+            let signing_input = format!("{}.{}", header_b64, payload_b64);
+
+            // Sign with Ed25519
+            use ed25519_dalek::Signer;
+            let signature: Signature = ED25519_KEYPAIR.sign(signing_input.as_bytes());
+            let signature_b64 = Base64UrlUnpadded::encode_string(signature.to_bytes().as_ref());
+
+            Ok(format!("{}.{}", signing_input, signature_b64))
         });
 
         // Update metrics
         let duration = start.elapsed();
-        self.update_metrics("jwt_signing", duration, result.is_ok()).await;
+        self.update_metrics("jwt_signing", duration, result.is_ok())
+            .await;
 
         // Log for audit trail
         info!(
@@ -326,7 +343,10 @@ impl EnhancedCryptoEngine {
     }
 
     /// Batch token validation for improved performance
-    pub async fn validate_tokens_batch(&self, request: BatchValidationRequest) -> Result<BatchValidationResponse> {
+    pub async fn validate_tokens_batch(
+        &self,
+        request: BatchValidationRequest,
+    ) -> Result<BatchValidationResponse> {
         let start = Instant::now();
         let mut results = Vec::with_capacity(request.tokens.len());
         let mut cache_hits = 0;
@@ -342,8 +362,7 @@ impl EnhancedCryptoEngine {
                         index,
                         valid: cached.valid,
                         error: None,
-                        claims: None, // TODO: Convert UserClaims to PegawaiClaims if needed
-                        from_cache: true,
+                        claims: cached.claims,
                     }
                 } else {
                     cache_misses += 1;
@@ -365,15 +384,8 @@ impl EnhancedCryptoEngine {
         }
 
         let duration = start.elapsed();
-        self.update_metrics("batch_validation", duration, true).await;
-
-        let metrics = BatchMetrics {
-            total_tokens: request.tokens.len(),
-            cache_hits,
-            cache_misses,
-            total_time_ms: duration.as_millis() as u64,
-            avg_time_per_token_ms: duration.as_millis() as f64 / request.tokens.len() as f64,
-        };
+        self.update_metrics("batch_validation", duration, true)
+            .await;
 
         info!(
             total_tokens = request.tokens.len(),
@@ -383,7 +395,10 @@ impl EnhancedCryptoEngine {
             "Batch token validation completed"
         );
 
-        Ok(BatchValidationResponse { results, metrics })
+        Ok(BatchValidationResponse {
+            results,
+            processing_time_ms: duration.as_millis() as u64,
+        })
     }
 
     /// Encrypt session data for SIMKARI users
@@ -397,8 +412,8 @@ impl EnhancedCryptoEngine {
         let metadata_clone = metadata.clone();
         let result = CryptoMonitor::monitor_rsa_operation("session_encrypt", || {
             // Serialize session data
-            let data_bytes = serde_json::to_vec(session_data)
-                .map_err(|e| AuthencError::SerializationError {
+            let data_bytes =
+                serde_json::to_vec(session_data).map_err(|e| AuthencError::SerializationError {
                     message: format!("Failed to serialize session data: {}", e),
                 })?;
 
@@ -414,7 +429,8 @@ impl EnhancedCryptoEngine {
         });
 
         let duration = start.elapsed();
-        self.update_metrics("session_encryption", duration, result.is_ok()).await;
+        self.update_metrics("session_encryption", duration, result.is_ok())
+            .await;
 
         debug!(
             session_id = metadata.session_id,
@@ -427,22 +443,27 @@ impl EnhancedCryptoEngine {
     }
 
     /// Decrypt session data for SIMKARI users
-    pub async fn decrypt_session_data(&self, encrypted_session: &EncryptedSessionData) -> Result<serde_json::Value> {
+    pub async fn decrypt_session_data(
+        &self,
+        encrypted_session: &EncryptedSessionData,
+    ) -> Result<serde_json::Value> {
         let start = Instant::now();
 
         let result = CryptoMonitor::monitor_rsa_operation("session_decrypt", || {
             // Decrypt with AES-GCM
-            let decrypted_bytes = self.aes_service.decrypt(&encrypted_session.encrypted_data)?;
+            let decrypted_bytes = self
+                .aes_service
+                .decrypt(&encrypted_session.encrypted_data)?;
 
             // Deserialize session data
-            serde_json::from_slice(&decrypted_bytes)
-                .map_err(|e| AuthencError::SerializationError {
-                    message: format!("Failed to deserialize session data: {}", e),
-                })
+            serde_json::from_slice(&decrypted_bytes).map_err(|e| AuthencError::SerializationError {
+                message: format!("Failed to deserialize session data: {}", e),
+            })
         });
 
         let duration = start.elapsed();
-        self.update_metrics("session_encryption", duration, result.is_ok()).await;
+        self.update_metrics("session_encryption", duration, result.is_ok())
+            .await;
 
         debug!(
             session_id = encrypted_session.metadata.session_id,
@@ -465,10 +486,12 @@ impl EnhancedCryptoEngine {
         let signer_clone = signer.clone();
         let result = match self.pq_mode {
             PostQuantumMode::Classical => {
-                self.generate_classical_audit_signature(data, signer_clone).await
+                self.generate_classical_audit_signature(data, signer_clone)
+                    .await
             }
             PostQuantumMode::Hybrid => {
-                self.generate_hybrid_audit_signature(data, signer.clone()).await
+                self.generate_hybrid_audit_signature(data, signer.clone())
+                    .await
             }
             PostQuantumMode::PostQuantum => {
                 self.generate_pq_audit_signature(data, signer.clone()).await
@@ -476,7 +499,8 @@ impl EnhancedCryptoEngine {
         };
 
         let duration = start.elapsed();
-        self.update_metrics("audit_signature", duration, result.is_ok()).await;
+        self.update_metrics("audit_signature", duration, result.is_ok())
+            .await;
 
         info!(
             nip = signer.nip,
@@ -502,13 +526,17 @@ impl EnhancedCryptoEngine {
             "Ed25519+ML-DSA" => self.verify_hybrid_audit_signature(data, signature).await,
             "ML-DSA" => self.verify_pq_audit_signature(data, signature).await,
             _ => {
-                warn!(algorithm = signature.algorithm, "Unknown signature algorithm");
+                warn!(
+                    algorithm = signature.algorithm,
+                    "Unknown signature algorithm"
+                );
                 Ok(false)
             }
         };
 
         let duration = start.elapsed();
-        self.update_metrics("audit_signature", duration, result.is_ok()).await;
+        self.update_metrics("audit_signature", duration, result.is_ok())
+            .await;
 
         debug!(
             algorithm = signature.algorithm,
@@ -546,26 +574,41 @@ impl EnhancedCryptoEngine {
 
     // Private helper methods
 
-    async fn validate_single_token(&self, token: &str, index: usize) -> Result<TokenValidationResult> {
+    async fn validate_single_token(
+        &self,
+        token: &str,
+        index: usize,
+    ) -> Result<TokenValidationResult> {
         // Validate JWT token
         let validation = Validation::new(Algorithm::EdDSA);
         let verifying_key = ED25519_KEYPAIR.verifying_key();
         let decoding_key = DecodingKey::from_ed_der(verifying_key.as_bytes());
 
         match decode::<PegawaiClaims>(token, &decoding_key, &validation) {
-            Ok(token_data) => Ok(TokenValidationResult {
-                index,
-                valid: true,
-                error: None,
-                claims: Some(token_data.claims),
-                from_cache: false,
-            }),
+            Ok(token_data) => {
+                // Convert PegawaiClaims to UserClaims
+                let user_claims = UserClaims {
+                    sub: token_data.claims.standard.sub.clone(),
+                    username: token_data.claims.standard.username.clone(),
+                    email: token_data.claims.standard.email.clone(),
+                    realm_id: token_data.claims.standard.realm_id.clone(),
+                    roles: token_data.claims.standard.roles.clone(),
+                    exp: token_data.claims.standard.exp,
+                    iat: token_data.claims.standard.iat,
+                    iss: token_data.claims.standard.iss.clone(),
+                };
+                Ok(TokenValidationResult {
+                    index,
+                    valid: true,
+                    error: None,
+                    claims: Some(user_claims),
+                })
+            }
             Err(e) => Ok(TokenValidationResult {
                 index,
                 valid: false,
                 error: Some(e.to_string()),
                 claims: None,
-                from_cache: false,
             }),
         }
     }
@@ -585,16 +628,7 @@ impl EnhancedCryptoEngine {
         let cached = CachedValidation {
             valid: result.valid,
             expires_at: Utc::now() + chrono::Duration::minutes(5), // 5-minute cache
-            claims: result.claims.as_ref().map(|c| UserClaims {
-                sub: c.standard.sub.clone(),
-                username: c.standard.username.clone(),
-                email: c.standard.email.clone(),
-                realm_id: c.standard.realm_id.clone(),
-                roles: c.standard.roles.clone(),
-                exp: c.standard.exp,
-                iat: c.standard.iat,
-                iss: c.standard.iss.clone(),
-            }),
+            claims: result.claims.clone(),
         };
         cache.insert(token.to_string(), cached);
     }
@@ -624,8 +658,8 @@ impl EnhancedCryptoEngine {
         #[cfg(feature = "quantum")]
         {
             // Generate ML-DSA keypair for this signature
-            let (_, mldsa_sk) = mldsa::SecretKey::new()
-                .map_err(|_| AuthencError::CryptographicError)?;
+            let (_, mldsa_sk) =
+                mldsa::SecretKey::new().map_err(|_| AuthencError::CryptographicError)?;
 
             // Sign with both Ed25519 and ML-DSA
             let (ed25519_sig, mldsa_sig) = hybrid::sign_hybrid(data, &*ED25519_KEYPAIR, &mldsa_sk)
@@ -656,10 +690,11 @@ impl EnhancedCryptoEngine {
     ) -> Result<AuditSignature> {
         #[cfg(feature = "quantum")]
         {
-            let (_, mldsa_sk) = mldsa::SecretKey::new()
-                .map_err(|_| AuthencError::CryptographicError)?;
+            let (_, mldsa_sk) =
+                mldsa::SecretKey::new().map_err(|_| AuthencError::CryptographicError)?;
 
-            let mldsa_sig = mldsa_sk.sign(data)
+            let mldsa_sig = mldsa_sk
+                .sign(data)
                 .map_err(|_| AuthencError::CryptographicError)?;
 
             let mldsa_b64 = Base64UrlUnpadded::encode_string(mldsa_sig.as_bytes());
@@ -684,15 +719,18 @@ impl EnhancedCryptoEngine {
         data: &[u8],
         signature: &AuditSignature,
     ) -> Result<bool> {
-        let sig_bytes = Base64UrlUnpadded::decode_vec(&signature.signature)
-            .map_err(|_| AuthencError::ValidationError {
+        let sig_bytes = Base64UrlUnpadded::decode_vec(&signature.signature).map_err(|_| {
+            AuthencError::ValidationError {
                 message: "Invalid signature encoding".to_string(),
-            })?;
+            }
+        })?;
 
-        let sig_array: [u8; 64] = sig_bytes.try_into()
-            .map_err(|_| AuthencError::ValidationError {
-                message: "Invalid signature length".to_string(),
-            })?;
+        let sig_array: [u8; 64] =
+            sig_bytes
+                .try_into()
+                .map_err(|_| AuthencError::ValidationError {
+                    message: "Invalid signature length".to_string(),
+                })?;
         let sig = Signature::from_bytes(&sig_array);
 
         let _verifying_key = ED25519_KEYPAIR.verifying_key();
@@ -711,7 +749,9 @@ impl EnhancedCryptoEngine {
         {
             if let Some(ref pq_sig_b64) = signature.pq_signature {
                 // Verify both signatures
-                let classical_valid = self.verify_classical_audit_signature(data, signature).await?;
+                let classical_valid = self
+                    .verify_classical_audit_signature(data, signature)
+                    .await?;
 
                 // For now, we can't verify ML-DSA without the public key
                 // In a real implementation, the public key would be stored/retrieved
@@ -870,7 +910,9 @@ mod tests {
             expires_at: Utc::now() + chrono::Duration::hours(1),
         };
 
-        let encrypted = engine.encrypt_session_data(&session_data, metadata.clone()).await;
+        let encrypted = engine
+            .encrypt_session_data(&session_data, metadata.clone())
+            .await;
         assert!(encrypted.is_ok());
 
         let encrypted_session = encrypted.unwrap();
@@ -888,9 +930,11 @@ mod tests {
 
         let data = b"Important audit data";
         let signer = SignerInfo {
+            user_id: Uuid::new_v4(),
             nip: "198501012010011001".to_string(),
-            satker_code: "A.01.01".to_string(),
+            name: "John Doe".to_string(),
             role: "admin".to_string(),
+            satker_code: "A.01.01".to_string(),
             admin_level: Some(AdminLevel::AdminSatker("A.01.01".to_string())),
         };
 

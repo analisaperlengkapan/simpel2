@@ -5,7 +5,10 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock as AsyncRwLock;
 use tracing::{debug, warn};
 
-use crate::error::{SecretonError, Result};
+use crate::error::CoreError;
+
+type SecretonError = CoreError;
+type Result<T> = std::result::Result<T, CoreError>;
 
 /// Cache entry with TTL support for secrets
 #[derive(Debug, Clone)]
@@ -269,7 +272,7 @@ where
     pub fn insert(&self, key: K, value: V, ttl: Duration, sensitivity_level: SensitivityLevel) -> Result<()> {
         let mut cache = self.cache
             .write()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache write lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
         cache.insert(key, value, ttl, sensitivity_level);
         Ok(())
     }
@@ -278,7 +281,7 @@ where
     pub fn get(&self, key: &K) -> Result<Option<V>> {
         let mut cache = self.cache
             .write()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache write lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
         Ok(cache.get(key))
     }
 
@@ -286,7 +289,7 @@ where
     pub fn remove(&self, key: &K) -> Result<Option<V>> {
         let mut cache = self.cache
             .write()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache write lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
         Ok(cache.remove(key))
     }
 
@@ -294,7 +297,7 @@ where
     pub fn clear(&self) -> Result<()> {
         let mut cache = self.cache
             .write()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache write lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
         cache.clear();
         Ok(())
     }
@@ -303,7 +306,7 @@ where
     pub fn evict_by_sensitivity(&self, load_factor: f64) -> Result<()> {
         let mut cache = self.cache
             .write()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache write lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
         cache.evict_by_sensitivity(load_factor);
         Ok(())
     }
@@ -312,7 +315,7 @@ where
     pub fn stats(&self) -> Result<SecretCacheStats> {
         let cache = self.cache
             .read()
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to acquire cache read lock".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache read lock")))?;
         Ok(cache.stats())
     }
 }

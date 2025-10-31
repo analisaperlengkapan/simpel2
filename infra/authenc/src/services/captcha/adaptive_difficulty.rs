@@ -427,16 +427,20 @@ mod tests {
         );
 
         // Verify data exists
-        assert!(calculator
-            .get_behavior_stats("test_session", "127.0.0.1")
-            .is_some());
+        assert!(
+            calculator
+                .get_behavior_stats("test_session", "127.0.0.1")
+                .is_some()
+        );
 
         // Clean up with very short max age
         calculator.cleanup_old_data(Duration::from_millis(1));
 
         // Data should still exist since it was just created
-        assert!(calculator
-            .get_behavior_stats("test_session", "127.0.0.1")
-            .is_some());
+        assert!(
+            calculator
+                .get_behavior_stats("test_session", "127.0.0.1")
+                .is_some()
+        );
     }
 }

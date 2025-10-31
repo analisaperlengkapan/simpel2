@@ -234,49 +234,10 @@ pub fn EmptyState(
 // ============================================================================
 // AVATAR COMPONENT
 // ============================================================================
-
-#[component]
-pub fn Avatar(
-    #[prop(optional, into)] name: Option<String>,
-    #[prop(optional, into)] src: Option<String>,
-    #[prop(default = "md".to_string(), into)] size: String,
-    #[prop(optional, into)] class: Option<String>,
-) -> impl IntoView {
-    let class = class.unwrap_or_default();
-    let size_class = match size.as_str() {
-        "sm" => "h-8 w-8 text-sm",
-        "lg" => "h-16 w-16 text-2xl",
-        "xl" => "h-24 w-24 text-3xl",
-        _ => "h-10 w-10 text-base",
-    };
-
-    // Get initials from name
-    let initials = name.as_ref().map(|n| {
-        n.split_whitespace()
-            .filter_map(|word| word.chars().next())
-            .take(2)
-            .collect::<String>()
-            .to_uppercase()
-    });
-
-    view! {
-        <div class=format!(
-            "inline-flex items-center justify-center rounded-full bg-emerald-600 text-white font-semibold {} {}",
-            size_class,
-            class
-        )>
-            {if let Some(s) = src {
-                view! {
-                    <img src=s alt=name.clone().unwrap_or_default() class="rounded-full object-cover" />
-                }.into_any()
-            } else {
-                view! {
-                    <span>{initials.unwrap_or_else(|| "?".to_string())}</span>
-                }.into_any()
-            }}
-        </div>
-    }
-}
+// Avatar component has been moved to optimized_image.rs for better
+// image optimization with lazy loading and error handling.
+// Use: use shared_microfrontend::prelude::*; or
+//      use shared_microfrontend::components::optimized_image::Avatar;
 
 // ============================================================================
 // PAGINATION COMPONENT

@@ -8,17 +8,17 @@
 //! - Fallback scenarios when secreton is unavailable
 //! - Role isolation validation from authenc side
 
+use serde_json::json;
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
-use serde_json::json;
-use std::collections::HashMap;
 
-use authenc::vault::SecretonClient;
-use authenc::models::{User, OptimizedToken, SecretonPermissions};
+use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::OptimizedAuthencError;
-use authenc::config::AuthencConfig;
+use authenc::models::{OptimizedToken, SecretonPermissions, User};
+use authenc::vault::SecretonClient;
 
 /// Test suite for comprehensive authenc-secreton integration
 #[cfg(test)]
@@ -45,24 +45,37 @@ mod comprehensive_secreton_integration_tests {
 
             let auth_result = timeout(
                 Duration::from_secs(10),
-                secreton_client.authenticate_with_secreton(&test_context)
-            ).await;
+                secreton_client.authenticate_with_secreton(&test_context),
+            )
+            .await;
 
             match auth_result {
                 Ok(Ok(auth_response)) => {
                     if should_succeed {
                         assert!(auth_response.authenticated);
                         assert_eq!(auth_response.satker_code, satker_code);
-                        println!("Secreton authentication successful for {}: {}", cert_type, satker_code);
+                        println!(
+                            "Secreton authentication successful for {}: {}",
+                            cert_type, satker_code
+                        );
                     } else {
                         assert!(!auth_response.authenticated);
-                        println!("Secreton authentication properly rejected for {}: {}", cert_type, satker_code);
+                        println!(
+                            "Secreton authentication properly rejected for {}: {}",
+                            cert_type, satker_code
+                        );
                     }
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Expected communication error for secreton auth: {}", cert_type);
+                    println!(
+                        "Expected communication error for secreton auth: {}",
+                        cert_type
+                    );
                 }
-                Err(_) => panic!("Secreton authentication should not timeout for: {}", cert_type),
+                Err(_) => panic!(
+                    "Secreton authentication should not timeout for: {}",
+                    cert_type
+                ),
             }
         }
     }
@@ -84,42 +97,88 @@ mod comprehensive_secreton_integration_tests {
         // Test secret retrieval scenarios
         let secret_scenarios = vec![
             // (user_satker, secret_path, should_have_access)
-            ("KEJATI_DKI_JAKPUS", "secrets/KEJATI_DKI_JAKPUS/database_config", true),
-            ("KEJATI_DKI_JAKPUS", "secrets/KEJATI_DKI_JAKSEL/api_keys", false),
-            ("KEJATI_DKI_JAKPUS", "secrets/KEJATI_JABAR_BANDUNG/certificates", false),
-            ("KEJATI_DKI_JAKSEL", "secrets/KEJATI_DKI_JAKSEL/api_keys", true),
-            ("KEJATI_DKI_JAKSEL", "secrets/KEJATI_DKI_JAKPUS/database_config", false),
+            (
+                "KEJATI_DKI_JAKPUS",
+                "secrets/KEJATI_DKI_JAKPUS/database_config",
+                true,
+            ),
+            (
+                "KEJATI_DKI_JAKPUS",
+                "secrets/KEJATI_DKI_JAKSEL/api_keys",
+                false,
+            ),
+            (
+                "KEJATI_DKI_JAKPUS",
+                "secrets/KEJATI_JABAR_BANDUNG/certificates",
+                false,
+            ),
+            (
+                "KEJATI_DKI_JAKSEL",
+                "secrets/KEJATI_DKI_JAKSEL/api_keys",
+                true,
+            ),
+            (
+                "KEJATI_DKI_JAKSEL",
+                "secrets/KEJATI_DKI_JAKPUS/database_config",
+                false,
+            ),
             ("KEJARI_SOLO", "secrets/KEJARI_SOLO/credentials", true),
-            ("KEJARI_SOLO", "secrets/KEJATI_DKI_JAKPUS/database_config", false),
+            (
+                "KEJARI_SOLO",
+                "secrets/KEJATI_DKI_JAKPUS/database_config",
+                false,
+            ),
         ];
 
         for (user_satker, secret_path, should_have_access) in secret_scenarios {
-            let user = test_users.iter().find(|u| u.satker_code == user_satker).unwrap();
+            let user = test_users
+                .iter()
+                .find(|u| u.satker_code == user_satker)
+                .unwrap();
             let token = create_authenc_token(&crypto_engine, user).await.unwrap();
 
             let secret_result = timeout(
                 Duration::from_secs(10),
-                secreton_client.get_secret_with_token(&token, secret_path)
-            ).await;
+                secreton_client.get_secret_with_token(&token, secret_path),
+            )
+            .await;
 
             match secret_result {
                 Ok(Ok(secret)) => {
                     if !should_have_access {
-                        panic!("User from {} should NOT have access to {}", user_satker, secret_path);
+                        panic!(
+                            "User from {} should NOT have access to {}",
+                            user_satker, secret_path
+                        );
                     }
                     assert!(secret.path == secret_path);
-                    println!("Authorized secret retrieval: {} -> {}", user_satker, secret_path);
+                    println!(
+                        "Authorized secret retrieval: {} -> {}",
+                        user_satker, secret_path
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretAccessDenied { .. })) => {
                     if should_have_access {
-                        panic!("User from {} should have access to {}", user_satker, secret_path);
+                        panic!(
+                            "User from {} should have access to {}",
+                            user_satker, secret_path
+                        );
                     }
-                    println!("Properly denied secret access: {} -> {}", user_satker, secret_path);
+                    println!(
+                        "Properly denied secret access: {} -> {}",
+                        user_satker, secret_path
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for secret retrieval: {} -> {} (expected in test)", user_satker, secret_path);
+                    println!(
+                        "Communication error for secret retrieval: {} -> {} (expected in test)",
+                        user_satker, secret_path
+                    );
                 }
-                Err(_) => panic!("Secret retrieval should not timeout: {} -> {}", user_satker, secret_path),
+                Err(_) => panic!(
+                    "Secret retrieval should not timeout: {} -> {}",
+                    user_satker, secret_path
+                ),
             }
         }
     }
@@ -141,47 +200,135 @@ mod comprehensive_secreton_integration_tests {
         // Test hierarchical admin operations
         let admin_scenarios = vec![
             // (admin_level, admin_satker, target_satker, operation, should_succeed)
-            ("AdminPusat", "KEJAGUNG", "KEJATI_DKI_JAKPUS", "create_secret", true),
-            ("AdminPusat", "KEJAGUNG", "KEJATI_JABAR_BANDUNG", "read_secret", true),
-            ("AdminPusat", "KEJAGUNG", "KEJARI_SOLO", "delete_secret", true),
-            ("AdminEselonI", "KEJAGUNG", "KEJATI_DKI_JAKPUS", "update_secret", true),
-            ("AdminEselonI", "KEJAGUNG", "KEJATI_JABAR_BANDUNG", "read_secret", true),
-            ("AdminWilayah", "KEJATI_DKI", "KEJATI_DKI_JAKPUS", "create_secret", true),
-            ("AdminWilayah", "KEJATI_DKI", "KEJATI_DKI_JAKSEL", "read_secret", true),
-            ("AdminWilayah", "KEJATI_DKI", "KEJATI_JABAR_BANDUNG", "read_secret", false),
-            ("AdminSatker", "KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKPUS", "create_secret", true),
-            ("AdminSatker", "KEJATI_DKI_JAKPUS", "KEJATI_DKI_JAKSEL", "read_secret", false),
+            (
+                "AdminPusat",
+                "KEJAGUNG",
+                "KEJATI_DKI_JAKPUS",
+                "create_secret",
+                true,
+            ),
+            (
+                "AdminPusat",
+                "KEJAGUNG",
+                "KEJATI_JABAR_BANDUNG",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminPusat",
+                "KEJAGUNG",
+                "KEJARI_SOLO",
+                "delete_secret",
+                true,
+            ),
+            (
+                "AdminEselonI",
+                "KEJAGUNG",
+                "KEJATI_DKI_JAKPUS",
+                "update_secret",
+                true,
+            ),
+            (
+                "AdminEselonI",
+                "KEJAGUNG",
+                "KEJATI_JABAR_BANDUNG",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminWilayah",
+                "KEJATI_DKI",
+                "KEJATI_DKI_JAKPUS",
+                "create_secret",
+                true,
+            ),
+            (
+                "AdminWilayah",
+                "KEJATI_DKI",
+                "KEJATI_DKI_JAKSEL",
+                "read_secret",
+                true,
+            ),
+            (
+                "AdminWilayah",
+                "KEJATI_DKI",
+                "KEJATI_JABAR_BANDUNG",
+                "read_secret",
+                false,
+            ),
+            (
+                "AdminSatker",
+                "KEJATI_DKI_JAKPUS",
+                "KEJATI_DKI_JAKPUS",
+                "create_secret",
+                true,
+            ),
+            (
+                "AdminSatker",
+                "KEJATI_DKI_JAKPUS",
+                "KEJATI_DKI_JAKSEL",
+                "read_secret",
+                false,
+            ),
         ];
 
-        for (admin_level, admin_satker, target_satker, operation, should_succeed) in admin_scenarios {
-            let admin_user = admin_users.iter()
-                .find(|u| u.roles.iter().any(|r| r.name.contains(admin_level) && u.satker_code == admin_satker))
+        for (admin_level, admin_satker, target_satker, operation, should_succeed) in admin_scenarios
+        {
+            let admin_user = admin_users
+                .iter()
+                .find(|u| {
+                    u.roles
+                        .iter()
+                        .any(|r| r.name.contains(admin_level) && u.satker_code == admin_satker)
+                })
                 .unwrap();
 
-            let admin_token = create_authenc_token(&crypto_engine, admin_user).await.unwrap();
+            let admin_token = create_authenc_token(&crypto_engine, admin_user)
+                .await
+                .unwrap();
 
             let operation_result = timeout(
                 Duration::from_secs(10),
-                secreton_client.perform_admin_operation(&admin_token, operation, target_satker)
-            ).await;
+                secreton_client.perform_admin_operation(&admin_token, operation, target_satker),
+            )
+            .await;
 
             match operation_result {
                 Ok(Ok(success)) => {
                     if should_succeed {
-                        assert!(success, "Admin {} from {} should be able to {} on {}", admin_level, admin_satker, operation, target_satker);
+                        assert!(
+                            success,
+                            "Admin {} from {} should be able to {} on {}",
+                            admin_level, admin_satker, operation, target_satker
+                        );
                     }
-                    println!("Admin operation successful through secreton: {} {} -> {} {}", admin_level, admin_satker, operation, target_satker);
+                    println!(
+                        "Admin operation successful through secreton: {} {} -> {} {}",
+                        admin_level, admin_satker, operation, target_satker
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretAccessDenied { .. })) => {
                     if should_succeed {
-                        panic!("Admin {} from {} should have access to {} on {}", admin_level, admin_satker, operation, target_satker);
+                        panic!(
+                            "Admin {} from {} should have access to {} on {}",
+                            admin_level, admin_satker, operation, target_satker
+                        );
                     }
-                    println!("Admin operation properly denied through secreton: {} {} -> {} {}", admin_level, admin_satker, operation, target_satker);
+                    println!(
+                        "Admin operation properly denied through secreton: {} {} -> {} {}",
+                        admin_level, admin_satker, operation, target_satker
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for admin operation: {} {} -> {} {} (expected in test)", admin_level, admin_satker, operation, target_satker);
+                    println!(
+                        "Communication error for admin operation: {} {} -> {} {} (expected in test)",
+                        admin_level, admin_satker, operation, target_satker
+                    );
                 }
-                Err(_) => panic!("Admin operation should not timeout: {} {} -> {} {}", admin_level, admin_satker, operation, target_satker),
+                Err(_) => panic!(
+                    "Admin operation should not timeout: {} {} -> {} {}",
+                    admin_level, admin_satker, operation, target_satker
+                ),
             }
         }
     }
@@ -193,7 +340,9 @@ mod comprehensive_secreton_integration_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test fallback scenarios when secreton is unavailable
         let fallback_scenarios = vec![
@@ -210,8 +359,13 @@ mod comprehensive_secreton_integration_tests {
             // Test secret retrieval with fallback
             let secret_result = timeout(
                 Duration::from_secs(5),
-                secreton_client.get_secret_with_fallback(&token, "secrets/KEJATI_DKI_JAKPUS/config", scenario)
-            ).await;
+                secreton_client.get_secret_with_fallback(
+                    &token,
+                    "secrets/KEJATI_DKI_JAKPUS/config",
+                    scenario,
+                ),
+            )
+            .await;
 
             match secret_result {
                 Ok(Ok(fallback_secret)) => {
@@ -220,7 +374,10 @@ mod comprehensive_secreton_integration_tests {
                     println!("Secret retrieval fallback successful for: {}", scenario);
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Expected communication error for fallback scenario: {}", scenario);
+                    println!(
+                        "Expected communication error for fallback scenario: {}",
+                        scenario
+                    );
                 }
                 Err(_) => {
                     println!("Timeout for fallback scenario: {} (acceptable)", scenario);
@@ -230,8 +387,9 @@ mod comprehensive_secreton_integration_tests {
             // Test application config retrieval with fallback
             let config_result = timeout(
                 Duration::from_secs(5),
-                secreton_client.get_application_config_with_fallback("SIMKARI", scenario)
-            ).await;
+                secreton_client.get_application_config_with_fallback("SIMKARI", scenario),
+            )
+            .await;
 
             match config_result {
                 Ok(Ok(fallback_config)) => {
@@ -239,7 +397,10 @@ mod comprehensive_secreton_integration_tests {
                     println!("Application config fallback successful for: {}", scenario);
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Expected communication error for config fallback: {}", scenario);
+                    println!(
+                        "Expected communication error for config fallback: {}",
+                        scenario
+                    );
                 }
                 Err(_) => {
                     println!("Timeout for config fallback: {} (acceptable)", scenario);
@@ -249,7 +410,10 @@ mod comprehensive_secreton_integration_tests {
 
         // Test graceful degradation from authenc perspective
         let degradation_result = test_authenc_graceful_degradation(&secreton_client, &token).await;
-        assert!(degradation_result, "Authenc graceful degradation should work properly");
+        assert!(
+            degradation_result,
+            "Authenc graceful degradation should work properly"
+        );
     }
 
     #[tokio::test]
@@ -260,15 +424,29 @@ mod comprehensive_secreton_integration_tests {
 
         // Create users from different satker
         let satker_users = vec![
-            ("KEJATI_DKI_JAKPUS", create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS")),
-            ("KEJATI_DKI_JAKSEL", create_test_user("198001012000011002", "KEJATI_DKI_JAKSEL")),
-            ("KEJATI_JABAR_BANDUNG", create_test_user("198001012000011003", "KEJATI_JABAR_BANDUNG")),
-            ("KEJARI_SOLO", create_test_user("198001012000011004", "KEJARI_SOLO")),
+            (
+                "KEJATI_DKI_JAKPUS",
+                create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS"),
+            ),
+            (
+                "KEJATI_DKI_JAKSEL",
+                create_test_user("198001012000011002", "KEJATI_DKI_JAKSEL"),
+            ),
+            (
+                "KEJATI_JABAR_BANDUNG",
+                create_test_user("198001012000011003", "KEJATI_JABAR_BANDUNG"),
+            ),
+            (
+                "KEJARI_SOLO",
+                create_test_user("198001012000011004", "KEJARI_SOLO"),
+            ),
         ];
 
         // Test role isolation between different satker
         for (requesting_satker, requesting_user) in &satker_users {
-            let token = create_authenc_token(&crypto_engine, requesting_user).await.unwrap();
+            let token = create_authenc_token(&crypto_engine, requesting_user)
+                .await
+                .unwrap();
 
             for (target_satker, _) in &satker_users {
                 let secret_types = vec!["config", "credentials", "certificates"];
@@ -279,34 +457,54 @@ mod comprehensive_secreton_integration_tests {
 
                     let access_result = timeout(
                         Duration::from_secs(10),
-                        secreton_client.validate_user_secret_access(&token, &secret_path)
-                    ).await;
+                        secreton_client.validate_user_secret_access(&token, &secret_path),
+                    )
+                    .await;
 
                     match access_result {
                         Ok(Ok(has_access)) => {
                             if has_access != should_have_access {
                                 if should_have_access {
-                                    panic!("Same-satker access should be allowed: {} -> {}", requesting_satker, secret_path);
+                                    panic!(
+                                        "Same-satker access should be allowed: {} -> {}",
+                                        requesting_satker, secret_path
+                                    );
                                 } else {
-                                    panic!("Cross-satker access should be denied: {} -> {}", requesting_satker, secret_path);
+                                    panic!(
+                                        "Cross-satker access should be denied: {} -> {}",
+                                        requesting_satker, secret_path
+                                    );
                                 }
                             }
-                            println!("Role isolation properly enforced: {} -> {} ({})",
-                                    requesting_satker, secret_path,
-                                    if has_access { "allowed" } else { "denied" });
+                            println!(
+                                "Role isolation properly enforced: {} -> {} ({})",
+                                requesting_satker,
+                                secret_path,
+                                if has_access { "allowed" } else { "denied" }
+                            );
                         }
                         Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                            println!("Communication error for isolation test: {} -> {} (expected in test)", requesting_satker, secret_path);
+                            println!(
+                                "Communication error for isolation test: {} -> {} (expected in test)",
+                                requesting_satker, secret_path
+                            );
                         }
-                        Err(_) => panic!("Isolation test should not timeout: {} -> {}", requesting_satker, secret_path),
+                        Err(_) => panic!(
+                            "Isolation test should not timeout: {} -> {}",
+                            requesting_satker, secret_path
+                        ),
                     }
                 }
             }
         }
 
         // Test batch validation isolation
-        let batch_isolation_result = test_batch_validation_isolation(&secreton_client, &crypto_engine, &satker_users).await;
-        assert!(batch_isolation_result, "Batch validation should maintain isolation");
+        let batch_isolation_result =
+            test_batch_validation_isolation(&secreton_client, &crypto_engine, &satker_users).await;
+        assert!(
+            batch_isolation_result,
+            "Batch validation should maintain isolation"
+        );
     }
 
     #[tokio::test]
@@ -316,7 +514,9 @@ mod comprehensive_secreton_integration_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let pq_token = create_post_quantum_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let pq_token = create_post_quantum_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test post-quantum key operations from authenc perspective
         let pq_operations = vec![
@@ -329,17 +529,28 @@ mod comprehensive_secreton_integration_tests {
         for (operation, expected_algorithm) in pq_operations {
             let pq_result = timeout(
                 Duration::from_secs(15),
-                secreton_client.perform_post_quantum_operation(&pq_token, operation, expected_algorithm)
-            ).await;
+                secreton_client.perform_post_quantum_operation(
+                    &pq_token,
+                    operation,
+                    expected_algorithm,
+                ),
+            )
+            .await;
 
             match pq_result {
                 Ok(Ok(pq_response)) => {
                     assert!(pq_response.is_post_quantum);
                     assert!(pq_response.algorithm.contains(expected_algorithm));
-                    println!("Post-quantum operation {} successful from authenc: {}", operation, expected_algorithm);
+                    println!(
+                        "Post-quantum operation {} successful from authenc: {}",
+                        operation, expected_algorithm
+                    );
                 }
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for PQ operation: {} (expected in test)", operation);
+                    println!(
+                        "Communication error for PQ operation: {} (expected in test)",
+                        operation
+                    );
                 }
                 Err(_) => panic!("Post-quantum operation should not timeout: {}", operation),
             }
@@ -347,7 +558,10 @@ mod comprehensive_secreton_integration_tests {
 
         // Test hybrid cryptographic mode
         let hybrid_result = test_hybrid_crypto_mode(&secreton_client, &pq_token).await;
-        assert!(hybrid_result, "Hybrid cryptographic mode should work properly");
+        assert!(
+            hybrid_result,
+            "Hybrid cryptographic mode should work properly"
+        );
     }
 
     #[tokio::test]
@@ -385,8 +599,9 @@ mod comprehensive_secreton_integration_tests {
                 for secret_path in operations {
                     let result = timeout(
                         Duration::from_secs(10),
-                        client.get_secret_with_token(&token, &secret_path)
-                    ).await;
+                        client.get_secret_with_token(&token, &secret_path),
+                    )
+                    .await;
 
                     results.push((secret_path, result.is_ok()));
                 }
@@ -404,7 +619,11 @@ mod comprehensive_secreton_integration_tests {
         for result in concurrent_results {
             match result {
                 Ok((satker, operations)) => {
-                    println!("Concurrent secreton operations completed from authenc for {}: {} operations", satker, operations.len());
+                    println!(
+                        "Concurrent secreton operations completed from authenc for {}: {} operations",
+                        satker,
+                        operations.len()
+                    );
                     assert!(operations.len() > 0);
                 }
                 Err(e) => panic!("Concurrent secreton operations failed: {:?}", e),
@@ -419,13 +638,15 @@ mod comprehensive_secreton_integration_tests {
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
 
         let test_user = create_test_user("198001012000011001", "KEJATI_DKI_JAKPUS");
-        let token = create_authenc_token(&crypto_engine, &test_user).await.unwrap();
+        let token = create_authenc_token(&crypto_engine, &test_user)
+            .await
+            .unwrap();
 
         // Test circuit breaker states
         let circuit_breaker_states = vec![
-            "closed",      // Normal operation
-            "open",        // Circuit breaker open due to failures
-            "half_open",   // Testing if service is back
+            "closed",    // Normal operation
+            "open",      // Circuit breaker open due to failures
+            "half_open", // Testing if service is back
         ];
 
         for state in circuit_breaker_states {
@@ -433,30 +654,32 @@ mod comprehensive_secreton_integration_tests {
 
             let circuit_result = timeout(
                 Duration::from_secs(5),
-                secreton_client.test_circuit_breaker_state(&token, state)
-            ).await;
+                secreton_client.test_circuit_breaker_state(&token, state),
+            )
+            .await;
 
             match circuit_result {
-                Ok(Ok(breaker_response)) => {
-                    match state {
-                        "closed" => {
-                            assert!(breaker_response.requests_allowed);
-                            println!("Circuit breaker closed: requests flowing normally");
-                        }
-                        "open" => {
-                            assert!(!breaker_response.requests_allowed);
-                            assert!(breaker_response.using_fallback);
-                            println!("Circuit breaker open: using fallback mechanisms");
-                        }
-                        "half_open" => {
-                            assert!(breaker_response.limited_requests);
-                            println!("Circuit breaker half-open: testing service recovery");
-                        }
-                        _ => {}
+                Ok(Ok(breaker_response)) => match state {
+                    "closed" => {
+                        assert!(breaker_response.requests_allowed);
+                        println!("Circuit breaker closed: requests flowing normally");
                     }
-                }
+                    "open" => {
+                        assert!(!breaker_response.requests_allowed);
+                        assert!(breaker_response.using_fallback);
+                        println!("Circuit breaker open: using fallback mechanisms");
+                    }
+                    "half_open" => {
+                        assert!(breaker_response.limited_requests);
+                        println!("Circuit breaker half-open: testing service recovery");
+                    }
+                    _ => {}
+                },
                 Ok(Err(OptimizedAuthencError::SecretonCommunicationError { .. })) => {
-                    println!("Communication error for circuit breaker test: {} (expected)", state);
+                    println!(
+                        "Communication error for circuit breaker test: {} (expected)",
+                        state
+                    );
                 }
                 Err(_) => {
                     println!("Circuit breaker test timeout: {} (acceptable)", state);
@@ -466,7 +689,10 @@ mod comprehensive_secreton_integration_tests {
     }
 
     // Helper function to test authenc graceful degradation
-    async fn test_authenc_graceful_degradation(secreton_client: &SecretonClient, token: &str) -> bool {
+    async fn test_authenc_graceful_degradation(
+        secreton_client: &SecretonClient,
+        token: &str,
+    ) -> bool {
         // Test that authenc can operate with limited functionality when secreton is unavailable
         let degraded_operations = vec![
             "cached_secret_retrieval",
@@ -479,8 +705,9 @@ mod comprehensive_secreton_integration_tests {
         for operation in degraded_operations {
             let result = timeout(
                 Duration::from_secs(3),
-                secreton_client.perform_degraded_operation(token, operation)
-            ).await;
+                secreton_client.perform_degraded_operation(token, operation),
+            )
+            .await;
 
             match result {
                 Ok(Ok(_)) => {
@@ -488,10 +715,16 @@ mod comprehensive_secreton_integration_tests {
                     println!("Authenc degraded operation {} successful", operation);
                 }
                 Ok(Err(_)) => {
-                    println!("Authenc degraded operation {} failed (acceptable)", operation);
+                    println!(
+                        "Authenc degraded operation {} failed (acceptable)",
+                        operation
+                    );
                 }
                 Err(_) => {
-                    println!("Authenc degraded operation {} timed out (acceptable)", operation);
+                    println!(
+                        "Authenc degraded operation {} timed out (acceptable)",
+                        operation
+                    );
                 }
             }
         }
@@ -503,7 +736,7 @@ mod comprehensive_secreton_integration_tests {
     async fn test_batch_validation_isolation(
         secreton_client: &SecretonClient,
         crypto_engine: &CryptoEngine,
-        satker_users: &[(&str, User)]
+        satker_users: &[(&str, User)],
     ) -> bool {
         for (satker_code, user) in satker_users {
             let token = create_authenc_token(crypto_engine, user).await.unwrap();
@@ -511,16 +744,19 @@ mod comprehensive_secreton_integration_tests {
             // Create batch request with mixed satker secrets
             let mixed_paths: Vec<String> = satker_users
                 .iter()
-                .flat_map(|(s, _)| vec![
-                    format!("secrets/{}/config", s),
-                    format!("secrets/{}/credentials", s),
-                ])
+                .flat_map(|(s, _)| {
+                    vec![
+                        format!("secrets/{}/config", s),
+                        format!("secrets/{}/credentials", s),
+                    ]
+                })
                 .collect();
 
             let batch_result = timeout(
                 Duration::from_secs(15),
-                secreton_client.batch_validate_secret_access(&token, &mixed_paths)
-            ).await;
+                secreton_client.batch_validate_secret_access(&token, &mixed_paths),
+            )
+            .await;
 
             match batch_result {
                 Ok(Ok(validations)) => {
@@ -558,13 +794,17 @@ mod comprehensive_secreton_integration_tests {
         for (mode, expected_algorithms) in hybrid_operations {
             let result = timeout(
                 Duration::from_secs(10),
-                secreton_client.test_crypto_mode(pq_token, mode)
-            ).await;
+                secreton_client.test_crypto_mode(pq_token, mode),
+            )
+            .await;
 
             match result {
                 Ok(Ok(crypto_response)) => {
                     for algorithm in expected_algorithms.split('+') {
-                        if !crypto_response.supported_algorithms.contains(&algorithm.to_string()) {
+                        if !crypto_response
+                            .supported_algorithms
+                            .contains(&algorithm.to_string())
+                        {
                             return false;
                         }
                     }
@@ -649,11 +889,14 @@ fn create_secreton_access_policy(satker_code: &str) -> authenc::models::Secreton
     }
 }
 
-fn create_admin_secreton_access_policy(admin_level: &str, admin_satker: &str) -> authenc::models::SecretonAccessPolicy {
+fn create_admin_secreton_access_policy(
+    admin_level: &str,
+    admin_satker: &str,
+) -> authenc::models::SecretonAccessPolicy {
     let allowed_satker = match admin_level {
         "AdminPusat" | "AdminEselonI" => vec!["*".to_string()], // Access to all satker
-        "AdminWilayah" => vec![format!("{}*", admin_satker)], // Access to wilayah satker
-        "AdminSatker" => vec![admin_satker.to_string()], // Access to own satker only
+        "AdminWilayah" => vec![format!("{}*", admin_satker)],   // Access to wilayah satker
+        "AdminSatker" => vec![admin_satker.to_string()],        // Access to own satker only
         _ => vec![admin_satker.to_string()],
     };
 
@@ -674,7 +917,10 @@ fn create_security_context(cert_type: &str, satker_code: &str) -> authenc::model
     }
 }
 
-async fn create_authenc_token(crypto_engine: &CryptoEngine, user: &User) -> Result<String, OptimizedAuthencError> {
+async fn create_authenc_token(
+    crypto_engine: &CryptoEngine,
+    user: &User,
+) -> Result<String, OptimizedAuthencError> {
     let claims = json!({
         "sub": user.id,
         "nip": user.nip,
@@ -687,7 +933,10 @@ async fn create_authenc_token(crypto_engine: &CryptoEngine, user: &User) -> Resu
     crypto_engine.sign_jwt_for_government(&claims).await
 }
 
-async fn create_post_quantum_authenc_token(crypto_engine: &CryptoEngine, user: &User) -> Result<String, OptimizedAuthencError> {
+async fn create_post_quantum_authenc_token(
+    crypto_engine: &CryptoEngine,
+    user: &User,
+) -> Result<String, OptimizedAuthencError> {
     let claims = json!({
         "sub": user.id,
         "nip": user.nip,

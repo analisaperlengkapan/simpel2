@@ -1,0 +1,237 @@
+# SIMPelv2 ServiceMonitor Resources
+# Prometheus service discovery for monitoring all services
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simpelv2-infrastructure
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: simpelv2
+  namespaceSelector:
+    matchNames:
+    - simpelv2-infra
+  endpoints:
+  - ptp
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  - port: postgres
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  - port: redis
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simpelv2-backend-services
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: simpelv2
+  namespaceSelector:
+    matchNames:
+    - simpelv2-backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simpelv2-frontend-services
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: simpelv2
+  namespaceSelector:
+    matchNames:
+    - simpelv2-frontend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simpelv2-authenc
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: authenc
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: authenc
+  namespaceSelector:
+    matchNames:
+    - simpelv2-infra
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simpelv2-secreton
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: secreton
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: secreton
+  namespaceSelector:
+    matchNames:
+    - simpelv2-infra
+  endpoints:
+  - port: http
+    path: /v1/sys/metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+# Kubernetes system monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-apiservers
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: kubernetes
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      component: apiserver
+      provider: kubernetes
+  namespaceSelector:
+    matchNames:
+    - default
+  endpoints:
+  - port: https
+    interval: 30s
+    scheme: https
+    tlsConfig:
+      caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-nodes
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: kubernetes
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node-exporter
+  endpoints:
+  - port: metrics
+    interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-pods
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: kubernetes
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchExpressions:
+    - key: prometheus.io/scrape
+      operator: In
+      values: ["true"]
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# Monitoring stack self-monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  endpoints:
+  - port: web
+    path: /metrics
+    interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: grafana-self
+ce: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  endpoints:
+  - port: web
+    path: /metrics
+    interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alertmanager-self
+  namespace: simpelv2-monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+  endpoints:
+  - port: web
+    path: /metrics
+    interval: 30s

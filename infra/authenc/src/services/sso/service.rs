@@ -219,8 +219,8 @@ impl SsoService for DefaultSsoService {
                 idle_timeout,
                 max_lifespan,
                 remember_me: false, // remember_me would come from request
-                ip_address: None,  // ip_address would come from HTTP request
-                user_agent: None,  // user_agent would come from HTTP request
+                ip_address: None,   // ip_address would come from HTTP request
+                user_agent: None,   // user_agent would come from HTTP request
             })
             .await?;
 

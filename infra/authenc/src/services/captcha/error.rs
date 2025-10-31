@@ -279,7 +279,11 @@ impl CaptchaError {
     /// Get recovery strategy for this error
     pub fn recovery_strategy(&self) -> RecoveryStrategy {
         match self {
-            CaptchaError::GenerationFailed { recoverable, retry_after, .. } => {
+            CaptchaError::GenerationFailed {
+                recoverable,
+                retry_after,
+                ..
+            } => {
                 if *recoverable {
                     RecoveryStrategy::Retry {
                         max_attempts: 3,
@@ -293,7 +297,9 @@ impl CaptchaError {
                     }
                 }
             }
-            CaptchaError::SecreonUnavailable { fallback_available, .. } => {
+            CaptchaError::SecreonUnavailable {
+                fallback_available, ..
+            } => {
                 if *fallback_available {
                     RecoveryStrategy::Fallback {
                         fallback_type: FallbackType::LocalEncryption,
@@ -306,13 +312,15 @@ impl CaptchaError {
                     }
                 }
             }
-            CaptchaError::MonitoringUnavailable { .. } => {
-                RecoveryStrategy::Fallback {
-                    fallback_type: FallbackType::CachedResponse,
-                    degraded_functionality: true,
-                }
-            }
-            CaptchaError::DatabaseError { transient, retry_after, .. } => {
+            CaptchaError::MonitoringUnavailable { .. } => RecoveryStrategy::Fallback {
+                fallback_type: FallbackType::CachedResponse,
+                degraded_functionality: true,
+            },
+            CaptchaError::DatabaseError {
+                transient,
+                retry_after,
+                ..
+            } => {
                 if *transient {
                     RecoveryStrategy::Retry {
                         max_attempts: 5,
@@ -326,13 +334,11 @@ impl CaptchaError {
                     }
                 }
             }
-            CaptchaError::RateLimitExceeded { reset_time, .. } => {
-                RecoveryStrategy::Retry {
-                    max_attempts: 1,
-                    delay: *reset_time,
-                    exponential_backoff: false,
-                }
-            }
+            CaptchaError::RateLimitExceeded { reset_time, .. } => RecoveryStrategy::Retry {
+                max_attempts: 1,
+                delay: *reset_time,
+                exponential_backoff: false,
+            },
             CaptchaError::AccessibilityUnavailable { alternatives, .. } => {
                 if !alternatives.is_empty() {
                     RecoveryStrategy::Fallback {
@@ -359,13 +365,11 @@ impl CaptchaError {
                     }
                 }
             }
-            CaptchaError::SystemOverloaded { retry_after, .. } => {
-                RecoveryStrategy::Retry {
-                    max_attempts: 3,
-                    delay: *retry_after,
-                    exponential_backoff: false,
-                }
-            }
+            CaptchaError::SystemOverloaded { retry_after, .. } => RecoveryStrategy::Retry {
+                max_attempts: 3,
+                delay: *retry_after,
+                exponential_backoff: false,
+            },
             _ => RecoveryStrategy::ManualIntervention {
                 contact_info: "support@example.com".to_string(),
                 ticket_id: None,
@@ -470,11 +474,17 @@ impl CaptchaError {
     pub fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            CaptchaError::GenerationFailed { recoverable: true, .. } |
-            CaptchaError::SecreonUnavailable { fallback_available: true, .. } |
-            CaptchaError::DatabaseError { transient: true, .. } |
-            CaptchaError::NetworkTimeout { .. } |
-            CaptchaError::SystemOverloaded { .. }
+            CaptchaError::GenerationFailed {
+                recoverable: true,
+                ..
+            } | CaptchaError::SecreonUnavailable {
+                fallback_available: true,
+                ..
+            } | CaptchaError::DatabaseError {
+                transient: true,
+                ..
+            } | CaptchaError::NetworkTimeout { .. }
+                | CaptchaError::SystemOverloaded { .. }
         )
     }
 
@@ -594,7 +604,9 @@ pub trait IntoCaptchaError {
 
 impl IntoCaptchaError for tokio_postgres::Error {
     fn into_captcha_error(self, context: &str) -> CaptchaError {
-        let transient = self.is_closed() || format!("{:?}", self).contains("timeout") || format!("{:?}", self).contains("connection");
+        let transient = self.is_closed()
+            || format!("{:?}", self).contains("timeout")
+            || format!("{:?}", self).contains("connection");
 
         CaptchaError::DatabaseError {
             message: format!("{}: {}", context, self),
@@ -639,7 +651,11 @@ mod tests {
         };
 
         match error.recovery_strategy() {
-            RecoveryStrategy::Retry { max_attempts, delay, .. } => {
+            RecoveryStrategy::Retry {
+                max_attempts,
+                delay,
+                ..
+            } => {
                 assert_eq!(max_attempts, 3);
                 assert_eq!(delay, Duration::from_secs(1));
             }

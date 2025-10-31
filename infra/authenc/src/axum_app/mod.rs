@@ -107,7 +107,12 @@ impl AxumApp {
         Self { state, router }
     }
 
-    /// Run the Axum server
+    /// Get the router for use in dual server setup
+    pub fn into_router(self) -> Router {
+        self.router
+    }
+
+    /// Run the Axum server (standalone mode)
     pub async fn run(self) -> Result<()> {
         let addr = SocketAddr::from(([0, 0, 0, 0], self.state.config.server.port));
         info!("🌐 Server starting on {}", addr);

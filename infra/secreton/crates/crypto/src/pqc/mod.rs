@@ -7,7 +7,7 @@ pub mod constant_time;
 pub mod falcon;
 pub mod mldsa;
 pub mod mlkem;
-pub mod zeroize;
+pub mod secure_keys;
 
 use crate::error::CryptoError;
 use serde::{Deserialize, Serialize};

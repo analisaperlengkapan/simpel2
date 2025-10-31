@@ -1,4 +1,4 @@
-//! Error handling for the Brankas API.
+//! Error handling for the Secreton API.
 
 use axum::{
     http::StatusCode,
@@ -25,7 +25,7 @@ pub enum ApiError {
     RateLimit { message: String },
 
     #[error("Validation error: {message}")]
-    Validation { 
+    Validation {
         message: String,
         field: Option<String>,
         details: Option<HashMap<String, String>>,
@@ -43,23 +43,32 @@ pub enum ApiError {
     #[error("Bad request: {message}")]
     BadRequest { message: String },
 
+    #[error("Unauthorized")]
+    Unauthorized,
+
+    #[error("Forbidden")]
+    Forbidden,
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
     #[error("Request timeout")]
     Timeout,
 
     #[error("Request entity too large")]
     PayloadTooLarge,
 
-    #[error("Internal server error: {0}")]
-    Internal(#[from] anyhow::Error),
+    #[error("Internal server error: {message}")]
+    Internal { message: String },
 
     #[error("Core error: {0}")]
-    Core(#[from] brankas_core::error::CoreError),
+    Core(#[from] secreton_core::error::CoreError),
 
     #[error("Crypto error: {0}")]
-    Crypto(#[from] brankas_crypto::CryptoError),
+    Crypto(#[from] secreton_crypto::CryptoError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] brankas_storage::StorageError),
+    Storage(#[from] secreton_storage::StorageError),
 
     #[error("Authentication service error: {0}")]
     Auth(#[from] crate::services::auth::AuthError),
@@ -71,6 +80,9 @@ impl ApiError {
         match self {
             Self::Authentication { .. } => StatusCode::UNAUTHORIZED,
             Self::Authorization { .. } => StatusCode::FORBIDDEN,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             Self::RateLimit { .. } => StatusCode::TOO_MANY_REQUESTS,
             Self::Validation { .. } => StatusCode::BAD_REQUEST,
             Self::NotFound { .. } => StatusCode::NOT_FOUND,
@@ -79,7 +91,7 @@ impl ApiError {
             Self::Timeout => StatusCode::REQUEST_TIMEOUT,
             Self::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::ServiceUnavailable { .. } => StatusCode::SERVICE_UNAVAILABLE,
-            Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Internal { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Core(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Crypto(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -110,7 +122,7 @@ impl ApiError {
             Self::Timeout => "REQUEST_TIMEOUT",
             Self::PayloadTooLarge => "PAYLOAD_TOO_LARGE",
             Self::ServiceUnavailable { .. } => "SERVICE_UNAVAILABLE",
-            Self::Internal(_) => "INTERNAL_ERROR",
+            Self::Internal { .. } => "INTERNAL_ERROR",
             Self::Core(_) => "CORE_ERROR",
             Self::Crypto(_) => "CRYPTO_ERROR",
             Self::Storage(_) => "STORAGE_ERROR",
@@ -133,17 +145,25 @@ impl ApiError {
         match self {
             Self::Validation { field, details, .. } => {
                 let mut error_details = HashMap::new();
-                
+
                 if let Some(field) = field {
-                    error_details.insert("field".to_string(), serde_json::Value::String(field.clone()));
+                    error_details.insert(
+                        "field".to_string(),
+                        serde_json::Value::String(field.clone()),
+                    );
                 }
-                
+
                 if let Some(details) = details {
-                    error_details.insert("validation_errors".to_string(), serde_json::to_value(details).unwrap_or_default());
+                    error_details.insert(
+                        "validation_errors".to_string(),
+                        serde_json::to_value(details).unwrap_or_default(),
+                    );
                 }
-                
+
                 if !error_details.is_empty() {
-                    Some(serde_json::Value::Object(error_details.into_iter().collect()))
+                    Some(serde_json::Value::Object(
+                        error_details.into_iter().collect(),
+                    ))
                 } else {
                     None
                 }
@@ -229,6 +249,23 @@ impl ApiError {
     pub fn service_unavailable<S: Into<String>>(message: S) -> Self {
         Self::ServiceUnavailable {
             message: message.into(),
+        }
+    }
+
+    /// Create internal error
+    pub fn internal<S: Into<String>>(message: S) -> Self {
+        Self::Internal {
+            message: message.into(),
+        }
+    }
+
+    /// Create internal error with source
+    pub fn internal_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+        message: S,
+        source: E,
+    ) -> Self {
+        Self::Internal {
+            message: format!("{}: {}", message.into(), source),
         }
     }
 }
@@ -338,11 +375,15 @@ mod tests {
             .build();
 
         match error {
-            ApiError::Validation { message, field, details } => {
+            ApiError::Validation {
+                message,
+                field,
+                details,
+            } => {
                 assert_eq!(message, "Invalid data");
                 assert_eq!(field, Some("username".to_string()));
                 assert!(details.is_some());
-                let details = details.unwrap();
+                let details = details;
                 assert_eq!(details.get("min_length"), Some(&"3".to_string()));
                 assert_eq!(details.get("pattern"), Some(&"alphanumeric".to_string()));
             }
@@ -362,7 +403,7 @@ mod tests {
         let bytes = runtime
             .block_on(hyper::body::to_bytes(body))
             .expect("read body");
-        let payload: ApiResponse<Option<serde_json::Value>> = serde_json::from_slice(&bytes).unwrap();
+        let payload: ApiResponse<Option<serde_json::Value>> = serde_json::from_slice(&bytes);
 
         assert!(!payload.success);
         assert!(payload.data.is_none());
@@ -377,9 +418,15 @@ mod tests {
         details.insert("field1".to_string(), "missing".to_string());
         details.insert("field2".to_string(), "invalid".to_string());
 
-        let error = ApiError::validation_with_details("Multiple issues", Some("root".to_string()), details);
+        let error =
+            ApiError::validation_with_details("Multiple issues", Some("root".to_string()), details);
 
-        if let ApiError::Validation { message, field, details } = error {
+        if let ApiError::Validation {
+            message,
+            field,
+            details,
+        } = error
+        {
             assert_eq!(message, "Multiple issues");
             assert_eq!(field, Some("root".to_string()));
             let details = details.expect("details map");

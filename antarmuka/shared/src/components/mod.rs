@@ -15,7 +15,9 @@ pub mod layout;
 pub mod logo;
 pub mod monitoring_dashboard;
 pub mod navigation;
+pub mod notifications;
 pub mod optimized_image;
+pub mod search;
 pub mod security_meta;
 pub mod theme_editor;
 
@@ -33,6 +35,9 @@ pub use layout::*;
 pub use logo::*;
 pub use monitoring_dashboard::*;
 pub use navigation::{AppHeader, Breadcrumb};
+pub use notifications::*;
+// Image optimization components (includes Avatar, OptimizedImage)
 pub use optimized_image::*;
+pub use search::*;
 pub use security_meta::*;
 pub use theme_editor::*;

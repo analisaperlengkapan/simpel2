@@ -28,6 +28,8 @@ pub mod security_testing;
 // Storage services
 /// Group data storage and management
 pub mod group_store;
+/// JWT validation service with caching support
+pub mod jwt_validator;
 /// OIDC client storage and management
 pub mod oidc_client_store;
 /// OIDC authorization code storage
@@ -51,6 +53,10 @@ pub mod totp_store;
 pub mod mfa_admin_service;
 /// MFA audit logging with enhanced security context
 pub mod mfa_audit_logger;
+/// MFA client with automatic fallback and sync
+pub mod mfa_fallback_client;
+/// Local encrypted storage fallback for MFA secrets
+pub mod mfa_local_storage;
 /// MFA performance monitoring and metrics collection
 pub mod mfa_performance_monitor;
 /// MFA security monitoring and anomaly detection service
@@ -58,12 +64,17 @@ pub mod mfa_security_monitor;
 /// Multi-Factor Authentication service wrapper
 pub mod mfa_service;
 
+/// Automatic key rotation service for enhanced security
+pub mod key_rotation;
+
 /// AI-resistant CAPTCHA service for bot detection and prevention
 pub mod captcha;
 
 // Caching services
 /// Caching services for performance optimization
 pub mod cache;
+/// Cache invalidation event listener for automatic cache management
+pub mod cache_invalidation_listener;
 /// Database optimization for MFA operations
 pub mod database_optimizer;
 
@@ -95,12 +106,22 @@ pub mod stores {
 pub use stores::*;
 
 // Audit and logging services
+/// Comprehensive audit event helpers
+pub mod audit_events;
+/// Audit integrity checker for periodic verification
+pub mod audit_integrity;
 /// Audit log sink interface and implementations
 pub mod audit_log_sink;
+/// Audit signature service for tamper-proof logging
+pub mod audit_signature;
 /// Elasticsearch-based audit log streaming for SIEM integration
 pub mod elasticsearch_audit_log_sink;
+/// Enhanced audit logging with comprehensive context capture
+pub mod enhanced_audit;
 /// Event listener implementations
 pub mod event_listeners;
+/// Enhanced event publisher with reliability features
+pub mod event_publisher;
 /// Event retention and lifecycle management
 pub mod event_retention;
 #[cfg(test)]
@@ -215,5 +236,18 @@ pub use mfa_service::{MfaService, MfaSetupResponse, MfaStatus};
 pub use captcha::{
     BehavioralAnalyzer, BehavioralAnalyzerTrait, BehavioralMetrics, CaptchaError, CaptchaService,
     CaptchaServiceTrait, Challenge, ChallengeGenerator, ChallengeGeneratorTrait,
-    ChallengeValidatorTrait, ValidationResult,
+    ChallengeValidatorTrait, ValidationResult as CaptchaValidationResult,
+};
+
+// Event publishing services
+pub use event_publisher::{DlqEntry, EventPublisher, EventPublisherConfig, PublishableEvent};
+
+// JWT validation services
+pub use jwt_validator::{JwtValidator, ValidationResult as JwtValidationResult};
+
+// Audit event helpers
+pub use audit_events::{
+    create_mfa_disabled_admin_event, create_mfa_disabled_event, create_mfa_enabled_admin_event,
+    create_mfa_enabled_event, create_password_changed_event, create_permission_granted_admin_event,
+    create_permission_revoked_admin_event, create_user_login_event, create_user_logout_event,
 };

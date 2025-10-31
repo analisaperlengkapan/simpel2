@@ -205,6 +205,21 @@ pub fn generate_jwt(user_id: &str) -> Result<String, String> {
 /// assert_eq!(claims.sub, "user123");
 /// ```
 pub fn verify_jwt(token: &str) -> Result<Claims, String> {
+    verify_jwt_internal(token, false)
+}
+
+/// Internal JWT verification function with optional blacklist checking
+///
+/// This is the core verification logic that can optionally skip blacklist checks
+/// for performance when called from cached validation paths.
+///
+/// # Arguments
+/// * `token` - The JWT token string to verify and decode
+/// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
+///
+/// # Returns
+/// A `Result` containing the decoded `Claims` on success, or an error string on failure
+fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         return Err("Invalid JWT format".to_string());
@@ -250,6 +265,87 @@ pub fn verify_jwt(token: &str) -> Result<Claims, String> {
     }
 
     Ok(claims)
+}
+
+/// Compute SHA-256 hash of a token for cache key generation
+///
+/// Creates a deterministic hash of the token that can be used as a cache key.
+/// This allows for efficient cache lookups without storing the full token.
+///
+/// # Arguments
+/// * `token` - The JWT token string to hash
+///
+/// # Returns
+/// A hex-encoded SHA-256 hash of the token
+pub fn hash_token(token: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Generate a refresh token with longer expiration (30 days)
+///
+/// Creates a JWT refresh token that can be used to obtain new access tokens.
+/// Refresh tokens have a longer lifetime than access tokens.
+///
+/// # Arguments
+/// * `user_id` - The user identifier to include in the token's subject claim
+///
+/// # Returns
+/// A `Result` containing the refresh token string on success, or an error string on failure
+///
+/// # Security Considerations
+/// - Refresh tokens expire after 30 days
+/// - Should be stored securely (httpOnly cookies recommended)
+/// - Should be rotated on each use
+/// - Uses Ed25519 for cryptographic signing
+pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
+    let expiration = SystemTime::now()
+        .checked_add(Duration::from_secs(30 * 24 * 60 * 60)) // 30 days
+        .unwrap()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+
+    let claims = Claims {
+        sub: user_id.to_owned(),
+        exp: expiration,
+    };
+
+    // Create JWT header
+    let header = r#"{"alg":"EdDSA","typ":"JWT"}"#;
+
+    // Encode header and payload
+    let header_b64 = Base64UrlUnpadded::encode_string(header.as_bytes());
+    let payload_json =
+        serde_json::to_string(&claims).map_err(|e| format!("Failed to serialize claims: {}", e))?;
+    let payload_b64 = Base64UrlUnpadded::encode_string(payload_json.as_bytes());
+
+    // Create message to sign
+    let message = format!("{}.{}", header_b64, payload_b64);
+
+    // Sign with Ed25519
+    let signature = sign_ed25519(message.as_bytes());
+    let signature_b64 = Base64UrlUnpadded::encode_string(&signature.to_bytes());
+
+    // Combine into JWT
+    Ok(format!("{}.{}.{}", header_b64, payload_b64, signature_b64))
+}
+
+/// Verify and decode a refresh token
+///
+/// Validates the signature and expiration of a refresh token.
+/// This is identical to verify_jwt but semantically distinct for refresh tokens.
+///
+/// # Arguments
+/// * `token` - The refresh token string to verify and decode
+///
+/// # Returns
+/// A `Result` containing the decoded `Claims` on success, or an error string on failure
+pub fn verify_refresh_token(token: &str) -> Result<Claims, String> {
+    // Refresh tokens use the same verification as access tokens
+    verify_jwt(token)
 }
 
 #[cfg(test)]

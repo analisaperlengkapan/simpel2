@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use secreton_storage::{
-    EncryptionMetadata, MockStorageBackend, QueryParams, SecurityLevel, StorageBackend,
+    EncryptionMetadata, MemoryBackend, QueryParams, SecurityLevel, StorageBackend,
     StorageConfig, StorageError, VaultEntry,
 };
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_basic_operations() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Test basic store and retrieve
         let entry = VaultEntry::new(
@@ -55,7 +55,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_update_operations() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Create initial entry
         let mut entry = VaultEntry::new(
@@ -91,7 +91,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_delete_operations() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Create and store entry
         let entry = VaultEntry::new(
@@ -148,7 +148,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_list_operations() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Create test entries with different paths
         let entries = vec![
@@ -202,7 +202,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_error_conditions() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Test retrieving non-existent entry
         let not_found = storage.get_by_path("nonexistent").await?;
@@ -236,7 +236,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_health_check() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         let health = storage.health_check().await?;
 
@@ -249,7 +249,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_statistics() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Add some test data
         for i in 0..5 {
@@ -281,7 +281,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_transaction_simulation() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Test transaction creation (mock implementation)
         let mut tx = storage.begin_transaction().await?;
@@ -313,7 +313,7 @@ mod storage_backend_tests {
 
     #[tokio::test]
     async fn test_mock_storage_backend_migration() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
 
         // Migration should complete without errors for mock backend
         storage.migrate().await?;
@@ -448,7 +448,7 @@ mod storage_integration_tests {
 
     #[tokio::test]
     async fn test_concurrent_storage_operations() -> Result<()> {
-        let storage = std::sync::Arc::new(MockStorageBackend::new());
+        let storage = std::sync::Arc::new(MemoryBackend::new());
         let mut handles = Vec::new();
 
         // Test concurrent writes
@@ -488,7 +488,7 @@ mod storage_integration_tests {
 
     #[tokio::test]
     async fn test_storage_performance_benchmarks() -> Result<()> {
-        let storage = MockStorageBackend::new();
+        let storage = MemoryBackend::new();
         let num_operations = 100;
 
         // Benchmark writes

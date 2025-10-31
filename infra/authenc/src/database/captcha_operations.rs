@@ -4,12 +4,11 @@
 
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
-use crate::services::captcha::{
-    Challenge, BehavioralMetrics, ChallengeType, RiskLevel,
-    BehaviorClassification,
-};
 use crate::services::captcha::metrics::{
-    PerformanceMetrics, BotDetectionMetrics, UserExperienceMetrics, SecurityEventMetrics,
+    BotDetectionMetrics, PerformanceMetrics, SecurityEventMetrics, UserExperienceMetrics,
+};
+use crate::services::captcha::{
+    BehaviorClassification, BehavioralMetrics, Challenge, ChallengeType, RiskLevel,
 };
 use serde_json;
 use std::net::IpAddr;
@@ -50,7 +49,9 @@ impl CaptchaOperations {
             ChallengeType::Hybrid => "Hybrid",
         };
 
-        let ip_addr: IpAddr = challenge.ip_address.parse()
+        let ip_addr: IpAddr = challenge
+            .ip_address
+            .parse()
             .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
 
         let query = r#"
@@ -102,11 +103,7 @@ impl CaptchaOperations {
     }
 
     /// Update challenge attempts and solved status
-    pub async fn update_challenge_status(
-        &self,
-        challenge_id: &str,
-        solved: bool,
-    ) -> Result<()> {
+    pub async fn update_challenge_status(&self, challenge_id: &str, solved: bool) -> Result<()> {
         let challenge_uuid = Uuid::parse_str(challenge_id)
             .map_err(|_| AuthencError::validation("Invalid challenge ID format"))?;
 
@@ -139,17 +136,23 @@ impl CaptchaOperations {
 
         let metrics_id = Uuid::new_v4();
 
-        let mouse_movements_json = serde_json::to_value(&metrics.mouse_movements)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize mouse movements: {}", e)))?;
+        let mouse_movements_json = serde_json::to_value(&metrics.mouse_movements).map_err(|e| {
+            AuthencError::internal(&format!("Failed to serialize mouse movements: {}", e))
+        })?;
 
-        let keystroke_dynamics_json = serde_json::to_value(&metrics.keystroke_dynamics)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize keystroke dynamics: {}", e)))?;
+        let keystroke_dynamics_json =
+            serde_json::to_value(&metrics.keystroke_dynamics).map_err(|e| {
+                AuthencError::internal(&format!("Failed to serialize keystroke dynamics: {}", e))
+            })?;
 
-        let timing_patterns_json = serde_json::to_value(&metrics.timing_patterns)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize timing patterns: {}", e)))?;
+        let timing_patterns_json = serde_json::to_value(&metrics.timing_patterns).map_err(|e| {
+            AuthencError::internal(&format!("Failed to serialize timing patterns: {}", e))
+        })?;
 
-        let browser_fingerprint_json = serde_json::to_value(&metrics.browser_fingerprint)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize browser fingerprint: {}", e)))?;
+        let browser_fingerprint_json =
+            serde_json::to_value(&metrics.browser_fingerprint).map_err(|e| {
+                AuthencError::internal(&format!("Failed to serialize browser fingerprint: {}", e))
+            })?;
 
         let classification_str = match metrics.classification {
             BehaviorClassification::Human => "Human",
@@ -202,7 +205,8 @@ impl CaptchaOperations {
 
         let attempt_id = Uuid::new_v4();
 
-        let ip_addr: IpAddr = ip_address.parse()
+        let ip_addr: IpAddr = ip_address
+            .parse()
             .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
 
         let risk_assessment_str = match risk_assessment {
@@ -229,7 +233,7 @@ impl CaptchaOperations {
                     &user_agent,
                     &answer_provided,
                     &success,
-                &confidence_score,
+                    &confidence_score,
                     &risk_assessment_str,
                     &behavioral_metrics_id,
                 ],
@@ -240,15 +244,18 @@ impl CaptchaOperations {
     }
 
     /// Get CAPTCHA difficulty for IP address
-    pub async fn get_difficulty_for_ip(&self, ip_address: &str, session_id: Option<&str>) -> Result<u8> {
-        let ip_addr: IpAddr = ip_address.parse()
+    pub async fn get_difficulty_for_ip(
+        &self,
+        ip_address: &str,
+        session_id: Option<&str>,
+    ) -> Result<u8> {
+        let ip_addr: IpAddr = ip_address
+            .parse()
             .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
 
         let query = "SELECT get_captcha_difficulty($1, $2)";
 
-        let row: tokio_postgres::Row = self.db
-            .query_one(query, &[&ip_addr, &session_id])
-            .await?;
+        let row: tokio_postgres::Row = self.db.query_one(query, &[&ip_addr, &session_id]).await?;
 
         let difficulty: i16 = row.get(0);
         Ok(difficulty as u8)
@@ -266,12 +273,14 @@ impl CaptchaOperations {
     ) -> Result<Uuid> {
         let adjustment_id = Uuid::new_v4();
 
-        let expires_at_secs = expires_at.map(|expires_at| {
-            expires_at
-                .duration_since(UNIX_EPOCH)
-                .map_err(|_| AuthencError::internal("Invalid expires_at timestamp"))
-                .map(|duration| duration.as_secs() as i64)
-        }).transpose()?;
+        let expires_at_secs = expires_at
+            .map(|expires_at| {
+                expires_at
+                    .duration_since(UNIX_EPOCH)
+                    .map_err(|_| AuthencError::internal("Invalid expires_at timestamp"))
+                    .map(|duration| duration.as_secs() as i64)
+            })
+            .transpose()?;
 
         let query = r#"
             INSERT INTO captcha_difficulty_adjustments (
@@ -327,7 +336,8 @@ impl CaptchaOperations {
         ip_address: &str,
         hours: i32,
     ) -> Result<Vec<ValidationAttempt>> {
-        let ip_addr: IpAddr = ip_address.parse()
+        let ip_addr: IpAddr = ip_address
+            .parse()
             .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
 
         let query = r#"
@@ -410,7 +420,7 @@ impl CaptchaOperations {
             )
             .await?;
 
-    Ok(())
+        Ok(())
     }
 
     /// Store bot detection metrics
@@ -421,8 +431,10 @@ impl CaptchaOperations {
             .map_err(|_| AuthencError::internal("Invalid timestamp"))?
             .as_secs() as i64;
 
-        let risk_distribution_json = serde_json::to_value(&metrics.risk_distribution)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize risk distribution: {}", e)))?;
+        let risk_distribution_json =
+            serde_json::to_value(&metrics.risk_distribution).map_err(|e| {
+                AuthencError::internal(&format!("Failed to serialize risk distribution: {}", e))
+            })?;
 
         let query = r#"
             INSERT INTO captcha_bot_detection_metrics (
@@ -457,18 +469,31 @@ impl CaptchaOperations {
     }
 
     /// Store user experience metrics
-    pub async fn store_user_experience_metrics(&self, metrics: &UserExperienceMetrics) -> Result<()> {
+    pub async fn store_user_experience_metrics(
+        &self,
+        metrics: &UserExperienceMetrics,
+    ) -> Result<()> {
         let timestamp_secs = metrics
             .timestamp
             .duration_since(UNIX_EPOCH)
             .map_err(|_| AuthencError::internal("Invalid timestamp"))?
             .as_secs() as i64;
 
-        let challenge_type_preferences_json = serde_json::to_value(&metrics.challenge_type_preferences)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize challenge type preferences: {}", e)))?;
+        let challenge_type_preferences_json =
+            serde_json::to_value(&metrics.challenge_type_preferences).map_err(|e| {
+                AuthencError::internal(&format!(
+                    "Failed to serialize challenge type preferences: {}",
+                    e
+                ))
+            })?;
 
         let difficulty_distribution_json = serde_json::to_value(&metrics.difficulty_distribution)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize difficulty distribution: {}", e)))?;
+            .map_err(|e| {
+            AuthencError::internal(&format!(
+                "Failed to serialize difficulty distribution: {}",
+                e
+            ))
+        })?;
 
         let query = r#"
             INSERT INTO captcha_user_experience_metrics (
@@ -507,11 +532,21 @@ impl CaptchaOperations {
             .map_err(|_| AuthencError::internal("Invalid timestamp"))?
             .as_secs() as i64;
 
-        let threat_level_distribution_json = serde_json::to_value(&metrics.threat_level_distribution)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize threat level distribution: {}", e)))?;
+        let threat_level_distribution_json =
+            serde_json::to_value(&metrics.threat_level_distribution).map_err(|e| {
+                AuthencError::internal(&format!(
+                    "Failed to serialize threat level distribution: {}",
+                    e
+                ))
+            })?;
 
         let geographic_distribution_json = serde_json::to_value(&metrics.geographic_distribution)
-            .map_err(|e| AuthencError::internal(&format!("Failed to serialize geographic distribution: {}", e)))?;
+            .map_err(|e| {
+            AuthencError::internal(&format!(
+                "Failed to serialize geographic distribution: {}",
+                e
+            ))
+        })?;
 
         let query = r#"
             INSERT INTO captcha_security_event_metrics (
@@ -600,10 +635,10 @@ fn row_to_challenge(row: Row) -> Result<Challenge> {
         _ => return Err(AuthencError::internal("Invalid challenge type in database")),
     };
 
-    let created_at_system = SystemTime::UNIX_EPOCH
-        + std::time::Duration::from_secs(created_at.timestamp() as u64);
-    let expires_at_system = SystemTime::UNIX_EPOCH
-        + std::time::Duration::from_secs(expires_at.timestamp() as u64);
+    let created_at_system =
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(created_at.timestamp() as u64);
+    let expires_at_system =
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(expires_at.timestamp() as u64);
 
     Ok(Challenge {
         id: id.to_string(),
@@ -663,7 +698,7 @@ mod tests {
             timing_patterns: TimingAnalysis::default(),
             browser_fingerprint: BrowserFingerprint::default(),
             risk_score: 0.5,
-classification: BehaviorClassification::Human,
+            classification: BehaviorClassification::Human,
         };
 
         // Test that serialization works

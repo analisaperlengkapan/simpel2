@@ -4,15 +4,24 @@ use tokio::sync::{Mutex, OnceCell};
 use tracing::{debug, warn};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::error::{SecretonError, Result};
+use crate::error::CoreError;
+
+type SecretonError = CoreError;
+type Result<T> = std::result::Result<T, CoreError>;
 
 /// Secure memory container for secrets that automatically zeroizes on drop
-#[derive(Debug, Clone, ZeroizeOnDrop)]
+#[derive(Debug, Clone)]
 pub struct SecureSecretMemory<T: Zeroize> {
     data: T,
     created_at: Instant,
     access_count: u64,
     sensitivity_level: SensitivityLevel,
+}
+
+impl<T: Zeroize> Drop for SecureSecretMemory<T> {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 /// Sensitivity level for memory management
@@ -83,10 +92,16 @@ impl<T: Zeroize> SecureSecretMemory<T> {
 }
 
 /// Secure string for secrets that zeroizes on drop
-#[derive(Debug, Clone, ZeroizeOnDrop)]
+#[derive(Debug, Clone)]
 pub struct SecureSecretString {
     data: String,
     sensitivity_level: SensitivityLevel,
+}
+
+impl Drop for SecureSecretString {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 impl SecureSecretString {
@@ -131,10 +146,16 @@ impl Zeroize for SecureSecretString {
 }
 
 /// Secure byte array for secret data that zeroizes on drop
-#[derive(Debug, Clone, ZeroizeOnDrop)]
+#[derive(Debug, Clone)]
 pub struct SecureSecretBytes {
     data: Vec<u8>,
     sensitivity_level: SensitivityLevel,
+}
+
+impl Drop for SecureSecretBytes {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 impl SecureSecretBytes {
@@ -206,7 +227,7 @@ impl<T> LazySecretCryptoContext<T> {
 
         let context = (self.initializer)()?;
         self.context.set(context)
-            .map_err(|_| SecretonError::from(CoreError::Internal(anyhow::anyhow!("Failed to initialize secret crypto context".to_string()))))?;
+            .map_err(|_| SecretonError::from(CoreError::internal("Failed to initialize secret crypto context")))?;
 
         Ok(self.context.get().unwrap())
     }
@@ -507,7 +528,7 @@ impl SecretMemoryOptimizer {
 
     /// Return a byte vector to the pool (will be zeroized)
     pub async fn return_vec(&self, v: Vec<u8>) {
-        self.vec_pool.return_object(v).awa
+        self.vec_pool.return_object(v).await
     }
 
     /// Get memory tracker
@@ -660,7 +681,7 @@ mod tests {
         let vec = optimizer.get_vec().await;
         optimizer.return_vec(vec).await;
 
-        let stats = optimizer.get_st;
+        let stats = optimizer.get_stats().await;
         assert_eq!(stats.string_pool_size, 1);
         assert_eq!(stats.vec_pool_size, 1);
     }

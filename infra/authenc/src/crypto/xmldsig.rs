@@ -2,17 +2,17 @@
 // Compliant with W3C XML Signature Syntax and Processing (Second Edition)
 // https://www.w3.org/TR/xmldsig-core/
 
-use anyhow::{anyhow, Result};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use anyhow::{Result, anyhow};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use chrono::{DateTime, Utc};
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::ocsp::{OcspCertId, OcspCertStatus, OcspRequest, OcspResponse, OcspResponseStatus};
 use openssl::pkey::{PKey, Public};
 use openssl::sign::Verifier;
 use openssl::x509::store::{X509Store, X509StoreBuilder};
-use openssl::x509::{X509Crl, X509StoreContext, X509};
-use quick_xml::events::Event;
+use openssl::x509::{X509, X509Crl, X509StoreContext};
 use quick_xml::Reader;
+use quick_xml::events::Event;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};

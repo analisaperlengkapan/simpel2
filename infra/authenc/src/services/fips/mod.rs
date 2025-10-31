@@ -621,7 +621,6 @@ impl FipsKeyStoreManager {
 
     /// Store secret in FIPS keystore
     pub async fn store_secret(&self, alias: &str, secret: &str) -> Result<()> {
-        
         use std::fs;
 
         // Note: PKCS12 is designed for certificates and keys, not arbitrary secrets

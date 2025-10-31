@@ -116,15 +116,13 @@ impl MfaAuditLogger {
 
     /// Log MFA audit event with enhanced context
     pub async fn log_mfa_event(&self, context: MfaAuditContext) -> Result<()> {
-        let mut event_builder = EventBuilder::new(
-            context.operation.to_event_type(),
-            self.realm_id.clone(),
-        )
-        .user_id(context.user_id.to_string())
-        .client_id("api".to_string())
-        .detail("operation", context.operation.description())
-        .detail("success", context.success.to_string())
-        .detail("correlation_id", context.correlation_id.clone());
+        let mut event_builder =
+            EventBuilder::new(context.operation.to_event_type(), self.realm_id.clone())
+                .user_id(context.user_id.to_string())
+                .client_id("api".to_string())
+                .detail("operation", context.operation.description())
+                .detail("success", context.success.to_string())
+                .detail("correlation_id", context.correlation_id.clone());
 
         // Add session ID if available
         if let Some(session_id) = &context.session_id {

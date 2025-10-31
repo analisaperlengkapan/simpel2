@@ -3,12 +3,15 @@ target = "index.html"
 dist = "dist"
 release = true
 
-# WASM optimization - enable all required features
+# WASM optimization - aggressive size reduction for code splitting
 [[build.wasm_opt]]
 args = [
-  "-O2",           # Moderate optimization
-  "--enable-all",  # Enable all features
-  "--strip-debug", # Remove debug information
+  "-Oz",               # Maximum size optimization
+  "--enable-all",      # Enable all features
+  "--strip-debug",     # Remove debug information
+  "--strip-producers", # Remove producer metadata
+  "--strip-dwarf",     # Remove DWARF debug info
+  "--vacuum",          # Remove unused code
 ]
 
 # Advanced wasm-bindgen configuration
@@ -19,13 +22,15 @@ debug = false                      # No debug in production
 demangle = false                   # No name demangling for size
 keep-debug = false                 # Remove debug info
 no-modules-global = "wasm_bindgen"
+reference-types = true             # Enable reference types for smaller code
+weak-refs = true                   # Enable weak references
 
 # Tree shaking and optimization
-
 [build.rust]
-optimization-level = "3" # High optimization (not maximum size)
+optimization-level = "z" # Maximum size optimization for code splitting
 debug = false
 lto = true
+codegen-units = 1        # Single codegen unit for better optimization
 
 # Server configuration - NO AUTO RELOAD
 [serve]

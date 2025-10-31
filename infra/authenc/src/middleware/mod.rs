@@ -26,6 +26,23 @@ pub mod auth_middleware_axum;
 /// Configurable limits per endpoint and user.
 pub mod rate_limit_axum;
 
+/// Adaptive rate limiting middleware for Axum
+///
+/// Implements adaptive rate limiting with threat level detection.
+/// Automatically adjusts rate limits based on failed authentication attempts
+/// and suspicious patterns. Supports multiple threat levels:
+/// - Normal: 100 requests/min
+/// - Elevated: 50 requests/min
+/// - High: 20 requests/min
+/// - Critical: 5 requests/min
+pub mod adaptive_rate_limit;
+
+/// Integration helpers for adaptive rate limiting
+///
+/// Provides utilities to integrate adaptive rate limiting with authentication
+/// handlers, automatically recording failed attempts and adjusting threat levels.
+pub mod adaptive_rate_limit_integration;
+
 /// Role-Based Access Control (RBAC) middleware for Axum
 ///
 /// Enforces role-based permissions on API endpoints.
@@ -107,10 +124,26 @@ pub mod mfa_rate_limit;
 /// - Real-time performance dashboards
 pub mod mfa_performance_middleware;
 
+/// Request size limit middleware for Axum
+///
+/// Enforces maximum request body size to prevent DoS attacks.
+/// Rejects requests exceeding 1MB to protect against resource exhaustion.
+/// Checks Content-Length header and limits body reading.
+pub mod request_size_limit;
+
 // Re-export middleware types for easier access
 pub use rate_limit_axum::{
     rate_limit_layer, rate_limit_middleware, RateLimitConfig, RateLimitLayer, RateLimitMiddleware,
     RateLimiterState,
+};
+
+pub use adaptive_rate_limit::{
+    adaptive_rate_limit_layer, adaptive_rate_limit_middleware, AdaptiveRateLimitConfig,
+    AdaptiveRateLimitLayer, AdaptiveRateLimitMiddleware, AdaptiveRateLimiter, ThreatLevel,
+};
+
+pub use adaptive_rate_limit_integration::{
+    create_rate_limit_response, extract_ip, AuthResultExt, RateLimitResponse,
 };
 
 pub use compression_axum::{compression_middleware, ContentEncoding};
@@ -134,4 +167,8 @@ pub use mfa_rate_limit::{mfa_rate_limit_middleware, MfaRateLimitConfig, MfaRateL
 
 pub use mfa_performance_middleware::{
     mfa_performance_middleware, MfaCacheMiddleware, MfaDatabaseMiddleware, MfaServiceMonitor,
+};
+
+pub use request_size_limit::{
+    layer::RequestSizeLimitLayer, request_size_limit_middleware, MAX_REQUEST_BODY_SIZE,
 };

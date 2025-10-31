@@ -4,6 +4,7 @@ use crate::error::AppError;
 use crate::push::PushService;
 use crate::security::RateLimitState;
 use crate::template::TemplateService;
+use crate::websocket::{self, WsState};
 use crate::whatsapp::WhatsAppService;
 use axum::{
     Router,
@@ -15,38 +16,49 @@ use deadpool_postgres::Pool;
 use serde_json::json;
 use uuid::Uuid;
 
-pub fn routes(app_config: AppConfig, pool: Pool, _rate_limit_state: RateLimitState) -> Router {
+pub fn routes(
+    app_config: AppConfig,
+    pool: Pool,
+    _rate_limit_state: RateLimitState,
+    ws_state: WsState,
+) -> Router {
     let _email = EmailService::new(app_config.clone(), pool.clone());
     let _whatsapp = WhatsAppService::new(app_config.clone(), pool.clone());
     let _push = PushService::new(app_config.clone(), pool.clone());
     let _template = TemplateService::new(pool.clone());
     Router::new()
-        // Email
-        .route("/notifications/email/send", post(send_email))
-        .route("/notifications/email/batch", post(send_batch_email))
-        .route("/notifications/email/status/:id", get(get_email_status))
-        // WhatsApp
-        .route("/notifications/whatsapp/send", post(send_whatsapp))
-        .route("/notifications/whatsapp/batch", post(send_batch_whatsapp))
-        .route(
-            "/notifications/whatsapp/status/:id",
-            get(get_whatsapp_status),
+        // WebSocket
+        .route("/notifications/ws", get(websocket::ws_handler))
+        .with_state(ws_state)
+        .merge(
+            Router::new()
+                // Email
+                .route("/notifications/email/send", post(send_email))
+                .route("/notifications/email/batch", post(send_batch_email))
+                .route("/notifications/email/status/:id", get(get_email_status))
+                // WhatsApp
+                .route("/notifications/whatsapp/send", post(send_whatsapp))
+                .route("/notifications/whatsapp/batch", post(send_batch_whatsapp))
+                .route(
+                    "/notifications/whatsapp/status/:id",
+                    get(get_whatsapp_status),
+                )
+                // Push
+                .route("/notifications/push/send", post(send_push))
+                .route("/notifications/push/batch", post(send_batch_push))
+                .route("/notifications/push/status/:id", get(get_push_status))
+                // Template
+                .route("/templates", get(get_templates).post(create_template))
+                .route(
+                    "/templates/:id",
+                    put(update_template).delete(delete_template),
+                )
+                // Audit
+                .route("/audit/logs", get(get_audit_logs))
+                // Health
+                .route("/health", get(health))
+                .with_state(pool),
         )
-        // Push
-        .route("/notifications/push/send", post(send_push))
-        .route("/notifications/push/batch", post(send_batch_push))
-        .route("/notifications/push/status/:id", get(get_push_status))
-        // Template
-        .route("/templates", get(get_templates).post(create_template))
-        .route(
-            "/templates/:id",
-            put(update_template).delete(delete_template),
-        )
-        // Audit
-        .route("/audit/logs", get(get_audit_logs))
-        // Health
-        .route("/health", get(health))
-        .with_state(pool)
 }
 
 // Handler stub (isi detail bertahap)

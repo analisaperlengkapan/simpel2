@@ -234,6 +234,9 @@ mod auth_service_tests {
             LoginResult::Success(_) => {
                 panic!("Login should fail with empty username");
             }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Login should fail with empty username, not require MFA");
+            }
         }
     }
 
@@ -251,6 +254,9 @@ mod auth_service_tests {
             }
             LoginResult::Success(_) => {
                 panic!("Login should fail with empty password");
+            }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Login should fail with empty password, not require MFA");
             }
         }
     }
@@ -273,12 +279,16 @@ mod auth_service_tests {
                 assert_eq!(session.username, "admin");
                 assert_eq!(session.role, UserRole::Admin);
                 assert!(session.captcha_validated);
-                assert!(session.mfa_setup_required);
+                // MFA setup is no longer required by default in mock mode
+                assert!(!session.mfa_setup_required);
                 assert!(session.access_token.is_some());
                 assert!(session.refresh_token.is_some());
             }
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
+            }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Mock login should return Success for 'admin', not MFA required");
             }
         }
 
@@ -310,6 +320,9 @@ mod auth_service_tests {
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
             }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Mock login should return Success, not MFA required");
+            }
         }
 
         // Clean up
@@ -340,11 +353,137 @@ mod auth_service_tests {
             LoginResult::Error(msg) => {
                 panic!("Login should succeed in mock mode: {}", msg);
             }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Mock login should return Success, not MFA required");
+            }
         }
 
         // Clean up
         unsafe {
             std::env::remove_var("AUTHENC_API_URL");
         }
+    }
+
+    // ========== MFA Method Tests ==========
+
+    #[test]
+    fn test_mfa_session_state_update() {
+        // This test verifies that MFA state can be tracked in session
+        // Note: In WASM environment, this would interact with localStorage
+        // For non-WASM tests, we just verify the method exists and compiles
+        AuthService::update_session_mfa_state(true, false, false);
+        AuthService::update_session_mfa_state(false, true, false);
+        AuthService::update_session_mfa_state(false, false, true);
+    }
+
+    #[tokio::test]
+    async fn test_login_mfa_setup_required() {
+        // Set mock mode
+        unsafe {
+            std::env::set_var("AUTHENC_API_URL", "mock");
+        }
+
+        let credentials = LoginCredentials {
+            username: "user_setup".to_string(),
+            password: "password123".to_string(),
+            captcha_token: Some("mock_captcha".to_string()),
+        };
+
+        match AuthService::login(credentials).await {
+            LoginResult::MfaSetupRequired(temp_token) => {
+                assert_eq!(temp_token, "mock_temp_token_setup");
+            }
+            LoginResult::Success(_) => {
+                panic!("Login should require MFA setup for user_setup");
+            }
+            LoginResult::MfaVerificationRequired(_) => {
+                panic!("Login should require MFA setup, not verification");
+            }
+            LoginResult::Error(msg) => {
+                panic!("Login should require MFA setup: {}", msg);
+            }
+        }
+
+        // Clean up
+        unsafe {
+            std::env::remove_var("AUTHENC_API_URL");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_mfa_verification_required() {
+        // Set mock mode
+        unsafe {
+            std::env::set_var("AUTHENC_API_URL", "mock");
+        }
+
+        let credentials = LoginCredentials {
+            username: "user_verify".to_string(),
+            password: "password123".to_string(),
+            captcha_token: Some("mock_captcha".to_string()),
+        };
+
+        match AuthService::login(credentials).await {
+            LoginResult::MfaVerificationRequired(temp_token) => {
+                assert_eq!(temp_token, "mock_temp_token_verify");
+            }
+            LoginResult::Success(_) => {
+                panic!("Login should require MFA verification for user_verify");
+            }
+            LoginResult::MfaSetupRequired(_) => {
+                panic!("Login should require MFA verification, not setup");
+            }
+            LoginResult::Error(msg) => {
+                panic!("Login should require MFA verification: {}", msg);
+            }
+        }
+
+        // Clean up
+        unsafe {
+            std::env::remove_var("AUTHENC_API_URL");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_no_mfa_required() {
+        // Set mock mode
+        unsafe {
+            std::env::set_var("AUTHENC_API_URL", "mock");
+        }
+
+        let credentials = LoginCredentials {
+            username: "user_nomfa".to_string(),
+            password: "password123".to_string(),
+            captcha_token: Some("mock_captcha".to_string()),
+        };
+
+        match AuthService::login(credentials).await {
+            LoginResult::Success(session) => {
+                assert_eq!(session.username, "user_nomfa");
+                assert!(!session.mfa_enabled);
+                assert!(!session.mfa_setup_required);
+            }
+            LoginResult::MfaSetupRequired(_) | LoginResult::MfaVerificationRequired(_) => {
+                panic!("Login should not require MFA for user_nomfa");
+            }
+            LoginResult::Error(msg) => {
+                panic!("Login should succeed: {}", msg);
+            }
+        }
+
+        // Clean up
+        unsafe {
+            std::env::remove_var("AUTHENC_API_URL");
+        }
+    }
+
+    #[test]
+    fn test_temp_token_storage() {
+        // Test temp token save and retrieval
+        // Note: In WASM environment, this would interact with localStorage
+        // For non-WASM tests, we just verify the methods exist and compile
+        AuthService::save_temp_token("test_temp_token");
+        let _token = AuthService::get_temp_token();
+        AuthService::clear_temp_token();
     }
 }

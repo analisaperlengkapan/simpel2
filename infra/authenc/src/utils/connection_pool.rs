@@ -1,10 +1,10 @@
+use reqwest::{Client, ClientBuilder};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 use tokio::time::timeout;
-use tracing::{debug, warn, error};
-use reqwest::{Client, ClientBuilder};
-use serde::{Deserialize, Serialize};
+use tracing::{debug, error, warn};
 
 use crate::error::{AuthencError, Result};
 
@@ -117,13 +117,23 @@ impl HttpConnectionPool {
     }
 
     /// Execute an HTTP POST request with connection pooling
-    pub async fn post(&self, url: &str, body: impl Into<reqwest::Body> + Clone) -> Result<reqwest::Response> {
-        self.execute_request(|| self.client.post(url).body(body.clone())).await
+    pub async fn post(
+        &self,
+        url: &str,
+        body: impl Into<reqwest::Body> + Clone,
+    ) -> Result<reqwest::Response> {
+        self.execute_request(|| self.client.post(url).body(body.clone()))
+            .await
     }
 
     /// Execute an HTTP PUT request with connection pooling
-    pub async fn put(&self, url: &str, body: impl Into<reqwest::Body> + Clone) -> Result<reqwest::Response> {
-        self.execute_request(|| self.client.put(url).body(body.clone())).await
+    pub async fn put(
+        &self,
+        url: &str,
+        body: impl Into<reqwest::Body> + Clone,
+    ) -> Result<reqwest::Response> {
+        self.execute_request(|| self.client.put(url).body(body.clone()))
+            .await
     }
 
     /// Execute an HTTP DELETE request with connection pooling
@@ -136,7 +146,8 @@ impl HttpConnectionPool {
     where
         F: Fn() -> reqwest::RequestBuilder,
     {
-        let _permit = self.semaphore
+        let _permit = self
+            .semaphore
             .acquire()
             .await
             .map_err(|_| AuthencError::internal("Failed to acquire connection permit"))?;
@@ -145,13 +156,16 @@ impl HttpConnectionPool {
         let mut last_error = None;
 
         for attempt in 0..=self.config.max_retries {
-            let request = request_builder().build()
+            let request = request_builder()
+                .build()
                 .map_err(|e| AuthencError::internal(&format!("Failed to build request: {}", e)))?;
 
             match timeout(
                 Duration::from_secs(self.config.request_timeout_seconds),
-                self.client.execute(request)
-            ).await {
+                self.client.execute(request),
+            )
+            .await
+            {
                 Ok(Ok(response)) => {
                     let elapsed = start_time.elapsed();
                     self.update_stats(true, elapsed).await;
@@ -165,7 +179,10 @@ impl HttpConnectionPool {
                     return Ok(response);
                 }
                 Ok(Err(e)) => {
-                    last_error = Some(AuthencError::internal(&format!("HTTP request failed: {}", e)));
+                    last_error = Some(AuthencError::internal(&format!(
+                        "HTTP request failed: {}",
+                        e
+                    )));
                     warn!("HTTP request attempt {} failed: {}", attempt + 1, e);
                 }
                 Err(_) => {
@@ -190,7 +207,8 @@ impl HttpConnectionPool {
             elapsed.as_millis()
         );
 
-        Err(last_error.unwrap_or_else(|| AuthencError::internal("HTTP request failed after all retries")))
+        Err(last_error
+            .unwrap_or_else(|| AuthencError::internal("HTTP request failed after all retries")))
     }
 
     /// Update connection pool statistics
@@ -210,8 +228,8 @@ impl HttpConnectionPool {
             stats.avg_connection_time_ms = new_time_ms;
         } else {
             stats.avg_connection_time_ms =
-                (stats.avg_connection_time_ms * (stats.total_requests - 1) as f64 + new_time_ms) /
-                stats.total_requests as f64;
+                (stats.avg_connection_time_ms * (stats.total_requests - 1) as f64 + new_time_ms)
+                    / stats.total_requests as f64;
         }
 
         stats.active_connections = self.config.max_connections - self.semaphore.available_permits();
@@ -221,7 +239,8 @@ impl HttpConnectionPool {
     pub async fn get_stats(&self) -> ConnectionPoolStats {
         let stats = self.stats.lock().await;
         let mut result = stats.clone();
-        result.active_connections = self.config.max_connections - self.semaphore.available_permits();
+        result.active_connections =
+            self.config.max_connections - self.semaphore.available_permits();
         result.idle_connections = self.semaphore.available_permits();
         result
     }
@@ -246,7 +265,11 @@ pub struct SecretonConnectionPool {
 
 impl SecretonConnectionPool {
     /// Create a new Secreton connection pool
-    pub fn new(base_url: String, auth_token: Option<String>, config: ConnectionPoolConfig) -> Result<Self> {
+    pub fn new(
+        base_url: String,
+        auth_token: Option<String>,
+        config: ConnectionPoolConfig,
+    ) -> Result<Self> {
         let pool = HttpConnectionPool::new(config)?;
 
         Ok(Self {
@@ -258,7 +281,11 @@ impl SecretonConnectionPool {
 
     /// Execute a GET request to Secreton service
     pub async fn get(&self, path: &str) -> Result<reqwest::Response> {
-        let url = format!("{}/{}", self.base_url.trim_end_matches('/'), path.trim_start_matches('/'));
+        let url = format!(
+            "{}/{}",
+            self.base_url.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
 
         let mut request_builder = self.pool.client().get(&url);
 
@@ -266,16 +293,24 @@ impl SecretonConnectionPool {
             request_builder = request_builder.bearer_auth(token);
         }
 
-        let request = request_builder.build()
-            .map_err(|e| AuthencError::internal(&format!("Failed to build Secreton request: {}", e)))?;
+        let request = request_builder.build().map_err(|e| {
+            AuthencError::internal(&format!("Failed to build Secreton request: {}", e))
+        })?;
 
-        self.pool.client().execute(request).await
+        self.pool
+            .client()
+            .execute(request)
+            .await
             .map_err(|e| AuthencError::internal(&format!("Secreton request failed: {}", e)))
     }
 
     /// Execute a POST request to Secreton service
     pub async fn post(&self, path: &str, body: impl Serialize) -> Result<reqwest::Response> {
-        let url = format!("{}/{}", self.base_url.trim_end_matches('/'), path.trim_start_matches('/'));
+        let url = format!(
+            "{}/{}",
+            self.base_url.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
 
         let mut request_builder = self.pool.client().post(&url).json(&body);
 
@@ -283,10 +318,14 @@ impl SecretonConnectionPool {
             request_builder = request_builder.bearer_auth(token);
         }
 
-        let request = request_builder.build()
-            .map_err(|e| AuthencError::internal(&format!("Failed to build Secreton request: {}", e)))?;
+        let request = request_builder.build().map_err(|e| {
+            AuthencError::internal(&format!("Failed to build Secreton request: {}", e))
+        })?;
 
-        self.pool.client().execute(request).await
+        self.pool
+            .client()
+            .execute(request)
+            .await
             .map_err(|e| AuthencError::internal(&format!("Secreton request failed: {}", e)))
     }
 
@@ -417,11 +456,13 @@ mod tests {
 
         assert!(manager.secreton_pool().is_none());
 
-        manager.configure_secreton_pool(
-            "https://secreton.example.com".to_string(),
-            Some("test_token".to_string()),
-            config,
-        ).unwrap();
+        manager
+            .configure_secreton_pool(
+                "https://secreton.example.com".to_string(),
+                Some("test_token".to_string()),
+                config,
+            )
+            .unwrap();
 
         assert!(manager.secreton_pool().is_some());
     }

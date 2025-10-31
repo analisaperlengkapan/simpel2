@@ -78,6 +78,18 @@ pub mod spi;
 #[cfg_attr(docsrs, doc(cfg(feature = "admin_console")))]
 pub mod admin_console;
 
+// gRPC service
+/// gRPC service implementation for inter-service communication
+#[cfg(feature = "grpc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "grpc")))]
+pub mod grpc;
+
+// Server management
+/// Dual server management for HTTP and gRPC
+#[cfg(feature = "axum")]
+#[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+pub mod server;
+
 // Re-export commonly used items
 pub use config::AppConfig;
 pub use error::{AuthencError, Result};
@@ -94,11 +106,12 @@ pub use tracing::{debug, error, info, warn};
 // Framework-specific re-exports
 #[cfg(feature = "axum")]
 pub use axum::{
-    Router, body,
+    body,
     extract::{self, Json, Path, Query},
-    http::{self, HeaderMap, StatusCode, header},
+    http::{self, header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
+    Router,
 };
 
 /// Application state shared across all requests

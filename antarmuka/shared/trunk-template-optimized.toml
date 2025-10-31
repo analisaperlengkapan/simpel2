@@ -1,0 +1,89 @@
+# Trunk Configuration Template with Asset Optimization
+# Copy this file to your microfrontend as Trunk.toml and customize as needed
+
+[build]
+# Target HTML file
+target = "index.html"
+
+# Build in release mode for production
+release = true
+
+# Output directory
+dist = "dist"
+
+# Public URL (adjust for your deployment)
+public_url = "/"
+
+# Enable minification
+minify = "on_release"
+
+[watch]
+# Ignore dist directory to avoid rebuild loops
+ignore = ["dist", "target"]
+
+[serve]
+# Development server configuration
+address = "127.0.0.1"
+port = 8080
+open = false
+
+# WASM optimization hook
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = [
+  "-c",
+  "if command -v wasm-opt > /dev/null; then wasm-opt -Oz --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext --enable-mutable-globals dist/*.wasm -o dist/*.wasm; fi",
+]
+
+# Copy static assets
+[[copy-dir]]
+from = "styles"
+to = "styles"
+
+# Copy fonts if they exist
+[[copy-dir]]
+from = "fonts"
+to = "fonts"
+
+# Copy images if they exist
+[[copy-dir]]
+from = "images"
+to = "images"
+
+# Copy assets if they exist
+[[copy-dir]]
+from = "assets"
+to = "assets"
+
+# Proxy configuration for API calls (development only)
+[[proxy]]
+backend = "http://localhost:8000/api"
+rewrite = "/api"
+
+# WebSocket proxy for real-time features
+[[proxy]]
+backend = "ws://localhost:8000/ws"
+rewrite = "/ws"
+ws = true
+
+# Environment-specific configurations
+[env]
+# Set environment variables for the build
+# RUST_LOG = "info"
+# API_URL = "https://api.simpelv2.kejaksaan.go.id"
+
+# Production-specific settings
+[profile.release]
+# Maximum optimization
+opt_level = "z"
+lto = true
+codegen_units = 1
+panic = "abort"
+
+# Development-specific settings
+[profile.dev]
+# Faster compilation
+opt_level = 1
+debug = true
+incremental = true

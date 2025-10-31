@@ -6,8 +6,8 @@ use openssl::x509::X509;
 use std::sync::{Arc, Mutex};
 
 use crate::crypto::xmldsig::{
-    CertificateValidationResult, CertificateValidator, CrlManager, OcspClient,
-    RevocationStatus, XmlSecurityLimits, XmlSecurityValidator, XmlSignature,
+    CertificateValidationResult, CertificateValidator, CrlManager, OcspClient, RevocationStatus,
+    XmlSecurityLimits, XmlSecurityValidator, XmlSignature,
 };
 
 /// SAML Security Configuration
@@ -250,7 +250,8 @@ impl SamlSecurityValidator {
         // Check certificate revocation via CRL if enabled
         #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
         if self.config.enable_crl_check
-            && let Some(crl_manager) = &self.crl_manager {
+            && let Some(crl_manager) = &self.crl_manager
+        {
             let mut manager = crl_manager.lock().unwrap();
             match manager.check_revocation(&cert) {
                 Ok(RevocationStatus::NotRevoked) => {
@@ -282,7 +283,8 @@ impl SamlSecurityValidator {
         // Check certificate revocation via OCSP if enabled
         #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
         if self.config.enable_ocsp_check
-            && let Some(ocsp_client) = &self.ocsp_client {
+            && let Some(ocsp_client) = &self.ocsp_client
+        {
             // Need issuer certificate for OCSP check
             // For now, we'll skip OCSP if we can't determine issuer
             // This is a limitation that could be improved by extracting issuer from chain

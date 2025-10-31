@@ -1,7 +1,6 @@
 // Re-export axum router for convenience
 use axum::{
     Router,
-    response::Html,
     routing::{get, post},
 };
 use std::sync::Arc;
@@ -9,22 +8,25 @@ use std::sync::Arc;
 // Database
 use crate::app::AppState;
 
-/// Account Console UI handler
-async fn account_console_handler() -> Html<&'static str> {
-    Html(include_str!("../../static/account.html"))
-}
-
 // Handlers
 /// Consent UI handlers for user consent management
 pub mod consent_ui;
+/// Validation helper utilities for request validation
+pub mod validation_helper;
 /// Health check handlers for Axum web framework
 pub mod health_axum;
 /// JWT token handling with Ed25519 signatures for enhanced security
 pub mod jwt_ed25519;
 /// Comprehensive OAuth2 implementation with PKCE and security features
 pub mod oauth2_comprehensive;
+/// OAuth2 Authorization Code Flow with PKCE support
+pub mod oauth2_authz_code;
 /// OIDC identity provider with Ed25519 JWT signing (secure replacement for RSA)
 pub mod oidc_ed25519;
+/// OIDC SSO handlers with secure cookie management
+pub mod oidc_sso;
+/// JWKS (JSON Web Key Set) endpoint with caching and key rotation support
+pub mod jwks;
 pub use health_axum::create_health_routes;
 
 // Legacy Actix handlers (temporarily disabled during migration)
@@ -129,7 +131,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         ))
         .with_state(oauth2_state.clone());
 
-    let mut router = Router::new()
+    let router = Router::new()
         .route("/health", get(health_axum::health))
         .route("/ready", get(health_axum::ready))
         .route("/live", get(health_axum::live))
@@ -147,8 +149,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .route("/oidc/authorize", get(oidc_ed25519::oidc_authorize_ed25519))
         .route("/oidc/token", post(oidc_ed25519::oidc_token_ed25519))
+        .route("/oidc/refresh", post(oidc_ed25519::oidc_refresh_ed25519))
+        .route("/oidc/revoke", post(oidc_ed25519::oidc_revoke_ed25519))
         .route("/oidc/jwks", get(oidc_ed25519::oidc_jwks_ed25519))
         .route("/oidc/userinfo", get(oidc_ed25519::oidc_userinfo_ed25519))
+        .route("/oidc/logout", get(oidc_sso::oidc_logout_with_sso))
         // Merge OAuth2 test router (without auth)
         .merge(oauth2_test_router)
         // Merge OAuth2 router (with auth for token/userinfo endpoints)
@@ -229,19 +234,21 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/api/v1",
             api::captcha::create_captcha_routes()
                 .layer(axum::middleware::from_fn_with_state(
-                    Arc::new(crate::middleware::security_monitoring_axum::SecurityMonitoringState::new(
-                        crate::middleware::security_monitoring_axum::SecurityMonitoringConfig {
-                            enabled: true,
-                            suspicious_threshold_rpm: 50,
-                            monitored_paths: vec![
-                                "/captcha/validate".to_string(),
-                                "/captcha/challenge".to_string(),
-                            ],
-                            log_auth_attempts: true,
-                            log_authz_failures: true,
-                        },
-                        Some(state.audit_log_store.clone()),
-                    )),
+                    Arc::new(
+                        crate::middleware::security_monitoring_axum::SecurityMonitoringState::new(
+                            crate::middleware::security_monitoring_axum::SecurityMonitoringConfig {
+                                enabled: true,
+                                suspicious_threshold_rpm: 50,
+                                monitored_paths: vec![
+                                    "/captcha/validate".to_string(),
+                                    "/captcha/challenge".to_string(),
+                                ],
+                                log_auth_attempts: true,
+                                log_authz_failures: true,
+                            },
+                            Some(state.audit_log_store.clone()),
+                        ),
+                    ),
                     crate::middleware::security_monitoring_axum::security_monitoring_middleware,
                 ))
                 .with_state(state.clone()),
@@ -367,12 +374,14 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/oid4vc",
             oid4vc::create_oid4vc_router().with_state(state.clone()),
         )
-        .nest("/vp", oid4vc::create_vp_router().with_state(state.clone()));
+        .nest("/vp", oid4vc::create_vp_router().with_state(state.clone()))
+        // JWKS endpoint at standard location
+        .route(
+            "/.well-known/jwks.json",
+            get(jwks::jwks_endpoint),
+        );
 
-    // Static file serving for Account Console UI
-    router = router
-        .nest_service("/static", tower_http::services::ServeDir::new("static"))
-        .route("/account", get(account_console_handler));
+    // No static file serving - authenc is a backend microservice only
 
     // Admin Console UI routes
     #[cfg(feature = "admin_console")]

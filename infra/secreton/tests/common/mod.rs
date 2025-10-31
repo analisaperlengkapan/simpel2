@@ -1,4 +1,4 @@
-//! Common test utilities and helper functions for Brankas tests
+//! Common test utilities and helper functions for Secreton tests
 
 use std::{sync::Arc, time::Duration};
 use serde_json::{json, Value};
@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 /// Test configuration and setup utilities
 pub mod test_config {
     use super::*;
-    
+
     /// Create standard test configuration for banking-grade security
     pub fn banking_test_config() -> Value {
         json!({
@@ -26,7 +26,7 @@ pub mod test_config {
             }
         })
     }
-    
+
     /// Create standard test configuration for government-grade security
     pub fn government_test_config() -> Value {
         json!({
@@ -52,24 +52,24 @@ pub mod test_config {
 pub mod test_storage {
     use std::collections::HashMap;
     use std::sync::{Arc, RwLock};
-    
+
     /// Simple in-memory storage for testing
     #[derive(Debug, Clone, Default)]
     pub struct InMemoryStorage {
         data: Arc<RwLock<HashMap<String, Vec<u8>>>>,
         metadata: Arc<RwLock<HashMap<String, serde_json::Value>>>,
     }
-    
+
     impl InMemoryStorage {
         pub fn new() -> Self {
             Self::default()
         }
-        
+
         pub async fn store(&self, key: &str, data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
             self.data.write().unwrap().insert(key.to_string(), data.to_vec());
             Ok(())
         }
-        
+
         pub async fn retrieve(&self, key: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
             self.data
                 .read()
@@ -78,22 +78,22 @@ pub mod test_storage {
                 .cloned()
                 .ok_or_else(|| "Key not found".into())
         }
-        
+
         pub async fn delete(&self, key: &str) -> Result<(), Box<dyn std::error::Error>> {
             self.data.write().unwrap().remove(key);
             self.metadata.write().unwrap().remove(key);
             Ok(())
         }
-        
+
         pub async fn list_keys(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
             Ok(self.data.read().unwrap().keys().cloned().collect())
         }
-        
+
         pub async fn store_metadata(&self, key: &str, metadata: &serde_json::Value) -> Result<(), Box<dyn std::error::Error>> {
             self.metadata.write().unwrap().insert(key.to_string(), metadata.clone());
             Ok(())
         }
-        
+
         pub async fn get_metadata(&self, key: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
             self.metadata
                 .read()
@@ -109,14 +109,14 @@ pub mod test_storage {
 pub mod test_data {
     use super::*;
     use rand::{Rng, thread_rng};
-    
+
     /// Generate test data of specified size
     pub fn generate_test_data(size: usize) -> String {
         (0..size)
             .map(|_| thread_rng().gen_range(b'A'..=b'Z') as char)
             .collect()
     }
-    
+
     /// Generate test secrets with various characteristics
     pub fn generate_test_secrets() -> Vec<(&'static str, String)> {
         vec![
@@ -128,7 +128,7 @@ pub mod test_data {
             ("json_secret", r#"{"api_key": "abc123", "token": "xyz789"}"#.to_string()),
         ]
     }
-    
+
     /// Generate test user data for authentication tests
     pub fn generate_test_users() -> Vec<serde_json::Value> {
         vec![
@@ -159,7 +159,7 @@ pub mod test_data {
             }),
         ]
     }
-    
+
     /// Generate behavioral biometric test data
     pub fn generate_biometric_data(user_type: &str) -> serde_json::Value {
         match user_type {
@@ -208,7 +208,7 @@ pub mod test_data {
 pub mod performance_utils {
     use super::*;
     use std::time::Instant;
-    
+
     /// Measure execution time of an async operation
     pub async fn measure_async<F, T>(operation: F) -> (T, Duration)
     where
@@ -219,7 +219,7 @@ pub mod performance_utils {
         let duration = start.elapsed();
         (result, duration)
     }
-    
+
     /// Run performance benchmark with multiple iterations
     pub async fn benchmark_operation<F, T>(
         operation_name: &str,
@@ -232,28 +232,28 @@ pub mod performance_utils {
         let mut durations = Vec::new();
         let mut successful_operations = 0;
         let mut failed_operations = 0;
-        
+
         let total_start = Instant::now();
-        
+
         for _ in 0..iterations {
             let (result, duration) = measure_async(operation()).await;
             durations.push(duration);
-            
+
             match result {
                 Ok(_) => successful_operations += 1,
                 Err(_) => failed_operations += 1,
             }
         }
-        
+
         let total_duration = total_start.elapsed();
-        
+
         // Calculate statistics
         durations.sort();
         let avg_duration = durations.iter().sum::<Duration>() / durations.len() as u32;
         let median_duration = durations[durations.len() / 2];
         let p95_duration = durations[(durations.len() as f64 * 0.95) as usize];
         let p99_duration = durations[(durations.len() as f64 * 0.99) as usize];
-        
+
         BenchmarkResult {
             operation_name: operation_name.to_string(),
             total_iterations: iterations,
@@ -267,7 +267,7 @@ pub mod performance_utils {
             operations_per_second: successful_operations as f64 / total_duration.as_secs_f64(),
         }
     }
-    
+
     #[derive(Debug, Clone)]
     pub struct BenchmarkResult {
         pub operation_name: String,
@@ -281,7 +281,7 @@ pub mod performance_utils {
         pub p99_duration: Duration,
         pub operations_per_second: f64,
     }
-    
+
     impl BenchmarkResult {
         pub fn print_summary(&self) {
             println!("\n=== {} Benchmark Results ===", self.operation_name);
@@ -301,7 +301,7 @@ pub mod performance_utils {
 /// Security test utilities
 pub mod security_utils {
     use super::*;
-    
+
     /// Generate test attack payloads for security testing
     pub fn generate_attack_payloads() -> Vec<(&'static str, String)> {
         vec![
@@ -316,7 +316,7 @@ pub mod security_utils {
             ("unicode_bypass", "\u{202e}".to_string()), // Right-to-left override
         ]
     }
-    
+
     /// Validate that sensitive data doesn't leak in error messages
     pub fn validate_error_message(error_msg: &str, sensitive_data: &[&str]) -> bool {
         for sensitive in sensitive_data {
@@ -327,7 +327,7 @@ pub mod security_utils {
         }
         true
     }
-    
+
     /// Generate timing attack test data
     pub fn generate_timing_test_data() -> Vec<(String, String)> {
         vec![
@@ -343,52 +343,52 @@ pub mod security_utils {
 /// Test assertion helpers
 pub mod test_assertions {
     use super::*;
-    
+
     /// Assert that operation completes within expected time
     pub fn assert_performance(duration: Duration, max_duration: Duration, operation: &str) {
-        assert!(duration <= max_duration, 
-               "{} took too long: {:.2?} (max: {:.2?})", 
+        assert!(duration <= max_duration,
+               "{} took too long: {:.2?} (max: {:.2?})",
                operation, duration, max_duration);
     }
-    
+
     /// Assert that encrypted data has expected properties
     pub fn assert_encryption_properties(plaintext: &str, ciphertext: &str) {
         assert_ne!(plaintext, ciphertext, "Ciphertext should differ from plaintext");
         assert!(ciphertext.len() > plaintext.len(), "Ciphertext should be longer than plaintext");
-        
+
         // Should not contain obvious patterns
         assert!(!ciphertext.contains(plaintext), "Ciphertext should not contain plaintext");
         assert!(!ciphertext.contains("password"), "Ciphertext should not contain sensitive keywords");
     }
-    
+
     /// Assert that random data has good entropy
     pub fn assert_entropy_quality(data: &[u8], min_quality: f64) {
         if data.is_empty() {
             panic!("Cannot assess entropy of empty data");
         }
-        
+
         // Simple entropy calculation (Shannon entropy)
         let mut byte_counts = [0u32; 256];
         for &byte in data {
             byte_counts[byte as usize] += 1;
         }
-        
+
         let mut entropy = 0.0;
         let data_len = data.len() as f64;
-        
+
         for count in byte_counts.iter().filter(|&&c| c > 0) {
             let probability = *count as f64 / data_len;
             entropy -= probability * probability.log2();
         }
-        
+
         let max_entropy = 8.0; // Maximum possible entropy for bytes
         let quality = entropy / max_entropy;
-        
-        assert!(quality >= min_quality, 
-               "Data entropy quality too low: {:.3} (minimum: {:.3})", 
+
+        assert!(quality >= min_quality,
+               "Data entropy quality too low: {:.3} (minimum: {:.3})",
                quality, min_quality);
     }
-    
+
     /// Assert compliance with security standards
     pub fn assert_security_compliance(compliance_status: &serde_json::Value, required_standards: &[&str]) {
         for standard in required_standards {
@@ -396,7 +396,7 @@ pub mod test_assertions {
                 .get(standard)
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
-            
+
             assert!(compliant, "System should be compliant with {}", standard);
         }
     }

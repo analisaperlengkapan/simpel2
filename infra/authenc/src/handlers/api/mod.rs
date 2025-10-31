@@ -56,6 +56,8 @@ pub use events::create_event_routes;
 pub mod authenticators;
 /// Event listener management API handlers
 pub mod event_listeners;
+/// Key rotation management API handlers
+pub mod key_rotation;
 /// MFA administration API handlers for managing account lockouts
 pub mod mfa_admin;
 /// MFA management API handlers for comprehensive admin operations

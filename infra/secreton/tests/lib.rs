@@ -1,8 +1,8 @@
-//! Brankas Enterprise Vault - Comprehensive Test Suite
-//! 
+//! Secreton Enterprise Vault - Comprehensive Test Suite
+//!
 //! This module organizes and provides entry points for all test categories:
 //! - Unit Tests: Individual component testing
-//! - Integration Tests: End-to-end system testing  
+//! - Integration Tests: End-to-end system testing
 //! - Performance Tests: Benchmarking and load testing
 //! - Security Tests: Security validation and penetration testing
 
@@ -11,7 +11,7 @@ pub mod common;
 
 // Test categories - organized by type and purpose
 pub mod unit;
-pub mod integration; 
+pub mod integration;
 pub mod performance;
 pub mod security;
 
@@ -24,7 +24,7 @@ pub use common::{
 /// Test configuration and setup
 pub mod test_setup {
     use super::*;
-    
+
     /// Initialize test environment with proper configuration
     pub async fn setup_test_environment() -> Result<(), Box<dyn std::error::Error>> {
         // Initialize logging for tests
@@ -32,13 +32,13 @@ pub mod test_setup {
             .filter_level(log::LevelFilter::Info)
             .is_test(true)
             .try_init();
-        
+
         // Create test directories if needed
         std::fs::create_dir_all("test_results").ok();
-        
+
         Ok(())
     }
-    
+
     /// Cleanup test environment
     pub async fn cleanup_test_environment() -> Result<(), Box<dyn std::error::Error>> {
         // Cleanup temporary test files
@@ -47,7 +47,7 @@ pub mod test_setup {
             let temp_pattern = "test_results/temp_*";
             // Cleanup logic here
         }
-        
+
         Ok(())
     }
 }
@@ -56,11 +56,11 @@ pub mod test_setup {
 pub mod test_runner {
     use super::*;
     use std::time::Instant;
-    
+
     /// Execute all test categories and return summary
     pub async fn run_comprehensive_tests() -> TestSuiteResult {
         let start_time = Instant::now();
-        
+
         let mut results = TestSuiteResult {
             total_categories: 0,
             passed_categories: 0,
@@ -68,13 +68,13 @@ pub mod test_runner {
             total_duration: std::time::Duration::default(),
             category_results: Vec::new(),
         };
-        
+
         // This would integrate with the actual test execution
         // For now, return a placeholder
         results.total_duration = start_time.elapsed();
         results
     }
-    
+
     #[derive(Debug)]
     pub struct TestSuiteResult {
         pub total_categories: usize,
@@ -83,7 +83,7 @@ pub mod test_runner {
         pub total_duration: std::time::Duration,
         pub category_results: Vec<CategoryResult>,
     }
-    
+
     #[derive(Debug)]
     pub struct CategoryResult {
         pub name: String,
@@ -97,20 +97,20 @@ pub mod test_runner {
 #[cfg(test)]
 mod test_suite_integration {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_suite_setup() {
         let result = test_setup::setup_test_environment().await;
         assert!(result.is_ok(), "Test environment setup should succeed");
     }
-    
-    #[tokio::test] 
+
+    #[tokio::test]
     async fn test_common_utilities_available() {
         // Verify common test utilities are accessible
         let _storage = create_test_storage();
         let _config = test_config::banking_test_config();
         let _test_data = test_data::generate_test_data(100);
-        
+
         // Test should pass if all utilities are accessible
         assert!(true, "Common test utilities should be accessible");
     }

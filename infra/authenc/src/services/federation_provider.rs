@@ -7,11 +7,22 @@ use crate::models::user::{SecretonAccessPolicy, SecurityContext, User};
 use subtle::ConstantTimeEq;
 
 /// Trait for federation providers that can authenticate users from external systems
+#[async_trait::async_trait]
 pub trait FederationProvider: Send + Sync {
     /// Get user by username from external system
     fn get_user_by_username(&self, username: &str) -> Option<User>;
     /// Verify user password against external system
     fn verify_password(&self, username: &str, password: &str) -> bool;
+    /// Get provider name for identification
+    fn name(&self) -> &str;
+    /// Logout user from federated provider
+    ///
+    /// # Arguments
+    /// * `id_token_hint` - ID token hint containing user session information
+    ///
+    /// # Returns
+    /// Result indicating success or failure of logout operation
+    async fn logout(&self, id_token_hint: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
 /// Registry for managing multiple federation providers
@@ -52,11 +63,18 @@ impl FederationRegistry {
         }
         false
     }
+
+    /// List all registered providers
+    pub fn list_providers(&self) -> Vec<&dyn FederationProvider> {
+        self.providers.iter().map(|p| p.as_ref()).collect()
+    }
 }
 
 // Example stub provider (in-memory, for demo)
 /// Dummy federation provider for testing and demonstration purposes
 pub struct DummyFederationProvider;
+
+#[async_trait::async_trait]
 impl FederationProvider for DummyFederationProvider {
     fn get_user_by_username(&self, username: &str) -> Option<User> {
         if username == "federated" {
@@ -125,5 +143,14 @@ impl FederationProvider for DummyFederationProvider {
 
         // Both must match - using & instead of && for constant-time evaluation
         (username_match & password_match).into()
+    }
+
+    fn name(&self) -> &str {
+        "DummyFederationProvider"
+    }
+
+    async fn logout(&self, _id_token_hint: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Dummy provider doesn't need to do anything for logout
+        Ok(())
     }
 }

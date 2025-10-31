@@ -1,17 +1,24 @@
 # Use the official Rust image as the base image for building
 FROM rust:1.90-slim AS builder
 
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y pkg-config libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Cargo.toml file
-COPY Cargo.toml ./
+# Copy the Cargo files
+COPY Cargo.toml Cargo.lock* ./
 
-# Copy the source code
+# Copy all necessary directories
 COPY src ./src
+COPY benches ./benches
+COPY config ./config
 
-# Build the application in release mode
-RUN cargo build --release
+# Build the application in release mode (skip benches)
+RUN cargo build --release --bins
 
 # Use a minimal base image for the runtime
 FROM debian:bookworm-slim

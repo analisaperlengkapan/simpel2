@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// MFA performance monitoring service
 pub struct MfaPerformanceMonitor {
@@ -180,10 +180,10 @@ impl Default for MfaAlertConfig {
     fn default() -> Self {
         Self {
             max_response_time_ms: 1000.0, // 1 second
-            min_success_rate: 0.95,        // 95%
-            max_error_rate: 0.05,          // 5%
-            min_cache_hit_ratio: 0.80,     // 80%
-            max_db_query_time_ms: 100.0,   // 100ms
+            min_success_rate: 0.95,       // 95%
+            max_error_rate: 0.05,         // 5%
+            min_cache_hit_ratio: 0.80,    // 80%
+            max_db_query_time_ms: 100.0,  // 100ms
         }
     }
 }
@@ -261,7 +261,12 @@ impl MfaPerformanceMonitor {
     }
 
     /// Record MFA verification operation metrics
-    pub async fn record_verification_operation(&self, duration: Duration, success: bool, error_type: Option<&str>) {
+    pub async fn record_verification_operation(
+        &self,
+        duration: Duration,
+        success: bool,
+        error_type: Option<&str>,
+    ) {
         let mut metrics = self.metrics.write().await;
         self.update_operation_metrics(&mut metrics.verification_metrics, duration, success);
 
@@ -302,7 +307,8 @@ impl MfaPerformanceMonitor {
 
         let total_cache_ops = metrics.cache_metrics.cache_hits + metrics.cache_metrics.cache_misses;
         if total_cache_ops > 0 {
-            metrics.cache_metrics.hit_ratio = metrics.cache_metrics.cache_hits as f64 / total_cache_ops as f64;
+            metrics.cache_metrics.hit_ratio =
+                metrics.cache_metrics.cache_hits as f64 / total_cache_ops as f64;
         }
 
         debug!(
@@ -318,7 +324,9 @@ impl MfaPerformanceMonitor {
     pub async fn record_database_query(&self, query_type: &str, duration: Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
 
-        let query_metrics = metrics.database_metrics.query_metrics
+        let query_metrics = metrics
+            .database_metrics
+            .query_metrics
             .entry(query_type.to_string())
             .or_insert_with(OperationMetrics::default);
 
@@ -355,8 +363,8 @@ impl MfaPerformanceMonitor {
                 metrics.cache_metrics.avg_cache_response_time_ms = duration_ms;
             } else {
                 let alpha = 0.1; // Exponential moving average factor
-                metrics.cache_metrics.avg_cache_response_time_ms =
-                    alpha * duration_ms + (1.0 - alpha) * metrics.cache_metrics.avg_cache_response_time_ms;
+                metrics.cache_metrics.avg_cache_response_time_ms = alpha * duration_ms
+                    + (1.0 - alpha) * metrics.cache_metrics.avg_cache_response_time_ms;
             }
         } else {
             metrics.cache_metrics.cache_errors += 1;
@@ -410,8 +418,10 @@ impl MfaPerformanceMonitor {
             current_metrics: metrics.clone(),
             success_rates: SuccessRates {
                 setup_success_rate: self.calculate_success_rate(&metrics.setup_metrics),
-                verification_success_rate: self.calculate_success_rate(&metrics.verification_metrics),
-                status_lookup_success_rate: self.calculate_success_rate(&metrics.status_lookup_metrics),
+                verification_success_rate: self
+                    .calculate_success_rate(&metrics.verification_metrics),
+                status_lookup_success_rate: self
+                    .calculate_success_rate(&metrics.status_lookup_metrics),
             },
             response_times: ResponseTimes {
                 avg_setup_time_ms: metrics.setup_metrics.avg_response_time_ms,
@@ -422,7 +432,8 @@ impl MfaPerformanceMonitor {
             cache_performance: CachePerformance {
                 hit_ratio: metrics.cache_metrics.hit_ratio,
                 avg_response_time_ms: metrics.cache_metrics.avg_cache_response_time_ms,
-                total_operations: metrics.cache_metrics.cache_hits + metrics.cache_metrics.cache_misses,
+                total_operations: metrics.cache_metrics.cache_hits
+                    + metrics.cache_metrics.cache_misses,
             },
             recent_snapshots: history.iter().rev().take(24).cloned().collect(), // Last 24 snapshots
         }
@@ -434,9 +445,9 @@ impl MfaPerformanceMonitor {
 
         // Get system load information (simplified implementation)
         let system_load = SystemLoadInfo {
-            cpu_usage: 0.0,    // Would be implemented with system monitoring
-            memory_usage: 0.0, // Would be implemented with system monitoring
-            db_connections: 0,  // Would be implemented with pool monitoring
+            cpu_usage: 0.0,       // Would be implemented with system monitoring
+            memory_usage: 0.0,    // Would be implemented with system monitoring
+            db_connections: 0,    // Would be implemented with pool monitoring
             cache_memory_mb: 0.0, // Would be implemented with cache monitoring
         };
 
@@ -464,7 +475,9 @@ impl MfaPerformanceMonitor {
         let mut alerts = Vec::new();
 
         // Check response time alerts
-        if metrics.verification_metrics.avg_response_time_ms > self.alert_config.max_response_time_ms {
+        if metrics.verification_metrics.avg_response_time_ms
+            > self.alert_config.max_response_time_ms
+        {
             alerts.push(PerformanceAlert {
                 severity: AlertSeverity::Warning,
                 alert_type: AlertType::HighResponseTime,
@@ -523,7 +536,12 @@ impl MfaPerformanceMonitor {
     }
 
     /// Update operation metrics with new data point
-    fn update_operation_metrics(&self, metrics: &mut OperationMetrics, duration: Duration, success: bool) {
+    fn update_operation_metrics(
+        &self,
+        metrics: &mut OperationMetrics,
+        duration: Duration,
+        success: bool,
+    ) {
         let duration_ms = duration.as_millis() as f64;
 
         metrics.total_operations += 1;
@@ -538,7 +556,9 @@ impl MfaPerformanceMonitor {
 
         // Keep only last 1000 response times for percentile calculation
         if metrics.response_times.len() > 1000 {
-            metrics.response_times.drain(0..metrics.response_times.len() - 1000);
+            metrics
+                .response_times
+                .drain(0..metrics.response_times.len() - 1000);
         }
 
         // Update min/max
@@ -639,9 +659,15 @@ mod tests {
         let monitor = MfaPerformanceMonitor::new(None);
 
         // Record some operations
-        monitor.record_setup_operation(Duration::from_millis(100), true).await;
-        monitor.record_verification_operation(Duration::from_millis(50), true, None).await;
-        monitor.record_status_lookup(Duration::from_millis(25), true, true).await;
+        monitor
+            .record_setup_operation(Duration::from_millis(100), true)
+            .await;
+        monitor
+            .record_verification_operation(Duration::from_millis(50), true, None)
+            .await;
+        monitor
+            .record_status_lookup(Duration::from_millis(25), true, true)
+            .await;
 
         let metrics = monitor.get_metrics().await;
 
@@ -656,9 +682,15 @@ mod tests {
         let monitor = MfaPerformanceMonitor::new(None);
 
         // Record mixed success/failure operations
-        monitor.record_verification_operation(Duration::from_millis(50), true, None).await;
-        monitor.record_verification_operation(Duration::from_millis(75), true, None).await;
-        monitor.record_verification_operation(Duration::from_millis(100), false, Some("invalid_otp")).await;
+        monitor
+            .record_verification_operation(Duration::from_millis(50), true, None)
+            .await;
+        monitor
+            .record_verification_operation(Duration::from_millis(75), true, None)
+            .await;
+        monitor
+            .record_verification_operation(Duration::from_millis(100), false, Some("invalid_otp"))
+            .await;
 
         let metrics = monitor.get_metrics().await;
         let success_rate = monitor.calculate_success_rate(&metrics.verification_metrics);
@@ -672,9 +704,15 @@ mod tests {
         let monitor = MfaPerformanceMonitor::new(None);
 
         // Record cache hits and misses
-        monitor.record_status_lookup(Duration::from_millis(10), true, true).await;  // hit
-        monitor.record_status_lookup(Duration::from_millis(50), true, false).await; // miss
-        monitor.record_status_lookup(Duration::from_millis(15), true, true).await;  // hit
+        monitor
+            .record_status_lookup(Duration::from_millis(10), true, true)
+            .await; // hit
+        monitor
+            .record_status_lookup(Duration::from_millis(50), true, false)
+            .await; // miss
+        monitor
+            .record_status_lookup(Duration::from_millis(15), true, true)
+            .await; // hit
 
         let metrics = monitor.get_metrics().await;
 

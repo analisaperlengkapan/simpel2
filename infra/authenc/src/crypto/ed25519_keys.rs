@@ -19,7 +19,7 @@ pub struct Ed25519JwkSet {
 }
 
 /// Individual Ed25519 JSON Web Key
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ed25519Jwk {
     /// Key type (always "OKP" for Ed25519)
     pub kty: String,

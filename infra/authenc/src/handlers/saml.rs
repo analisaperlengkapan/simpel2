@@ -61,8 +61,8 @@ impl AdminService for MockAdminService {
             password: request.password,
             first_name: request.first_name,
             last_name: request.last_name,
-            nip: None, // TODO: Add nip to request
-            nama: None, // TODO: Add nama to request
+            nip: None,     // TODO: Add nip to request
+            nama: None,    // TODO: Add nama to request
             jabatan: None, // TODO: Add jabatan to request
             phone_number: request.phone_number,
             attributes: request.attributes,

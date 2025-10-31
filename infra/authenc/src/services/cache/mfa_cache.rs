@@ -97,8 +97,9 @@ impl MfaCache {
         entry.user_id = user_id;
 
         let cache_key = CacheKeys::mfa_status(&user_id.to_string());
-        let value = serde_json::to_value(&entry)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize MFA cache entry: {}", e)))?;
+        let value = serde_json::to_value(&entry).map_err(|e| {
+            AuthencError::internal(format!("Failed to serialize MFA cache entry: {}", e))
+        })?;
 
         self.cache
             .set(&cache_key, &value, self.mfa_cache_ttl)
@@ -114,8 +115,9 @@ impl MfaCache {
 
         match self.cache.get(&cache_key).await? {
             Some(value) => {
-                let entry: MfaCacheEntry = serde_json::from_value(value)
-                    .map_err(|e| AuthencError::internal(format!("Failed to deserialize MFA cache entry: {}", e)))?;
+                let entry: MfaCacheEntry = serde_json::from_value(value).map_err(|e| {
+                    AuthencError::internal(format!("Failed to deserialize MFA cache entry: {}", e))
+                })?;
                 debug!("Cache hit for MFA status: {}", user_id);
                 Ok(Some(entry.into()))
             }
@@ -143,7 +145,10 @@ impl MfaCache {
         let exists = self.cache.exists(&cache_key).await?;
 
         if exists {
-            warn!("OTP replay attempt detected for user: {} with code: {}", user_id, otp_code);
+            warn!(
+                "OTP replay attempt detected for user: {} with code: {}",
+                user_id, otp_code
+            );
         }
 
         Ok(exists)
@@ -161,17 +166,25 @@ impl MfaCache {
         let cache_key = CacheKeys::otp_verification(&user_id.to_string(), otp_code);
 
         // Use set_nx to ensure atomic operation (only set if not exists)
-        let value = serde_json::to_value(&verification_result)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize verification result: {}", e)))?;
-        let was_set = self.cache
+        let value = serde_json::to_value(&verification_result).map_err(|e| {
+            AuthencError::internal(format!("Failed to serialize verification result: {}", e))
+        })?;
+        let was_set = self
+            .cache
             .set_nx(&cache_key, &value, self.otp_verification_ttl)
             .await?;
 
         if was_set {
-            debug!("Marked OTP as used for user: {} with code: {}", user_id, otp_code);
+            debug!(
+                "Marked OTP as used for user: {} with code: {}",
+                user_id, otp_code
+            );
             Ok(())
         } else {
-            warn!("OTP was already marked as used for user: {} with code: {}", user_id, otp_code);
+            warn!(
+                "OTP was already marked as used for user: {} with code: {}",
+                user_id, otp_code
+            );
             Err(AuthencError::invalid_otp_code())
         }
     }
@@ -182,13 +195,20 @@ impl MfaCache {
 
         match self.cache.get(&cache_key).await? {
             Some(value) => {
-                let count: i64 = serde_json::from_value(value)
-                    .map_err(|e| AuthencError::internal(format!("Failed to deserialize rate limit count: {}", e)))?;
-                debug!("MFA rate limit check for user {} operation {}: {}", user_id, operation, count);
+                let count: i64 = serde_json::from_value(value).map_err(|e| {
+                    AuthencError::internal(format!("Failed to deserialize rate limit count: {}", e))
+                })?;
+                debug!(
+                    "MFA rate limit check for user {} operation {}: {}",
+                    user_id, operation, count
+                );
                 Ok(Some(count))
             }
             None => {
-                debug!("No MFA rate limit data for user {} operation {}", user_id, operation);
+                debug!(
+                    "No MFA rate limit data for user {} operation {}",
+                    user_id, operation
+                );
                 Ok(None)
             }
         }
@@ -211,7 +231,10 @@ impl MfaCache {
             self.cache.expire(&cache_key, window).await?;
         }
 
-        debug!("Incremented MFA rate limit for user {} operation {}: {}", user_id, operation, new_count);
+        debug!(
+            "Incremented MFA rate limit for user {} operation {}: {}",
+            user_id, operation, new_count
+        );
         Ok(new_count)
     }
 
@@ -221,12 +244,18 @@ impl MfaCache {
 
         self.cache.delete(&cache_key).await?;
 
-        info!("Reset MFA rate limit for user {} operation {}", user_id, operation);
+        info!(
+            "Reset MFA rate limit for user {} operation {}",
+            user_id, operation
+        );
         Ok(())
     }
 
     /// Batch get MFA status for multiple users
-    pub async fn batch_get_mfa_status(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, Option<MfaStatus>)>> {
+    pub async fn batch_get_mfa_status(
+        &self,
+        user_ids: &[Uuid],
+    ) -> Result<Vec<(Uuid, Option<MfaStatus>)>> {
         if user_ids.is_empty() {
             return Ok(vec![]);
         }
@@ -236,8 +265,12 @@ impl MfaCache {
             let cache_key = CacheKeys::mfa_status(&user_id.to_string());
             let status = match self.cache.get(&cache_key).await? {
                 Some(value) => {
-                    let entry: MfaCacheEntry = serde_json::from_value(value)
-                        .map_err(|e| AuthencError::internal(format!("Failed to deserialize MFA cache entry: {}", e)))?;
+                    let entry: MfaCacheEntry = serde_json::from_value(value).map_err(|e| {
+                        AuthencError::internal(format!(
+                            "Failed to deserialize MFA cache entry: {}",
+                            e
+                        ))
+                    })?;
                     Some(entry.into())
                 }
                 None => None,
@@ -259,9 +292,12 @@ impl MfaCache {
             let mut entry = MfaCacheEntry::from(status.clone());
             entry.user_id = *user_id;
             let cache_key = CacheKeys::mfa_status(&user_id.to_string());
-            let value = serde_json::to_value(&entry)
-                .map_err(|e| AuthencError::internal(format!("Failed to serialize MFA cache entry: {}", e)))?;
-            self.cache.set(&cache_key, &value, self.mfa_cache_ttl).await?;
+            let value = serde_json::to_value(&entry).map_err(|e| {
+                AuthencError::internal(format!("Failed to serialize MFA cache entry: {}", e))
+            })?;
+            self.cache
+                .set(&cache_key, &value, self.mfa_cache_ttl)
+                .await?;
         }
 
         debug!("Batch cached MFA status for {} users", statuses.len());
@@ -308,8 +344,8 @@ pub struct MfaCacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::cache::redis_cache::RedisCache;
     use crate::config::RedisConfig;
+    use crate::services::cache::redis_cache::RedisCache;
 
     #[tokio::test]
     #[ignore] // Requires Redis
@@ -336,7 +372,10 @@ mod tests {
         };
 
         // Test caching MFA status
-        mfa_cache.cache_mfa_status(user_id, &mfa_status).await.unwrap();
+        mfa_cache
+            .cache_mfa_status(user_id, &mfa_status)
+            .await
+            .unwrap();
 
         // Test retrieving cached MFA status
         let cached_status = mfa_cache.get_mfa_status(user_id).await.unwrap();
@@ -347,24 +386,43 @@ mod tests {
         let otp_code = "123456";
 
         // First check should return false (not used)
-        assert!(!mfa_cache.is_otp_recently_used(user_id, otp_code).await.unwrap());
+        assert!(
+            !mfa_cache
+                .is_otp_recently_used(user_id, otp_code)
+                .await
+                .unwrap()
+        );
 
         // Mark as used
         mfa_cache.mark_otp_as_used(user_id, otp_code).await.unwrap();
 
         // Second check should return true (already used)
-        assert!(mfa_cache.is_otp_recently_used(user_id, otp_code).await.unwrap());
+        assert!(
+            mfa_cache
+                .is_otp_recently_used(user_id, otp_code)
+                .await
+                .unwrap()
+        );
 
         // Test rate limiting
         let operation = "verify";
-        let count = mfa_cache.increment_mfa_rate_limit(user_id, operation, Duration::from_secs(60)).await.unwrap();
+        let count = mfa_cache
+            .increment_mfa_rate_limit(user_id, operation, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert_eq!(count, 1);
 
-        let count = mfa_cache.increment_mfa_rate_limit(user_id, operation, Duration::from_secs(60)).await.unwrap();
+        let count = mfa_cache
+            .increment_mfa_rate_limit(user_id, operation, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert_eq!(count, 2);
 
         // Clean up
         mfa_cache.invalidate_mfa_status(user_id).await.unwrap();
-        mfa_cache.reset_mfa_rate_limit(user_id, operation).await.unwrap();
+        mfa_cache
+            .reset_mfa_rate_limit(user_id, operation)
+            .await
+            .unwrap();
     }
 }

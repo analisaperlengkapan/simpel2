@@ -4,8 +4,8 @@
 
 use crate::services::captcha::{
     error::{CaptchaError, ErrorContext, ErrorRecovery, RecoveryResult},
-    fallback::{FallbackService, FallbackConfig},
-    retry::{RetryExecutor, RetryConfig, CircuitBreaker},
+    fallback::{FallbackConfig, FallbackService},
+    retry::{CircuitBreaker, RetryConfig, RetryExecutor},
     service::{CaptchaService, CaptchaServiceTrait},
     types::*,
 };
@@ -75,7 +75,7 @@ impl EnhancedCaptchaService {
 
         // Create circuit breakers for external services
         let secreton_circuit_breaker = Arc::new(CircuitBreaker::new(
-            3, // failure threshold
+            3,                       // failure threshold
             Duration::from_secs(30), // recovery timeout
         ));
 
@@ -84,8 +84,8 @@ impl EnhancedCaptchaService {
             Duration::from_secs(60),
         ));
 
-        let retry_executor = RetryExecutor::new(retry_config)
-            .with_circuit_breaker(secreton_circuit_breaker.clone());
+        let retry_executor =
+            RetryExecutor::new(retry_config).with_circuit_breaker(secreton_circuit_breaker.clone());
 
         Self {
             core_service,
@@ -143,15 +143,19 @@ impl EnhancedCaptchaService {
             state
         };
 
-        health.secreton_available = secreton_state != crate::services::captcha::retry::CircuitState::Open;
-        health.authenc_monitoring_available = authenc_state != crate::services::captcha::retry::CircuitState::Open;
+        health.secreton_available =
+            secreton_state != crate::services::captcha::retry::CircuitState::Open;
+        health.authenc_monitoring_available =
+            authenc_state != crate::services::captcha::retry::CircuitState::Open;
 
         // Check if we should enter degraded mode
         let should_degrade = !health.secreton_available || !health.database_available;
 
         if should_degrade && !health.degraded_mode_active {
             health.degraded_mode_active = true;
-            self.fallback_service.enter_degraded_mode("Service unavailability detected").await;
+            self.fallback_service
+                .enter_degraded_mode("Service unavailability detected")
+                .await;
             warn!("Entering degraded mode due to service health issues");
         } else if !should_degrade && health.degraded_mode_active {
             health.degraded_mode_active = false;
@@ -171,7 +175,11 @@ impl EnhancedCaptchaService {
         Fut: std::future::Future<Output = Result<T, CaptchaError>> + Send,
         T: Send + 'static,
     {
-        match self.retry_executor.execute(operation, context.clone()).await {
+        match self
+            .retry_executor
+            .execute(operation, context.clone())
+            .await
+        {
             RecoveryResult::Recovered(result) => Ok(result),
             RecoveryResult::FallbackSucceeded(result) => Ok(result),
             RecoveryResult::Failed(error) => {
@@ -186,7 +194,10 @@ impl EnhancedCaptchaService {
                 Err(error)
             }
             RecoveryResult::RequiresIntervention(error) => {
-                error!("Manual intervention required for operation {}: {}", context.operation, error);
+                error!(
+                    "Manual intervention required for operation {}: {}",
+                    context.operation, error
+                );
                 Err(error)
             }
         }
@@ -228,7 +239,10 @@ impl EnhancedCaptchaService {
         match self.execute_with_recovery(normal_operation, context).await {
             Ok(challenge) => Ok(challenge),
             Err(error) => {
-                warn!("Normal challenge generation failed: {}, attempting fallback", error);
+                warn!(
+                    "Normal challenge generation failed: {}, attempting fallback",
+                    error
+                );
 
                 // Try fallback generation
                 let fallback_difficulty = difficulty.unwrap_or(1);
@@ -246,19 +260,19 @@ impl EnhancedCaptchaService {
         answer: String,
         behavioral_data: Option<BehavioralMetrics>,
     ) -> Result<ValidationResult, CaptchaError> {
-        let context = self.create_error_context(
-            "validate_challenge",
-            None,
-            None,
-        );
+        let context = self.create_error_context("validate_challenge", None, None);
 
         // Check cache first
         let cache_key = format!("validation:{}:{}", challenge_id, answer);
-        if let Some(cached_result) = self.fallback_service
+        if let Some(cached_result) = self
+            .fallback_service
             .validate_with_cache_fallback(&cache_key)
             .await
         {
-            debug!("Using cached validation result for challenge {}", challenge_id);
+            debug!(
+                "Using cached validation result for challenge {}",
+                challenge_id
+            );
             return Ok(cached_result);
         }
 
@@ -290,12 +304,15 @@ impl EnhancedCaptchaService {
                 Ok(result)
             }
             Err(error) => {
-                warn!("Normal challenge validation failed: {}, using fallback", error);
+                warn!(
+                    "Normal challenge validation failed: {}, using fallback",
+                    error
+                );
 
                 // Fallback validation (simplified)
                 Ok(ValidationResult::failure(
                     RiskLevel::Medium,
-                    1, // Reset to easiest difficulty
+                    1,    // Reset to easiest difficulty
                     true, // Allow retry
                     None, // No lockout
                     "Validation failed - please try again".to_string(),
@@ -424,10 +441,7 @@ impl CaptchaServiceTrait for EnhancedCaptchaService {
             .await
     }
 
-    async fn refresh_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError> {
+    async fn refresh_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError> {
         let context = self.create_error_context("refresh_challenge", None, None);
 
         let core_service = self.core_service.clone();
@@ -437,18 +451,13 @@ impl CaptchaServiceTrait for EnhancedCaptchaService {
             let core_service = core_service.clone();
             let challenge_id = challenge_id_clone.clone();
 
-            async move {
-                core_service.refresh_challenge(challenge_id).await
-            }
+            async move { core_service.refresh_challenge(challenge_id).await }
         };
 
         self.execute_with_recovery(operation, context).await
     }
 
-    async fn get_challenge(
-        &self,
-        challenge_id: String,
-    ) -> Result<Challenge, CaptchaError> {
+    async fn get_challenge(&self, challenge_id: String) -> Result<Challenge, CaptchaError> {
         let context = self.create_error_context("get_challenge", None, None);
 
         let core_service = self.core_service.clone();
@@ -458,9 +467,7 @@ impl CaptchaServiceTrait for EnhancedCaptchaService {
             let core_service = core_service.clone();
             let challenge_id = challenge_id_clone.clone();
 
-            async move {
-                core_service.get_challenge(challenge_id).await
-            }
+            async move { core_service.get_challenge(challenge_id).await }
         };
 
         self.execute_with_recovery(operation, context).await
@@ -474,9 +481,7 @@ impl CaptchaServiceTrait for EnhancedCaptchaService {
         let operation = move || {
             let core_service = core_service.clone();
 
-            async move {
-                core_service.cleanup_expired_challenges().await
-            }
+            async move { core_service.cleanup_expired_challenges().await }
         };
 
         self.execute_with_recovery(operation, context).await
@@ -494,11 +499,8 @@ mod tests {
         let fallback_config = FallbackConfig::default();
         let retry_config = RetryConfig::default();
 
-        let enhanced_service = EnhancedCaptchaService::new(
-            core_service,
-            fallback_config,
-            retry_config,
-        );
+        let enhanced_service =
+            EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
         let health = enhanced_service.get_health_status().await;
         assert!(health.secreton_available);
@@ -513,20 +515,22 @@ mod tests {
         let fallback_config = FallbackConfig::default();
         let retry_config = RetryConfig::default();
 
-        let enhanced_service = EnhancedCaptchaService::new(
-            core_service,
-            fallback_config,
-            retry_config,
-        );
+        let enhanced_service =
+            EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
         // Force degraded mode
-        enhanced_service.force_degraded_mode("Test degraded mode").await;
+        enhanced_service
+            .force_degraded_mode("Test degraded mode")
+            .await;
 
         let health = enhanced_service.get_health_status().await;
         assert!(health.degraded_mode_active);
 
         let fallback_status = enhanced_service.get_fallback_status().await;
-        assert_eq!(fallback_status.state, FallbackState::Degraded);
+        assert_eq!(
+            fallback_status.state,
+            crate::services::captcha::FallbackState::Degraded
+        );
 
         // Return to normal
         enhanced_service.force_normal_mode().await;
@@ -541,16 +545,21 @@ mod tests {
         let fallback_config = FallbackConfig::default();
         let retry_config = RetryConfig::default();
 
-        let enhanced_service = EnhancedCaptchaService::new(
-            core_service,
-            fallback_config,
-            retry_config,
-        );
+        let enhanced_service =
+            EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
         let metrics = enhanced_service.get_comprehensive_metrics().await.unwrap();
 
         assert!(!metrics.service_health.degraded_mode_active);
-        assert_eq!(metrics.fallback_status.state, FallbackState::Normal);
-        assert!(metrics.circuit_breaker_states.secreton_state.contains("Closed"));
+        assert_eq!(
+            metrics.fallback_status.state,
+            crate::services::captcha::FallbackState::Normal
+        );
+        assert!(
+            metrics
+                .circuit_breaker_states
+                .secreton_state
+                .contains("Closed")
+        );
     }
 }

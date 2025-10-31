@@ -11,8 +11,8 @@ pub use security_tests::*;
 
 #[cfg(test)]
 mod test_utils {
-    use crate::services::captcha::types::*;
     use crate::services::captcha::ChallengeType;
+    use crate::services::captcha::types::*;
     use std::time::{Duration, SystemTime};
 
     /// Create a test challenge for testing purposes
@@ -40,25 +40,21 @@ mod test_utils {
     ) -> BehavioralMetrics {
         BehavioralMetrics {
             session_id,
-            mouse_movements: vec![
-                MouseEvent {
-                    x: 100.0,
-                    y: 150.0,
-                    timestamp: 1000,
-                    event_type: "mousemove".to_string(),
-                    velocity: Some(5.0),
-                    acceleration: Some(0.5),
-                },
-            ],
-            keystroke_dynamics: vec![
-                KeystrokeEvent {
-                    key: "a".to_string(),
-                    timestamp: 2000,
-                    duration: 100,
-                    dwell_time: 80,
-                    flight_time: Some(20),
-                },
-            ],
+            mouse_movements: vec![MouseEvent {
+                x: 100.0,
+                y: 150.0,
+                timestamp: 1000,
+                event_type: "mousemove".to_string(),
+                velocity: Some(5.0),
+                acceleration: Some(0.5),
+            }],
+            keystroke_dynamics: vec![KeystrokeEvent {
+                key: "a".to_string(),
+                timestamp: 2000,
+                duration: 100,
+                dwell_time: 80,
+                flight_time: Some(20),
+            }],
             timing_patterns: TimingAnalysis {
                 total_interaction_time: 5000,
                 pause_patterns: vec![200, 150, 300],
@@ -168,9 +164,7 @@ mod all_tests {
     #[tokio::test]
     async fn benchmark_captcha_operations() {
         use crate::services::captcha::{
-            enhanced_service::EnhancedCaptchaService,
-            fallback::FallbackConfig,
-            retry::RetryConfig,
+            enhanced_service::EnhancedCaptchaService, fallback::FallbackConfig, retry::RetryConfig,
             service::CaptchaService,
         };
         use std::sync::Arc;
@@ -179,11 +173,8 @@ mod all_tests {
         let fallback_config = FallbackConfig::default();
         let retry_config = RetryConfig::default();
 
-        let enhanced_service = EnhancedCaptchaService::new(
-            core_service,
-            fallback_config,
-            retry_config,
-        );
+        let enhanced_service =
+            EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
         let iterations = 100;
         let start_time = std::time::Instant::now();
@@ -200,11 +191,7 @@ mod all_tests {
                 .unwrap();
 
             let _ = enhanced_service
-                .validate_challenge(
-                    challenge.id,
-                    "benchmark_answer".to_string(),
-                    None,
-                )
+                .validate_challenge(challenge.id, "benchmark_answer".to_string(), None)
                 .await;
         }
 
@@ -214,7 +201,10 @@ mod all_tests {
         println!("Benchmark results:");
         println!("  Total time: {:?}", elapsed);
         println!("  Average time per operation: {:?}", avg_time);
-        println!("  Operations per second: {:.2}", 1000.0 / avg_time.as_millis() as f64);
+        println!(
+            "  Operations per second: {:.2}",
+            1000.0 / avg_time.as_millis() as f64
+        );
 
         // Performance should be reasonable
         assert!(avg_time < Duration::from_millis(10));
@@ -224,9 +214,7 @@ mod all_tests {
     #[tokio::test]
     async fn stress_test_concurrent_operations() {
         use crate::services::captcha::{
-            enhanced_service::EnhancedCaptchaService,
-            fallback::FallbackConfig,
-            retry::RetryConfig,
+            enhanced_service::EnhancedCaptchaService, fallback::FallbackConfig, retry::RetryConfig,
             service::CaptchaService,
         };
         use std::sync::Arc;
@@ -259,11 +247,7 @@ mod all_tests {
                     .await?;
 
                 service
-                    .validate_challenge(
-                        challenge.id,
-                        "stress_test_answer".to_string(),
-                        None,
-                    )
+                    .validate_challenge(challenge.id, "stress_test_answer".to_string(), None)
                     .await
             });
             handles.push(handle);
@@ -281,7 +265,10 @@ mod all_tests {
         println!("  Concurrent operations: {}", concurrent_operations);
         println!("  Successful operations: {}", successful_operations);
         println!("  Total time: {:?}", elapsed);
-        println!("  Success rate: {:.2}%", (successful_operations as f64 / concurrent_operations as f64) * 100.0);
+        println!(
+            "  Success rate: {:.2}%",
+            (successful_operations as f64 / concurrent_operations as f64) * 100.0
+        );
 
         // Should handle concurrent operations well
         assert!(successful_operations as f64 / concurrent_operations as f64 > 0.8);

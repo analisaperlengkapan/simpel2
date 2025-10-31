@@ -1,5 +1,10 @@
 use crate::error::AuthencError;
+use crate::utils::validation::{
+    email_validator, nip_validator, phone_validator, sanitize_email, sanitize_satker_code,
+    sanitize_string, sanitize_username, satker_code_validator, username_validator,
+};
 use chrono::{DateTime, Datelike, Timelike, Utc};
+use garde::Validate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -831,72 +836,169 @@ pub struct UserRequiredAction {
 }
 
 /// User creation request for SIMKARI
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
     /// Username for the new user
+    #[garde(custom(username_validator))]
     pub username: String,
+
     /// Email address for the new user
+    #[garde(custom(email_validator))]
     pub email: String,
+
     /// Kode satuan kerja (required)
+    #[garde(custom(satker_code_validator))]
     pub satker_code: String,
+
     /// Password for the new user (optional, can be set later)
+    #[garde(length(min = 8, max = 128))]
+    #[garde(dive)]
     pub password: Option<String>,
+
     /// First name of the user
+    #[garde(length(min = 1, max = 100))]
+    #[garde(dive)]
     pub first_name: Option<String>,
+
     /// Last name of the user
+    #[garde(length(min = 1, max = 100))]
+    #[garde(dive)]
     pub last_name: Option<String>,
+
     /// NIP (Nomor Induk Pegawai)
+    #[garde(custom(nip_validator))]
+    #[garde(dive)]
     pub nip: Option<String>,
+
     /// Nama lengkap pegawai
+    #[garde(length(min = 1, max = 200))]
+    #[garde(dive)]
     pub nama: Option<String>,
+
     /// Jabatan pegawai
+    #[garde(length(min = 1, max = 200))]
+    #[garde(dive)]
     pub jabatan: Option<String>,
+
     /// Phone number of the user
+    #[garde(custom(phone_validator))]
+    #[garde(dive)]
     pub phone_number: Option<String>,
+
     /// ID of the realm to create the user in
+    #[garde(skip)]
     pub realm_id: Option<Uuid>,
+
     /// ID of the organization to assign the user to
+    #[garde(skip)]
     pub organization_id: Option<Uuid>,
+
     /// Initial roles to assign to the user
+    #[garde(length(max = 50))]
+    #[garde(dive)]
     pub roles: Option<Vec<Uuid>>,
+
     /// Secreton access policy for the user
+    #[garde(skip)]
     pub secreton_access_policy: Option<SecretonAccessPolicy>,
+
     /// Additional user attributes as JSON
+    #[garde(skip)]
     pub attributes: Option<serde_json::Value>,
 }
 
+impl CreateUserRequest {
+    /// Sanitize the request fields
+    pub fn sanitize(&mut self) {
+        self.username = sanitize_username(&self.username);
+        self.email = sanitize_email(&self.email);
+        self.satker_code = sanitize_satker_code(&self.satker_code);
+
+        if let Some(ref mut first_name) = self.first_name {
+            *first_name = sanitize_string(first_name, 100);
+        }
+        if let Some(ref mut last_name) = self.last_name {
+            *last_name = sanitize_string(last_name, 100);
+        }
+        if let Some(ref mut nama) = self.nama {
+            *nama = sanitize_string(nama, 200);
+        }
+        if let Some(ref mut jabatan) = self.jabatan {
+            *jabatan = sanitize_string(jabatan, 200);
+        }
+    }
+}
+
 /// User update request for SIMKARI
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateUserRequest {
     /// New username for the user
+    #[garde(custom(username_validator))]
+    #[garde(dive)]
     pub username: Option<String>,
+
     /// New email address for the user
+    #[garde(custom(email_validator))]
+    #[garde(dive)]
     pub email: Option<String>,
+
     /// New satker code for the user
+    #[garde(custom(satker_code_validator))]
+    #[garde(dive)]
     pub satker_code: Option<String>,
+
     /// New first name for the user
+    #[garde(length(min = 1, max = 100))]
+    #[garde(dive)]
     pub first_name: Option<String>,
+
     /// New last name for the user
+    #[garde(length(min = 1, max = 100))]
+    #[garde(dive)]
     pub last_name: Option<String>,
+
     /// New NIP for the user
+    #[garde(custom(nip_validator))]
+    #[garde(dive)]
     pub nip: Option<String>,
+
     /// New nama for the user
+    #[garde(length(min = 1, max = 200))]
+    #[garde(dive)]
     pub nama: Option<String>,
+
     /// New jabatan for the user
+    #[garde(length(min = 1, max = 200))]
+    #[garde(dive)]
     pub jabatan: Option<String>,
+
     /// New phone number for the user
+    #[garde(custom(phone_validator))]
+    #[garde(dive)]
     pub phone_number: Option<String>,
+
     /// Whether the user account is enabled
+    #[garde(skip)]
     pub enabled: Option<bool>,
+
     /// Whether the email address has been verified
+    #[garde(skip)]
     pub email_verified: Option<bool>,
+
     /// Whether the phone number has been verified
+    #[garde(skip)]
     pub phone_verified: Option<bool>,
+
     /// Whether the user must change their password on next login
+    #[garde(skip)]
     pub require_password_change: Option<bool>,
+
     /// Updated secreton access policy
+    #[garde(skip)]
     pub secreton_access_policy: Option<SecretonAccessPolicy>,
+
     /// Additional user attributes as JSON
+    #[garde(skip)]
     pub attributes: Option<serde_json::Value>,
 }
 

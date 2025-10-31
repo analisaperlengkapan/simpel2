@@ -3,14 +3,14 @@
 //! This module contains comprehensive tests to validate compliance with
 //! Indonesian Attorney General's Office security and operational requirements.
 
+use chrono::{DateTime, Duration, Utc};
 use std::collections::HashMap;
 use uuid::Uuid;
-use chrono::{DateTime, Utc, Duration};
 
-use crate::config::AuthencConfig;
-use crate::models::{User, Role, RoleScope, AdminLevel, AuditEvent, Permission};
-use crate::crypto::CryptoEngine;
 use crate::audit::AuditLogger;
+use crate::config::AuthencConfig;
+use crate::crypto::CryptoEngine;
+use crate::models::{AdminLevel, AuditEvent, Permission, Role, RoleScope, User};
 
 /// Test suite for validating Attorney General's Office compliance requirements
 #[cfg(test)]
@@ -27,28 +27,28 @@ mod kejaksaan_compliance_validation {
             "Admin Pusat",
             "admin.pusat@kejaksaan.go.id",
             AdminLevel::AdminPusat,
-            "PUSAT"
+            "PUSAT",
         );
 
         let admin_eselon_i = create_admin_user(
             "Admin Eselon I",
             "admin.eselon1@kejaksaan.go.id",
             AdminLevel::AdminEselonI,
-            "ESELON_I_TINDAK_PIDANA_KHUSUS"
+            "ESELON_I_TINDAK_PIDANA_KHUSUS",
         );
 
         let admin_wilayah = create_admin_user(
             "Admin Kejati DKI Jakarta",
             "admin.jakarta@kejaksaan.go.id",
             AdminLevel::AdminWilayah("KEJATI_DKI_JAKARTA".to_string()),
-            "KEJATI_DKI_JAKARTA"
+            "KEJATI_DKI_JAKARTA",
         );
 
         let admin_satker = create_admin_user(
             "Admin Kejari Jakarta Pusat",
             "admin.jakpus@kejaksaan.go.id",
             AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string()),
-            "KEJARI_JAKARTA_PUSAT"
+            "KEJARI_JAKARTA_PUSAT",
         );
 
         // Test hierarchical access control
@@ -77,11 +77,11 @@ mod kejaksaan_compliance_validation {
         ];
 
         let invalid_nips = vec![
-            "12345678901234567",  // Too short
+            "12345678901234567",   // Too short
             "1980010120000110011", // Too long
             "198001012000011000",  // Invalid check digit
             "abc001012000011001",  // Contains letters
-            "",                   // Empty
+            "",                    // Empty
         ];
 
         for nip in valid_nips {
@@ -97,26 +97,34 @@ mod kejaksaan_compliance_validation {
     async fn test_satker_code_validation() {
         // Test satker code validation for Indonesian government structure
         let valid_satker_codes = vec![
-            "KEJAGUNG",                    // Kejaksaan Agung
-            "KEJATI_DKI_JAKARTA",         // Kejaksaan Tinggi DKI Jakarta
-            "KEJARI_JAKARTA_PUSAT",       // Kejaksaan Negeri Jakarta Pusat
-            "CABDIN_BADIKLAT",            // Cabang Dinas Badiklat
-            "ESELON_I_INTEL",             // Eselon I Intelijen
+            "KEJAGUNG",             // Kejaksaan Agung
+            "KEJATI_DKI_JAKARTA",   // Kejaksaan Tinggi DKI Jakarta
+            "KEJARI_JAKARTA_PUSAT", // Kejaksaan Negeri Jakarta Pusat
+            "CABDIN_BADIKLAT",      // Cabang Dinas Badiklat
+            "ESELON_I_INTEL",       // Eselon I Intelijen
         ];
 
         let invalid_satker_codes = vec![
-            "",                           // Empty
-            "INVALID_CODE",               // Not following naming convention
-            "kejati_jakarta",             // Lowercase (should be uppercase)
-            "SATKER WITH SPACES",         // Contains spaces
+            "",                   // Empty
+            "INVALID_CODE",       // Not following naming convention
+            "kejati_jakarta",     // Lowercase (should be uppercase)
+            "SATKER WITH SPACES", // Contains spaces
         ];
 
         for code in valid_satker_codes {
-            assert!(validate_satker_code(code), "Satker code {} should be valid", code);
+            assert!(
+                validate_satker_code(code),
+                "Satker code {} should be valid",
+                code
+            );
         }
 
         for code in invalid_satker_codes {
-            assert!(!validate_satker_code(code), "Satker code {} should be invalid", code);
+            assert!(
+                !validate_satker_code(code),
+                "Satker code {} should be invalid",
+                code
+            );
         }
     }
 
@@ -129,35 +137,35 @@ mod kejaksaan_compliance_validation {
             "Jaksa Agung",
             RoleScope::Pusat,
             vec!["MANAGE_ALL", "AUDIT_ALL", "ADMIN_ALL"],
-            AdminLevel::AdminPusat
+            AdminLevel::AdminPusat,
         );
 
         let jaksa_agung_muda = create_role(
             "Jaksa Agung Muda",
             RoleScope::Pusat,
             vec!["MANAGE_ESELON_I", "AUDIT_ESELON_I"],
-            AdminLevel::AdminPusat
+            AdminLevel::AdminPusat,
         );
 
         let kajati = create_role(
             "Kepala Kejaksaan Tinggi",
             RoleScope::Wilayah("KEJATI_DKI_JAKARTA".to_string()),
             vec!["MANAGE_WILAYAH", "AUDIT_WILAYAH"],
-            AdminLevel::AdminWilayah("KEJATI_DKI_JAKARTA".to_string())
+            AdminLevel::AdminWilayah("KEJATI_DKI_JAKARTA".to_string()),
         );
 
         let kajari = create_role(
             "Kepala Kejaksaan Negeri",
             RoleScope::Satker("KEJARI_JAKARTA_PUSAT".to_string()),
             vec!["MANAGE_SATKER", "AUDIT_SATKER"],
-            AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string())
+            AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string()),
         );
 
         let jaksa = create_role(
             "Jaksa",
             RoleScope::Satker("KEJARI_JAKARTA_PUSAT".to_string()),
             vec!["READ_cases", "write_cases"],
-            AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string())
+            AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string()),
         );
 
         // Test role hierarchy and permissions
@@ -185,7 +193,7 @@ mod kejaksaan_compliance_validation {
             &user,
             "USER_AUTHENTICATION",
             "Authentication successful",
-            "SUCCESS"
+            "SUCCESS",
         );
         audit_logger.log_event(&auth_event).await.unwrap();
 
@@ -194,7 +202,7 @@ mod kejaksaan_compliance_validation {
             &user,
             "AUTHORIZATION_CHECK",
             "Access to case file authorized",
-            "SUCCESS"
+            "SUCCESS",
         );
         audit_logger.log_event(&authz_event).await.unwrap();
 
@@ -203,7 +211,7 @@ mod kejaksaan_compliance_validation {
             &user,
             "SECRET_ACCESS",
             "Database credentials accessed",
-            "SUCCESS"
+            "SUCCESS",
         );
         audit_logger.log_event(&secret_event).await.unwrap();
 
@@ -212,7 +220,7 @@ mod kejaksaan_compliance_validation {
             &user,
             "UNAUTHORIZED_ACCESS_ATTEMPT",
             "Attempted access to restricted case file",
-            "FAILURE"
+            "FAILURE",
         );
         audit_logger.log_event(&failed_event).await.unwrap();
 
@@ -230,7 +238,11 @@ mod kejaksaan_compliance_validation {
             assert!(event.timestamp <= Utc::now());
 
             // Verify kejaksaan-specific compliance flags
-            assert!(event.compliance_flags.contains(&"KEJAKSAAN_COMPLIANT".to_string()));
+            assert!(
+                event
+                    .compliance_flags
+                    .contains(&"KEJAKSAAN_COMPLIANT".to_string())
+            );
 
             // Verify risk scoring
             assert!(event.risk_score.is_some());
@@ -253,7 +265,7 @@ mod kejaksaan_compliance_validation {
             "RECENT_ACCESS",
             "Recent case file access",
             "SUCCESS",
-            Utc::now() - Duration::days(30)
+            Utc::now() - Duration::days(30),
         );
 
         let old_event = create_audit_event_with_timestamp(
@@ -261,7 +273,7 @@ mod kejaksaan_compliance_validation {
             "OLD_ACCESS",
             "Old case file access",
             "SUCCESS",
-            Utc::now() - Duration::days(2555) // ~7 years old
+            Utc::now() - Duration::days(2555), // ~7 years old
         );
 
         let very_old_event = create_audit_event_with_timestamp(
@@ -269,7 +281,7 @@ mod kejaksaan_compliance_validation {
             "VERY_OLD_ACCESS",
             "Very old case file access",
             "SUCCESS",
-            Utc::now() - Duration::days(3650) // ~10 years old
+            Utc::now() - Duration::days(3650), // ~10 years old
         );
 
         audit_logger.log_event(&recent_event).await.unwrap();
@@ -289,11 +301,19 @@ mod kejaksaan_compliance_validation {
         let archived_events = audit_logger.get_archived_events().await.unwrap();
 
         // Recent events should be active
-        assert!(active_events.iter().any(|e| e.event_type == "RECENT_ACCESS"));
+        assert!(
+            active_events
+                .iter()
+                .any(|e| e.event_type == "RECENT_ACCESS")
+        );
 
         // Very old events should be archived or purged according to policy
-        let very_old_in_active = active_events.iter().any(|e| e.event_type == "VERY_OLD_ACCESS");
-        let very_old_in_archive = archived_events.iter().any(|e| e.event_type == "VERY_OLD_ACCESS");
+        let very_old_in_active = active_events
+            .iter()
+            .any(|e| e.event_type == "VERY_OLD_ACCESS");
+        let very_old_in_archive = archived_events
+            .iter()
+            .any(|e| e.event_type == "VERY_OLD_ACCESS");
 
         // Should be either archived or purged (not in active)
         assert!(!very_old_in_active || very_old_in_archive);
@@ -308,8 +328,14 @@ mod kejaksaan_compliance_validation {
         let sensitive_data = "Data sensitif kejaksaan - informasi kasus pidana khusus";
 
         // Test AES-256-GCM encryption (required standard)
-        let encrypted_data = crypto_engine.encrypt_sensitive_data(sensitive_data.as_bytes()).await.unwrap();
-        let decrypted_data = crypto_engine.decrypt_sensitive_data(&encrypted_data).await.unwrap();
+        let encrypted_data = crypto_engine
+            .encrypt_sensitive_data(sensitive_data.as_bytes())
+            .await
+            .unwrap();
+        let decrypted_data = crypto_engine
+            .decrypt_sensitive_data(&encrypted_data)
+            .await
+            .unwrap();
 
         assert_eq!(sensitive_data.as_bytes(), decrypted_data.as_slice());
 
@@ -321,8 +347,14 @@ mod kejaksaan_compliance_validation {
 
         // Test digital signature compliance (Ed25519 or RSA-PSS)
         let document = "Dokumen resmi kejaksaan - surat dakwaan";
-        let signature = crypto_engine.sign_document(document.as_bytes()).await.unwrap();
-        let is_valid = crypto_engine.verify_document_signature(document.as_bytes(), &signature).await.unwrap();
+        let signature = crypto_engine
+            .sign_document(document.as_bytes())
+            .await
+            .unwrap();
+        let is_valid = crypto_engine
+            .verify_document_signature(document.as_bytes(), &signature)
+            .await
+            .unwrap();
 
         assert!(is_valid);
 
@@ -333,7 +365,10 @@ mod kejaksaan_compliance_validation {
         // Test key derivation compliance (PBKDF2 or Argon2)
         let password = "password_jaksa_secure_2024";
         let salt = crypto_engine.generate_salt();
-        let derived_key = crypto_engine.derive_key(password.as_bytes(), &salt).await.unwrap();
+        let derived_key = crypto_engine
+            .derive_key(password.as_bytes(), &salt)
+            .await
+            .unwrap();
 
         assert_eq!(derived_key.len(), 32); // 256-bit key
 
@@ -353,7 +388,7 @@ mod kejaksaan_compliance_validation {
             "Admin Satker",
             "admin@kejari.jakpus.go.id",
             AdminLevel::AdminSatker("KEJARI_JAKARTA_PUSAT".to_string()),
-            "KEJARI_JAKARTA_PUSAT"
+            "KEJARI_JAKARTA_PUSAT",
         );
 
         // Test case file access control
@@ -366,7 +401,10 @@ mod kejaksaan_compliance_validation {
         assert!(!can_access_resource(&jaksa_pidana_umum, pidana_khusus_case));
 
         // Test that jaksa pidana khusus can access special cases
-        assert!(can_access_resource(&jaksa_pidana_khusus, pidana_khusus_case));
+        assert!(can_access_resource(
+            &jaksa_pidana_khusus,
+            pidana_khusus_case
+        ));
 
         // Test that admin can access configuration
         assert!(can_access_resource(&admin_satker, admin_config));
@@ -377,8 +415,16 @@ mod kejaksaan_compliance_validation {
         let work_time = Utc::now().with_hour(10).unwrap(); // 10 AM
 
         // Some sensitive operations should be restricted during non-work hours
-        assert!(!can_access_at_time(&jaksa_pidana_umum, "sensitive/case_modification", night_time));
-        assert!(can_access_at_time(&jaksa_pidana_umum, "sensitive/case_modification", work_time));
+        assert!(!can_access_at_time(
+            &jaksa_pidana_umum,
+            "sensitive/case_modification",
+            night_time
+        ));
+        assert!(can_access_at_time(
+            &jaksa_pidana_umum,
+            "sensitive/case_modification",
+            work_time
+        ));
     }
 
     #[tokio::test]
@@ -391,12 +437,15 @@ mod kejaksaan_compliance_validation {
 
         // Create session
         let session_data = create_session_data(&user);
-        let encrypted_session = crypto_engine.encrypt_session_data(&session_data).await.unwrap();
+        let encrypted_session = crypto_engine
+            .encrypt_session_data(&session_data)
+            .await
+            .unwrap();
 
         // Test session timeout compliance
         let session_config = config.session.clone();
         assert!(session_config.max_idle_time_minutes <= 30); // Max 30 minutes idle
-        assert!(session_config.max_session_time_hours <= 8);  // Max 8 hours total
+        assert!(session_config.max_session_time_hours <= 8); // Max 8 hours total
         assert!(session_config.require_reauthentication_for_sensitive);
 
         // Test concurrent session limits
@@ -406,12 +455,17 @@ mod kejaksaan_compliance_validation {
         let suspicious_activity = detect_suspicious_activity(&user, &session_data);
         if suspicious_activity {
             // Session should be invalidated
-            let invalidation_result = crypto_engine.invalidate_session(&session_data.session_id).await;
+            let invalidation_result = crypto_engine
+                .invalidate_session(&session_data.session_id)
+                .await;
             assert!(invalidation_result.is_ok());
         }
 
         // Test secure session storage
-        let decrypted_session = crypto_engine.decrypt_session_data(&encrypted_session).await.unwrap();
+        let decrypted_session = crypto_engine
+            .decrypt_session_data(&encrypted_session)
+            .await
+            .unwrap();
         assert_eq!(session_data.user_id, decrypted_session.user_id);
         assert_eq!(session_data.nip, decrypted_session.nip);
         assert_eq!(session_data.satker_code, decrypted_session.satker_code);
@@ -483,19 +537,13 @@ fn validate_satker_code(code: &str) -> bool {
     }
 
     // Must follow naming convention
-    let valid_prefixes = vec![
-        "KEJAGUNG",
-        "KEJATI_",
-        "KEJARI_",
-        "CABDIN_",
-        "ESELON_I_",
-    ];
+    let valid_prefixes = vec!["KEJAGUNG", "KEJATI_", "KEJARI_", "CABDIN_", "ESELON_I_"];
 
     valid_prefixes.iter().any(|prefix| code.starts_with(prefix))
 }
 
 fn create_admin_user(nama: &str, email: &str, admin_level: AdminLevel, satker_code: &str) -> User {
-    use crate::models::{SecretonAccessPolicy, AccessLevel};
+    use crate::models::{AccessLevel, SecretonAccessPolicy};
 
     User {
         id: Uuid::new_v4(),
@@ -519,7 +567,7 @@ fn create_admin_user(nama: &str, email: &str, admin_level: AdminLevel, satker_co
 }
 
 fn create_test_jaksa(nip: &str, satker_code: &str) -> User {
-    use crate::models::{SecretonAccessPolicy, AccessLevel};
+    use crate::models::{AccessLevel, SecretonAccessPolicy};
 
     User {
         id: Uuid::new_v4(),
@@ -542,22 +590,35 @@ fn create_test_jaksa(nip: &str, satker_code: &str) -> User {
     }
 }
 
-fn create_role(name: &str, scope: RoleScope, permissions: Vec<&str>, managed_by: AdminLevel) -> Role {
+fn create_role(
+    name: &str,
+    scope: RoleScope,
+    permissions: Vec<&str>,
+    managed_by: AdminLevel,
+) -> Role {
     Role {
         id: Uuid::new_v4(),
         name: name.to_string(),
         scope,
-        permissions: permissions.into_iter().map(|p| Permission {
-            id: Uuid::new_v4(),
-            name: p.to_string(),
-            resource: "*".to_string(),
-            action: "*".to_string(),
-        }).collect(),
+        permissions: permissions
+            .into_iter()
+            .map(|p| Permission {
+                id: Uuid::new_v4(),
+                name: p.to_string(),
+                resource: "*".to_string(),
+                action: "*".to_string(),
+            })
+            .collect(),
         managed_by,
     }
 }
 
-fn create_audit_event(user: &User, event_type: &str, description: &str, result: &str) -> AuditEvent {
+fn create_audit_event(
+    user: &User,
+    event_type: &str,
+    description: &str,
+    result: &str,
+) -> AuditEvent {
     AuditEvent {
         event_id: Uuid::new_v4(),
         timestamp: Utc::now(),
@@ -580,7 +641,7 @@ fn create_audit_event_with_timestamp(
     event_type: &str,
     description: &str,
     result: &str,
-    timestamp: DateTime<Utc>
+    timestamp: DateTime<Utc>,
 ) -> AuditEvent {
     let mut event = create_audit_event(user, event_type, description, result);
     event.timestamp = timestamp;
@@ -589,7 +650,10 @@ fn create_audit_event_with_timestamp(
 
 fn can_admin_manage(admin: &User, target: &User) -> bool {
     // Simplified hierarchy check for testing
-    match (&admin.roles.first().map(|r| &r.managed_by), &target.roles.first().map(|r| &r.managed_by)) {
+    match (
+        &admin.roles.first().map(|r| &r.managed_by),
+        &target.roles.first().map(|r| &r.managed_by),
+    ) {
         (Some(AdminLevel::AdminPusat), _) => true,
         (Some(AdminLevel::AdminEselonI), Some(AdminLevel::AdminPusat)) => false,
         (Some(AdminLevel::AdminEselonI), _) => true,
@@ -606,10 +670,19 @@ fn can_access_resource(user: &User, resource: &str) -> bool {
     // Simplified access control for testing
     if resource.starts_with("config/") {
         // Only admins can access config
-        user.roles.iter().any(|r| matches!(r.managed_by, AdminLevel::AdminSatker(_) | AdminLevel::AdminWilayah(_) | AdminLevel::AdminEselonI | AdminLevel::AdminPusat))
+        user.roles.iter().any(|r| {
+            matches!(
+                r.managed_by,
+                AdminLevel::AdminSatker(_)
+                    | AdminLevel::AdminWilayah(_)
+                    | AdminLevel::AdminEselonI
+                    | AdminLevel::AdminPusat
+            )
+        })
     } else if resource.contains("pidana_khusus") {
         // Only pidana khusus jaksa can access special cases
-        user.satker_code.contains("KEJATI") || user.roles.iter().any(|r| r.name.contains("Pidana Khusus"))
+        user.satker_code.contains("KEJATI")
+            || user.roles.iter().any(|r| r.name.contains("Pidana Khusus"))
     } else {
         // Regular access based on satker
         resource.contains(&user.satker_code) || user.satker_code == "KEJAGUNG"

@@ -32,7 +32,7 @@ pub use ecdsa_keys::*;
 pub use ecdsa_p384_keys::*;
 pub use ecdsa_p521_keys::*;
 pub use eddsa_ed448_keys::{
-    get_eddsa_jwk_set, sign_jwt_eddsa, verify_jwt_eddsa, EddsaJwk, EddsaJwkSet,
+    EddsaJwk, EddsaJwkSet, get_eddsa_jwk_set, sign_jwt_eddsa, verify_jwt_eddsa,
 };
 pub use enhanced::{
     AdminLevel, AuditSignature, BatchValidationRequest, BatchValidationResponse, CryptoMetrics,
@@ -43,6 +43,6 @@ pub use mtls::*;
 pub use pqc::{falcon, hybrid, mldsa, mlkem};
 pub use sdjwt::*;
 pub use shamir::{
-    generate_shares_with_commitments, reconstruct_secret, reconstruct_secret_verified,
-    verify_share_with_commitment, Commitment, ShamirConfig, ShamirError, Share,
+    Commitment, ShamirConfig, ShamirError, Share, generate_shares_with_commitments,
+    reconstruct_secret, reconstruct_secret_verified, verify_share_with_commitment,
 };
