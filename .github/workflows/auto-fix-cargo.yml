@@ -56,6 +56,36 @@ jobs:
           cargo clippy --fix --allow-dirty --allow-staged --workspace || true
           cargo fmt --all
 
+      - name: Validate changes with cargo check
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
+
+      - name: Install and run cargo-audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+        continue-on-error: true
+
+      - name: Install and run cargo-deny
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check advisories
+          cargo deny check licenses
+          cargo deny check bans
+        continue-on-error: true
+
+      - name: Build release
+        run: cargo build --release --verbose
+        continue-on-error: true
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
@@ -138,6 +168,42 @@ jobs:
           cargo fix --workspace --all --allow-dirty --allow-staged || true
           cargo clippy --fix --allow-dirty --allow-staged --workspace || true
           cargo fmt --all
+
+      - name: Validate changes with cargo check
+        working-directory: infra/secreton
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        working-directory: infra/secreton
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        working-directory: infra/secreton
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
+
+      - name: Install and run cargo-audit
+        working-directory: infra/secreton
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+        continue-on-error: true
+
+      - name: Install and run cargo-deny
+        working-directory: infra/secreton
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check advisories
+          cargo deny check licenses
+          cargo deny check bans
+        continue-on-error: true
+
+      - name: Build release
+        working-directory: infra/secreton
+        run: cargo build --release --verbose
+        continue-on-error: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
@@ -224,6 +290,42 @@ jobs:
           cargo clippy --fix --allow-dirty --allow-staged --workspace || true
           cargo fmt --all
 
+      - name: Validate changes with cargo check
+        working-directory: infra/authenc
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        working-directory: infra/authenc
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        working-directory: infra/authenc
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
+
+      - name: Install and run cargo-audit
+        working-directory: infra/authenc
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+        continue-on-error: true
+
+      - name: Install and run cargo-deny
+        working-directory: infra/authenc
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check advisories
+          cargo deny check licenses
+          cargo deny check bans
+        continue-on-error: true
+
+      - name: Build release
+        working-directory: infra/authenc
+        run: cargo build --release --verbose
+        continue-on-error: true
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
@@ -279,10 +381,36 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-          components: rustfmt
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: target
+          key: ${{ runner.os }}-target-fmt-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-fmt-
 
       - name: Run cargo fmt
         run: cargo fmt --all --workspace
+
+      - name: Validate changes with cargo check
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
@@ -334,11 +462,40 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-          components: rustfmt
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-secreton-${{ hashFiles('infra/secreton/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-secreton-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: infra/secreton/target
+          key: ${{ runner.os }}-target-fmt-secreton-${{ hashFiles('infra/secreton/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-fmt-secreton-
 
       - name: Run cargo fmt in secreton
         working-directory: infra/secreton
         run: cargo fmt --all --workspace
+
+      - name: Validate changes with cargo check
+        working-directory: infra/secreton
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        working-directory: infra/secreton
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        working-directory: infra/secreton
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
@@ -390,11 +547,40 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.90.0
-          components: rustfmt
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-authenc-${{ hashFiles('infra/authenc/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-authenc-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: infra/authenc/target
+          key: ${{ runner.os }}-target-fmt-authenc-${{ hashFiles('infra/authenc/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-fmt-authenc-
 
       - name: Run cargo fmt in authenc
         working-directory: infra/authenc
         run: cargo fmt --all --workspace
+
+      - name: Validate changes with cargo check
+        working-directory: infra/authenc
+        run: cargo check --workspace --all --verbose
+        continue-on-error: false
+
+      - name: Run tests
+        working-directory: infra/authenc
+        run: cargo test --workspace --all --verbose
+        continue-on-error: true
+
+      - name: Run clippy validation
+        working-directory: infra/authenc
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        continue-on-error: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
