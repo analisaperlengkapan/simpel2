@@ -195,3 +195,4 @@ antarmuka/*/Cargo.lock
 # ===============================
 # Cargo Chef auto-generated
 recipe.json
+simpel_laravel/
