@@ -6,8 +6,8 @@
 pub mod event_consumer;
 pub mod in_memory_cache;
 pub mod invalidation;
-pub mod mfa_cache;
 pub mod metrics;
+pub mod mfa_cache;
 pub mod multi_layer_cache;
 pub mod redis_cache;
 
@@ -16,8 +16,8 @@ pub use in_memory_cache::InMemoryCache;
 pub use invalidation::{
     CacheInvalidationService, CacheWarmingService, InvalidationEvent, InvalidationStats,
 };
-pub use mfa_cache::{MfaCache, MfaCacheEntry, MfaVerificationResult};
 pub use metrics::{CacheMetrics, CacheMetricsSnapshot, OperationTimer};
+pub use mfa_cache::{MfaCache, MfaCacheEntry, MfaVerificationResult};
 pub use multi_layer_cache::{MultiLayerCache, MultiLayerCacheConfig};
 pub use redis_cache::RedisCache;
 

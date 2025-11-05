@@ -11,22 +11,22 @@ use crate::app::AppState;
 // Handlers
 /// Consent UI handlers for user consent management
 pub mod consent_ui;
-/// Validation helper utilities for request validation
-pub mod validation_helper;
 /// Health check handlers for Axum web framework
 pub mod health_axum;
+/// JWKS (JSON Web Key Set) endpoint with caching and key rotation support
+pub mod jwks;
 /// JWT token handling with Ed25519 signatures for enhanced security
 pub mod jwt_ed25519;
-/// Comprehensive OAuth2 implementation with PKCE and security features
-pub mod oauth2_comprehensive;
 /// OAuth2 Authorization Code Flow with PKCE support
 pub mod oauth2_authz_code;
+/// Comprehensive OAuth2 implementation with PKCE and security features
+pub mod oauth2_comprehensive;
 /// OIDC identity provider with Ed25519 JWT signing (secure replacement for RSA)
 pub mod oidc_ed25519;
 /// OIDC SSO handlers with secure cookie management
 pub mod oidc_sso;
-/// JWKS (JSON Web Key Set) endpoint with caching and key rotation support
-pub mod jwks;
+/// Validation helper utilities for request validation
+pub mod validation_helper;
 pub use health_axum::create_health_routes;
 
 // Legacy Actix handlers (temporarily disabled during migration)
@@ -47,6 +47,8 @@ pub mod oidc_keys;
 // Advanced Services Handlers
 /// Administrative API endpoints for system management
 pub mod admin;
+/// Prometheus metrics endpoint for monitoring
+pub mod metrics;
 // Temporarily disabled API module due to Actix-web migration issues
 /// REST API handlers for authentication and authorization services
 pub mod api; // Uncommented - contains Axum handlers
@@ -68,6 +70,8 @@ pub mod spi_management;
 // pub mod organization;
 /// SAML authentication handlers
 pub mod saml;
+/// Satker (organizational unit) hierarchy handlers
+pub mod satker;
 /// Social login handlers
 pub mod social;
 // pub mod webauthn;
@@ -135,6 +139,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/health", get(health_axum::health))
         .route("/ready", get(health_axum::ready))
         .route("/live", get(health_axum::live))
+        .route("/metrics", get(metrics::metrics))
+        .route("/health/metrics", get(metrics::health_with_metrics))
         // OAuth2 authorization endpoint (accessible without auth)
         .nest(
             "/oauth2",
@@ -153,7 +159,15 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/oidc/revoke", post(oidc_ed25519::oidc_revoke_ed25519))
         .route("/oidc/jwks", get(oidc_ed25519::oidc_jwks_ed25519))
         .route("/oidc/userinfo", get(oidc_ed25519::oidc_userinfo_ed25519))
-        .route("/oidc/logout", get(oidc_sso::oidc_logout_with_sso))
+        // SSO logout route requires different state, so nest it
+        .nest(
+            "/oidc",
+            Router::new()
+                .route("/logout", get(oidc_sso::oidc_logout_with_sso))
+                .with_state(oidc_sso::SsoState::new(
+                    crate::config::SsoCookieConfig::default(),
+                )),
+        )
         // Merge OAuth2 test router (without auth)
         .merge(oauth2_test_router)
         // Merge OAuth2 router (with auth for token/userinfo endpoints)
@@ -376,9 +390,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .nest("/vp", oid4vc::create_vp_router().with_state(state.clone()))
         // JWKS endpoint at standard location
-        .route(
-            "/.well-known/jwks.json",
-            get(jwks::jwks_endpoint),
+        .nest(
+            "/.well-known",
+            Router::new()
+                .route("/jwks.json", get(jwks::jwks_endpoint))
+                .with_state(state.clone()),
         );
 
     // No static file serving - authenc is a backend microservice only

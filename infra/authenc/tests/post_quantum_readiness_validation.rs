@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::config::AuthencConfig;
 use crate::crypto::{CryptoEngine, CryptoMode, HybridCrypto};
-use crate::models::{User, Token};
+use crate::models::{Token, User};
 
 /// Test suite for validating post-quantum cryptography readiness
 #[cfg(test)]
@@ -50,10 +50,14 @@ mod post_quantum_readiness {
                     assert!(crypto_info.encryption_algorithm == "AES-256-GCM");
                 }
                 CryptoMode::Hybrid => {
-                    assert!(crypto_info.signature_algorithm.contains("Ed25519") &&
-                           crypto_info.signature_algorithm.contains("ML-DSA"));
-                    assert!(crypto_info.encryption_algorithm.contains("AES-256-GCM") &&
-                           crypto_info.encryption_algorithm.contains("ML-KEM"));
+                    assert!(
+                        crypto_info.signature_algorithm.contains("Ed25519")
+                            && crypto_info.signature_algorithm.contains("ML-DSA")
+                    );
+                    assert!(
+                        crypto_info.encryption_algorithm.contains("AES-256-GCM")
+                            && crypto_info.encryption_algorithm.contains("ML-KEM")
+                    );
                 }
                 CryptoMode::PostQuantum => {
                     assert!(crypto_info.signature_algorithm.starts_with("ML-DSA"));
@@ -70,19 +74,33 @@ mod post_quantum_readiness {
 
         // Test ML-DSA signature variants
         let ml_dsa_variants = vec![
-            "ML-DSA-44",  // NIST Level 2
-            "ML-DSA-65",  // NIST Level 3
-            "ML-DSA-87",  // NIST Level 5
+            "ML-DSA-44", // NIST Level 2
+            "ML-DSA-65", // NIST Level 3
+            "ML-DSA-87", // NIST Level 5
         ];
 
         for variant in ml_dsa_variants {
             // Generate key pair for the variant
-            let key_pair = crypto_engine.generate_ml_dsa_keypair(variant).await.unwrap();
+            let key_pair = crypto_engine
+                .generate_ml_dsa_keypair(variant)
+                .await
+                .unwrap();
 
             // Test signature generation and verification
             let message = format!("Test message for {}", variant);
-            let signature = crypto_engine.sign_with_ml_dsa(message.as_bytes(), &key_pair.private_key, variant).await.unwrap();
-            let is_valid = crypto_engine.verify_ml_dsa_signature(message.as_bytes(), &signature, &key_pair.public_key, variant).await.unwrap();
+            let signature = crypto_engine
+                .sign_with_ml_dsa(message.as_bytes(), &key_pair.private_key, variant)
+                .await
+                .unwrap();
+            let is_valid = crypto_engine
+                .verify_ml_dsa_signature(
+                    message.as_bytes(),
+                    &signature,
+                    &key_pair.public_key,
+                    variant,
+                )
+                .await
+                .unwrap();
 
             assert!(is_valid);
 
@@ -95,12 +113,14 @@ mod post_quantum_readiness {
             // Test cross-variant compatibility (should fail)
             for other_variant in &ml_dsa_variants {
                 if other_variant != &variant {
-                    let cross_verify = crypto_engine.verify_ml_dsa_signature(
-                        message.as_bytes(),
-                        &signature,
-                        &key_pair.public_key,
-                        other_variant
-                    ).await;
+                    let cross_verify = crypto_engine
+                        .verify_ml_dsa_signature(
+                            message.as_bytes(),
+                            &signature,
+                            &key_pair.public_key,
+                            other_variant,
+                        )
+                        .await;
                     assert!(cross_verify.is_err() || !cross_verify.unwrap());
                 }
             }
@@ -121,11 +141,20 @@ mod post_quantum_readiness {
 
         for variant in ml_kem_variants {
             // Generate key pair for the variant
-            let key_pair = crypto_engine.generate_ml_kem_keypair(variant).await.unwrap();
+            let key_pair = crypto_engine
+                .generate_ml_kem_keypair(variant)
+                .await
+                .unwrap();
 
             // Test key encapsulation and decapsulation
-            let (ciphertext, shared_secret) = crypto_engine.ml_kem_encapsulate(&key_pair.public_key, variant).await.unwrap();
-            let decapsulated_secret = crypto_engine.ml_kem_decapsulate(&ciphertext, &key_pair.private_key, variant).await.unwrap();
+            let (ciphertext, shared_secret) = crypto_engine
+                .ml_kem_encapsulate(&key_pair.public_key, variant)
+                .await
+                .unwrap();
+            let decapsulated_secret = crypto_engine
+                .ml_kem_decapsulate(&ciphertext, &key_pair.private_key, variant)
+                .await
+                .unwrap();
 
             assert_eq!(shared_secret, decapsulated_secret);
 
@@ -133,7 +162,10 @@ mod post_quantum_readiness {
             assert_eq!(shared_secret.len(), 32); // 256-bit shared secret
 
             // Test that different encapsulations produce different ciphertexts
-            let (ciphertext2, shared_secret2) = crypto_engine.ml_kem_encapsulate(&key_pair.public_key, variant).await.unwrap();
+            let (ciphertext2, shared_secret2) = crypto_engine
+                .ml_kem_encapsulate(&key_pair.public_key, variant)
+                .await
+                .unwrap();
             assert_ne!(ciphertext, ciphertext2);
             assert_ne!(shared_secret, shared_secret2);
 
@@ -159,7 +191,10 @@ mod post_quantum_readiness {
         let hybrid_signature = crypto_engine.sign_hybrid(test_message).await.unwrap();
 
         // Verify hybrid signature
-        let is_valid = crypto_engine.verify_hybrid(test_message, &hybrid_signature).await.unwrap();
+        let is_valid = crypto_engine
+            .verify_hybrid(test_message, &hybrid_signature)
+            .await
+            .unwrap();
         assert!(is_valid);
 
         // Verify signature components
@@ -168,22 +203,25 @@ mod post_quantum_readiness {
         assert!(sig_components.ml_dsa_signature.is_some());
 
         // Test individual component verification
-        let ed25519_valid = crypto_engine.verify_ed25519_component(
-            test_message,
-            &sig_components.ed25519_signature.unwrap()
-        ).await.unwrap();
+        let ed25519_valid = crypto_engine
+            .verify_ed25519_component(test_message, &sig_components.ed25519_signature.unwrap())
+            .await
+            .unwrap();
         assert!(ed25519_valid);
 
-        let ml_dsa_valid = crypto_engine.verify_ml_dsa_component(
-            test_message,
-            &sig_components.ml_dsa_signature.unwrap()
-        ).await.unwrap();
+        let ml_dsa_valid = crypto_engine
+            .verify_ml_dsa_component(test_message, &sig_components.ml_dsa_signature.unwrap())
+            .await
+            .unwrap();
         assert!(ml_dsa_valid);
 
         // Test that signature fails if either component is invalid
         let mut invalid_hybrid = hybrid_signature.clone();
         invalid_hybrid.corrupt_ed25519_component();
-        let invalid_result = crypto_engine.verify_hybrid(test_message, &invalid_hybrid).await.unwrap();
+        let invalid_result = crypto_engine
+            .verify_hybrid(test_message, &invalid_hybrid)
+            .await
+            .unwrap();
         assert!(!invalid_result);
     }
 
@@ -199,13 +237,22 @@ mod post_quantum_readiness {
         let bob_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
 
         // Alice initiates key exchange
-        let (alice_message, alice_ephemeral) = crypto_engine.hybrid_key_exchange_initiate(&bob_keys.public_key).await.unwrap();
+        let (alice_message, alice_ephemeral) = crypto_engine
+            .hybrid_key_exchange_initiate(&bob_keys.public_key)
+            .await
+            .unwrap();
 
         // Bob responds to key exchange
-        let (bob_message, bob_shared_secret) = crypto_engine.hybrid_key_exchange_respond(&alice_message, &bob_keys.private_key).await.unwrap();
+        let (bob_message, bob_shared_secret) = crypto_engine
+            .hybrid_key_exchange_respond(&alice_message, &bob_keys.private_key)
+            .await
+            .unwrap();
 
         // Alice completes key exchange
-        let alice_shared_secret = crypto_engine.hybrid_key_exchange_complete(&bob_message, &alice_ephemeral).await.unwrap();
+        let alice_shared_secret = crypto_engine
+            .hybrid_key_exchange_complete(&bob_message, &alice_ephemeral)
+            .await
+            .unwrap();
 
         // Verify both parties have the same shared secret
         assert_eq!(alice_shared_secret, bob_shared_secret);
@@ -219,7 +266,10 @@ mod post_quantum_readiness {
         assert!(alice_components.ml_kem_component.is_some());
 
         // Test key derivation from hybrid shared secret
-        let derived_key = crypto_engine.derive_key_from_hybrid_secret(&alice_shared_secret, b"SIMKARI-AUTH").await.unwrap();
+        let derived_key = crypto_engine
+            .derive_key_from_hybrid_secret(&alice_shared_secret, b"SIMKARI-AUTH")
+            .await
+            .unwrap();
         assert_eq!(derived_key.len(), 32); // 256-bit derived key
     }
 
@@ -274,27 +324,38 @@ mod post_quantum_readiness {
         let hybrid_crypto = HybridCrypto::new(CryptoMode::Hybrid).await.unwrap();
 
         // Hybrid should be able to verify classical signatures
-        let classical_sig_valid = hybrid_crypto.verify_classical_signature(test_data, &classical_signature).await.unwrap();
+        let classical_sig_valid = hybrid_crypto
+            .verify_classical_signature(test_data, &classical_signature)
+            .await
+            .unwrap();
         assert!(classical_sig_valid);
 
         // Hybrid should be able to decrypt classical data
-        let classical_decrypted = hybrid_crypto.decrypt_classical(&classical_encrypted).await.unwrap();
+        let classical_decrypted = hybrid_crypto
+            .decrypt_classical(&classical_encrypted)
+            .await
+            .unwrap();
         assert_eq!(test_data, classical_decrypted.as_slice());
 
         // Create hybrid signatures and encryption
         let hybrid_encrypted = hybrid_crypto.encrypt(test_data).await.unwrap();
         let hybrid_signature = hybrid_crypto.sign_hybrid(test_data).await.unwrap();
 
-        // Migrate to poantum
-hy
+        // Migrate to post-quantum only
         let pq_crypto = HybridCrypto::new(CryptoMode::PostQuantum).await.unwrap();
 
         // Post-quantum should be able to verify hybrid signatures (ML-DSA component)
-        let hybrid_sig_valid = pq_crypto.verify_hybrid_ml_dsa_component(test_data, &hybrid_signature).await.unwrap();
+        let hybrid_sig_valid = pq_crypto
+            .verify_hybrid_ml_dsa_component(test_data, &hybrid_signature)
+            .await
+            .unwrap();
         assert!(hybrid_sig_valid);
 
         // Post-quantum should be able to decrypt hybrid data (ML-KEM component)
-        let hybrid_decrypted = pq_crypto.decrypt_hybrid_ml_kem_component(&hybrid_encrypted).await.unwrap();
+        let hybrid_decrypted = pq_crypto
+            .decrypt_hybrid_ml_kem_component(&hybrid_encrypted)
+            .await
+            .unwrap();
         assert_eq!(test_data, hybrid_decrypted.as_slice());
 
         // Test migration metadata
@@ -323,8 +384,14 @@ hy
         ];
 
         for algorithm in signature_algorithms {
-            let signature = crypto_engine.sign_with_algorithm(test_data, algorithm).await.unwrap();
-            let is_valid = crypto_engine.verify_with_algorithm(test_data, &signature, algorithm).await.unwrap();
+            let signature = crypto_engine
+                .sign_with_algorithm(test_data, algorithm)
+                .await
+                .unwrap();
+            let is_valid = crypto_engine
+                .verify_with_algorithm(test_data, &signature, algorithm)
+                .await
+                .unwrap();
             assert!(is_valid);
 
             // Verify algorithm metadata
@@ -343,8 +410,14 @@ hy
         ];
 
         for algorithm in encryption_algorithms {
-            let encrypted = crypto_engine.encrypt_with_algorithm(test_data, algorithm).await.unwrap();
-            let decrypted = crypto_engine.decrypt_with_algorithm(&encrypted, algorithm).await.unwrap();
+            let encrypted = crypto_engine
+                .encrypt_with_algorithm(test_data, algorithm)
+                .await
+                .unwrap();
+            let decrypted = crypto_engine
+                .decrypt_with_algorithm(&encrypted, algorithm)
+                .await
+                .unwrap();
             assert_eq!(test_data, decrypted.as_slice());
 
             // Verify algorithm metadata
@@ -387,25 +460,31 @@ hy
 
             // Log performance metrics
             println!("Mode: {:?}", mode);
-            println!("  Encryption: {:?} per operation", encryption_time / iterations as u32);
-            println!("  Signing: {:?} per operation", signing_time / iterations as u32);
+            println!(
+                "  Encryption: {:?} per operation",
+                encryption_time / iterations as u32
+            );
+            println!(
+                "  Signing: {:?} per operation",
+                signing_time / iterations as u32
+            );
 
             // Verify performance is within acceptable bounds
             match mode {
                 CryptoMode::Classical => {
                     // Classical should be fastest
                     assert!(encryption_time.as_millis() < 1000); // < 1s for 100 operations
-                    assert!(signing_time.as_millis() < 500);     // < 0.5s for 100 operations
+                    assert!(signing_time.as_millis() < 500); // < 0.5s for 100 operations
                 }
                 CryptoMode::Hybrid => {
                     // Hybrid should be slower but reasonable
                     assert!(encryption_time.as_millis() < 5000); // < 5s for 100 operations
-                    assert!(signing_time.as_millis() < 2000);    // < 2s for 100 operations
+                    assert!(signing_time.as_millis() < 2000); // < 2s for 100 operations
                 }
                 CryptoMode::PostQuantum => {
                     // Post-quantum may be slower but should still be usable
                     assert!(encryption_time.as_millis() < 10000); // < 10s for 100 operations
-                    assert!(signing_time.as_millis() < 5000);     // < 5s for 100 operations
+                    assert!(signing_time.as_millis() < 5000); // < 5s for 100 operations
                 }
             }
         }
@@ -429,17 +508,29 @@ hy
         for (algorithm, key_type) in key_types {
             // Generate key pair
             let key_pair = match key_type {
-                "signature" => crypto_engine.generate_ml_dsa_keypair(algorithm).await.unwrap(),
-                "kem" => crypto_engine.generate_ml_kem_keypair(algorithm).await.unwrap(),
+                "signature" => crypto_engine
+                    .generate_ml_dsa_keypair(algorithm)
+                    .await
+                    .unwrap(),
+                "kem" => crypto_engine
+                    .generate_ml_kem_keypair(algorithm)
+                    .await
+                    .unwrap(),
                 _ => panic!("Unknown key type"),
             };
 
             // Store keys securely
             let key_id = Uuid::new_v4().to_string();
-            crypto_engine.store_quantum_safe_key(&key_id, &key_pair, algorithm).await.unwrap();
+            crypto_engine
+                .store_quantum_safe_key(&key_id, &key_pair, algorithm)
+                .await
+                .unwrap();
 
             // Retrieve keys
-            let retrieved_key_pair = crypto_engine.retrieve_quantum_safe_key(&key_id, algorithm).await.unwrap();
+            let retrieved_key_pair = crypto_engine
+                .retrieve_quantum_safe_key(&key_id, algorithm)
+                .await
+                .unwrap();
 
             // Verify key integrity
             assert_eq!(key_pair.public_key, retrieved_key_pair.public_key);
@@ -449,21 +540,43 @@ hy
             let test_data = b"Key storage test";
             match key_type {
                 "signature" => {
-                    let signature = crypto_engine.sign_with_ml_dsa(test_data, &retrieved_key_pair.private_key, algorithm).await.unwrap();
-                    let is_valid = crypto_engine.verify_ml_dsa_signature(test_data, &signature, &retrieved_key_pair.public_key, algorithm).await.unwrap();
+                    let signature = crypto_engine
+                        .sign_with_ml_dsa(test_data, &retrieved_key_pair.private_key, algorithm)
+                        .await
+                        .unwrap();
+                    let is_valid = crypto_engine
+                        .verify_ml_dsa_signature(
+                            test_data,
+                            &signature,
+                            &retrieved_key_pair.public_key,
+                            algorithm,
+                        )
+                        .await
+                        .unwrap();
                     assert!(is_valid);
                 }
                 "kem" => {
-                    let (ciphertext, shared_secret) = crypto_engine.ml_kem_encapsulate(&retrieved_key_pair.public_key, algorithm).await.unwrap();
-                    let decapsulated_secret = crypto_engine.ml_kem_decapsulate(&ciphertext, &retrieved_key_pair.private_key, algorithm).await.unwrap();
+                    let (ciphertext, shared_secret) = crypto_engine
+                        .ml_kem_encapsulate(&retrieved_key_pair.public_key, algorithm)
+                        .await
+                        .unwrap();
+                    let decapsulated_secret = crypto_engine
+                        .ml_kem_decapsulate(&ciphertext, &retrieved_key_pair.private_key, algorithm)
+                        .await
+                        .unwrap();
                     assert_eq!(shared_secret, decapsulated_secret);
                 }
                 _ => {}
             }
 
             // Test key deletion
-            crypto_engine.delete_quantum_safe_key(&key_id).await.unwrap();
-            let deletion_result = crypto_engine.retrieve_quantum_safe_key(&key_id, algorithm).await;
+            crypto_engine
+                .delete_quantum_safe_key(&key_id)
+                .await
+                .unwrap();
+            let deletion_result = crypto_engine
+                .retrieve_quantum_safe_key(&key_id, algorithm)
+                .await;
             assert!(deletion_result.is_err());
         }
     }
@@ -471,7 +584,7 @@ hy
 
 // Helper functions for post-quantum testing
 fn create_test_user() -> User {
-    use authenc::models::{Role, RoleScope, AdminLevel, SecretonAccessPolicy, AccessLevel};
+    use authenc::models::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
 
     User {
         id: Uuid::new_v4(),
@@ -589,7 +702,11 @@ impl HybridCrypto {
         Ok(format!("signature_{:?}_{}", self.mode, data.len()).into_bytes())
     }
 
-    pub async fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
@@ -611,27 +728,42 @@ impl HybridCrypto {
     }
 
     // Additional mock methods for comprehensive testing
-    pub async fn generate_ml_dsa_keypair(&self, variant: &str) -> Result<KeyPair, Box<dyn std::error::Error>> {
+    pub async fn generate_ml_dsa_keypair(
+        &self,
+        variant: &str,
+    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
         Ok(KeyPair {
             public_key: format!("ml_dsa_pub_{}", variant).into_bytes(),
             private_key: format!("ml_dsa_priv_{}", variant).into_bytes(),
         })
     }
 
-    pub async fn generate_ml_kem_keypair(&self, variant: &str) -> Result<KeyPair, Box<dyn std::error::Error>> {
+    pub async fn generate_ml_kem_keypair(
+        &self,
+        variant: &str,
+    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
         Ok(KeyPair {
             public_key: format!("ml_kem_pub_{}", variant).into_bytes(),
             private_key: format!("ml_kem_priv_{}", variant).into_bytes(),
         })
     }
 
-    pub async fn ml_kem_encapsulate(&self, public_key: &[u8], variant: &str) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
+    pub async fn ml_kem_encapsulate(
+        &self,
+        public_key: &[u8],
+        variant: &str,
+    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         let ciphertext = format!("kem_ciphertext_{}", variant).into_bytes();
         let shared_secret = b"shared_secret_32_bytes_123456789012".to_vec();
         Ok((ciphertext, shared_secret))
     }
 
-    pub async fn ml_kem_decapsulate(&self, ciphertext: &[u8], private_key: &[u8], variant: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn ml_kem_decapsulate(
+        &self,
+        ciphertext: &[u8],
+        private_key: &[u8],
+        variant: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"shared_secret_32_bytes_123456789012".to_vec())
     }
 
@@ -654,23 +786,41 @@ impl HybridCrypto {
         Ok(format!("hybrid_signature_{}", data.len()).into_bytes())
     }
 
-    pub async fn verify_hybrid(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_hybrid(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn decrypt_classical(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt_classical(
+        &self,
+        data: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_classical".to_vec())
     }
 
-    pub async fn verify_classical_signature(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_classical_signature(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn verify_hybrid_ml_dsa_component(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_hybrid_ml_dsa_component(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn decrypt_hybrid_ml_kem_component(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt_hybrid_ml_kem_component(
+        &self,
+        data: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_hybrid".to_vec())
     }
 
@@ -683,27 +833,46 @@ impl HybridCrypto {
         })
     }
 
-    pub async fn sign_jwt_ml_dsa(&self, claims: &serde_json::Value) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn sign_jwt_ml_dsa(
+        &self,
+        claims: &serde_json::Value,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         Ok(format!("jwt_ml_dsa_{}", claims.to_string().len()))
     }
 
-    pub async fn verify_jwt_ml_dsa(&self, token: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    pub async fn verify_jwt_ml_dsa(
+        &self,
+        token: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         Ok(serde_json::json!({"verified": true}))
     }
 
-    pub fn decode_jwt_header(&self, token: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    pub fn decode_jwt_header(
+        &self,
+        token: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         Ok(serde_json::json!({"alg": "ML-DSA"}))
     }
 
-    pub async fn verify_jwt(&self, token: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    pub async fn verify_jwt(
+        &self,
+        token: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         Ok(serde_json::json!({"verified": true}))
     }
 
-    pub async fn verify_classical_signature(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_classical_signature(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn decrypt_classical(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt_classical(
+        &self,
+        data: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_classical".to_vec())
     }
 
@@ -711,31 +880,59 @@ impl HybridCrypto {
         Ok(format!("hybrid_signature_{}", data.len()).into_bytes())
     }
 
-    pub async fn verify_hybrid(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_hybrid(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn verify_hybrid_ml_dsa_component(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_hybrid_ml_dsa_component(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn decrypt_hybrid_ml_kem_component(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt_hybrid_ml_kem_component(
+        &self,
+        data: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_hybrid".to_vec())
     }
 
-    pub async fn verify_ed25519_component(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_ed25519_component(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn verify_ml_dsa_component(&self, data: &[u8], signature: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_ml_dsa_component(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
-    pub async fn sign_with_algorithm(&self, data: &[u8], algorithm: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn sign_with_algorithm(
+        &self,
+        data: &[u8],
+        algorithm: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("sig_{}_{}", algorithm, data.len()).into_bytes())
     }
 
-    pub async fn verify_with_algorithm(&self, data: &[u8], signature: &[u8], algorithm: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_with_algorithm(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+        algorithm: &str,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
@@ -747,11 +944,19 @@ impl HybridCrypto {
         }
     }
 
-    pub async fn encrypt_with_algorithm(&self, data: &[u8], algorithm: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn encrypt_with_algorithm(
+        &self,
+        data: &[u8],
+        algorithm: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("enc_{}_{}", algorithm, data.len()).into_bytes())
     }
 
-    pub async fn decrypt_with_algorithm(&self, data: &[u8], algorithm: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt_with_algorithm(
+        &self,
+        data: &[u8],
+        algorithm: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted".to_vec())
     }
 
@@ -772,15 +977,24 @@ impl HybridCrypto {
         })
     }
 
-    pub async fn hybrid_key_exchange_initiate(&self, peer_public_key: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
+    pub async fn hybrid_key_exchange_initiate(
+        &self,
+        peer_public_key: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         Ok((b"message".to_vec(), b"ephemeral".to_vec()))
     }
 
-    pub async fn hybrid_key_exchange_respond(&self, message: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
+    pub async fn hybrid_key_exchange_respond(
+        &self,
+        message: &[u8],
+    ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         Ok((b"response".to_vec(), b"shared_secret".to_vec()))
     }
 
-    pub async fn hybrid_key_exchange_complete(&self, response: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn hybrid_key_exchange_complete(
+        &self,
+        response: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"shared_secret".to_vec())
     }
 
@@ -798,30 +1012,54 @@ impl HybridCrypto {
         }
     }
 
-    pub async fn derive_key_from_hybrid_secret(&self, secret: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn derive_key_from_hybrid_secret(
+        &self,
+        secret: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"derived_key_32_bytes_123456789012".to_vec())
     }
 
-    pub async fn store_quantum_safe_key(&self, key_id: &str, key_data: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn store_quantum_safe_key(
+        &self,
+        key_id: &str,
+        key_data: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
-    pub async fn retrieve_quantum_safe_key(&self, key_id: &str) -> Result<KeyPair, Box<dyn std::error::Error>> {
+    pub async fn retrieve_quantum_safe_key(
+        &self,
+        key_id: &str,
+    ) -> Result<KeyPair, Box<dyn std::error::Error>> {
         Ok(KeyPair {
             public_key: b"retrieved_pub".to_vec(),
             private_key: b"retrieved_priv".to_vec(),
         })
     }
 
-    pub async fn delete_quantum_safe_key(&self, key_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn delete_quantum_safe_key(
+        &self,
+        key_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
-    pub async fn sign_with_ml_dsa(&self, data: &[u8], private_key: &[u8], variant: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn sign_with_ml_dsa(
+        &self,
+        data: &[u8],
+        private_key: &[u8],
+        variant: &str,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("ml_dsa_sig_{}_{}", variant, data.len()).into_bytes())
     }
 
-    pub async fn verify_ml_dsa_signature(&self, data: &[u8], signature: &[u8], public_key: &[u8], variant: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    pub async fn verify_ml_dsa_signature(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+        public_key: &[u8],
+        variant: &str,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 

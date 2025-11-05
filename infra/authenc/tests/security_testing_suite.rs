@@ -7,8 +7,8 @@
 //
 // Requirements: 8.1 (Testing and Quality Assurance)
 
-use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt, Claims};
 use authenc::middleware::adaptive_rate_limit::AdaptiveRateLimiter;
+use authenc::utils::crypto::jwt::{Claims, generate_jwt, verify_jwt};
 use axum::{
     Router,
     extract::{Json, Query, State},
@@ -21,8 +21,8 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 
 // ============================================================================
 // Test State and Handlers
@@ -54,21 +54,21 @@ async fn search_users_sql(
 
     // Detect SQL injection patterns
     let sql_patterns = [
-        "'", "\"", ";", "--", "/*", "*/", "xp_", "sp_",
-        "union", "select", "insert", "update", "delete", "drop",
-        "exec", "execute", "script", "declare", "cast",
+        "'", "\"", ";", "--", "/*", "*/", "xp_", "sp_", "union", "select", "insert", "update",
+        "delete", "drop", "exec", "execute", "script", "declare", "cast",
     ];
 
-    let is_sql_injection = sql_patterns.iter().any(|pattern| {
-        query.to_lowercase().contains(&pattern.to_lowercase())
-    });
+    let is_sql_injection = sql_patterns
+        .iter()
+        .any(|pattern| query.to_lowercase().contains(&pattern.to_lowercase()));
 
     if is_sql_injection {
         return Err(StatusCode::BAD_REQUEST);
     }
 
     let users = state.users.lock().await;
-    let results: Vec<_> = users.values()
+    let results: Vec<_> = users
+        .values()
         .filter(|u| {
             let name = u["name"].as_str().unwrap_or("");
             name.contains(query)
@@ -97,7 +97,7 @@ async fn validate_token_handler(
         Err(e) => Ok(JsonResponse(json!({
             "valid": false,
             "error": e
-        })))
+        }))),
     }
 }
 
@@ -106,7 +106,8 @@ async fn rate_limited_action(
     State(state): State<SecurityTestState>,
     headers: HeaderMap,
 ) -> Result<JsonResponse<Value>, StatusCode> {
-    let ip = headers.get("x-forwarded-for")
+    let ip = headers
+        .get("x-forwarded-for")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("127.0.0.1");
 
@@ -128,20 +129,37 @@ async fn admin_create_user(
     State(state): State<SecurityTestState>,
     Json(payload): Json<Value>,
 ) -> Result<JsonResponse<Value>, StatusCode> {
-    let username = payload["username"].as_str().ok_or(StatusCode::BAD_REQUEST)?;
+    let username = payload["username"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
     let bio = payload["bio"].as_str().unwrap_or("");
 
     // XSS detection patterns
     let xss_patterns = [
-        "<script", "</script>", "javascript:", "onload=", "onerror=",
-        "onclick=", "<img", "<iframe", "<object", "<embed",
-        "alert(", "document.cookie", "eval(", "<svg", "<meta",
-        "oninput=", "onfocus=", "onmouseover=", "<body",
+        "<script",
+        "</script>",
+        "javascript:",
+        "onload=",
+        "onerror=",
+        "onclick=",
+        "<img",
+        "<iframe",
+        "<object",
+        "<embed",
+        "alert(",
+        "document.cookie",
+        "eval(",
+        "<svg",
+        "<meta",
+        "oninput=",
+        "onfocus=",
+        "onmouseover=",
+        "<body",
     ];
 
     let has_xss = xss_patterns.iter().any(|pattern| {
-        username.to_lowercase().contains(&pattern.to_lowercase()) ||
-        bio.to_lowercase().contains(&pattern.to_lowercase())
+        username.to_lowercase().contains(&pattern.to_lowercase())
+            || bio.to_lowercase().contains(&pattern.to_lowercase())
     });
 
     if has_xss {
@@ -178,10 +196,13 @@ async fn test_sql_injection_prevention_basic() {
     // Add test user
     {
         let mut users = state.users.lock().await;
-        users.insert("user1".to_string(), json!({
-            "id": "user1",
-            "name": "John Doe"
-        }));
+        users.insert(
+            "user1".to_string(),
+            json!({
+                "id": "user1",
+                "name": "John Doe"
+            }),
+        );
     }
 
     // Test normal search
@@ -201,7 +222,12 @@ async fn test_sql_injection_prevention_basic() {
     ];
 
     for attempt in injection_attempts {
-        let response = server.get(&format!("/api/users/search?q={}", urlencoding::encode(attempt))).await;
+        let response = server
+            .get(&format!(
+                "/api/users/search?q={}",
+                urlencoding::encode(attempt)
+            ))
+            .await;
         assert_eq!(
             response.status_code(),
             StatusCode::BAD_REQUEST,
@@ -230,7 +256,12 @@ async fn test_sql_injection_prevention_advanced() {
     ];
 
     for injection in advanced_injections {
-        let response = server.get(&format!("/api/users/search?q={}", urlencoding::encode(injection))).await;
+        let response = server
+            .get(&format!(
+                "/api/users/search?q={}",
+                urlencoding::encode(injection)
+            ))
+            .await;
         assert_eq!(
             response.status_code(),
             StatusCode::BAD_REQUEST,
@@ -246,8 +277,7 @@ async fn test_sql_injection_prevention_advanced() {
 
 #[tokio::test]
 async fn test_jwt_signature_tampering() {
-    let app = Router::new()
-        .route("/api/validate", post(validate_token_handler));
+    let app = Router::new().route("/api/validate", post(validate_token_handler));
 
     let server = TestServer::new(app).unwrap();
 
@@ -255,7 +285,8 @@ async fn test_jwt_signature_tampering() {
     let valid_token = generate_jwt("user123").unwrap();
 
     // Test valid token
-    let response = server.post("/api/validate")
+    let response = server
+        .post("/api/validate")
         .json(&json!({"token": valid_token}))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -267,19 +298,24 @@ async fn test_jwt_signature_tampering() {
     tampered_token.pop();
     tampered_token.push('X');
 
-    let response = server.post("/api/validate")
+    let response = server
+        .post("/api/validate")
         .json(&json!({"token": tampered_token}))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
     let body: Value = response.json();
     assert_eq!(body["valid"], false);
-    assert!(body["error"].as_str().unwrap().contains("verification failed"));
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .contains("verification failed")
+    );
 }
 
 #[tokio::test]
 async fn test_jwt_payload_tampering() {
-    let app = Router::new()
-        .route("/api/validate", post(validate_token_handler));
+    let app = Router::new().route("/api/validate", post(validate_token_handler));
 
     let server = TestServer::new(app).unwrap();
 
@@ -298,7 +334,8 @@ async fn test_jwt_payload_tampering() {
     // Reconstruct token with tampered payload but original signature
     let tampered_token = format!("{}.{}.{}", parts[0], tampered_payload_b64, parts[2]);
 
-    let response = server.post("/api/validate")
+    let response = server
+        .post("/api/validate")
         .json(&json!({"token": tampered_token}))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -308,8 +345,7 @@ async fn test_jwt_payload_tampering() {
 
 #[tokio::test]
 async fn test_jwt_expiry_bypass_attempts() {
-    let app = Router::new()
-        .route("/api/validate", post(validate_token_handler));
+    let app = Router::new().route("/api/validate", post(validate_token_handler));
 
     let server = TestServer::new(app).unwrap();
 
@@ -322,7 +358,7 @@ async fn test_jwt_expiry_bypass_attempts() {
     let header = r#"{"alg":"EdDSA","typ":"JWT"}"#;
     let header_b64 = Base64UrlUnpadded::encode_string(header.as_bytes());
     let payload_b64 = Base64UrlUnpadded::encode_string(
-        serde_json::to_string(&expired_claims).unwrap().as_bytes()
+        serde_json::to_string(&expired_claims).unwrap().as_bytes(),
     );
 
     // Sign the expired token
@@ -333,7 +369,8 @@ async fn test_jwt_expiry_bypass_attempts() {
     let expired_token = format!("{}.{}.{}", header_b64, payload_b64, signature_b64);
 
     // Try to use expired token
-    let response = server.post("/api/validate")
+    let response = server
+        .post("/api/validate")
         .json(&json!({"token": expired_token}))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -344,8 +381,7 @@ async fn test_jwt_expiry_bypass_attempts() {
 
 #[tokio::test]
 async fn test_jwt_algorithm_confusion() {
-    let app = Router::new()
-        .route("/api/validate", post(validate_token_handler));
+    let app = Router::new().route("/api/validate", post(validate_token_handler));
 
     let server = TestServer::new(app).unwrap();
 
@@ -353,16 +389,15 @@ async fn test_jwt_algorithm_confusion() {
     let none_header = json!({"alg": "none", "typ": "JWT"});
     let payload = json!({"sub": "user123", "exp": 9999999999u64});
 
-    let header_b64 = Base64UrlUnpadded::encode_string(
-        serde_json::to_string(&none_header).unwrap().as_bytes()
-    );
-    let payload_b64 = Base64UrlUnpadded::encode_string(
-        serde_json::to_string(&payload).unwrap().as_bytes()
-    );
+    let header_b64 =
+        Base64UrlUnpadded::encode_string(serde_json::to_string(&none_header).unwrap().as_bytes());
+    let payload_b64 =
+        Base64UrlUnpadded::encode_string(serde_json::to_string(&payload).unwrap().as_bytes());
 
     let none_token = format!("{}.{}.", header_b64, payload_b64);
 
-    let response = server.post("/api/validate")
+    let response = server
+        .post("/api/validate")
         .json(&json!({"token": none_token}))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -372,8 +407,7 @@ async fn test_jwt_algorithm_confusion() {
 
 #[tokio::test]
 async fn test_jwt_invalid_formats() {
-    let app = Router::new()
-        .route("/api/validate", post(validate_token_handler));
+    let app = Router::new().route("/api/validate", post(validate_token_handler));
 
     let server = TestServer::new(app).unwrap();
 
@@ -388,12 +422,17 @@ async fn test_jwt_invalid_formats() {
     ];
 
     for token in invalid_tokens {
-        let response = server.post("/api/validate")
+        let response = server
+            .post("/api/validate")
             .json(&json!({"token": token}))
             .await;
         assert_eq!(response.status_code(), StatusCode::OK);
         let body: Value = response.json();
-        assert_eq!(body["valid"], false, "Invalid token format should be rejected: {}", token);
+        assert_eq!(
+            body["valid"], false,
+            "Invalid token format should be rejected: {}",
+            token
+        );
     }
 }
 
@@ -415,7 +454,8 @@ async fn test_rate_limit_enforcement() {
     // Make requests up to the limit
     let mut success_count = 0;
     for i in 0..150 {
-        let response = server.post("/api/action")
+        let response = server
+            .post("/api/action")
             .add_header("x-forwarded-for", test_ip)
             .await;
 
@@ -451,9 +491,7 @@ async fn test_rate_limit_bypass_attempts() {
     for (header, value) in bypass_attempts {
         // Make multiple requests
         for _ in 0..120 {
-            let response = server.post("/api/action")
-                .add_header(header, value)
-                .await;
+            let response = server.post("/api/action").add_header(header, value).await;
 
             // Each IP should be rate limited independently
             if response.status_code() == StatusCode::TOO_MANY_REQUESTS {
@@ -482,7 +520,8 @@ async fn test_rate_limit_distributed_attack() {
         let handle = tokio::spawn(async move {
             let mut blocked = false;
             for _ in 0..120 {
-                let response = server_clone.post("/api/action")
+                let response = server_clone
+                    .post("/api/action")
                     .add_header("x-forwarded-for", &ip)
                     .await;
 
@@ -505,7 +544,10 @@ async fn test_rate_limit_distributed_attack() {
         .collect();
 
     // Each IP should eventually be rate limited
-    assert!(results.iter().any(|&blocked| blocked), "At least some IPs should be rate limited");
+    assert!(
+        results.iter().any(|&blocked| blocked),
+        "At least some IPs should be rate limited"
+    );
 }
 
 // ============================================================================
@@ -522,7 +564,8 @@ async fn test_xss_prevention_in_admin_console() {
     let server = TestServer::new(app).unwrap();
 
     // Test normal user creation
-    let response = server.post("/admin/users")
+    let response = server
+        .post("/admin/users")
         .json(&json!({
             "username": "john_doe",
             "bio": "Software developer"
@@ -545,7 +588,8 @@ async fn test_xss_prevention_in_admin_console() {
     ];
 
     for username in xss_usernames {
-        let response = server.post("/admin/users")
+        let response = server
+            .post("/admin/users")
             .json(&json!({
                 "username": username,
                 "bio": "test"
@@ -569,7 +613,8 @@ async fn test_xss_prevention_in_admin_console() {
     ];
 
     for bio in xss_bios {
-        let response = server.post("/admin/users")
+        let response = server
+            .post("/admin/users")
             .json(&json!({
                 "username": "testuser",
                 "bio": bio
@@ -612,7 +657,8 @@ async fn test_xss_prevention_advanced_techniques() {
     ];
 
     for xss in advanced_xss {
-        let response = server.post("/admin/users")
+        let response = server
+            .post("/admin/users")
             .json(&json!({
                 "username": "testuser",
                 "bio": xss
@@ -638,37 +684,49 @@ async fn test_generate_security_report() {
     let mut report = Vec::new();
 
     // SQL Injection Tests
-    report.push(("SQL Injection Prevention", vec![
-        ("Basic SQL injection patterns", "PASS"),
-        ("Advanced SQL injection techniques", "PASS"),
-        ("Union-based injection", "PASS"),
-        ("Blind SQL injection", "PASS"),
-    ]));
+    report.push((
+        "SQL Injection Prevention",
+        vec![
+            ("Basic SQL injection patterns", "PASS"),
+            ("Advanced SQL injection techniques", "PASS"),
+            ("Union-based injection", "PASS"),
+            ("Blind SQL injection", "PASS"),
+        ],
+    ));
 
     // JWT Manipulation Tests
-    report.push(("JWT Security", vec![
-        ("Signature tampering detection", "PASS"),
-        ("Payload tampering detection", "PASS"),
-        ("Expiry bypass prevention", "PASS"),
-        ("Algorithm confusion prevention", "PASS"),
-        ("Invalid format rejection", "PASS"),
-    ]));
+    report.push((
+        "JWT Security",
+        vec![
+            ("Signature tampering detection", "PASS"),
+            ("Payload tampering detection", "PASS"),
+            ("Expiry bypass prevention", "PASS"),
+            ("Algorithm confusion prevention", "PASS"),
+            ("Invalid format rejection", "PASS"),
+        ],
+    ));
 
     // Rate Limiting Tests
-    report.push(("Rate Limiting", vec![
-        ("Rate limit enforcement", "PASS"),
-        ("Bypass attempt prevention", "PASS"),
-        ("Distributed attack handling", "PASS"),
-        ("Per-IP rate limiting", "PASS"),
-    ]));
+    report.push((
+        "Rate Limiting",
+        vec![
+            ("Rate limit enforcement", "PASS"),
+            ("Bypass attempt prevention", "PASS"),
+            ("Distributed attack handling", "PASS"),
+            ("Per-IP rate limiting", "PASS"),
+        ],
+    ));
 
     // XSS Prevention Tests
-    report.push(("XSS Prevention", vec![
-        ("Basic XSS pattern blocking", "PASS"),
-        ("Event handler injection blocking", "PASS"),
-        ("Advanced XSS techniques blocking", "PASS"),
-        ("Admin console protection", "PASS"),
-    ]));
+    report.push((
+        "XSS Prevention",
+        vec![
+            ("Basic XSS pattern blocking", "PASS"),
+            ("Event handler injection blocking", "PASS"),
+            ("Advanced XSS techniques blocking", "PASS"),
+            ("Admin console protection", "PASS"),
+        ],
+    ));
 
     // Print report
     for (category, tests) in report {
@@ -708,12 +766,13 @@ mod integration_tests {
 
         // Scenario 1: Attacker tries SQL injection with rate limit bypass
         for i in 0..5 {
-            let response = server.get(&format!(
-                "/api/users/search?q={}",
-                urlencoding::encode("' OR '1'='1")
-            ))
-            .add_header("x-forwarded-for", &format!("10.0.0.{}", i))
-            .await;
+            let response = server
+                .get(&format!(
+                    "/api/users/search?q={}",
+                    urlencoding::encode("' OR '1'='1")
+                ))
+                .add_header("x-forwarded-for", &format!("10.0.0.{}", i))
+                .await;
 
             assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
         }
@@ -723,7 +782,8 @@ mod integration_tests {
         let mut tampered = valid_token.clone();
         tampered.push_str("tampered");
 
-        let response = server.post("/api/validate")
+        let response = server
+            .post("/api/validate")
             .json(&json!({"token": tampered}))
             .await;
 
@@ -731,7 +791,8 @@ mod integration_tests {
         assert_eq!(body["valid"], false);
 
         // Scenario 3: Attacker tries XSS in admin console
-        let response = server.post("/admin/users")
+        let response = server
+            .post("/admin/users")
             .json(&json!({
                 "username": "<script>alert('XSS')</script>",
                 "bio": "Hacker"

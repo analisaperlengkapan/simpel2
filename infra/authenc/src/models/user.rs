@@ -1,7 +1,9 @@
 use crate::error::AuthencError;
 use crate::utils::validation::{
-    email_validator, nip_validator, phone_validator, sanitize_email, sanitize_satker_code,
-    sanitize_string, sanitize_username, satker_code_validator, username_validator,
+    email_validator, email_validator_optional, nip_validator_optional, phone_validator_optional,
+    sanitize_email, sanitize_satker_code, sanitize_string, sanitize_username,
+    satker_code_validator, satker_code_validator_optional, username_validator,
+    username_validator_optional,
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use garde::Validate;
@@ -852,37 +854,30 @@ pub struct CreateUserRequest {
 
     /// Password for the new user (optional, can be set later)
     #[garde(length(min = 8, max = 128))]
-    #[garde(dive)]
     pub password: Option<String>,
 
     /// First name of the user
     #[garde(length(min = 1, max = 100))]
-    #[garde(dive)]
     pub first_name: Option<String>,
 
     /// Last name of the user
     #[garde(length(min = 1, max = 100))]
-    #[garde(dive)]
     pub last_name: Option<String>,
 
     /// NIP (Nomor Induk Pegawai)
-    #[garde(custom(nip_validator))]
-    #[garde(dive)]
+    #[garde(custom(nip_validator_optional))]
     pub nip: Option<String>,
 
     /// Nama lengkap pegawai
     #[garde(length(min = 1, max = 200))]
-    #[garde(dive)]
     pub nama: Option<String>,
 
     /// Jabatan pegawai
     #[garde(length(min = 1, max = 200))]
-    #[garde(dive)]
     pub jabatan: Option<String>,
 
     /// Phone number of the user
-    #[garde(custom(phone_validator))]
-    #[garde(dive)]
+    #[garde(custom(phone_validator_optional))]
     pub phone_number: Option<String>,
 
     /// ID of the realm to create the user in
@@ -895,7 +890,6 @@ pub struct CreateUserRequest {
 
     /// Initial roles to assign to the user
     #[garde(length(max = 50))]
-    #[garde(dive)]
     pub roles: Option<Vec<Uuid>>,
 
     /// Secreton access policy for the user
@@ -933,48 +927,39 @@ impl CreateUserRequest {
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateUserRequest {
     /// New username for the user
-    #[garde(custom(username_validator))]
-    #[garde(dive)]
+    #[garde(custom(username_validator_optional))]
     pub username: Option<String>,
 
     /// New email address for the user
-    #[garde(custom(email_validator))]
-    #[garde(dive)]
+    #[garde(custom(email_validator_optional))]
     pub email: Option<String>,
 
     /// New satker code for the user
-    #[garde(custom(satker_code_validator))]
-    #[garde(dive)]
+    #[garde(custom(satker_code_validator_optional))]
     pub satker_code: Option<String>,
 
     /// New first name for the user
     #[garde(length(min = 1, max = 100))]
-    #[garde(dive)]
     pub first_name: Option<String>,
 
     /// New last name for the user
     #[garde(length(min = 1, max = 100))]
-    #[garde(dive)]
     pub last_name: Option<String>,
 
     /// New NIP for the user
-    #[garde(custom(nip_validator))]
-    #[garde(dive)]
+    #[garde(custom(nip_validator_optional))]
     pub nip: Option<String>,
 
     /// New nama for the user
     #[garde(length(min = 1, max = 200))]
-    #[garde(dive)]
     pub nama: Option<String>,
 
     /// New jabatan for the user
     #[garde(length(min = 1, max = 200))]
-    #[garde(dive)]
     pub jabatan: Option<String>,
 
     /// New phone number for the user
-    #[garde(custom(phone_validator))]
-    #[garde(dive)]
+    #[garde(custom(phone_validator_optional))]
     pub phone_number: Option<String>,
 
     /// Whether the user account is enabled

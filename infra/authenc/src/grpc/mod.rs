@@ -29,6 +29,7 @@ use std::sync::Arc;
 use tonic::transport::Server;
 
 use crate::app::AppState;
+use crate::grpc::interceptors::{LoggingInterceptor, MetricsInterceptor};
 
 /// gRPC service implementation
 pub mod authenc_service;
@@ -86,7 +87,15 @@ pub mod common {
 pub fn create_grpc_server(
     state: Arc<AppState>,
     config: GrpcConfig,
-) -> tonic::transport::server::Router {
+) -> tonic::transport::server::Router<
+    tower::layer::util::Stack<
+        tonic::service::interceptor::InterceptorLayer<LoggingInterceptor>,
+        tower::layer::util::Stack<
+            tonic::service::interceptor::InterceptorLayer<MetricsInterceptor>,
+            tower::layer::util::Identity,
+        >,
+    >,
+> {
     use interceptors::{LoggingInterceptor, MetricsInterceptor};
 
     // Create service instances

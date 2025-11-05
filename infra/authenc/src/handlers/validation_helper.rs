@@ -4,9 +4,9 @@
 //! Provides utilities to validate request payloads and return appropriate error responses.
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use garde::Validate;
 use serde_json::json;
@@ -37,13 +37,13 @@ where
     T: Validate,
     T::Context: Default,
 {
-    match request.validate(&T::Context::default()) {
+    match request.validate() {
         Ok(_) => Ok(()),
         Err(errors) => {
+            // In garde 0.22.0, Report doesn't have flatten() - iterate over errors directly
             let error_messages: Vec<String> = errors
-                .flatten()
-                .into_iter()
-                .map(|(path, error)| format!("{}: {}", path, error.message()))
+                .iter()
+                .map(|(path, error)| format!("{}: {}", path, error))
                 .collect();
 
             Err(ValidationError {

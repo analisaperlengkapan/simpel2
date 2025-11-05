@@ -8,8 +8,8 @@ use crate::error::{AuthencError, Result};
 use crate::models::user::SecurityContext;
 use crate::services::mfa_local_storage::{DegradedMode, MfaLocalStorage};
 use crate::services::mfa_service::MfaClient;
-use crate::vault::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
 use crate::vault::VaultError;
+use crate::vault::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -75,12 +75,8 @@ impl MfaFallbackClient {
                         let mut failure_count = 0;
 
                         for user_id in &user_ids {
-                            match Self::sync_secret_to_secreton(
-                                &secreton,
-                                &local_storage,
-                                user_id,
-                            )
-                            .await
+                            match Self::sync_secret_to_secreton(&secreton, &local_storage, user_id)
+                                .await
                             {
                                 Ok(()) => {
                                     success_count += 1;
@@ -101,10 +97,7 @@ impl MfaFallbackClient {
                         }
 
                         if failure_count == 0 && success_count > 0 {
-                            info!(
-                                "Successfully synced {} secrets to Secreton",
-                                success_count
-                            );
+                            info!("Successfully synced {} secrets to Secreton", success_count);
                             local_storage.exit_degraded_mode().await;
                         } else if failure_count > 0 {
                             warn!(
@@ -202,7 +195,11 @@ impl MfaClient for MfaFallbackClient {
         match self.secreton.setup_mfa(user_id, issuer, account_name).await {
             Ok(setup_data) => {
                 // Success - store in local storage as backup
-                if let Err(e) = self.local_storage.store_mfa_setup(user_id, &setup_data).await {
+                if let Err(e) = self
+                    .local_storage
+                    .store_mfa_setup(user_id, &setup_data)
+                    .await
+                {
                     warn!("Failed to store MFA setup in local storage: {}", e);
                 }
                 Ok(setup_data)
@@ -218,20 +215,21 @@ impl MfaClient for MfaFallbackClient {
                 // Generate secret locally
                 use totp_rs::{Algorithm, Secret, TOTP};
 
-                let secret = Secret::default();
-                let totp = TOTP::new(
-                    Algorithm::SHA1,
-                    6,
-                    1,
-                    30,
-                    secret.to_bytes().unwrap(),
-                )
-                .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
+                // Generate random secret bytes (160 bits = 20 bytes for SHA1)
+                let mut secret_bytes = vec![0u8; 20];
+                use rand::Rng;
+                rand::thread_rng().fill(&mut secret_bytes[..]);
 
-                let qr_code_url = totp.get_qr_base64().map_err(|e| {
-                    AuthencError::internal(format!("Failed to generate QR code: {}", e))
-                })?;
+                let secret = Secret::Raw(secret_bytes.clone());
+                let totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes)
+                    .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
+
+                // Generate QR code URL (otpauth:// URL) manually
                 let secret_key = secret.to_encoded().to_string();
+                let qr_code_url = format!(
+                    "otpauth://totp/{}:{}?secret={}&issuer={}&algorithm=SHA1&digits=6&period=30",
+                    issuer, account_name, secret_key, issuer
+                );
 
                 // Generate backup codes
                 let backup_codes = Self::generate_backup_codes(10);
@@ -271,14 +269,8 @@ impl MfaClient for MfaFallbackClient {
                     .to_bytes()
                     .map_err(|e| AuthencError::internal(format!("Invalid secret: {}", e)))?;
 
-                let totp = TOTP::new(
-                    Algorithm::SHA1,
-                    6,
-                    1,
-                    30,
-                    secret_bytes,
-                )
-                .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
+                let totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes)
+                    .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
 
                 if totp.check_current(code).unwrap_or(false) {
                     self.local_storage.update_last_used(user_id).await?;
@@ -315,14 +307,8 @@ impl MfaClient for MfaFallbackClient {
                     .to_bytes()
                     .map_err(|e| AuthencError::internal(format!("Invalid secret: {}", e)))?;
 
-                let totp = TOTP::new(
-                    Algorithm::SHA1,
-                    6,
-                    1,
-                    30,
-                    secret_bytes,
-                )
-                .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
+                let totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes)
+                    .map_err(|e| AuthencError::internal(format!("Failed to create TOTP: {}", e)))?;
 
                 if totp.check_current(code).unwrap_or(false) {
                     self.local_storage.update_last_used(user_id).await?;
@@ -334,11 +320,7 @@ impl MfaClient for MfaFallbackClient {
         }
     }
 
-    async fn disable_mfa(
-        &self,
-        user_id: &str,
-        admin_context: &SecurityContext,
-    ) -> Result<()> {
+    async fn disable_mfa(&self, user_id: &str, admin_context: &SecurityContext) -> Result<()> {
         // Try Secreton first
         match self.secreton.disable_mfa(user_id, admin_context).await {
             Ok(()) => {

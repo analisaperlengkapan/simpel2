@@ -247,11 +247,15 @@ mod tests {
         assert_eq!(ServingStatus::Unknown.as_i32(), 0);
     }
 
-    #[test]
-    fn test_determine_overall_status() {
+    #[tokio::test]
+    async fn test_determine_overall_status() {
         use std::collections::HashMap;
 
-        let state = Arc::new(AppState::new(crate::config::AppConfig::default()));
+        let state = Arc::new(
+            AppState::new(crate::config::AppConfig::default())
+                .await
+                .unwrap(),
+        );
         let service = HealthService::new(state);
 
         // All healthy
@@ -301,5 +305,3 @@ mod tests {
         );
     }
 }
-
-

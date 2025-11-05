@@ -5,7 +5,7 @@ use simpelv2_integrasi::{
     fetch_all_data, fetch_all_satker, fetch_global_references, fetch_satker_complete,
     fetch_satker_parallel, get_satker_list, storage_from_env, Config, MonsaktiClient,
 };
-use tracing::{error, info};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

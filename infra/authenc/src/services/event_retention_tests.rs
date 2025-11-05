@@ -2,6 +2,8 @@
 mod tests {
     use super::*;
     use crate::config::{ColdStorageConfig, EventsConfig};
+    use crate::services::event_retention::{RetentionCleanupResult, RetentionStats};
+    use chrono::Utc;
 
     #[test]
     fn test_retention_cleanup_result_default() {

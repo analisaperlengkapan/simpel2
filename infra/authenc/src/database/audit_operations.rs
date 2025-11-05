@@ -18,12 +18,10 @@ pub async fn store_event_with_signature(
     signature_service: &Arc<AuditSignatureService>,
 ) -> Result<()> {
     // Generate signature
-    let signature = signature_service
-        .sign_event(event)
-        .map_err(|e| {
-            error!("Failed to generate event signature: {}", e);
-            AuthencError::internal("Failed to generate event signature")
-        })?;
+    let signature = signature_service.sign_event(event).map_err(|e| {
+        error!("Failed to generate event signature: {}", e);
+        AuthencError::internal("Failed to generate event signature")
+    })?;
 
     let details_json = serde_json::to_string(&event.details).map_err(|e| {
         error!("Failed to serialize event details: {}", e);
@@ -72,12 +70,10 @@ pub async fn store_admin_event_with_signature(
     signature_service: &Arc<AuditSignatureService>,
 ) -> Result<()> {
     // Generate signature
-    let signature = signature_service
-        .sign_admin_event(event)
-        .map_err(|e| {
-            error!("Failed to generate admin event signature: {}", e);
-            AuthencError::internal("Failed to generate admin event signature")
-        })?;
+    let signature = signature_service.sign_admin_event(event).map_err(|e| {
+        error!("Failed to generate admin event signature: {}", e);
+        AuthencError::internal("Failed to generate admin event signature")
+    })?;
 
     let query = r#"
         INSERT INTO admin_events (
@@ -131,13 +127,10 @@ pub async fn verify_event_signature(
         WHERE id = $1
     "#;
 
-    let row = db
-        .query_opt(query, &[&event_id])
-        .await
-        .map_err(|e| {
-            error!("Failed to fetch event: {}", e);
-            AuthencError::database("Failed to fetch event")
-        })?;
+    let row = db.query_opt(query, &[&event_id]).await.map_err(|e| {
+        error!("Failed to fetch event: {}", e);
+        AuthencError::database("Failed to fetch event")
+    })?;
 
     let row = match row {
         Some(r) => r,
@@ -201,13 +194,10 @@ pub async fn verify_admin_event_signature(
         WHERE id = $1
     "#;
 
-    let row = db
-        .query_opt(query, &[&event_id])
-        .await
-        .map_err(|e| {
-            error!("Failed to fetch admin event: {}", e);
-            AuthencError::database("Failed to fetch admin event")
-        })?;
+    let row = db.query_opt(query, &[&event_id]).await.map_err(|e| {
+        error!("Failed to fetch admin event: {}", e);
+        AuthencError::database("Failed to fetch admin event")
+    })?;
 
     let row = match row {
         Some(r) => r,

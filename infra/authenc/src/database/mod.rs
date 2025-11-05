@@ -41,6 +41,16 @@ pub struct PoolMetrics {
     pub total_acquisition_time_us: std::sync::atomic::AtomicU64,
     /// Number of connection acquisitions
     pub acquisition_count: std::sync::atomic::AtomicU64,
+    /// Total connection wait time in microseconds (time spent waiting for available connection)
+    pub total_wait_time_us: std::sync::atomic::AtomicU64,
+    /// Number of times connections were reused
+    pub connection_reuses: std::sync::atomic::AtomicU64,
+    /// Total connections created (not reused)
+    pub connections_created: std::sync::atomic::AtomicU64,
+    /// Number of connection health checks performed
+    pub health_checks_performed: std::sync::atomic::AtomicU64,
+    /// Number of failed health checks
+    pub health_checks_failed: std::sync::atomic::AtomicU64,
 }
 
 impl PoolMetrics {
@@ -67,6 +77,36 @@ impl PoolMetrics {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Record connection wait time
+    pub fn record_wait_time(&self, duration: std::time::Duration) {
+        self.total_wait_time_us.fetch_add(
+            duration.as_micros() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
+
+    /// Record connection reuse
+    pub fn record_reuse(&self) {
+        self.connection_reuses
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Record new connection creation
+    pub fn record_creation(&self) {
+        self.connections_created
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Record health check performed
+    pub fn record_health_check(&self, success: bool) {
+        self.health_checks_performed
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if !success {
+            self.health_checks_failed
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
     /// Get average acquisition time in microseconds
     pub fn avg_acquisition_time_us(&self) -> u64 {
         let count = self
@@ -81,6 +121,46 @@ impl PoolMetrics {
         total / count
     }
 
+    /// Get average wait time in microseconds
+    pub fn avg_wait_time_us(&self) -> u64 {
+        let count = self
+            .acquisition_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if count == 0 {
+            return 0;
+        }
+        let total = self
+            .total_wait_time_us
+            .load(std::sync::atomic::Ordering::Relaxed);
+        total / count
+    }
+
+    /// Get connection reuse rate (percentage)
+    pub fn reuse_rate(&self) -> f64 {
+        let total = self.total_acquired();
+        if total == 0 {
+            return 0.0;
+        }
+        let reuses = self
+            .connection_reuses
+            .load(std::sync::atomic::Ordering::Relaxed);
+        (reuses as f64 / total as f64) * 100.0
+    }
+
+    /// Get health check success rate (percentage)
+    pub fn health_check_success_rate(&self) -> f64 {
+        let total = self
+            .health_checks_performed
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if total == 0 {
+            return 100.0; // No checks performed, assume healthy
+        }
+        let failed = self
+            .health_checks_failed
+            .load(std::sync::atomic::Ordering::Relaxed);
+        ((total - failed) as f64 / total as f64) * 100.0
+    }
+
     /// Get total connections acquired
     pub fn total_acquired(&self) -> u64 {
         self.connections_acquired
@@ -90,6 +170,24 @@ impl PoolMetrics {
     /// Get total acquisition failures
     pub fn total_failures(&self) -> u64 {
         self.acquisition_failures
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Get total connections created
+    pub fn total_created(&self) -> u64 {
+        self.connections_created
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Get total connection reuses
+    pub fn total_reuses(&self) -> u64 {
+        self.connection_reuses
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Get total health checks performed
+    pub fn total_health_checks(&self) -> u64 {
+        self.health_checks_performed
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 }
@@ -134,7 +232,11 @@ impl Database {
             Ok(_) => {
                 info!(
                     "✅ Database connection pool established to {}:{}/{} (max: {}, min: {})",
-                    config.host, config.port, config.database, config.max_connections, config.min_connections
+                    config.host,
+                    config.port,
+                    config.database,
+                    config.max_connections,
+                    config.min_connections
                 );
                 Ok(Self {
                     pool,
@@ -325,6 +427,12 @@ impl Database {
             total_acquired: self.metrics.total_acquired(),
             total_failures: self.metrics.total_failures(),
             avg_acquisition_time_us: self.metrics.avg_acquisition_time_us(),
+            avg_wait_time_us: self.metrics.avg_wait_time_us(),
+            reuse_rate: self.metrics.reuse_rate(),
+            total_created: self.metrics.total_created(),
+            total_reuses: self.metrics.total_reuses(),
+            total_health_checks: self.metrics.total_health_checks(),
+            health_check_success_rate: self.metrics.health_check_success_rate(),
         }
     }
 
@@ -336,28 +444,26 @@ impl Database {
 
         // Try to acquire a connection and validate it
         match self.get_connection().await {
-            Ok(conn) => {
-                match conn.query("SELECT 1", &[]).await {
-                    Ok(_) => {
-                        let duration = start.elapsed();
-                        Ok(ValidationResult {
-                            healthy: true,
-                            validation_time: duration,
-                            pool_health: health,
-                            error: None,
-                        })
-                    }
-                    Err(e) => {
-                        let duration = start.elapsed();
-                        Ok(ValidationResult {
-                            healthy: false,
-                            validation_time: duration,
-                            pool_health: health,
-                            error: Some(format!("Query validation failed: {}", e)),
-                        })
-                    }
+            Ok(conn) => match conn.query("SELECT 1", &[]).await {
+                Ok(_) => {
+                    let duration = start.elapsed();
+                    Ok(ValidationResult {
+                        healthy: true,
+                        validation_time: duration,
+                        pool_health: health,
+                        error: None,
+                    })
                 }
-            }
+                Err(e) => {
+                    let duration = start.elapsed();
+                    Ok(ValidationResult {
+                        healthy: false,
+                        validation_time: duration,
+                        pool_health: health,
+                        error: Some(format!("Query validation failed: {}", e)),
+                    })
+                }
+            },
             Err(e) => {
                 let duration = start.elapsed();
                 Ok(ValidationResult {
@@ -390,6 +496,18 @@ pub struct PoolStats {
     pub total_failures: u64,
     /// Average acquisition time in microseconds
     pub avg_acquisition_time_us: u64,
+    /// Average wait time in microseconds
+    pub avg_wait_time_us: u64,
+    /// Connection reuse rate (percentage)
+    pub reuse_rate: f64,
+    /// Total connections created
+    pub total_created: u64,
+    /// Total connection reuses
+    pub total_reuses: u64,
+    /// Total health checks performed
+    pub total_health_checks: u64,
+    /// Health check success rate (percentage)
+    pub health_check_success_rate: f64,
 }
 
 /// Connection validation result
@@ -533,7 +651,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Vec<tokio_postgres::Row>> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, statement).await?;
+        let stmt = self
+            .prepared_cache
+            .get_or_prepare(&client, statement)
+            .await?;
 
         client.query(stmt.as_ref(), params).await.map_err(|e| {
             error!("Prepared query failed: {}\nStatement: {}", e, statement);
@@ -548,7 +669,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<tokio_postgres::Row> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, statement).await?;
+        let stmt = self
+            .prepared_cache
+            .get_or_prepare(&client, statement)
+            .await?;
 
         client.query_one(stmt.as_ref(), params).await.map_err(|e| {
             error!("Prepared query one failed: {}\nStatement: {}", e, statement);
@@ -563,7 +687,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<Option<tokio_postgres::Row>> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, statement).await?;
+        let stmt = self
+            .prepared_cache
+            .get_or_prepare(&client, statement)
+            .await?;
 
         client.query_opt(stmt.as_ref(), params).await.map_err(|e| {
             error!("Prepared query opt failed: {}\nStatement: {}", e, statement);
@@ -578,7 +705,10 @@ impl Database {
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<u64> {
         let client = self.get_connection().await?;
-        let stmt = self.prepared_cache.get_or_prepare(&client, statement).await?;
+        let stmt = self
+            .prepared_cache
+            .get_or_prepare(&client, statement)
+            .await?;
 
         client.execute(stmt.as_ref(), params).await.map_err(|e| {
             error!("Prepared execute failed: {}\nStatement: {}", e, statement);
@@ -625,6 +755,12 @@ pub mod audit_operations;
 /// Specialized batch operations for performance optimization
 pub mod batch_operations;
 
+/// Connection pool health monitoring
+pub mod pool_monitor;
+
+/// Satker (organizational unit) database operations
+pub mod satker_operations;
+
 // Re-export commonly used types
 pub use audit_operations::{
     store_admin_event_with_signature, store_event_with_signature, verify_admin_event_signature,
@@ -632,10 +768,11 @@ pub use audit_operations::{
 };
 pub use batch::{BatchInsertable, BatchOperations, BatchUpdateable};
 pub use batch_operations::{
-    batch_insert_audit_logs, batch_lookup_users, batch_query_user_permissions,
-    batch_validate_sessions, AuditLogEntry, SessionValidationResult,
+    AuditLogEntry, SessionValidationResult, batch_insert_audit_logs, batch_lookup_users,
+    batch_query_user_permissions, batch_validate_sessions,
 };
 pub use captcha_operations::{CaptchaAnalyticsSummary, CaptchaOperations, ValidationAttempt};
 pub use pool_config::{PoolConfigBuilder, PoolHealth};
+pub use pool_monitor::{PoolMonitor, PoolMonitorConfig};
 pub use prepared_cache::{CacheStats, PreparedStatementCache};
 pub use transaction::{DatabaseTransaction, IsolationLevel, TransactionManager};

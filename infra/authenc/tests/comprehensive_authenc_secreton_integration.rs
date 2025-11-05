@@ -17,6 +17,7 @@ use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
 
+use crate::vault::SecretonClient;
 use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::AuthencError;
@@ -24,7 +25,6 @@ use authenc::models::user::{
     AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecretonPermissions, Token,
     User,
 };
-use crate::vault::SecretonClient;
 
 /// Test suite for comprehensive authenc-secreton integration
 #[cfg(test)]
@@ -247,7 +247,10 @@ mod comprehensive_integration_tests {
                     );
                     println!("Fallback successful for scenario: {}", scenario);
                 }
-                Ok(Err(AuthencError::SecretonCommunicationError { message, retryable: _ })) => {
+                Ok(Err(AuthencError::SecretonCommunicationError {
+                    message,
+                    retryable: _,
+                })) => {
                     // Expected for some scenarios
                     assert!(message.contains("fallback") || message.contains("unavailable"));
                     println!("Expected fallback error for scenario: {}", scenario);
@@ -702,7 +705,10 @@ mod comprehensive_integration_tests {
                 .await;
 
                 match fast_fail_result {
-                    Ok(Err(AuthencError::SecretonCommunicationError { message, retryable: _ })) => {
+                    Ok(Err(AuthencError::SecretonCommunicationError {
+                        message,
+                        retryable: _,
+                    })) => {
                         if message.contains("circuit") || message.contains("breaker") {
                             println!(
                                 "Circuit breaker properly opened after {} failures",
@@ -908,22 +914,18 @@ async fn create_post_quantum_token(
 
 // Additional helper functions for test helpers
 fn get_secreton_permissions(user: &User) -> SecretonPermissions {
-        SecretonPermissions {
-            read_secrets: self.secreton_access_policy.allowed_satker_secrets.clone(),
-            write_secrets: if matches!(
-                self.secreton_access_policy.access_level,
-                AccessLevel::ReadWrite | AccessLevel::Admin
-            ) {
-                self.secreton_access_policy.allowed_satker_secrets.clone()
-            } else {
-                vec![]
-            },
-            admin_operations: matches!(
-                self.secreton_access_policy.access_level,
-                AccessLevel::Admin
-            ),
-            audit_access: user.secreton_access_policy.audit_required,
-        }
+    SecretonPermissions {
+        read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
+        write_secrets: if matches!(
+            user.secreton_access_policy.access_level,
+            AccessLevel::ReadWrite | AccessLevel::Admin
+        ) {
+            user.secreton_access_policy.allowed_satker_secrets.clone()
+        } else {
+            vec![]
+        },
+        admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
+        audit_access: user.secreton_access_policy.audit_required,
     }
 }
 

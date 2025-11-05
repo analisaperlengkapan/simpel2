@@ -252,7 +252,7 @@ impl SamlIdentityProvider {
 
         // Parse XML
         let mut reader = Reader::from_str(&xml);
-        reader.trim_text(true);
+        reader.config_mut().trim_text(true);
 
         let mut assertion = SamlAssertion::default();
         let mut in_assertion = false;

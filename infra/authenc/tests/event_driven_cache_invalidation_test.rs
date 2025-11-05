@@ -4,7 +4,9 @@
 //! events are published to Kafka topics.
 
 use authenc::config::RedisConfig;
-use authenc::models::events::{AdminEvent, AuthDetails, Event, EventType, OperationType, ResourceType};
+use authenc::models::events::{
+    AdminEvent, AuthDetails, Event, EventType, OperationType, ResourceType,
+};
 use authenc::services::cache::{
     CacheInvalidationService, EventConsumerConfig, EventDrivenCacheInvalidator, MultiLayerCache,
     RedisCache,
@@ -75,17 +77,27 @@ async fn test_user_update_event_invalidates_cache() {
     });
 
     cache
-        .set(&format!("user:{}", user_id), &user_data, Duration::from_secs(300))
+        .set(
+            &format!("user:{}", user_id),
+            &user_data,
+            Duration::from_secs(300),
+        )
         .await
         .unwrap();
 
     // Verify data is cached
-    assert!(cache.get(&format!("user:{}", user_id)).await.unwrap().is_some());
+    assert!(
+        cache
+            .get(&format!("user:{}", user_id))
+            .await
+            .unwrap()
+            .is_some()
+    );
 
     // Publish user update event
     let event_publisher = create_test_event_publisher();
-    let event = Event::new(EventType::UpdateProfile, "test-realm".to_string())
-        .user_id(user_id.to_string());
+    let event =
+        Event::new(EventType::UpdateProfile, "test-realm".to_string()).user_id(user_id.to_string());
 
     let event_json = serde_json::to_string(&event).unwrap();
     let publishable_event = PublishableEvent::new(
@@ -101,7 +113,13 @@ async fn test_user_update_event_invalidates_cache() {
     sleep(Duration::from_secs(2)).await;
 
     // Verify cache was invalidated
-    assert!(cache.get(&format!("user:{}", user_id)).await.unwrap().is_none());
+    assert!(
+        cache
+            .get(&format!("user:{}", user_id))
+            .await
+            .unwrap()
+            .is_none()
+    );
 
     // Check stats
     let stats = invalidator.get_stats().await;
@@ -157,11 +175,13 @@ async fn test_permission_change_event_invalidates_cache() {
         .unwrap();
 
     // Verify data is cached
-    assert!(cache
-        .get(&format!("permissions:{}:documents", user_id))
-        .await
-        .unwrap()
-        .is_some());
+    assert!(
+        cache
+            .get(&format!("permissions:{}:documents", user_id))
+            .await
+            .unwrap()
+            .is_some()
+    );
 
     // Publish admin event for permission change
     let event_publisher = create_test_event_publisher();
@@ -250,16 +270,18 @@ async fn test_mfa_status_change_invalidates_cache() {
         .unwrap();
 
     // Verify data is cached
-    assert!(cache
-        .get(&format!("mfa:status:{}", user_id))
-        .await
-        .unwrap()
-        .is_some());
+    assert!(
+        cache
+            .get(&format!("mfa:status:{}", user_id))
+            .await
+            .unwrap()
+            .is_some()
+    );
 
     // Publish MFA enabled event
     let event_publisher = create_test_event_publisher();
-    let event = Event::new(EventType::MfaEnabled, "test-realm".to_string())
-        .user_id(user_id.to_string());
+    let event =
+        Event::new(EventType::MfaEnabled, "test-realm".to_string()).user_id(user_id.to_string());
 
     let event_json = serde_json::to_string(&event).unwrap();
     let publishable_event = PublishableEvent::new(
@@ -275,11 +297,13 @@ async fn test_mfa_status_change_invalidates_cache() {
     sleep(Duration::from_secs(2)).await;
 
     // Verify cache was invalidated
-    assert!(cache
-        .get(&format!("mfa:status:{}", user_id))
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        cache
+            .get(&format!("mfa:status:{}", user_id))
+            .await
+            .unwrap()
+            .is_none()
+    );
 
     // Check stats
     let stats = invalidator.get_stats().await;
@@ -324,12 +348,22 @@ async fn test_role_change_event_invalidates_cache() {
     });
 
     cache
-        .set(&format!("user:{}", user_id), &user_data, Duration::from_secs(300))
+        .set(
+            &format!("user:{}", user_id),
+            &user_data,
+            Duration::from_secs(300),
+        )
         .await
         .unwrap();
 
     // Verify data is cached
-    assert!(cache.get(&format!("user:{}", user_id)).await.unwrap().is_some());
+    assert!(
+        cache
+            .get(&format!("user:{}", user_id))
+            .await
+            .unwrap()
+            .is_some()
+    );
 
     // Publish admin event for role change
     let event_publisher = create_test_event_publisher();

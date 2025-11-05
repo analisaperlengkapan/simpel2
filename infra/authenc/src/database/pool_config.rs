@@ -30,12 +30,12 @@ pub struct PoolConfigBuilder {
 impl Default for PoolConfigBuilder {
     fn default() -> Self {
         Self {
-            max_size: 10,
-            min_idle: Some(2),
+            max_size: 50,       // Optimized for production workload
+            min_idle: Some(10), // Maintain warm connections
             timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(600)), // 10 minutes
             max_lifetime: Some(Duration::from_secs(1800)), // 30 minutes
-            recycling_method: RecyclingMethod::Fast,
+            recycling_method: RecyclingMethod::Verified,  // Ensure connection health
         }
     }
 }

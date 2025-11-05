@@ -109,7 +109,7 @@ impl MfaFallbackConfig {
     pub fn get_encryption_key(&self) -> Result<[u8; 32], String> {
         if let Some(key_b64) = &self.encryption_key {
             // Decode from base64
-            use base64::{engine::general_purpose::STANDARD, Engine};
+            use base64::{Engine, engine::general_purpose::STANDARD};
             let key_bytes = STANDARD
                 .decode(key_b64)
                 .map_err(|e| format!("Invalid base64 encryption key: {}", e))?;

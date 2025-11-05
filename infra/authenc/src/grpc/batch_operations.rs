@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use crate::app::AppState;
 use crate::error::AuthencError;
-use crate::services::stores::UserStoreTrait;
 use crate::services::cache::Cache;
+use crate::services::user_store::UserStoreTrait;
 
 /// Batch permission check result
 #[derive(Debug, Clone)]
@@ -44,15 +44,16 @@ pub async fn batch_check_permissions(
 
     for (resource, action) in checks {
         // Check if user has the required permission
-        let has_permission = user.permissions.iter().any(|p| {
-            p.resource == resource && p.action == action
-        });
+        let has_permission = user
+            .permissions
+            .iter()
+            .any(|p| p.resource_type == resource && p.action == action);
 
         // If not directly granted, check role-based permissions
         let has_role_permission = if !has_permission {
-            user.roles.iter().any(|role| {
-                role.name == "admin" || role.name == "system_admin"
-            })
+            user.roles
+                .iter()
+                .any(|role| role.name == "admin" || role.name == "system_admin")
         } else {
             false
         };
@@ -73,7 +74,7 @@ pub async fn batch_check_permissions(
             resource: resource.clone(),
             action: action.clone(),
             allowed,
-            reason,
+            reason: reason.clone(),
         });
 
         // Cache the result (non-blocking)
@@ -84,7 +85,13 @@ pub async fn batch_check_permissions(
                 "reason": reason
             });
             tokio::spawn(async move {
-                let _ = redis_cache.set(&cache_key, &cache_value, std::time::Duration::from_secs(300)).await;
+                let _ = redis_cache
+                    .set(
+                        &cache_key,
+                        &cache_value,
+                        std::time::Duration::from_secs(300),
+                    )
+                    .await;
             });
         }
     }
@@ -104,9 +111,7 @@ pub async fn batch_lookup_users(
 
     for user_id in user_ids {
         let state_clone = state.clone();
-        let task = tokio::spawn(async move {
-            state_clone.user_store.get_user(user_id).await
-        });
+        let task = tokio::spawn(async move { state_clone.user_store.get_user(user_id).await });
         tasks.push(task);
     }
 
@@ -144,8 +149,7 @@ pub async fn optimized_user_lookup(
         }
     );
 
-    user_result?
-        .ok_or_else(|| AuthencError::not_found("User not found"))
+    user_result?.ok_or_else(|| AuthencError::not_found("User not found"))
 }
 
 #[cfg(test)]

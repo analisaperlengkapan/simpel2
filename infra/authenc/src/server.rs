@@ -52,7 +52,7 @@ impl DualServer {
         let http_handle = {
             let state = self.state.clone();
             let addr = self.http_addr;
-            let mut shutdown_rx = shutdown_tx.subscribe();
+            let shutdown_rx = shutdown_tx.subscribe();
 
             tokio::spawn(async move {
                 if let Err(e) = run_http_server(state, addr, shutdown_rx).await {
@@ -65,7 +65,7 @@ impl DualServer {
         let grpc_handle = if self.state.config.server.grpc_enabled {
             let state = self.state.clone();
             let addr = self.grpc_addr;
-            let mut shutdown_rx = shutdown_tx.subscribe();
+            let shutdown_rx = shutdown_tx.subscribe();
 
             Some(tokio::spawn(async move {
                 if let Err(e) = run_grpc_server(state, addr, shutdown_rx).await {
@@ -151,9 +151,9 @@ async fn run_http_server(
 async fn run_grpc_server(
     state: Arc<AppState>,
     addr: SocketAddr,
-    mut shutdown_rx: broadcast::Receiver<()>,
+    shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
-    use crate::grpc::{create_grpc_server, GrpcConfig};
+    use crate::grpc::{GrpcConfig, create_grpc_server};
 
     info!("🔌 gRPC server starting on {}", addr);
 
@@ -167,21 +167,15 @@ async fn run_grpc_server(
         tls_key_path: None,
     };
 
-    let server = create_grpc_server(state, grpc_config);
+    let router = create_grpc_server(state, grpc_config);
 
     info!("🔌 gRPC server listening on {}", addr);
 
     // Serve with graceful shutdown
-    server
-        .serve_with_shutdown(addr, async move {
-            let _ = shutdown_rx.recv().await;
-            info!("gRPC server received shutdown signal");
-        })
-        .await
-        .map_err(|e| {
-            error!("gRPC server error: {}", e);
-            crate::error::AuthencError::internal(format!("gRPC server error: {}", e))
-        })?;
+    router.serve(addr).await.map_err(|e| {
+        error!("gRPC server error: {}", e);
+        crate::error::AuthencError::internal(format!("gRPC server error: {}", e))
+    })?;
 
     Ok(())
 }

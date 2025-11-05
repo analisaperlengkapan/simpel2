@@ -133,42 +133,42 @@ pub mod request_size_limit;
 
 // Re-export middleware types for easier access
 pub use rate_limit_axum::{
-    rate_limit_layer, rate_limit_middleware, RateLimitConfig, RateLimitLayer, RateLimitMiddleware,
-    RateLimiterState,
+    RateLimitConfig, RateLimitLayer, RateLimitMiddleware, RateLimiterState, rate_limit_layer,
+    rate_limit_middleware,
 };
 
 pub use adaptive_rate_limit::{
-    adaptive_rate_limit_layer, adaptive_rate_limit_middleware, AdaptiveRateLimitConfig,
-    AdaptiveRateLimitLayer, AdaptiveRateLimitMiddleware, AdaptiveRateLimiter, ThreatLevel,
+    AdaptiveRateLimitConfig, AdaptiveRateLimitLayer, AdaptiveRateLimitMiddleware,
+    AdaptiveRateLimiter, ThreatLevel, adaptive_rate_limit_layer, adaptive_rate_limit_middleware,
 };
 
 pub use adaptive_rate_limit_integration::{
-    create_rate_limit_response, extract_ip, AuthResultExt, RateLimitResponse,
+    AuthResultExt, RateLimitResponse, create_rate_limit_response, extract_ip,
 };
 
-pub use compression_axum::{compression_middleware, ContentEncoding};
+pub use compression_axum::{ContentEncoding, compression_middleware};
 pub use cors_axum::{cors_layer, cors_middleware};
 pub use csrf_protection_axum::{
-    csrf_protection_middleware, generate_csrf_token_response, CsrfConfig, CsrfState,
+    CsrfConfig, CsrfState, csrf_protection_middleware, generate_csrf_token_response,
 };
-pub use input_validation_axum::{input_validation_middleware, InputValidationConfig};
+pub use input_validation_axum::{InputValidationConfig, input_validation_middleware};
 pub use security_headers_axum::security_headers_middleware;
 pub use security_monitoring_axum::{
-    security_monitoring_middleware, SecurityMonitoringConfig, SecurityMonitoringState,
+    SecurityMonitoringConfig, SecurityMonitoringState, security_monitoring_middleware,
 };
 pub use timeout_axum::{TimeoutLayer, TimeoutMiddleware};
 
 // Re-exports for convenience
-pub use auth_middleware_axum::{auth_middleware, AuthState};
+pub use auth_middleware_axum::{AuthState, auth_middleware};
 
-pub use rbac_axum::{rbac_middleware, RbacLayer};
+pub use rbac_axum::{RbacLayer, rbac_middleware};
 
-pub use mfa_rate_limit::{mfa_rate_limit_middleware, MfaRateLimitConfig, MfaRateLimiterState};
+pub use mfa_rate_limit::{MfaRateLimitConfig, MfaRateLimiterState, mfa_rate_limit_middleware};
 
 pub use mfa_performance_middleware::{
-    mfa_performance_middleware, MfaCacheMiddleware, MfaDatabaseMiddleware, MfaServiceMonitor,
+    MfaCacheMiddleware, MfaDatabaseMiddleware, MfaServiceMonitor, mfa_performance_middleware,
 };
 
 pub use request_size_limit::{
-    layer::RequestSizeLimitLayer, request_size_limit_middleware, MAX_REQUEST_BODY_SIZE,
+    MAX_REQUEST_BODY_SIZE, layer::RequestSizeLimitLayer, request_size_limit_middleware,
 };

@@ -26,6 +26,8 @@ pub enum EventType {
     RefreshToken,
     /// Failed token refresh attempt
     RefreshTokenError,
+    /// Token revoked
+    TokenRevoked,
     /// Successful token introspection
     IntrospectToken,
     /// Failed token introspection attempt
@@ -159,6 +161,12 @@ pub enum EventType {
     /// Failed to use MFA backup code
     MfaBackupCodeUsedError,
 
+    // Authorization events
+    /// Successful authorization check
+    AuthorizationSuccess,
+    /// Failed authorization check
+    AuthorizationFailure,
+
     // Security events
     /// Security alert triggered
     SecurityAlert,
@@ -278,6 +286,9 @@ impl EventType {
             EventType::MfaBackupCodesGeneratedError => "MFA_BACKUP_CODES_GENERATED_ERROR",
             EventType::MfaBackupCodeUsed => "MFA_BACKUP_CODE_USED",
             EventType::MfaBackupCodeUsedError => "MFA_BACKUP_CODE_USED_ERROR",
+            EventType::TokenRevoked => "TOKEN_REVOKED",
+            EventType::AuthorizationSuccess => "AUTHORIZATION_SUCCESS",
+            EventType::AuthorizationFailure => "AUTHORIZATION_FAILURE",
             EventType::SecurityAlert => "SECURITY_ALERT",
         }
     }

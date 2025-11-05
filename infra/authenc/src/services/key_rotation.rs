@@ -287,11 +287,7 @@ impl KeyRotationService {
     }
 
     /// Perform key rotation via Secreton API
-    async fn perform_secreton_rotation(
-        &self,
-        key_id: &str,
-        key_type: &KeyType,
-    ) -> Result<u32> {
+    async fn perform_secreton_rotation(&self, key_id: &str, key_type: &KeyType) -> Result<u32> {
         // Create security context for the rotation request
         let context = SecurityContext {
             session_id: Some("system-rotation".to_string()),
@@ -313,10 +309,8 @@ impl KeyRotationService {
                     .secreton_client
                     .rotate_signing_key(key_id, &context)
                     .await
-                    .map_err(|e| {
-                        AuthencError::ExternalServiceError {
-                            service: format!("Secreton rotation failed: {}", e),
-                        }
+                    .map_err(|e| AuthencError::ExternalServiceError {
+                        service: format!("Secreton rotation failed: {}", e),
                     })?;
 
                 Ok(self.extract_version_from_key_id(&new_key.key_id))
@@ -327,10 +321,8 @@ impl KeyRotationService {
                     .secreton_client
                     .rotate_encryption_key(key_id, &context)
                     .await
-                    .map_err(|e| {
-                        AuthencError::ExternalServiceError {
-                            service: format!("Secreton rotation failed: {}", e),
-                        }
+                    .map_err(|e| AuthencError::ExternalServiceError {
+                        service: format!("Secreton rotation failed: {}", e),
                     })?;
 
                 Ok(self.extract_version_from_key_id(&new_key.key_id))
@@ -373,8 +365,8 @@ impl KeyRotationService {
         if let Some(key) = metadata.iter_mut().find(|k| k.key_id == key_id) {
             key.version = new_version;
             key.last_rotated = Utc::now();
-            key.next_rotation = Utc::now()
-                + Duration::days(self.config.rotation_interval_days as i64);
+            key.next_rotation =
+                Utc::now() + Duration::days(self.config.rotation_interval_days as i64);
         }
 
         Ok(())
@@ -474,13 +466,13 @@ impl KeyRotationService {
             LIMIT $2
         "#;
 
-        let rows = self
+        let rows: Vec<tokio_postgres::Row> = self
             .database
             .query(query, &[&key_id, &limit])
             .await
             .map_err(|e| {
-                AuthencError::database(format!("Failed to fetch rotation history: {}", e))
-            })?;
+            AuthencError::database(format!("Failed to fetch rotation history: {}", e))
+        })?;
 
         let mut events = Vec::new();
         for row in rows {
@@ -547,31 +539,35 @@ mod tests {
     #[test]
     fn test_key_type_display() {
         assert_eq!(KeyType::JwtSigning.to_string(), "jwt_signing");
-        assert_eq!(
-            KeyType::SessionEncryption.to_string(),
-            "session_encryption"
-        );
+        assert_eq!(KeyType::SessionEncryption.to_string(), "session_encryption");
         assert_eq!(KeyType::MfaEncryption.to_string(), "mfa_encryption");
     }
 
-    #[test]
-    fn test_extract_version_from_key_id() {
+    #[tokio::test]
+    async fn test_extract_version_from_key_id() {
         let service = KeyRotationService {
             secreton_client: Arc::new(SecretonClient::new(
                 "http://localhost:8200".to_string(),
                 "token".to_string(),
             )),
-            database: Arc::new(crate::database::Database::new(&crate::config::DatabaseConfig {
-                host: "localhost".to_string(),
-                port: 5432,
-                username: "test".to_string(),
-                password: "test".to_string(),
-                database: "test".to_string(),
-                max_connections: 5,
-                connection_timeout: 5,
-                audit_log_url: None,
-                connection_timeout_seconds: 5,
-            }).await.unwrap()),
+            database: Arc::new(
+                crate::database::Database::new(&crate::config::DatabaseConfig {
+                    host: "localhost".to_string(),
+                    port: 5432,
+                    username: "test".to_string(),
+                    password: "test".to_string(),
+                    database: "test".to_string(),
+                    max_connections: 5,
+                    min_connections: 1,
+                    connection_timeout: 5,
+                    idle_timeout: 600,
+                    max_lifetime: 1800,
+                    audit_log_url: None,
+                    connection_timeout_seconds: 5,
+                })
+                .await
+                .unwrap(),
+            ),
             config: KeyRotationConfig::default(),
             key_metadata: Arc::new(RwLock::new(Vec::new())),
             task_handle: Arc::new(RwLock::new(None)),

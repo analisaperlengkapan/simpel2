@@ -9,9 +9,8 @@
 use crate::database::Database;
 use crate::models::user::User;
 use crate::utils::crypto::password::{
-    validate_password_strength, check_password_history,
-    calculate_password_expiration, check_password_expiration,
-    PasswordStrengthResult
+    calculate_password_expiration, check_password_expiration, check_password_history,
+    validate_password_strength,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -191,10 +190,7 @@ impl PasswordPolicyService {
         &self,
         password_changed_at: DateTime<Utc>,
     ) -> Option<DateTime<Utc>> {
-        calculate_password_expiration(
-            password_changed_at,
-            self.config.password_expiration_days,
-        )
+        calculate_password_expiration(password_changed_at, self.config.password_expiration_days)
     }
 
     /// Get password history for a user from database
@@ -219,7 +215,10 @@ impl PasswordPolicyService {
         ";
 
         let rows = client
-            .query(query, &[&user_id, &(self.config.password_history_count as i32)])
+            .query(
+                query,
+                &[&user_id, &(self.config.password_history_count as i32)],
+            )
             .await?;
 
         let history: Vec<String> = rows
@@ -307,10 +306,7 @@ impl PasswordPolicyService {
 
         let rows = client.query(query, &[&days_threshold]).await?;
 
-        let user_ids: Vec<Uuid> = rows
-            .iter()
-            .map(|row| row.get::<_, Uuid>("id"))
-            .collect();
+        let user_ids: Vec<Uuid> = rows.iter().map(|row| row.get::<_, Uuid>("id")).collect();
 
         Ok(user_ids)
     }
@@ -334,10 +330,7 @@ impl PasswordPolicyService {
 
         let rows = client.query(query, &[]).await?;
 
-        let user_ids: Vec<Uuid> = rows
-            .iter()
-            .map(|row| row.get::<_, Uuid>("id"))
-            .collect();
+        let user_ids: Vec<Uuid> = rows.iter().map(|row| row.get::<_, Uuid>("id")).collect();
 
         Ok(user_ids)
     }

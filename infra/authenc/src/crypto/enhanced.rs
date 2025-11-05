@@ -789,7 +789,10 @@ impl EnhancedCryptoEngine {
 
     async fn update_metrics(&self, operation: &str, duration: Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
-        let duration_ms = duration.as_millis() as u64;
+        // Use microseconds for precision, convert to milliseconds as float
+        let duration_us = duration.as_micros() as f64;
+        let duration_ms_f64 = duration_us / 1000.0;
+        let duration_ms = duration.as_millis() as u64; // Still track integer ms for min/max
 
         let op_metrics = match operation {
             "jwt_signing" => &mut metrics.jwt_signing,
@@ -802,8 +805,11 @@ impl EnhancedCryptoEngine {
         };
 
         op_metrics.count += 1;
+        // Accumulate precise milliseconds for average
+        let old_avg = op_metrics.avg_time_ms;
+        op_metrics.avg_time_ms = old_avg + (duration_ms_f64 - old_avg) / op_metrics.count as f64;
+        // Keep integer ms for total (less precise but compatible)
         op_metrics.total_time_ms += duration_ms;
-        op_metrics.avg_time_ms = op_metrics.total_time_ms as f64 / op_metrics.count as f64;
 
         if op_metrics.count == 1 {
             op_metrics.min_time_ms = duration_ms;

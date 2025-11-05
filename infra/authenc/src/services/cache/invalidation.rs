@@ -61,10 +61,7 @@ impl InvalidationEvent {
                 vec![format!("session:{}", session_id)]
             }
             InvalidationEvent::MfaStatusChanged { user_id } => {
-                vec![
-                    CacheKeys::mfa_status(user_id),
-                    format!("user:{}", user_id),
-                ]
+                vec![CacheKeys::mfa_status(user_id), format!("user:{}", user_id)]
             }
             InvalidationEvent::ClearAll => vec!["*".to_string()],
         }
@@ -81,14 +78,12 @@ impl InvalidationEvent {
                         user_id: user_id.clone(),
                     })
             }
-            EventType::MfaSetup | EventType::MfaDisabled | EventType::MfaReset => {
-                event
-                    .user_id
-                    .as_ref()
-                    .map(|user_id| InvalidationEvent::MfaStatusChanged {
-                        user_id: user_id.clone(),
-                    })
-            }
+            EventType::MfaSetup | EventType::MfaDisabled | EventType::MfaReset => event
+                .user_id
+                .as_ref()
+                .map(|user_id| InvalidationEvent::MfaStatusChanged {
+                    user_id: user_id.clone(),
+                }),
             EventType::Logout => {
                 event
                     .session_id
@@ -181,11 +176,7 @@ impl CacheInvalidationService {
     }
 
     /// Create Kafka consumer for cache invalidation events
-    fn create_kafka_consumer(
-        brokers: &str,
-        topic: &str,
-        group_id: &str,
-    ) -> Result<StreamConsumer> {
+    fn create_kafka_consumer(brokers: &str, topic: &str, group_id: &str) -> Result<StreamConsumer> {
         let consumer: StreamConsumer = ClientConfig::new()
             .set("bootstrap.servers", brokers)
             .set("group.id", group_id)
@@ -246,7 +237,10 @@ impl CacheInvalidationService {
                                             )
                                             .await
                                             {
-                                                error!("Failed to process invalidation event: {}", e);
+                                                error!(
+                                                    "Failed to process invalidation event: {}",
+                                                    e
+                                                );
                                                 let mut stats = stats.write().await;
                                                 stats.failures += 1;
                                             }
@@ -407,7 +401,10 @@ impl CacheWarmingService {
     {
         let mut warmed_count = 0;
 
-        info!("Starting cache warming for {} active users", active_users.len());
+        info!(
+            "Starting cache warming for {} active users",
+            active_users.len()
+        );
 
         for user_id in active_users {
             match user_data_provider(user_id.clone()).await {
@@ -427,7 +424,10 @@ impl CacheWarmingService {
                     debug!("No data found for user {} during cache warming", user_id);
                 }
                 Err(e) => {
-                    warn!("Failed to fetch data for user {} during cache warming: {}", user_id, e);
+                    warn!(
+                        "Failed to fetch data for user {} during cache warming: {}",
+                        user_id, e
+                    );
                 }
             }
         }
@@ -467,7 +467,7 @@ impl CacheWarmingService {
                             user_id, resource, e
                         );
                     } else {
-     warmed_count += 1;
+                        warmed_count += 1;
                     }
                 }
                 Ok(None) => {
@@ -485,7 +485,10 @@ impl CacheWarmingService {
             }
         }
 
-        info!("Permission cache warming completed: {} entries warmed", warmed_count);
+        info!(
+            "Permission cache warming completed: {} entries warmed",
+            warmed_count
+        );
         Ok(warmed_count)
     }
 }
@@ -613,4 +616,3 @@ mod tests {
         assert_eq!(stats.role_changes, 1);
     }
 }
-

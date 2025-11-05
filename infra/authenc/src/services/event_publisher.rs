@@ -6,7 +6,6 @@
 //! - Event batching for performance
 //! - Comprehensive metrics
 
-use async_trait::async_trait;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use serde::{Deserialize, Serialize};
@@ -357,11 +356,10 @@ impl EventPublisher {
         dlq_topic: &str,
         dlq_entry: &DlqEntry,
     ) -> Result<()> {
-        let payload = serde_json::to_string(dlq_entry).map_err(|e| {
-            AuthencError::InternalError {
+        let payload =
+            serde_json::to_string(dlq_entry).map_err(|e| AuthencError::InternalError {
                 message: format!("Failed to serialize DLQ entry: {}", e),
-            }
-        })?;
+            })?;
 
         let record = FutureRecord::to(dlq_topic)
             .payload(&payload)

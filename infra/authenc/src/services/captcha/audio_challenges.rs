@@ -112,7 +112,7 @@ impl AudioChallengeGenerator {
                     message: "Invalid difficulty level".to_string(),
                     recoverable: true,
                     retry_after: Some(Duration::from_secs(1)),
-                })
+                });
             }
         };
 
@@ -187,7 +187,7 @@ impl AudioChallengeGenerator {
                     message: "Invalid difficulty level".to_string(),
                     recoverable: true,
                     retry_after: Some(Duration::from_secs(1)),
-                })
+                });
             }
         };
 
@@ -529,8 +529,10 @@ mod tests {
 
         let challenge = generator.generate_pattern_recognition_challenge(7).unwrap();
         assert_eq!(challenge.difficulty, 7);
-        assert!(["ascending", "descending", "alternating", "repeating"]
-            .contains(&challenge.answer.as_str()));
+        assert!(
+            ["ascending", "descending", "alternating", "repeating"]
+                .contains(&challenge.answer.as_str())
+        );
     }
 
     #[test]

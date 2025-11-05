@@ -6,7 +6,7 @@ use crate::models::events::{AdminEvent, Event};
 use crate::services::audit_signature::AuditSignatureService;
 use crate::utils::{
     geolocation::{GeolocationData, GeolocationService, SimpleGeolocationService},
-    payload_sanitizer::{sanitize_payload, SanitizerConfig},
+    payload_sanitizer::{SanitizerConfig, sanitize_payload},
     request_context::RequestContext,
 };
 use axum::http::HeaderMap;
@@ -106,7 +106,9 @@ impl EnhancedAuditService {
 
         if let Some(ref geo) = context.geolocation {
             if let Ok(geo_json) = serde_json::to_value(geo) {
-                event.details.insert("geolocation".to_string(), geo_json.to_string());
+                event
+                    .details
+                    .insert("geolocation".to_string(), geo_json.to_string());
             }
         }
 

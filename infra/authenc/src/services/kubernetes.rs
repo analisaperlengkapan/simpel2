@@ -310,7 +310,7 @@ impl AuthencOperator {
             value_from: Some(k8s_openapi::api::core::v1::EnvVarSource {
                 secret_key_ref: Some(k8s_openapi::api::core::v1::SecretKeySelector {
                     key: "database_url".to_string(),
-                    name: Some(format!("{}-db-secret", authenc.name_any())),
+                    name: format!("{}-db-secret", authenc.name_any()),
                     optional: Some(false),
                 }),
                 ..Default::default()

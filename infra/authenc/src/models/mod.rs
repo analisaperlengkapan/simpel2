@@ -29,6 +29,8 @@ pub mod resource_server;
 pub mod role;
 /// SAML authentication models
 pub mod saml;
+/// Satker (organizational unit) hierarchy models
+pub mod satker;
 /// Scope models for resource permissions
 pub mod scope;
 /// Social account linking models
@@ -71,6 +73,7 @@ pub use resource::*;
 pub use resource_server::*;
 pub use role::Role;
 pub use saml::*;
+pub use satker::*;
 pub use scope::*;
 pub use social_account::*;
 pub use user::User;

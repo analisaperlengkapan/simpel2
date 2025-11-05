@@ -116,7 +116,9 @@ impl RiskAssessmentService {
         user_agent: Option<&str>,
     ) -> Result<(f64, bool), CaptchaError> {
         // Collect risk factors
-        let factors = self.collect_risk_factors(username, ip_address, user_agent).await?;
+        let factors = self
+            .collect_risk_factors(username, ip_address, user_agent)
+            .await?;
 
         // Calculate risk score
         let risk_score = self.calculate_risk_score(&factors);
@@ -269,14 +271,7 @@ impl RiskAssessmentService {
     fn check_user_agent_anomaly(&self, user_agent: &str) -> f64 {
         // Check for suspicious patterns
         let suspicious_patterns = [
-            "bot",
-            "crawler",
-            "spider",
-            "scraper",
-            "curl",
-            "wget",
-            "python",
-            "java",
+            "bot", "crawler", "spider", "scraper", "curl", "wget", "python", "java",
         ];
 
         let ua_lower = user_agent.to_lowercase();
@@ -364,7 +359,11 @@ mod tests {
         let service = RiskAssessmentService::default();
 
         // Normal user agents
-        assert!(service.check_user_agent_anomaly("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36") < 0.3);
+        assert!(
+            service.check_user_agent_anomaly(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            ) < 0.3
+        );
 
         // Suspicious user agents
         assert!(service.check_user_agent_anomaly("python-requests/2.28.0") > 0.5);

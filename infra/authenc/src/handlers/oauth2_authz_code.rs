@@ -9,9 +9,9 @@ use crate::{
     services::oidc_code_store::OidcCodeStore,
 };
 use axum::{
+    Json,
     extract::{Query, State},
     response::{IntoResponse, Redirect, Response},
-    Json,
 };
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
@@ -117,9 +117,7 @@ pub async fn authorize(
         }
 
         if challenge.is_empty() {
-            return Err(AuthencError::validation(
-                "code_challenge cannot be empty",
-            ));
+            return Err(AuthencError::validation("code_challenge cannot be empty"));
         }
     } else if params.code_challenge_method.is_some() {
         return Err(AuthencError::validation(
@@ -203,9 +201,7 @@ pub async fn token(
         .code_store
         .take(code, client_id)
         .await?
-        .ok_or_else(|| {
-            AuthencError::validation("Invalid or expired authorization code")
-        })?;
+        .ok_or_else(|| AuthencError::validation("Invalid or expired authorization code"))?;
 
     // Validate PKCE if code_verifier is provided
     if let Some(ref _code_verifier) = params.code_verifier {
@@ -247,7 +243,6 @@ pub async fn token(
 
     Ok(Json(response))
 }
-
 
 #[cfg(test)]
 mod tests {

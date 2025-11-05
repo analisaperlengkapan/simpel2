@@ -169,7 +169,10 @@ mod tests {
         );
 
         let ua = extract_user_agent(&headers);
-        assert_eq!(ua, Some("Mozilla/5.0 (Windows NT n64; x64)".to_string()));
+        assert_eq!(
+            ua,
+            Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)".to_string())
+        );
     }
 
     #[test]

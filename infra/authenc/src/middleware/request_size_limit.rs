@@ -10,7 +10,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use http_body_util::{BodyExt, Limited};
+use http_body_util::Limited;
 
 /// Maximum request body size (1MB)
 pub const MAX_REQUEST_BODY_SIZE: usize = 1_048_576;
@@ -144,7 +144,10 @@ pub mod layer {
                                 );
                                 return Ok((
                                     StatusCode::PAYLOAD_TOO_LARGE,
-                                    format!("Request body too large. Maximum size is {} bytes", max_size),
+                                    format!(
+                                        "Request body too large. Maximum size is {} bytes",
+                                        max_size
+                                    ),
                                 )
                                     .into_response());
                             }
@@ -167,12 +170,12 @@ pub mod layer {
 mod tests {
     use super::*;
     use axum::{
+        Router,
         body::Body,
         http::{Request, StatusCode},
         middleware,
         response::IntoResponse,
         routing::post,
-        Router,
     };
     use tower::ServiceExt;
 

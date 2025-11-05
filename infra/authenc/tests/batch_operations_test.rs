@@ -5,11 +5,11 @@
 
 #[cfg(test)]
 mod tests {
-    use authenc::database::batch_operations::{
-        batch_insert_audit_logs, batch_lookup_users, batch_query_user_permissions,
-        batch_validate_sessions, AuditLogEntry,
-    };
     use authenc::database::Database;
+    use authenc::database::batch_operations::{
+        AuditLogEntry, batch_insert_audit_logs, batch_lookup_users, batch_query_user_permissions,
+        batch_validate_sessions,
+    };
     use chrono::Utc;
     use uuid::Uuid;
 

@@ -96,3 +96,43 @@ impl UserStoreTrait for UserStore {
         operations::users::get_users_by_realm(&self.database, realm_id).await
     }
 }
+
+/// Implementation of UserStoreTrait for Arc<UserStore> to enable direct trait method calls on Arc-wrapped instances
+#[async_trait]
+impl UserStoreTrait for Arc<UserStore> {
+    async fn get_user(&self, user_id: Uuid) -> Result<Option<User>, AuthencError> {
+        self.as_ref().get_user(user_id).await
+    }
+
+    async fn get_user_by_username(&self, username: &str) -> Result<Option<User>, AuthencError> {
+        self.as_ref().get_user_by_username(username).await
+    }
+
+    async fn get_user_by_email(&self, email: &str) -> Result<Option<User>, AuthencError> {
+        self.as_ref().get_user_by_email(email).await
+    }
+
+    async fn add_user(&self, request: CreateUserRequest) -> Result<User, AuthencError> {
+        self.as_ref().add_user(request).await
+    }
+
+    async fn update_user(
+        &self,
+        user_id: Uuid,
+        request: UpdateUserRequest,
+    ) -> Result<User, AuthencError> {
+        self.as_ref().update_user(user_id, request).await
+    }
+
+    async fn delete_user(&self, user_id: Uuid) -> Result<(), AuthencError> {
+        self.as_ref().delete_user(user_id).await
+    }
+
+    async fn get_all(&self) -> Result<Vec<User>, AuthencError> {
+        self.as_ref().get_all().await
+    }
+
+    async fn get_users_by_realm(&self, realm_id: Uuid) -> Result<Vec<User>, AuthencError> {
+        self.as_ref().get_users_by_realm(realm_id).await
+    }
+}

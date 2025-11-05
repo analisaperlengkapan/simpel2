@@ -206,7 +206,10 @@ impl Cache for MultiLayerCache {
             }
         }
 
-        debug!("Multi-layer cache: set for key: {} with TTL: {:?}", key, ttl);
+        debug!(
+            "Multi-layer cache: set for key: {} with TTL: {:?}",
+            key, ttl
+        );
         self.metrics.record_set(start.elapsed());
         Ok(())
     }
@@ -339,7 +342,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set and get
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         let retrieved = cache.get(key).await.unwrap();
         assert_eq!(retrieved, Some(value));
 
@@ -359,7 +365,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set in both layers
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
 
         // Should hit L1
         let retrieved = cache.get(key).await.unwrap();
@@ -389,7 +398,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set in both layers
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
 
         // Clear L1 to force L2 lookup
         cache.clear_l1();
@@ -415,11 +427,17 @@ mod tests {
         let _ = cache.delete(key).await;
 
         // First set_nx should succeed
-        let result = cache.set_nx(key, &value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(result);
 
         // Second set_nx should fail
-        let result = cache.set_nx(key, &value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(!result);
 
         // Clean up
@@ -457,7 +475,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Generate some cache activity
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         let _ = cache.get(key).await;
         let _ = cache.get("nonexistent").await;
 
@@ -485,7 +506,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set with longer TTL
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
 
         // Should be in L1
         assert_eq!(cache.l1_size(), 1);

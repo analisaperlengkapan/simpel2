@@ -4,7 +4,7 @@
 //! personally identifiable information (PII) and sensitive data before
 //! storing in audit logs.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::collections::HashSet;
 
 /// Fields that should be completely removed from audit logs

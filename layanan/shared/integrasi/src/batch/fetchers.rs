@@ -1,6 +1,5 @@
 /// Module-specific fetchers untuk MonSAKTI dan MySIMKARI
 /// Menggunakan storage strategy yang dapat dikonfigurasi
-
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
@@ -19,12 +18,16 @@ pub async fn fetch_adm(
 
     // Pejabat
     if let Ok(data) = adm::pejabat(client, kode_kl, kdsatker).await {
-        storage.save(client, "adm", "pejabat", &data, &context).await?;
+        storage
+            .save(client, "adm", "pejabat", &data, &context)
+            .await?;
     }
 
     // Ref Admin
     if let Ok(data) = adm::ref_admin(client, kode_kl, kdsatker).await {
-        storage.save(client, "adm", "ref_admin", &data, &context).await?;
+        storage
+            .save(client, "adm", "ref_admin", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -54,17 +57,23 @@ pub async fn fetch_ang(
                 }
             }
         }
-        storage.save(client, "ang", "ref_sts", &data, &context).await?;
+        storage
+            .save(client, "ang", "ref_sts", &data, &context)
+            .await?;
     }
 
     // Data Ang
     if let Ok(data) = ang::data_ang(client, kode_kl, kdsatker, &kode_sts_history).await {
-        storage.save(client, "ang", "data_ang", &data, &context).await?;
+        storage
+            .save(client, "ang", "data_ang", &data, &context)
+            .await?;
     }
 
     // Pendapatan
     if let Ok(data) = ang::pendapatan(client, kode_kl, kdsatker, &kode_sts_history).await {
-        storage.save(client, "ang", "pendapatan", &data, &context).await?;
+        storage
+            .save(client, "ang", "pendapatan", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -79,23 +88,66 @@ pub async fn fetch_ben(
 ) -> Result<(), MonsaktiError> {
     let context = format!("satker_{}", kdsatker);
 
-    let endpoints: Vec<(&str, fn(&mut MonsaktiClient, &str, &str) -> _)> = vec![
-        ("kas_tunai", ben::kas_tunai),
-        ("kas_bank", ben::kas_bank),
-        ("spby", ben::spby),
-        ("kuitansi", ben::kuitansi),
-        ("drpp", ben::drpp),
-        ("pungut_pajak", ben::pungut_pajak),
-        ("setor_pajak", ben::setor_pajak),
-        ("pnbp", ben::pnbp),
-        ("tup", ben::tup),
-        ("pengembalian", ben::pengembalian),
-    ];
+    // Kas Tunai
+    if let Ok(data) = ben::kas_tunai(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "kas_tunai", &data, &context)
+            .await?;
+    }
 
-    for (endpoint_name, fetch_fn) in endpoints {
-        if let Ok(data) = fetch_fn(client, kode_kl, kdsatker).await {
-            storage.save(client, "ben", endpoint_name, &data, &context).await?;
-        }
+    // Kas Bank
+    if let Ok(data) = ben::kas_bank(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "kas_bank", &data, &context)
+            .await?;
+    }
+
+    // SPBY
+    if let Ok(data) = ben::spby(client, kode_kl, kdsatker).await {
+        storage.save(client, "ben", "spby", &data, &context).await?;
+    }
+
+    // Kuitansi
+    if let Ok(data) = ben::kuitansi(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "kuitansi", &data, &context)
+            .await?;
+    }
+
+    // DRPP
+    if let Ok(data) = ben::drpp(client, kode_kl, kdsatker).await {
+        storage.save(client, "ben", "drpp", &data, &context).await?;
+    }
+
+    // Pungut Pajak
+    if let Ok(data) = ben::pungut_pajak(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "pungut_pajak", &data, &context)
+            .await?;
+    }
+
+    // Setor Pajak
+    if let Ok(data) = ben::setor_pajak(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "setor_pajak", &data, &context)
+            .await?;
+    }
+
+    // PNBP
+    if let Ok(data) = ben::pnbp(client, kode_kl, kdsatker).await {
+        storage.save(client, "ben", "pnbp", &data, &context).await?;
+    }
+
+    // TUP
+    if let Ok(data) = ben::tup(client, kode_kl, kdsatker).await {
+        storage.save(client, "ben", "tup", &data, &context).await?;
+    }
+
+    // Pengembalian
+    if let Ok(data) = ben::pengembalian(client, kode_kl, kdsatker).await {
+        storage
+            .save(client, "ben", "pengembalian", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -112,12 +164,16 @@ pub async fn fetch_pem(
 
     // Realisasi
     if let Ok(data) = pem::realisasi(client, kode_kl, kdsatker, "", "").await {
-        storage.save(client, "pem", "realisasi", &data, &context).await?;
+        storage
+            .save(client, "pem", "realisasi", &data, &context)
+            .await?;
     }
 
     // SPP Header
     if let Ok(data) = pem::spp_header(client, kode_kl, kdsatker, "", "").await {
-        storage.save(client, "pem", "spp_header", &data, &context).await?;
+        storage
+            .save(client, "pem", "spp_header", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -135,12 +191,16 @@ pub async fn fetch_kom(
 
     // Kontrak Header
     if let Ok(data) = kom::kontrak_header(client, kode_kl, kdsatker).await {
-        storage.save(client, "kom", "kontrak_header", &data, &context).await?;
+        storage
+            .save(client, "kom", "kontrak_header", &data, &context)
+            .await?;
     }
 
     // Capaian RO
     if let Ok(data) = kom::capaian_ro(client, kode_kl, kdsatker, &current_period).await {
-        storage.save(client, "kom", "capaian_ro", &data, &context).await?;
+        storage
+            .save(client, "kom", "capaian_ro", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -158,7 +218,9 @@ pub async fn fetch_ast(
 
     for kdgol in golongan_aset {
         if let Ok(data) = ast::aset_trx(client, kode_kl, kdsatker, kdgol, "", "", "", "").await {
-            storage.save(client, "ast", "aset_trx", &data, &context).await?;
+            storage
+                .save(client, "ast", "aset_trx", &data, &context)
+                .await?;
         }
     }
 
@@ -175,7 +237,9 @@ pub async fn fetch_per(
     let context = format!("satker_{}", kdsatker);
 
     if let Ok(data) = per::persedia_trx(client, kode_kl, kdsatker, "", "", "", "", "").await {
-        storage.save(client, "per", "persedia_trx", &data, &context).await?;
+        storage
+            .save(client, "per", "persedia_trx", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -193,17 +257,23 @@ pub async fn fetch_glp(
 
     // Buku Besar
     if let Ok(data) = glp::buku_besar(client, kode_kl, kdsatker, &current_month, "").await {
-        storage.save(client, "glp", "buku_besar", &data, &context).await?;
+        storage
+            .save(client, "glp", "buku_besar", &data, &context)
+            .await?;
     }
 
     // Neraca Sawal
     if let Ok(data) = glp::neraca_sawal(client, kode_kl, kdsatker).await {
-        storage.save(client, "glp", "neraca_sawal", &data, &context).await?;
+        storage
+            .save(client, "glp", "neraca_sawal", &data, &context)
+            .await?;
     }
 
     // FA Detail
     if let Ok(data) = glp::fa_detail(client, kode_kl, kdsatker, &current_month).await {
-        storage.save(client, "glp", "fa_detail", &data, &context).await?;
+        storage
+            .save(client, "glp", "fa_detail", &data, &context)
+            .await?;
     }
 
     Ok(())
@@ -266,7 +336,9 @@ pub async fn fetch_global_references(
 
     // ADM references
     if let Ok(data) = adm::ref_admin(client, kode_kl, "").await {
-        storage.save(client, "adm", "ref_admin", &data, "global").await?;
+        storage
+            .save(client, "adm", "ref_admin", &data, "global")
+            .await?;
     }
 
     if let Ok(data) = adm::ref_uraian(client, kode_kl, "program", "").await {
@@ -282,7 +354,9 @@ pub async fn fetch_global_references(
     }
 
     if let Ok(data) = adm::ref_bank(client, kode_kl).await {
-        storage.save(client, "adm", "ref_bank", &data, "global").await?;
+        storage
+            .save(client, "adm", "ref_bank", &data, "global")
+            .await?;
     }
 
     if let Ok(data) = adm::ref_jns_spp(client, kode_kl, "").await {

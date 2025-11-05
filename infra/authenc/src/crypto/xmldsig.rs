@@ -167,7 +167,7 @@ impl XmlSignature {
     /// Extract XML signature from SAML Response or Assertion
     pub fn extract_from_xml(xml: &str) -> Result<Self> {
         let mut reader = Reader::from_str(xml);
-        reader.trim_text(true);
+        reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
         let mut in_signature = false;
@@ -288,7 +288,9 @@ impl XmlSignature {
                     }
                 }
                 Ok(Event::Text(e)) => {
-                    let text = e.unescape().unwrap_or_default();
+                    let text = std::str::from_utf8(e.as_ref())
+                        .unwrap_or_default()
+                        .to_string();
                     if in_signature_value {
                         signature_value.push_str(&text);
                     } else if in_x509_cert {
@@ -991,7 +993,7 @@ impl XmlSecurityValidator {
 
         // Parse and validate structure
         let mut reader = Reader::from_str(xml);
-        let reader = reader.trim_text(true);
+        reader.config_mut().trim_text(true);
 
         let mut depth: usize = 0;
         let mut max_depth: usize = 0;
@@ -1032,9 +1034,9 @@ impl XmlSecurityValidator {
                 }
                 Ok(Event::Text(e)) => {
                     // Check for entity references (potential XML bomb)
-                    let text = e
-                        .unescape()
-                        .map_err(|e| anyhow!("Failed to unescape text: {}", e))?;
+                    let text = std::str::from_utf8(e.as_ref())
+                        .map_err(|e| anyhow!("Failed to decode text: {}", e))?
+                        .to_string();
                     if text.contains('&') {
                         entity_expansion_count += text.matches('&').count();
                         if entity_expansion_count > self.limits.max_entity_expansions {

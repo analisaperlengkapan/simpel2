@@ -3,17 +3,17 @@
 //! This module contains integration tests for MFA security features including
 //! rate limiting, brute force protection, and security monitoring.
 
+use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::time::{sleep, timeout};
 use uuid::Uuid;
-use tokio::time::{timeout, sleep};
-use serde_json::json;
 
 use authenc::error::{AuthencError, Result};
-use authenc::models::user::{User, SecurityContext};
-use authenc::services::mfa_service::MfaService;
 use authenc::middleware::mfa_rate_limit::{MfaRateLimiter, MfaRateLimiterConfig};
+use authenc::models::user::{SecurityContext, User};
 use authenc::services::mfa_security_monitor::MfaSecurityMonitor;
+use authenc::services::mfa_service::MfaService;
 use authenc::vault::secreton_client::SecretonClient;
 
 /// Test utilities for MFA security integration
@@ -45,7 +45,11 @@ mod security_test_utils {
             auto_lockout_enabled: true,
         };
 
-        Arc::new(MfaSecurityMonitor::new(config).await.expect("Failed to create security monitor"))
+        Arc::new(
+            MfaSecurityMonitor::new(config)
+                .await
+                .expect("Failed to create security monitor"),
+        )
     }
 
     /// Create test user with security context
@@ -103,12 +107,17 @@ mod mfa_rate_limiting_tests {
                     println!("✅ Attempt {}: Rate limit check passed", i);
                 }
                 Err(e) => {
-                    panic!("Rate limit should not be triggered on attempt {}: {:?}", i, e);
+                    panic!(
+                        "Rate limit should not be triggered on attempt {}: {:?}",
+                        i, e
+                    );
                 }
             }
 
             // Record a failed attempt
-            rate_limiter.record_failed_attempt(user_id, "verify_mfa").await
+            rate_limiter
+                .record_failed_attempt(user_id, "verify_mfa")
+                .await
                 .expect("Failed to record attempt");
         }
 
@@ -127,7 +136,9 @@ mod mfa_rate_limiting_tests {
         }
 
         // Test rate limit status
-        let status = rate_limiter.get_rate_limit_status(user_id, "verify_mfa").await
+        let status = rate_limiter
+            .get_rate_limit_status(user_id, "verify_mfa")
+            .await
             .expect("Failed to get rate limit status");
 
         assert_eq!(status.attempts, 3);
@@ -147,7 +158,10 @@ mod mfa_rate_limiting_tests {
         let test_user = create_test_user_with_context("192.168.1.101", "test-browser");
         let user_id = test_user.id;
 
-        println!("⏱️  Testing progressive delay rate limiting for user: {}", user_id);
+        println!(
+            "⏱️  Testing progressive delay rate limiting for user: {}",
+            user_id
+        );
 
         let mut delays = Vec::new();
 
@@ -167,13 +181,15 @@ mod mfa_rate_limiting_tests {
                 }
             }
 
-            rate_limiter.record_failed_attempt(user_id, "verify_mfa").await
+            rate_limiter
+                .record_failed_attempt(user_id, "verify_mfa")
+                .await
                 .expect("Failed to record attempt");
         }
 
         // Verify that delays are progressive
         for i in 1..delays.len() {
-            assert!(delays[i] >= delays[i-1], "Delays should be progressive");
+            assert!(delays[i] >= delays[i - 1], "Delays should be progressive");
         }
 
         println!("✅ Progressive delays working correctly");
@@ -208,7 +224,10 @@ mod mfa_rate_limiting_tests {
                 if total_attempts <= 5 {
                     match result {
                         Ok(()) => {
-                            println!("✅ User {} attempt {}: Allowed (total: {})", user.id, attempt, total_attempts);
+                            println!(
+                                "✅ User {} attempt {}: Allowed (total: {})",
+                                user.id, attempt, total_attempts
+                            );
                         }
                         Err(e) => {
                             panic!("Should not be rate limited yet: {:?}", e);
@@ -217,7 +236,10 @@ mod mfa_rate_limiting_tests {
                 } else {
                     match result {
                         Err(AuthencError::RateLimitExceeded) => {
-                            println!("✅ IP rate limiting triggered at attempt {}", total_attempts);
+                            println!(
+                                "✅ IP rate limiting triggered at attempt {}",
+                                total_attempts
+                            );
                             return; // Test passed
                         }
                         Ok(()) => {
@@ -229,7 +251,9 @@ mod mfa_rate_limiting_tests {
                     }
                 }
 
-                rate_limiter.record_failed_attempt(user.id, "verify_mfa").await
+                rate_limiter
+                    .record_failed_attempt(user.id, "verify_mfa")
+                    .await
                     .expect("Failed to record attempt");
             }
         }
@@ -249,7 +273,9 @@ mod mfa_rate_limiting_tests {
 
         // Trigger rate limiting
         for _ in 0..3 {
-            rate_limiter.record_failed_attempt(user_id, "verify_mfa").await
+            rate_limiter
+                .record_failed_attempt(user_id, "verify_mfa")
+                .await
                 .expect("Failed to record attempt");
         }
 
@@ -259,7 +285,9 @@ mod mfa_rate_limiting_tests {
         println!("✅ Rate limiting active as expected");
 
         // Reset rate limit
-        rate_limiter.reset_rate_limit(user_id, "verify_mfa").await
+        rate_limiter
+            .reset_rate_limit(user_id, "verify_mfa")
+            .await
             .expect("Failed to reset rate limit");
 
         // Verify rate limiting is cleared
@@ -292,7 +320,9 @@ mod mfa_security_monitoring_tests {
 
         // Simulate normal MFA usage pattern
         for _ in 0..3 {
-            security_monitor.record_mfa_event(user_id, "verify_success", &test_user.security_context).await
+            security_monitor
+                .record_mfa_event(user_id, "verify_success", &test_user.security_context)
+                .await
                 .expect("Failed to record MFA event");
             sleep(Duration::from_millis(100)).await;
         }
@@ -304,7 +334,9 @@ mod mfa_security_monitoring_tests {
             let mut suspicious_context = test_user.security_context.clone();
             suspicious_context.ip_address = Some(ip.to_string());
 
-            security_monitor.record_mfa_event(user_id, "verify_failure", &suspicious_context).await
+            security_monitor
+                .record_mfa_event(user_id, "verify_failure", &suspicious_context)
+                .await
                 .expect("Failed to record suspicious MFA event");
         }
 
@@ -314,7 +346,11 @@ mod mfa_security_monitoring_tests {
             Ok(Some(anomaly)) => {
                 println!("✅ Anomaly detected: {:?}", anomaly);
                 assert!(anomaly.risk_score > 0.5);
-                assert!(anomaly.indicators.contains(&"multiple_ip_failures".to_string()));
+                assert!(
+                    anomaly
+                        .indicators
+                        .contains(&"multiple_ip_failures".to_string())
+                );
             }
             Ok(None) => {
                 println!("⚠️  No anomaly detected (might need tuning)");
@@ -333,7 +369,10 @@ mod mfa_security_monitoring_tests {
         let test_user = create_test_user_with_context("192.168.1.201", "test-browser");
         let user_id = test_user.id;
 
-        println!("🔗 Testing security event correlation for user: {}", user_id);
+        println!(
+            "🔗 Testing security event correlation for user: {}",
+            user_id
+        );
 
         // Simulate correlated security events
         let events = vec![
@@ -354,7 +393,9 @@ mod mfa_security_monitoring_tests {
                 "user_id": user_id.to_string()
             });
 
-            security_monitor.record_security_event(user_id, event_type, &event_data).await
+            security_monitor
+                .record_security_event(user_id, event_type, &event_data)
+                .await
                 .expect("Failed to record security event");
 
             sleep(Duration::from_millis(50)).await;
@@ -385,7 +426,10 @@ mod mfa_security_monitoring_tests {
         let test_user = create_test_user_with_context("192.168.1.202", "test-browser");
         let user_id = test_user.id;
 
-        println!("🛡️  Testing automated threat response for user: {}", user_id);
+        println!(
+            "🛡️  Testing automated threat response for user: {}",
+            user_id
+        );
 
         // Simulate high-risk security events
         let high_risk_events = vec![
@@ -404,12 +448,16 @@ mod mfa_security_monitoring_tests {
                 "auto_response_required": true
             });
 
-            security_monitor.record_security_event(user_id, event, &event_data).await
+            security_monitor
+                .record_security_event(user_id, event, &event_data)
+                .await
                 .expect("Failed to record high-risk event");
         }
 
         // Trigger threat analysis and response
-        let response_result = security_monitor.analyze_and_respond_to_threats(user_id).await;
+        let response_result = security_monitor
+            .analyze_and_respond_to_threats(user_id)
+            .await;
         match response_result {
             Ok(response) => {
                 println!("✅ Automated threat response executed");
@@ -418,10 +466,16 @@ mod mfa_security_monitoring_tests {
 
                 // Verify appropriate actions were taken
                 assert!(!response.actions_taken.is_empty());
-                assert!(response.actions_taken.contains(&"account_monitoring_increased".to_string()) ||
-                        response.actions_taken.contains(&"additional_verification_required".to_string()));
+                assert!(
+                    response
+                        .actions_taken
+                        .contains(&"account_monitoring_increased".to_string())
+                        || response
+                            .actions_taken
+                            .contains(&"additional_verification_required".to_string())
+                );
             }
-rr
+            Err(e) => {
                 println!("⚠️  Automated threat response failed: {:?}", e);
             }
         }
@@ -437,7 +491,9 @@ rr
 
         // Generate various security events for metrics
         let test_users: Vec<User> = (0..5)
-            .map(|i| create_test_user_with_context(&format!("192.168.1.{}", 210 + i), "test-browser"))
+            .map(|i| {
+                create_test_user_with_context(&format!("192.168.1.{}", 210 + i), "test-browser")
+            })
             .collect();
 
         for (i, user) in test_users.iter().enumerate() {
@@ -453,7 +509,9 @@ rr
 
             for (event_type, count) in events {
                 for _ in 0..count {
-                    security_monitor.record_mfa_event(user.id, event_type, &user.security_context).await
+                    security_monitor
+                        .record_mfa_event(user.id, event_type, &user.security_context)
+                        .await
                         .expect("Failed to record MFA event");
                 }
             }
@@ -497,17 +555,24 @@ mod mfa_integration_security_tests {
         let test_user = create_test_user_with_context("192.168.1.250", "test-browser");
         let user_id = test_user.id;
 
-        println!("🔄 Testing complete security workflow for user: {}", user_id);
+        println!(
+            "🔄 Testing complete security workflow for user: {}",
+            user_id
+        );
 
         // Phase 1: Normal usage
         println!("📋 Phase 1: Normal MFA usage");
         for i in 1..=3 {
             // Check rate limit
-            rate_limiter.check_rate_limit(user_id, "verify_mfa").await
+            rate_limiter
+                .check_rate_limit(user_id, "verify_mfa")
+                .await
                 .expect("Rate limit should allow normal usage");
 
             // Record successful MFA
-            security_monitor.record_mfa_event(user_id, "verify_success", &test_user.security_context).await
+            security_monitor
+                .record_mfa_event(user_id, "verify_success", &test_user.security_context)
+                .await
                 .expect("Failed to record MFA success");
 
             println!("✅ Normal MFA attempt {}: Success", i);
@@ -522,10 +587,14 @@ mod mfa_integration_security_tests {
             match rate_check {
                 Ok(()) => {
                     // Record failed attempt
-                    rate_limiter.record_failed_attempt(user_id, "verify_mfa").await
+                    rate_limiter
+                        .record_failed_attempt(user_id, "verify_mfa")
+                        .await
                         .expect("Failed to record failed attempt");
 
-                    security_monitor.record_mfa_event(user_id, "verify_failure", &test_user.security_context).await
+                    security_monitor
+                        .record_mfa_event(user_id, "verify_failure", &test_user.security_context)
+                        .await
                         .expect("Failed to record MFA failure");
 
                     println!("⚠️  Suspicious attempt {}: Recorded", i);
@@ -540,7 +609,9 @@ mod mfa_integration_security_tests {
                         "timestamp": chrono::Utc::now().to_rfc3339()
                     });
 
-                    security_monitor.record_security_event(user_id, "rate_limit_exceeded", &event_data).await
+                    security_monitor
+                        .record_security_event(user_id, "rate_limit_exceeded", &event_data)
+                        .await
                         .expect("Failed to record rate limit event");
 
                     break;
@@ -558,7 +629,10 @@ mod mfa_integration_security_tests {
         let anomaly_check = security_monitor.check_for_anomalies(user_id).await;
         match anomaly_check {
             Ok(Some(anomaly)) => {
-                println!("✅ Anomaly detected with risk score: {}", anomaly.risk_score);
+                println!(
+                    "✅ Anomaly detected with risk score: {}",
+                    anomaly.risk_score
+                );
             }
             Ok(None) => {
                 println!("ℹ️  No anomalies detected");
@@ -572,8 +646,10 @@ mod mfa_integration_security_tests {
         let correlation_analysis = security_monitor.analyze_event_correlation(user_id).await;
         match correlation_analysis {
             Ok(correlation) => {
-                println!("✅ Event correlation completed: {} events, risk score: {}",
-                        correlation.total_events, correlation.risk_score);
+                println!(
+                    "✅ Event correlation completed: {} events, risk score: {}",
+                    correlation.total_events, correlation.risk_score
+                );
             }
             Err(e) => {
                 println!("⚠️  Event correlation failed: {:?}", e);
@@ -583,7 +659,9 @@ mod mfa_integration_security_tests {
         // Phase 4: Threat response
         println!("📋 Phase 4: Automated threat response");
 
-        let threat_response = security_monitor.analyze_and_respond_to_threats(user_id).await;
+        let threat_response = security_monitor
+            .analyze_and_respond_to_threats(user_id)
+            .await;
         match threat_response {
             Ok(response) => {
                 println!("✅ Threat response executed: {:?}", response.actions_taken);
@@ -598,7 +676,9 @@ mod mfa_integration_security_tests {
         println!("📋 Phase 5: Security recovery");
 
         // Reset rate limiting (simulating admin intervention or time passage)
-        rate_limiter.reset_rate_limit(user_id, "verify_mfa").await
+        rate_limiter
+            .reset_rate_limit(user_id, "verify_mfa")
+            .await
             .expect("Failed to reset rate limit");
 
         // Verify normal operation can resume

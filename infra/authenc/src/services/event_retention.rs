@@ -1,11 +1,11 @@
+use aws_config::BehaviorVersion;
+use aws_credential_types::Credentials;
+use aws_sdk_s3::{Client as S3Client, config::Region};
 use chrono::{DateTime, Duration, Utc};
 use std::sync::Arc;
 use tokio::time::{Duration as TokioDuration, interval};
-use aws_sdk_s3::{Client as S3Client, config::Region};
-use aws_config::BehaviorVersion;
-use aws_credential_types::Credentials;
 
-use crate::config::{EventsConfig, ColdStorageConfig};
+use crate::config::{ColdStorageConfig, EventsConfig};
 use crate::database::Database;
 use crate::error::{AuthencError as Error, Result};
 use crate::services::events::EventStoreProvider;
@@ -59,17 +59,11 @@ impl EventRetentionService {
         }
 
         // Set credentials if provided
-        if let (Some(access_key), Some(secret_key)) = (
-            &cold_storage.access_key_id,
-            &cold_storage.secret_access_key,
-        ) {
-            let credentials = Credentials::new(
-                access_key,
-                secret_key,
-                None,
-                None,
-                "authenc-cold-storage",
-            );
+        if let (Some(access_key), Some(secret_key)) =
+            (&cold_storage.access_key_id, &cold_storage.secret_access_key)
+        {
+            let credentials =
+                Credentials::new(access_key, secret_key, None, None, "authenc-cold-storage");
             config_builder = config_builder.credentials_provider(credentials);
         }
 
@@ -154,9 +148,12 @@ impl EventRetentionService {
         #[cfg(feature = "metrics")]
         {
             counter!("authenc.event_retention.cleanup_total").increment(1);
-            counter!("authenc.event_retention.events_deleted_total").increment(total_deleted as u64);
-            counter!("authenc.event_retention.events_archived_total").increment(total_archived as u64);
-            histogram!("authenc.event_retention.cleanup_duration_ms").record(duration.as_millis() as f64);
+            counter!("authenc.event_retention.events_deleted_total")
+                .increment(total_deleted as u64);
+            counter!("authenc.event_retention.events_archived_total")
+                .increment(total_archived as u64);
+            histogram!("authenc.event_retention.cleanup_duration_ms")
+                .record(duration.as_millis() as f64);
         }
 
         Ok(result)
@@ -215,7 +212,11 @@ impl EventRetentionService {
             }
         };
 
-        tracing::info!("Archiving events from {} older than {}", table_name, cutoff_date);
+        tracing::info!(
+            "Archiving events from {} older than {}",
+            table_name,
+            cutoff_date
+        );
 
         // Fetch events to archive in batches
         let batch_size = self.config.max_cleanup_batch_size as i64;
@@ -245,48 +246,36 @@ impl EventRetentionService {
                     let mut event = serde_json::Map::new();
                     for (idx, column) in row.columns().iter().enumerate() {
                         let value = match column.type_().name() {
-                            "uuid" => {
-                                match row.try_get::<_, uuid::Uuid>(idx) {
-                                    Ok(val) => serde_json::Value::String(val.to_string()),
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
+                            "uuid" => match row.try_get::<_, uuid::Uuid>(idx) {
+                                Ok(val) => serde_json::Value::String(val.to_string()),
+                                Err(_) => serde_json::Value::Null,
+                            },
                             "timestamptz" | "timestamp" => {
                                 match row.try_get::<_, DateTime<Utc>>(idx) {
                                     Ok(val) => serde_json::Value::String(val.to_rfc3339()),
                                     Err(_) => serde_json::Value::Null,
                                 }
                             }
-                            "text" | "varchar" => {
-                                match row.try_get::<_, String>(idx) {
-                                    Ok(val) => serde_json::Value::String(val),
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
-                            "int4" => {
-                                match row.try_get::<_, i32>(idx) {
-                                    Ok(val) => serde_json::Value::Number((val as i64).into()),
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
-                            "int8" => {
-                                match row.try_get::<_, i64>(idx) {
-                                    Ok(val) => serde_json::Value::Number(val.into()),
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
-                            "bool" => {
-                                match row.try_get::<_, bool>(idx) {
-                                    Ok(val) => serde_json::Value::Bool(val),
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
-                            "jsonb" | "json" => {
-                                match row.try_get::<_, serde_json::Value>(idx) {
-                                    Ok(val) => val,
-                                    Err(_) => serde_json::Value::Null,
-                                }
-                            }
+                            "text" | "varchar" => match row.try_get::<_, String>(idx) {
+                                Ok(val) => serde_json::Value::String(val),
+                                Err(_) => serde_json::Value::Null,
+                            },
+                            "int4" => match row.try_get::<_, i32>(idx) {
+                                Ok(val) => serde_json::Value::Number((val as i64).into()),
+                                Err(_) => serde_json::Value::Null,
+                            },
+                            "int8" => match row.try_get::<_, i64>(idx) {
+                                Ok(val) => serde_json::Value::Number(val.into()),
+                                Err(_) => serde_json::Value::Null,
+                            },
+                            "bool" => match row.try_get::<_, bool>(idx) {
+                                Ok(val) => serde_json::Value::Bool(val),
+                                Err(_) => serde_json::Value::Null,
+                            },
+                            "jsonb" | "json" => match row.try_get::<_, serde_json::Value>(idx) {
+                                Ok(val) => val,
+                                Err(_) => serde_json::Value::Null,
+                            },
                             _ => serde_json::Value::Null,
                         };
                         event.insert(column.name().to_string(), value);
@@ -299,15 +288,12 @@ impl EventRetentionService {
             let archive_date = cutoff_date.format("%Y-%m-%d").to_string();
             let archive_key = format!(
                 "{}/{}/{}-{}.json",
-                cold_storage.path_prefix,
-                table_name,
-                archive_date,
-                offset
+                cold_storage.path_prefix, table_name, archive_date, offset
             );
 
             // Serialize events to JSON
-            let json_data = serde_json::to_vec_pretty(&events)
-                .map_err(|e| Error::InternalError {
+            let json_data =
+                serde_json::to_vec_pretty(&events).map_err(|e| Error::InternalError {
                     message: format!("Failed to serialize events: {}", e),
                 })?;
 
@@ -381,11 +367,12 @@ impl EventRetentionService {
             .count_expired_events("admin_events", admin_cutoff)
             .await?;
 
-        let (cold_storage_enabled, cold_storage_bucket) = if let Some(ref cs) = self.config.cold_storage {
-            (cs.enabled, Some(cs.bucket.clone()))
-        } else {
-            (false, None)
-        };
+        let (cold_storage_enabled, cold_storage_bucket) =
+            if let Some(ref cs) = self.config.cold_storage {
+                (cs.enabled, Some(cs.bucket.clone()))
+            } else {
+                (false, None)
+            };
 
         let stats = RetentionStats {
             total_user_events,
@@ -491,11 +478,16 @@ impl RetentionStats {
             use metrics::gauge;
 
             gauge!("authenc.event_retention.total_user_events").set(self.total_user_events as f64);
-            gauge!("authenc.event_retention.total_admin_events").set(self.total_admin_events as f64);
-            gauge!("authenc.event_retention.expired_user_events").set(self.expired_user_events as f64);
-            gauge!("authenc.event_retention.expired_admin_events").set(self.expired_admin_events as f64);
-            gauge!("authenc.event_retention.user_retention_days").set(self.user_retention_days as f64);
-            gauge!("authenc.event_retention.admin_retention_days").set(self.admin_retention_days as f64);
+            gauge!("authenc.event_retention.total_admin_events")
+                .set(self.total_admin_events as f64);
+            gauge!("authenc.event_retention.expired_user_events")
+                .set(self.expired_user_events as f64);
+            gauge!("authenc.event_retention.expired_admin_events")
+                .set(self.expired_admin_events as f64);
+            gauge!("authenc.event_retention.user_retention_days")
+                .set(self.user_retention_days as f64);
+            gauge!("authenc.event_retention.admin_retention_days")
+                .set(self.admin_retention_days as f64);
         }
     }
 }

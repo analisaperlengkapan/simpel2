@@ -8,7 +8,7 @@
 //!
 //! These operations reduce database round-trips and improve performance for bulk operations.
 
-use crate::database::{batch::BatchInsertable, Database};
+use crate::database::{Database, batch::BatchInsertable};
 use crate::error::{AuthencError, Result};
 use crate::models::permission::Permission;
 use crate::models::user::User;
@@ -345,7 +345,10 @@ pub async fn batch_validate_sessions(
         } else if now >= expires_at {
             (false, Some("Session has expired".to_string()))
         } else if is_temp_session {
-            (false, Some("Temporary session pending MFA verification".to_string()))
+            (
+                false,
+                Some("Temporary session pending MFA verification".to_string()),
+            )
         } else {
             (true, None)
         };
@@ -412,10 +415,7 @@ pub async fn batch_validate_sessions(
 ///     }
 /// }
 /// ```
-pub async fn batch_lookup_users(
-    db: &Database,
-    user_ids: Vec<Uuid>,
-) -> Result<HashMap<Uuid, User>> {
+pub async fn batch_lookup_users(db: &Database, user_ids: Vec<Uuid>) -> Result<HashMap<Uuid, User>> {
     if user_ids.is_empty() {
         return Ok(HashMap::new());
     }
@@ -484,7 +484,7 @@ pub async fn batch_lookup_users(
             require_password_change: row.get(26),
             realm_id: row.get(27),
             organization_id: row.get(28),
-            roles: Vec::new(), // Loaded separately if needed
+            roles: Vec::new(),       // Loaded separately if needed
             permissions: Vec::new(), // Loaded separately if needed
             session_data: row.get(29),
             secreton_access_policy: Default::default(), // Loaded separately if needed

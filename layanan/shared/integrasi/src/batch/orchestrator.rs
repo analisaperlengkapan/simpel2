@@ -1,12 +1,11 @@
 /// Orchestrator untuk batch processing
 /// Mengkoordinasikan fetching data dari multiple sources
-
 use crate::batch::fetchers::*;
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::adm;
 use crate::storage::StorageStrategy;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Get list of all satker untuk KL tertentu
 pub async fn get_satker_list(
@@ -66,10 +65,19 @@ pub async fn fetch_all_satker(
 ) -> Result<(), MonsaktiError> {
     let satker_list = get_satker_list(client, kode_kl).await?;
 
-    info!("Processing {} satker(s) for KL{}...", satker_list.len(), kode_kl);
+    info!(
+        "Processing {} satker(s) for KL{}...",
+        satker_list.len(),
+        kode_kl
+    );
 
     for (idx, kdsatker) in satker_list.iter().enumerate() {
-        info!("Processing satker {}/{}: {}", idx + 1, satker_list.len(), kdsatker);
+        info!(
+            "Processing satker {}/{}: {}",
+            idx + 1,
+            satker_list.len(),
+            kdsatker
+        );
 
         match fetch_satker_complete(client, storage, kode_kl, kdsatker).await {
             Ok(_) => info!("✓ Satker {} completed", kdsatker),

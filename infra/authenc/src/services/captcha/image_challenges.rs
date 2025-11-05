@@ -102,7 +102,7 @@ impl ImageChallengeGenerator {
                     message: "Invalid difficulty level".to_string(),
                     recoverable: true,
                     retry_after: Some(Duration::from_secs(1)),
-                })
+                });
             }
         };
 
@@ -228,7 +228,7 @@ impl ImageChallengeGenerator {
                     message: "Invalid difficulty level".to_string(),
                     recoverable: true,
                     retry_after: Some(Duration::from_secs(1)),
-                })
+                });
             }
         };
 
@@ -309,7 +309,7 @@ impl ImageChallengeGenerator {
                     message: "Invalid difficulty level".to_string(),
                     recoverable: true,
                     retry_after: Some(Duration::from_secs(1)),
-                })
+                });
             }
         };
 

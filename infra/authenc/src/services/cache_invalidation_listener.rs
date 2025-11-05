@@ -4,7 +4,9 @@
 //! cache entries when relevant events occur in the system.
 
 use crate::error::Result;
-use crate::events::{Event as SystemEvent, EventError, EventListener, EventType as SystemEventType};
+use crate::events::{
+    Event as SystemEvent, EventError, EventListener, EventType as SystemEventType,
+};
 use crate::models::events::EventType;
 use crate::services::cache::CacheInvalidationService;
 use async_trait::async_trait;
@@ -72,7 +74,10 @@ impl CacheInvalidationListener {
             }
             _ => {
                 // Event doesn't require cache invalidation
-                debug!("Event {:?} does not require cache invalidation", event.event_type);
+                debug!(
+                    "Event {:?} does not require cache invalidation",
+                    event.event_type
+                );
             }
         }
 
@@ -157,8 +162,11 @@ mod tests {
         let redis_cache = Arc::new(RedisCache::new(&redis_config).await.unwrap());
         let multi_cache = Arc::new(MultiLayerCache::with_defaults(redis_cache));
 
-        let invalidation_service =
-            Arc::new(CacheInvalidationService::new(multi_cache, None, None, None).await.unwrap());
+        let invalidation_service = Arc::new(
+            CacheInvalidationService::new(multi_cache, None, None, None)
+                .await
+                .unwrap(),
+        );
 
         CacheInvalidationListener::new(invalidation_service)
     }
@@ -200,4 +208,3 @@ mod tests {
         assert!(listener.is_async());
     }
 }
-

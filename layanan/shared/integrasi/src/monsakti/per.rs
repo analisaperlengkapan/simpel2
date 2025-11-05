@@ -2,10 +2,19 @@ use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 
 /// Endpoint: /API/PER/persediaTrx/KLxxx/KDSATKER/KDGOL (opsional)/KDBID (opsional)/KDKEL (opsional)/KDSKEL (opsional)/KDBRG (opsional)
-pub async fn persedia_trx(client: &mut MonsaktiClient, kode_kl: &str, kdsatker: &str, kdgol: &str, kdbid: &str, kdkel: &str, kdskel: &str, kdbrg: &str) -> Result<serde_json::Value, MonsaktiError> {
+pub async fn persedia_trx(
+    client: &mut MonsaktiClient,
+    kode_kl: &str,
+    kdsatker: &str,
+    kdgol: &str,
+    kdbid: &str,
+    kdkel: &str,
+    kdskel: &str,
+    kdbrg: &str,
+) -> Result<serde_json::Value, MonsaktiError> {
     let kl_formatted = format!("KL{}", kode_kl);
     let mut vars = vec![kl_formatted, kdsatker.to_string()];
-    
+
     if !kdgol.is_empty() {
         vars.push(kdgol.to_string());
         if !kdbid.is_empty() {
@@ -21,7 +30,9 @@ pub async fn persedia_trx(client: &mut MonsaktiClient, kode_kl: &str, kdsatker: 
             }
         }
     }
-    
+
     let response = client.fetch("PER", "persediaTrx", vars).await?;
-    response.data.ok_or_else(|| MonsaktiError::ApiError("No data".to_string()))
+    response
+        .data
+        .ok_or_else(|| MonsaktiError::ApiError("No data".to_string()))
 }

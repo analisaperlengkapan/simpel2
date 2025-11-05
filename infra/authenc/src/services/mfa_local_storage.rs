@@ -6,7 +6,7 @@
 
 use crate::crypto::aes_gcm::{AesGcmService, EncryptedData};
 use crate::error::{AuthencError, Result};
-use crate::vault::secreton_client::{MfaSetupData, MfaStatusResponse};
+use crate::vault::secreton_client::MfaSetupData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -134,15 +134,9 @@ impl MfaLocalStorage {
     }
 
     /// Store MFA setup data locally
-    pub async fn store_mfa_setup(
-        &self,
-        user_id: &str,
-        setup_data: &MfaSetupData,
-    ) -> Result<()> {
+    pub async fn store_mfa_setup(&self, user_id: &str, setup_data: &MfaSetupData) -> Result<()> {
         // Encrypt the secret
-        let encrypted_secret = self
-            .encryption
-            .encrypt(setup_data.secret_key.as_bytes())?;
+        let encrypted_secret = self.encryption.encrypt(setup_data.secret_key.as_bytes())?;
 
         // Encrypt backup codes
         let mut encrypted_backup_codes = Vec::new();
@@ -186,9 +180,8 @@ impl MfaLocalStorage {
         if let Some(local_secret) = secrets.get(user_id) {
             // Decrypt the secret
             let decrypted = self.encryption.decrypt(&local_secret.encrypted_secret)?;
-            let secret = String::from_utf8(decrypted).map_err(|_| {
-                AuthencError::internal("Invalid UTF-8 in decrypted MFA secret")
-            })?;
+            let secret = String::from_utf8(decrypted)
+                .map_err(|_| AuthencError::internal("Invalid UTF-8 in decrypted MFA secret"))?;
 
             // Update metrics
             let mut metrics = self.metrics.write().await;
@@ -239,7 +232,10 @@ impl MfaLocalStorage {
         self.secrets.write().await.remove(user_id);
         self.save_to_disk().await?;
 
-        info!("Removed MFA secret from local storage for user: {}", user_id);
+        info!(
+            "Removed MFA secret from local storage for user: {}",
+            user_id
+        );
 
         Ok(())
     }
@@ -366,9 +362,8 @@ impl MfaLocalStorage {
 
         // Serialize secrets
         let secrets_vec: Vec<LocalMfaSecret> = secrets.values().cloned().collect();
-        let json_data = serde_json::to_vec(&secrets_vec).map_err(|e| {
-            AuthencError::internal(format!("Failed to serialize secrets: {}", e))
-        })?;
+        let json_data = serde_json::to_vec(&secrets_vec)
+            .map_err(|e| AuthencError::internal(format!("Failed to serialize secrets: {}", e)))?;
 
         // Encrypt the entire storage file
         let encrypted_storage = self.encryption.encrypt(&json_data)?;
@@ -379,9 +374,7 @@ impl MfaLocalStorage {
         // Write to disk
         fs::write(&self.storage_path, encrypted_json)
             .await
-            .map_err(|e| {
-                AuthencError::internal(format!("Failed to write storage file: {}", e))
-            })?;
+            .map_err(|e| AuthencError::internal(format!("Failed to write storage file: {}", e)))?;
 
         Ok(())
     }
@@ -389,13 +382,13 @@ impl MfaLocalStorage {
     /// Load secrets from disk
     async fn load_from_disk(&self) -> Result<usize> {
         // Read from disk
-        let encrypted_json = fs::read(&self.storage_path).await.map_err(|e| {
-            AuthencError::internal(format!("Failed to read storage file: {}", e))
-        })?;
+        let encrypted_json = fs::read(&self.storage_path)
+            .await
+            .map_err(|e| AuthencError::internal(format!("Failed to read storage file: {}", e)))?;
 
         // Deserialize encrypted storage
-        let encrypted_storage: EncryptedData = serde_json::from_slice(&encrypted_json)
-            .map_err(|e| {
+        let encrypted_storage: EncryptedData =
+            serde_json::from_slice(&encrypted_json).map_err(|e| {
                 AuthencError::internal(format!("Failed to deserialize encrypted storage: {}", e))
             })?;
 
@@ -403,9 +396,8 @@ impl MfaLocalStorage {
         let json_data = self.encryption.decrypt(&encrypted_storage)?;
 
         // Deserialize secrets
-        let secrets_vec: Vec<LocalMfaSecret> = serde_json::from_slice(&json_data).map_err(
-            |e| AuthencError::internal(format!("Failed to deserialize secrets: {}", e)),
-        )?;
+        let secrets_vec: Vec<LocalMfaSecret> = serde_json::from_slice(&json_data)
+            .map_err(|e| AuthencError::internal(format!("Failed to deserialize secrets: {}", e)))?;
 
         // Load into memory
         let mut secrets = self.secrets.write().await;
@@ -466,7 +458,10 @@ mod tests {
         assert_eq!(secret, Some("JBSWY3DPEHPK3PXP".to_string()));
 
         let codes = storage.get_backup_codes("user123").await.unwrap();
-        assert_eq!(codes, Some(vec!["123456".to_string(), "789012".to_string()]));
+        assert_eq!(
+            codes,
+            Some(vec!["123456".to_string(), "789012".to_string()])
+        );
     }
 
     #[tokio::test]
@@ -553,4 +548,3 @@ mod tests {
         assert!(needs_sync.is_empty());
     }
 }
-

@@ -4,7 +4,6 @@
 //! This module provides comprehensive input validation using the garde crate
 //! and sanitization functions to prevent injection attacks and ensure data integrity.
 
-use garde::Validate;
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -17,8 +16,7 @@ static EMAIL_REGEX: OnceLock<Regex> = OnceLock::new();
 /// Username validation regex (alphanumeric, underscore, hyphen, 3-50 chars)
 static USERNAME_REGEX: OnceLock<Regex> = OnceLock::new();
 
-/// Password complexity regex (at least one uppercase, one lowercase, one digit)
-static PASSWORD_COMPLEXITY_REGEX: OnceLock<Regex> = OnceLock::new();
+// Password complexity is validated using char iteration, not regex (no look-aheads in rust regex)
 
 /// Satker code validation regex (alphanumeric, 2-20 chars)
 static SATKER_CODE_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -42,12 +40,7 @@ fn username_regex() -> &'static Regex {
         .get_or_init(|| Regex::new(r"^[a-zA-Z0-9_-]{3,50}$").expect("Invalid username regex"))
 }
 
-fn password_complexity_regex() -> &'static Regex {
-    PASSWORD_COMPLEXITY_REGEX.get_or_init(|| {
-        Regex::new(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")
-            .expect("Invalid password complexity regex")
-    })
-}
+// Removed password_complexity_regex - not needed (see validate_password_complexity implementation)
 
 fn satker_code_regex() -> &'static Regex {
     SATKER_CODE_REGEX
@@ -59,7 +52,8 @@ fn nip_regex() -> &'static Regex {
 }
 
 fn phone_regex() -> &'static Regex {
-    PHONE_REGEX.get_or_init(|| Regex::new(r"^\+?[1-9]\d{1,14}$").expect("Invalid phone regex"))
+    // Matches: optional +, digit 1-9, then 6-14 more digits (7-15 total, minimum valid phone)
+    PHONE_REGEX.get_or_init(|| Regex::new(r"^\+?[1-9]\d{6,14}$").expect("Invalid phone regex"))
 }
 
 /// Validate email format
@@ -80,7 +74,16 @@ pub fn validate_username(username: &str) -> bool {
 /// - At least one lowercase letter
 /// - At least one digit
 pub fn validate_password_complexity(password: &str) -> bool {
-    password.len() >= 8 && password_complexity_regex().is_match(password)
+    if password.len() < 8 {
+        return false;
+    }
+
+    // Check each requirement individually (regex crate doesn't support look-aheads)
+    let has_lowercase = password.chars().any(|c| c.is_lowercase());
+    let has_uppercase = password.chars().any(|c| c.is_uppercase());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+
+    has_lowercase && has_uppercase && has_digit
 }
 
 /// Validate satker code format
@@ -205,6 +208,46 @@ pub fn phone_validator(value: &str, _context: &()) -> garde::Result {
         Ok(())
     } else {
         Err(garde::Error::new("invalid phone number format"))
+    }
+}
+
+/// Custom garde validator for optional phone number
+pub fn phone_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
+    match value {
+        Some(v) => phone_validator(v, _context),
+        None => Ok(()),
+    }
+}
+
+/// Custom garde validator for optional NIP
+pub fn nip_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
+    match value {
+        Some(v) => nip_validator(v, _context),
+        None => Ok(()),
+    }
+}
+
+/// Custom garde validator for optional email
+pub fn email_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
+    match value {
+        Some(v) => email_validator(v, _context),
+        None => Ok(()),
+    }
+}
+
+/// Custom garde validator for optional username
+pub fn username_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
+    match value {
+        Some(v) => username_validator(v, _context),
+        None => Ok(()),
+    }
+}
+
+/// Custom garde validator for optional satker code
+pub fn satker_code_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
+    match value {
+        Some(v) => satker_code_validator(v, _context),
+        None => Ok(()),
     }
 }
 

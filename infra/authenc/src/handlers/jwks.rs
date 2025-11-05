@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::crypto::ed25519_keys::{get_ed25519_jwk, Ed25519Jwk};
+use crate::crypto::ed25519_keys::{Ed25519Jwk, get_ed25519_jwk};
 use crate::error::AuthencError;
 use crate::services::cache::Cache;
 use axum::{extract::State, response::Json};
@@ -72,7 +72,10 @@ pub async fn jwks_endpoint(
             tracing::warn!("Failed to cache JWKS response: {}", e);
             // Continue without caching - not a critical error
         } else {
-            tracing::debug!("JWKS response cached for {} seconds", JWKS_CACHE_TTL_SECONDS);
+            tracing::debug!(
+                "JWKS response cached for {} seconds",
+                JWKS_CACHE_TTL_SECONDS
+            );
         }
     }
 
@@ -114,10 +117,9 @@ fn generate_jwks_response() -> JwksResponse {
 /// Result indicating success or failure of cache invalidation
 pub async fn invalidate_jwks_cache(state: &AppState) -> Result<(), AuthencError> {
     if let Some(redis_cache) = &state.redis_cache {
-        redis_cache
-            .delete(JWKS_CACHE_KEY)
-            .await
-            .map_err(|e| AuthencError::internal(format!("Failed to invalidate JWKS cache: {}", e)))?;
+        redis_cache.delete(JWKS_CACHE_KEY).await.map_err(|e| {
+            AuthencError::internal(format!("Failed to invalidate JWKS cache: {}", e))
+        })?;
         tracing::info!("JWKS cache invalidated");
     }
     Ok(())

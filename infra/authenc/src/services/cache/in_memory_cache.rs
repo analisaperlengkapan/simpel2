@@ -242,9 +242,14 @@ impl Cache for InMemoryCache {
                     entry.touch();
                 }
             })
-            .or_insert_with(|| CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl));
+            .or_insert_with(|| {
+                CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl)
+            });
 
-        debug!("L1 cache increment for key: {} by {} = {}", key, delta, new_value);
+        debug!(
+            "L1 cache increment for key: {} by {} = {}",
+            key, delta, new_value
+        );
         Ok(new_value)
     }
 
@@ -269,7 +274,10 @@ impl Cache for InMemoryCache {
         self.metrics.record_set(elapsed);
         self.metrics.increment_cache_size();
 
-        debug!("L1 cache set_nx succeeded for key: {} with TTL: {:?}", key, ttl);
+        debug!(
+            "L1 cache set_nx succeeded for key: {} with TTL: {:?}",
+            key, ttl
+        );
         Ok(true)
     }
 }
@@ -287,7 +295,10 @@ mod tests {
         let key = "test_key";
         let value = serde_json::json!({"id": 123, "name": "test"});
 
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         let retrieved = cache.get(key).await.unwrap();
         assert_eq!(retrieved, Some(value));
 
@@ -308,7 +319,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set with short TTL
-        cache.set(key, &value, Duration::from_millis(100)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_millis(100))
+            .await
+            .unwrap();
 
         // Should exist immediately
         assert!(cache.get(key).await.unwrap().is_some());
@@ -325,15 +339,27 @@ mod tests {
         let cache = InMemoryCache::new(3, Duration::from_secs(60));
 
         // Fill cache to capacity
-        cache.set("key1", &serde_json::json!(1), Duration::from_secs(60)).await.unwrap();
-        cache.set("key2", &serde_json::json!(2), Duration::from_secs(60)).await.unwrap();
-        cache.set("key3", &serde_json::json!(3), Duration::from_secs(60)).await.unwrap();
+        cache
+            .set("key1", &serde_json::json!(1), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .set("key2", &serde_json::json!(2), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .set("key3", &serde_json::json!(3), Duration::from_secs(60))
+            .await
+            .unwrap();
 
         // Access key1 to make it more recently used
         let _ = cache.get("key1").await;
 
         // Add a new key, should evict key2 (LRU)
-        cache.set("key4", &serde_json::json!(4), Duration::from_secs(60)).await.unwrap();
+        cache
+            .set("key4", &serde_json::json!(4), Duration::from_secs(60))
+            .await
+            .unwrap();
 
         // key1 and key3 should still exist
         assert!(cache.get("key1").await.unwrap().is_some());
@@ -349,16 +375,25 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // First set_nx should succeed
-        let result = cache.set_nx(key, &value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(result);
 
         // Second set_nx should fail (key exists)
-        let result = cache.set_nx(key, &value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(!result);
 
         // After deletion, set_nx should succeed again
         cache.delete(key).await.unwrap();
-        let result = cache.set_nx(key, &value, Duration::from_secs(60)).await.unwrap();
+        let result = cache
+            .set_nx(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         assert!(result);
     }
 
@@ -386,8 +421,14 @@ mod tests {
         let cache = InMemoryCache::new(100, Duration::from_secs(60));
 
         // Add some entries
-        cache.set("key1", &serde_json::json!(1), Duration::from_secs(60)).await.unwrap();
-        cache.set("key2", &serde_json::json!(2), Duration::from_secs(60)).await.unwrap();
+        cache
+            .set("key1", &serde_json::json!(1), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .set("key2", &serde_json::json!(2), Duration::from_secs(60))
+            .await
+            .unwrap();
 
         assert_eq!(cache.size(), 2);
 
@@ -406,7 +447,10 @@ mod tests {
         let value = serde_json::json!({"data": "test"});
 
         // Set and get to generate metrics
-        cache.set(key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
         let _ = cache.get(key).await;
         let _ = cache.get("nonexistent").await;
 

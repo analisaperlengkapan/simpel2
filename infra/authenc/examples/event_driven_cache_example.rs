@@ -48,9 +48,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 3: Create cache invalidation service
     println!("3. Creating cache invalidation service...");
-    let invalidation_service = Arc::new(
-        CacheInvalidationService::new(Arc::clone(&cache), None, None, None).await?,
-    );
+    let invalidation_service =
+        Arc::new(CacheInvalidationService::new(Arc::clone(&cache), None, None, None).await?);
 
     // Step 4: Configure event consumer
     println!("4. Configuring event consumer...");

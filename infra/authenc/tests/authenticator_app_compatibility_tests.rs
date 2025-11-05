@@ -320,7 +320,8 @@ fn test_secret_length_compatibility() {
         );
 
         // Verify minimum security (160 bits = 20 bytes)
-        let decoded_bytes = decoded.unwrap()     assert!(
+        let decoded_bytes = decoded.unwrap();
+        assert!(
             decoded_bytes.len() >= 20,
             "{}: Secret should be at least 160 bits (20 bytes)",
             app.name
@@ -378,7 +379,8 @@ fn test_manual_entry_compatibility() {
             "{}: Secret should survive grouping for manual entry",
             app.name
         );
-
+    }
+}
 
 #[test]
 fn test_qr_code_size_compatibility() {
@@ -601,7 +603,11 @@ fn generate_compatibility_report() {
             if app.supports_sha256 { "✅" } else { "❌" },
             if app.supports_sha512 { "✅" } else { "❌" },
             if app.supports_8_digits { "✅" } else { "❌" },
-            if app.supports_custom_period { "✅" } else { "❌" },
+            if app.supports_custom_period {
+                "✅"
+            } else {
+                "❌"
+            },
             if app.requires_issuer { "✅" } else { "❌" },
         ));
     }

@@ -1,6 +1,6 @@
 use crate::config::SsoCookieConfig;
 use crate::error::{AuthencError, Result};
-use axum::http::{header, HeaderMap, HeaderValue};
+use axum::http::{HeaderMap, HeaderValue, header};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -103,7 +103,7 @@ impl SsoCookieManager {
         let session_json = session.to_json()?;
 
         // Base64 encode the session data for cookie storage
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
         let encoded_session = general_purpose::STANDARD.encode(&session_json);
 
         // Build cookie string with all security attributes
@@ -176,7 +176,7 @@ impl SsoCookieManager {
             let cookie = cookie.trim();
             if let Some(value) = cookie.strip_prefix(&format!("{}=", self.config.name)) {
                 // Decode base64
-                use base64::{engine::general_purpose, Engine as _};
+                use base64::{Engine as _, engine::general_purpose};
                 let decoded = general_purpose::STANDARD.decode(value).map_err(|e| {
                     AuthencError::internal(format!("Failed to decode cookie: {}", e))
                 })?;

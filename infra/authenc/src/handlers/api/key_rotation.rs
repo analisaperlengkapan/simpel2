@@ -5,10 +5,10 @@
 use crate::error::{AuthencError, Result};
 use crate::services::key_rotation::{KeyRotationEvent, KeyType};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -82,12 +82,13 @@ pub async fn rotate_key_handler(
     Json(request): Json<RotateKeyRequest>,
 ) -> Result<impl IntoResponse> {
     // Check if key rotation service is available
-    let key_rotation_service = state
-        .key_rotation_service
-        .as_ref()
-        .ok_or_else(|| AuthencError::ResourceNotFound {
-            resource: "Key rotation service not configured".to_string(),
-        })?;
+    let key_rotation_service =
+        state
+            .key_rotation_service
+            .as_ref()
+            .ok_or_else(|| AuthencError::ResourceNotFound {
+                resource: "Key rotation service not configured".to_string(),
+            })?;
 
     // Perform rotation
     match key_rotation_service
@@ -129,12 +130,13 @@ pub async fn register_key_handler(
     Json(request): Json<RegisterKeyRequest>,
 ) -> Result<impl IntoResponse> {
     // Check if key rotation service is available
-    let key_rotation_service = state
-        .key_rotation_service
-        .as_ref()
-        .ok_or_else(|| AuthencError::ResourceNotFound {
-            resource: "Key rotation service not configured".to_string(),
-        })?;
+    let key_rotation_service =
+        state
+            .key_rotation_service
+            .as_ref()
+            .ok_or_else(|| AuthencError::ResourceNotFound {
+                resource: "Key rotation service not configured".to_string(),
+            })?;
 
     // Register the key
     key_rotation_service
@@ -162,12 +164,13 @@ pub async fn unregister_key_handler(
     Path(key_id): Path<String>,
 ) -> Result<impl IntoResponse> {
     // Check if key rotation service is available
-    let key_rotation_service = state
-        .key_rotation_service
-        .as_ref()
-        .ok_or_else(|| AuthencError::ResourceNotFound {
-            resource: "Key rotation service not configured".to_string(),
-        })?;
+    let key_rotation_service =
+        state
+            .key_rotation_service
+            .as_ref()
+            .ok_or_else(|| AuthencError::ResourceNotFound {
+                resource: "Key rotation service not configured".to_string(),
+            })?;
 
     // Unregister the key
     key_rotation_service.unregister_key(&key_id).await?;
@@ -190,12 +193,13 @@ pub async fn get_rotation_history_handler(
     Query(query): Query<RotationHistoryQuery>,
 ) -> Result<impl IntoResponse> {
     // Check if key rotation service is available
-    let key_rotation_service = state
-        .key_rotation_service
-        .as_ref()
-        .ok_or_else(|| AuthencError::ResourceNotFound {
-            resource: "Key rotation service not configured".to_string(),
-        })?;
+    let key_rotation_service =
+        state
+            .key_rotation_service
+            .as_ref()
+            .ok_or_else(|| AuthencError::ResourceNotFound {
+                resource: "Key rotation service not configured".to_string(),
+            })?;
 
     // Get rotation history
     let events = key_rotation_service

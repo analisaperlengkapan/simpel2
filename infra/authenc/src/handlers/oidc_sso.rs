@@ -1,7 +1,7 @@
 use crate::config::SsoCookieConfig;
 use crate::error::{AuthencError, Result};
 use crate::events::{Event, EventCategory, EventType};
-use crate::handlers::oidc_ed25519::{generate_ed25519_jwt, OidcAuthorizeQuery};
+use crate::handlers::oidc_ed25519::{OidcAuthorizeQuery, generate_ed25519_jwt};
 use crate::utils::sso_cookie::{SsoCookieManager, SsoSession};
 use axum::{
     extract::{Query, State},
@@ -90,21 +90,9 @@ pub async fn oidc_token_with_sso(
     let role = Some("user");
 
     // Generate tokens using Ed25519
-    let access_token = generate_ed25519_jwt(
-        user_id,
-        "demo_client",
-        email,
-        name,
-        role,
-    );
+    let access_token = generate_ed25519_jwt(user_id, "demo_client", email, name, role);
 
-    let id_token = generate_ed25519_jwt(
-        user_id,
-        "demo_client",
-        email,
-        name,
-        role,
-    );
+    let id_token = generate_ed25519_jwt(user_id, "demo_client", email, name, role);
 
     // Create SSO session
     let sso_session = SsoSession::new(
@@ -119,7 +107,9 @@ pub async fn oidc_token_with_sso(
 
     // Create response with SSO cookie
     let mut headers = HeaderMap::new();
-    state.cookie_manager.add_cookie_header(&mut headers, &sso_session)?;
+    state
+        .cookie_manager
+        .add_cookie_header(&mut headers, &sso_session)?;
 
     let response_body = serde_json::json!({
         "access_token": access_token,
@@ -197,7 +187,9 @@ pub async fn oidc_authorize_with_sso(
 
     // Create response with SSO cookie
     let mut headers = HeaderMap::new();
-    state.cookie_manager.add_cookie_header(&mut headers, &sso_session)?;
+    state
+        .cookie_manager
+        .add_cookie_header(&mut headers, &sso_session)?;
 
     let mut response = Redirect::to(&redirect_uri).into_response();
     response.headers_mut().extend(headers);
@@ -304,9 +296,7 @@ pub async fn oidc_logout_with_sso(
     }
 
     // 3. Publish logout event to event bus for audit trail and cache invalidation
-    if let (Some(event_bus), Some(uid), Some(uname)) =
-        (&state.event_bus, &user_id, &username)
-    {
+    if let (Some(event_bus), Some(uid), Some(uname)) = (&state.event_bus, &user_id, &username) {
         // Parse user_id as UUID
         if let Ok(user_uuid) = Uuid::parse_str(uid) {
             // Create logout event
@@ -340,11 +330,7 @@ pub async fn oidc_logout_with_sso(
             // Dispatch event asynchronously (fire and forget)
             event_bus.dispatch_async(logout_event);
 
-            tracing::info!(
-                "Published logout event for user: {} ({})",
-                uname,
-                uid
-            );
+            tracing::info!("Published logout event for user: {} ({})", uname, uid);
         }
     }
 
@@ -520,10 +506,7 @@ mod tests {
         params.insert("grant_type".to_string(), "authorization_code".to_string());
         params.insert("code".to_string(), "test_code".to_string());
 
-        let result = oidc_token_with_sso(
-            State(state),
-            Query(params),
-        ).await;
+        let result = oidc_token_with_sso(State(state), Query(params)).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -538,11 +521,7 @@ mod tests {
         let params = std::collections::HashMap::new();
         let headers = HeaderMap::new();
 
-        let result = oidc_logout_with_sso(
-            State(state),
-            headers,
-            Query(params),
-        ).await;
+        let result = oidc_logout_with_sso(State(state), headers, Query(params)).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -566,11 +545,7 @@ mod tests {
         );
         let headers = HeaderMap::new();
 
-        let result = oidc_logout_with_sso(
-            State(state),
-            headers,
-            Query(params),
-        ).await;
+        let result = oidc_logout_with_sso(State(state), headers, Query(params)).await;
 
         assert!(result.is_ok());
         let response = result.unwrap();
@@ -589,7 +564,10 @@ mod tests {
         // Valid URIs
         assert!(validate_post_logout_redirect_uri("http://localhost:8080/").is_ok());
         assert!(validate_post_logout_redirect_uri("https://simpel.kejaksaan.go.id/").is_ok());
-        assert!(validate_post_logout_redirect_uri("https://portal.simpel.kejaksaan.go.id/logged-out").is_ok());
+        assert!(
+            validate_post_logout_redirect_uri("https://portal.simpel.kejaksaan.go.id/logged-out")
+                .is_ok()
+        );
 
         // Invalid URI should return default
         let result = validate_post_logout_redirect_uri("https://evil.com/phishing");

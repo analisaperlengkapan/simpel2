@@ -1,10 +1,8 @@
 /// Storage strategy untuk menyimpan data hasil fetch
 /// Mendukung multiple output destinations: File (JSON/CSV) dan Database
-
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use serde_json::Value;
-use tracing::info;
 
 /// Strategy untuk menyimpan data
 #[derive(Debug, Clone)]

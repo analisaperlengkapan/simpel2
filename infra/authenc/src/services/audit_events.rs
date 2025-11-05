@@ -164,7 +164,7 @@ pub fn create_mfa_enabled_admin_event(
 
     let resource_path = format!("users/{}/mfa", target_user_id);
 
-    let mut event = AdminEvent::new(
+    let event = AdminEvent::new(
         realm_id,
         auth_details,
         ResourceType::User,
@@ -219,7 +219,7 @@ pub fn create_mfa_disabled_admin_event(
 
     let resource_path = format!("users/{}/mfa", target_user_id);
 
-    let mut event = AdminEvent::new(
+    let event = AdminEvent::new(
         realm_id,
         auth_details,
         ResourceType::User,
@@ -281,7 +281,7 @@ pub fn create_permission_granted_admin_event(
 
     let resource_path = format!("users/{}/permissions", target_user_id);
 
-    let mut event = AdminEvent::new(
+    let event = AdminEvent::new(
         realm_id,
         auth_details,
         ResourceType::Permission,
@@ -344,7 +344,7 @@ pub fn create_permission_revoked_admin_event(
 
     let resource_path = format!("users/{}/permissions", target_user_id);
 
-    let mut event = AdminEvent::new(
+    let event = AdminEvent::new(
         realm_id,
         auth_details,
         ResourceType::Permission,

@@ -82,8 +82,10 @@ pub async fn bulk_insert_postgres(
                 }
 
                 // Convert to references for execute
-                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-                    params.iter().map(|p| p.as_ref()).collect();
+                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+                    .iter()
+                    .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+                    .collect();
 
                 match db.execute(&query, &param_refs[..]).await {
                     Ok(rows) => {

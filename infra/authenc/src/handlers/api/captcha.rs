@@ -87,7 +87,10 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         // Risk assessment endpoints
         .route("/captcha/risk/login", post(assess_login_risk))
         .route("/captcha/risk/mfa-setup", get(assess_mfa_setup_risk))
-        .route("/captcha/risk/password-reset", post(assess_password_reset_risk))
+        .route(
+            "/captcha/risk/password-reset",
+            post(assess_password_reset_risk),
+        )
         // Apply rate limiting middleware to all CAPTCHA endpoints
         .layer(middleware::from_fn_with_state(
             Arc::new(RateLimiterState::new(captcha_rate_limit_config)),

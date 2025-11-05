@@ -219,8 +219,10 @@ pub async fn oidc_token_ed25519(
             );
 
             // Generate refresh token
-            let refresh_token = crate::utils::jwt::generate_refresh_token("demo_user")
-                .map_err(|e| AuthencError::internal(&format!("Failed to generate refresh token: {}", e)))?;
+            let refresh_token =
+                crate::utils::jwt::generate_refresh_token("demo_user").map_err(|e| {
+                    AuthencError::internal(&format!("Failed to generate refresh token: {}", e))
+                })?;
 
             let response = serde_json::json!({
                 "access_token": access_token,
@@ -240,8 +242,9 @@ pub async fn oidc_token_ed25519(
                 .ok_or(AuthencError::validation("refresh_token is required"))?;
 
             // Verify refresh token
-            let claims = crate::utils::jwt::verify_refresh_token(refresh_token)
-                .map_err(|e| AuthencError::unauthorized(&format!("Invalid refresh token: {}", e)))?;
+            let claims = crate::utils::jwt::verify_refresh_token(refresh_token).map_err(|e| {
+                AuthencError::unauthorized(&format!("Invalid refresh token: {}", e))
+            })?;
 
             // Generate new access token
             let access_token = generate_ed25519_jwt(
@@ -263,7 +266,9 @@ pub async fn oidc_token_ed25519(
 
             // Generate new refresh token (token rotation)
             let new_refresh_token = crate::utils::jwt::generate_refresh_token(&claims.sub)
-                .map_err(|e| AuthencError::internal(&format!("Failed to generate refresh token: {}", e)))?;
+                .map_err(|e| {
+                    AuthencError::internal(&format!("Failed to generate refresh token: {}", e))
+                })?;
 
             let response = serde_json::json!({
                 "access_token": access_token,
@@ -606,12 +611,24 @@ mod tests {
         assert_eq!(discovery["issuer"], "http://localhost:8080/v1");
 
         // Verify JWKS endpoint is present at standard location
-        assert_eq!(discovery["jwks_uri"], "http://localhost:8080/v1/.well-known/jwks.json");
+        assert_eq!(
+            discovery["jwks_uri"],
+            "http://localhost:8080/v1/.well-known/jwks.json"
+        );
 
         // Verify refresh, revocation, and logout endpoints
-        assert_eq!(discovery["refresh_endpoint"], "http://localhost:8080/v1/oidc/refresh");
-        assert_eq!(discovery["revocation_endpoint"], "http://localhost:8080/v1/oidc/revoke");
-        assert_eq!(discovery["end_session_endpoint"], "http://localhost:8080/v1/oidc/logout");
+        assert_eq!(
+            discovery["refresh_endpoint"],
+            "http://localhost:8080/v1/oidc/refresh"
+        );
+        assert_eq!(
+            discovery["revocation_endpoint"],
+            "http://localhost:8080/v1/oidc/revoke"
+        );
+        assert_eq!(
+            discovery["end_session_endpoint"],
+            "http://localhost:8080/v1/oidc/logout"
+        );
 
         // Verify supported grant types
         let grant_types = discovery["grant_types_supported"].as_array().unwrap();
@@ -631,9 +648,15 @@ mod tests {
         assert!(scopes.contains(&serde_json::Value::String("email".to_string())));
 
         // Verify token endpoint auth methods
-        let auth_methods = discovery["token_endpoint_auth_methods_supported"].as_array().unwrap();
-        assert!(auth_methods.contains(&serde_json::Value::String("client_secret_basic".to_string())));
-        assert!(auth_methods.contains(&serde_json::Value::String("client_secret_post".to_string())));
+        let auth_methods = discovery["token_endpoint_auth_methods_supported"]
+            .as_array()
+            .unwrap();
+        assert!(auth_methods.contains(&serde_json::Value::String(
+            "client_secret_basic".to_string()
+        )));
+        assert!(
+            auth_methods.contains(&serde_json::Value::String("client_secret_post".to_string()))
+        );
         assert!(auth_methods.contains(&serde_json::Value::String("client_secret_jwt".to_string())));
         assert!(auth_methods.contains(&serde_json::Value::String("private_key_jwt".to_string())));
 

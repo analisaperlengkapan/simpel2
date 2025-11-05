@@ -1,10 +1,9 @@
 /// Audit logging module untuk tracking API calls dan token management
 /// Provides comprehensive logging untuk compliance dan debugging
-
 use crate::error::MonsaktiError;
 use serde_json::Value;
 use tokio_postgres::Client;
-use tracing::{info, warn};
+use tracing::info;
 
 /// Log API call untuk audit trail
 pub struct ApiCallLog {
@@ -201,7 +200,10 @@ impl BatchProcessingLog {
         db.execute(query, &[&batch_id, &status, &error_message])
             .await?;
 
-        info!("Completed batch processing log: {} with status: {}", batch_id, status);
+        info!(
+            "Completed batch processing log: {} with status: {}",
+            batch_id, status
+        );
         Ok(())
     }
 }
@@ -339,10 +341,7 @@ impl TokenResetLog {
 /// Helper functions untuk query audit logs
 
 /// Get recent failed API calls
-pub async fn get_recent_failed_calls(
-    db: &Client,
-    limit: i64,
-) -> Result<Vec<Value>, MonsaktiError> {
+pub async fn get_recent_failed_calls(db: &Client, limit: i64) -> Result<Vec<Value>, MonsaktiError> {
     let query = r#"
         SELECT * FROM v_recent_failed_calls
         LIMIT $1
@@ -386,10 +385,7 @@ pub async fn get_token_health(db: &Client) -> Result<Vec<Value>, MonsaktiError> 
 }
 
 /// Get API statistics by module
-pub async fn get_api_stats_by_module(
-    db: &Client,
-    days: i32,
-) -> Result<Vec<Value>, MonsaktiError> {
+pub async fn get_api_stats_by_module(db: &Client, days: i32) -> Result<Vec<Value>, MonsaktiError> {
     let query = r#"
         SELECT * FROM v_api_stats_by_module
         WHERE call_date >= CURRENT_DATE - $1

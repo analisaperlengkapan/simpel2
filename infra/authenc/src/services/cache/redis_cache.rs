@@ -3,8 +3,8 @@
 //! This module provides a Redis-based cache implementation for high-performance
 //! caching with support for TTL, atomic operations, and connection pooling.
 
-use super::{Cache, CacheConfig};
 use super::metrics::{CacheMetrics, CacheMetricsSnapshot, OperationTimer};
+use super::{Cache, CacheConfig};
 use crate::config::RedisConfig;
 use crate::error::{AuthencError, Result};
 use async_trait::async_trait;
@@ -390,10 +390,8 @@ impl RedisCache {
         let mut conn = self.get_connection().await?;
 
         // Get Redis INFO stats
-        let info: RedisResult<String> = redis::cmd("INFO")
-            .arg("stats")
-            .query_async(&mut conn)
-            .await;
+        let info: RedisResult<String> =
+            redis::cmd("INFO").arg("stats").query_async(&mut conn).await;
 
         let redis_stats = match info {
             Ok(info_str) => {

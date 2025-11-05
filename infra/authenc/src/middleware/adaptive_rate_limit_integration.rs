@@ -7,10 +7,10 @@
 use std::sync::Arc;
 
 use axum::{
+    Json,
     extract::ConnectInfo,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::Serialize;
 use tracing::warn;

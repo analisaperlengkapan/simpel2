@@ -130,7 +130,10 @@ impl EventDrivenCacheInvalidator {
             })?;
 
         consumer.subscribe(&[topic]).map_err(|e| {
-            AuthencError::internal(format!("Failed to subscribe to Kafka topic {}: {}", topic, e))
+            AuthencError::internal(format!(
+                "Failed to subscribe to Kafka topic {}: {}",
+                topic, e
+            ))
         })?;
 
         Ok(consumer)
@@ -295,7 +298,10 @@ impl EventDrivenCacheInvalidator {
             }
 
             // MFA status changes
-            EventType::MfaSetup | EventType::MfaEnabled | EventType::MfaDisabled | EventType::MfaReset => {
+            EventType::MfaSetup
+            | EventType::MfaEnabled
+            | EventType::MfaDisabled
+            | EventType::MfaReset => {
                 if let Some(user_id) = &event.user_id {
                     debug!("Invalidating MFA cache for user: {}", user_id);
                     invalidation_service.invalidate_mfa_status(user_id).await?;
@@ -383,7 +389,9 @@ impl EventDrivenCacheInvalidator {
                 // Extract user ID if available
                 if let Some(user_id) = Self::extract_user_id_from_path(&event.resource_path) {
                     debug!("Invalidating permissions cache for user: {}", user_id);
-                    invalidation_service.invalidate_permissions(&user_id).await?;
+                    invalidation_service
+                        .invalidate_permissions(&user_id)
+                        .await?;
                     invalidation_service.invalidate_roles(&user_id).await?;
                     true
                 } else {
@@ -397,8 +405,13 @@ impl EventDrivenCacheInvalidator {
             // Group membership changes
             (ResourceType::GroupMembership, _) => {
                 if let Some(user_id) = Self::extract_user_id_from_path(&event.resource_path) {
-                    debug!("Invalidating cache for group membership change: {}", user_id);
-                    invalidation_service.invalidate_permissions(&user_id).await?;
+                    debug!(
+                        "Invalidating cache for group membership change: {}",
+                        user_id
+                    );
+                    invalidation_service
+                        .invalidate_permissions(&user_id)
+                        .await?;
                     invalidation_service.invalidate_roles(&user_id).await?;
                     true
                 } else {
@@ -408,8 +421,7 @@ impl EventDrivenCacheInvalidator {
 
             // User session management
             (ResourceType::UserSession, OperationType::Delete) => {
-                if let Some(session_id) = Self::extract_session_id_from_path(&event.resource_path)
-                {
+                if let Some(session_id) = Self::extract_session_id_from_path(&event.resource_path) {
                     debug!("Invalidating session cache: {}", session_id);
                     invalidation_service.invalidate_session(&session_id).await?;
                     true

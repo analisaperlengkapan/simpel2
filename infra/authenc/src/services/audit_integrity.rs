@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
 use thiserror::Error;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -171,8 +171,7 @@ impl AuditIntegrityChecker {
         info!("Starting integrity check {}", check_id);
 
         // Check events
-        let (events_checked, events_failed, event_failures) =
-            self.check_events(check_id).await?;
+        let (events_checked, events_failed, event_failures) = self.check_events(check_id).await?;
 
         // Check admin events
         let (admin_events_checked, admin_events_failed, admin_event_failures) =
@@ -208,7 +207,13 @@ impl AuditIntegrityChecker {
 
         info!(
             "Integrity check {} completed in {}ms: status={:?}, events_checked={}, admin_events_checked={}, events_failed={}, admin_events_failed={}",
-            check_id, check_duration_ms, status, events_checked, admin_events_checked, events_failed, admin_events_failed
+            check_id,
+            check_duration_ms,
+            status,
+            events_checked,
+            admin_events_checked,
+            events_failed,
+            admin_events_failed
         );
 
         Ok(result)
@@ -251,10 +256,7 @@ impl AuditIntegrityChecker {
                 // Verify signature
                 if let Err(e) = self.signature_service.verify_event(&event, sig) {
                     failed += 1;
-                    warn!(
-                        "Event {} failed integrity check: {}",
-                        event_id, e
-                    );
+                    warn!("Event {} failed integrity check: {}", event_id, e);
 
                     let expected_sig = self
                         .signature_service
@@ -316,10 +318,7 @@ impl AuditIntegrityChecker {
                 // Verify signature
                 if let Err(e) = self.signature_service.verify_admin_event(&event, sig) {
                     failed += 1;
-                    warn!(
-                        "Admin event {} failed integrity check: {}",
-                        event_id, e
-                    );
+                    warn!("Admin event {} failed integrity check: {}", event_id, e);
 
                     let expected_sig = self
                         .signature_service
@@ -352,8 +351,7 @@ impl AuditIntegrityChecker {
         use std::collections::HashMap;
 
         let event_type_str: String = row.get(2);
-        let event_type = EventType::from_str(&event_type_str)
-            .unwrap_or(EventType::Login);
+        let event_type = EventType::from_str(&event_type_str).unwrap_or(EventType::Login);
 
         let details_json: Option<String> = row.get(10);
         let details: HashMap<String, String> = details_json
@@ -383,12 +381,12 @@ impl AuditIntegrityChecker {
         use crate::models::events::{AuthDetails, OperationType, ResourceType};
 
         let resource_type_str: String = row.get(8);
-        let resource_type = ResourceType::from_str(&resource_type_str)
-            .unwrap_or(ResourceType::Custom);
+        let resource_type =
+            ResourceType::from_str(&resource_type_str).unwrap_or(ResourceType::Custom);
 
         let operation_type_str: String = row.get(9);
-        let operation_type = OperationType::from_str(&operation_type_str)
-            .unwrap_or(OperationType::Action);
+        let operation_type =
+            OperationType::from_str(&operation_type_str).unwrap_or(OperationType::Action);
 
         let auth_user_id: Option<Uuid> = row.get(4);
 
@@ -513,4 +511,3 @@ mod tests {
         assert_eq!(IntegrityCheckStatus::Partial.as_str(), "partial");
     }
 }
-

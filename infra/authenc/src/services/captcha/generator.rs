@@ -408,18 +408,22 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
         match challenge_variant {
             0 => {
                 let visual_challenge = generator.generate_text_challenge(difficulty)?;
-                serde_json::to_string(&visual_challenge).map_err(|e| CaptchaError::GenerationFailed {
-                    message: format!("Serialization failed: {}", e),
-                    recoverable: true,
-                    retry_after: Some(Duration::from_secs(1)),
+                serde_json::to_string(&visual_challenge).map_err(|e| {
+                    CaptchaError::GenerationFailed {
+                        message: format!("Serialization failed: {}", e),
+                        recoverable: true,
+                        retry_after: Some(Duration::from_secs(1)),
+                    }
                 })
             }
             1 => {
                 let visual_challenge = generator.generate_image_selection_challenge(difficulty)?;
-                serde_json::to_string(&visual_challenge).map_err(|e| CaptchaError::GenerationFailed {
-                    message: format!("Serialization failed: {}", e),
-                    recoverable: true,
-                    retry_after: Some(Duration::from_secs(1)),
+                serde_json::to_string(&visual_challenge).map_err(|e| {
+                    CaptchaError::GenerationFailed {
+                        message: format!("Serialization failed: {}", e),
+                        recoverable: true,
+                        retry_after: Some(Duration::from_secs(1)),
+                    }
                 })
             }
             _ => {

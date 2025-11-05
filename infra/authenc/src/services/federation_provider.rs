@@ -22,7 +22,10 @@ pub trait FederationProvider: Send + Sync {
     ///
     /// # Returns
     /// Result indicating success or failure of logout operation
-    async fn logout(&self, id_token_hint: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    async fn logout(
+        &self,
+        id_token_hint: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
 /// Registry for managing multiple federation providers
@@ -149,7 +152,10 @@ impl FederationProvider for DummyFederationProvider {
         "DummyFederationProvider"
     }
 
-    async fn logout(&self, _id_token_hint: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn logout(
+        &self,
+        _id_token_hint: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Dummy provider doesn't need to do anything for logout
         Ok(())
     }

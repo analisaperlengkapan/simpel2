@@ -79,7 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     cache.clear_l1();
     println!("L1 cache size after clear: {}", cache.l1_size());
 
-    println!("Getting key '{}' again (should hit L2 and populate L1)...", key);
+    println!(
+        "Getting key '{}' again (should hit L2 and populate L1)...",
+        key
+    );
     if let Some(retrieved) = cache.get(key).await? {
         println!("✓ Retrieved from L2: {}", retrieved);
     }
@@ -152,11 +155,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     println!("Attempting to acquire lock...");
-    if cache.set_nx(lock_key, &lock_value, Duration::from_secs(30)).await? {
+    if cache
+        .set_nx(lock_key, &lock_value, Duration::from_secs(30))
+        .await?
+    {
         println!("✓ Lock acquired successfully");
 
         println!("Attempting to acquire lock again...");
-        if !cache.set_nx(lock_key, &lock_value, Duration::from_secs(30)).await? {
+        if !cache
+            .set_nx(lock_key, &lock_value, Duration::from_secs(30))
+            .await?
+        {
             println!("✗ Lock already held (as expected)");
         }
     }

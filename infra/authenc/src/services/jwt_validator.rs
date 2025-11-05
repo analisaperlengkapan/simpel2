@@ -14,9 +14,9 @@
 //! - Uncached validation: < 50ms (includes signature verification)
 //! - Cache hit ratio target: > 80%
 
-use crate::error::{AuthencError, Result};
+use crate::error::Result;
 use crate::services::cache::Cache;
-use crate::utils::crypto::jwt::{hash_token, verify_jwt, Claims};
+use crate::utils::crypto::jwt::{Claims, hash_token, verify_jwt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -295,7 +295,7 @@ impl JwtValidator {
     /// Removes the cached validation result, forcing re-validation on next check.
     /// This is useful when token permissions change or other token metadata is updated.
     //
-  /// # Arguments
+    /// # Arguments
     /// * `token` - The JWT token string to invalidate
     ///
     /// # Returns

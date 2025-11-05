@@ -6,8 +6,8 @@
 
 use std::{
     sync::{
-        atomic::{AtomicU8, AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU8, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -215,7 +215,10 @@ impl AdaptiveRateLimiter {
         }
 
         let now = Instant::now();
-        let mut entry = self.limits.entry(ip.to_string()).or_insert_with(RateLimitEntry::new);
+        let mut entry = self
+            .limits
+            .entry(ip.to_string())
+            .or_insert_with(RateLimitEntry::new);
 
         // Reset failed attempts counter if window expired
         let window_duration = Duration::from_secs(self.config.failed_attempts_window_secs);
@@ -279,7 +282,12 @@ impl AdaptiveRateLimiter {
         }
 
         // Skip rate limiting for excluded paths
-        if self.config.excluded_paths.iter().any(|p| path.starts_with(p)) {
+        if self
+            .config
+            .excluded_paths
+            .iter()
+            .any(|p| path.starts_with(p))
+        {
             return Ok(());
         }
 
@@ -288,7 +296,10 @@ impl AdaptiveRateLimiter {
         let limit = threat_level.rate_limit();
 
         // Get or create entry for this IP
-        let mut entry = self.limits.entry(ip.to_string()).or_insert_with(RateLimitEntry::new);
+        let mut entry = self
+            .limits
+            .entry(ip.to_string())
+            .or_insert_with(RateLimitEntry::new);
 
         // Reset counter if window expired (1 minute)
         if now.duration_since(entry.window_start) > Duration::from_secs(60) {
@@ -348,9 +359,7 @@ pub async fn adaptive_rate_limit_middleware(
 }
 
 /// Create an adaptive rate limit layer
-pub fn adaptive_rate_limit_layer(
-    config: AdaptiveRateLimitConfig,
-) -> AdaptiveRateLimitLayer {
+pub fn adaptive_rate_limit_layer(config: AdaptiveRateLimitConfig) -> AdaptiveRateLimitLayer {
     AdaptiveRateLimitLayer::new(AdaptiveRateLimiter::new(config))
 }
 
@@ -501,7 +510,11 @@ mod tests {
         }
 
         // 101st request should be rate limited
-        assert!(limiter.check_rate_limit("/api/test", "192.168.1.1").is_err());
+        assert!(
+            limiter
+                .check_rate_limit("/api/test", "192.168.1.1")
+                .is_err()
+        );
 
         // Health check should not be rate limited
         assert!(limiter.check_rate_limit("/health", "192.168.1.1").is_ok());
@@ -539,7 +552,11 @@ mod tests {
         }
 
         // 51st request should be rate limited
-        assert!(limiter.check_rate_limit("/api/test", "192.168.1.2").is_err());
+        assert!(
+            limiter
+                .check_rate_limit("/api/test", "192.168.1.2")
+                .is_err()
+        );
     }
 
     #[tokio::test]

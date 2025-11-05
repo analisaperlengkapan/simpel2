@@ -20,6 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Set the output directory for generated code
         .build_server(true)
         .build_client(true)
+        // Add serde derives for serialization support
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         // Compile the proto files
         .compile_protos(
             &proto_files,

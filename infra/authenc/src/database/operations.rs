@@ -2340,7 +2340,8 @@ pub mod users {
                 updated_at = $3
             WHERE id = $1
         "#;
-        db.execute_prepared(query, &[&user_id, &password_hash, &now]).await?;
+        db.execute_prepared(query, &[&user_id, &password_hash, &now])
+            .await?;
         Ok(())
     }
 
@@ -6569,7 +6570,9 @@ pub mod roles {
             WHERE ur.user_id = $1 AND p.name = $2 AND p.deleted_at IS NULL
         "#;
 
-        let row = db.query_one_prepared(query, &[&user_id, &permission]).await?;
+        let row = db
+            .query_one_prepared(query, &[&user_id, &permission])
+            .await?;
         let has_permission: bool = row.get(0);
 
         Ok(has_permission)
@@ -6626,7 +6629,8 @@ pub mod roles {
             WHERE role_id = $1 AND permission_id = $2
         "#;
 
-        db.execute_prepared(query, &[&role_id, &permission_id]).await?;
+        db.execute_prepared(query, &[&role_id, &permission_id])
+            .await?;
 
         Ok(())
     }
@@ -9916,8 +9920,9 @@ pub mod sessions {
             WHERE id = $1 AND refresh_token_hash = $2 AND NOT revoked
         "#;
 
-        let rows: Vec<tokio_postgres::Row> =
-            db.query_prepared(verify_query, &[&session_id, &old_hash]).await?;
+        let rows: Vec<tokio_postgres::Row> = db
+            .query_prepared(verify_query, &[&session_id, &old_hash])
+            .await?;
         if rows.is_empty() {
             return Ok(false);
         }
@@ -9932,7 +9937,8 @@ pub mod sessions {
             WHERE id = $2
         "#;
 
-        db.execute_prepared(update_query, &[&new_hash, &session_id]).await?;
+        db.execute_prepared(update_query, &[&new_hash, &session_id])
+            .await?;
 
         // Log rotation
         let ip_addr: Option<std::net::IpAddr> = client_ip.and_then(|ip| ip.parse().ok());

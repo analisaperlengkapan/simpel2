@@ -6,11 +6,11 @@
 //! - Uncached validation: < 50ms
 //! - Cache hit ratio: > 80%
 
-use authenc::services::cache::{Cache, CacheConfig};
+use authenc::config::RedisConfig;
 use authenc::services::cache::redis_cache::RedisCache;
+use authenc::services::cache::{Cache, CacheConfig};
 use authenc::services::{JwtValidator, ValidationResult};
 use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
-use authenc::config::RedisConfig;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -36,7 +36,10 @@ async fn test_jwt_validation_without_cache() {
 
     println!("Validation without cache took: {:?}", elapsed);
     // Without cache, should still be reasonably fast (< 50ms)
-    assert!(elapsed < Duration::from_millis(50), "Validation should be < 50ms");
+    assert!(
+        elapsed < Duration::from_millis(50),
+        "Validation should be < 50ms"
+    );
 }
 
 /// Test JWT validation with invalid token
@@ -94,13 +97,14 @@ async fn test_jwt_validation_with_cache() {
     let validator = JwtValidator::new(Some(cache));
 
     // Generate a valid token
-    let token = generate_jwt("test_user_cached").expect("Failed to generate
-   // First validation (cache miss)
+    let token = generate_jwt("test_user_cached").expect("Failed to generate JWT");
+
+    // First validation (cache miss)
     let start = Instant::now();
     let result1 = validator.validate_token(&token).await.unwrap();
     let elapsed1 = start.elapsed();
 
-    assert!(result1.valid, "Token should be valid");
+    assert!(result1.valid, "Token should be valid ");
     println!("First validation (cache miss) took: {:?}", elapsed1);
 
     // Second validation (cache hit)
@@ -108,7 +112,7 @@ async fn test_jwt_validation_with_cache() {
     let result2 = validator.validate_token(&token).await.unwrap();
     let elapsed2 = start.elapsed();
 
-    assert!(result2.valid, "Token should still be valid");
+    assert!(result2.valid, "Token should still be valid ");
     println!("Second validation (cache hit) took: {:?}", elapsed2);
 
     // Cache hit should be significantly faster
@@ -121,7 +125,7 @@ async fn test_jwt_validation_with_cache() {
     // Cache hit should be faster than cache miss
     assert!(
         elapsed2 < elapsed1,
-        "Cached validation should be faster than uncached"
+        "Cached validation should be faster than uncached "
     );
 }
 
@@ -215,7 +219,10 @@ async fn test_cache_invalidation() {
 
     // After invalidation, validation should be slower than cached
     println!("Cached validation: {:?}", elapsed_cached);
-    println!("Uncached validation after invalidation: {:?}", elapsed_uncached);
+    println!(
+        "Uncached validation after invalidation: {:?}",
+        elapsed_uncached
+    );
 }
 
 /// Benchmark JWT validation performance
@@ -259,7 +266,10 @@ async fn benchmark_jwt_validation_performance() {
 
     println!("Validated {} tokens in {:?}", tokens.len(), total_elapsed);
     println!("Average validation time: {:?}", avg_elapsed);
-    println!("Validations per second: {:.2}", 1000.0 / avg_elapsed.as_millis() as f64 * 1000.0);
+    println!(
+        "Validations per second: {:.2}",
+        1000.0 / avg_elapsed.as_millis() as f64 * 1000.0
+    );
 
     // Verify performance target (< 10ms average for cached tokens)
     assert!(

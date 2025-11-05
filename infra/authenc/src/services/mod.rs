@@ -100,6 +100,7 @@ pub mod stores {
 
     // Re-export commonly used types from sub-modules
     pub use consent_store::{ConsentStore, ConsentStoreTrait};
+    pub use user_store::{UserStore, UserStoreTrait};
 }
 
 // Re-export for convenience
@@ -148,6 +149,8 @@ pub mod federation_provider;
 // Authorization services
 /// Authorization policy engine and enforcement
 pub mod authorization;
+/// Satker-aware authorization with hierarchy support
+pub mod satker_authorization;
 
 // Zero Trust services
 /// Zero Trust security model implementation
