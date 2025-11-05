@@ -67,18 +67,16 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
         continue-on-error: true
 
-      - name: Install and run cargo-audit
-        run: |
-          cargo install cargo-audit --locked
-          cargo audit
+      - name: Run cargo-audit (actions-rs/audit-check)
+        uses: actions-rs/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-      - name: Install and run cargo-deny
-        run: |
-          cargo install cargo-deny --locked
-          cargo deny check advisories
-          cargo deny check licenses
-          cargo deny check bans
+      - name: Run cargo-deny (EmbarkStudios/cargo-deny-action)
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check advisories licenses bans
         continue-on-error: true
 
       - name: Build release
