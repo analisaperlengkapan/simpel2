@@ -38,7 +38,7 @@ SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengel
 - **Build System**: Trunk 0.21.14 dengan optimasi WASM
 - **Database**: PostgreSQL (multi-schema) dengan connection pooling
 - **Container Orchestration**: MicroK8s dengan LoadBalancer dan Ingress
-- **Security**: HashiCorp Vault + JWT + MFA + Zero-Trust Architecture
+- **Security**: Secreton + JWT + MFA + Zero-Trust Architecture
 - **AI/ML**: Rust-Bert + Tch + Qdrant untuk intelligent processing
 - **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
 
@@ -98,7 +98,7 @@ SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang di
 - Docker & Docker Compose
 - Rust 1.75+ (for development)
 - PostgreSQL 15+
-- HashiCorp Vault
+- Secreton
 ```
 
 ### **Installation**
@@ -220,7 +220,7 @@ simpelv2/
 │   ├── ☸️ k8s/                 # Kubernetes Manifests
 │   ├── 🌐 nginx/               # Nginx Reverse Proxy
 │   ├── � proto/               # Protocol Buffers
-│   └── � secreton/            # Custom Vault Service
+│   └── � secreton/            # Custom Secreton Service
 ├── 📁 config/                    # Configuration Files
 │   ├── 📢 alertmanager/         # Alertmanager Config
 │   ├── 📊 prometheus/           # Prometheus Config
@@ -324,7 +324,7 @@ simpelv2/
 - **JWT Authentication**: Token management & validation
 - **Multi-Factor Authentication**: TOTP-based security
 - **Role-Based Access Control**: Granular permissions per microfrontend
-- **HashiCorp Vault Integration**: Secret management
+- **Secreton Integration**: Secret management
 - **Immutable Audit Trail**: Forensic capabilities
 
 **Port**: `3001` | **Health**: `/health`
@@ -393,7 +393,7 @@ User Login → JWT Token → MFA Verification → Role Assignment → Microfront
 1. **Network Security**: Envoy Gateway + Nginx with SSL termination
 2. **Application Security**: Rust memory safety + type checking
 3. **Authentication**: JWT + MFA + RBAC per service
-4. **Secret Management**: HashiCorp Vault integration
+4. **Secret Management**: Secreton integration
 5. **Audit Trail**: Immutable logging across all microfrontends
 6. **Content Security Policy**: CSP headers for each frontend module
 7. **Threat Detection**: Honeytrap service + anomaly detection
@@ -451,7 +451,7 @@ User Login → JWT Token → MFA Verification → Role Assignment → Microfront
 - Rust 1.75+ (for development)
 - Node.js 18+ & Trunk 0.21.14 (for microfrontends)
 - PostgreSQL 15+
-- HashiCorp Vault
+- Secreton
 ```
 
 ### **🚀 Development Setup**
@@ -483,7 +483,7 @@ make open-portal        # Opens http://localhost:80
 | **Datun**       | http://localhost:80 | Criminal Prosecution     |
 | **Intel**       | http://localhost:80 | Intelligence Platform    |
 | **API Gateway** | http://localhost:8000 | Backend API Gateway      |
-| **Vault UI**    | http://localhost:8200 | HashiCorp Vault          |
+| **Secreton UI**    | http://localhost:8200 | Secreton          |
 | **Grafana**     | http://localhost:3000 | Monitoring Dashboard     |
 
 ### **🔧 Development Commands**

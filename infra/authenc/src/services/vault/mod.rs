@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-/// Vault provider trait for secret management
+/// Legacy secret provider trait for service-level secret management
+/// Note: For main secret management, use crate::secreton_client module
 #[async_trait]
 pub trait VaultProvider: Send + Sync {
     /// Retrieve a secret by key
@@ -219,599 +220,87 @@ impl VaultProvider for KeyStoreVaultProvider {
     }
 }
 
-/// HashiCorp Vault provider
+// Note: HashiCorp Vault and Azure Key Vault providers have been removed
+// This project uses Secreton (internal secret management system) only
+
+/// Azure Key Vault provider (deprecated - removed)
+/// Note: Use Secreton instead
+#[deprecated(note = "Use Secreton service instead")]
 #[allow(dead_code)]
-pub struct HashiCorpVaultProvider {
-    /// HashiCorp Vault server address
-    vault_addr: String,
-    /// Authentication token for Vault access
-    token: String,
-    /// Mount path for secrets in Vault
-    mount_path: String,
-}
-
-impl HashiCorpVaultProvider {
-    /// Creates a new HashiCorp Vault provider.
-    ///
-    /// # Arguments
-    /// * `vault_addr` - The address of the HashiCorp Vault server
-    /// * `token` - Authentication token for accessing Vault
-    /// * `mount_path` - The mount path where secrets are stored
-    ///
-    /// # Returns
-    /// A new `HashiCorpVaultProvider` instance.
-    pub fn new(vault_addr: String, token: String, mount_path: String) -> Self {
-        Self {
-            vault_addr,
-            token,
-            mount_path,
-        }
-    }
-}
-
-#[async_trait]
-impl VaultProvider for HashiCorpVaultProvider {
-    async fn get_secret(&self, key: &str) -> Result<Option<String>> {
-        #[cfg(feature = "test")]
-        {
-            let client = reqwest::Client::new();
-            let url = format!("{}/v1/{}/data/{}", self.vault_addr, self.mount_path, key);
-
-            let response = client
-                .get(&url)
-                .header("X-Vault-Token", &self.token)
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(data) = json.get("data").and_then(|d| d.get("data")) {
-                    if let Some(value) = data.get("value") {
-                        if let Some(v) = value.as_str() {
-                            return Ok(Some(v.to_string()));
-                        }
-                    }
-                }
-            }
-
-            Ok(None)
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("HashiCorp Vault requires 'test' feature to be enabled");
-            Ok(None)
-        }
-    }
-
-    async fn set_secret(&self, key: &str, value: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let client = reqwest::Client::new();
-            let url = format!("{}/v1/{}/data/{}", self.vault_addr, self.mount_path, key);
-
-            let payload = serde_json::json!({
-                "data": {
-                    "value": value
-                }
-            });
-
-            let response = client
-                .post(&url)
-                .header("X-Vault-Token", &self.token)
-                .json(&payload)
-                .send()
-                .await?;
-
-            if !response.status().is_success() {
-                let error_text = response.text().await?;
-                anyhow::bail!("Failed to set secret in Vault: {}", error_text);
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("HashiCorp Vault requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn delete_secret(&self, key: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let client = reqwest::Client::new();
-            let url = format!(
-                "{}/v1/{}/metadata/{}",
-                self.vault_addr, self.mount_path, key
-            );
-
-            let response = client
-                .delete(&url)
-                .header("X-Vault-Token", &self.token)
-                .send()
-                .await?;
-
-            if !response.status().is_success() {
-                let error_text = response.text().await?;
-                tracing::warn!("Failed to delete secret from Vault: {}", error_text);
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("HashiCorp Vault requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn list_secrets(&self) -> Result<Vec<String>> {
-        #[cfg(feature = "test")]
-        {
-            let client = reqwest::Client::new();
-            let url = format!("{}/v1/{}/metadata", self.vault_addr, self.mount_path);
-
-            let response = client
-                .get(&url)
-                .query(&[("list", "true")])
-                .header("X-Vault-Token", &self.token)
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(keys) = json.get("data").and_then(|d| d.get("keys")) {
-                    if let Some(keys_array) = keys.as_array() {
-                        return Ok(keys_array
-                            .iter()
-                            .filter_map(|k| k.as_str().map(|s| s.to_string()))
-                            .collect());
-                    }
-                }
-            }
-
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("HashiCorp Vault requires 'test' feature to be enabled");
-            Ok(vec![])
-        }
-    }
-}
-
-/// Azure Key Vault provider
-#[allow(dead_code)]
-pub struct AzureKeyVaultProvider {
-    /// Azure Key Vault URL
-    vault_url: String,
-    /// Azure AD client ID for authentication
-    client_id: String,
-    /// Azure AD client secret for authentication
-    client_secret: String,
-    /// Azure AD tenant ID
-    tenant_id: String,
-}
+pub struct AzureKeyVaultProvider;
 
 impl AzureKeyVaultProvider {
-    /// Creates a new Azure Key Vault provider.
-    ///
-    /// # Arguments
-    /// * `vault_url` - The URL of the Azure Key Vault
-    /// * `client_id` - Azure AD application client ID
-    /// * `client_secret` - Azure AD application client secret
-    /// * `tenant_id` - Azure AD tenant ID
-    ///
-    /// # Returns
-    /// A new `AzureKeyVaultProvider` instance.
-    pub fn new(
-        vault_url: String,
-        client_id: String,
-        client_secret: String,
-        tenant_id: String,
-    ) -> Self {
-        Self {
-            vault_url,
-            client_id,
-            client_secret,
-            tenant_id,
-        }
+    #[deprecated]
+    pub fn new(_vault_url: String, _client_id: String, _client_secret: String) -> Self {
+        panic!("AzureKeyVaultProvider is deprecated. Use Secreton service instead.");
     }
 }
 
-#[async_trait]
-impl VaultProvider for AzureKeyVaultProvider {
-    async fn get_secret(&self, key: &str) -> Result<Option<String>> {
-        #[cfg(feature = "test")]
-        {
-            // First, get an access token from Azure AD
-            let token = self.get_azure_access_token().await?;
-
-            let client = reqwest::Client::new();
-            let url = format!("{}/secrets/{}?api-version=7.4", self.vault_url, key);
-
-            let response = client
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(value) = json.get("value") {
-                    if let Some(v) = value.as_str() {
-                        return Ok(Some(v.to_string()));
-                    }
-                }
-            }
-
-            Ok(None)
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("Azure Key Vault requires 'test' feature to be enabled");
-            Ok(None)
-        }
-    }
-
-    async fn set_secret(&self, key: &str, value: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let token = self.get_azure_access_token().await?;
-
-            let client = reqwest::Client::new();
-            let url = format!("{}/secrets/{}?api-version=7.4", self.vault_url, key);
-
-            let payload = serde_json::json!({
-                "value": value
-            });
-
-            let response = client
-                .put(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Content-Type", "application/json")
-                .json(&payload)
-                .send()
-                .await?;
-
-            if !response.status().is_success() {
-                let error_text = response.text().await?;
-                anyhow::bail!("Failed to set secret in Azure Key Vault: {}", error_text);
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("Azure Key Vault requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn delete_secret(&self, key: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let token = self.get_azure_access_token().await?;
-
-            let client = reqwest::Client::new();
-            let url = format!("{}/secrets/{}?api-version=7.4", self.vault_url, key);
-
-            let response = client
-                .delete(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .send()
-                .await?;
-
-            if !response.status().is_success() {
-                let error_text = response.text().await?;
-                tracing::warn!(
-                    "Failed to delete secret from Azure Key Vault: {}",
-                    error_text
-                );
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("Azure Key Vault requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn list_secrets(&self) -> Result<Vec<String>> {
-        #[cfg(feature = "test")]
-        {
-            let token = self.get_azure_access_token().await?;
-
-            let client = reqwest::Client::new();
-            let url = format!("{}/secrets?api-version=7.4", self.vault_url);
-
-            let response = client
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(value) = json.get("value") {
-                    if let Some(secrets_array) = value.as_array() {
-                        return Ok(secrets_array
-                            .iter()
-                            .filter_map(|s| {
-                                s.get("id")
-                                    .and_then(|id| id.as_str())
-                                    .and_then(|id_str| id_str.rsplit('/').next())
-                                    .map(|name| name.to_string())
-                            })
-                            .collect());
-                    }
-                }
-            }
-
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("Azure Key Vault requires 'test' feature to be enabled");
-            Ok(vec![])
-        }
-    }
-}
-
-impl AzureKeyVaultProvider {
-    #[cfg(feature = "test")]
-    async fn get_azure_access_token(&self) -> Result<String> {
-        let client = reqwest::Client::new();
-        let token_url = format!(
-            "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
-            self.tenant_id
-        );
-
-        let params = [
-            ("client_id", self.client_id.as_str()),
-            ("client_secret", self.client_secret.as_str()),
-            ("scope", "https://vault.azure.net/.default"),
-            ("grant_type", "client_credentials"),
-        ];
-
-        let response = client.post(&token_url).form(&params).send().await?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("Failed to get Azure AD token: {}", error_text);
-        }
-
-        let json: serde_json::Value = response.json().await?;
-        if let Some(token) = json.get("access_token").and_then(|t| t.as_str()) {
-            Ok(token.to_string())
-        } else {
-            anyhow::bail!("No access_token in Azure AD response")
-        }
-    }
-}
-
-/// AWS Secrets Manager provider
-#[allow(dead_code)]
-pub struct AwsSecretsManagerProvider {
-    /// AWS region for the Secrets Manager service
-    region: String,
-    /// Optional AWS access key ID for authentication
-    access_key_id: Option<String>,
-    /// Optional AWS secret access key for authentication
-    secret_access_key: Option<String>,
-}
-
-impl AwsSecretsManagerProvider {
-    /// Creates a new AWS Secrets Manager provider.
-    ///
-    /// # Arguments
-    /// * `region` - AWS region where Secrets Manager is located
-    /// * `access_key_id` - Optional AWS access key ID (uses IAM roles if not provided)
-    /// * `secret_access_key` - Optional AWS secret access key (uses IAM roles if not provided)
-    ///
-    /// # Returns
-    /// A new `AwsSecretsManagerProvider` instance.
-    pub fn new(
-        region: String,
-        access_key_id: Option<String>,
-        secret_access_key: Option<String>,
-    ) -> Self {
-        Self {
-            region,
-            access_key_id,
-            secret_access_key,
-        }
-    }
-}
-
-#[async_trait]
-impl VaultProvider for AwsSecretsManagerProvider {
-    async fn get_secret(&self, key: &str) -> Result<Option<String>> {
-        #[cfg(feature = "test")]
-        {
-            let client = self.create_aws_client().await?;
-            let endpoint = format!("https://secretsmanager.{}.amazonaws.com/", self.region);
-
-            let payload = serde_json::json!({
-                "SecretId": key
-            });
-
-            let response = client
-                .post(&endpoint)
-                .header("X-Amz-Target", "secretsmanager.GetSecretValue")
-                .header("Content-Type", "application/x-amz-json-1.1")
-                .json(&payload)
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(secret) = json.get("SecretString") {
-                    if let Some(s) = secret.as_str() {
-                        return Ok(Some(s.to_string()));
-                    }
-                }
-            }
-
-            Ok(None)
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("AWS Secrets Manager requires 'test' feature to be enabled");
-            Ok(None)
-        }
-    }
-
-    async fn set_secret(&self, key: &str, value: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let client = self.create_aws_client().await?;
-            let endpoint = format!("https://secretsmanager.{}.amazonaws.com/", self.region);
-
-            // Try to create the secret first
-            let create_payload = serde_json::json!({
-                "Name": key,
-                "SecretString": value
-            });
-
-            let create_response = client
-                .post(&endpoint)
-                .header("X-Amz-Target", "secretsmanager.CreateSecret")
-                .header("Content-Type", "application/x-amz-json-1.1")
-                .json(&create_payload)
-                .send()
-                .await?;
-
-            // If creation fails (secret already exists), update it
-            if !create_response.status().is_success() {
-                let update_payload = serde_json::json!({
-                    "SecretId": key,
-                    "SecretString": value
-                });
-
-                let update_response = client
-                    .post(&endpoint)
-                    .header("X-Amz-Target", "secretsmanager.PutSecretValue")
-                    .header("Content-Type", "application/x-amz-json-1.1")
-                    .json(&update_payload)
-                    .send()
-                    .await?;
-
-                if !update_response.status().is_success() {
-                    let error_text = update_response.text().await?;
-                    anyhow::bail!(
-                        "Failed to set secret in AWS Secrets Manager: {}",
-                        error_text
-                    );
-                }
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("AWS Secrets Manager requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn delete_secret(&self, key: &str) -> Result<()> {
-        #[cfg(feature = "test")]
-        {
-            let client = self.create_aws_client().await?;
-            let endpoint = format!("https://secretsmanager.{}.amazonaws.com/", self.region);
-
-            let payload = serde_json::json!({
-                "SecretId": key,
-                "ForceDeleteWithoutRecovery": true
-            });
-
-            let response = client
-                .post(&endpoint)
-                .header("X-Amz-Target", "secretsmanager.DeleteSecret")
-                .header("Content-Type", "application/x-amz-json-1.1")
-                .json(&payload)
-                .send()
-                .await?;
-
-            if !response.status().is_success() {
-                let error_text = response.text().await?;
-                tracing::warn!(
-                    "Failed to delete secret from AWS Secrets Manager: {}",
-                    error_text
-                );
-            }
-
-            Ok(())
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("AWS Secrets Manager requires 'test' feature to be enabled");
-            Ok(())
-        }
-    }
-
-    async fn list_secrets(&self) -> Result<Vec<String>> {
-        #[cfg(feature = "test")]
-        {
-            let client = self.create_aws_client().await?;
-            let endpoint = format!("https://secretsmanager.{}.amazonaws.com/", self.region);
-
-            let payload = serde_json::json!({});
-
-            let response = client
-                .post(&endpoint)
-                .header("X-Amz-Target", "secretsmanager.ListSecrets")
-                .header("Content-Type", "application/x-amz-json-1.1")
-                .json(&payload)
-                .send()
-                .await?;
-
-            if response.status().is_success() {
-                let json: serde_json::Value = response.json().await?;
-                if let Some(secrets) = json.get("SecretList") {
-                    if let Some(secrets_array) = secrets.as_array() {
-                        return Ok(secrets_array
-                            .iter()
-                            .filter_map(|s| {
-                                s.get("Name")
-                                    .and_then(|n| n.as_str())
-                                    .map(|name| name.to_string())
-                            })
-                            .collect());
-                    }
-                }
-            }
-
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "test"))]
-        {
-            tracing::error!("AWS Secrets Manager requires 'test' feature to be enabled");
-            Ok(vec![])
-        }
-    }
-}
-
-impl AwsSecretsManagerProvider {
-    #[cfg(feature = "test")]
-    async fn create_aws_client(&self) -> Result<reqwest::Client> {
-        // In a production implementation, this would use AWS SigV4 signing
-        // For now, we create a basic client that assumes credentials are in environment/IAM role
-        let client = reqwest::Client::builder().build()?;
-
-        Ok(client)
-    }
-}
-
-/// Main vault service
+// Legacy vault service struct for backward compatibility
+/// Main secreton service
+#[derive(Clone)]
 pub struct VaultService {
-    /// Map of provider names to vault provider implementations
-    providers: HashMap<String, Box<dyn VaultProvider>>,
-    /// Optional default provider name
-    default_provider: Option<String>,
+    /// Map of provider names to secreton provider implementations
+    providers: std::collections::HashMap<String, std::sync::Arc<dyn VaultProvider>>,
+}
+
+impl VaultService {
+    /// Creates a new secreton service with no providers configured.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use authenc::services::vault::VaultService;
+    ///
+    /// let service = VaultService::new();
+    /// ```
+    pub fn new() -> Self {
+        Self {
+            providers: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Add a secreton provider
+    pub fn add_provider(&mut self, name: String, provider: std::sync::Arc<dyn VaultProvider>) {
+        self.providers.insert(name, provider);
+    }
+
+    /// Get a secret from a specific provider
+    pub async fn get_secret(&self, provider_name: &str, key: &str) -> Result<Option<String>> {
+        match self.providers.get(provider_name) {
+            Some(provider) => provider.get_secret(key).await,
+            None => anyhow::bail!("Provider '{}' not found", provider_name),
+        }
+    }
+
+    /// Set a secret in a specific provider
+    pub async fn set_secret(&self, provider_name: &str, key: &str, value: &str) -> Result<()> {
+        match self.providers.get(provider_name) {
+            Some(provider) => provider.set_secret(key, value).await,
+            None => anyhow::bail!("Provider '{}' not found", provider_name),
+        }
+    }
+
+    /// Delete a secret from a specific provider
+    pub async fn delete_secret(&self, provider_name: &str, key: &str) -> Result<()> {
+        match self.providers.get(provider_name) {
+            Some(provider) => provider.delete_secret(key).await,
+            None => anyhow::bail!("Provider '{}' not found", provider_name),
+        }
+    }
+
+    /// List all secrets from a specific provider
+    pub async fn list_secrets(&self, provider_name: &str) -> Result<Vec<String>> {
+        match self.providers.get(provider_name) {
+            Some(provider) => provider.list_secrets().await,
+            None => anyhow::bail!("Provider '{}' not found", provider_name),
+        }
+    }
+
+    /// List all provider names
+    pub fn list_providers(&self) -> Vec<String> {
+        self.providers.keys().cloned().collect()
+    }
 }
 
 impl Default for VaultService {
@@ -820,201 +309,112 @@ impl Default for VaultService {
     }
 }
 
-impl VaultService {
-    /// Creates a new vault service with no providers configured.
-    ///
-    /// # Returns
-    /// A new `VaultService` instance with empty provider registry.
-    pub fn new() -> Self {
-        Self {
-            providers: HashMap::new(),
-            default_provider: None,
-        }
-    }
+// Configuration structures
 
-    /// Add a vault provider
-    pub fn add_provider(&mut self, name: &str, provider: Box<dyn VaultProvider>) {
-        self.providers.insert(name.to_string(), provider);
-        if self.default_provider.is_none() {
-            self.default_provider = Some(name.to_string());
-        }
-    }
-
-    /// Set default provider
-    pub fn set_default_provider(&mut self, name: &str) {
-        if self.providers.contains_key(name) {
-            self.default_provider = Some(name.to_string());
-        }
-    }
-
-    /// Get secret from default provider
-    pub async fn get_secret(&self, key: &str) -> Result<Option<String>> {
-        if let Some(provider_name) = &self.default_provider {
-            if let Some(provider) = self.providers.get(provider_name) {
-                return provider.get_secret(key).await;
-            }
-        }
-        Ok(None)
-    }
-
-    /// Get secret from specific provider
-    pub async fn get_secret_from(&self, provider_name: &str, key: &str) -> Result<Option<String>> {
-        if let Some(provider) = self.providers.get(provider_name) {
-            provider.get_secret(key).await
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Store secret in default provider
-    pub async fn set_secret(&self, key: &str, value: &str) -> Result<()> {
-        if let Some(provider_name) = &self.default_provider {
-            if let Some(provider) = self.providers.get(provider_name) {
-                return provider.set_secret(key, value).await;
-            }
-        }
-        Ok(())
-    }
-
-    /// Store secret in specific provider
-    pub async fn set_secret_in(&self, provider_name: &str, key: &str, value: &str) -> Result<()> {
-        if let Some(provider) = self.providers.get(provider_name) {
-            provider.set_secret(key, value).await
-        } else {
-            Ok(())
-        }
-    }
-
-    /// Delete secret from default provider
-    pub async fn delete_secret(&self, key: &str) -> Result<()> {
-        if let Some(provider_name) = &self.default_provider {
-            if let Some(provider) = self.providers.get(provider_name) {
-                return provider.delete_secret(key).await;
-            }
-        }
-        Ok(())
-    }
-
-    /// Delete secret from specific provider
-    pub async fn delete_secret_from(&self, provider_name: &str, key: &str) -> Result<()> {
-        if let Some(provider) = self.providers.get(provider_name) {
-            provider.delete_secret(key).await
-        } else {
-            Ok(())
-        }
-    }
-
-    /// List secrets from default provider
-    pub async fn list_secrets(&self) -> Result<Vec<String>> {
-        if let Some(provider_name) = &self.default_provider {
-            if let Some(provider) = self.providers.get(provider_name) {
-                return provider.list_secrets().await;
-            }
-        }
-        Ok(vec![])
-    }
-
-    /// List secrets from specific provider
-    pub async fn list_secrets_from(&self, provider_name: &str) -> Result<Vec<String>> {
-        if let Some(provider) = self.providers.get(provider_name) {
-            provider.list_secrets().await
-        } else {
-            Ok(vec![])
-        }
-    }
-}
-
-/// Vault configuration
+/// Secreton configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultConfig {
-    /// Whether vault functionality is enabled
+    /// Whether secreton functionality is enabled
     pub enabled: bool,
-    /// Map of provider names to their configurations
-    pub providers: HashMap<String, VaultProviderConfig>,
-    /// Optional name of the default provider
-    pub default_provider: Option<String>,
+    /// Provider configurations
+    pub providers: Vec<VaultProviderConfig>,
 }
 
-/// Vault provider configuration
+/// Secreton provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultProviderConfig {
-    /// Type of vault provider to use
+    /// Type of secreton provider to use
     pub provider_type: VaultProviderType,
-    /// Configuration parameters for the provider
+    /// Additional provider-specific configuration
     pub config: HashMap<String, String>,
 }
 
-/// Vault provider types
+/// Secreton provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VaultProviderType {
-    /// File-based vault provider for local secret storage
+    /// File-based secreton provider for local secret storage
     File,
-    /// Java KeyStore-based vault provider
+    /// Java KeyStore-based secreton provider
     KeyStore,
-    /// HashiCorp Vault provider
-    HashiCorp,
-    /// Azure Key Vault provider
-    Azure,
-    /// AWS Secrets Manager provider
-    Aws,
+    /// Secreton service (primary)
+    Secreton,
 }
 
-/// Key resolver for vault keys
-pub trait KeyResolver {
-    /// Resolves a realm and secret name into a vault key.
+/// Key resolver trait for secreton keys
+pub trait KeyResolver: Send + Sync {
+    /// Resolves a realm and secret name into a secreton key.
     ///
     /// # Arguments
-    /// * `realm_name` - The name of the realm
-    /// * `secret_name` - The name of the secret
+    /// * `realm` - The realm name (e.g., "master", "my-app")
+    /// * `secret_name` - The secret identifier
     ///
     /// # Returns
-    /// A string representing the resolved vault key.
-    fn resolve(&self, realm_name: &str, secret_name: &str) -> String;
+    /// A string representing the resolved secreton key.
+    fn resolve_key(&self, realm: &str, secret_name: &str) -> String;
 }
 
-/// Default key resolver that uses realm__secret format
+/// Default key resolver
 pub struct DefaultKeyResolver;
 
 impl KeyResolver for DefaultKeyResolver {
-    fn resolve(&self, realm_name: &str, secret_name: &str) -> String {
-        format!(
-            "{}_{}",
-            realm_name.replace("_", "__"),
-            secret_name.replace("_", "__")
-        )
+    fn resolve_key(&self, realm: &str, secret_name: &str) -> String {
+        format!("{}/{}", realm, secret_name)
     }
 }
 
-/// Custom key resolver
+/// Custom key resolver for advanced key resolution logic
 pub struct CustomKeyResolver {
-    /// Pattern string for key resolution (supports {realm} and {secret} placeholders)
-    pattern: String,
+    /// Prefix for all keys
+    pub prefix: String,
+    /// Separator between realm and secret name
+    pub separator: String,
 }
 
 impl CustomKeyResolver {
-    /// Creates a new custom key resolver with the specified pattern.
+    /// Creates a new custom key resolver
     ///
-    /// # Arguments
-    /// * `pattern` - The pattern string containing {realm} and {secret} placeholders
+    /// # Examples
     ///
-    /// # Returns
-    /// A new `CustomKeyResolver` instance.
-    ///
-    /// # Example
-    /// ```
+    /// ```no_run
     /// use authenc::services::vault::CustomKeyResolver;
     ///
-    /// let resolver = CustomKeyResolver::new("realm/{realm}/secrets/{secret}".to_string());
+    /// let resolver = CustomKeyResolver::new("myapp".to_string(), ":".to_string());
+    /// assert_eq!(resolver.resolve_key("master", "db_password"), "myapp:master:db_password");
     /// ```
-    pub fn new(pattern: String) -> Self {
-        Self { pattern }
+    pub fn new(prefix: String, separator: String) -> Self {
+        Self { prefix, separator }
     }
 }
 
 impl KeyResolver for CustomKeyResolver {
-    fn resolve(&self, realm_name: &str, secret_name: &str) -> String {
-        self.pattern
-            .replace("{realm}", realm_name)
-            .replace("{secret}", secret_name)
+    fn resolve_key(&self, realm: &str, secret_name: &str) -> String {
+        format!(
+            "{}{}{}{}{}",
+            self.prefix, self.separator, realm, self.separator, secret_name
+        )
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_key_resolver() {
+        let resolver = DefaultKeyResolver;
+        assert_eq!(
+            resolver.resolve_key("master", "db_password"),
+            "master/db_password"
+        );
+    }
+
+    #[test]
+    fn test_custom_key_resolver() {
+        let resolver = CustomKeyResolver::new("myapp".to_string(), ":".to_string());
+        assert_eq!(
+            resolver.resolve_key("master", "db_password"),
+            "myapp:master:db_password"
+        );
+    }
+
 }

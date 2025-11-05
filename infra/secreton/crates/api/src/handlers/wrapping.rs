@@ -153,13 +153,13 @@ pub async fn wrap_data(
                 message: format!("Data too large: {} bytes (max: {} bytes)", size, max),
             },
             WrappingError::EncryptionFailed(msg) => ApiError::Internal {
-                message: format!("Encryption failed: {}", msg.to_string()),
+                message: format!("Encryption failed: {}", msg),
             },
             WrappingError::StorageError(msg) => ApiError::Internal {
-                message: format!("Storage error: {}", msg.to_string()),
+                message: format!("Storage error: {}", msg),
             },
             _ => ApiError::Internal {
-                message: format!("Failed to wrap data: {}", e.to_string()),
+                message: format!("Failed to wrap data: {}", e),
             },
         })?;
 
@@ -257,7 +257,7 @@ pub async fn unwrap_token(
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
             _ => ApiError::Internal {
-                message: format!("Failed to lookup token: {}", e.to_string()),
+                message: format!("Failed to lookup token: {}", e),
             },
         })?;
 
@@ -278,10 +278,10 @@ pub async fn unwrap_token(
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
             WrappingError::DecryptionFailed(msg) => ApiError::Internal {
-                message: format!("Decryption failed: {}", msg.to_string()),
+                message: format!("Decryption failed: {}", msg),
             },
             _ => ApiError::Internal {
-                message: format!("Failed to unwrap token: {}", e.to_string()),
+                message: format!("Failed to unwrap token: {}", e),
             },
         })?;
 
@@ -350,7 +350,7 @@ pub async fn lookup_token(
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
             _ => ApiError::Internal {
-                message: format!("Failed to lookup token: {}", e.to_string()),
+                message: format!("Failed to lookup token: {}", e),
             },
         })?;
 
@@ -449,7 +449,7 @@ pub async fn rewrap_token(
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
             _ => ApiError::Internal {
-                message: format!("Failed to unwrap token: {}", e.to_string()),
+                message: format!("Failed to unwrap token: {}", e),
             },
         })?;
 
@@ -470,7 +470,7 @@ pub async fn rewrap_token(
                 message: format!("Data too large: {} bytes (max: {} bytes)", size, max),
             },
             _ => ApiError::Internal {
-                message: format!("Failed to rewrap data: {}", e.to_string()),
+                message: format!("Failed to rewrap data: {}", e),
             },
         })?;
 

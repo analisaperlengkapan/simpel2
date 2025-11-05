@@ -15,11 +15,11 @@ pub mod api;
 pub mod audit;
 pub mod auth;
 pub mod config;
-pub mod crypto;
 pub mod error;
-pub mod hsm;
+// pub mod hsm; // MOVED: Extracted to secreton-hsm crate
 pub mod models;
 pub mod namespace;
+pub mod pki; // Renamed from 'crypto' - contains PKI/certificate code only
 pub mod prelude;
 pub mod sdk_libraries;
 pub mod security;
@@ -34,7 +34,15 @@ pub mod engines {
     pub use crate::services::secrets::enhanced::*;
 }
 
-pub use api::{SecurityAPI, start_security_server};
+// DEPRECATED: Legacy Warp-based API exports
+// Requires 'legacy-warp-api' feature (disabled by default)
+#[cfg(feature = "legacy-warp-api")]
+#[deprecated(
+    since = "1.1.0",
+    note = "Legacy Warp-based API. Use `secreton-api` crate for production API functionality."
+)]
+pub use api::{start_security_server, SecurityAPI};
+
 pub use audit::{AuditLog, AuditLogger, AuditStatus};
 pub use auth::{
     AuthProvider, AuthResult, AuthencAuthProvider, Credentials, PqSignature, TokenValidation,

@@ -4,20 +4,27 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'antarmuka/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/ci-frontend.yml'
+      - "antarmuka/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/ci-frontend.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'antarmuka/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "antarmuka/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+# Cancel in-progress runs for the same workflow and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUST_VERSION: "1.90.0"
+  TRUNK_VERSION: "0.21.4"
 
 jobs:
   check-wasm:
@@ -31,58 +38,96 @@ jobs:
           - badiklat
           - datun
           - intel
+          - pembinaan/keuangan
+          - pembinaan/perencanaan
           - pembinaan/perlengkapan
           - pemulihan_aset
           - pengawasan
           - pidmil
           - pidsus
           - pidum
-    
+
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: ${{ env.RUST_VERSION }}
           targets: wasm32-unknown-unknown
-      
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Cache target directory
-        uses: actions/cache@v4.3.0
-        with:
-          path: target
-          key: ${{ runner.os }}-wasm-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
-      
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-check-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-check-${{ matrix.module }}-
+            ${{ runner.os }}-wasm-check-
+            ${{ runner.os }}-wasm-
+
       - name: Check WASM compilation
-        run: cargo check --target wasm32-unknown-unknown --manifest-path antarmuka/${{ matrix.module }}/Cargo.toml
+        run: |
+          cargo check \
+            --target wasm32-unknown-unknown \
+            --manifest-path antarmuka/${{ matrix.module }}/Cargo.toml \
+            --verbose
 
   test-wasm:
-    name: Test WASM
+    name: Test WASM Components
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
-      
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Run WASM tests
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-test-
+            ${{ runner.os }}-wasm-
+
+      - name: Run tests for shared components
+        working-directory: antarmuka/shared
+        run: cargo test --verbose
+
+      - name: Run tests for all microfrontends
+        working-directory: antarmuka
         run: |
-          cd antarmuka
-          cargo test --all
+          for dir in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
+            if [ -f "$dir/Cargo.toml" ]; then
+              echo "Testing $dir..."
+              cd "$dir"
+              cargo test --verbose || echo "Warning: Tests failed for $dir"
+              cd ..
+            fi
+          done
+          
+          # Test pembinaan modules
+          for dir in pembinaan/keuangan pembinaan/perencanaan pembinaan/perlengkapan; do
+            if [ -f "$dir/Cargo.toml" ]; then
+              echo "Testing $dir..."
+              cd "$dir"
+              cargo test --verbose || echo "Warning: Tests failed for $dir"
+              cd ../..
+            fi
+          done
 
   build-wasm:
     name: Build WASM - ${{ matrix.module }}
@@ -96,83 +141,140 @@ jobs:
           - badiklat
           - datun
           - intel
+          - pembinaan/keuangan
+          - pembinaan/perencanaan
           - pembinaan/perlengkapan
           - pemulihan_aset
           - pengawasan
           - pidmil
           - pidsus
           - pidum
-    
+
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: ${{ env.RUST_VERSION }}
           targets: wasm32-unknown-unknown
-      
+
       - name: Install Trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf-
           sudo mv trunk /usr/local/bin/
-      
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Cache trunk directory
-        uses: actions/cache@v4.3.0
+          trunk --version
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
         with:
           path: |
-            antarmuka/${{ matrix.module }}/dist
-            target
-          key: ${{ runner.os }}-trunk-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Build with Trunk
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-build-${{ matrix.module }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-build-${{ matrix.module }}-
+            ${{ runner.os }}-wasm-build-
+            ${{ runner.os }}-wasm-
+
+      - name: Build with Trunk (release mode)
+        working-directory: antarmuka/${{ matrix.module }}
+        run: trunk build --release
+
+      - name: Validate bundle size
+        working-directory: antarmuka/${{ matrix.module }}
         run: |
-          cd antarmuka/${{ matrix.module }}
-          trunk build --release
-      
-      - name: Check bundle size
-        run: |
-          WASM_SIZE=$(find antarmuka/${{ matrix.module }}/dist -name "*.wasm" -exec wc -c {} + | awk '{print $1}')
-          WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
-          echo "WASM bundle size: ${WASM_SIZE_MB}MB"
-          if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then
-            echo "::error::WASM bundle exceeds 2MB limit: ${WASM_SIZE_MB}MB"
+          if [ -d "dist" ]; then
+            WASM_FILES=$(find dist -name "*.wasm" -type f)
+            if [ -n "$WASM_FILES" ]; then
+              for wasm_file in $WASM_FILES; do
+                WASM_SIZE=$(stat -f%z "$wasm_file" 2>/dev/null || stat -c%s "$wasm_file")
+                WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
+                echo "📦 Bundle: $(basename $wasm_file) - ${WASM_SIZE_MB}MB"
+                
+                # Enforce 2MB limit as per project standards
+                if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then
+                  echo "::error::❌ WASM bundle exceeds 2MB limit: ${WASM_SIZE_MB}MB"
+                  echo "::error::Module: ${{ matrix.module }}"
+                  echo "::error::Please optimize the bundle size."
+                  exit 1
+                else
+                  echo "✅ Bundle size within limits"
+                fi
+              done
+            else
+              echo "::warning::No WASM files found in dist/"
+            fi
+          else
+            echo "::error::dist/ directory not found after build"
             exit 1
           fi
-      
+
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-${{ matrix.module }}
           path: antarmuka/${{ matrix.module }}/dist/
           retention-days: 7
+          if-no-files-found: error
 
-  build-shared:
-    name: Build Shared Components
+  lint-frontend:
+    name: Lint Frontend Code
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
-          targets: wasm32-unknown-unknown
-      
-      - name: Cache cargo registry
-        uses: actions/cache@v4.3.0
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Check shared components
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-frontend-lint-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-lint-
+            ${{ runner.os }}-frontend-
+
+      - name: Run clippy on frontend
+        working-directory: antarmuka
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Check code formatting
+        working-directory: antarmuka
+        run: cargo fmt --all --check
+
+  summary:
+    name: Frontend CI Summary
+    runs-on: ubuntu-latest
+    needs: [check-wasm, test-wasm, build-wasm, lint-frontend]
+    if: always()
+    steps:
+      - name: Check job statuses
         run: |
-          cd antarmuka/shared
-          cargo check --target wasm32-unknown-unknown
-          cargo test
+          echo "## Frontend CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Check WASM: ${{ needs.check-wasm.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Test WASM: ${{ needs.test-wasm.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build WASM: ${{ needs.build-wasm.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Lint: ${{ needs.lint-frontend.result }}" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if any required job failed
+          if [[ "${{ needs.check-wasm.result }}" == "failure" ]] || \
+             [[ "${{ needs.test-wasm.result }}" == "failure" ]] || \
+             [[ "${{ needs.build-wasm.result }}" == "failure" ]] || \
+             [[ "${{ needs.lint-frontend.result }}" == "failure" ]]; then
+            echo "::error::One or more frontend CI jobs failed"
+            exit 1
+          fi

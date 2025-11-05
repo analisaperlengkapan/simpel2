@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use authenc::vault::Vault;
-    use authenc::vault::hashicorp_vault::*;
+    use authenc::secreton_client::Vault;
+    use authenc::secreton_client::hashicorp_vault::*;
 
     #[test]
     fn test_hashicorp_vault_creation() {

@@ -72,7 +72,7 @@ impl InMemoryCache {
         let mut stats = self.stats.write().unwrap();
 
         let original_count = data.len();
-        data.retain(|_, entry| entry.expires_at.map_or(true, |expires| expires > now));
+        data.retain(|_, entry| entry.expires_at.is_none_or(|expires| expires > now));
 
         let evicted_count = original_count.saturating_sub(data.len());
         stats.eviction_count += evicted_count as u64;
@@ -97,7 +97,7 @@ impl CacheBackend for InMemoryCache {
         let result = data.get(key).and_then(|entry| {
             if entry
                 .expires_at
-                .map_or(true, |expires| std::time::Instant::now() <= expires)
+                .is_none_or(|expires| std::time::Instant::now() <= expires)
             {
                 Some(entry.data.clone())
             } else {
@@ -313,22 +313,20 @@ where
     async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
         let cache_key = Self::cache_key_for_id(id);
 
-        if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await {
-            if let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
+        if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await
+            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
                 return Ok(Some(entry));
             }
-        }
 
         let entry = self.storage.get_by_id(id).await?;
 
-        if let Some(ref entry) = entry {
-            if let Ok(serialized) = serde_json::to_vec(entry) {
+        if let Some(ref entry) = entry
+            && let Ok(serialized) = serde_json::to_vec(entry) {
                 let _ = self
                     .cache
                     .set(&cache_key, serialized, Some(self.default_ttl))
                     .await;
             }
-        }
 
         Ok(entry)
     }
@@ -336,22 +334,20 @@ where
     async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
         let cache_key = Self::cache_key_for_path(path);
 
-        if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await {
-            if let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
+        if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await
+            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
                 return Ok(Some(entry));
             }
-        }
 
         let entry = self.storage.get_by_path(path).await?;
 
-        if let Some(ref entry) = entry {
-            if let Ok(serialized) = serde_json::to_vec(entry) {
+        if let Some(ref entry) = entry
+            && let Ok(serialized) = serde_json::to_vec(entry) {
                 let _ = self
                     .cache
                     .set(&cache_key, serialized, Some(self.default_ttl))
                     .await;
             }
-        }
 
         Ok(entry)
     }

@@ -3,16 +3,14 @@
 //! Dynamically generates database credentials with automatic rotation.
 //! Supports MySQL, PostgreSQL, MongoDB and other databases.
 
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
-use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio_postgres::{Client as PgClient, Connection as PgConnection, NoTls};
+use tokio_postgres::{Client as PgClient, NoTls};
 use uuid::Uuid;
 
 /// Error types for database secrets engine

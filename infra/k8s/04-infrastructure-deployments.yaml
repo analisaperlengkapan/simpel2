@@ -320,7 +320,7 @@ metadata:
   namespace: simpelv2-infra
   labels:
     app.kubernetes.io/name: secreton
-    app.kubernetes.io/component: vault
+    app.kubernetes.io/component: secreton
     app.kubernetes.io/part-of: simpelv2
 spec:
   replicas: 1
@@ -333,7 +333,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: secreton
-        app.kubernetes.io/component: vault
+        app.kubernetes.io/component: secreton
     spec:
       containers:
         - name: secreton
@@ -351,11 +351,11 @@ spec:
                 secretKeyRef:
                   name: simpelv2-secrets
                   key: SECRETON_ADMIN_TOKEN
-            - name: VAULT_ENCRYPTION_KEY
+            - name: SECRETON_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
                   name: simpelv2-secrets
-                  key: VAULT_ENCRYPTION_KEY
+                  key: SECRETON_ENCRYPTION_KEY
             - name: SECRETON_DB_USER
               valueFrom:
                 secretKeyRef:

@@ -12,7 +12,7 @@ use crate::app::AppState;
 /// Consent UI handlers for user consent management
 pub mod consent_ui;
 /// Health check handlers for Axum web framework
-pub mod health_axum;
+pub mod health;
 /// JWKS (JSON Web Key Set) endpoint with caching and key rotation support
 pub mod jwks;
 /// JWT token handling with Ed25519 signatures for enhanced security
@@ -27,13 +27,11 @@ pub mod oidc_ed25519;
 pub mod oidc_sso;
 /// Validation helper utilities for request validation
 pub mod validation_helper;
-pub use health_axum::create_health_routes;
+pub use health::create_health_routes;
 
 // Legacy Actix handlers (temporarily disabled during migration)
 // mod audit;
 // mod group;
-/// Legacy health handlers (replaced by health_axum)
-mod health;
 // mod oidc_client;
 /// Legacy OIDC JWT handlers with RSA (deprecated - use oidc_ed25519)
 pub mod oidc_jwt;
@@ -136,9 +134,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .with_state(oauth2_state.clone());
 
     let router = Router::new()
-        .route("/health", get(health_axum::health))
-        .route("/ready", get(health_axum::ready))
-        .route("/live", get(health_axum::live))
+        .route("/health", get(health::health))
+        .route("/ready", get(health::ready))
+        .route("/live", get(health::live))
         .route("/metrics", get(metrics::metrics))
         .route("/health/metrics", get(metrics::health_with_metrics))
         // OAuth2 authorization endpoint (accessible without auth)
@@ -427,7 +425,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_endpoint() {
-        use crate::handlers::health_axum::health;
+        use crate::handlers::health::health;
 
         let response = health().await;
 

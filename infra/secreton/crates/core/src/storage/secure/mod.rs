@@ -247,17 +247,17 @@ impl Default for KeyConfig {
 ///         // Implementation to load keys from database
 /// #       todo!()
 ///     }
-///     
+///
 ///     async fn save_keys(&self, keys: &HashMap<String, KeyEntry>) -> Result<()> {
 ///         // Implementation to save keys to database
 /// #       todo!()
 ///     }
-///     
+///
 ///     async fn get_current_key_id(&self) -> Result<Option<String>> {
 ///         // Implementation to get current key ID from database
 /// #       todo!()
 ///     }
-///     
+///
 ///     async fn set_current_key_id(&self, key_id: &str) -> Result<()> {
 ///         // Implementation to set current key ID in database
 /// #       todo!()
@@ -736,7 +736,8 @@ impl SecureStorage {
         let derived_key = Self::derive_key(master_key, &salt_bytes)?;
 
         // Create the cipher with the derived key
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&derived_key));
+        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&derived_key);
+        let cipher = Aes256Gcm::new(&key_ref);
 
         // Create the storage instance with the provided or default config
         let key_config = key_config.unwrap_or_default();
@@ -764,12 +765,12 @@ impl SecureStorage {
         // Generate a random nonce for each encryption
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt the data with the current cipher
         let ciphertext = self
             .current_cipher
-            .encrypt(nonce, data)
+            .encrypt(&nonce, data)
             .map_err(|e| anyhow!("Encryption failed: {}", e))?;
 
         // Combine key ID, nonce, and ciphertext
@@ -800,7 +801,12 @@ impl SecureStorage {
         let key_id = std::str::from_utf8(key_id_bytes)
             .map_err(|_| anyhow!("Invalid key ID in ciphertext"))?;
 
-        let nonce = Nonce::from_slice(nonce_bytes);
+        if nonce_bytes.len() != NONCE_LENGTH {
+            return Err(anyhow!("Invalid nonce size"));
+        }
+        let mut nonce_arr = [0u8; NONCE_LENGTH];
+        nonce_arr.copy_from_slice(nonce_bytes);
+        let nonce = Nonce::from(nonce_arr);
 
         // Find the key used for encryption
         let keys = self.keys.read().await;
@@ -815,9 +821,10 @@ impl SecureStorage {
             .map_err(|e| anyhow!("Invalid key format: {}", e))?;
 
         // Decrypt the data directly with the derived key
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
+        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&key);
+        let cipher = Aes256Gcm::new(&key_ref);
         cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(&nonce, ciphertext)
             .map_err(|e| anyhow!("Decryption failed: {}", e))
     }
 
@@ -902,11 +909,10 @@ impl SecureStorage {
         let expired_keys: Vec<String> = keys
             .iter()
             .filter_map(|(id, key)| {
-                if let Some(expires_at) = key.expires_at {
-                    if expires_at <= now {
+                if let Some(expires_at) = key.expires_at
+                    && expires_at <= now {
                         return Some(id.clone());
                     }
-                }
                 None
             })
             .collect();
@@ -977,7 +983,8 @@ impl SecureStorage {
             &BASE64.decode(&current_key_entry.key)?,
             &BASE64.decode(&current_key_entry.salt)?,
         )?;
-        self.current_cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
+        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&key);
+        self.current_cipher = Aes256Gcm::new(&key_ref);
 
         Ok(())
     }

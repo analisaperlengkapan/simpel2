@@ -571,7 +571,7 @@ Authorization: Bearer <admin_jwt_token>
 | `ACCOUNT_LOCKED` | 423 | Account locked due to failed attempts |
 | `RATE_LIMITED` | 429 | Too many requests |
 | `SECRET_GENERATION_FAILED` | 500 | Failed to generate TOTP secret |
-| `SECRET_STORAGE_FAILED` | 500 | Failed to store secret in vault |
+| `SECRET_STORAGE_FAILED` | 500 | Failed to store secret in secreton |
 | `INSUFFICIENT_PRIVILEGES` | 403 | Admin privileges required |
 
 ## Rate Limiting

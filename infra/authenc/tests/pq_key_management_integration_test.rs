@@ -8,7 +8,7 @@ use authenc::crypto::enhanced::{
     SignerInfo,
 };
 use authenc::models::user::UserClaims;
-use authenc::vault::secreton_client::{PqAlgorithm, SecretonClient};
+use authenc::secreton_client::secreton_client::{PqAlgorithm, SecretonClient};
 use chrono::Utc;
 use std::collections::HashMap;
 use uuid::Uuid;

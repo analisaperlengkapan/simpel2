@@ -292,22 +292,19 @@ async fn create_backup(
 
     for (idx, path_value) in secret_paths.iter().enumerate() {
         if let Some(path) = path_value.as_str() {
-            if let Some(ref base) = base_manifest {
-                if incremental && !should_include_in_incremental(path, base).await {
+            if let Some(ref base) = base_manifest
+                && incremental && !should_include_in_incremental(path, base).await {
                     continue;
                 }
-            }
 
             let secret_url = format!("{}/v1/secret/data/{}", config.server_url, path);
             let secret_response = client.get(&secret_url).send().await;
 
-            if let Ok(response) = secret_response {
-                if response.status().is_success() {
-                    if let Ok(secret_data) = response.json::<serde_json::Value>().await {
+            if let Ok(response) = secret_response
+                && response.status().is_success()
+                    && let Ok(secret_data) = response.json::<serde_json::Value>().await {
                         secrets.push(convert_to_backup_entry(path, &secret_data));
                     }
-                }
-            }
 
             if (idx + 1) % 10 == 0 {
                 println!("Progress: {}/{}", idx + 1, secret_paths.len());
@@ -323,17 +320,14 @@ async fn create_backup(
         let audit_url = format!("{}/v1/audit/logs", config.server_url);
         let audit_response = client.get(&audit_url).send().await;
 
-        if let Ok(response) = audit_response {
-            if response.status().is_success() {
-                if let Ok(audit_data) = response.json::<serde_json::Value>().await {
-                    if let Some(logs) = audit_data.get("logs").and_then(|l| l.as_array()) {
+        if let Ok(response) = audit_response
+            && response.status().is_success()
+                && let Ok(audit_data) = response.json::<serde_json::Value>().await
+                    && let Some(logs) = audit_data.get("logs").and_then(|l| l.as_array()) {
                         for log in logs {
                             audit_logs.push(convert_to_audit_backup(log));
                         }
                     }
-                }
-            }
-        }
 
         println!("Fetched {} audit log(s)", audit_logs.len());
     }
@@ -524,17 +518,13 @@ async fn list_backups(directory: &str, detailed: bool) -> Result<()> {
     let entries = fs::read_dir(dir_path).context("Failed to read directory")?;
 
     let mut backup_files = Vec::new();
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "backup" || ext == "bak" {
-                        backup_files.push(path);
-                    }
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file()
+            && let Some(ext) = path.extension()
+                && (ext == "backup" || ext == "bak") {
+                    backup_files.push(path);
                 }
-            }
-        }
     }
 
     if backup_files.is_empty() {
@@ -863,12 +853,11 @@ async fn restore_backup(
 
     match verify_response {
         Ok(response) if response.status().is_success() => {
-            if let Ok(secrets_list) = response.json::<serde_json::Value>().await {
-                if let Some(keys) = secrets_list.get("keys").and_then(|k| k.as_array()) {
+            if let Ok(secrets_list) = response.json::<serde_json::Value>().await
+                && let Some(keys) = secrets_list.get("keys").and_then(|k| k.as_array()) {
                     println!("  ✓ Vault is accessible");
                     println!("  ✓ Total secrets in vault: {}", keys.len());
                 }
-            }
         }
         _ => {
             println!("  ⚠ Warning: Could not verify vault status");
@@ -1047,11 +1036,11 @@ fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
         .hash_password_into(password.as_bytes(), salt, &mut key)
         .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
 
-    let nonce = Nonce::from_slice(b"unique nonce");
+    let nonce = Nonce::from(*b"unique nonce");
 
     let cipher = Aes256Gcm::new(&key.into());
     let ciphertext = cipher
-        .encrypt(nonce, data)
+        .encrypt(&nonce, data)
         .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
 
     let mut result = nonce.to_vec();
@@ -1078,11 +1067,16 @@ fn decrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
         .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
 
     let (nonce_bytes, ciphertext) = data.split_at(12);
-    let nonce = Nonce::from_slice(nonce_bytes);
+    if nonce_bytes.len() != 12 {
+        return Err(anyhow::anyhow!("Invalid nonce size"));
+    }
+    let mut nonce_arr = [0u8; 12];
+    nonce_arr.copy_from_slice(nonce_bytes);
+    let nonce = Nonce::from(nonce_arr);
 
     let cipher = Aes256Gcm::new(&key.into());
     let plaintext = cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(&nonce, ciphertext)
         .map_err(|e| anyhow::anyhow!("Decryption failed: {}", e))?;
 
     Ok(plaintext)

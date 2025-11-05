@@ -1,7 +1,73 @@
 //! HTTP request handlers for the Secreton API.
 //!
-//! Provides comprehensive REST endpoints for secret management,
-//! authentication, authorization, and administrative functions.
+//! This module provides comprehensive REST endpoints for all Secreton vault operations.
+//! All handlers follow REST best practices and return consistent [`ApiResponse`] structures.
+//!
+//! # Handler Modules
+//!
+//! ## Core Operations
+//! - [`admin`] - Administrative endpoints (users, roles, audit logs, system info)
+//! - [`auth`] - Authentication endpoints (login, logout, token refresh, MFA)
+//! - [`secret`] - Secret CRUD operations (get, put, delete, list, versions)
+//! - [`policy`] - Policy management (RBAC rules, permissions)
+//! - [`namespace`] - Multi-tenancy namespace management
+//!
+//! ## Advanced Features
+//! - [`dynamic`] - Dynamic secrets generation (database credentials, cloud IAM)
+//! - [`lease`] - Lease management (renewal, revocation, cleanup)
+//! - [`wrapping`] - Response wrapping for secure secret delivery
+//! - [`seal`] - Vault seal/unseal operations (Shamir secret sharing)
+//! - [`health`] - Health checks and readiness probes
+//!
+//! ## Optional Features
+//! - [`raft`] - Raft consensus endpoints (high availability clustering)
+//!
+//! # Request Flow
+//!
+//! 1. **Authentication**: All requests pass through [`crate::middleware::auth_middleware`]
+//! 2. **Authorization**: RBAC policy enforcement via [`crate::middleware::rbac_middleware`]
+//! 3. **Rate Limiting**: Request throttling via [`crate::middleware::rate_limit_middleware`]
+//! 4. **Handler Execution**: Async handler processes request
+//! 5. **Audit Logging**: All operations logged via [`crate::middleware::audit_middleware`]
+//! 6. **Response**: Standardized [`ApiResponse`] returned
+//!
+//! # Error Handling
+//!
+//! All handlers use [`ApiResult<T>`](crate::ApiResult) which maps to appropriate HTTP status codes:
+//! - 200 OK - Successful operation
+//! - 201 Created - Resource created
+//! - 400 Bad Request - Invalid input
+//! - 401 Unauthorized - Authentication required
+//! - 403 Forbidden - Insufficient permissions
+//! - 404 Not Found - Resource does not exist
+//! - 409 Conflict - Resource already exists
+//! - 500 Internal Server Error - Unexpected error
+//!
+//! # Example Handler
+//!
+//! ```rust,no_run
+//! use axum::{Extension, Json, extract::Path};
+//! use secreton_api::{ApiResult, ApiResponse, handlers::AppState};
+//!
+//! async fn example_handler(
+//!     Path(id): Path<String>,
+//!     Extension(state): Extension<AppState>,
+//! ) -> ApiResult<Json<ApiResponse<String>>> {
+//!     // Handler logic here
+//!     Ok(Json(ApiResponse::success(
+//!         format!("Processed {}", id),
+//!         None,
+//!     )))
+//! }
+//! ```
+//!
+//! # Security Considerations
+//!
+//! - All endpoints require authentication (except `/health` and `/ready`)
+//! - Sensitive data never logged or included in error responses
+//! - CORS configured for production security
+//! - Rate limiting prevents abuse
+//! - Audit trail for all mutations
 
 pub mod admin;
 pub mod auth;

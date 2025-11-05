@@ -15,7 +15,7 @@ use authenc::services::mfa_service::{
 };
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
-use authenc::vault::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
+use authenc::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
 
 /// Create a test database pool (mock for testing)
 fn create_test_db_pool() -> deadpool_postgres::Pool {

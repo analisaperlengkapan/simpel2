@@ -3,7 +3,6 @@ use std::hash::Hash;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock as AsyncRwLock;
-use tracing::{debug, warn};
 
 use crate::error::CoreError;
 

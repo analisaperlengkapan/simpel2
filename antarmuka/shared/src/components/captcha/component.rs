@@ -67,24 +67,24 @@ pub fn Captcha(
 
     // Challenge generation effect - wrap in Resource for reactive updates
     let (refresh_trigger, set_refresh_trigger) = signal(0);
-    
+
     Effect::new(move |_| {
         // Track refresh trigger
         let _ = refresh_trigger.get();
-        
+
         set_state.update(|s| {
             s.loading = true;
             s.error = None;
         });
 
         let session_id_for_spawn = session_id_clone.clone();
-        
+
         spawn_local(async move {
             // Get Authenc URL from environment or use default
             let authenc_url = option_env!("AUTHENC_URL")
                 .unwrap_or("http://localhost:8080")
                 .to_string();
-            
+
             let challenge_url = format!("{}/captcha/challenge", authenc_url);
 
             // Prepare request payload
@@ -97,13 +97,13 @@ pub fn Captcha(
             // Make API call to Authenc
             match web_sys::window() {
                 Some(window) => {
+                    use wasm_bindgen::{JsCast, JsValue};
                     use web_sys::{Request, RequestInit, RequestMode, Response};
-                    use wasm_bindgen::{JsValue, JsCast};
 
                     let opts = RequestInit::new();
                     opts.set_method("POST");
                     opts.set_mode(RequestMode::Cors);
-                    
+
                     // Set body
                     if let Ok(body_str) = serde_json::to_string(&request_payload) {
                         opts.set_body(&JsValue::from_str(&body_str));
@@ -115,32 +115,55 @@ pub fn Captcha(
                             let _ = request.headers().set("Content-Type", "application/json");
 
                             // Fetch challenge
-                            match wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await {
+                            match wasm_bindgen_futures::JsFuture::from(
+                                window.fetch_with_request(&request),
+                            )
+                            .await
+                            {
                                 Ok(resp_value) => {
                                     let resp: Response = resp_value.dyn_into().unwrap();
-                                    
+
                                     if resp.ok() {
-                                        match wasm_bindgen_futures::JsFuture::from(resp.json().unwrap()).await {
+                                        match wasm_bindgen_futures::JsFuture::from(
+                                            resp.json().unwrap(),
+                                        )
+                                        .await
+                                        {
                                             Ok(json) => {
                                                 // Parse response
-                                                if let Ok(challenge_resp) = serde_wasm_bindgen::from_value::<ChallengeResponse>(json) {
-                                                    set_challenge_data.set(Some(challenge_resp.clone()));
+                                                if let Ok(challenge_resp) =
+                                                    serde_wasm_bindgen::from_value::<
+                                                        ChallengeResponse,
+                                                    >(
+                                                        json
+                                                    )
+                                                {
+                                                    set_challenge_data
+                                                        .set(Some(challenge_resp.clone()));
                                                     set_state.update(|s| {
                                                         s.loading = false;
-                                                        s.challenge_id = Some(challenge_resp.challenge_id);
-                                                        s.challenge_type = challenge_resp.challenge_type;
+                                                        s.challenge_id =
+                                                            Some(challenge_resp.challenge_id);
+                                                        s.challenge_type =
+                                                            challenge_resp.challenge_type;
                                                     });
                                                 } else {
                                                     set_state.update(|s| {
                                                         s.loading = false;
-                                                        s.error = Some("Failed to parse challenge response".to_string());
+                                                        s.error = Some(
+                                                            "Failed to parse challenge response"
+                                                                .to_string(),
+                                                        );
                                                     });
                                                 }
                                             }
                                             Err(_) => {
                                                 set_state.update(|s| {
                                                     s.loading = false;
-                                                    s.error = Some("Failed to read challenge response".to_string());
+                                                    s.error = Some(
+                                                        "Failed to read challenge response"
+                                                            .to_string(),
+                                                    );
                                                 });
                                             }
                                         }
@@ -154,7 +177,10 @@ pub fn Captcha(
                                 Err(_) => {
                                     set_state.update(|s| {
                                         s.loading = false;
-                                        s.error = Some("Network error: Failed to connect to Authenc".to_string());
+                                        s.error = Some(
+                                            "Network error: Failed to connect to Authenc"
+                                                .to_string(),
+                                        );
                                     });
                                 }
                             }

@@ -41,7 +41,7 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 /// Maximum size for wrapped data (1MB)
@@ -469,18 +469,18 @@ impl WrappingService {
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt
         let ciphertext = cipher
-            .encrypt(nonce, data)
+            .encrypt(&nonce, data)
             .map_err(|e| WrappingError::EncryptionFailed(format!("Encryption failed: {}", e)))?;
 
         // Store key and nonce in metadata (in production, use Transit engine or HSM)
         let metadata = serde_json::json!({
             "algorithm": "aes-256-gcm",
-            "key": base64::encode(&key_bytes),
-            "nonce": base64::encode(&nonce_bytes),
+            "key": base64::encode(key_bytes),
+            "nonce": base64::encode(nonce_bytes),
         });
 
         Ok((ciphertext, metadata))
@@ -511,11 +511,16 @@ impl WrappingService {
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)
             .map_err(|e| WrappingError::DecryptionFailed(format!("Key init failed: {}", e)))?;
 
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        if nonce_bytes.len() != 12 {
+            return Err(WrappingError::DecryptionFailed("Invalid nonce size".to_string()));
+        }
+        let mut nonce_arr = [0u8; 12];
+        nonce_arr.copy_from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_arr);
 
         // Decrypt
         let plaintext = cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(&nonce, ciphertext)
             .map_err(|e| WrappingError::DecryptionFailed(format!("Decryption failed: {}", e)))?;
 
         Ok(plaintext)

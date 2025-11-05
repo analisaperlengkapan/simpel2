@@ -2,6 +2,18 @@
 //!
 //! LDAP/Active Directory authentication with group mapping,
 //! user search, and nested group support.
+//!
+//! # Implementation Status
+//!
+//! **FULLY IMPLEMENTED** - Production-ready LDAP/AD authentication:
+//! - ✅ LDAP bind and user search
+//! - ✅ Group membership resolution (including nested groups)
+//! - ✅ Role mapping from LDAP groups
+//! - ✅ TLS/STARTTLS support
+//! - ✅ Connection pooling
+//!
+//! **Status**: Ready for use with LDAP/Active Directory servers
+//! **Use Case**: Enterprise environments with existing LDAP/AD infrastructure
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};

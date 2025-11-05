@@ -1,7 +1,64 @@
 //! Security API Layer
 //!
-//! Provides HTTP API endpoints for all security operations
-//! integrating with the comprehensive security/ directory modules.
+//! # ⚠️ DEPRECATED - Legacy Warp-based Handlers
+//!
+//! **This module contains legacy/stub code and is NOT used in production.**
+//!
+//! # Compilation
+//!
+//! This module requires the `legacy-warp-api` feature to compile.
+//! It is disabled by default to remove web framework dependencies from core.
+//!
+//! To enable (not recommended):
+//! ```toml
+//! [dependencies]
+//! secreton-core = { version = "1.0", features = ["legacy-warp-api"] }
+//! ```
+
+#![cfg(feature = "legacy-warp-api")]
+//!
+//! ## Current Status
+//!
+//! - This file was an early prototype using the Warp web framework
+//! - The production API implementation is in the `secreton-api` crate using Axum
+//! - Code here is kept for reference but should not be used for new features
+//!
+//! ## Migration Path
+//!
+//! If you need API functionality, use the `secreton-api` crate instead:
+//!
+//! ```rust,ignore
+//! // DON'T use this (legacy):
+//! use secreton_core::api::handlers::{ApiError, ApiResponse};
+//!
+//! // DO use this (production):
+//! use secreton_api::{
+//!     error::{ApiError, ApiResult},
+//!     handlers::*,
+//!     middleware::*,
+//! };
+//! ```
+//!
+//! ## Why This Exists
+//!
+//! This module was created during early development to prototype API endpoints.
+//! As the project evolved, the API layer was properly separated into the
+//! `secreton-api` crate with:
+//! - Better error handling
+//! - Axum framework (more modern than Warp)
+//! - Proper middleware stack
+//! - Authentication/authorization integration
+//! - Comprehensive test coverage
+//!
+//! ## Removal Timeline
+//!
+//! - **v1.1.0**: Deprecated (current) - all types marked deprecated
+//! - **v1.2.0**: Removal warnings in CI/CD
+//! - **v2.0.0**: This entire module will be removed
+//!
+//! ---
+//!
+//! For actual API endpoints, see: `crates/api/src/handlers/`
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,6 +66,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, warn};
 use uuid::Uuid;
+
+#[cfg(feature = "legacy-warp-api")]
 use warp::{Filter, Rejection, Reply, reject};
 
 use crate::error::CoreError;
@@ -123,6 +182,7 @@ pub struct AuthenticationResponse {
 /// Security API main structure with integrated security components
 pub struct SecurityAPI {
     // Integration with security modules for production use
+    // Note: Reserved for advanced security manager integration (entropy, anomaly detection, etc.)
     #[allow(dead_code)]
     security_manager: Option<Arc<AdvancedSecurityManager>>,
 }
@@ -324,6 +384,7 @@ impl SecurityAPI {
 }
 
 /// Helper function for security manager
+/// Note: FUTURE FEATURE - Warp filter for security manager injection when implemented
 #[allow(dead_code)]
 fn with_security_manager() -> impl Filter<Extract = (), Error = std::convert::Infallible> + Clone {
     warp::any()
@@ -600,6 +661,55 @@ pub async fn start_security_server(port: u16) -> Result<(), Box<dyn std::error::
 }
 
 /// Custom API error types
+///
+/// # DEPRECATED
+///
+/// This `ApiError` enum is deprecated and will be removed in a future version.
+/// It was originally defined in the core crate for warp-based handlers, but
+/// API-layer error types belong in the `secreton-api` crate, not the core library.
+///
+/// ## Migration Path
+///
+/// If you're using this error type, please migrate to `secreton_api::error::ApiError`:
+///
+/// **Before**:
+/// ```rust,ignore
+/// use secreton_core::api::handlers::ApiError;
+///
+/// return Err(warp::reject::custom(ApiError::InvalidRequest("bad data".to_string())));
+/// ```
+///
+/// **After**:
+/// ```rust,ignore
+/// use secreton_api::error::ApiError;
+///
+/// return Err(ApiError::bad_request("bad data"));
+/// ```
+///
+/// ## Why This Was Moved
+///
+/// 1. **Separation of Concerns**: Core crate provides domain logic and types,
+///    not HTTP-specific error handling
+/// 2. **Framework Independence**: Core should not depend on warp (or any web framework)
+/// 3. **Better Error Handling**: `secreton_api::ApiError` has richer functionality,
+///    better HTTP status code mapping, and integration with multiple frameworks
+///
+/// ## Removal Timeline
+///
+/// - **v1.1.0**: Deprecated (current)
+/// - **v1.2.0**: Removal warnings will be added
+/// - **v2.0.0**: This type will be removed entirely
+///
+/// ## Current Status
+///
+/// This file (`api/handlers.rs`) contains stub/legacy code that is not actively used
+/// in production. The real API implementation is in the `secreton-api` crate using Axum.
+///
+#[deprecated(
+    since = "1.1.0",
+    note = "API error types belong in secreton-api crate. Use `secreton_api::error::ApiError` instead. \
+            This warp-based handlers.rs is legacy code and not used in production."
+)]
 #[derive(Debug)]
 pub enum ApiError {
     SecurityError(String),

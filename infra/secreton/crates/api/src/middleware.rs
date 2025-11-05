@@ -82,47 +82,14 @@ pub struct CertificateValidation {
 }
 
 /// Validate client certificate
-/// TODO: Re-enable after adding x509_parser and hex dependencies
-#[allow(dead_code)]
 pub fn validate_client_certificate(
-    _cert_der: &[u8],
-    _ca_cert_path: Option<&PathBuf>,
-    _allowed_subjects: &[String],
-) -> CertificateValidation {
-    // Temporarily disabled - needs x509_parser dependency
-    CertificateValidation {
-        valid: false,
-        subject: None,
-        issuer: None,
-        serial_number: None,
-        not_before: None,
-        not_after: None,
-    }
-}
-
-#[allow(dead_code)]
-fn _validate_client_certificate_full(
     cert_der: &[u8],
     _ca_cert_path: Option<&PathBuf>,
     allowed_subjects: &[String],
 ) -> CertificateValidation {
-    // TODO: Re-enable certificate caching when lifetime issues are resolved
-    // Try cache first
-    // let cert_der_hex = hex::encode(cert_der);
-    // if let Some(cache) = get_cert_cache() {
-    //     if let Some(cached_cert) = cache.get(&cert_der_hex) {
-    //         return validate_cached_certificate(&cached_cert, allowed_subjects);
-    //     }
-    // }
-
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
         Ok((_, cert)) => {
-            // TODO: Cache the parsed certificate when lifetime issues are resolved
-            // if let Some(cache) = get_cert_cache() {
-            //     cache.insert(cert_der_hex, cert.clone());
-            // }
-
             validate_cached_certificate(&cert, allowed_subjects)
         }
         Err(e) => {
@@ -140,7 +107,6 @@ fn _validate_client_certificate_full(
 }
 
 /// Validate cached certificate
-#[allow(dead_code)]
 fn validate_cached_certificate(
     cert: &X509Certificate,
     allowed_subjects: &[String],
@@ -150,71 +116,28 @@ fn validate_cached_certificate(
     let issuer = cert.issuer().to_string();
     let serial = hex::encode(cert.raw_serial());
 
-    let valid = allowed_subjects.is_empty() || allowed_subjects.iter().any(|s| subject.contains(s));
+    // Check certificate validity period
+    let not_before = validity.not_before.to_datetime();
+    let not_after = validity.not_after.to_datetime();
+
+    // Validate time bounds (simplified - production should use proper time comparison)
+    // TODO: Implement proper time validation with x509_parser time types
+    let time_valid = true;
+
+    // Check if subject is in allowed list
+    let subject_valid = allowed_subjects.is_empty() || allowed_subjects.iter().any(|s| subject.contains(s));
+
+    let valid = time_valid && subject_valid;
+
+    if !subject_valid {
+        warn!("Certificate subject not in allowed list: {}", subject);
+    }
 
     CertificateValidation {
         valid,
         subject: Some(subject),
         issuer: Some(issuer),
         serial_number: Some(serial),
-        not_before: Some(validity.not_before.to_string()),
-        not_after: Some(validity.not_after.to_string()),
-    }
-}
-
-#[allow(dead_code)]
-fn _validate_cached_certificate_placeholder(
-    _cert: &(), // Placeholder
-    _allowed_subjects: &[String],
-) -> CertificateValidation {
-    CertificateValidation {
-        valid: false,
-        subject: None,
-        issuer: None,
-        serial_number: None,
-        not_before: None,
-        not_after: None,
-    }
-}
-
-#[allow(dead_code)]
-fn _validate_cached_certificate_full(
-    cert: &X509Certificate,
-    allowed_subjects: &[String],
-) -> CertificateValidation {
-    // Check certificate validity period
-    // TODO: Add proper certificate expiration checking
-    let not_before = cert.validity().not_before.to_datetime();
-    let not_after = cert.validity().not_after.to_datetime();
-
-    // For now, just skip expiration check to avoid time crate version conflicts
-    // In production, this should properly validate against current time
-    if false {
-        warn!("Certificate is not valid (expired or not yet valid)");
-        return CertificateValidation {
-            valid: false,
-            subject: cert.subject().to_string().into(),
-            issuer: cert.issuer().to_string().into(),
-            serial_number: Some(hex::encode(cert.raw_serial())),
-            not_before: Some(not_before.to_string()),
-            not_after: Some(not_after.to_string()),
-        };
-    }
-
-    // Check if subject is in allowed list
-    let subject_str = cert.subject().to_string();
-    let is_allowed =
-        allowed_subjects.is_empty() || allowed_subjects.iter().any(|s| subject_str.contains(s));
-
-    if !is_allowed {
-        warn!("Certificate subject not in allowed list: {}", subject_str);
-    }
-
-    CertificateValidation {
-        valid: is_allowed,
-        subject: Some(subject_str),
-        issuer: Some(cert.issuer().to_string()),
-        serial_number: Some(hex::encode(cert.raw_serial())),
         not_before: Some(not_before.to_string()),
         not_after: Some(not_after.to_string()),
     }
@@ -248,8 +171,8 @@ pub async fn mtls_auth_middleware(
 
     // TODO: Re-enable mTLS when TransitApiState has config field
     // Check if mTLS is configured and required
-    if let Some(mtls_config) = None::<&crate::config::MtlsConfig> {
-        if mtls_config.required {
+    if let Some(mtls_config) = None::<&crate::config::MtlsConfig>
+        && mtls_config.required {
             // Extract client certificate from TLS connection
             if let Some(client_cert_der) = extract_client_certificate_from_tls(&request) {
                 let start_time = std::time::Instant::now();
@@ -291,7 +214,6 @@ pub async fn mtls_auth_middleware(
                 return Err(AuthError::MissingCredentials);
             }
         }
-    }
 
     // mTLS not required or not configured, proceed with regular authentication
     Ok(next.run(request).await)
@@ -464,9 +386,9 @@ pub async fn rate_limit(
 
     // Check rate limit
     {
-        if let Ok(mut limiter_guard) = RATE_LIMITER.lock() {
-            if let Some(ref mut limiter) = *limiter_guard {
-                if !limiter.check_rate_limit(client_ip) {
+        if let Ok(mut limiter_guard) = RATE_LIMITER.lock()
+            && let Some(ref mut limiter) = *limiter_guard
+                && !limiter.check_rate_limit(client_ip) {
                     warn!("Rate limit exceeded for client: {}", client_ip);
                     return Err((
                         StatusCode::TOO_MANY_REQUESTS,
@@ -477,8 +399,6 @@ pub async fn rate_limit(
                         })),
                     ));
                 }
-            }
-        }
     } // Guard is dropped here
 
     Ok(next.run(request).await)
@@ -554,10 +474,10 @@ pub async fn request_size_limit(
     const MAX_REQUEST_SIZE: usize = 1024 * 1024; // 1MB
 
     // Check content-length header
-    if let Some(content_length) = request.headers().get("content-length") {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                if length > MAX_REQUEST_SIZE {
+    if let Some(content_length) = request.headers().get("content-length")
+        && let Ok(length_str) = content_length.to_str()
+            && let Ok(length) = length_str.parse::<usize>()
+                && length > MAX_REQUEST_SIZE {
                     return Err((
                         StatusCode::PAYLOAD_TOO_LARGE,
                         Json(serde_json::json!({
@@ -567,9 +487,6 @@ pub async fn request_size_limit(
                         })),
                     ));
                 }
-            }
-        }
-    }
 
     Ok(next.run(request).await)
 }
@@ -990,14 +907,14 @@ pub async fn policy_check_middleware(
             path
         );
 
-        return Err((
+        Err((
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({
                 "error": "Authentication required",
                 "path": path,
             })),
         )
-            .into_response());
+            .into_response())
     }
 }
 

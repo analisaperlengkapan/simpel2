@@ -234,7 +234,7 @@ max_lifetime = 120
 - **Connection leak prevention**: Idle timeout closes unused connections
 - **Better load balancing**: Max lifetime ensures connection rotation
 - **Proactive monitoring**: Metrics and health checks detect issues early
-- **Production-ready**: Follows Keycloak/HikariCP best practices
+- **Production-ready**: Follows Enterprise IAM/HikariCP best practices
 
 ## Monitoring Integration
 
@@ -390,13 +390,13 @@ async fn test_connection_validation() {
 
 ## References
 
-- **Keycloak HikariCP Configuration**: https://www.keycloak.org/server/db
+- **Enterprise IAM HikariCP Configuration**: https://www.simpelv2.org/server/db
 - **PostgreSQL Connection Pooling**: https://www.postgresql.org/docs/current/runtime-config-connection.html
 - **deadpool-postgres Documentation**: https://docs.rs/deadpool-postgres/latest/deadpool_postgres/
 - **Task Requirements**: `.kiro/specs/authenc-comprehensive-optimization/requirements.md` (Requirement 4.1)
 
 ## Conclusion
 
-The database connection pool has been successfully optimized with production-grade configuration, comprehensive metrics tracking, and proactive health monitoring. The implementation follows industry best practices from Keycloak/HikariCP and provides full visibility into pool health for operational excellence.
+The database connection pool has been successfully optimized with production-grade configuration, comprehensive metrics tracking, and proactive health monitoring. The implementation follows industry best practices from Enterprise IAM/HikariCP and provides full visibility into pool health for operational excellence.
 
 **Status**: ✅ **COMPLETED**

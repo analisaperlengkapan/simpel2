@@ -104,7 +104,7 @@ url.workspace = true     # ✅ NEW: DATABASE_URL parsing
 
 #### Port Standardization
 
-- **HTTP**: `8200` (standar Vault compatibility)
+- **HTTP**: `8200` (standar Secreton compatibility)
 - **gRPC**: `8201`
 
 ## 🔒 Security Improvements

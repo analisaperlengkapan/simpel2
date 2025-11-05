@@ -24,23 +24,17 @@ use crate::pqc::{
 use crate::{Aes256GcmCipher, EncryptedData, SymmetricCipher};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
 
 /// Cryptographic operation mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CryptoMode {
     /// Classical cryptography only (Ed25519, AES-256-GCM)
     Classical,
     /// Hybrid: Classical + Post-Quantum (defense-in-depth)
+    #[default]
     Hybrid,
     /// Pure Post-Quantum cryptography (ML-DSA, ML-KEM)
     PostQuantum,
-}
-
-impl Default for CryptoMode {
-    fn default() -> Self {
-        CryptoMode::Hybrid
-    }
 }
 
 /// Security requirements configuration
@@ -68,20 +62,15 @@ impl Default for SecurityRequirements {
 }
 
 /// Performance priority configuration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PerformancePriority {
     /// Optimize for speed
     Speed,
     /// Balance speed and security
+    #[default]
     Balanced,
     /// Optimize for maximum security
     Security,
-}
-
-impl Default for PerformancePriority {
-    fn default() -> Self {
-        PerformancePriority::Balanced
-    }
 }
 
 /// Hybrid signature containing both classical and post-quantum signatures
@@ -435,9 +424,9 @@ impl HybridCrypto {
             CryptoMode::Classical => {
                 // Classical AES-256-GCM decryption
                 // Note: In real implementation, key would be derived/retrieved
-                return Err(CryptoError::DecryptionFailed(
+                Err(CryptoError::DecryptionFailed(
                     "Classical decryption requires key management".to_string(),
-                ));
+                ))
             }
             CryptoMode::Hybrid | CryptoMode::PostQuantum => {
                 let pq_keypair = self

@@ -251,6 +251,12 @@ pub struct OperationTimer {
     start: Instant,
 }
 
+impl Default for OperationTimer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OperationTimer {
     pub fn new() -> Self {
         Self {

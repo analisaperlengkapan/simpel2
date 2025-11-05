@@ -6,7 +6,7 @@
 use crate::audit::{AuditLog, AuditLogger, AuditStatus};
 use crate::error::CoreError;
 use crate::namespace::{
-    JwtClaims, NamespaceAccessControl, NamespaceHierarchy, NamespacePath, PathResolutionError,
+    JwtClaims, NamespaceAccessControl, NamespaceHierarchy, NamespacePath,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -79,8 +79,8 @@ impl NamespaceValidator {
             .await?;
 
         // Check if namespace quota is exceeded
-        if let Some(namespace) = namespace_path.get_namespace(&self.hierarchy) {
-            if namespace.is_quota_exceeded() {
+        if let Some(namespace) = namespace_path.get_namespace(&self.hierarchy)
+            && namespace.is_quota_exceeded() {
                 self.log_audit(
                     claims,
                     "write",
@@ -97,7 +97,6 @@ impl NamespaceValidator {
                     namespace_path.namespace_id
                 )));
             }
-        }
 
         Ok(namespace_path)
     }

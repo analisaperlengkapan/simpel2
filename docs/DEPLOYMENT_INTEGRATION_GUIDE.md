@@ -181,7 +181,7 @@ curl http://localhost:8088/health
 ### 2. Deploy Secreton Vault
 
 ```bash
-# Initialize vault
+# Initialize secreton
 cd infra/secreton
 ./target/release/secreton init
 
@@ -479,7 +479,7 @@ pg_dump secreton_db > secreton_backup_$(date +%Y%m%d).sql
 ### Vault Data Backup
 
 ```bash
-# Backup vault storage
+# Backup secreton storage
 tar -czf vault_backup_$(date +%Y%m%d).tar.gz /opt/simpelv2/vault/
 ```
 
@@ -489,7 +489,7 @@ tar -czf vault_backup_$(date +%Y%m%d).tar.gz /opt/simpelv2/vault/
 # Restore database
 psql authenc_db < authenc_backup_20251007.sql
 
-# Restore vault
+# Restore secreton
 tar -xzf vault_backup_20251007.tar.gz -C /
 ```
 
@@ -524,7 +524,7 @@ psql -h localhost -U authenc authenc_db -c "SELECT version();"
 ### Vault Connection Issues
 
 ```bash
-# Test vault connectivity
+# Test secreton connectivity
 curl -v http://localhost:8200/v1/sys/health
 
 # Check bearer token
@@ -597,10 +597,10 @@ See `docs/oauth2-authorization-code.md` for implementation guide.
 ### v1.0.0 (2025-10-07)
 
 - Initial integration release
-- Secreton vault with in-memory KVEngine
+- Secreton secreton with in-memory KVEngine
 - Authenc IAM with JWT authentication
 - Portal OAuth2 password grant flow
-- Audit logging for vault operations
+- Audit logging for secreton operations
 - 409 automated tests passing
 
 ---

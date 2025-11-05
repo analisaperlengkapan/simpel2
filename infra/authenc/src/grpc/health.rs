@@ -9,6 +9,9 @@ use tonic::Status;
 use tracing::{debug, error, info};
 
 use crate::app::AppState;
+use crate::health::checks::{
+    DatabaseHealthCheck, KafkaHealthCheck, RedisHealthCheck, SecretonHealthCheck,
+};
 
 // Include common proto for health check types
 pub mod common {
@@ -39,69 +42,61 @@ impl HealthService {
 
     /// Check database health
     async fn check_database(&self) -> DependencyHealth {
-        let start = Instant::now();
+        // Use shared health check implementation
+        let checker = DatabaseHealthCheck::new(self.state.database.clone());
+        let result = checker.check().await;
 
-        // TODO: Implement actual database health check
-        // This will check if we can connect to PostgreSQL
-
-        let response_time_ms = start.elapsed().as_millis() as i64;
-
+        // Convert to proto DependencyHealth
         DependencyHealth {
-            name: "postgresql".to_string(),
-            status: HealthStatus::Healthy as i32,
-            error: None,
-            response_time_ms,
+            name: result.name,
+            status: result.status.as_i32(),
+            error: result.error,
+            response_time_ms: result.response_time_ms,
         }
     }
 
     /// Check Redis cache health
     async fn check_redis(&self) -> DependencyHealth {
-        let start = Instant::now();
+        // Use shared health check implementation
+        let checker = RedisHealthCheck::new();
+        let result = checker.check().await;
 
-        // TODO: Implement actual Redis health check
-        // This will check if we can connect to Redis and perform a PING
-
-        let response_time_ms = start.elapsed().as_millis() as i64;
-
+        // Convert to proto DependencyHealth
         DependencyHealth {
-            name: "redis".to_string(),
-            status: HealthStatus::Healthy as i32,
-            error: None,
-            response_time_ms,
+            name: result.name,
+            status: result.status.as_i32(),
+            error: result.error,
+            response_time_ms: result.response_time_ms,
         }
     }
 
     /// Check Secreton vault health
     async fn check_secreton(&self) -> DependencyHealth {
-        let start = Instant::now();
+        // Use shared health check implementation
+        let checker = SecretonHealthCheck::new();
+        let result = checker.check().await;
 
-        // TODO: Implement actual Secreton health check
-        // This will check if we can connect to Secreton service
-
-        let response_time_ms = start.elapsed().as_millis() as i64;
-
+        // Convert to proto DependencyHealth
         DependencyHealth {
-            name: "secreton".to_string(),
-            status: HealthStatus::Healthy as i32,
-            error: None,
-            response_time_ms,
+            name: result.name,
+            status: result.status.as_i32(),
+            error: result.error,
+            response_time_ms: result.response_time_ms,
         }
     }
 
     /// Check Kafka event bus health
     async fn check_kafka(&self) -> DependencyHealth {
-        let start = Instant::now();
+        // Use shared health check implementation
+        let checker = KafkaHealthCheck::new();
+        let result = checker.check().await;
 
-        // TODO: Implement actual Kafka health check
-        // This will check if we can connect to Kafka brokers
-
-        let response_time_ms = start.elapsed().as_millis() as i64;
-
+        // Convert to proto DependencyHealth
         DependencyHealth {
-            name: "kafka".to_string(),
-            status: HealthStatus::Healthy as i32,
-            error: None,
-            response_time_ms,
+            name: result.name,
+            status: result.status.as_i32(),
+            error: result.error,
+            response_time_ms: result.response_time_ms,
         }
     }
 

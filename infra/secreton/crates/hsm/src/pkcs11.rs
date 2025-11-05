@@ -7,7 +7,7 @@ use super::config::HsmConfig;
 use super::error::{HsmError, HsmResult};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// PKCS#11 provider for HSM operations
 pub struct Pkcs11Provider {
@@ -25,7 +25,7 @@ struct Pkcs11Session {
 impl Pkcs11Provider {
     /// Create a new PKCS#11 provider
     pub fn new(config: HsmConfig) -> HsmResult<Self> {
-        config.validate().map_err(|e| HsmError::ConfigError(e))?;
+        config.validate().map_err(HsmError::ConfigError)?;
 
         Ok(Self {
             config,
@@ -76,7 +76,7 @@ impl Pkcs11Provider {
         let mut session_lock = self.session.write().await;
         let session = session_lock
             .as_mut()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         if session.logged_in {
             debug!("Already logged in to HSM");
@@ -96,14 +96,13 @@ impl Pkcs11Provider {
     /// Logout from HSM
     pub async fn logout(&self) -> HsmResult<()> {
         let mut session_lock = self.session.write().await;
-        if let Some(session) = session_lock.as_mut() {
-            if session.logged_in {
+        if let Some(session) = session_lock.as_mut()
+            && session.logged_in {
                 debug!("Logging out from HSM");
                 // In a real implementation, this would call C_Logout
                 session.logged_in = false;
                 info!("Successfully logged out from HSM");
             }
-        }
         Ok(())
     }
 
@@ -271,7 +270,7 @@ impl Pkcs11Provider {
         let session_lock = self.session.read().await;
         let session = session_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         if !session.logged_in {
             drop(session_lock);

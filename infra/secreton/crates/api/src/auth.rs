@@ -3,17 +3,13 @@
 //! Provides JWT-based authentication, role-based access control,
 //! and integration with external identity providers.
 
-use axum::{
-    Json,
-    http::{HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
-};
+use axum::http::HeaderValue;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{
-    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
+    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{error, warn};
+use tracing::warn;
 use uuid::Uuid;
 
 /// JWT claims structure
@@ -315,55 +311,8 @@ pub fn extract_bearer_token(auth_header: &HeaderValue) -> Option<String> {
         .map(|stripped| stripped.to_string())
 }
 
-/// Authentication errors
-#[derive(Debug, thiserror::Error)]
-pub enum AuthError {
-    #[error("Token generation failed: {0}")]
-    TokenGeneration(String),
-
-    #[error("Token validation failed: {0}")]
-    TokenValidation(String),
-
-    #[error("Missing authorization header")]
-    MissingAuthHeader,
-
-    #[error("Invalid authorization header format")]
-    InvalidAuthHeader,
-
-    #[error("Missing credentials")]
-    MissingCredentials,
-
-    #[error("Permission denied")]
-    PermissionDenied,
-
-    #[error("User not found")]
-    UserNotFound,
-
-    #[error("Invalid credentials")]
-    InvalidCredentials,
-}
-
-impl IntoResponse for AuthError {
-    fn into_response(self) -> Response {
-        let (status, message) = match self {
-            AuthError::MissingAuthHeader | AuthError::InvalidAuthHeader => {
-                (StatusCode::UNAUTHORIZED, self.to_string())
-            }
-            AuthError::PermissionDenied => (StatusCode::FORBIDDEN, self.to_string()),
-            AuthError::UserNotFound | AuthError::InvalidCredentials => {
-                (StatusCode::UNAUTHORIZED, self.to_string())
-            }
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
-        };
-
-        let body = Json(serde_json::json!({
-            "error": message,
-            "status": status.as_u16()
-        }));
-
-        (status, body).into_response()
-    }
-}
+// Use consolidated AuthError from error module
+pub use crate::error::AuthError;
 
 // Use canonical types from secreton_core::models
 // LoginRequest, LoginResponse, UserInfo are now imported at the top
@@ -384,7 +333,9 @@ mod tests {
             vec!["crypto-user".to_string()],
         );
 
-        let token_data = auth_service.validate_token(&token);
+        let token_data = auth_service
+            .validate_token(&token)
+            .expect("Token validation should succeed");
 
         assert_eq!(token_data.claims.sub, "user123");
         assert_eq!(token_data.claims.name, "Test User");

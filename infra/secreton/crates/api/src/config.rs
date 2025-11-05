@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-// Re-export HSM configuration from core
-pub use secreton_core::hsm::HsmConfig;
+// Re-export HSM configuration from secreton-hsm crate
+pub use secreton_hsm::HsmConfig;
 
 /// Main API configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -1209,11 +1209,10 @@ impl ApiConfig {
                 if let Some(password) = url.password() {
                     self.database.password = password.to_string();
                 }
-                if let Some(mut segments) = url.path_segments() {
-                    if let Some(db) = segments.next() {
+                if let Some(mut segments) = url.path_segments()
+                    && let Some(db) = segments.next() {
                         self.database.database = db.trim_start_matches('/').to_string();
                     }
-                }
             }
         }
 
@@ -1223,17 +1222,15 @@ impl ApiConfig {
         }
 
         // TLS configuration
-        if let Ok(cert_path) = std::env::var("TLS_CERT_PATH") {
-            if let Some(ref mut tls) = self.tls {
+        if let Ok(cert_path) = std::env::var("TLS_CERT_PATH")
+            && let Some(ref mut tls) = self.tls {
                 tls.cert_file = PathBuf::from(cert_path);
             }
-        }
 
-        if let Ok(key_path) = std::env::var("TLS_KEY_PATH") {
-            if let Some(ref mut tls) = self.tls {
+        if let Ok(key_path) = std::env::var("TLS_KEY_PATH")
+            && let Some(ref mut tls) = self.tls {
                 tls.key_file = PathBuf::from(key_path);
             }
-        }
 
         // Log level
         if let Ok(level) = std::env::var("LOG_LEVEL") {

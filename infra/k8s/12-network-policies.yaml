@@ -253,7 +253,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/component: vault
+      app.kubernetes.io/component: secreton
   policyTypes:
     - Ingress
   ingress:

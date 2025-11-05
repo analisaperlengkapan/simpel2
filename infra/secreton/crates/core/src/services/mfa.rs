@@ -249,7 +249,7 @@ impl MfaService {
     ) -> Result<TotpConfig, MfaError> {
         let mut configs = self.configs.write().await;
 
-        let mut config = configs
+        let config = configs
             .entry(user_id.to_string())
             .or_insert_with(|| MfaConfig::new(user_id.to_string()));
 

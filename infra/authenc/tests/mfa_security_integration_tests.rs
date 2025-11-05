@@ -14,7 +14,7 @@ use authenc::middleware::mfa_rate_limit::{MfaRateLimiter, MfaRateLimiterConfig};
 use authenc::models::user::{SecurityContext, User};
 use authenc::services::mfa_security_monitor::MfaSecurityMonitor;
 use authenc::services::mfa_service::MfaService;
-use authenc::vault::secreton_client::SecretonClient;
+use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test utilities for MFA security integration
 mod security_test_utils {

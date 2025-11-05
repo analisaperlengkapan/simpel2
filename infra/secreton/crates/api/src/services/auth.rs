@@ -4,7 +4,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use thiserror::Error;
 use uuid::Uuid;
 
 use crate::config::AuthConfig;
@@ -14,47 +13,8 @@ use secreton_storage::StorageBackend;
 // Use canonical User from core
 pub use secreton_core::models::User;
 
-/// Authentication service errors
-#[derive(Error, Debug)]
-pub enum AuthError {
-    #[error("Invalid credentials")]
-    InvalidCredentials,
-
-    #[error("User not found")]
-    UserNotFound,
-
-    #[error("User already exists")]
-    UserAlreadyExists,
-
-    #[error("Invalid token")]
-    InvalidToken,
-
-    #[error("Token expired")]
-    TokenExpired,
-
-    #[error("MFA required")]
-    MfaRequired,
-
-    #[error("Invalid MFA code")]
-    InvalidMfaCode,
-
-    #[error("Permission denied")]
-    PermissionDenied,
-
-    #[error("Storage error: {0}")]
-    Storage(#[from] secreton_storage::StorageError),
-
-    #[error("Crypto error: {0}")]
-    Crypto(#[from] secreton_crypto::CryptoError),
-
-    #[error("Internal error: {0}")]
-    Internal(#[from] anyhow::Error),
-
-    #[error("Internal error: {0}")]
-    InternalError(String),
-}
-
-// User is now imported from secreton_core::models
+// Use consolidated AuthError from error module
+pub use crate::error::AuthError;
 
 /// Role definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,7 +178,7 @@ impl AuthService {
         // 3. Generate new access token
         // 4. Optionally rotate refresh token
 
-        Err(AuthError::Internal(anyhow::anyhow!("Not implemented")))
+        Err(AuthError::Internal("Not implemented".to_string()))
     }
 
     /// Create user
@@ -310,7 +270,7 @@ impl AuthService {
     /// Get role by name
     pub async fn get_role(&self, role_name: &str) -> Result<Role, AuthError> {
         // TODO: Implement role retrieval from storage
-        Err(AuthError::Internal(anyhow::anyhow!("Role not found")))
+        Err(AuthError::Internal("Role not found".to_string()))
     }
 
     /// Create role
@@ -377,7 +337,7 @@ impl AuthService {
         use secreton_crypto::hashing::password;
 
         let result = password::hash_password_argon2(password)
-            .map_err(|e| AuthError::InternalError(format!("Password hashing failed: {}", e)))?;
+            .map_err(|e| AuthError::Internal(format!("Password hashing failed: {}", e)))?;
 
         Ok(result.hash)
     }
@@ -387,7 +347,7 @@ impl AuthService {
         use secreton_crypto::hashing::password;
 
         password::verify_password_argon2(password, hash)
-            .map_err(|e| AuthError::InternalError(format!("Password verification failed: {}", e)))
+            .map_err(|e| AuthError::Internal(format!("Password verification failed: {}", e)))
     }
 
     /// Verify MFA code

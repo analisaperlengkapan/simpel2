@@ -58,7 +58,7 @@ infra/monitoring/config/
 - `default.toml.backup` - Backup dari config lama (untuk referensi)
 - `production.toml.backup` - Backup dari config lama (untuk referensi)
 - `raft.toml` - Raft consensus config (future use)
-- `vault.toml` - Vault compatibility config (future use)
+- `vault.toml` - Secreton compatibility config (future use)
 
 **Reasoning:**
 
@@ -168,7 +168,7 @@ docker compose -f docker-compose.captcha.yml up -d
 │   │       ├── default.toml.backup             # Old config backup
 │   │       ├── production.toml.backup          # Old config backup
 │   │       ├── raft.toml                       # Raft consensus (future)
-│   │       └── vault.toml                      # Vault compat (future)
+│   │       └── vault.toml                      # Secreton compat (future)
 │   │
 │   └── monitoring/
 │       └── config/

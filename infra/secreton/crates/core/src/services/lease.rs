@@ -115,17 +115,17 @@ impl From<Lease> for EnhancedLease {
     }
 }
 
-impl Into<Lease> for EnhancedLease {
-    fn into(self) -> Lease {
+impl From<EnhancedLease> for Lease {
+    fn from(val: EnhancedLease) -> Self {
         Lease {
-            id: self.id,
-            user: self.user,
-            resource: self.resource,
-            resource_type: self.resource_type,
-            issued_at: self.issued_at,
-            expired_at: self.expired_at,
-            status: self.status,
-            namespace: self.namespace,
+            id: val.id,
+            user: val.user,
+            resource: val.resource,
+            resource_type: val.resource_type,
+            issued_at: val.issued_at,
+            expired_at: val.expired_at,
+            status: val.status,
+            namespace: val.namespace,
         }
     }
 }
@@ -399,11 +399,10 @@ impl LeaseManager {
         }
 
         // Check max renewals
-        if let Some(max_renewals) = lease.max_renewals {
-            if lease.renew_count >= max_renewals {
+        if let Some(max_renewals) = lease.max_renewals
+            && lease.renew_count >= max_renewals {
                 return Err(LeaseError::RenewalNotAllowed);
             }
-        }
 
         // Validate increment
         if increment <= 0 {
@@ -1237,14 +1236,14 @@ mod tests {
 
         // List leases for user1
         let user1_leases = manager
-            .list_leases(Some("user1"), None, None, None, None, None)
+            .list_leases(Some("user1".to_string()), None, None, None, None, None)
             .await
             .unwrap();
         assert!(user1_leases.iter().all(|l| l.user == "user1"));
 
         // List database leases
         let db_leases = manager
-            .list_leases(None, None, Some("database"), None, None, None)
+            .list_leases(None, None, Some("database".to_string()), None, None, None)
             .await
             .unwrap();
         assert!(db_leases.iter().all(|l| l.resource_type == "database"));

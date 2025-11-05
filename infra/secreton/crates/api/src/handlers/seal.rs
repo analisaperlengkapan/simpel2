@@ -80,7 +80,7 @@ impl From<SealStatus> for SealStatusResponse {
             t: status.threshold,
             n: status.total_shares,
             progress: status.progress,
-            nonce: status.nonce.unwrap_or_else(|| "".to_string()),
+            nonce: status.nonce.unwrap_or_default(),
             version: status.version,
         }
     }

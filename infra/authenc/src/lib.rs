@@ -48,13 +48,20 @@ pub mod handlers;
 /// HTTP middleware components
 pub mod middleware;
 
+// Health checks
+/// Shared health check implementations for HTTP and gRPC
+pub mod health;
+
 // Business logic
 /// Core business services and logic
 pub mod services;
 
-// Security vault
-/// Secret management and vault operations
-pub mod vault;
+// Secreton client
+/// Secret management through Secreton service
+pub mod secreton_client;
+
+// Backward compatibility alias
+pub use secreton_client as vault;
 
 // Event system
 /// Event-driven architecture for audit logging and integrations
@@ -106,11 +113,12 @@ pub use tracing::{debug, error, info, warn};
 // Framework-specific re-exports
 #[cfg(feature = "axum")]
 pub use axum::{
-    Router, body,
+    body,
     extract::{self, Json, Path, Query},
-    http::{self, HeaderMap, StatusCode, header},
+    http::{self, header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
+    Router,
 };
 
 /// Application state shared across all requests

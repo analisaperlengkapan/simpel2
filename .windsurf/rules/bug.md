@@ -64,7 +64,7 @@ trigger: manual
               "**1. Infrastructure Analysis**",
               "- [ ] 1.1 Analisis konfigurasi Docker & Kubernetes",
               "- [ ] 1.2 Review konfigurasi Nginx & Envoy gateway",
-              "- [ ] 1.3 Pemeriksaan konfigurasi HashiCorp Vault",
+              "- [ ] 1.3 Pemeriksaan konfigurasi Secreton",
               "- [ ] 1.4 Audit konfigurasi PostgreSQL",
               "",
               "**2. Backend Security (Rust/Axum)**",

@@ -2,6 +2,17 @@
 //!
 //! OpenID Connect and JWT-based authentication with claims mapping,
 //! role binding, and OIDC discovery support.
+//!
+//! # Implementation Status
+//!
+//! **FULLY IMPLEMENTED** - Production-ready OIDC/JWT authentication:
+//! - ✅ OIDC discovery and JWKS fetching
+//! - ✅ JWT token validation and claims extraction
+//! - ✅ Role binding based on claims
+//! - ✅ Token expiration and refresh handling
+//!
+//! **Status**: Ready for use with identity providers (Keycloak, Auth0, Google, etc.)
+//! **Use Case**: Enterprise SSO integration with OIDC-compliant identity providers
 
 use crate::config::Config;
 use chrono::{DateTime, Utc};
@@ -199,13 +210,12 @@ impl OidcRole {
         }
 
         // Check subject
-        if let Some(ref bound_sub) = self.bound_subject {
-            if &claims.sub != bound_sub {
+        if let Some(ref bound_sub) = self.bound_subject
+            && &claims.sub != bound_sub {
                 return Err(OidcError::ClaimsValidationFailed(
                     "Subject mismatch".to_string(),
                 ));
             }
-        }
 
         // Check bound claims
         for (key, expected_values) in &self.bound_claims {

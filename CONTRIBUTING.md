@@ -248,7 +248,7 @@ Related to #[issue-number]
 - **Projects**: Document classification, intelligent search, predictive analytics
 
 #### **🔐 Security Specialist**
-- **Tech Stack**: HashiCorp Vault, JWT, RBAC, K8s Security
+- **Tech Stack**: Secreton, JWT, RBAC, K8s Security
 - **Responsibilities**: Authentication, authorization, compliance, audit
 - **Projects**: Zero-trust implementation, security policies, threat detection
 

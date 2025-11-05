@@ -1,4 +1,145 @@
-//! Audit logging for Secreton Adhyaksa
+//! Audit Logging System for Secreton
+//!
+//! This module provides comprehensive audit trail capabilities for all vault operations,
+//! enabling compliance with security standards (ISO 27001, SOC 2, GDPR) and forensic analysis.
+//!
+//! # Architecture
+//!
+//! The audit system uses a pluggable backend architecture:
+//!
+//! ```text
+//! ┌─────────────────────────────────────┐
+//! │       Application Code              │
+//! │  (Services, Handlers, Middleware)   │
+//! └────────────────┬────────────────────┘
+//!                  │
+//!                  ▼
+//! ┌─────────────────────────────────────┐
+//! │        AuditLogger                  │
+//! │  (Aggregates multiple backends)     │
+//! └────────────────┬────────────────────┘
+//!                  │
+//!       ┌──────────┴──────────┐
+//!       ▼                     ▼
+//! ┌──────────┐          ┌──────────┐
+//! │PostgreSQL│          │  Syslog  │
+//! │ Backend  │          │ Backend  │
+//! └──────────┘          └──────────┘
+//! ```
+//!
+//! # What Gets Audited
+//!
+//! - **Authentication**: Login attempts, MFA verification, session creation
+//! - **Authorization**: Policy evaluations, permission checks
+//! - **Secret Operations**: Read, write, delete, list secrets
+//! - **Administrative Actions**: User creation, role assignments, policy changes
+//! - **System Events**: Seal/unseal operations, configuration changes
+//!
+//! # Audit Log Entry Structure
+//!
+//! Each audit log contains:
+//! - **Unique ID**: UUID for each event
+//! - **Timestamp**: UTC datetime with millisecond precision
+//! - **Action**: What operation was performed (e.g., "secret.read", "user.login")
+//! - **Actor**: Who performed the action (user ID or system)
+//! - **Resource**: What was accessed (type + ID)
+//! - **Status**: Success or failure
+//! - **IP Address**: Source of the request
+//! - **Details**: Additional context (encrypted data, error messages, etc.)
+//!
+//! # Example: Manual Audit Logging
+//!
+//! ```rust,no_run
+//! use secreton_core::audit::{AuditLogger, AuditLog, AuditStatus};
+//! use std::sync::Arc;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let logger = AuditLogger::new(vec![/* backends */]);
+//!
+//! let log = AuditLog::new(
+//!     "secret.read",
+//!     Some("user-123"),
+//!     "secret",
+//!     "app/database/password",
+//!     AuditStatus::Success,
+//! ).with_ip("192.168.1.100")
+//!   .with_detail("namespace", "production");
+//!
+//! logger.log(log).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Example: Using Audit Middleware
+//!
+//! ```rust,no_run
+//! use secreton_core::audit::AuditMiddleware;
+//! use axum::{Router, routing::get};
+//!
+//! # async fn example() {
+//! let app = Router::new()
+//!     .route("/secrets/:id", get(handler))
+//!     .layer(AuditMiddleware::new(/* logger */));
+//! // All requests automatically audited
+//! # }
+//! # async fn handler() {}
+//! ```
+//!
+//! # Audit Backends
+//!
+//! Multiple backends can run simultaneously:
+//!
+//! - **PostgreSQL** - Structured storage, queryable, long-term retention
+//! - **Syslog** - Integration with existing log infrastructure
+//! - **File** - Simple file-based logging (development/testing)
+//! - **Memory** - In-memory buffer (testing only)
+//!
+//! # Query and Analysis
+//!
+//! ```rust,no_run
+//! use secreton_core::audit::{AuditLogger, AuditQuery};
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let logger = AuditLogger::new(vec![]);
+//! // Find all failed login attempts in last 24 hours
+//! let query = AuditQuery::new()
+//!     .action("user.login")
+//!     .status_failed()
+//!     .since_hours(24);
+//!
+//! let logs = logger.query(query).await?;
+//! println!("Failed logins: {}", logs.len());
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Compliance Features
+//!
+//! - **Immutability**: Audit logs cannot be modified after creation
+//! - **Integrity**: Cryptographic checksums prevent tampering
+//! - **Retention**: Configurable retention policies
+//! - **Export**: JSON/CSV export for compliance reports
+//! - **Encryption**: Sensitive details encrypted at rest
+//!
+//! # Performance
+//!
+//! - **Async**: Non-blocking audit operations
+//! - **Batching**: Logs buffered and written in batches
+//! - **Sampling**: Optional sampling for high-throughput scenarios
+//! - **Circuit Breaker**: Audit failures don't block operations
+//!
+//! # Security Considerations
+//!
+//! - Audit logs stored separately from operational data
+//! - Restricted access (audit admin role required)
+//! - Sensitive data masked or encrypted in logs
+//! - Separate database credentials for audit storage
+//!
+//! # See Also
+//!
+//! - [`AuditLogger`] - Main audit logging interface
+//! - [`AuditBackend`] - Trait for custom backends
+//! - [`AuditMiddleware`] - Automatic request auditing
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -7,9 +148,24 @@ use thiserror::Error;
 use uuid::Uuid;
 
 mod backends;
+
+// DEPRECATED: Middleware module moved to secreton-api crate
+// Requires 'legacy-axum-middleware' feature to compile (disabled by default)
+#[cfg(feature = "legacy-axum-middleware")]
+#[deprecated(
+    since = "1.1.0",
+    note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
+)]
 mod middleware;
 
 pub use backends::*;
+
+// Re-export middleware types with deprecation warning (only if feature enabled)
+#[cfg(feature = "legacy-axum-middleware")]
+#[deprecated(
+    since = "1.1.0",
+    note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
+)]
 pub use middleware::*;
 
 /// Audit log entry

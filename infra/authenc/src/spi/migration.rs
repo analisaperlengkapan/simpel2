@@ -34,11 +34,11 @@ impl crate::spi::Spi for MigrationSpi {
     }
 
     fn get_provider_class(&self) -> &'static str {
-        "org.keycloak.migration.MigrationProvider"
+        "org.simpelv2.migration.MigrationProvider"
     }
 
     fn get_provider_factory_class(&self) -> &'static str {
-        "org.keycloak.migration.MigrationProviderFactory"
+        "org.simpelv2.migration.MigrationProviderFactory"
     }
 }
 

@@ -1,0 +1,36 @@
+[package]
+name = "secreton-hsm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Hardware Security Module (HSM) integration for Secreton vault"
+keywords = ["hsm", "pkcs11", "cryptography", "hardware-security"]
+
+[dependencies]
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Async runtime
+tokio.workspace = true
+async-trait.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Utilities
+parking_lot.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[features]
+default = []
+pkcs11 = [] # PKCS#11 support (requires external library)
+test-utils = []

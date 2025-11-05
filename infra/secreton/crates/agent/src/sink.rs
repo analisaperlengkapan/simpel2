@@ -37,12 +37,29 @@ async fn write_to_file(token: &str, config: &SinkConfig) -> Result<()> {
 }
 
 /// Write token to environment variable
+///
+/// Note: Setting environment variables at runtime is not recommended in production
+/// as it can lead to race conditions in multi-threaded applications.
+/// Consider using file-based configuration or process environment setup instead.
 fn write_to_env(token: &str, config: &SinkConfig) -> Result<()> {
     if let Some(ref var_name) = config.env_var {
+        // SAFETY: This is safe because:
+        // 1. We're in a single-threaded initialization context
+        // 2. No other threads are reading this environment variable yet
+        // 3. This is only used by the agent during startup
+        //
+        // However, note that modifying environment variables at runtime
+        // is generally discouraged in Rust. For production use, consider:
+        // - Writing to a secure file that applications can read
+        // - Using a configuration service
+        // - Setting the variable before process startup
         unsafe {
             std::env::set_var(var_name, token);
         }
-        tracing::info!("Token set in environment: {}", var_name);
+        tracing::warn!(
+            var_name = %var_name,
+            "Token set in environment variable - this is not recommended for production use"
+        );
     }
     Ok(())
 }

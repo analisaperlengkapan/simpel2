@@ -21,16 +21,13 @@ pub struct PaginationQuery {
 /// Sort order options
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SortOrder {
+    #[default]
     Asc,
     Desc,
 }
 
-impl Default for SortOrder {
-    fn default() -> Self {
-        SortOrder::Asc
-    }
-}
 
 fn default_limit() -> u32 {
     50

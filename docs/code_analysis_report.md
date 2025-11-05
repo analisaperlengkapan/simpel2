@@ -50,7 +50,7 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 - `keystore_vault.rs` - **REMOVE** (unused for secreton integration)
 - `kms_vault.rs` - **REMOVE** (unused for secreton integration)
 
-**Recommendation**: Remove unused vault providers, keep only secreton integration.
+**Recommendation**: Remove unused secreton providers, keep only secreton integration.
 
 ### 4. Error Handling Consolidation
 
@@ -86,7 +86,7 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ## Cleanup Plan
 
 ### Phase 1: Authenc Cleanup
-1. Remove unused vault providers (keep only secreton_vault.rs, rename to secreton_client.rs)
+1. Remove unused secreton providers (keep only secreton_vault.rs, rename to secreton_client.rs)
 2. Consolidate error types and remove duplicates
 3. Optimize AES-GCM implementation for IAM use cases
 4. Clean up deprecated authentication handlers
@@ -142,7 +142,7 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ## Completed Cleanup Actions
 
 ### Phase 1: Authenc Cleanup ✅
-1. **Removed unused vault providers**:
+1. **Removed unused secreton providers**:
    - Deleted `file_vault.rs`
    - Deleted `hashicorp_vault.rs`
    - Deleted `keystore_vault.rs`
@@ -193,7 +193,7 @@ Analysis of cryptographic implementations and code duplication between infra/aut
 ## Impact Summary
 
 ### Code Reduction
-- **Authenc**: Removed 4 unused vault provider files (~1,500 lines)
+- **Authenc**: Removed 4 unused secreton provider files (~1,500 lines)
 - **Secreton**: Removed 15+ unused files (~3,000+ lines)
 - **Total**: Approximately 4,500+ lines of unused code removed
 

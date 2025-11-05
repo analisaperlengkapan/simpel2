@@ -161,7 +161,7 @@ All critical bash scripts have been successfully migrated to a modern Rust CLI u
 
 # Infrastructure management
 ./target/debug/simpel infra nginx status
-./target/debug/simpel infra vault status
+./target/debug/simpel infra secreton status
 
 # Tool operations
 ./target/debug/simpel tool wasm optimize

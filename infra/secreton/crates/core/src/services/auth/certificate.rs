@@ -3,7 +3,6 @@
 //! mTLS (mutual TLS) certificate-based authentication for Secreton.
 //! Authenticates clients using X.509 certificates.
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use x509_parser::prelude::*;
 
-use crate::models::auth::{AuthRequest, AuthResponse, UserInfo};
+use crate::models::auth::UserInfo;
 
 /// Error types for Certificate authentication
 #[derive(Debug, thiserror::Error)]
@@ -225,9 +224,9 @@ impl CertAuth {
         let issuer = cert.issuer().to_string();
 
         let not_before = DateTime::from_timestamp(cert.validity().not_before.timestamp(), 0)
-            .unwrap_or_else(|| Utc::now());
+            .unwrap_or_else(Utc::now);
         let not_after = DateTime::from_timestamp(cert.validity().not_after.timestamp(), 0)
-            .unwrap_or_else(|| Utc::now());
+            .unwrap_or_else(Utc::now);
 
         Ok(CertificateSubject {
             common_name,

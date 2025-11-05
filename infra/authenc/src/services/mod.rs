@@ -19,7 +19,7 @@ pub mod managers;
 pub mod par;
 /// Password policy enforcement and validation
 pub mod password_policy;
-/// Comprehensive security testing framework - SUPERIOR TO KEYCLOAK
+/// Comprehensive security testing framework - Enterprise-grade implementation
 pub mod security_testing;
 
 // Storage abstraction layer
@@ -213,7 +213,8 @@ pub mod fips;
 pub mod forever_unknown_secrets;
 /// Observability and monitoring
 pub mod observability;
-/// Secret management and vault integration
+/// Secret management service (legacy vault providers)
+/// Note: Main secret management is through crate::secreton_client module
 pub mod vault;
 
 // Re-exports for convenience
@@ -226,7 +227,7 @@ pub use session_store::SessionStore;
 pub use totp_store::TotpStore;
 
 // MFA services
-pub use crate::vault::secreton_client::MfaSetupData;
+pub use crate::secreton_client::secreton_client::MfaSetupData;
 pub use mfa_admin_service::{
     AccountLockoutInfo, AutoUnlockService, MfaAdminResult, MfaAdminService,
 };

@@ -44,7 +44,7 @@ For highly sensitive issues, request our PGP key via email first.
 ### In Scope
 
 - **Authentication & Authorization** (`infra/authenc/`)
-- **Secreton Vault** (`infra/secreton/`)
+- **Secreton Secreton** (`infra/secreton/`)
 - **API Gateway** (`infra/gerbang/`)
 - **Backend Services** (`layanan/`)
 - **Frontend Security** (`antarmuka/`)
@@ -79,7 +79,7 @@ For highly sensitive issues, request our PGP key via email first.
    - Ed25519 for digital signatures
    - Blake3 & SHA2 for hashing (NO SHA1)
    - ChaCha20-Poly1305 & AES-GCM for encryption
-5. **Secure Vault**: HashiCorp Vault + Secreton for secrets management
+5. **Secure Secreton**: Secreton + Secreton for secrets management
 6. **Content Security Policy (CSP)**: Strict CSP headers
 7. **HSTS**: HTTP Strict Transport Security enabled
 8. **Input Validation**: All user inputs validated
@@ -91,7 +91,7 @@ For highly sensitive issues, request our PGP key via email first.
 
 ### Secure Development Guidelines
 
-- **NO hardcoded credentials** - Use Vault/environment variables
+- **NO hardcoded credentials** - Use Secreton/environment variables
 - **NO SHA1** - Use Blake3 or SHA2 (migrated)
 - **NO sqlx with RSA vulnerability** - Use tokio-postgres (migrated)
 - **Input validation** - Validate all external inputs

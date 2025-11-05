@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, OnceCell};
-use tracing::{debug, warn};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use tracing::debug;
+use zeroize::Zeroize;
 
 use crate::error::CoreError;
 

@@ -35,8 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::EnvFilter::new("info"))
         .with(tracing_subscriber::fmt::layer())
         .init();
-    // Sentry (opsional)
-    let _guard: Option<()> = None;
+
+    // Sentry integration can be added here if needed in the future
+    // let _guard = sentry::init(...);
     // DB pool
     let mut cfg = Config::new();
     cfg.url = Some(config.database_url.clone());

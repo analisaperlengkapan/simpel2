@@ -11,7 +11,7 @@ use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::OptimizedAuthencError;
 use authenc::models::User;
-use authenc::vault::SecretonClient;
+use authenc::secreton_client::SecretonClient;
 
 /// Test suite for secreton fallback scenarios from authenc perspective
 #[cfg(test)]

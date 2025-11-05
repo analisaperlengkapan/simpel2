@@ -1,0 +1,179 @@
+name: Auto-Fix - Cargo & Format
+
+on:
+  schedule:
+    # Run weekly on Monday at 03:00 UTC (after Dependabot updates)
+    - cron: "0 3 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+# Prevent multiple auto-fix runs
+concurrency:
+  group: auto-fix
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUST_VERSION: "1.90.0"
+
+jobs:
+  auto-fix:
+    name: Auto-fix All Workspaces
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-autofix-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-autofix-
+            ${{ runner.os }}-
+
+      - name: Fix root workspace
+        run: |
+          echo "🔧 Fixing root workspace..."
+          cargo fix --workspace --all-targets --allow-dirty --allow-staged || true
+          cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged || true
+          cargo fmt --all
+
+      - name: Fix infra/authenc workspace
+        working-directory: infra/authenc
+        run: |
+          echo "🔧 Fixing infra/authenc workspace..."
+          cargo fix --all-targets --allow-dirty --allow-staged || true
+          cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
+          cargo fmt --all
+
+      - name: Fix infra/secreton workspace
+        working-directory: infra/secreton
+        run: |
+          echo "🔧 Fixing infra/secreton workspace..."
+          cargo fix --all-targets --allow-dirty --allow-staged || true
+          cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
+          cargo fmt --all
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "✅ No changes detected"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "📝 Changes detected:"
+            git status --short
+          fi
+
+      - name: Validate changes with cargo check
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          echo "Validating root workspace..."
+          cargo check --workspace --all-targets --verbose
+          
+          echo "Validating authenc workspace..."
+          cd infra/authenc && cargo check --all-targets --verbose && cd ../..
+          
+          echo "Validating secreton workspace..."
+          cd infra/secreton && cargo check --all-targets --verbose && cd ../..
+
+      - name: Run tests
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          cargo test --workspace --all-targets --verbose || echo "⚠️ Some tests failed"
+        continue-on-error: true
+
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            chore(autofix): apply cargo fix, clippy, and fmt
+            
+            Automatic fixes applied by weekly auto-fix workflow:
+            - cargo fix --workspace --allow-dirty --allow-staged
+            - cargo clippy --fix --workspace --allow-dirty --allow-staged  
+            - cargo fmt --all
+            
+            Applied to:
+            - Root workspace
+            - infra/authenc workspace
+            - infra/secreton workspace
+          branch: autofix/cargo-fixes-${{ github.run_number }}
+          delete-branch: true
+          title: "[Auto-fix] Weekly cargo fix, clippy & format"
+          body: |
+            ## 🤖 Automatic Code Fixes
+            
+            This PR contains automatic fixes applied by the weekly auto-fix workflow.
+            
+            ### Changes Applied
+            - ✅ `cargo fix --workspace --allow-dirty --allow-staged`
+            - ✅ `cargo clippy --fix --workspace --allow-dirty --allow-staged`
+            - ✅ `cargo fmt --all`
+            
+            ### Workspaces Fixed
+            - 📦 Root workspace (layanan/*)
+            - 🔐 infra/authenc (IAM system)
+            - 🔒 infra/secreton (Vault system)
+            
+            ### Validation
+            - ✅ Cargo check passed for all workspaces
+            - ⚠️ Tests executed (some may fail, review needed)
+            
+            ### Review Notes
+            Please review the changes carefully, especially:
+            - Breaking API changes
+            - Logic changes (not just formatting)
+            - Test failures
+            
+            If everything looks good, merge this PR to keep the codebase clean and up-to-date.
+            
+            ---
+            
+            🔄 **Auto-generated by**: `.github/workflows/auto-fix.yml`  
+            📅 **Run**: ${{ github.run_number }}  
+            🕐 **Date**: ${{ github.event.repository.updated_at }}
+          labels: |
+            automated
+            maintenance
+            cargo-fix
+          assignees: ${{ github.repository_owner }}
+          draft: false
+
+      - name: Summary
+        run: |
+          echo "## 🤖 Auto-fix Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_changes.outputs.has_changes }}" = "true" ]; then
+            echo "✅ Changes detected and PR created" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            git diff --stat >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No changes needed - codebase is clean!" >> $GITHUB_STEP_SUMMARY
+          fi

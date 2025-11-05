@@ -1,4 +1,60 @@
 //! Axum middleware for audit logging
+//!
+//! # ⚠️ DEPRECATED MODULE
+//!
+//! **This module has been moved to `secreton-api` crate.**
+//!
+//! # Compilation
+//!
+//! This module requires the `legacy-axum-middleware` feature to compile.
+//! It is disabled by default to remove web framework dependencies from core.
+
+#![cfg(feature = "legacy-axum-middleware")]
+//!
+//! ## Why Deprecated?
+//!
+//! This middleware uses Axum framework types (Request, Response, Body, Next),
+//! creating a dependency from core → axum. This violates clean architecture:
+//! - **Core crate** should be framework-agnostic (domain logic only)
+//! - **API crate** should contain framework-specific code (presentation logic)
+//!
+//! ## Migration Path
+//!
+//! **Before**:
+//! ```rust,ignore
+//! use secreton_core::audit::{audit_middleware, AuditExt};
+//!
+//! let app = Router::new()
+//!     .layer(middleware::from_fn(audit_middleware));
+//! ```
+//!
+//! **After**:
+//! ```rust,ignore
+//! use secreton_api::middleware::audit_middleware;
+//! use secreton_core::audit::{AuditLogger, AuditLog}; // Domain types stay in core
+//!
+//! let app = Router::new()
+//!     .layer(middleware::from_fn(audit_middleware));
+//! ```
+//!
+//! ## What Stays in Core?
+//!
+//! - `AuditLogger` trait and implementations
+//! - `AuditLog` data structure
+//! - `AuditBackend` trait
+//! - Backend implementations (PostgreSQL, Syslog, etc.)
+//!
+//! ## What Moved to API?
+//!
+//! - Axum middleware functions
+//! - Request/Response extensions
+//! - HTTP-specific audit logic
+//!
+//! ## Removal Timeline
+//!
+//! - **v1.1.0**: Deprecated (current)
+//! - **v1.2.0**: Copy moved to api crate
+//! - **v2.0.0**: This file removed from core
 
 use axum::{
     body::{Body, HttpBody},
@@ -81,12 +137,36 @@ where
                 .get("user-agent")
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_string()),
-            namespace: None, // TODO: Extract namespace from path
+            namespace: extract_namespace_from_path(self.uri().path()),
             metadata,
         };
 
         logger.log(entry).await
     }
+}
+
+/// Extract namespace from request path
+///
+/// Namespaces are typically in paths like:
+/// - /v1/sys/namespaces/{ns}/...
+/// - /{ns}/secrets/...
+fn extract_namespace_from_path(path: &str) -> Option<String> {
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+
+    // Pattern 1: /v1/sys/namespaces/{ns}/...
+    if segments.len() >= 4 && segments[0] == "v1" && segments[1] == "sys" && segments[2] == "namespaces" {
+        return Some(segments[3].to_string());
+    }
+
+    // Pattern 2: /{ns}/secrets/... or /{ns}/transit/...
+    if segments.len() >= 2 {
+        let second = segments[1];
+        if second == "secrets" || second == "transit" || second == "keys" || second == "policies" {
+            return Some(segments[0].to_string());
+        }
+    }
+
+    None
 }
 
 /// Middleware for request logging
@@ -122,14 +202,14 @@ pub async fn audit_middleware(
         metadata.insert("duration_ms".into(), duration.as_millis().to_string());
 
         // Try to extract error details
-        if !success {
-            if let Some(body) = response.body().size_hint().exact() {
+        if !success
+            && let Some(body) = response.body().size_hint().exact() {
                 // If we can get the body size, we could log it
                 metadata.insert("response_size".into(), body.to_string());
             }
-        }
 
         // Log the request
+        let namespace = extract_namespace_from_path(&path);
         let _ = logger
             .log(AuditLog {
                 id: Uuid::new_v4(),
@@ -141,7 +221,7 @@ pub async fn audit_middleware(
                 status,
                 ip: None,         // Will be set by the AuditExt
                 user_agent: None, // Will be set by the AuditExt
-                namespace: None,  // TODO: Extract namespace from path
+                namespace,
                 metadata,
             })
             .await;

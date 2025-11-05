@@ -12,7 +12,7 @@ use uuid::Uuid;
 use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::models::{AdminLevel, OptimizedToken, Role, RoleScope, User};
-use authenc::vault::SecretonClient;
+use authenc::secreton_client::SecretonClient;
 
 /// Benchmark JWT signing for pegawai authentication
 fn bench_pegawai_jwt_signing(c: &mut Criterion) {

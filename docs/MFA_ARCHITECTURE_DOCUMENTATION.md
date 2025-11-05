@@ -298,7 +298,7 @@ sequenceDiagram
     Note over U,R: Secure Storage
     A->>S: Store encrypted secret
     S->>S: Encrypt with AES-256-GCM
-    S->>S: Store in vault with access controls
+    S->>S: Store in secreton with access controls
     S-->>A: Storage confirmation
 
     Note over U,R: Backup Codes

@@ -152,11 +152,10 @@ impl Token {
             return false;
         }
 
-        if let Some(expires_at) = self.expires_at {
-            if Utc::now() > expires_at {
+        if let Some(expires_at) = self.expires_at
+            && Utc::now() > expires_at {
                 return false;
             }
-        }
 
         true
     }
@@ -167,11 +166,10 @@ impl Token {
             return false;
         }
 
-        if let Some(max_renewals) = self.max_renewals {
-            if self.renew_count >= max_renewals {
+        if let Some(max_renewals) = self.max_renewals
+            && self.renew_count >= max_renewals {
                 return false;
             }
-        }
 
         true
     }

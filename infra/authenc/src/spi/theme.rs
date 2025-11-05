@@ -21,11 +21,11 @@ impl Spi for ThemeSpi {
     }
 
     fn get_provider_class(&self) -> &'static str {
-        "org.keycloak.theme.ThemeProvider"
+        "org.simpelv2.theme.ThemeProvider"
     }
 
     fn get_provider_factory_class(&self) -> &'static str {
-        "org.keycloak.theme.ThemeProviderFactory"
+        "org.simpelv2.theme.ThemeProviderFactory"
     }
 }
 

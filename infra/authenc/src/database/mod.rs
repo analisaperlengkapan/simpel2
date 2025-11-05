@@ -734,7 +734,7 @@ pub mod operations;
 /// Database module exports
 pub mod queries;
 
-/// Transaction management for Keycloak-like transaction semantics
+/// Transaction management for enterprise IAM-like transaction semantics
 pub mod transaction;
 
 /// Prepared statement caching for improved performance

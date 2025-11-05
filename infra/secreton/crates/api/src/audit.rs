@@ -196,7 +196,7 @@ impl AuditLogger {
         events
             .iter()
             .rev()
-            .filter(|e| e.realm.as_ref().map_or(false, |r| r == realm))
+            .filter(|e| e.realm.as_ref().is_some_and(|r| r == realm))
             .take(count)
             .cloned()
             .collect()

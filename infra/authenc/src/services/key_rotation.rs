@@ -6,7 +6,7 @@
 
 use crate::error::{AuthencError, Result};
 use crate::models::user::SecurityContext;
-use crate::vault::secreton_client::SecretonClient;
+use crate::secreton_client::secreton_client::SecretonClient;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

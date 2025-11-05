@@ -279,7 +279,7 @@ Alerts are sent to:
 2. Verify authentication:
    ```bash
    # Check Secreton token
-   vault auth -method=token
+   secreton auth -method=token
 
    # Check Authenc credentials
    curl -X POST http://authenc:8088/realms/simpel/protocol/openid-connect/token

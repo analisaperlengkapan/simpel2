@@ -21,7 +21,7 @@ Selamat datang di dokumentasi lengkap SIMPelv2. Dokumentasi ini mencakup semua a
 - [Notification Service](layanan-notifikasi.md) - Sistem notifikasi
 
 ### **🔐 Security & Compliance**
-- [Vault Documentation](vault.md) - HashiCorp Vault setup dan konfigurasi
+- [Vault Documentation](vault.md) - Secreton setup dan konfigurasi
 - [Security Guidelines](security/) - Panduan keamanan
 - [Compliance Standards](compliance/) - Standar compliance (ISO, PCI DSS)
 

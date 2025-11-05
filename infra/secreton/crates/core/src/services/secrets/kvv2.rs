@@ -268,11 +268,10 @@ impl Kvv2Engine {
             .ok_or_else(|| Kvv2Error::SecretNotFound(path.to_string()))?;
 
         for version_num in versions {
-            if let Some(version) = secret.versions.get_mut(&version_num) {
-                if !version.destroyed {
+            if let Some(version) = secret.versions.get_mut(&version_num)
+                && !version.destroyed {
                     version.undelete();
                 }
-            }
         }
 
         Ok(())

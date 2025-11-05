@@ -131,8 +131,7 @@ impl NamespacePath {
             return Ok(());
         }
 
-        if namespace_id.starts_with("wilayah-") {
-            let code = &namespace_id[8..];
+        if let Some(code) = namespace_id.strip_prefix("wilayah-") {
             if code.is_empty() {
                 return Err(PathResolutionError::InvalidNamespaceId(
                     "Wilayah code cannot be empty".to_string(),
@@ -141,8 +140,7 @@ impl NamespacePath {
             return Ok(());
         }
 
-        if namespace_id.starts_with("satker-") {
-            let code = &namespace_id[7..];
+        if let Some(code) = namespace_id.strip_prefix("satker-") {
             if code.is_empty() {
                 return Err(PathResolutionError::InvalidNamespaceId(
                     "Satker code cannot be empty".to_string(),

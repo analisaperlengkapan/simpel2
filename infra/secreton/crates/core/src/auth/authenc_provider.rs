@@ -5,7 +5,7 @@
 //! SIMKARI super app authentication system.
 
 use crate::error::CoreError;
-use crate::models::auth::{AuthResponse, UserInfo};
+use crate::models::auth::UserInfo;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -75,22 +75,42 @@ pub struct TokenValidation {
     pub error_message: Option<String>,
 }
 
-/// User information for authorization checks
+/// User information for Authenc authorization checks
+///
+/// **Note**: This is specific to Indonesian government Authenc integration.
+/// For general user operations, use `crate::models::user::User` (the canonical User model).
+///
+/// This struct contains Authenc-specific fields (NIP, satker_code) that may not
+/// be present in other authentication providers.
+#[deprecated(
+    since = "1.1.0",
+    note = "Renamed to AuthencUserInfo to avoid confusion with canonical User model in crate::models::user. Use AuthencUserInfo instead."
+)]
+pub type User = AuthencUserInfo;
+
+/// User information from Authenc provider (Indonesian government authentication)
+///
+/// This struct represents user data returned from the Authenc authentication system,
+/// which is specific to Indonesian government agencies. It includes government-specific
+/// fields like NIP (employee ID number) and satker_code (organizational unit code).
+///
+/// **Important**: This is NOT the canonical User model. For general user operations,
+/// use `crate::models::user::User` instead. This struct is only for Authenc integration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct User {
-    /// User identifier
+pub struct AuthencUserInfo {
+    /// User identifier (as String for Authenc compatibility)
     pub id: String,
-    /// User's NIP (Nomor Induk Pegawai)
+    /// User's NIP (Nomor Induk Pegawai - Indonesian civil servant ID)
     pub nip: Option<String>,
-    /// User's name
+    /// User's full name
     pub name: String,
-    /// User's email
+    /// User's email address
     pub email: Option<String>,
-    /// Satker code
+    /// Satker code (Satuan Kerja - organizational unit code)
     pub satker_code: Option<String>,
-    /// User roles
+    /// User roles (from Authenc)
     pub roles: Vec<String>,
-    /// User permissions
+    /// User permissions (from Authenc)
     pub permissions: Vec<String>,
 }
 
@@ -129,11 +149,10 @@ impl TokenCache {
     /// Get cached token validation
     pub async fn get(&self, token: &str) -> Option<TokenValidation> {
         let cache = self.cache.read().await;
-        if let Some(entry) = cache.get(token) {
-            if !entry.is_expired() {
+        if let Some(entry) = cache.get(token)
+            && !entry.is_expired() {
                 return Some(entry.validation.clone());
             }
-        }
         None
     }
 
@@ -364,7 +383,7 @@ impl AuthProvider for AuthencAuthProvider {
             "service": "secreton"
         });
 
-        let mut request = self.client.post(&url).json(&payload);
+        let request = self.client.post(&url).json(&payload);
 
         // Add client certificate if available
         if let Some(_cert) = &self.client_cert {

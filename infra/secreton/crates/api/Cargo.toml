@@ -66,6 +66,7 @@ url.workspace = true
 secreton-core.workspace = true
 secreton-storage.workspace = true
 secreton-crypto.workspace = true
+secreton-hsm.workspace = true
 
 [features]
 default = []

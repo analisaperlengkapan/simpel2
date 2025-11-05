@@ -4,8 +4,9 @@
 
 use super::error::CaptchaError;
 use crate::models::user::SecurityContext;
-use crate::vault::secreton_client::SecretonClient;
-use crate::vault::{Vault, VaultError};
+use crate::secreton_client::secreton_client::SecretonClient;
+use crate::secreton_client::{SecretonClientTrait, SecretonError};
+use crate::secreton_client::SecretonError as VaultError;
 use async_trait::async_trait;
 use base64;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -201,7 +202,7 @@ pub fn create_captcha_secreton_client(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vault::secreton_client::SecretonClient;
+    use crate::secreton_client::secreton_client::SecretonClient;
 
     #[tokio::test]
     async fn test_captcha_secreton_client_creation() {

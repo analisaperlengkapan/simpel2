@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use crate::config::ApiConfig;
 use secreton_core::audit::AuditLogger;
-use secreton_core::hsm::HsmBackend;
+use secreton_hsm::HsmBackend;
 use secreton_core::namespace::NamespaceService;
 use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::policy::PolicySet;
@@ -109,6 +109,9 @@ pub struct ServiceContainer {
 
     /// HSM backend (optional)
     pub hsm: Option<Arc<HsmBackend>>,
+
+    /// MFA service for multi-factor authentication
+    pub mfa: Arc<secreton_core::services::mfa::MfaService>,
 }
 
 impl ServiceContainer {
@@ -136,9 +139,10 @@ impl ServiceContainer {
             vault::VaultService::new(storage.clone(), crypto.clone(), audit.clone()).await?,
         );
 
-        // Initialize admin service
+        // Initialize admin service (needs API AuditLogger wrapper)
+        let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
         let admin =
-            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), audit.clone()).await?);
+            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit.clone()).await?);
 
         // Initialize seal/unseal service
         let seal_config = SealConfig {
@@ -238,6 +242,10 @@ impl ServiceContainer {
             None
         };
 
+        // Initialize MFA service
+        let mfa = Arc::new(secreton_core::services::mfa::MfaService::new());
+        tracing::info!("✅ MFA service initialized");
+
         Ok(Self {
             config: config.clone(),
             storage,
@@ -254,6 +262,7 @@ impl ServiceContainer {
             policy,
             wrapping_service,
             hsm,
+            mfa,
         })
     }
 
@@ -362,6 +371,10 @@ impl ServiceContainer {
         // Initialize wrapping service for mock
         let wrapping_service = Arc::new(WrappingService::new(pool.clone()));
 
+        // Initialize MFA service
+        let mfa = Arc::new(secreton_core::services::mfa::MfaService::new());
+        tracing::info!("✅ MFA service initialized (mock mode)");
+
         Self {
             config: ApiConfig::default(),
             storage: storage.clone(),
@@ -381,6 +394,7 @@ impl ServiceContainer {
             policy,
             wrapping_service,
             hsm: None, // No HSM in mock
+            mfa,
         }
     }
 }

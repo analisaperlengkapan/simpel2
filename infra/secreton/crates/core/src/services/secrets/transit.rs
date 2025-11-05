@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 /// Error types for transit engine
 #[derive(Debug, thiserror::Error)]
@@ -292,7 +291,7 @@ impl TransitEngine {
         let key_material = key
             .versions
             .get(&version)
-            .ok_or_else(|| TransitError::KeyVersionNotFound(version))?;
+            .ok_or(TransitError::KeyVersionNotFound(version))?;
 
         // Perform encryption (simplified - production would use actual crypto)
         let ciphertext = self.encrypt_with_key(key_material, plaintext, context, &key.key_type)?;
@@ -345,7 +344,7 @@ impl TransitEngine {
         let key_material = key
             .versions
             .get(&version)
-            .ok_or_else(|| TransitError::KeyVersionNotFound(version))?;
+            .ok_or(TransitError::KeyVersionNotFound(version))?;
 
         // Perform decryption
         let plaintext =
@@ -418,7 +417,7 @@ impl TransitEngine {
         let key_material = key
             .versions
             .get(&version)
-            .ok_or_else(|| TransitError::KeyVersionNotFound(version))?;
+            .ok_or(TransitError::KeyVersionNotFound(version))?;
 
         // Compute HMAC (simplified)
         let hmac_value = self.compute_hmac(key_material, input)?;

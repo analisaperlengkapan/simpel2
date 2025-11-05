@@ -177,7 +177,7 @@ pub fn derive_key(
             Ok(key)
         }
         KdfAlgorithm::Scrypt => {
-            use scrypt::{Params, scrypt};
+            use scrypt::{scrypt, Params};
             let params = Params::new(
                 14, // log_n (2^14 = 16384)
                 8,  // r
@@ -250,6 +250,7 @@ impl SecureRandom for rand::rngs::ThreadRng {
 }
 
 /// Algorithm registry for dynamic algorithm selection
+/// Note: FUTURE FEATURE - Reserved for dynamic algorithm registry implementation
 #[derive(Debug, Default)]
 #[allow(dead_code)]
 pub struct AlgorithmRegistry {

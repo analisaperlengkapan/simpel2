@@ -342,7 +342,7 @@ impl AppState {
         );
         spi_manager.registry_mut().register_factory(
             "theme",
-            crate::spi::theme::DefaultThemeProviderFactory::new("keycloak".to_string()),
+            crate::spi::theme::DefaultThemeProviderFactory::new("simpelv2".to_string()),
         );
         spi_manager.registry_mut().register_factory(
             "userprofile",

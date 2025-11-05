@@ -355,13 +355,13 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 1. **Secreton Issues**:
    ```bash
    # Renew Secreton token
-   vault auth -method=userpass username=captcha-service
+   secreton auth -method=userpass username=captcha-service
 
    # Check mount path
-   vault mounts | grep captcha
+   secreton mounts | grep captcha
 
    # Test encryption/decryption
-   vault write captcha/encrypt plaintext=$(echo "test" | base64)
+   secreton write captcha/encrypt plaintext=$(echo "test" | base64)
    ```
 
 2. **Authenc Issues**:

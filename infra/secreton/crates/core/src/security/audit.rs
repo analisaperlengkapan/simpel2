@@ -277,8 +277,13 @@ pub struct RetentionPolicy {
     pub permanent_retention_categories: Vec<AuditCategory>,
 }
 
+/// Security audit errors for enhanced compliance and monitoring features
+///
+/// Distinct from `crate::audit::SecurityAuditError` which handles basic audit logging.
+/// This error type is for advanced security features like SIEM integration,
+/// compliance validation, and anomaly detection.
 #[derive(Debug, thiserror::Error)]
-pub enum AuditError {
+pub enum SecurityAuditError {
     #[error("Audit storage error: {message}")]
     StorageError { message: String },
 
@@ -310,25 +315,25 @@ pub enum AuditError {
 /// Trait for audit storage backends
 #[async_trait]
 pub trait AuditStorage: Send + Sync {
-    async fn store_entry(&self, entry: &SignedAuditEntry) -> Result<(), AuditError>;
+    async fn store_entry(&self, entry: &SignedAuditEntry) -> Result<(), SecurityAuditError>;
     async fn retrieve_entries(
         &self,
         start_sequence: u64,
         end_sequence: u64,
-    ) -> Result<Vec<SignedAuditEntry>, AuditError>;
-    async fn get_latest_sequence(&self) -> Result<u64, AuditError>;
+    ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError>;
+    async fn get_latest_sequence(&self) -> Result<u64, SecurityAuditError>;
     async fn search_entries(&self, query: &AuditQuery)
-        -> Result<Vec<SignedAuditEntry>, AuditError>;
+        -> Result<Vec<SignedAuditEntry>, SecurityAuditError>;
     async fn verify_chain_integrity(
         &self,
         start_sequence: u64,
         end_sequence: u64,
-    ) -> Result<bool, AuditError>;
+    ) -> Result<bool, SecurityAuditError>;
     async fn archive_entries(
         &self,
         before_sequence: u64,
         archive_location: &str,
-    ) -> Result<u64, AuditError>;
+    ) -> Result<u64, SecurityAuditError>;
 }
 
 /// Query structure for audit log searches
@@ -369,12 +374,12 @@ pub trait AnomalyDetector: Send + Sync {
         &self,
         event: &AuditEvent,
         pattern: Option<&BehavioralPattern>,
-    ) -> Result<Vec<AnomalyResult>, AuditError>;
+    ) -> Result<Vec<AnomalyResult>, SecurityAuditError>;
     async fn update_behavioral_pattern(
         &self,
         user_id: &str,
         event: &AuditEvent,
-    ) -> Result<BehavioralPattern, AuditError>;
+    ) -> Result<BehavioralPattern, SecurityAuditError>;
     fn get_baseline_metrics(&self, user_id: &str) -> Option<HashMap<String, f64>>;
 }
 
@@ -385,16 +390,16 @@ impl AdvancedAuditSystem {
         node_id: String,
         compliance_config: ComplianceConfig,
         anomaly_detector: Arc<dyn AnomalyDetector>,
-    ) -> Result<Self, AuditError> {
+    ) -> Result<Self, SecurityAuditError> {
         // Generate signing key pair for entry integrity
         let rng = ring::rand::SystemRandom::new();
         let pkcs8_bytes =
-            Ed25519KeyPair::generate_pkcs8(&rng).map_err(|e| AuditError::StorageError {
+            Ed25519KeyPair::generate_pkcs8(&rng).map_err(|e| SecurityAuditError::StorageError {
                 message: format!("Key generation failed: {}", e),
             })?;
 
         let signing_key = Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref()).map_err(|e| {
-            AuditError::StorageError {
+            SecurityAuditError::StorageError {
                 message: format!("Key parsing failed: {}", e),
             }
         })?;
@@ -418,7 +423,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Initialize the audit system
-    pub async fn initialize(&self) -> Result<(), AuditError> {
+    pub async fn initialize(&self) -> Result<(), SecurityAuditError> {
         // Get the latest sequence number from storage
         let latest_sequence = self.storage.get_latest_sequence().await?;
         {
@@ -437,7 +442,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Log an audit event
-    pub async fn log_event(&self, mut event: AuditEvent) -> Result<Uuid, AuditError> {
+    pub async fn log_event(&self, mut event: AuditEvent) -> Result<Uuid, SecurityAuditError> {
         // Enrich event with additional context
         event.timestamp = Utc::now();
         if event.event_id.is_nil() {
@@ -539,8 +544,9 @@ impl AdvancedAuditSystem {
     }
 
     /// Create and sign an audit entry
+    /// Note: FUTURE FEATURE - Digital signature verification for audit integrity
     #[allow(dead_code)]
-    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, AuditError> {
+    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
         // Get next sequence number
         let sequence_number = {
             let mut counter = self.sequence_counter.lock().unwrap();
@@ -564,7 +570,7 @@ impl AdvancedAuditSystem {
 
         // Create entry hash
         let entry_data =
-            serde_json::to_vec(&event).map_err(|e| AuditError::SerializationError {
+            serde_json::to_vec(&event).map_err(|e| SecurityAuditError::SerializationError {
                 message: e.to_string(),
             })?;
 
@@ -589,7 +595,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Verify the integrity of an audit entry
-    pub fn verify_entry(&self, entry: &SignedAuditEntry) -> Result<bool, AuditError> {
+    pub fn verify_entry(&self, entry: &SignedAuditEntry) -> Result<bool, SecurityAuditError> {
         // Verify signature
         match self
             .verification_key
@@ -601,7 +607,7 @@ impl AdvancedAuditSystem {
 
         // Verify hash
         let entry_data =
-            serde_json::to_vec(&entry.event).map_err(|e| AuditError::SerializationError {
+            serde_json::to_vec(&entry.event).map_err(|e| SecurityAuditError::SerializationError {
                 message: e.to_string(),
             })?;
 
@@ -616,7 +622,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Search audit logs with comprehensive querying
-    pub async fn search(&self, query: &AuditQuery) -> Result<Vec<SignedAuditEntry>, AuditError> {
+    pub async fn search(&self, query: &AuditQuery) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
         self.storage.search_entries(query).await
     }
 
@@ -626,7 +632,7 @@ impl AdvancedAuditSystem {
         standard: ComplianceStandard,
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
-    ) -> Result<ComplianceReport, AuditError> {
+    ) -> Result<ComplianceReport, SecurityAuditError> {
         let query = AuditQuery {
             start_time: Some(start_time),
             end_time: Some(end_time),
@@ -743,7 +749,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Send audit entry to SIEM system
-    async fn send_to_siem(entry: &SignedAuditEntry, config: &SiemConfig) -> Result<(), AuditError> {
+    async fn send_to_siem(entry: &SignedAuditEntry, config: &SiemConfig) -> Result<(), SecurityAuditError> {
         // Implementation would send to actual SIEM system
         debug!(
             "Sending audit entry {} to SIEM at {}",
@@ -905,7 +911,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Start monitoring tasks (called by security orchestrator)
-    pub async fn start_monitoring(&self) -> Result<(), AuditError> {
+    pub async fn start_monitoring(&self) -> Result<(), SecurityAuditError> {
         self.start_batch_processing().await
     }
 
@@ -927,7 +933,7 @@ impl AdvancedAuditSystem {
     }
 
     /// Start batch processing
-    pub async fn start_batch_processing(&self) -> Result<(), AuditError> {
+    pub async fn start_batch_processing(&self) -> Result<(), SecurityAuditError> {
         let mut running = self.batch_processor_running.lock().unwrap();
         if *running {
             return Ok(());
@@ -946,7 +952,7 @@ struct ProcessingAuditSystem {
 }
 
 impl ProcessingAuditSystem {
-    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, AuditError> {
+    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
         let sequence_number = {
             let mut counter = self.sequence_counter.lock().unwrap();
             *counter += 1;
@@ -956,7 +962,7 @@ impl ProcessingAuditSystem {
         let previous_hash = vec![0; 32]; // Simplified for background processing
 
         let entry_data =
-            serde_json::to_vec(&event).map_err(|e| AuditError::SerializationError {
+            serde_json::to_vec(&event).map_err(|e| SecurityAuditError::SerializationError {
                 message: e.to_string(),
             })?;
 
@@ -1000,7 +1006,7 @@ impl AnomalyDetector for SimpleAnomalyDetector {
         &self,
         event: &AuditEvent,
         pattern: Option<&BehavioralPattern>,
-    ) -> Result<Vec<AnomalyResult>, AuditError> {
+    ) -> Result<Vec<AnomalyResult>, SecurityAuditError> {
         let mut anomalies = Vec::new();
 
         if let Some(pattern) = pattern {
@@ -1043,7 +1049,7 @@ impl AnomalyDetector for SimpleAnomalyDetector {
         &self,
         user_id: &str,
         event: &AuditEvent,
-    ) -> Result<BehavioralPattern, AuditError> {
+    ) -> Result<BehavioralPattern, SecurityAuditError> {
         // Create or update behavioral pattern
         let current_hour = event.timestamp.hour() as u8;
 
@@ -1084,7 +1090,7 @@ mod tests {
 
     #[async_trait]
     impl AuditStorage for MockAuditStorage {
-        async fn store_entry(&self, entry: &SignedAuditEntry) -> Result<(), AuditError> {
+        async fn store_entry(&self, entry: &SignedAuditEntry) -> Result<(), SecurityAuditError> {
             let mut entries = self.entries.lock().unwrap();
             entries.push(entry.clone());
             Ok(())
@@ -1094,7 +1100,7 @@ mod tests {
             &self,
             start_sequence: u64,
             end_sequence: u64,
-        ) -> Result<Vec<SignedAuditEntry>, AuditError> {
+        ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
             let entries = self.entries.lock().unwrap();
             Ok(entries
                 .iter()
@@ -1105,7 +1111,7 @@ mod tests {
                 .collect())
         }
 
-        async fn get_latest_sequence(&self) -> Result<u64, AuditError> {
+        async fn get_latest_sequence(&self) -> Result<u64, SecurityAuditError> {
             let entries = self.entries.lock().unwrap();
             Ok(entries.iter().map(|e| e.sequence_number).max().unwrap_or(0))
         }
@@ -1113,7 +1119,7 @@ mod tests {
         async fn search_entries(
             &self,
             _query: &AuditQuery,
-        ) -> Result<Vec<SignedAuditEntry>, AuditError> {
+        ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
             let entries = self.entries.lock().unwrap();
             Ok(entries.clone())
         }
@@ -1122,7 +1128,7 @@ mod tests {
             &self,
             _start_sequence: u64,
             _end_sequence: u64,
-        ) -> Result<bool, AuditError> {
+        ) -> Result<bool, SecurityAuditError> {
             Ok(true)
         }
 
@@ -1130,7 +1136,7 @@ mod tests {
             &self,
             _before_sequence: u64,
             _archive_location: &str,
-        ) -> Result<u64, AuditError> {
+        ) -> Result<u64, SecurityAuditError> {
             Ok(0)
         }
     }

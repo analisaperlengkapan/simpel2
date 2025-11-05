@@ -70,7 +70,7 @@ metadata:
   namespace: simpelv2-infra
   labels:
     app.kubernetes.io/name: secreton
-    app.kubernetes.io/component: vault
+    app.kubernetes.io/component: secreton
 spec:
   type: ClusterIP
   ports:

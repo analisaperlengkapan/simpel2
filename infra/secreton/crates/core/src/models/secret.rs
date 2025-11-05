@@ -1,6 +1,5 @@
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{Metadata, SecurityLevel};
@@ -256,29 +255,26 @@ impl Secret {
         admin_level: Option<&AdminLevel>,
     ) -> bool {
         // Check satker access
-        if !self.access_control.required_satker.is_empty() {
-            if !self
+        if !self.access_control.required_satker.is_empty()
+            && !self
                 .access_control
                 .required_satker
                 .contains(&user_satker.to_string())
             {
                 return false;
             }
-        }
 
         // Check NIP whitelist/blacklist
         if let Some(nip) = user_nip {
-            if let Some(blacklist) = &self.access_control.nip_blacklist {
-                if blacklist.contains(&nip.to_string()) {
+            if let Some(blacklist) = &self.access_control.nip_blacklist
+                && blacklist.contains(&nip.to_string()) {
                     return false;
                 }
-            }
 
-            if let Some(whitelist) = &self.access_control.nip_whitelist {
-                if !whitelist.contains(&nip.to_string()) {
+            if let Some(whitelist) = &self.access_control.nip_whitelist
+                && !whitelist.contains(&nip.to_string()) {
                     return false;
                 }
-            }
         }
 
         // Check role requirements
@@ -295,19 +291,17 @@ impl Secret {
         }
 
         // Check admin level requirements
-        if let Some(required_admin_level) = &self.access_control.admin_level_required {
-            if admin_level.is_none() {
+        if let Some(required_admin_level) = &self.access_control.admin_level_required
+            && admin_level.is_none() {
                 return false;
             }
             // In production, implement proper admin level hierarchy checking
-        }
 
         // Check time-based access
-        if let Some(time_access) = &self.access_control.time_based_access {
-            if !self.check_time_based_access(time_access) {
+        if let Some(time_access) = &self.access_control.time_based_access
+            && !self.check_time_based_access(time_access) {
                 return false;
             }
-        }
 
         true
     }
@@ -317,34 +311,30 @@ impl Secret {
         let now = Utc::now();
 
         // Check validity period
-        if let Some(valid_from) = time_access.valid_from {
-            if now < valid_from {
+        if let Some(valid_from) = time_access.valid_from
+            && now < valid_from {
                 return false;
             }
-        }
 
-        if let Some(valid_until) = time_access.valid_until {
-            if now > valid_until {
+        if let Some(valid_until) = time_access.valid_until
+            && now > valid_until {
                 return false;
             }
-        }
 
         // Check allowed hours and days
         // In production, implement proper timezone handling
         let hour = now.hour() as u8;
         let weekday = now.weekday().num_days_from_sunday() as u8;
 
-        if let Some(allowed_hours) = &time_access.allowed_hours {
-            if !allowed_hours.contains(&hour) {
+        if let Some(allowed_hours) = &time_access.allowed_hours
+            && !allowed_hours.contains(&hour) {
                 return false;
             }
-        }
 
-        if let Some(allowed_days) = &time_access.allowed_days {
-            if !allowed_days.contains(&weekday) {
+        if let Some(allowed_days) = &time_access.allowed_days
+            && !allowed_days.contains(&weekday) {
                 return false;
             }
-        }
 
         true
     }

@@ -168,13 +168,13 @@ pub async fn login(
         return Err(AuthencError::unauthorized("Invalid credentials"));
     }
 
-    // Verify password (temporarily disabled for testing)
-    // TODO: Re-enable password verification in production
-    let password_valid = if user.username == "admin" {
-        true // For testing: accept any password for admin user
+    // Verify password against stored hash
+    let password_valid = if let Some(password_hash) = &user.password_hash {
+        crate::utils::crypto::password::verify_password(password_hash, &req.password)
+            .map_err(|e| AuthencError::internal(format!("Password verification error: {}", e)))?
     } else {
-        // In production, verify password hash here
-        true // Temporarily accept all passwords for testing
+        // No password hash stored - reject authentication
+        false
     };
 
     if !password_valid {

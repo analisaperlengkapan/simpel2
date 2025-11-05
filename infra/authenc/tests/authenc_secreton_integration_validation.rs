@@ -11,7 +11,7 @@ use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::AuthencError;
 use authenc::models::user::{SecretonPermissions, Token, User};
-use authenc::vault::secreton_client::SecretonClient;
+use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for validating secure authenc-secreton integration
 #[cfg(test)]

@@ -20,11 +20,11 @@ impl Spi for LocaleSpi {
     }
 
     fn get_provider_class(&self) -> &'static str {
-        "org.keycloak.locale.LocaleProvider"
+        "org.simpelv2.locale.LocaleProvider"
     }
 
     fn get_provider_factory_class(&self) -> &'static str {
-        "org.keycloak.locale.LocaleProviderFactory"
+        "org.simpelv2.locale.LocaleProviderFactory"
     }
 }
 

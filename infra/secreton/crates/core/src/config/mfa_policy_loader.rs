@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::fs;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// MFA policy configuration loaded from TOML files
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -22,10 +22,13 @@ tokio.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 
-# HTTP/Web frameworks
-axum.workspace = true
-warp.workspace = true
+# HTTP client (for external API calls like Authenc)
 reqwest.workspace = true
+
+# DEPRECATED: Web framework dependencies moved to optional features
+# These are only needed for deprecated legacy code and will be removed in v2.0.0
+axum = { workspace = true, optional = true }
+warp = { workspace = true, optional = true }
 
 # Database
 deadpool-postgres.workspace = true
@@ -51,6 +54,9 @@ glob.workspace = true
 parking_lot.workspace = true
 log.workspace = true
 getrandom.workspace = true
+regex.workspace = true
+ipnetwork.workspace = true
+url.workspace = true
 
 # Internal crates
 secreton-crypto.workspace = true
@@ -62,3 +68,9 @@ tempfile.workspace = true
 [features]
 default = []
 test-utils = []
+
+# DEPRECATED: Legacy web framework support
+# These features enable deprecated code that depends on web frameworks.
+# Will be removed in v2.0.0. Do not use in new code.
+legacy-warp-api = ["dep:warp"]
+legacy-axum-middleware = ["dep:axum"]

@@ -1,7 +1,222 @@
-//! Configuration management for Secreton
+//! Configuration Management for Secreton
 //!
-//! This module provides configuration loading and management capabilities
-//! for various Secreton components including MFA policies and dynamic configuration.
+//! This module provides centralized configuration loading, validation, and hot-reloading
+//! capabilities for all Secreton components, following 12-Factor App principles.
+//!
+//! # Configuration Sources (Priority Order)
+//!
+//! 1. **Environment Variables** - Highest priority (production secrets)
+//! 2. **Config File** - YAML/TOML files (dev/staging)
+//! 3. **Vault** - Remote config from Secreton itself (self-hosting)
+//! 4. **Defaults** - Hardcoded fallbacks
+//!
+//! ```text
+//! ┌────────────────────────────────────────┐
+//! │   Environment Variables (highest)      │
+//! └──────────────┬─────────────────────────┘
+//!                ▼
+//! ┌────────────────────────────────────────┐
+//! │   Config File (config.yaml)            │
+//! └──────────────┬─────────────────────────┘
+//!                ▼
+//! ┌────────────────────────────────────────┐
+//! │   Vault (remote config)                │
+//! └──────────────┬─────────────────────────┘
+//!                ▼
+//! ┌────────────────────────────────────────┐
+//! │   Default Values (fallback)            │
+//! └────────────────────────────────────────┘
+//! ```
+//!
+//! # Example: Load Configuration
+//!
+//! ```rust,no_run
+//! use secreton_core::config::SecretonConfig;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Load from default locations
+//! let config = SecretonConfig::load()?;
+//!
+//! println!("Server: {}:{}", config.server.host, config.server.port);
+//! println!("Database: {}", config.database.url);
+//! println!("MFA required: {}", config.mfa.require_for_admin);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Example: Environment Override
+//!
+//! ```bash
+//! # Override config with environment variables
+//! export SECRETON_SERVER_PORT=9000
+//! export SECRETON_DATABASE_URL=postgresql://prod-db:5432/secreton
+//! export SECRETON_MFA_REQUIRE_FOR_ADMIN=true
+//! ```
+//!
+//! # Configuration Modules
+//!
+//! - **Server Config** - Host, port, TLS settings, worker threads
+//! - **Database Config** - Connection string, pool size, timeouts
+//! - **MFA Policy** - Required methods, grace period, backup codes
+//! - **Audit Config** - Backends, retention, sampling rate
+//! - **Cache Config** - TTL, size limits, eviction policy
+//! - **Crypto Config** - Algorithms, key sizes, rotation policy
+//!
+//! # Dynamic Configuration
+//!
+//! Some settings can be changed at runtime without restart:
+//!
+//! ```rust,no_run
+//! use secreton_core::config::DynamicConfig;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let dynamic = DynamicConfig::new();
+//!
+//! // Update MFA requirement at runtime
+//! dynamic.update_mfa_policy(|policy| {
+//!     policy.require_for_admin = true;
+//!     policy.grace_period_hours = 24;
+//! }).await?;
+//!
+//! // Changes apply immediately to new requests
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # MFA Policy Configuration
+//!
+//! ```rust,no_run
+//! use secreton_core::config::MfaPolicyLoader;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let policy = MfaPolicyLoader::load_from_file("mfa-policy.yaml")?;
+//!
+//! println!("Required for admin: {}", policy.require_for_admin);
+//! println!("Allowed methods: {:?}", policy.allowed_methods);
+//! println!("Backup codes enabled: {}", policy.allow_backup_codes);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Example `mfa-policy.yaml`:
+//!
+//! ```yaml
+//! require_for_admin: true
+//! require_for_secrets: true
+//! allowed_methods:
+//!   - totp
+//!   - webauthn
+//! grace_period_hours: 24
+//! allow_backup_codes: true
+//! backup_code_count: 10
+//! ```
+//!
+//! # Validation
+//!
+//! Configuration validated on load:
+//!
+//! - Database URLs must be valid PostgreSQL URIs
+//! - Port numbers in valid range (1-65535)
+//! - File paths must be readable/writable
+//! - MFA methods must be supported
+//! - Crypto algorithms must be approved (FIPS 140-3)
+//!
+//! ```rust,no_run
+//! # use secreton_core::config::SecretonConfig;
+//! # fn example() {
+//! match SecretonConfig::load() {
+//!     Ok(config) => println!("Config valid: {:#?}", config),
+//!     Err(e) => {
+//!         eprintln!("Invalid config: {}", e);
+//!         std::process::exit(1);
+//!     }
+//! }
+//! # }
+//! ```
+//!
+//! # Hot Reload
+//!
+//! Watch config files for changes:
+//!
+//! ```rust,no_run
+//! # use secreton_core::config::DynamicConfig;
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let dynamic = DynamicConfig::new();
+//!
+//! // Watch config file for changes
+//! dynamic.watch("config.yaml").await?;
+//!
+//! // Automatically reloads on file change
+//! // Non-critical settings updated without restart
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Secrets in Configuration
+//!
+//! **NEVER** put secrets directly in config files. Use:
+//!
+//! 1. **Environment Variables**: `SECRETON_DATABASE_PASSWORD=...`
+//! 2. **Vault References**: `database_password: ${vault:database/prod/password}`
+//! 3. **File References**: `tls_cert: ${file:/etc/secreton/cert.pem}`
+//!
+//! ```yaml
+//! # ❌ BAD - Secret in config file
+//! database:
+//!   url: postgresql://user:password123@db/secreton
+//!
+//! # ✅ GOOD - Secret from environment
+//! database:
+//!   url: ${env:DATABASE_URL}
+//!
+//! # ✅ GOOD - Secret from Vault
+//! database:
+//!   url: ${vault:secrets/database/url}
+//! ```
+//!
+//! # Configuration Struct
+//!
+//! Main configuration structure:
+//!
+//! ```rust,ignore
+//! pub struct SecretonConfig {
+//!     pub server: ServerConfig,
+//!     pub database: DatabaseConfig,
+//!     pub mfa: MfaPolicyConfig,
+//!     pub audit: AuditConfig,
+//!     pub cache: CacheConfig,
+//!     pub crypto: CryptoConfig,
+//!     pub namespace: NamespaceConfig,
+//! }
+//! ```
+//!
+//! # Default Configuration
+//!
+//! Development-safe defaults:
+//!
+//! ```rust,no_run
+//! # use secreton_core::config::SecretonConfig;
+//! let config = SecretonConfig::default();
+//! // server: 127.0.0.1:8200
+//! // database: postgresql://localhost/secreton
+//! // mfa: disabled for dev, enabled for prod
+//! ```
+//!
+//! # Environment Variable Mapping
+//!
+//! | Environment Variable | Config Path | Example |
+//! |---------------------|-------------|---------|
+//! | `SECRETON_SERVER_PORT` | `server.port` | `8200` |
+//! | `SECRETON_DATABASE_URL` | `database.url` | `postgresql://...` |
+//! | `SECRETON_MFA_REQUIRE_FOR_ADMIN` | `mfa.require_for_admin` | `true` |
+//! | `SECRETON_LOG_LEVEL` | `server.log_level` | `info` |
+//!
+//! # See Also
+//!
+//! - [`DynamicConfig`] - Runtime configuration updates
+//! - [`MfaPolicyLoader`] - MFA policy management
+//! - `crate::storage` - Database connection configuration
+//! - `crate::audit` - Audit logging configuration
 
 use crate::error::{CoreError, Result};
 use config;

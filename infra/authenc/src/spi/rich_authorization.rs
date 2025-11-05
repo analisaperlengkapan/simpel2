@@ -34,11 +34,11 @@ impl crate::spi::Spi for RichAuthorizationSpi {
     }
 
     fn get_provider_class(&self) -> &'static str {
-        "org.keycloak.authorization.policy.provider.rar.RichAuthorizationProvider"
+        "org.simpelv2.authorization.policy.provider.rar.RichAuthorizationProvider"
     }
 
     fn get_provider_factory_class(&self) -> &'static str {
-        "org.keycloak.authorization.policy.provider.rar.RichAuthorizationProviderFactory"
+        "org.simpelv2.authorization.policy.provider.rar.RichAuthorizationProviderFactory"
     }
 }
 

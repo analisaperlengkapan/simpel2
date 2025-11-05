@@ -77,11 +77,5 @@ pub enum HsmError {
     Other(String),
 }
 
-impl From<HsmError> for crate::error::CoreError {
-    fn from(err: HsmError) -> Self {
-        crate::error::CoreError::Internal {
-            message: format!("HSM error: {}", err),
-            source: None,
-        }
-    }
-}
+// NOTE: CoreError conversion removed - HSM is now a separate crate.
+// If core needs to convert HsmError, implement From<HsmError> in core.

@@ -1,15 +1,154 @@
 //! Error handling for the Secreton API.
 
 use axum::{
-    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
 
 use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::{ApiResponse, ErrorDetails, ResponseMetadata};
+
+/// Authentication and authorization error types.
+///
+/// This enum consolidates all authentication-related errors across the API crate.
+/// Previously duplicated in `auth.rs` and `services/auth.rs`, now centralized here.
+///
+/// # Design Notes
+/// - Includes HTTP-specific variants (MissingAuthHeader, InvalidAuthHeader)
+/// - Includes service-level variants (MfaRequired, TokenExpired, UserAlreadyExists)
+/// - Provides automatic error conversion from Storage and Crypto errors
+/// - Implements IntoResponse for direct use in Axum handlers
+#[derive(Error, Debug)]
+pub enum AuthError {
+    /// Invalid username or password
+    #[error("Invalid credentials")]
+    InvalidCredentials,
+
+    /// User not found in the system
+    #[error("User not found")]
+    UserNotFound,
+
+    /// User already exists (during registration)
+    #[error("User already exists")]
+    UserAlreadyExists,
+
+    /// Invalid JWT or session token
+    #[error("Invalid token")]
+    InvalidToken,
+
+    /// Token has expired
+    #[error("Token expired")]
+    TokenExpired,
+
+    /// Token generation failed
+    #[error("Token generation failed: {0}")]
+    TokenGeneration(String),
+
+    /// Token validation failed
+    #[error("Token validation failed: {0}")]
+    TokenValidation(String),
+
+    /// Missing Authorization header
+    #[error("Missing authorization header")]
+    MissingAuthHeader,
+
+    /// Invalid Authorization header format
+    #[error("Invalid authorization header format")]
+    InvalidAuthHeader,
+
+    /// Missing credentials in request
+    #[error("Missing credentials")]
+    MissingCredentials,
+
+    /// Multi-factor authentication required
+    #[error("MFA required")]
+    MfaRequired,
+
+    /// Invalid MFA code provided
+    #[error("Invalid MFA code")]
+    InvalidMfaCode,
+
+    /// User lacks required permissions
+    #[error("Permission denied")]
+    PermissionDenied,
+
+    /// Storage layer error
+    #[error("Storage error: {0}")]
+    Storage(#[from] secreton_storage::StorageError),
+
+    /// Cryptography error
+    #[error("Crypto error: {0}")]
+    Crypto(#[from] secreton_crypto::CryptoError),
+
+    /// Internal authentication service error
+    #[error("Internal error: {0}")]
+    Internal(String),
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        let status = match &self {
+            Self::InvalidCredentials
+            | Self::InvalidToken
+            | Self::TokenExpired
+            | Self::TokenGeneration(_)
+            | Self::TokenValidation(_)
+            | Self::MissingAuthHeader
+            | Self::InvalidAuthHeader
+            | Self::MissingCredentials
+            | Self::MfaRequired
+            | Self::InvalidMfaCode => StatusCode::UNAUTHORIZED,
+            Self::UserNotFound => StatusCode::NOT_FOUND,
+            Self::UserAlreadyExists => StatusCode::CONFLICT,
+            Self::PermissionDenied => StatusCode::FORBIDDEN,
+            Self::Storage(_) | Self::Crypto(_) | Self::Internal(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        };
+
+        let error_details = ErrorDetails {
+            code: self.error_code().to_string(),
+            message: self.to_string(),
+            details: None,
+        };
+
+        let response = ApiResponse {
+            success: false,
+            data: None::<()>,
+            error: Some(error_details),
+            metadata: ResponseMetadata::new(),
+        };
+
+        (status, Json(response)).into_response()
+    }
+}
+
+impl AuthError {
+    /// Get error code for programmatic handling
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            Self::InvalidCredentials => "INVALID_CREDENTIALS",
+            Self::UserNotFound => "USER_NOT_FOUND",
+            Self::UserAlreadyExists => "USER_EXISTS",
+            Self::InvalidToken => "INVALID_TOKEN",
+            Self::TokenExpired => "TOKEN_EXPIRED",
+            Self::TokenGeneration(_) => "TOKEN_GENERATION_FAILED",
+            Self::TokenValidation(_) => "TOKEN_VALIDATION_FAILED",
+            Self::MissingAuthHeader => "MISSING_AUTH_HEADER",
+            Self::InvalidAuthHeader => "INVALID_AUTH_HEADER",
+            Self::MissingCredentials => "MISSING_CREDENTIALS",
+            Self::MfaRequired => "MFA_REQUIRED",
+            Self::InvalidMfaCode => "INVALID_MFA_CODE",
+            Self::PermissionDenied => "PERMISSION_DENIED",
+            Self::Storage(_) => "STORAGE_ERROR",
+            Self::Crypto(_) => "CRYPTO_ERROR",
+            Self::Internal(_) => "INTERNAL_ERROR",
+        }
+    }
+}
 
 /// API error types
 #[derive(Error, Debug)]
@@ -70,7 +209,7 @@ pub enum ApiError {
     Storage(#[from] secreton_storage::StorageError),
 
     #[error("Authentication service error: {0}")]
-    Auth(#[from] crate::services::auth::AuthError),
+    Auth(#[from] crate::error::AuthError),
 }
 
 impl ApiError {
@@ -95,15 +234,22 @@ impl ApiError {
             Self::Crypto(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Auth(auth_err) => match auth_err {
-                crate::services::auth::AuthError::InvalidCredentials => StatusCode::UNAUTHORIZED,
-                crate::services::auth::AuthError::InvalidToken => StatusCode::UNAUTHORIZED,
-                crate::services::auth::AuthError::TokenExpired => StatusCode::UNAUTHORIZED,
-                crate::services::auth::AuthError::MfaRequired => StatusCode::UNAUTHORIZED,
-                crate::services::auth::AuthError::InvalidMfaCode => StatusCode::UNAUTHORIZED,
-                crate::services::auth::AuthError::UserNotFound => StatusCode::NOT_FOUND,
-                crate::services::auth::AuthError::UserAlreadyExists => StatusCode::CONFLICT,
-                crate::services::auth::AuthError::PermissionDenied => StatusCode::FORBIDDEN,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
+                crate::error::AuthError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::InvalidToken => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::TokenExpired => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::TokenGeneration(_) => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::TokenValidation(_) => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::MissingAuthHeader => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::InvalidAuthHeader => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::MissingCredentials => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::MfaRequired => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::InvalidMfaCode => StatusCode::UNAUTHORIZED,
+                crate::error::AuthError::UserNotFound => StatusCode::NOT_FOUND,
+                crate::error::AuthError::UserAlreadyExists => StatusCode::CONFLICT,
+                crate::error::AuthError::PermissionDenied => StatusCode::FORBIDDEN,
+                crate::error::AuthError::Storage(_)
+                | crate::error::AuthError::Crypto(_)
+                | crate::error::AuthError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
             },
         }
     }
@@ -128,17 +274,7 @@ impl ApiError {
             Self::Core(_) => "CORE_ERROR",
             Self::Crypto(_) => "CRYPTO_ERROR",
             Self::Storage(_) => "STORAGE_ERROR",
-            Self::Auth(auth_err) => match auth_err {
-                crate::services::auth::AuthError::InvalidCredentials => "INVALID_CREDENTIALS",
-                crate::services::auth::AuthError::InvalidToken => "INVALID_TOKEN",
-                crate::services::auth::AuthError::TokenExpired => "TOKEN_EXPIRED",
-                crate::services::auth::AuthError::MfaRequired => "MFA_REQUIRED",
-                crate::services::auth::AuthError::InvalidMfaCode => "INVALID_MFA_CODE",
-                crate::services::auth::AuthError::UserNotFound => "USER_NOT_FOUND",
-                crate::services::auth::AuthError::UserAlreadyExists => "USER_EXISTS",
-                crate::services::auth::AuthError::PermissionDenied => "PERMISSION_DENIED",
-                _ => "AUTH_ERROR",
-            },
+            Self::Auth(auth_err) => auth_err.error_code(),
         }
     }
 

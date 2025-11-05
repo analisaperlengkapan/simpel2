@@ -146,13 +146,13 @@ impl K8sRole {
         }
 
         // Check service account name
-        let sa_authorized = self.bound_service_account_names.is_empty()
+        
+
+        self.bound_service_account_names.is_empty()
             || self
                 .bound_service_account_names
                 .contains(&sa_name.to_string())
-            || self.bound_service_account_names.contains(&"*".to_string());
-
-        sa_authorized
+            || self.bound_service_account_names.contains(&"*".to_string())
     }
 }
 

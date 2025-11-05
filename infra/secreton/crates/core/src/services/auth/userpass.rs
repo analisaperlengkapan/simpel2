@@ -4,15 +4,13 @@
 //! Provides simple credential-based authentication with secure password hashing.
 
 // Removed: using secreton-crypto instead of direct argon2
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
-use crate::models::auth::{AuthRequest, AuthResponse, UserInfo};
+use crate::models::auth::UserInfo;
 
 /// Error types for UserPass authentication
 #[derive(Debug, thiserror::Error)]
@@ -150,11 +148,10 @@ impl UserPassUser {
             return Err(UserPassError::AccountLocked);
         }
 
-        if let Some(expires_at) = self.password_expires_at {
-            if Utc::now() > expires_at {
+        if let Some(expires_at) = self.password_expires_at
+            && Utc::now() > expires_at {
                 return Err(UserPassError::PasswordExpired);
             }
-        }
 
         Ok(())
     }
@@ -301,7 +298,7 @@ impl UserPassAuth {
         self.config
             .password_policy
             .validate(password)
-            .map_err(|e| UserPassError::HashingError(e))?;
+            .map_err(UserPassError::HashingError)?;
 
         let mut users = self.users.write().await;
 
@@ -331,7 +328,7 @@ impl UserPassAuth {
         self.config
             .password_policy
             .validate(new_password)
-            .map_err(|e| UserPassError::HashingError(e))?;
+            .map_err(UserPassError::HashingError)?;
 
         let mut users = self.users.write().await;
 

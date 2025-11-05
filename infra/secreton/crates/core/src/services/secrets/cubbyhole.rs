@@ -121,11 +121,10 @@ impl CubbyholeEngine {
         let mut entries = self.entries.write().await;
 
         // Verify ownership before deleting
-        if let Some(entry) = entries.get(&key) {
-            if entry.token_id != token_id {
+        if let Some(entry) = entries.get(&key)
+            && entry.token_id != token_id {
                 return Err(CubbyholeError::Unauthorized);
             }
-        }
 
         entries
             .remove(&key)

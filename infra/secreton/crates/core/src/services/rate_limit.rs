@@ -266,11 +266,10 @@ impl RateLimiter {
             LimiterState::SlidingWindow(_) => {
                 // For sliding window, check multiple times for cost
                 for _ in 0..cost {
-                    if let LimiterState::SlidingWindow(window) = state {
-                        if !window.check() {
+                    if let LimiterState::SlidingWindow(window) = state
+                        && !window.check() {
                             return Err(RateLimitError::LimitExceeded(key.to_string()));
                         }
-                    }
                 }
                 true
             }

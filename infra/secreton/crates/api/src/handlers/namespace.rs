@@ -15,7 +15,7 @@ use axum::{
     Router,
     extract::{Path, Query, State},
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -257,7 +257,7 @@ fn validate_namespace_id(id: &str, namespace_type: NamespaceType) -> Result<(), 
     }
 
     // Check for reserved names
-    let reserved_names = vec!["system", "admin", "root", "default", "internal"];
+    let reserved_names = ["system", "admin", "root", "default", "internal"];
     if reserved_names.contains(&id) {
         return Err(CoreError::validation(format!(
             "Namespace ID '{}' is reserved",

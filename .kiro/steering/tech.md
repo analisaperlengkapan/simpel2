@@ -19,7 +19,7 @@
 - refinery - Database migrations
 - jsonwebtoken - JWT authentication (v10 with aws_lc_rs)
 - argon2 - Password hashing
-- vaultrs - HashiCorp Vault integration
+- vaultrs - Secreton integration
 
 **Frontend**:
 - leptos, leptos_router, leptos_meta - UI framework

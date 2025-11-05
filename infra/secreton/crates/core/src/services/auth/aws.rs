@@ -2,15 +2,25 @@
 //!
 //! Authenticates AWS IAM principals (users, roles, EC2 instances) using AWS STS.
 //! Supports EC2 instance identity documents and IAM credentials.
+//!
+//! # Implementation Status
+//!
+//! **PARTIALLY IMPLEMENTED** - Framework complete, production integrations pending:
+//! - ✅ Data structures and configuration
+//! - ✅ Role binding and policy management
+//! - ⚠️ Mock implementations for: principal ARN extraction, EC2 identity verification
+//! - ⏳ TODO: AWS STS API integration, PKCS7 signature verification, EC2 API calls
+//!
+//! **Target Timeline**: Q2 2025 for full AWS API integration
+//! **Use Case**: Cloud-native deployments with AWS IAM authentication
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::auth::{AuthRequest, AuthResponse, UserInfo};
+use crate::models::auth::UserInfo;
 
 /// Error types for AWS authentication
 #[derive(Debug, thiserror::Error)]
@@ -279,8 +289,8 @@ impl AwsAuth {
         let principal_arn = self.extract_principal_arn(&request)?;
 
         // Verify principal ARN is bound
-        if !binding.bound_iam_principal_arns.is_empty() {
-            if !binding
+        if !binding.bound_iam_principal_arns.is_empty()
+            && !binding
                 .bound_iam_principal_arns
                 .iter()
                 .any(|arn| principal_arn.contains(arn))
@@ -289,7 +299,6 @@ impl AwsAuth {
                     "Principal ARN not authorized".to_string(),
                 ));
             }
-        }
 
         // Build user info
         let mut metadata = HashMap::new();
@@ -333,17 +342,16 @@ impl AwsAuth {
         let identity = self.verify_ec2_identity(&request.pkcs7).await?;
 
         // Verify account ID
-        if !binding.bound_account_ids.is_empty() {
-            if !binding.bound_account_ids.contains(&identity.account_id) {
+        if !binding.bound_account_ids.is_empty()
+            && !binding.bound_account_ids.contains(&identity.account_id) {
                 return Err(AwsError::Ec2VerificationFailed(
                     "Account ID not authorized".to_string(),
                 ));
             }
-        }
 
         // Verify instance ID
-        if !binding.bound_ec2_instance_ids.is_empty() {
-            if !binding
+        if !binding.bound_ec2_instance_ids.is_empty()
+            && !binding
                 .bound_ec2_instance_ids
                 .contains(&identity.instance_id)
             {
@@ -351,7 +359,6 @@ impl AwsAuth {
                     "Instance ID not authorized".to_string(),
                 ));
             }
-        }
 
         // Store nonce to prevent replay
         if let Some(nonce) = request.nonce {
@@ -403,6 +410,10 @@ impl AwsAuth {
     }
 
     /// Extract principal ARN from IAM request
+    ///
+    /// FUTURE FEATURE: In production, this should parse ARN from STS GetCallerIdentity response
+    /// Currently returns placeholder ARN for development/testing
+    /// TODO: Integrate with AWS STS API for real principal ARN extraction
     fn extract_principal_arn(&self, request: &AwsIamRequest) -> Result<String, AwsError> {
         // In production, would parse from STS response
         // For now, extract from URL or use placeholder
@@ -410,6 +421,15 @@ impl AwsAuth {
     }
 
     /// Verify EC2 instance identity document
+    ///
+    /// FUTURE FEATURE: In production, this should implement full EC2 identity verification:
+    /// 1. Decode PKCS7 signature from instance metadata
+    /// 2. Verify signature against AWS public certificate
+    /// 3. Extract and parse instance identity document
+    /// 4. Call EC2 DescribeInstances API to verify instance exists
+    ///
+    /// Currently returns mock identity for development/testing
+    /// TODO: Integrate with AWS PKCS7 verification and EC2 API
     async fn verify_ec2_identity(&self, pkcs7: &str) -> Result<Ec2InstanceIdentity, AwsError> {
         // In production, this would:
         // 1. Decode PKCS7 signature

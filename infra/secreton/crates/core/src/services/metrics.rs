@@ -130,12 +130,11 @@ impl MetricsRegistry {
     pub async fn increment_counter(&self, name: &str, delta: u64) {
         let mut metrics = self.metrics.write().await;
 
-        if let Some(metric) = metrics.get_mut(name) {
-            if let MetricValue::Counter(ref mut value) = metric.value {
+        if let Some(metric) = metrics.get_mut(name)
+            && let MetricValue::Counter(ref mut value) = metric.value {
                 *value += delta;
                 metric.updated_at = Utc::now();
             }
-        }
     }
 
     /// Set gauge value
@@ -147,44 +146,41 @@ impl MetricsRegistry {
     pub async fn set_gauge(&self, name: &str, value: f64) {
         let mut metrics = self.metrics.write().await;
 
-        if let Some(metric) = metrics.get_mut(name) {
-            if let MetricValue::Gauge(ref mut current) = metric.value {
+        if let Some(metric) = metrics.get_mut(name)
+            && let MetricValue::Gauge(ref mut current) = metric.value {
                 *current = value;
                 metric.updated_at = Utc::now();
             }
-        }
     }
 
     /// Increment gauge
     pub async fn increment_gauge(&self, name: &str, delta: f64) {
         let mut metrics = self.metrics.write().await;
 
-        if let Some(metric) = metrics.get_mut(name) {
-            if let MetricValue::Gauge(ref mut value) = metric.value {
+        if let Some(metric) = metrics.get_mut(name)
+            && let MetricValue::Gauge(ref mut value) = metric.value {
                 *value += delta;
                 metric.updated_at = Utc::now();
             }
-        }
     }
 
     /// Decrement gauge
     pub async fn decrement_gauge(&self, name: &str, delta: f64) {
         let mut metrics = self.metrics.write().await;
 
-        if let Some(metric) = metrics.get_mut(name) {
-            if let MetricValue::Gauge(ref mut value) = metric.value {
+        if let Some(metric) = metrics.get_mut(name)
+            && let MetricValue::Gauge(ref mut value) = metric.value {
                 *value -= delta;
                 metric.updated_at = Utc::now();
             }
-        }
     }
 
     /// Record histogram observation
     pub async fn observe_histogram(&self, name: &str, value: f64) {
         let mut metrics = self.metrics.write().await;
 
-        if let Some(metric) = metrics.get_mut(name) {
-            if let MetricValue::Histogram(ref mut values) = metric.value {
+        if let Some(metric) = metrics.get_mut(name)
+            && let MetricValue::Histogram(ref mut values) = metric.value {
                 values.push(value);
                 metric.updated_at = Utc::now();
 
@@ -193,7 +189,6 @@ impl MetricsRegistry {
                     values.drain(0..values.len() - 1000);
                 }
             }
-        }
     }
 
     /// Get metric

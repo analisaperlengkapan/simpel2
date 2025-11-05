@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// HSM backend for Secreton
 pub struct HsmBackend {
@@ -110,7 +110,7 @@ impl HsmProviderTrait for Pkcs11Provider {
 impl HsmBackend {
     /// Create a new HSM backend
     pub fn new(config: HsmConfig) -> HsmResult<Self> {
-        config.validate().map_err(|e| HsmError::ConfigError(e))?;
+        config.validate().map_err(HsmError::ConfigError)?;
 
         Ok(Self {
             config,
@@ -173,7 +173,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         // Check if key already exists
         let metadata_lock = self.key_metadata.read().await;
@@ -210,7 +210,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -231,7 +231,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -252,7 +252,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -282,7 +282,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let mut metadata_lock = self.key_metadata.write().await;
@@ -309,7 +309,7 @@ impl HsmBackend {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
-            .ok_or_else(|| HsmError::NotInitialized)?;
+            .ok_or(HsmError::NotInitialized)?;
 
         provider.health_check().await
     }

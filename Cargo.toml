@@ -52,7 +52,7 @@ members = [
 
     # Infrastructure
     # Note: authenc and secreton has its own sub-workspace - managed separately
-    # "infra/secreton" # Independent workspace for vault system
+    # "infra/secreton" # Independent workspace for secret management system
     # "infra/authenc" # Independent workspace for IAM system
 ]
 
@@ -151,8 +151,8 @@ x25519-dalek = { version = "2.0.1", features = [
     "static_secrets",
 ] } # Key exchange
 
-# Vault Integration (Updated)
-vaultrs = "0.7.4"
+# Note: No external vault dependencies (using internal Secreton system)
+# vaultrs removed - we use our own Secreton implementation
 
 # Proc Macro Dependencies (secure alternatives)
 syn = { version = "2.0.108", features = [

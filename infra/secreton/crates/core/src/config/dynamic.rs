@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::watch;
 use tracing::{debug, info, warn};
 
-use crate::error::{CoreError, Result, SecretonError};
+use crate::error::{CoreError, Result};
 
 /// Performance metrics for load-based configuration adjustment
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,8 +41,10 @@ impl Default for LoadMetrics {
 
 /// Security threat levels for adaptive security posture
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ThreatLevel {
     /// Normal operations - standard security measures
+    #[default]
     Low,
     /// Elevated threat - enhanced monitoring and validation
     Medium,
@@ -52,16 +54,13 @@ pub enum ThreatLevel {
     Critical,
 }
 
-impl Default for ThreatLevel {
-    fn default() -> Self {
-        ThreatLevel::Low
-    }
-}
 
 /// Cryptographic modes for post-quantum transition
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum CryptoMode {
     /// Classical cryptography (AES-256-GCM, Ed25519)
+    #[default]
     Classical,
     /// Hybrid classical + post-quantum
     Hybrid,
@@ -69,18 +68,15 @@ pub enum CryptoMode {
     PostQuantum,
 }
 
-impl Default for CryptoMode {
-    fn default() -> Self {
-        CryptoMode::Classical
-    }
-}
 
 /// Performance profiles for different operational modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum PerformanceProfile {
     /// Optimized for low latency secret retrieval
     LowLatency,
     /// Balanced performance and security
+    #[default]
     Balanced,
     /// Optimized for high throughput operations
     HighThroughput,
@@ -88,11 +84,6 @@ pub enum PerformanceProfile {
     MaxSecurity,
 }
 
-impl Default for PerformanceProfile {
-    fn default() -> Self {
-        PerformanceProfile::Balanced
-    }
-}
 
 /// Cache configuration with adaptive TTL for secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -422,7 +413,7 @@ impl DynamicConfigManager {
         config.adapt_to_load(load_metrics);
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(config.clone()) {
+        if self.update_sender.send(config.clone()).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -439,7 +430,7 @@ impl DynamicConfigManager {
         config.update_security_posture(threat_level);
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(config.clone()) {
+        if self.update_sender.send(config.clone()).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -461,7 +452,7 @@ impl DynamicConfigManager {
         *config = new_config.clone();
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(new_config) {
+        if self.update_sender.send(new_config).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -502,17 +493,15 @@ impl PerformanceProfiler {
             *count += 1;
         }
 
-        if is_error {
-            if let Ok(mut count) = self.error_count.write() {
+        if is_error
+            && let Ok(mut count) = self.error_count.write() {
                 *count += 1;
             }
-        }
 
-        if is_storage_op {
-            if let Ok(mut count) = self.storage_operations.write() {
+        if is_storage_op
+            && let Ok(mut count) = self.storage_operations.write() {
                 *count += 1;
             }
-        }
 
         if let Ok(mut times) = self.operation_times.write() {
             times.push(operation_time_ms);
@@ -590,25 +579,128 @@ impl PerformanceProfiler {
         }
     }
 
-    /// Get CPU usage (simplified implementation)
+    /// Get CPU usage from /proc/stat (Linux-specific)
+    /// Returns CPU usage percentage (0.0-100.0)
     fn get_cpu_usage() -> f64 {
-        // In production, use proper system monitoring libraries
-        // This is a placeholder implementation
+        use std::fs;
+        use std::thread;
+        use std::time::Duration;
+
+        // Read /proc/stat twice with a small interval to calculate usage
+        let read_cpu_stats = || -> Option<(u64, u64)> {
+            let contents = fs::read_to_string("/proc/stat").ok()?;
+            let first_line = contents.lines().next()?;
+
+            if !first_line.starts_with("cpu ") {
+                return None;
+            }
+
+            let values: Vec<u64> = first_line
+                .split_whitespace()
+                .skip(1)
+                .filter_map(|s| s.parse().ok())
+                .collect();
+
+            if values.len() < 4 {
+                return None;
+            }
+
+            // user + nice + system + idle
+            let idle = values.get(3).copied()?;
+            let total: u64 = values.iter().take(7).sum(); // First 7 fields
+
+            Some((total, idle))
+        };
+
+        if let (Some((total1, idle1)), Some((total2, idle2))) = (
+            read_cpu_stats(),
+            {
+                thread::sleep(Duration::from_millis(100));
+                read_cpu_stats()
+            },
+        ) {
+            let total_diff = total2.saturating_sub(total1) as f64;
+            let idle_diff = idle2.saturating_sub(idle1) as f64;
+
+            if total_diff > 0.0 {
+                let usage = ((total_diff - idle_diff) / total_diff) * 100.0;
+                return usage.max(0.0).min(100.0);
+            }
+        }
+
+        // Fallback to 0.0 if /proc/stat unavailable or parsing fails
         0.0
     }
 
-    /// Get memory usage (simplified implementation)
+    /// Get memory usage from /proc/meminfo (Linux-specific)
+    /// Returns memory usage percentage (0.0-100.0)
     fn get_memory_usage() -> f64 {
-        // In production, use proper system monitoring libraries
-        // This is a placeholder implementation
+        use std::fs;
+
+        let contents = match fs::read_to_string("/proc/meminfo") {
+            Ok(c) => c,
+            Err(_) => return 0.0, // Fallback if /proc/meminfo unavailable
+        };
+
+        let mut mem_total = None;
+        let mut mem_available = None;
+
+        for line in contents.lines() {
+            if line.starts_with("MemTotal:") {
+                mem_total = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse::<u64>().ok());
+            } else if line.starts_with("MemAvailable:") {
+                mem_available = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse::<u64>().ok());
+            }
+
+            if mem_total.is_some() && mem_available.is_some() {
+                break;
+            }
+        }
+
+        if let (Some(total), Some(available)) = (mem_total, mem_available) {
+            if total > 0 {
+                let used = total.saturating_sub(available);
+                let usage = (used as f64 / total as f64) * 100.0;
+                return usage.max(0.0).min(100.0);
+            }
+        }
+
         0.0
     }
 
-    /// Get active connections count (simplified implementation)
+    /// Get active TCP connections from /proc/net/tcp (Linux-specific)
+    /// Returns count of active connections in ESTABLISHED state
     fn get_active_connections() -> u32 {
-        // In production, track actual connection count
-        // This is a placeholder implementation
-        0
+        use std::fs;
+
+        let tcp_files = ["/proc/net/tcp", "/proc/net/tcp6"];
+        let mut count = 0;
+
+        for tcp_file in &tcp_files {
+            let contents = match fs::read_to_string(tcp_file) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            // Skip header line and count ESTABLISHED connections (state 01)
+            for line in contents.lines().skip(1) {
+                let fields: Vec<&str> = line.split_whitespace().collect();
+                if fields.len() >= 4 {
+                    // TCP state is in the 4th column, "01" means ESTABLISHED
+                    if fields[3] == "01" {
+                        count += 1;
+                    }
+                }
+            }
+        }
+
+        count
     }
 }
 

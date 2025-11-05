@@ -60,18 +60,48 @@ pub struct LivenessResponse {
 /// Main health check endpoint
 /// Returns basic health status of the service
 pub async fn health_check(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<HealthCheckResponse>>> {
-    // TODO: Implement actual health checks
+    // Perform actual component health checks
+    let db_check = check_database_health(&state).await;
+    let crypto_check = check_crypto_health(&state).await;
+    let storage_check = check_storage_health(&state).await;
+
+    // Determine overall status based on critical components
+    let overall_status = if db_check.status == "healthy"
+        && crypto_check.status == "healthy"
+        && storage_check.status == "healthy"
+    {
+        "healthy"
+    } else if db_check.status == "unhealthy"
+        || crypto_check.status == "unhealthy"
+        || storage_check.status == "unhealthy"
+    {
+        "unhealthy"
+    } else {
+        "degraded"
+    };
 
     let health = HealthCheckResponse {
-        status: "healthy".to_string(),
+        status: overall_status.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime_seconds: get_uptime_seconds(),
         dependencies: HealthCheckDependencies {
-            storage: DependencyStatus::healthy(),
-            crypto: DependencyStatus::healthy(),
-            audit: DependencyStatus::healthy(),
+            storage: DependencyStatus {
+                healthy: storage_check.status == "healthy",
+                message: storage_check.message.clone(),
+                response_time_ms: Some(storage_check.response_time_ms),
+            },
+            crypto: DependencyStatus {
+                healthy: crypto_check.status == "healthy",
+                message: crypto_check.message.clone(),
+                response_time_ms: Some(crypto_check.response_time_ms),
+            },
+            audit: DependencyStatus {
+                healthy: db_check.status == "healthy",
+                message: db_check.message.clone(),
+                response_time_ms: Some(db_check.response_time_ms),
+            },
         },
     };
 
@@ -198,37 +228,76 @@ pub async fn liveness_check(State(_state): State<AppState>) -> ApiResult<Json<Li
 }
 
 /// Check database health
-async fn check_database_health(_state: &AppState) -> HealthCheck {
+async fn check_database_health(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // TODO: Implement actual database health check
-    // - Test connection
-    // - Execute simple query
-    // - Check response time
+    // Test database connection with a simple query
+    let pool_status = state.pool.status();
+    let conn_result = state.pool.get().await;
+
+    let (status, message, details) = match conn_result {
+        Ok(conn) => {
+            // Execute a simple test query
+            match conn.query_one("SELECT 1 as healthcheck", &[]).await {
+                Ok(_) => {
+                    let mut details = HashMap::new();
+                    details.insert(
+                        "connection_pool".to_string(),
+                        serde_json::Value::String("healthy".to_string()),
+                    );
+                    details.insert(
+                        "available_connections".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(pool_status.available as i64)),
+                    );
+                    details.insert(
+                        "total_connections".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(pool_status.size as i64)),
+                    );
+                    details.insert(
+                        "max_connections".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(pool_status.max_size as i64)),
+                    );
+                    details.insert(
+                        "query_test".to_string(),
+                        serde_json::Value::String("passed".to_string()),
+                    );
+
+                    ("healthy".to_string(), None, Some(details))
+                }
+                Err(e) => {
+                    let mut details = HashMap::new();
+                    details.insert(
+                        "error".to_string(),
+                        serde_json::Value::String(format!("Query failed: {}", e)),
+                    );
+
+                    ("unhealthy".to_string(), Some(format!("Database query failed: {}", e)), Some(details))
+                }
+            }
+        }
+        Err(e) => {
+            let mut details = HashMap::new();
+            details.insert(
+                "error".to_string(),
+                serde_json::Value::String(format!("Connection failed: {}", e)),
+            );
+            details.insert(
+                "available_connections".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(pool_status.available as i64)),
+            );
+
+            ("unhealthy".to_string(), Some(format!("Database connection failed: {}", e)), Some(details))
+        }
+    };
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
     HealthCheck {
-        status: "healthy".to_string(),
-        message: None,
+        status,
+        message,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
-        details: Some({
-            let mut details = HashMap::new();
-            details.insert(
-                "connection_pool".to_string(),
-                serde_json::Value::String("healthy".to_string()),
-            );
-            details.insert(
-                "active_connections".to_string(),
-                serde_json::Value::Number(serde_json::Number::from(5)),
-            );
-            details.insert(
-                "max_connections".to_string(),
-                serde_json::Value::Number(serde_json::Number::from(100)),
-            );
-            details
-        }),
+        details,
     }
 }
 
@@ -236,16 +305,25 @@ async fn check_database_health(_state: &AppState) -> HealthCheck {
 async fn check_cache_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // TODO: Implement actual cache health check
-    // - Test Redis connection
-    // - Execute ping command
-    // - Check memory usage
+    // Note: ServiceContainer currently doesn't have a dedicated cache service.
+    // Caching is implemented within individual services (auth, vault, etc.)
+    // For now, we'll return a "not applicable" status
+
+    let mut details = HashMap::new();
+    details.insert(
+        "note".to_string(),
+        serde_json::Value::String("Cache is embedded in services, not centralized".to_string()),
+    );
+    details.insert(
+        "location".to_string(),
+        serde_json::Value::String("auth_service, vault_service".to_string()),
+    );
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
     HealthCheck {
         status: "healthy".to_string(),
-        message: None,
+        message: Some("Cache integrated into services".to_string()),
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -268,54 +346,179 @@ async fn check_cache_health(_state: &AppState) -> HealthCheck {
 }
 
 /// Check crypto service health
-async fn check_crypto_health(_state: &AppState) -> HealthCheck {
+async fn check_crypto_health(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // TODO: Implement actual crypto service health check
-    // - Test encryption/decryption
-    // - Verify key accessibility
-    // - Check HSM connectivity if used
+    // Test encryption/decryption with the crypto service
+    let test_data = b"health_check_test_data";
+    let test_key = b"test_key_32_bytes_for_health_01";
+
+    let (status, message, mut details_map) = match state.crypto.encrypt(
+        secreton_crypto::AlgorithmId::Aes256Gcm,
+        test_data,
+        test_key,
+    ) {
+        Ok(ciphertext) => {
+            // Test decryption
+            match state.crypto.decrypt(&ciphertext, test_key) {
+                Ok(decrypted) if decrypted == test_data => {
+                    // Encryption and decryption successful
+                    let mut details_map = HashMap::new();
+                    details_map.insert(
+                        "encryption_test".to_string(),
+                        serde_json::Value::String("passed".to_string()),
+                    );
+                    details_map.insert(
+                        "decryption_test".to_string(),
+                        serde_json::Value::String("passed".to_string()),
+                    );
+                    details_map.insert(
+                        "key_store".to_string(),
+                        serde_json::Value::String("accessible".to_string()),
+                    );
+                    details_map.insert(
+                        "entropy_available".to_string(),
+                        serde_json::Value::Bool(true),
+                    );
+
+                    ("healthy".to_string(), None, details_map)
+                }
+                Ok(_) => {
+                    let mut details_map = HashMap::new();
+                    details_map.insert(
+                        "error".to_string(),
+                        serde_json::Value::String("Decrypted data does not match".to_string()),
+                    );
+
+                    ("unhealthy".to_string(), Some("Crypto integrity check failed".to_string()), details_map)
+                }
+                Err(e) => {
+                    let mut details_map = HashMap::new();
+                    details_map.insert(
+                        "error".to_string(),
+                        serde_json::Value::String(format!("Decryption failed: {}", e)),
+                    );
+
+                    ("unhealthy".to_string(), Some(format!("Decryption failed: {}", e)), details_map)
+                }
+            }
+        }
+        Err(e) => {
+            let mut details_map = HashMap::new();
+            details_map.insert(
+                "error".to_string(),
+                serde_json::Value::String(format!("Encryption failed: {}", e)),
+            );
+
+            ("unhealthy".to_string(), Some(format!("Encryption failed: {}", e)), details_map)
+        }
+    };
+
+    // Check HSM status if available
+    if let Some(ref hsm) = state.hsm {
+        match hsm.health_check().await {
+            Ok(_) => {
+                details_map.insert(
+                    "hsm_status".to_string(),
+                    serde_json::Value::String("connected".to_string()),
+                );
+            }
+            Err(e) => {
+                details_map.insert(
+                    "hsm_status".to_string(),
+                    serde_json::Value::String(format!("error: {}", e)),
+                );
+            }
+        }
+    } else {
+        details_map.insert(
+            "hsm_status".to_string(),
+            serde_json::Value::String("not_configured".to_string()),
+        );
+    }
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
     HealthCheck {
-        status: "healthy".to_string(),
-        message: None,
+        status,
+        message,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
-        details: Some({
-            let mut details = HashMap::new();
-            details.insert(
-                "hsm_status".to_string(),
-                serde_json::Value::String("connected".to_string()),
-            );
-            details.insert(
-                "key_store".to_string(),
-                serde_json::Value::String("accessible".to_string()),
-            );
-            details.insert(
-                "entropy_available".to_string(),
-                serde_json::Value::Bool(true),
-            );
-            details
-        }),
+        details: Some(details_map),
     }
 }
 
 /// Check storage health
-async fn check_storage_health(_state: &AppState) -> HealthCheck {
+async fn check_storage_health(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // TODO: Implement actual storage health check
-    // - Test file system access
-    // - Check disk space
-    // - Verify backup systems
+    // Use the built-in health_check method from StorageBackend trait
+    let (status, message, details) = match state.storage.health_check().await {
+        Ok(health_status) => {
+            let mut details = HashMap::new();
+            details.insert(
+                "is_healthy".to_string(),
+                serde_json::Value::Bool(health_status.is_healthy),
+            );
+            details.insert(
+                "connections_active".to_string(),
+                serde_json::Value::Number(health_status.connections_active.into()),
+            );
+            details.insert(
+                "connections_idle".to_string(),
+                serde_json::Value::Number(health_status.connections_idle.into()),
+            );
+            details.insert(
+                "uptime_seconds".to_string(),
+                serde_json::Value::Number(health_status.uptime_seconds.into()),
+            );
+
+            if let Some(error) = &health_status.last_error {
+                details.insert(
+                    "last_error".to_string(),
+                    serde_json::Value::String(error.clone()),
+                );
+            }
+
+            // Get storage statistics for additional details
+            if let Ok(stats) = state.storage.get_stats().await {
+                details.insert(
+                    "total_entries".to_string(),
+                    serde_json::Value::Number(stats.total_entries.into()),
+                );
+                details.insert(
+                    "total_size_bytes".to_string(),
+                    serde_json::Value::Number(stats.total_size_bytes.into()),
+                );
+                details.insert(
+                    "backend_type".to_string(),
+                    serde_json::Value::String(stats.backend_type.clone()),
+                );
+            }
+
+            if health_status.is_healthy {
+                ("healthy".to_string(), None, Some(details))
+            } else {
+                let msg = health_status.last_error.clone().unwrap_or_else(|| "Storage unhealthy".to_string());
+                ("unhealthy".to_string(), Some(msg), Some(details))
+            }
+        }
+        Err(e) => {
+            let mut details = HashMap::new();
+            details.insert(
+                "error".to_string(),
+                serde_json::Value::String(format!("Health check failed: {}", e)),
+            );
+
+            ("unhealthy".to_string(), Some(format!("Storage health check error: {}", e)), Some(details))
+        }
+    };
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
     HealthCheck {
-        status: "healthy".to_string(),
-        message: None,
+        status,
+        message,
         response_time_ms: response_time,
         last_check: chrono::Utc::now(),
         details: Some({
@@ -360,7 +563,7 @@ async fn check_crypto_readiness(_state: &AppState) -> HealthCheck {
 }
 
 /// Check HSM health
-async fn check_hsm_health(hsm: &secreton_core::hsm::HsmBackend) -> HealthCheck {
+async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
     // Check HSM connectivity and health

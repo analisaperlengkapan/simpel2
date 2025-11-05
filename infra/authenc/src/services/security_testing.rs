@@ -3,7 +3,7 @@
 // This module provides comprehensive security testing capabilities
 // including penetration testing, vulnerability scanning, and compliance testing.
 //
-// SUPERIOR TO KEYCLOAK: More comprehensive and automated security testing
+// Enterprise-grade implementation: More comprehensive and automated security testing
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -165,23 +165,63 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Storing secret at path: {}", req.path);
 
-        // Convert security level
-        let security_level = SecurityLevel::try_from(req.security_level)
-            .map_err(|_| Status::invalid_argument("Invalid security level"))?;
+        // Convert security level from proto enum to storage enum
+        let security_level = match req.security_level {
+            0 => secreton_storage::SecurityLevel::Public,
+            1 => secreton_storage::SecurityLevel::Internal,
+            2 => secreton_storage::SecurityLevel::Confidential,
+            3 => secreton_storage::SecurityLevel::Secret,
+            4 => secreton_storage::SecurityLevel::TopSecret,
+            _ => return Err(Status::invalid_argument("Invalid security level")),
+        };
 
-        // Store secret in storage backend
+        // Create vault entry for storage
+        let secret_id = uuid::Uuid::new_v4();
+        let encrypted_metadata = serde_json::json!({
+            "algorithm": "aes-256-gcm",
+            "key_id": "default-key",
+        });
+
+        // Serialize secret data
         let secret_data = serde_json::to_vec(&req.data)
             .map_err(|e| Status::internal(format!("Failed to serialize secret: {}", e)))?;
 
-        let secret_id = uuid::Uuid::new_v4().to_string();
-        let version = 1u32;
-        let created_at = chrono::Utc::now().timestamp();
+        // Extract owner from request metadata or use default
+        let owner_id = "system".to_string(); // TODO: Extract from JWT token in metadata
 
-        // TODO: Integrate with actual KV storage service
-        // For now, return a placeholder response
+        // Create vault entry
+        let mut vault_entry = secreton_storage::VaultEntry::new(
+            req.path.clone(),
+            secret_data,
+            encrypted_metadata,
+            security_level,
+            owner_id,
+        );
+
+        // Add tags if provided
+        for tag in req.tags {
+            vault_entry = vault_entry.add_tag(tag);
+        }
+
+        // Set TTL if provided
+        if let Some(ttl_seconds) = req.ttl_seconds {
+            let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl_seconds);
+            vault_entry = vault_entry.with_expiration(expires_at);
+        }
+
+        let version = vault_entry.version;
+        let created_at = vault_entry.created_at.timestamp();
+
+        // Store in backend
+        self.storage
+            .store(&vault_entry)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to store secret: {}", e)))?;
+
+        info!("Successfully stored secret at path: {} with ID: {}", req.path, secret_id);
 
         let response = StoreSecretResponse {
-            id: secret_id,
+            id: secret_id.to_string(),
             version,
             created_at,
         };
@@ -198,17 +238,34 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Getting secret at path: {}", req.path);
 
-        // TODO: Integrate with actual KV storage service
-        // For now, return a placeholder response
+        // Retrieve from storage backend
+        let vault_entry = self
+            .storage
+            .get_by_path(&req.path)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to retrieve secret: {}", e)))?
+            .ok_or_else(|| Status::not_found(format!("Secret not found at path: {}", req.path)))?;
+
+        // Check if expired
+        if vault_entry.is_expired() {
+            return Err(Status::failed_precondition("Secret has expired"));
+        }
+
+        // Deserialize secret data
+        let secret_data: std::collections::HashMap<String, String> =
+            serde_json::from_slice(&vault_entry.encrypted_data)
+                .map_err(|e| Status::internal(format!("Failed to deserialize secret: {}", e)))?;
+
+        info!("Successfully retrieved secret at path: {}", req.path);
 
         let response = GetSecretResponse {
-            id: uuid::Uuid::new_v4().to_string(),
-            path: req.path,
-            data: std::collections::HashMap::new(),
-            version: req.version.unwrap_or(1),
-            security_level: SecurityLevel::Confidential as i32,
-            created_at: chrono::Utc::now().timestamp(),
-            updated_at: chrono::Utc::now().timestamp(),
+            id: vault_entry.id.to_string(),
+            path: vault_entry.path,
+            data: secret_data,
+            version: vault_entry.version,
+            security_level: vault_entry.security_level as i32,
+            created_at: vault_entry.created_at.timestamp(),
+            updated_at: vault_entry.updated_at.timestamp(),
         };
 
         Ok(Response::new(response))
@@ -223,7 +280,21 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Deleting secret at path: {}", req.path);
 
-        // TODO: Integrate with actual KV storage service
+        // Delete from storage backend
+        let deleted = self
+            .storage
+            .delete_by_path(&req.path)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to delete secret: {}", e)))?;
+
+        if !deleted {
+            return Err(Status::not_found(format!(
+                "Secret not found at path: {}",
+                req.path
+            )));
+        }
+
+        info!("Successfully deleted secret at path: {}", req.path);
 
         let response = DeleteSecretResponse { success: true };
 
@@ -239,12 +310,39 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Listing secrets with prefix: {:?}", req.prefix);
 
-        // TODO: Integrate with actual KV storage service
+        // Build query parameters
+        let mut params = secreton_storage::QueryParams::new();
+        if let Some(prefix) = req.prefix {
+            params = params.with_path_prefix(prefix);
+        }
+        if let Some(limit) = req.limit {
+            params = params.with_limit(limit as u32);
+        }
 
-        let response = ListSecretsResponse {
-            secrets: vec![],
-            total: 0,
-        };
+        // List from storage backend
+        let vault_entries = self
+            .storage
+            .list(&params)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list secrets: {}", e)))?;
+
+        // Convert to gRPC response format
+        let secrets: Vec<SecretMetadata> = vault_entries
+            .into_iter()
+            .map(|entry| SecretMetadata {
+                id: entry.id.to_string(),
+                path: entry.path,
+                version: entry.version,
+                security_level: entry.security_level as i32,
+                created_at: entry.created_at.timestamp(),
+            })
+            .collect();
+
+        let total = secrets.len() as i32;
+
+        info!("Successfully listed {} secrets", total);
+
+        let response = ListSecretsResponse { secrets, total };
 
         Ok(Response::new(response))
     }
@@ -1018,7 +1116,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             max_storage_bytes: namespace.quotas.max_storage_bytes.map(|v| v as i64),
             max_leases: namespace.quotas.max_leases.map(|v| v as i64),
             max_policies: namespace.quotas.max_policies.map(|v| v as i64),
-            current_usage: Some(quota_usage.clone()),
+            current_usage: Some(quota_usage),
         };
 
         let usage_percentage = if let Some(max_secrets) = namespace.quotas.max_secrets {
@@ -1707,10 +1805,10 @@ impl SecretonGrpcService {
         }
     }
 
-    #[instrument(skip(self, request))]
+    #[instrument(skip(self, _request))]
     async fn restore_snapshot(
         &self,
-        request: Request<RestoreSnapshotRequest>,
+        _request: Request<RestoreSnapshotRequest>,
     ) -> Result<Response<RestoreSnapshotResponse>, Status> {
         #[cfg(not(feature = "raft-consensus"))]
         {

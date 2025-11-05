@@ -862,7 +862,7 @@ impl AppConfig {
             AuthencError::validation(&format!("Failed to read config file {}: {}", path, e))
         })?;
 
-        toml::from_str(&contents).map_err(|e| {
+        serde_json::from_str(&contents).map_err(|e| {
             AuthencError::validation(&format!("Failed to parse config file {}: {}", path, e))
         })
     }

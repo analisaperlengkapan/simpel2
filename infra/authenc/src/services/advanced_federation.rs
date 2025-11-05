@@ -1,6 +1,6 @@
 //! Advanced User Federation Providers
 //!
-//! This module implements advanced user federation features that Keycloak has
+//! This module implements advanced user federation features that enterprise IAM has
 //! but Authenc is missing, including:
 //! - LDAP federation with advanced configuration
 //! - Kerberos authentication
@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// User Federation Provider trait (similar to Keycloak's UserStorageProvider)
+/// User Federation Provider trait (enterprise IAM standard's UserStorageProvider)
 #[async_trait]
 pub trait UserFederationProvider: Send + Sync {
     /// Get provider name

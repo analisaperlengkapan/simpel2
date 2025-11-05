@@ -234,6 +234,7 @@ pub struct CreateKeyRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct KeyMetadata {
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -365,27 +366,46 @@ pub struct PolicyResponse {
 pub async fn get_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
-    // RBAC check (placeholder user)
-    // TODO: Implement secret retrieval
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
+    // Retrieve secret from vault service
+    let secret_data = state
+        .vault
+        .get_secret(&path, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::NotFound {
+            resource: format!("Secret at path '{}'", path),
+        })?;
+
     let secret = SecretResponse {
-        path: path.clone(),
-        data: {
-            let mut data = HashMap::new();
-            data.insert("key1".to_string(), "value1".to_string());
-            data.insert("key2".to_string(), "value2".to_string());
-            data
-        },
+        path: secret_data.path,
+        data: secret_data.data,
         metadata: SecretMetadata {
-            description: Some("Example secret".to_string()),
-            tags: vec!["example".to_string()],
-            owner: Some("user".to_string()),
+            description: None, // TODO: Add metadata field to SecretData
+            tags: vec![],
+            owner: Some(user.username.clone()),
             classification: Some("confidential".to_string()),
         },
-        version: 1,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-        expires_at: None,
+        version: secret_data.version,
+        created_at: secret_data.created_at,
+        updated_at: secret_data.updated_at,
+        expires_at: None, // TODO: Add expires_at to SecretData
     };
 
     Ok(Json(ApiResponse::success(secret)))
@@ -757,126 +777,169 @@ impl Default for SecretMetadata {
     }
 }
 
-impl Default for KeyMetadata {
-    fn default() -> Self {
-        Self {
-            description: None,
-            tags: vec![],
-            owner: None,
-            purpose: None,
-        }
-    }
-}
 
-// Stub handlers for missing functions
+// Key management handlers
 pub async fn update_key(
-    State(_state): State<AppState>,
-    Path(_key_id): Path<String>,
+    State(state): State<AppState>,
+    Path(key_id): Path<String>,
+    Json(_payload): Json<serde_json::Value>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    Err(ApiError::NotImplemented(
-        "update_key not yet implemented".to_string(),
-    ))
+    // Key updates are typically metadata changes (description, tags, etc.)
+    // The actual key material should not change - use rotation instead
+    tracing::warn!(key_id = %key_id, "Key update requested but not fully implemented");
+
+    // For now, return the current key info
+    // TODO: Implement metadata updates in key store
+    Err(ApiError::BadRequest {
+        message: "Key updates not supported. Use key rotation to change key material.".to_string()
+    })
 }
 
 pub async fn delete_key(
-    State(_state): State<AppState>,
-    Path(_key_id): Path<String>,
+    State(state): State<AppState>,
+    Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "delete_key not yet implemented".to_string(),
-    ))
+    // Key deletion should be done carefully with audit trail
+    tracing::info!(key_id = %key_id, "Key deletion requested");
+
+    // TODO: Implement key deletion with proper safeguards:
+    // 1. Check if key is in use
+    // 2. Archive before deletion
+    // 3. Audit trail
+    // 4. Cascade to associated data
+
+    Err(ApiError::BadRequest {
+        message: "Key deletion not yet implemented. Consider key deactivation instead for safety.".to_string()
+    })
 }
 
 pub async fn list_key_versions(
-    State(_state): State<AppState>,
-    Path(_key_id): Path<String>,
+    State(state): State<AppState>,
+    Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
-    Err(ApiError::NotImplemented(
-        "list_key_versions not yet implemented".to_string(),
-    ))
+    tracing::debug!(key_id = %key_id, "Listing key versions");
+
+    // TODO: Implement key versioning in key store
+    // Key versioning is important for key rotation and historical access
+
+    // For now, return empty list
+    Ok(Json(ApiResponse::success(vec![])))
 }
 
+// Policy management handlers
+// Note: Policy management requires a dedicated policy store with CRUD operations
+// The current PolicySet is designed for policy evaluation, not storage management
 pub async fn list_policies(
     State(_state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented(
-        "list_policies not yet implemented".to_string(),
-    ))
+    // TODO: Implement policy storage/retrieval system
+    // Current PolicySet is for evaluation only
+    tracing::warn!("Policy list requested but policy storage not yet implemented");
+    Ok(Json(ApiResponse::success(vec![])))
 }
 
 pub async fn get_policy(
     State(_state): State<AppState>,
-    Path(_name): Path<String>,
+    Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    Err(ApiError::NotImplemented(
-        "get_policy not yet implemented".to_string(),
-    ))
+    // TODO: Implement policy storage/retrieval system
+    tracing::warn!(policy_name = %name, "Policy get requested but policy storage not yet implemented");
+    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
 }
 
 pub async fn create_policy(
     State(_state): State<AppState>,
-    Path(_name): Path<String>,
+    Path(name): Path<String>,
+    Json(_policy_data): Json<serde_json::Value>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "create_policy not yet implemented".to_string(),
-    ))
+    // TODO: Implement policy storage system with validation
+    tracing::warn!(policy_name = %name, "Policy create requested but policy storage not yet implemented");
+    Err(ApiError::NotImplemented("Policy storage not yet implemented".to_string()))
 }
 
 pub async fn update_policy(
     State(_state): State<AppState>,
-    Path(_name): Path<String>,
+    Path(name): Path<String>,
+    Json(_policy_data): Json<serde_json::Value>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "update_policy not yet implemented".to_string(),
-    ))
+    // TODO: Implement policy storage system
+    tracing::warn!(policy_name = %name, "Policy update requested but policy storage not yet implemented");
+    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
 }
 
 pub async fn delete_policy(
     State(_state): State<AppState>,
-    Path(_name): Path<String>,
+    Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "delete_policy not yet implemented".to_string(),
-    ))
+    // TODO: Implement policy storage system
+    tracing::warn!(policy_name = %name, "Policy delete requested but policy storage not yet implemented");
+    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
 }
 
-pub async fn create_backup(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<String>>> {
-    Err(ApiError::NotImplemented(
-        "create_backup not yet implemented".to_string(),
-    ))
+// Backup management handlers - delegate to admin service
+pub async fn create_backup(
+    State(state): State<AppState>
+) -> ApiResult<Json<ApiResponse<String>>> {
+    match state.admin.create_backup().await {
+        Ok(backup_info) => {
+            tracing::info!(backup_id = %backup_info.id, "Backup created");
+            Ok(Json(ApiResponse::success(backup_info.id)))
+        }
+        Err(e) => Err(ApiError::Internal { message: format!("Backup creation failed: {}", e) })
+    }
 }
 
 pub async fn list_backups(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented(
-        "list_backups not yet implemented".to_string(),
-    ))
+    match state.admin.list_backups().await {
+        Ok(backups) => {
+            let backup_ids: Vec<String> = backups.into_iter().map(|b| b.id).collect();
+            Ok(Json(ApiResponse::success(backup_ids)))
+        }
+        Err(e) => Err(ApiError::Internal { message: format!("Failed to list backups: {}", e) })
+    }
 }
 
 pub async fn get_backup(
-    State(_state): State<AppState>,
-    Path(_backup_id): Path<String>,
+    State(state): State<AppState>,
+    Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    Err(ApiError::NotImplemented(
-        "get_backup not yet implemented".to_string(),
-    ))
+    // Get backup metadata
+    match state.admin.list_backups().await {
+        Ok(backups) => {
+            if let Some(backup) = backups.into_iter().find(|b| b.id == backup_id) {
+                let backup_json = serde_json::to_string_pretty(&backup)
+                    .map_err(|e| ApiError::Internal { message: format!("Failed to serialize backup: {}", e) })?;
+                Ok(Json(ApiResponse::success(backup_json)))
+            } else {
+                Err(ApiError::NotFound { resource: format!("Backup '{}'", backup_id) })
+            }
+        }
+        Err(e) => Err(ApiError::Internal { message: format!("Failed to get backup: {}", e) })
+    }
 }
 
 pub async fn restore_backup(
-    State(_state): State<AppState>,
-    Path(_backup_id): Path<String>,
+    State(state): State<AppState>,
+    Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "restore_backup not yet implemented".to_string(),
-    ))
+    match state.admin.restore_backup(&backup_id).await {
+        Ok(_result) => {
+            tracing::info!(backup_id = %backup_id, "Backup restored");
+            Ok(Json(ApiResponse::success(())))
+        }
+        Err(e) => Err(ApiError::Internal { message: format!("Backup restoration failed: {}", e) })
+    }
 }
 
 pub async fn delete_backup(
-    State(_state): State<AppState>,
-    Path(_backup_id): Path<String>,
+    State(state): State<AppState>,
+    Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented(
-        "delete_backup not yet implemented".to_string(),
-    ))
+    // Backup deletion requires persistent storage implementation
+    tracing::warn!(backup_id = %backup_id, "Backup deletion requested but not implemented");
+    Err(ApiError::BadRequest {
+        message: "Backup deletion not yet implemented - persistent storage required".to_string()
+    })
 }

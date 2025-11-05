@@ -296,6 +296,12 @@ pub struct InMemoryVaultStateStorage {
     state: Arc<RwLock<Option<VaultState>>>,
 }
 
+impl Default for InMemoryVaultStateStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryVaultStateStorage {
     pub fn new() -> Self {
         Self {
@@ -380,9 +386,9 @@ impl SealService {
         let encryption_key = Self::derive_encryption_key(seal_key, &salt)?;
 
         // Generate random nonce for AES-GCM
-        let mut nonce_bytes = vec![0u8; 12];
+        let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from(nonce_bytes);
 
         // Create AES-256-GCM cipher
         let cipher = Aes256Gcm::new_from_slice(&encryption_key)
@@ -390,13 +396,13 @@ impl SealService {
 
         // Encrypt master key
         let ciphertext = cipher
-            .encrypt(nonce, master_key)
+            .encrypt(&nonce, master_key)
             .map_err(|e| SealError::EncryptionFailed(e.to_string()))?;
 
         // Create encryption metadata
         let metadata = EncryptionMetadata {
             algorithm: "aes-256-gcm".to_string(),
-            nonce: nonce_bytes,
+            nonce: nonce_bytes.to_vec(),
             salt,
             kdf: "argon2id".to_string(),
             kdf_params: KdfParams {
@@ -423,9 +429,14 @@ impl SealService {
             .map_err(|e| SealError::DecryptionFailed(e.to_string()))?;
 
         // Decrypt master key
-        let nonce = Nonce::from_slice(&metadata.nonce);
+        if metadata.nonce.len() != 12 {
+            return Err(SealError::DecryptionFailed("Invalid nonce size".to_string()));
+        }
+        let mut nonce_arr = [0u8; 12];
+        nonce_arr.copy_from_slice(&metadata.nonce);
+        let nonce = Nonce::from(nonce_arr);
         let plaintext = cipher
-            .decrypt(nonce, encrypted_master_key)
+            .decrypt(&nonce, encrypted_master_key)
             .map_err(|e| SealError::DecryptionFailed(e.to_string()))?;
 
         Ok(plaintext)
@@ -463,7 +474,7 @@ impl SealService {
         storage
             .store_vault_state(&vault_state)
             .await
-            .map_err(|e| SealError::StorageError(e))?;
+            .map_err(SealError::StorageError)?;
 
         Ok(())
     }
@@ -478,7 +489,7 @@ impl SealService {
         storage
             .load_vault_state()
             .await
-            .map_err(|e| SealError::StorageError(e))
+            .map_err(SealError::StorageError)
     }
 
     /// Initialize vault with new master key and generate Shamir shares

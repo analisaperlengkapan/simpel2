@@ -117,7 +117,7 @@ graph TB
 
 #### Security Infrastructure
 - **Authenc**: Identity and Access Management (IAM) service
-- **Secreton**: Security vault and secret management service
+- **Secreton**: Security secreton and secret management service
 - **mTLS Communication**: Secure service-to-service communication
 
 #### Business Services

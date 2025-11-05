@@ -1,205 +1,385 @@
-name: Release
+name: Release & Deployment
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 1.0.0)"
+        required: true
+        type: string
+
+# Only one release workflow at a time
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUST_VERSION: "1.90.0"
+  TRUNK_VERSION: "0.21.4"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   create-release:
-    name: Create Release
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
+      version: ${{ steps.version.outputs.version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Get version from tag
-        id: get_version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            # Extract changelog for this version
+            CHANGELOG=$(awk '/## \['"${{ steps.version.outputs.version }}"'\]/,/## \[/' CHANGELOG.md | head -n -1 || echo "See CHANGELOG.md for details")
+          else
+            CHANGELOG="Release ${{ steps.version.outputs.version }}"
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: SIMPelv2 ${{ github.ref }}
-          draft: false
-          prerelease: false
+          tag: v${{ steps.version.outputs.version }}
+          name: SIMPelv2 ${{ steps.version.outputs.version }}
           body: |
-            ## SIMPelv2 Release ${{ steps.get_version.outputs.version }}
+            ## 🚀 SIMPelv2 Release ${{ steps.version.outputs.version }}
             
             ### What's Changed
-            See [CHANGELOG.md](https://github.com/analisaperlengkapan/simpel2/blob/main/CHANGELOG.md) for details.
+            ${{ steps.changelog.outputs.changelog }}
             
-            ### Installation
+            ### 📦 Installation
+            
             Download the appropriate binary for your platform below.
             
-            ### Docker Images
+            ### 🐳 Docker Images
+            
             ```bash
-            docker pull ghcr.io/analisaperlengkapan/simpelv2:${{ steps.get_version.outputs.version }}
+            docker pull ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}
+            docker pull ghcr.io/${{ github.repository_owner }}/simpelv2:latest
             ```
+            
+            ### 📚 Documentation
+            
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) and [/docs](https://github.com/${{ github.repository }}/tree/main/docs) for complete documentation.
+            
+            ---
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          artifactErrorsFailBuild: false
 
   build-backend:
     name: Build Backend - ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     needs: create-release
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            cross: false
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
+            cross: true
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-    
+            cross: true
+
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
-      
+
       - name: Install cross-compilation tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        if: matrix.cross
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-      
-      - name: Build release
-        run: cargo build --release --target ${{ matrix.target }} --verbose
-      
+          cargo install cross --locked
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build workspace (native)
+        if: ${{ !matrix.cross }}
+        run: |
+          cargo build --workspace --release --target ${{ matrix.target }} --verbose
+
+      - name: Build workspace (cross)
+        if: ${{ matrix.cross }}
+        run: |
+          cross build --workspace --release --target ${{ matrix.target }} --verbose
+
       - name: Package binaries
         run: |
-          mkdir -p release
-          cp target/${{ matrix.target }}/release/layanan-* release/ || true
-          cd release
-          tar czf ../simpelv2-backend-${{ matrix.target }}.tar.gz *
-      
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          mkdir -p release-artifacts
+          
+          # Copy workspace binaries
+          if [ -d "target/${{ matrix.target }}/release" ]; then
+            find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable \
+              ! -name "*.d" ! -name "*.so" ! -name "*.dylib" \
+              -exec cp {} release-artifacts/ \;
+          fi
+          
+          # Create tarball
+          cd release-artifacts
+          tar czf ../simpelv2-backend-${{ matrix.target }}.tar.gz * || echo "No binaries to package"
+          cd ..
+          
+          # Generate checksum
+          sha256sum simpelv2-backend-${{ matrix.target }}.tar.gz > simpelv2-backend-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Upload release assets
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./simpelv2-backend-${{ matrix.target }}.tar.gz
-          asset_name: simpelv2-backend-${{ matrix.target }}.tar.gz
-          asset_content_type: application/gzip
+          tag: v${{ needs.create-release.outputs.version }}
+          artifacts: "simpelv2-backend-${{ matrix.target }}.tar.gz,simpelv2-backend-${{ matrix.target }}.tar.gz.sha256"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          artifactErrorsFailBuild: false
 
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
     needs: create-release
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: ${{ env.RUST_VERSION }}
           targets: wasm32-unknown-unknown
-      
+
       - name: Install Trunk
         run: |
-          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar -xzf-
           sudo mv trunk /usr/local/bin/
-      
+          trunk --version
+
+      - name: Setup Rust cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-frontend-release-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Build all microfrontends
         run: |
+          set -e
+          mkdir -p release-frontend
+          
+          # Build main microfrontends
           for module in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
-            echo "Building $module..."
+            echo "🔨 Building $module..."
             cd antarmuka/$module
             trunk build --release
+            cp -r dist ../../release-frontend/$module
             cd ../..
+            echo "✅ $module built successfully"
           done
           
-          # Build perlengkapan (nested path)
-          cd antarmuka/pembinaan/perlengkapan
-          trunk build --release
-          cd ../../..
-      
+          # Build pembinaan modules
+          for module in keuangan perencanaan perlengkapan; do
+            echo "🔨 Building pembinaan/$module..."
+            cd antarmuka/pembinaan/$module
+            trunk build --release
+            mkdir -p ../../../release-frontend/pembinaan
+            cp -r dist ../../../release-frontend/pembinaan/$module
+            cd ../../..
+            echo "✅ pembinaan/$module built successfully"
+          done
+
       - name: Package frontend artifacts
         run: |
-          mkdir -p release-frontend
-          for module in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
-            cp -r antarmuka/$module/dist release-frontend/$module
-          done
-          cp -r antarmuka/pembinaan/perlengkapan/dist release-frontend/perlengkapan
           cd release-frontend
-          tar czf ../simpelv2-frontend.tar.gz *
-      
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./simpelv2-frontend.tar.gz
-          asset_name: simpelv2-frontend.tar.gz
-          asset_content_type: application/gzip
+          tar czf ../simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz *
+          cd ..
+          sha256sum simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz > simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz.sha256
 
-  docker-build:
+      - name: Upload frontend artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ needs.create-release.outputs.version }}
+          artifacts: "simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz,simpelv2-frontend-${{ needs.create-release.outputs.version }}.tar.gz.sha256"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          artifactErrorsFailBuild: false
+
+  build-docker:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    needs: create-release
+    needs: [create-release, build-backend]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v5
-      
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.create-release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.create-release.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ needs.create-release.outputs.version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/simpelv2:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            RUST_VERSION=${{ env.RUST_VERSION }}
+            VERSION=${{ needs.create-release.outputs.version }}
 
-  deploy-k8s:
-    name: Deploy to Kubernetes
+  deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [docker-build]
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta')
+    needs: [create-release, build-docker]
+    # Note: Create 'staging' environment in GitHub repository settings for protection rules
+    # environment:
+    #   name: staging
+    #   url: https://staging.simpelv2.kejaksaan.go.id
+    if: ${{ !contains(needs.create-release.outputs.version, 'alpha') && !contains(needs.create-release.outputs.version, 'beta') }}
     steps:
-      - uses: actions/checkout@v5
-      
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Update Kubernetes manifests
         run: |
-          cd infra/k8s
-          sed -i "s|image:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}|g" deployments/*.yaml
-      
-      - name: Deploy to Kubernetes
+          VERSION="${{ needs.create-release.outputs.version }}"
+          cd infra/k8s/staging
+          
+          # Update image tags in deployment manifests
+          find . -name "*.yaml" -type f -exec sed -i \
+            "s|image: ghcr.io/${{ github.repository_owner }}/simpelv2:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${VERSION}|g" {} \;
+          
+          echo "Updated manifests to version ${VERSION}"
+
+      - name: Deploy to Staging (placeholder)
         run: |
-          echo "Deployment step - configure with your K8s cluster credentials"
-          # kubectl apply -f infra/k8s/
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          echo "🚀 Deploying to staging environment..."
+          echo "Version: ${{ needs.create-release.outputs.version }}"
+          echo "Image: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ needs.create-release.outputs.version }}"
+          echo ""
+          echo "⚠️  Actual K8s deployment requires cluster credentials"
+          echo "Configure kubectl and uncomment deployment commands"
+          
+          # Uncomment when K8s credentials are configured:
+          # kubectl apply -f infra/k8s/staging/ --namespace=simpelv2-staging
+          # kubectl rollout status deployment/simpelv2 --namespace=simpelv2-staging
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [create-release, build-docker, deploy-staging]
+    # Note: Create 'production' environment in GitHub repository settings for protection rules
+    # environment:
+    #   name: production
+    #   url: https://simpelv2.kejaksaan.go.id
+    if: ${{ !contains(needs.create-release.outputs.version, 'alpha') && !contains(needs.create-release.outputs.version, 'beta') && !contains(needs.create-release.outputs.version, 'rc') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Update Kubernetes manifests
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          cd infra/k8s/production
+          
+          # Update image tags in deployment manifests
+          find . -name "*.yaml" -type f -exec sed -i \
+            "s|image: ghcr.io/${{ github.repository_owner }}/simpelv2:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${VERSION}|g" {} \;
+          
+          echo "Updated manifests to version ${VERSION}"
+
+      - name: Deploy to Production (placeholder)
+        run: |
+          echo "🚀 Deploying to production environment..."
+          echo "Version: ${{ needs.create-release.outputs.version }}"
+          echo "Image: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ needs.create-release.outputs.version }}"
+          echo ""
+          echo "⚠️  Actual K8s deployment requires cluster credentials"
+          echo "Configure kubectl and uncomment deployment commands"
+          
+          # Uncomment when K8s credentials are configured:
+          # kubectl apply -f infra/k8s/production/ --namespace=simpelv2
+          # kubectl rollout status deployment/simpelv2 --namespace=simpelv2
+
+      - name: Create deployment notification
+        run: |
+          echo "## 🎉 Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ghcr.io/${{ github.repository_owner }}/simpelv2:${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release URL**: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY

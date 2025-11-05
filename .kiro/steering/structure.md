@@ -77,7 +77,7 @@ layanan/[service]/
 
 **Secreton** (`infra/secreton/`):
 - Separate workspace for secret management
-- HashiCorp Vault alternative
+- Secreton alternative
 - Own Cargo.lock and dependencies
 
 **Nginx** (`infra/nginx/`):

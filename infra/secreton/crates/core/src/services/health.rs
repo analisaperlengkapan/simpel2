@@ -130,6 +130,12 @@ pub struct StorageHealthCheck {
     name: String,
 }
 
+impl Default for StorageHealthCheck {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StorageHealthCheck {
     pub fn new() -> Self {
         Self {
@@ -158,6 +164,12 @@ impl HealthCheck for StorageHealthCheck {
 /// Database health check
 pub struct DatabaseHealthCheck {
     name: String,
+}
+
+impl Default for DatabaseHealthCheck {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DatabaseHealthCheck {
@@ -197,6 +209,12 @@ impl HealthCheck for DatabaseHealthCheck {
 /// Cluster health check
 pub struct ClusterHealthCheck {
     name: String,
+}
+
+impl Default for ClusterHealthCheck {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ClusterHealthCheck {

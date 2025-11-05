@@ -3,7 +3,6 @@
 //! Provides seamless integration between cryptographic operations and storage layer.
 
 use crate::{
-    encryption::CryptoEngine,
     error::{CryptoError, CryptoResult},
     transit::{KeyType, TransitEngine},
 };

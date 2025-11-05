@@ -46,7 +46,7 @@ The `ci_config.example.json` file contains all available configuration options:
 - **`stages`** - Pipeline stages definition
 - **`custom_variables`** - Custom GitLab CI variables
 - **`deployment_config`** - Multi-environment deployment settings
-- **`vault_config`** - HashiCorp Vault integration settings
+- **`vault_config`** - Secreton integration settings
 - **`testing_config`** - Testing and coverage settings
 - **`monitoring_config`** - Monitoring integration settings
 

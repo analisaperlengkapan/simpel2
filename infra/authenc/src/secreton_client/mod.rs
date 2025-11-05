@@ -1,5 +1,5 @@
-//! Vault abstraction for secret management in Authenc
-// Supports pluggable secret providers: file, keystore, HashiCorp Vault, KMS, etc.
+//! Secreton client abstraction for secret management in Authenc
+//! Internal secret management module - uses Secreton service only
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -46,9 +46,9 @@ pub struct HsmKeyMetadata {
     pub usage: Vec<String>,
 }
 
-/// Vault trait for pluggable secret backends
+/// SecretonClient trait for secret backends
 #[async_trait]
-pub trait Vault: Send + Sync {
+pub trait SecretonClientTrait: Send + Sync {
     /// Fetch a secret by key (optionally scoped by realm)
     async fn get_secret(&self, key: &str, realm: Option<&str>) -> Option<Secret>;
 
@@ -59,13 +59,13 @@ pub trait Vault: Send + Sync {
         value: &str,
         realm: Option<&str>,
         metadata: Option<HashMap<String, String>>,
-    ) -> Result<(), VaultError>;
+    ) -> Result<(), SecretonError>;
 
     /// Delete a secret
-    async fn delete_secret(&self, key: &str, realm: Option<&str>) -> Result<(), VaultError>;
+    async fn delete_secret(&self, key: &str, realm: Option<&str>) -> Result<(), SecretonError>;
 
     /// List all secret keys (with optional realm filter)
-    async fn list_secrets(&self, realm: Option<&str>) -> Result<Vec<String>, VaultError>;
+    async fn list_secrets(&self, realm: Option<&str>) -> Result<Vec<String>, SecretonError>;
 
     /// Rotate a secret (generate new value, keep old for transition)
     async fn rotate_secret(
@@ -73,22 +73,22 @@ pub trait Vault: Send + Sync {
         key: &str,
         realm: Option<&str>,
         generator: Box<dyn Fn() -> String + Send>,
-    ) -> Result<RotationResult, VaultError>;
+    ) -> Result<RotationResult, SecretonError>;
 
     /// Get secret version history
     async fn get_secret_versions(
         &self,
         key: &str,
         realm: Option<&str>,
-    ) -> Result<Vec<Secret>, VaultError>;
+    ) -> Result<Vec<Secret>, SecretonError>;
 
-    /// Check if vault is healthy and accessible
-    async fn health_check(&self) -> Result<bool, VaultError>;
+    /// Check if secreton is healthy and accessible
+    async fn health_check(&self) -> Result<bool, SecretonError>;
 }
 
-/// Extended vault trait for HSM integration
+/// Extended secreton trait for HSM integration
 #[async_trait]
-pub trait HsmVault: Vault {
+pub trait HsmSecretonClient: SecretonClientTrait {
     /// Generate a key in HSM
     async fn generate_hsm_key(
         &self,
@@ -96,7 +96,7 @@ pub trait HsmVault: Vault {
         algorithm: &str,
         key_size: u32,
         usage: Vec<String>,
-    ) -> Result<HsmKeyMetadata, VaultError>;
+    ) -> Result<HsmKeyMetadata, SecretonError>;
 
     /// Sign data using HSM key
     async fn hsm_sign(
@@ -104,27 +104,27 @@ pub trait HsmVault: Vault {
         key_id: &str,
         data: &[u8],
         algorithm: &str,
-    ) -> Result<Vec<u8>, VaultError>;
+    ) -> Result<Vec<u8>, SecretonError>;
 
     /// Encrypt data using HSM key
-    async fn hsm_encrypt(&self, key_id: &str, plaintext: &[u8]) -> Result<Vec<u8>, VaultError>;
+    async fn hsm_encrypt(&self, key_id: &str, plaintext: &[u8]) -> Result<Vec<u8>, SecretonError>;
 
     /// Decrypt data using HSM key
-    async fn hsm_decrypt(&self, key_id: &str, ciphertext: &[u8]) -> Result<Vec<u8>, VaultError>;
+    async fn hsm_decrypt(&self, key_id: &str, ciphertext: &[u8]) -> Result<Vec<u8>, SecretonError>;
 
     /// List all HSM keys
-    async fn list_hsm_keys(&self) -> Result<Vec<HsmKeyMetadata>, VaultError>;
+    async fn list_hsm_keys(&self) -> Result<Vec<HsmKeyMetadata>, SecretonError>;
 
     /// Delete HSM key
-    async fn delete_hsm_key(&self, key_id: &str) -> Result<(), VaultError>;
+    async fn delete_hsm_key(&self, key_id: &str) -> Result<(), SecretonError>;
 }
 
-/// Vault error types
+/// Secreton error types
 #[derive(Debug, Clone)]
-pub enum VaultError {
+pub enum SecretonError {
     /// Secret not found
     NotFound(String),
-    /// Vault backend unreachable
+    /// Secreton backend unreachable
     Unavailable(String),
     /// Authentication failed
     AuthenticationFailed(String),
@@ -138,23 +138,27 @@ pub enum VaultError {
     Other(String),
 }
 
-impl std::fmt::Display for VaultError {
+impl std::fmt::Display for SecretonError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VaultError::NotFound(msg) => write!(f, "Secret not found: {}", msg),
-            VaultError::Unavailable(msg) => write!(f, "Vault unavailable: {}", msg),
-            VaultError::AuthenticationFailed(msg) => {
-                write!(f, "Vault authentication failed: {}", msg)
+            SecretonError::NotFound(msg) => write!(f, "Secret not found: {}", msg),
+            SecretonError::Unavailable(msg) => write!(f, "Secreton unavailable: {}", msg),
+            SecretonError::AuthenticationFailed(msg) => {
+                write!(f, "Secreton authentication failed: {}", msg)
             }
-            VaultError::Unauthorized(msg) => write!(f, "Vault unauthorized: {}", msg),
-            VaultError::InvalidFormat(msg) => write!(f, "Invalid secret format: {}", msg),
-            VaultError::HsmError(msg) => write!(f, "HSM error: {}", msg),
-            VaultError::Other(msg) => write!(f, "Vault error: {}", msg),
+            SecretonError::Unauthorized(msg) => write!(f, "Secreton unauthorized: {}", msg),
+            SecretonError::InvalidFormat(msg) => write!(f, "Invalid secret format: {}", msg),
+            SecretonError::HsmError(msg) => write!(f, "HSM error: {}", msg),
+            SecretonError::Other(msg) => write!(f, "Secreton error: {}", msg),
         }
     }
 }
 
-impl std::error::Error for VaultError {}
+impl std::error::Error for SecretonError {}
+
+// Type aliases for backward compatibility during migration
+pub type Vault = dyn SecretonClientTrait;
+pub type VaultError = SecretonError;
 
 // Secreton client (custom Rust-based secret manager) - primary integration
 pub mod secreton_client;

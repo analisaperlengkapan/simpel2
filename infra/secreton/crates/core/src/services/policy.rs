@@ -76,8 +76,8 @@ impl PolicySet {
         // Check cache first - include context hash in cache key
         let context_hash = context.map(|c| format!("{:?}", c)).unwrap_or_default();
         let cache_key = format!("{}:{}:{}:{}", user, path, action, context_hash);
-        if let Ok(cache) = self.cache.read() {
-            if let Some(cached) = cache.get(&cache_key) {
+        if let Ok(cache) = self.cache.read()
+            && let Some(cached) = cache.get(&cache_key) {
                 // Cache valid for 60 seconds
                 if Utc::now()
                     .signed_duration_since(cached.timestamp)
@@ -88,7 +88,6 @@ impl PolicySet {
                     return cached.decision == PolicyDecision::Allow;
                 }
             }
-        }
 
         // Evaluate policy
         let decision = self.evaluate_internal(user, path, action, context);
@@ -143,8 +142,8 @@ impl PolicySet {
             }
 
             // Evaluate control group (multi-approval)
-            if let Some(cg) = &rule.control_group {
-                if cg.approved_by.len() < cg.required_approvals as usize {
+            if let Some(cg) = &rule.control_group
+                && cg.approved_by.len() < cg.required_approvals as usize {
                     debug!(
                         "Control group approval not met: {}/{} approvals",
                         cg.approved_by.len(),
@@ -152,15 +151,13 @@ impl PolicySet {
                     );
                     continue;
                 }
-            }
 
             // Evaluate MFA requirement
-            if rule.mfa == Some(true) {
-                if !self.check_mfa(context) {
+            if rule.mfa == Some(true)
+                && !self.check_mfa(context) {
                     debug!("MFA required but not provided");
                     continue;
                 }
-            }
 
             // Policy precedence: deny overrides allow
             if rule.effect == "deny" {
@@ -192,8 +189,7 @@ impl PolicySet {
         // Handle single wildcard at end - should not match nested paths
         if pattern.ends_with("/*") && !pattern.contains("**") {
             let prefix = &pattern[..pattern.len() - 1]; // Remove "*" but keep "/"
-            if path.starts_with(prefix) {
-                let remainder = &path[prefix.len()..];
+            if let Some(remainder) = path.strip_prefix(prefix) {
                 // Should match "something" but not "something/nested"
                 let parts: Vec<&str> = remainder.split('/').filter(|s| !s.is_empty()).collect();
                 return parts.len() == 1;
@@ -235,11 +231,10 @@ impl PolicySet {
         }
 
         // Capability-based match
-        if let Some(cap) = capability {
-            if let Some(rule_cap) = Capability::from_str(rule_action) {
+        if let Some(cap) = capability
+            && let Some(rule_cap) = Capability::from_str(rule_action) {
                 return cap == &rule_cap;
             }
-        }
 
         false
     }
@@ -248,25 +243,22 @@ impl PolicySet {
     fn evaluate_conditions(&self, rule: &PolicyRule, _user: &str, context: Option<&Value>) -> bool {
         if let Some(condition) = &rule.condition {
             // Time-based conditions
-            if let Some(time_range) = condition.get("time_range") {
-                if !self.check_time_range(time_range) {
+            if let Some(time_range) = condition.get("time_range")
+                && !self.check_time_range(time_range) {
                     return false;
                 }
-            }
 
             // IP-based conditions
-            if let Some(allowed_ips) = condition.get("allowed_ips") {
-                if !self.check_ip_address(allowed_ips, context) {
+            if let Some(allowed_ips) = condition.get("allowed_ips")
+                && !self.check_ip_address(allowed_ips, context) {
                     return false;
                 }
-            }
 
             // Custom condition evaluation
-            if let Some(expr) = condition.get("expression") {
-                if !self.evaluate_expression(expr, context) {
+            if let Some(expr) = condition.get("expression")
+                && !self.evaluate_expression(expr, context) {
                     return false;
                 }
-            }
         }
 
         true
@@ -276,30 +268,26 @@ impl PolicySet {
     fn check_time_range(&self, time_range: &Value) -> bool {
         let now = Utc::now();
 
-        if let Some(start) = time_range.get("start").and_then(|v| v.as_str()) {
-            if let Ok(start_time) = DateTime::parse_from_rfc3339(start) {
-                if now < start_time.with_timezone(&Utc) {
+        if let Some(start) = time_range.get("start").and_then(|v| v.as_str())
+            && let Ok(start_time) = DateTime::parse_from_rfc3339(start)
+                && now < start_time.with_timezone(&Utc) {
                     return false;
                 }
-            }
-        }
 
-        if let Some(end) = time_range.get("end").and_then(|v| v.as_str()) {
-            if let Ok(end_time) = DateTime::parse_from_rfc3339(end) {
-                if now > end_time.with_timezone(&Utc) {
+        if let Some(end) = time_range.get("end").and_then(|v| v.as_str())
+            && let Ok(end_time) = DateTime::parse_from_rfc3339(end)
+                && now > end_time.with_timezone(&Utc) {
                     return false;
                 }
-            }
-        }
 
         true
     }
 
     /// Check IP address condition with CIDR range support
     fn check_ip_address(&self, allowed_ips: &Value, context: Option<&Value>) -> bool {
-        if let Some(ctx) = context {
-            if let Some(client_ip) = ctx.get("client_ip").and_then(|v| v.as_str()) {
-                if let Some(ips) = allowed_ips.as_array() {
+        if let Some(ctx) = context
+            && let Some(client_ip) = ctx.get("client_ip").and_then(|v| v.as_str())
+                && let Some(ips) = allowed_ips.as_array() {
                     for ip in ips {
                         if let Some(allowed_ip) = ip.as_str() {
                             // Wildcard match
@@ -313,17 +301,14 @@ impl PolicySet {
                             }
 
                             // CIDR range matching
-                            if allowed_ip.contains('/') {
-                                if self.ip_in_cidr(client_ip, allowed_ip) {
+                            if allowed_ip.contains('/')
+                                && self.ip_in_cidr(client_ip, allowed_ip) {
                                     return true;
                                 }
-                            }
                         }
                     }
                     return false;
                 }
-            }
-        }
 
         // If no IP context provided, allow by default
         true
@@ -646,7 +631,7 @@ async fn evaluate_sentinel_policy(
         // Extract content between braces
         if let Some(start) = source.find('{') {
             if let Some(end) = source.rfind('}') {
-                &source[start + 1..end].trim()
+                source[start + 1..end].trim()
             } else {
                 source
             }
@@ -684,43 +669,37 @@ async fn evaluate_sentinel_policy(
         }
 
         // Check for path matching
-        if line.contains("path") {
-            if let Some(pattern) = extract_quoted_string(line) {
-                if !path_matches_pattern(path, &pattern) {
+        if line.contains("path")
+            && let Some(pattern) = extract_quoted_string(line)
+                && !path_matches_pattern(path, &pattern) {
                     debug!(
                         "Sentinel policy '{}' path mismatch: {} != {}",
                         policy.name, path, pattern
                     );
                     continue;
                 }
-            }
-        }
 
         // Check for action matching
-        if line.contains("action") {
-            if let Some(required_action) = extract_quoted_string(line) {
-                if action != required_action && required_action != "*" {
+        if line.contains("action")
+            && let Some(required_action) = extract_quoted_string(line)
+                && action != required_action && required_action != "*" {
                     debug!(
                         "Sentinel policy '{}' action mismatch: {} != {}",
                         policy.name, action, required_action
                     );
                     continue;
                 }
-            }
-        }
 
         // Check for user matching
-        if line.contains("user") {
-            if let Some(required_user) = extract_quoted_string(line) {
-                if user != required_user && required_user != "*" {
+        if line.contains("user")
+            && let Some(required_user) = extract_quoted_string(line)
+                && user != required_user && required_user != "*" {
                     debug!(
                         "Sentinel policy '{}' user mismatch: {} != {}",
                         policy.name, user, required_user
                     );
                     continue;
                 }
-            }
-        }
 
         // Check for context conditions
         if line.contains("context.") {
@@ -754,11 +733,10 @@ async fn evaluate_sentinel_policy(
 /// Extract quoted string from a line (e.g., 'path == "secret/*"' -> "secret/*")
 fn extract_quoted_string(line: &str) -> Option<String> {
     // Find content between quotes
-    if let Some(start) = line.find('"') {
-        if let Some(end) = line[start + 1..].find('"') {
+    if let Some(start) = line.find('"')
+        && let Some(end) = line[start + 1..].find('"') {
             return Some(line[start + 1..start + 1 + end].to_string());
         }
-    }
     None
 }
 
@@ -885,12 +863,11 @@ pub async fn check_policy_with_sentinel(
     policyset_json: Option<&str>,
 ) -> bool {
     // First, evaluate Sentinel policies (if any)
-    if !sentinel_policies.is_empty() {
-        if !evaluate_with_sentinel(sentinel_policies, user, path, action, context).await {
+    if !sentinel_policies.is_empty()
+        && !evaluate_with_sentinel(sentinel_policies, user, path, action, context).await {
             debug!("Access denied by Sentinel policy");
             return false;
         }
-    }
 
     // Then, evaluate RBAC/ACL policies
     let rbac_allowed = crate::services::rbac::check_policy(

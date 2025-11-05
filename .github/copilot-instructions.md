@@ -55,7 +55,7 @@ SIMPelv2 is a modular, microservices-based platform for Indonesian government as
 - `/layanan/` - Rust backend microservices (Axum)
 - `/infra/authenc/` - Security service (97K LOC, Ed25519, SHA256 TOTP, MFA, RBAC)
 - `/infra/` - Gateway, Nginx, k8s, Vault, monitoring
-- `/infra/secreton/` - Custom Rust vault (ChaCha20-Poly1305, X25519, Argon2)
+- `/infra/secreton/` - Custom Rust secreton (ChaCha20-Poly1305, X25519, Argon2)
 - `/scripts/` - Automation, build, test scripts
 - `/docs/` - All documentation (architecture, API, CI/CD, security)
 - `/.github/` - GitHub Actions workflows, Dependabot, issue templates, SECURITY.md

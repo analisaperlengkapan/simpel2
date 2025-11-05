@@ -9,7 +9,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPelv2:
 - **JWT Authentication**: Token management dan validation
 - **Multi-Factor Authentication**: TOTP-based security
 - **Role-Based Access Control**: Granular permission system
-- **HashiCorp Vault Integration**: Secret management
+- **Secreton Integration**: Secret management
 - **Immutable Audit Trail**: Forensic capabilities
 - **Honeytrap Service**: Advanced threat detection
 
@@ -33,7 +33,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPelv2:
 - **Language**: Rust (Axum web framework)
 - **Authentication**: JWT + Argon2 + TOTP
 - **Database**: PostgreSQL dengan SQLx
-- **Secret Management**: HashiCorp Vault
+- **Secret Management**: Secreton
 - **Monitoring**: Tracing + OpenTelemetry
 
 ## 🚀 **Quick Start**
@@ -41,7 +41,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPelv2:
 ### **Prerequisites**
 - Rust 1.75+
 - PostgreSQL 15+
-- HashiCorp Vault
+- Secreton
 - Docker & Docker Compose
 
 ### **Installation**
@@ -322,7 +322,7 @@ notification_service.send_security_alert(security_event).await?;
 ```
 
 ### **External Integrations**
-- **HashiCorp Vault**: Secret management
+- **Secreton**: Secret management
 - **LDAP/Active Directory**: Enterprise authentication
 - **SAML/OAuth**: Single sign-on
 - **SIEM Systems**: Security information and event management

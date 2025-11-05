@@ -1,7 +1,315 @@
-//! SDK Libraries Module
+//! Multi-Language SDK Libraries for Secreton
 //!
-//! This module provides SDK implementations for multiple programming languages
-//! to interact with the Secreton secrets management system.
+//! This module provides client SDK implementations for multiple programming languages,
+//! enabling applications to interact with Secreton's API securely and idiomatically.
+//!
+//! # Supported Languages
+//!
+//! - **Rust** - Native SDK with zero-copy performance
+//! - **Python** - Pythonic API with asyncio support
+//! - **Go** - Idiomatic Go client with context support
+//! - **JavaScript/TypeScript** - Browser and Node.js compatible
+//! - **Java** - Enterprise-grade client with connection pooling
+//! - **PHP** - Laravel/Symfony integration
+//! - **Ruby** - Rails-friendly gem
+//!
+//! # Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────┐
+//! │        Application Code (Any Language)          │
+//! └────────────────────┬────────────────────────────┘
+//!                      │
+//!                      ▼
+//! ┌─────────────────────────────────────────────────┐
+//! │         Language-Specific SDK                   │
+//! │  (Rust, Python, Go, JS, Java, PHP, Ruby)        │
+//! └────────────────────┬────────────────────────────┘
+//!                      │ HTTP/gRPC
+//!                      ▼
+//! ┌─────────────────────────────────────────────────┐
+//! │         Secreton API Gateway                    │
+//! └────────────────────┬────────────────────────────┘
+//!                      │
+//!                      ▼
+//! ┌─────────────────────────────────────────────────┐
+//! │         Secreton Backend Services               │
+//! └─────────────────────────────────────────────────┘
+//! ```
+//!
+//! # Example: Rust SDK
+//!
+//! ```rust,no_run
+//! use secreton_core::sdk_libraries::{SdkConfig, SecretonClient};
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = SdkConfig {
+//!     server_url: "https://secreton.kejaksaan.go.id".to_string(),
+//!     api_token: "s.abc123xyz...".to_string(),
+//!     timeout: 30,
+//!     verify_tls: true,
+//!     ..Default::default()
+//! };
+//!
+//! let client = SecretonClient::new(config)?;
+//!
+//! // Read secret
+//! let secret = client.read_secret("/app/database/password").await?;
+//! println!("Password: {}", secret.data["password"]);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Example: Python SDK
+//!
+//! ```python
+//! from secreton import SecretonClient
+//!
+//! client = SecretonClient(
+//!     server_url="https://secreton.kejaksaan.go.id",
+//!     api_token="s.abc123xyz..."
+//! )
+//!
+//! # Read secret
+//! secret = client.read_secret("/app/database/password")
+//! print(f"Password: {secret['data']['password']}")
+//!
+//! # Write secret
+//! client.write_secret("/app/api/key", {
+//!     "api_key": "sk-12345",
+//!     "environment": "production"
+//! })
+//! ```
+//!
+//! # Example: Go SDK
+//!
+//! ```go
+//! package main
+//!
+//! import (
+//!     "context"
+//!     "github.com/kejaksaan-ri/secreton-go"
+//! )
+//!
+//! func main() {
+//!     client, _ := secreton.NewClient(&secreton.Config{
+//!         ServerURL: "https://secreton.kejaksaan.go.id",
+//!         APIToken:  "s.abc123xyz...",
+//!     })
+//!
+//!     // Read secret
+//!     secret, _ := client.ReadSecret(context.Background(), "/app/database/password")
+//!     fmt.Println("Password:", secret.Data["password"])
+//! }
+//! ```
+//!
+//! # Example: JavaScript/TypeScript SDK
+//!
+//! ```typescript
+//! import { SecretonClient } from '@kejaksaan-ri/secreton-js';
+//!
+//! const client = new SecretonClient({
+//!   serverUrl: 'https://secreton.kejaksaan.go.id',
+//!   apiToken: 's.abc123xyz...'
+//! });
+//!
+//! // Read secret (async/await)
+//! const secret = await client.readSecret('/app/database/password');
+//! console.log('Password:', secret.data.password);
+//!
+//! // Write secret
+//! await client.writeSecret('/app/api/key', {
+//!   api_key: 'sk-12345',
+//!   environment: 'production'
+//! });
+//! ```
+//!
+//! # SDK Features
+//!
+//! ## Authentication
+//!
+//! All SDKs support:
+//!
+//! - **Token-based auth**: JWT tokens from Authenc
+//! - **Automatic token refresh**: Refresh tokens before expiration
+//! - **Custom headers**: Additional authentication headers
+//!
+//! ## Connection Management
+//!
+//! - **Connection pooling**: Reuse HTTP connections
+//! - **Automatic retries**: Configurable retry with exponential backoff
+//! - **Circuit breaker**: Fail-fast when service unavailable
+//! - **Timeouts**: Request and connection timeouts
+//!
+//! ## Error Handling
+//!
+//! Consistent error handling across languages:
+//!
+//! ```rust,no_run
+//! use secreton_core::sdk_libraries::SecretonClient;
+//!
+//! # async fn example() {
+//! # let client: SecretonClient = unimplemented!();
+//! match client.read_secret("/app/secret").await {
+//!     Ok(secret) => {
+//!         println!("Success: {:?}", secret);
+//!     }
+//!     Err(e) if e.is_not_found() => {
+//!         println!("Secret does not exist");
+//!     }
+//!     Err(e) if e.is_unauthorized() => {
+//!         println!("Invalid token or insufficient permissions");
+//!     }
+//!     Err(e) => {
+//!         println!("Other error: {}", e);
+//!     }
+//! }
+//! # }
+//! ```
+//!
+//! ## Namespace Support
+//!
+//! Automatic namespace scoping:
+//!
+//! ```rust,no_run
+//! use secreton_core::sdk_libraries::{SdkConfig, SecretonClient};
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = SdkConfig {
+//!     server_url: "https://secreton.kejaksaan.go.id".to_string(),
+//!     api_token: "s.abc123xyz...".to_string(),
+//!     namespace: Some("/pusat/wilayah/jaktim".to_string()),
+//!     ..Default::default()
+//! };
+//!
+//! let client = SecretonClient::new(config)?;
+//!
+//! // All operations automatically scoped to namespace
+//! client.read_secret("/app/secret").await?;
+//! // Actually reads: /pusat/wilayah/jaktim/app/secret
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Installation
+//!
+//! ## Rust
+//!
+//! ```toml
+//! [dependencies]
+//! secreton-client = "0.1.0"
+//! ```
+//!
+//! ## Python
+//!
+//! ```bash
+//! pip install secreton-python
+//! ```
+//!
+//! ## Go
+//!
+//! ```bash
+//! go get github.com/kejaksaan-ri/secreton-go
+//! ```
+//!
+//! ## JavaScript/TypeScript
+//!
+//! ```bash
+//! npm install @kejaksaan-ri/secreton-js
+//! # or
+//! yarn add @kejaksaan-ri/secreton-js
+//! ```
+//!
+//! ## Java
+//!
+//! ```xml
+//! <dependency>
+//!   <groupId>go.id.kejaksaan</groupId>
+//!   <artifactId>secreton-java</artifactId>
+//!   <version>0.1.0</version>
+//! </dependency>
+//! ```
+//!
+//! # Configuration
+//!
+//! ## Environment Variables
+//!
+//! All SDKs support configuration via environment:
+//!
+//! ```bash
+//! export SECRETON_SERVER_URL=https://secreton.kejaksaan.go.id
+//! export SECRETON_API_TOKEN=s.abc123xyz...
+//! export SECRETON_NAMESPACE=/pusat/wilayah/jaktim
+//! export SECRETON_TIMEOUT=30
+//! ```
+//!
+//! ## Config File
+//!
+//! YAML/JSON configuration:
+//!
+//! ```yaml
+//! secreton:
+//!   server_url: https://secreton.kejaksaan.go.id
+//!   api_token: ${env:SECRETON_API_TOKEN}
+//!   namespace: /pusat/wilayah/jaktim
+//!   timeout: 30
+//!   verify_tls: true
+//! ```
+//!
+//! # Best Practices
+//!
+//! ## 1. Token Security
+//!
+//! ```rust,no_run
+//! // ❌ BAD - Hardcoded token
+//! let token = "s.abc123xyz...";
+//!
+//! // ✅ GOOD - Token from environment
+//! let token = std::env::var("SECRETON_API_TOKEN")
+//!     .expect("SECRETON_API_TOKEN not set");
+//! ```
+//!
+//! ## 2. Connection Reuse
+//!
+//! ```rust,no_run
+//! // ❌ BAD - New client per request
+//! for _ in 0..100 {
+//!     let client = SecretonClient::new(config.clone())?;
+//!     client.read_secret("/path").await?;
+//! }
+//!
+//! // ✅ GOOD - Reuse client
+//! let client = SecretonClient::new(config)?;
+//! for _ in 0..100 {
+//!     client.read_secret("/path").await?;
+//! }
+//! ```
+//!
+//! ## 3. Error Handling
+//!
+//! ```rust,no_run
+//! // ❌ BAD - Panic on error
+//! let secret = client.read_secret("/path").await.unwrap();
+//!
+//! // ✅ GOOD - Handle errors gracefully
+//! match client.read_secret("/path").await {
+//!     Ok(secret) => use_secret(secret),
+//!     Err(e) => {
+//!         log::error!("Failed to read secret: {}", e);
+//!         use_default_value()
+//!     }
+//! }
+//! # fn use_secret(s: SecretData) {}
+//! # fn use_default_value() {}
+//! # use secreton_core::sdk_libraries::SecretData;
+//! ```
+//!
+//! # See Also
+//!
+//! - [`SdkConfig`] - SDK configuration options
+//! - [`SecretonClient`] - Main client interface
+//! - [`SdkResponse`] - Response wrapper
+//! - SDK documentation: https://docs.secreton.kejaksaan.go.id/sdk
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -21,7 +21,7 @@ use authenc::config::AuthencConfig;
 use authenc::crypto::CryptoEngine;
 use authenc::error::AuthencError;
 use authenc::models::user::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, User};
-use authenc::vault::secreton_client::SecretonClient;
+use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for hierarchical admin operations
 #[cfg(test)]

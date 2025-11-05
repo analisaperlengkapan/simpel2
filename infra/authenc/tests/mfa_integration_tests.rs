@@ -16,7 +16,7 @@ use authenc::error::{AuthencError, Result};
 use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
 use authenc::services::mfa_service::{MfaService, MfaSetupResponse, MfaStatus};
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
-use authenc::vault::secreton_client::SecretonClient;
+use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Integration test utilities
 mod test_utils {

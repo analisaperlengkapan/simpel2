@@ -6,7 +6,7 @@
 
 use crate::crypto::aes_gcm::{AesGcmService, EncryptedData};
 use crate::error::{AuthencError, Result};
-use crate::vault::secreton_client::MfaSetupData;
+use crate::secreton_client::secreton_client::MfaSetupData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

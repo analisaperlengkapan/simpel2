@@ -10,15 +10,15 @@
 //! - LRU caching for frequently accessed secrets
 //! - Comprehensive audit logging with satker context
 
-use crate::audit::{AuditBackend, AuditLogger};
+use crate::audit::AuditLogger;
 use crate::auth::{AuthencAuthProvider, TokenValidation};
 use crate::error::CoreError;
 use crate::models::audit::SecurityContext;
 use crate::models::audit::SecurityLevel;
 use crate::models::secret::{
-    AccessControl, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
+    AccessControl, AuditTrail, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
-use crate::storage::{StorageBackend, StorageResult};
+use crate::storage::StorageBackend;
 use secreton_crypto::{
     CryptoMode, HybridCrypto, PerformancePriority, PostQuantumKeyManager, SecurityRequirements,
 };
@@ -202,9 +202,41 @@ impl EnhancedSecretEngine {
             namespace: "default".to_string(),
         };
 
-        // Store in backend (simplified - in production would use VaultEntry)
-        // For now, just return Ok as storage integration needs VaultEntry conversion
-        // This is a placeholder implementation
+        // Convert Secret to VaultEntry for storage
+        let encrypted_data = serde_json::to_vec(&secret.data)
+            .map_err(|e| CoreError::Serialization(e))?;
+
+        let encryption_metadata = serde_json::json!({
+            "algorithm": format!("{:?}", secret.data.encryption_algorithm),
+            "key_id": secret.data.key_id,
+            "encrypted_at": secret.data.encrypted_at,
+        });
+
+        // Map SecurityLevel
+        let security_level = match secret.metadata.security_level {
+            crate::SecurityLevel::Public => secreton_storage::SecurityLevel::Public,
+            crate::SecurityLevel::Internal => secreton_storage::SecurityLevel::Internal,
+            crate::SecurityLevel::Confidential => secreton_storage::SecurityLevel::Confidential,
+            crate::SecurityLevel::Secret => secreton_storage::SecurityLevel::Secret,
+            crate::SecurityLevel::TopSecret => secreton_storage::SecurityLevel::TopSecret,
+        };
+
+        let vault_entry = secreton_storage::VaultEntry::new(
+            path.to_string(),
+            encrypted_data,
+            encryption_metadata,
+            security_level,
+            secret.satker_owner.clone(),
+        );
+
+        // Store in storage backend
+        self.storage
+            .store(&vault_entry)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Failed to store secret: {}", e),
+                source: None,
+            })?;
 
         // Invalidate cache
         if self.config.enable_cache {
@@ -225,12 +257,83 @@ impl EnhancedSecretEngine {
             }
         }
 
-        // Fetch from storage (simplified - in production would use VaultEntry)
-        // For now, return a placeholder error as storage integration needs VaultEntry conversion
-        Err(CoreError::Internal {
-            message: format!("Storage integration pending for path: {}", path),
-            source: None,
-        })
+        // Fetch from storage backend
+        let vault_entry = self
+            .storage
+            .get_by_path(path)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Failed to retrieve secret: {}", e),
+                source: None,
+            })?
+            .ok_or_else(|| CoreError::NotFound {
+                resource: path.to_string(),
+            })?;
+
+        // Check expiration
+        if vault_entry.is_expired() {
+            return Err(CoreError::InvalidOperation {
+                message: format!("Secret at path '{}' has expired", path),
+            });
+        }
+
+        // Convert VaultEntry to Secret
+        let data: EncryptedValue = serde_json::from_slice(&vault_entry.encrypted_data)
+            .map_err(|e| CoreError::Serialization(e))?;
+
+        // Map SecurityLevel back
+        let security_level = match vault_entry.security_level {
+            secreton_storage::SecurityLevel::Public => crate::SecurityLevel::Public,
+            secreton_storage::SecurityLevel::Internal => crate::SecurityLevel::Internal,
+            secreton_storage::SecurityLevel::Confidential => crate::SecurityLevel::Confidential,
+            secreton_storage::SecurityLevel::Secret => crate::SecurityLevel::Secret,
+            secreton_storage::SecurityLevel::TopSecret => crate::SecurityLevel::TopSecret,
+        };
+
+        let secret = Secret {
+            id: vault_entry.id.as_u128() as i64,
+            path: vault_entry.path.clone(),
+            version: vault_entry.version as u32,
+            data,
+            metadata: SecretMetadata {
+                security_level,
+                tags: vault_entry.tags.clone(),
+                description: None,
+                custom_fields: {
+                    let mut metadata = crate::Metadata::new();
+                    if let serde_json::Value::Object(map) = &vault_entry.metadata {
+                        for (k, v) in map {
+                            metadata.set(k.clone(), v.clone());
+                        }
+                    }
+                    metadata
+                },
+                compliance_flags: vec![],
+                risk_score: None,
+            },
+            access_control: AccessControl::default(),
+            audit_trail: AuditTrail::default(),
+            created_at: vault_entry.created_at,
+            updated_at: vault_entry.updated_at,
+            created_by_nip: None,
+            satker_owner: vault_entry.owner_id.clone(),
+            last_accessed: chrono::Utc::now(),
+            namespace: "default".to_string(),
+        };
+
+        // Update cache
+        if self.config.enable_cache {
+            let mut cache = self.cache.write().await;
+            cache.insert(
+                path.to_string(),
+                CacheEntry {
+                    secret: secret.clone(),
+                    accessed_at: chrono::Utc::now(),
+                },
+            );
+        }
+
+        Ok(secret)
     }
 
     /// Store secret with post-quantum encryption

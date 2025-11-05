@@ -96,7 +96,7 @@ enum Commands {
         #[command(subcommand)]
         action: ToolCommands,
     },
-    /// Vault operations - HashiCorp Vault management
+    /// Vault operations - Secreton management
     Vault {
         /// Vault action (setup, unseal, decrypt-token, generate-config, create-secrets, backup, restore, health, policy, auth)
         #[arg(default_value = "health")]

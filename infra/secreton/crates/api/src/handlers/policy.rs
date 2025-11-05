@@ -216,13 +216,12 @@ fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
         }
 
         // Validate control group if present
-        if let Some(cg) = &rule.control_group {
-            if cg.required_approvals == 0 {
+        if let Some(cg) = &rule.control_group
+            && cg.required_approvals == 0 {
                 return Err(CoreError::Validation {
                     message: "Invalid input".to_string(),
                 });
             }
-        }
 
         // Validate condition if present
         if let Some(condition) = &rule.condition {
@@ -250,35 +249,30 @@ fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreErro
         }
 
         // Validate start and end are valid RFC3339 timestamps
-        if let Some(start) = time_range.get("start") {
-            if let Some(start_str) = start.as_str() {
-                if chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
+        if let Some(start) = time_range.get("start")
+            && let Some(start_str) = start.as_str()
+                && chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
                     return Err(CoreError::Validation {
                         message: "Invalid input".to_string(),
                     });
                 }
-            }
-        }
 
-        if let Some(end) = time_range.get("end") {
-            if let Some(end_str) = end.as_str() {
-                if chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
+        if let Some(end) = time_range.get("end")
+            && let Some(end_str) = end.as_str()
+                && chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
                     return Err(CoreError::Validation {
                         message: "Invalid input".to_string(),
                     });
                 }
-            }
-        }
     }
 
     // Validate allowed_ips if present
-    if let Some(allowed_ips) = condition.get("allowed_ips") {
-        if !allowed_ips.is_array() {
+    if let Some(allowed_ips) = condition.get("allowed_ips")
+        && !allowed_ips.is_array() {
             return Err(CoreError::Validation {
                 message: "Invalid input".to_string(),
             });
         }
-    }
 
     // Validate expression if present
     if let Some(expr) = condition.get("expression") {
@@ -437,7 +431,7 @@ pub async fn list_policies(
     let total: i64 = count_row.get(0);
 
     // Get paginated results
-    let limit = 20.min(100);
+    let limit = 20;
     let offset = 0;
 
     let select_query = format!(
