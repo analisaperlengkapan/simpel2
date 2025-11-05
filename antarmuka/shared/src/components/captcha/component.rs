@@ -62,38 +62,119 @@ pub fn Captcha(
         set_state.update(|s| s.difficulty = diff);
     }
 
-    // Challenge generation effect
-    let generate_challenge = move || {
+    // Clone session_id for use in async closures
+    let session_id_clone = session_id.clone();
+
+    // Challenge generation effect - wrap in Resource for reactive updates
+    let (refresh_trigger, set_refresh_trigger) = signal(0);
+    
+    Effect::new(move |_| {
+        // Track refresh trigger
+        let _ = refresh_trigger.get();
+        
         set_state.update(|s| {
             s.loading = true;
             s.error = None;
         });
 
-        // Simulate API call for now - will be replaced with actual API integration
+        let session_id_for_spawn = session_id_clone.clone();
+        
         spawn_local(async move {
-            // Simulate network delay
-            gloo_timers::future::TimeoutFuture::new(500).await;
+            // Get Authenc URL from environment or use default
+            let authenc_url = option_env!("AUTHENC_URL")
+                .unwrap_or("http://localhost:8080")
+                .to_string();
+            
+            let challenge_url = format!("{}/captcha/challenge", authenc_url);
 
-            let mock_challenge = ChallengeResponse {
-                challenge_id: format!("challenge_{}", js_sys::Date::now() as u64),
-                challenge_type: ChallengeType::Visual,
-                challenge_data: "What is 2 + 2?".to_string(),
-                difficulty_level: state.get().difficulty,
-                expires_at: "2024-01-01T00:00:00Z".to_string(),
-            };
-
-            set_challenge_data.set(Some(mock_challenge.clone()));
-            set_state.update(|s| {
-                s.loading = false;
-                s.challenge_id = Some(mock_challenge.challenge_id);
-                s.challenge_type = mock_challenge.challenge_type;
+            // Prepare request payload
+            let request_payload = serde_json::json!({
+                "challenge_type": "Visual",
+                "difficulty": state.get().difficulty,
+                "session_id": session_id_for_spawn,
             });
-        });
-    };
 
-    // Initialize challenge on mount
-    Effect::new(move |_| {
-        generate_challenge();
+            // Make API call to Authenc
+            match web_sys::window() {
+                Some(window) => {
+                    use web_sys::{Request, RequestInit, RequestMode, Response};
+                    use wasm_bindgen::{JsValue, JsCast};
+
+                    let opts = RequestInit::new();
+                    opts.set_method("POST");
+                    opts.set_mode(RequestMode::Cors);
+                    
+                    // Set body
+                    if let Ok(body_str) = serde_json::to_string(&request_payload) {
+                        opts.set_body(&JsValue::from_str(&body_str));
+                    }
+
+                    match Request::new_with_str_and_init(&challenge_url, &opts) {
+                        Ok(request) => {
+                            // Set headers
+                            let _ = request.headers().set("Content-Type", "application/json");
+
+                            // Fetch challenge
+                            match wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await {
+                                Ok(resp_value) => {
+                                    let resp: Response = resp_value.dyn_into().unwrap();
+                                    
+                                    if resp.ok() {
+                                        match wasm_bindgen_futures::JsFuture::from(resp.json().unwrap()).await {
+                                            Ok(json) => {
+                                                // Parse response
+                                                if let Ok(challenge_resp) = serde_wasm_bindgen::from_value::<ChallengeResponse>(json) {
+                                                    set_challenge_data.set(Some(challenge_resp.clone()));
+                                                    set_state.update(|s| {
+                                                        s.loading = false;
+                                                        s.challenge_id = Some(challenge_resp.challenge_id);
+                                                        s.challenge_type = challenge_resp.challenge_type;
+                                                    });
+                                                } else {
+                                                    set_state.update(|s| {
+                                                        s.loading = false;
+                                                        s.error = Some("Failed to parse challenge response".to_string());
+                                                    });
+                                                }
+                                            }
+                                            Err(_) => {
+                                                set_state.update(|s| {
+                                                    s.loading = false;
+                                                    s.error = Some("Failed to read challenge response".to_string());
+                                                });
+                                            }
+                                        }
+                                    } else {
+                                        set_state.update(|s| {
+                                            s.loading = false;
+                                            s.error = Some(format!("API error: {}", resp.status()));
+                                        });
+                                    }
+                                }
+                                Err(_) => {
+                                    set_state.update(|s| {
+                                        s.loading = false;
+                                        s.error = Some("Network error: Failed to connect to Authenc".to_string());
+                                    });
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            set_state.update(|s| {
+                                s.loading = false;
+                                s.error = Some("Failed to create request".to_string());
+                            });
+                        }
+                    }
+                }
+                None => {
+                    set_state.update(|s| {
+                        s.loading = false;
+                        s.error = Some("Window object not available".to_string());
+                    });
+                }
+            }
+        });
     });
 
     // Initialize behavioral data collection if enabled
@@ -112,7 +193,7 @@ pub fn Captcha(
 
     // Handle challenge refresh
     let refresh_challenge = move |_| {
-        generate_challenge();
+        set_refresh_trigger.update(|n| *n += 1);
     };
 
     // Keyboard navigation elements

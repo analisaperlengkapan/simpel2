@@ -107,8 +107,11 @@ pub struct ChallengeResponse {
     pub challenge_id: String,
     pub challenge_type: ChallengeType,
     pub challenge_data: String,
-    pub difficulty_level: u8,
-    pub expires_at: String,
+    #[serde(alias = "difficulty_level")]
+    pub difficulty: u8,
+    pub expires_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
