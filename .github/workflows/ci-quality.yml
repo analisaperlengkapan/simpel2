@@ -86,10 +86,20 @@ jobs:
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: secrets.CODECOV_TOKEN != ''
+        continue-on-error: true
         with:
           files: lcov.info
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Display coverage summary
+        run: |
+          echo "Coverage report generated at lcov.info"
+          if command -v lcov &> /dev/null; then
+            lcov --summary lcov.info
+          fi
+        continue-on-error: true
 
   benchmarks:
     name: Performance Benchmarks
@@ -114,14 +124,21 @@ jobs:
       
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
+        continue-on-error: true
         with:
           tool: 'cargo'
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+          auto-push: false
           alert-threshold: '150%'
-          comment-on-alert: true
+          comment-on-alert: false
           fail-on-alert: false
+      
+      - name: Display benchmark results
+        run: |
+          echo "Benchmark results:"
+          cat output.txt || echo "No benchmark output available"
+        continue-on-error: true
 
   dependencies-check:
     name: Dependencies Health

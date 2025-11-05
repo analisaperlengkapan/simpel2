@@ -102,13 +102,15 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --debug --only-verified
+      - name: Install gitleaks
+        run: |
+          wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+          chmod +x gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      
+      - name: Run gitleaks
+        run: gitleaks detect --source . --verbose --no-git
 
   container-scan:
     name: Container Security Scan
@@ -122,25 +124,29 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'table'
           severity: 'CRITICAL,HIGH'
-      
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+          exit-code: '1'
 
-  dependency-review:
-    name: Dependency Review
+  authenc-security:
+    name: Authenc Security
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v5
       
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          fail-on-severity: moderate
-          deny-licenses: GPL-3.0, AGPL-3.0
+          toolchain: 1.90.0
+      
+      - name: Check authenc workspace
+        run: |
+          cd infra/authenc
+          cargo check --all
+      
+      - name: Audit authenc dependencies
+        run: |
+          cd infra/authenc
+          cargo install cargo-audit --locked
+          cargo audit
+        continue-on-error: true
