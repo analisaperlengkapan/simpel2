@@ -583,10 +583,10 @@ mod satker_hierarchy_tests {
         }
     }
 
-    fn filter_audit_events_by_satker(
-        events: &[MockAuditEvent],
-        satker_filter: &str,
-    ) -> Vec<&MockAuditEvent> {
+    fn filter_audit_events_by_satker<'a>(
+        events: &'a [MockAuditEvent],
+        satker_filter: &'a str,
+    ) -> Vec<&'a MockAuditEvent> {
         events
             .iter()
             .filter(|event| {
