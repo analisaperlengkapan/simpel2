@@ -51,9 +51,10 @@ mod test_utils {
     pub async fn create_integration_secreton_client() -> Arc<SecretonClient> {
         let base_url = std::env::var("TEST_SECRETON_URL")
             .unwrap_or_else(|_| "http://localhost:8200".to_string());
+        let token = std::env::var("TEST_SECRETON_TOKEN")
+            .unwrap_or_else(|_| "test-token".to_string());
 
-        let client =
-            SecretonClient::new(&base_url, None).expect("Failed to create test secreton client");
+        let client = SecretonClient::new(base_url, token);
 
         Arc::new(client)
     }
@@ -70,7 +71,7 @@ mod test_utils {
             nip: Some(format!("19{:08}", rand::random::<u32>() % 100000000)),
             nama: Some("Integration Test User".to_string()),
             jabatan: Some("Jaksa Muda".to_string()),
-            satker_code: Some("001".to_string()),
+            satker_code: "001".to_string(),
             phone_number: None,
             phone_verified: false,
             password_hash: None,
@@ -291,7 +292,9 @@ mod integration_tests {
                 println!("❌ MFA setup failed: {:?}", e);
                 // This might be expected if secreton is not running
                 match e {
-                    AuthencError::Internal { .. } => {
+                    AuthencError::InternalError { .. } 
+                    | AuthencError::SecretonCommunicationError { .. }
+                    | AuthencError::SecretonUnavailable => {
                         println!(
                             "ℹ️  This is expected if secreton is not running for integration tests"
                         );
@@ -583,7 +586,8 @@ mod integration_tests {
                 println!("❌ MFA statistics retrieval failed: {:?}", e);
                 // This is expected if the database schema is not fully set up
                 match e {
-                    AuthencError::Database { .. } => {
+                    AuthencError::DatabaseError { .. } 
+                    | AuthencError::InternalError { .. } => {
                         println!(
                             "ℹ️  This is expected if the full database schema is not set up for integration tests "
                         );
@@ -619,8 +623,10 @@ mod integration_tests {
 
         // Test with invalid secreton URL to simulate connection failure
         let invalid_secreton_client = Arc::new(
-            SecretonClient::new("http://invalid-secreton-url:9999", None)
-                .expect("Failed to create invalid secreton client"),
+            SecretonClient::new(
+                "http://invalid-secreton-url:9999".to_string(), 
+                "test-token".to_string()
+            )
         );
 
         let mfa_service = MfaService::new(invalid_secreton_client, db_pool.clone());
@@ -635,7 +641,9 @@ mod integration_tests {
             timeout(Duration::from_secs(5), mfa_service.setup_mfa(test_user.id)).await;
 
         match setup_result {
-            Ok(Err(AuthencError::Internal { .. })) => {
+            Ok(Err(AuthencError::InternalError { .. })) 
+            | Ok(Err(AuthencError::SecretonCommunicationError { .. }))
+            | Ok(Err(AuthencError::SecretonUnavailable)) => {
                 println!("✅ MFA setup correctly failed with secreton unavailable");
             }
             Ok(Ok(_)) => {
@@ -657,7 +665,9 @@ mod integration_tests {
         .await;
 
         match recovery_result {
-            Ok(Err(AuthencError::Internal { .. })) => {
+            Ok(Err(AuthencError::InternalError { .. })) 
+            | Ok(Err(AuthencError::SecretonCommunicationError { .. }))
+            | Ok(Err(AuthencError::SecretonUnavailable)) => {
                 println!("✅ Recovery code generation correctly failed with secreton unavailable");
             }
             Ok(Ok(_)) => {

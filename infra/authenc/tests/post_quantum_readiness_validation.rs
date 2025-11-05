@@ -659,23 +659,9 @@ pub struct SharedSecretComponents {
 }
 
 #[derive(Debug, Clone)]
-pub struct SharedSecretComponents {
-    pub x25519_component: Option<Vec<u8>>,
-    pub ml_kem_component: Option<Vec<u8>>,
-}
-
-#[derive(Debug, Clone)]
 pub struct JwtHeader {
     pub alg: String,
     pub typ: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct MigrationInfo {
-    pub supports_classical: bool,
-    pub supports_hybrid: bool,
-    pub supports_post_quantum: bool,
-    pub migration_path_available: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -118,7 +118,7 @@ jobs:
               cd ..
             fi
           done
-          
+
           # Test pembinaan modules
           for dir in pembinaan/keuangan pembinaan/perencanaan pembinaan/perlengkapan; do
             if [ -f "$dir/Cargo.toml" ]; then
@@ -194,7 +194,7 @@ jobs:
                 WASM_SIZE=$(stat -f%z "$wasm_file" 2>/dev/null || stat -c%s "$wasm_file")
                 WASM_SIZE_MB=$(echo "scale=2; $WASM_SIZE / 1024 / 1024" | bc)
                 echo "📦 Bundle: $(basename $wasm_file) - ${WASM_SIZE_MB}MB"
-                
+
                 # Enforce 2MB limit as per project standards
                 if (( $(echo "$WASM_SIZE_MB > 2.0" | bc -l) )); then
                   echo "::error::❌ WASM bundle exceeds 2MB limit: ${WASM_SIZE_MB}MB"
@@ -269,7 +269,7 @@ jobs:
           echo "- Test WASM: ${{ needs.test-wasm.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Build WASM: ${{ needs.build-wasm.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Lint: ${{ needs.lint-frontend.result }}" >> $GITHUB_STEP_SUMMARY
-          
+
           # Fail if any required job failed
           if [[ "${{ needs.check-wasm.result }}" == "failure" ]] || \
              [[ "${{ needs.test-wasm.result }}" == "failure" ]] || \

@@ -179,14 +179,16 @@ pub async fn health_with_metrics(State(database): State<Arc<Database>>) -> impl 
 mod tests {
     use super::*;
     use crate::database::Database;
+    use axum::response::IntoResponse;
 
     #[tokio::test]
     async fn test_metrics_endpoint() {
         let db = Arc::new(Database::mock().await);
 
-        let (status, _body) = metrics(State(db)).await;
+        let response = metrics(State(db)).await;
+        let response = response.into_response();
 
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::OK);
         // Body should contain Prometheus metrics
     }
 }

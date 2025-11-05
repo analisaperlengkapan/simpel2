@@ -300,7 +300,7 @@ jobs:
           echo "| Authenc Security | ${{ needs.authenc-security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Secreton Security | ${{ needs.secreton-security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Fail if any critical job failed
           if [[ "${{ needs.cargo-audit.result }}" == "failure" ]] || \
              [[ "${{ needs.cargo-deny.result }}" == "failure" ]] || \
@@ -308,5 +308,5 @@ jobs:
             echo "::error::❌ Critical security checks failed"
             exit 1
           fi
-          
+
           echo "✅ All critical security checks passed"

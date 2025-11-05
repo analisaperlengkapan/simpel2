@@ -69,27 +69,27 @@ jobs:
           name: SIMPelv2 ${{ steps.version.outputs.version }}
           body: |
             ## 🚀 SIMPelv2 Release ${{ steps.version.outputs.version }}
-            
+
             ### What's Changed
             ${{ steps.changelog.outputs.changelog }}
-            
+
             ### 📦 Installation
-            
+
             Download the appropriate binary for your platform below.
-            
+
             ### 🐳 Docker Images
-            
+
             ```bash
             docker pull ghcr.io/${{ github.repository_owner }}/simpelv2:${{ steps.version.outputs.version }}
             docker pull ghcr.io/${{ github.repository_owner }}/simpelv2:latest
             ```
-            
+
             ### 📚 Documentation
-            
+
             See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) and [/docs](https://github.com/${{ github.repository }}/tree/main/docs) for complete documentation.
-            
+
             ---
-            
+
             **Full Changelog**: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
@@ -153,19 +153,19 @@ jobs:
       - name: Package binaries
         run: |
           mkdir -p release-artifacts
-          
+
           # Copy workspace binaries
           if [ -d "target/${{ matrix.target }}/release" ]; then
             find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable \
               ! -name "*.d" ! -name "*.so" ! -name "*.dylib" \
               -exec cp {} release-artifacts/ \;
           fi
-          
+
           # Create tarball
           cd release-artifacts
           tar czf ../simpelv2-backend-${{ matrix.target }}.tar.gz * || echo "No binaries to package"
           cd ..
-          
+
           # Generate checksum
           sha256sum simpelv2-backend-${{ matrix.target }}.tar.gz > simpelv2-backend-${{ matrix.target }}.tar.gz.sha256
 
@@ -213,7 +213,7 @@ jobs:
         run: |
           set -e
           mkdir -p release-frontend
-          
+
           # Build main microfrontends
           for module in portal badiklat datun intel pemulihan_aset pengawasan pidmil pidsus pidum; do
             echo "🔨 Building $module..."
@@ -223,7 +223,7 @@ jobs:
             cd ../..
             echo "✅ $module built successfully"
           done
-          
+
           # Build pembinaan modules
           for module in keuangan perencanaan perlengkapan; do
             echo "🔨 Building pembinaan/$module..."
@@ -318,11 +318,11 @@ jobs:
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
           cd infra/k8s/staging
-          
+
           # Update image tags in deployment manifests
           find . -name "*.yaml" -type f -exec sed -i \
             "s|image: ghcr.io/${{ github.repository_owner }}/simpelv2:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${VERSION}|g" {} \;
-          
+
           echo "Updated manifests to version ${VERSION}"
 
       - name: Deploy to Staging (placeholder)
@@ -333,7 +333,7 @@ jobs:
           echo ""
           echo "⚠️  Actual K8s deployment requires cluster credentials"
           echo "Configure kubectl and uncomment deployment commands"
-          
+
           # Uncomment when K8s credentials are configured:
           # kubectl apply -f infra/k8s/staging/ --namespace=simpelv2-staging
           # kubectl rollout status deployment/simpelv2 --namespace=simpelv2-staging
@@ -355,11 +355,11 @@ jobs:
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
           cd infra/k8s/production
-          
+
           # Update image tags in deployment manifests
           find . -name "*.yaml" -type f -exec sed -i \
             "s|image: ghcr.io/${{ github.repository_owner }}/simpelv2:.*|image: ghcr.io/${{ github.repository_owner }}/simpelv2:${VERSION}|g" {} \;
-          
+
           echo "Updated manifests to version ${VERSION}"
 
       - name: Deploy to Production (placeholder)
@@ -370,7 +370,7 @@ jobs:
           echo ""
           echo "⚠️  Actual K8s deployment requires cluster credentials"
           echo "Configure kubectl and uncomment deployment commands"
-          
+
           # Uncomment when K8s credentials are configured:
           # kubectl apply -f infra/k8s/production/ --namespace=simpelv2
           # kubectl rollout status deployment/simpelv2 --namespace=simpelv2

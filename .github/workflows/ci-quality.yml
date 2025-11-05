@@ -163,14 +163,14 @@ jobs:
         run: |
           echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Extract coverage percentage if lcov is available
           if command -v lcov &> /dev/null; then
             lcov --summary lcov.info 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           else
             echo "Coverage report generated: lcov.info" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Check coverage file size
           COVERAGE_SIZE=$(stat -c%s lcov.info 2>/dev/null || stat -f%z lcov.info 2>/dev/null || echo "0")
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -330,7 +330,7 @@ jobs:
           echo "| Dependencies Health | ${{ needs.dependencies-health.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Code Metrics | ${{ needs.code-metrics.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Warning if documentation or coverage failed
           if [[ "${{ needs.documentation.result }}" == "failure" ]] || \
              [[ "${{ needs.coverage.result }}" == "failure" ]]; then
