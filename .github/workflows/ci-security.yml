@@ -111,7 +111,6 @@ jobs:
       
       - name: Run gitleaks
         run: gitleaks detect --source . --verbose --no-git
-        continue-on-error: true
 
   container-scan:
     name: Container Security Scan
