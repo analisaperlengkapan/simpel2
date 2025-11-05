@@ -1,0 +1,431 @@
+name: Auto-Fix - Cargo Clippy, Fix & Format
+
+on:
+  schedule:
+    # Run every Monday at 05:00 UTC (after Dependabot runs)
+    - cron: '0 5 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  auto-fix-root:
+    name: Auto-fix Root Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-git-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: target
+          key: ${{ runner.os }}-target-autofix-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-autofix-
+
+      - name: Run cargo fix
+        run: |
+          cargo fix --workspace --all --allow-dirty --allow-staged || true
+          cargo clippy --fix --allow-dirty --allow-staged --workspace || true
+          cargo fmt --all
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(autofix): apply cargo fix and clippy fixes for root workspace'
+          title: '[Auto-fix] Cargo clippy & fix - Root Workspace'
+          body: |
+            ## Automatic Cargo Fixes - Root Workspace
+            
+            This PR contains automatic fixes applied by:
+            - `cargo fix --workspace --all --allow-dirty --allow-staged`
+            - `cargo clippy --fix --allow-dirty --allow-staged --workspace`
+            - `cargo fmt --all`
+            
+            These fixes were automatically detected and applied to improve code quality and address compiler/clippy warnings.
+            
+            ### Changes
+            - Applied automatic fixes for compiler warnings
+            - Applied clippy suggestions and fixes
+            - Applied code formatting
+            
+            ### Review Notes
+            - Please review the changes carefully before merging
+            - All fixes are automatic and should be safe, but verify functionality
+            - Run CI tests to ensure no breaking changes
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fix/cargo-root-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            rust
+            code-quality
+            auto-fix
+          delete-branch: true
+
+  auto-fix-secreton:
+    name: Auto-fix Secreton Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-secreton-${{ hashFiles('infra/secreton/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-secreton-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-secreton-${{ hashFiles('infra/secreton/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-git-secreton-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: infra/secreton/target
+          key: ${{ runner.os }}-target-autofix-secreton-${{ hashFiles('infra/secreton/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-autofix-secreton-
+
+      - name: Run cargo fix in secreton
+        working-directory: infra/secreton
+        run: |
+          cargo fix --workspace --all --allow-dirty --allow-staged || true
+          cargo clippy --fix --allow-dirty --allow-staged --workspace || true
+          cargo fmt --all
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(autofix/secreton): apply cargo fix and clippy fixes'
+          title: '[Auto-fix] Cargo clippy & fix - Secreton Workspace'
+          body: |
+            ## Automatic Cargo Fixes - Secreton Workspace
+            
+            This PR contains automatic fixes applied to the Secreton workspace by:
+            - `cargo fix --workspace --all --allow-dirty --allow-staged`
+            - `cargo clippy --fix --allow-dirty --allow-staged --workspace`
+            - `cargo fmt --all`
+            
+            These fixes were automatically detected and applied to improve code quality and address compiler/clippy warnings in the Secreton vault service.
+            
+            ### Changes
+            - Applied automatic fixes for compiler warnings
+            - Applied clippy suggestions and fixes
+            - Applied code formatting
+            
+            ### Review Notes
+            - Please review the changes carefully before merging
+            - All fixes are automatic and should be safe, but verify functionality
+            - Run CI tests to ensure no breaking changes
+            - Pay special attention to cryptographic code changes
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fix/cargo-secreton-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            secreton
+            security
+            code-quality
+            auto-fix
+          delete-branch: true
+
+  auto-fix-authenc:
+    name: Auto-fix Authenc Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-authenc-${{ hashFiles('infra/authenc/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-authenc-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4.3.0
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-authenc-${{ hashFiles('infra/authenc/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-git-authenc-
+
+      - name: Cache target directory
+        uses: actions/cache@v4.3.0
+        with:
+          path: infra/authenc/target
+          key: ${{ runner.os }}-target-autofix-authenc-${{ hashFiles('infra/authenc/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-target-autofix-authenc-
+
+      - name: Run cargo fix in authenc
+        working-directory: infra/authenc
+        run: |
+          cargo fix --workspace --all --allow-dirty --allow-staged || true
+          cargo clippy --fix --allow-dirty --allow-staged --workspace || true
+          cargo fmt --all
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(autofix/authenc): apply cargo fix and clippy fixes'
+          title: '[Auto-fix] Cargo clippy & fix - Authenc Workspace'
+          body: |
+            ## Automatic Cargo Fixes - Authenc Workspace
+            
+            This PR contains automatic fixes applied to the Authenc workspace by:
+            - `cargo fix --workspace --all --allow-dirty --allow-staged`
+            - `cargo clippy --fix --allow-dirty --allow-staged --workspace`
+            - `cargo fmt --all`
+            
+            These fixes were automatically detected and applied to improve code quality and address compiler/clippy warnings in the Authenc authentication service.
+            
+            ### Changes
+            - Applied automatic fixes for compiler warnings
+            - Applied clippy suggestions and fixes
+            - Applied code formatting
+            
+            ### Review Notes
+            - Please review the changes carefully before merging
+            - All fixes are automatic and should be safe, but verify functionality
+            - Run CI tests to ensure no breaking changes
+            - Pay special attention to authentication and security-related code changes
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fix/cargo-authenc-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            authenc
+            security
+            code-quality
+            auto-fix
+          delete-branch: true
+
+  auto-fmt-root:
+    name: Auto-format Root Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: rustfmt
+
+      - name: Run cargo fmt
+        run: cargo fmt --all --workspace
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'style(fmt): apply cargo fmt to root workspace'
+          title: '[Auto-format] Cargo fmt - Root Workspace'
+          body: |
+            ## Automatic Code Formatting - Root Workspace
+            
+            This PR contains automatic code formatting applied by:
+            - `cargo fmt --all --workspace`
+            
+            These formatting changes ensure consistent code style across the entire root workspace according to Rust formatting standards.
+            
+            ### Changes
+            - Applied automatic code formatting
+            - Standardized code style
+            
+            ### Review Notes
+            - These are purely formatting changes with no functional impact
+            - All changes follow Rust's official formatting guidelines
+            - Safe to merge after CI validation
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fmt/root-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            rust
+            formatting
+            code-style
+          delete-branch: true
+
+  auto-fmt-secreton:
+    name: Auto-format Secreton Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: rustfmt
+
+      - name: Run cargo fmt in secreton
+        working-directory: infra/secreton
+        run: cargo fmt --all --workspace
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'style(fmt/secreton): apply cargo fmt to secreton workspace'
+          title: '[Auto-format] Cargo fmt - Secreton Workspace'
+          body: |
+            ## Automatic Code Formatting - Secreton Workspace
+            
+            This PR contains automatic code formatting applied to the Secreton workspace by:
+            - `cargo fmt --all --workspace`
+            
+            These formatting changes ensure consistent code style across the Secreton vault service according to Rust formatting standards.
+            
+            ### Changes
+            - Applied automatic code formatting
+            - Standardized code style
+            
+            ### Review Notes
+            - These are purely formatting changes with no functional impact
+            - All changes follow Rust's official formatting guidelines
+            - Safe to merge after CI validation
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fmt/secreton-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            secreton
+            formatting
+            code-style
+          delete-branch: true
+
+  auto-fmt-authenc:
+    name: Auto-format Authenc Workspace
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: rustfmt
+
+      - name: Run cargo fmt in authenc
+        working-directory: infra/authenc
+        run: cargo fmt --all --workspace
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'style(fmt/authenc): apply cargo fmt to authenc workspace'
+          title: '[Auto-format] Cargo fmt - Authenc Workspace'
+          body: |
+            ## Automatic Code Formatting - Authenc Workspace
+            
+            This PR contains automatic code formatting applied to the Authenc workspace by:
+            - `cargo fmt --all --workspace`
+            
+            These formatting changes ensure consistent code style across the Authenc authentication service according to Rust formatting standards.
+            
+            ### Changes
+            - Applied automatic code formatting
+            - Standardized code style
+            
+            ### Review Notes
+            - These are purely formatting changes with no functional impact
+            - All changes follow Rust's official formatting guidelines
+            - Safe to merge after CI validation
+            
+            ---
+            *This is an automated PR created by the auto-fix-cargo workflow*
+          branch: auto-fmt/authenc-${{ github.run_number }}
+          base: develop
+          labels: |
+            automated
+            authenc
+            formatting
+            code-style
+          delete-branch: true
