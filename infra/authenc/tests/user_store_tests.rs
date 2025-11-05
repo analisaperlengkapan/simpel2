@@ -43,6 +43,18 @@ async fn user_store_basic_flow() {
         phone_number: None,
         realm_id: Some(Uuid::new_v4()),
         organization_id: None,
+        satker_code: "SATKER_TEST".to_string(),
+        password: Some("password123".to_string()),
+        first_name: Some("Test".to_string()),
+        last_name: Some("User".to_string()),
+        nip: Some("198001012000011001".to_string()),
+        nama: Some("Test User".to_string()),
+        jabatan: Some("Jaksa Muda".to_string()),
+        phone_number: None,
+        realm_id: None,
+        organization_id: None,
+        roles: None,
+        secreton_access_policy: None,
         attributes: None,
     };
 

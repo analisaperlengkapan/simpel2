@@ -22,7 +22,7 @@ mod integration_validation {
     async fn test_token_based_secreton_authentication() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create a test user with secreton permissions
         let user = create_test_user_with_secreton_access();
@@ -65,7 +65,7 @@ mod integration_validation {
     async fn test_secret_access_with_authenc_token() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create user with specific secret access permissions
         let user = create_test_user_with_secret_access("SATKER_001");
@@ -103,7 +103,7 @@ mod integration_validation {
     async fn test_cross_satker_access_prevention() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create user from SATKER_001
         let user_satker_001 = create_test_user_with_secret_access("SATKER_001");
@@ -137,7 +137,7 @@ mod integration_validation {
     async fn test_token_expiration_handling() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create expired token
         let user = create_test_user_with_secreton_access();
@@ -179,7 +179,7 @@ mod integration_validation {
     #[tokio::test]
     async fn test_malformed_token_handling() {
         let config = AuthencConfig::test_config();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test various malformed tokens
         let malformed_tokens = vec![
@@ -227,7 +227,7 @@ mod integration_validation {
     #[tokio::test]
     async fn test_circuit_breaker_pattern() {
         let config = AuthencConfig::test_config_with_unreliable_secreton();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Simulate multiple failed requests to trigger circuit breaker
         let user = create_test_user_with_secreton_access();
@@ -288,7 +288,7 @@ mod integration_validation {
     #[tokio::test]
     async fn test_secure_communication_headers() {
         let config = AuthencConfig::test_config();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test that secure headers are properly set
         let request_headers = secreton_client.get_default_headers();
@@ -323,7 +323,7 @@ mod resilience_validation {
     #[tokio::test]
     async fn test_network_timeout_handling() {
         let config = AuthencConfig::test_config_with_slow_secreton();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         let user = create_test_user_with_secreton_access();
         let token = "test-token";
@@ -351,7 +351,7 @@ mod resilience_validation {
     #[tokio::test]
     async fn test_connection_pool_management() {
         let config = AuthencConfig::test_config();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test multiple concurrent requests to verify connection pooling
         let mut handles = vec![];
@@ -400,7 +400,7 @@ mod resilience_validation {
     #[tokio::test]
     async fn test_retry_mechanism() {
         let config = AuthencConfig::test_config_with_intermittent_secreton();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         let user = create_test_user_with_secreton_access();
         let token = "test-token";
@@ -425,32 +425,74 @@ mod resilience_validation {
 
 // Helper functions for creating test data
 fn create_test_user_with_secreton_access() -> User {
-    use crate::models::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
+    use authenc::models::user::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
 
     User {
         id: Uuid::new_v4(),
-        nip: "198001012000011001".to_string(),
-        nama: "Test Jaksa".to_string(),
+        username: "test_jaksa".to_string(),
         email: "test.jaksa@kejaksaan.go.id".to_string(),
+        email_verified: true,
+        first_name: Some("Test".to_string()),
+        last_name: Some("Jaksa".to_string()),
+        nip: Some("198001012000011001".to_string()),
+        nama: Some("Test Jaksa".to_string()),
+        jabatan: Some("Jaksa Muda".to_string()),
         satker_code: "SATKER_TEST".to_string(),
-        jabatan: "Jaksa Muda".to_string(),
+        phone_number: None,
+        phone_verified: false,
+        password_hash: None,
+        totp_secret: None,
+        totp_backup_codes: None,
+        mfa_enabled: false,
+        mfa_setup_at: None,
+        mfa_last_used: None,
+        webauthn_enabled: false,
+        account_locked: false,
+        account_locked_until: None,
+        failed_login_attempts: 0,
+        last_login_at: Some(chrono::Utc::now()),
+        last_failed_login_at: None,
+        password_changed_at: None,
+        password_expires_at: None,
+        require_password_change: false,
+        realm_id: None,
+        organization_id: None,
         roles: vec![Role {
             id: Uuid::new_v4(),
             name: "SecretonUser".to_string(),
+            description: Some("Secreton user role".to_string()),
             scope: RoleScope::Satker("SATKER_TEST".to_string()),
             permissions: vec![],
             managed_by: AdminLevel::AdminSatker("SATKER_TEST".to_string()),
+            realm_id: None,
+            composite: false,
+            client_role: false,
+            client_id: None,
+            priority: 100,
+            active: true,
+            attributes: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
         }],
         permissions: vec![],
-        session_data: Default::default(),
+        session_data: None,
         secreton_access_policy: SecretonAccessPolicy {
             allowed_satker_secrets: vec!["SATKER_TEST".to_string()],
             access_level: AccessLevel::ReadWrite,
             time_restrictions: None,
             audit_required: true,
+            rate_limit: None,
+            allowed_paths: None,
+            denied_paths: None,
         },
-        last_auth: chrono::Utc::now(),
         security_context: Default::default(),
+        attributes: None,
+        enabled: true,
+        federated: false,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        deleted_at: None,
+        login_count: 0,
     }
 }
 

@@ -828,17 +828,46 @@ mod comprehensive_secreton_integration_tests {
 fn create_test_user(nip: &str, satker_code: &str) -> User {
     User {
         id: Uuid::new_v4(),
-        nip: nip.to_string(),
-        nama: format!("Test User {}", nip),
+        username: format!("user_{}", nip),
         email: format!("test.{}@kejaksaan.go.id", nip),
+        email_verified: true,
+        first_name: Some("Test".to_string()),
+        last_name: Some("User".to_string()),
+        nip: Some(nip.to_string()),
+        nama: Some(format!("Test User {}", nip)),
+        jabatan: Some("Jaksa Muda".to_string()),
         satker_code: satker_code.to_string(),
-        jabatan: "Jaksa Muda".to_string(),
+        phone_number: None,
+        phone_verified: false,
+        password_hash: None,
+        totp_secret: None,
+        totp_backup_codes: None,
+        mfa_enabled: false,
+        mfa_setup_at: None,
+        mfa_last_used: None,
+        webauthn_enabled: false,
+        account_locked: false,
+        account_locked_until: None,
+        failed_login_attempts: 0,
+        last_login_at: Some(chrono::Utc::now()),
+        last_failed_login_at: None,
+        password_changed_at: None,
+        password_expires_at: None,
+        require_password_change: false,
+        realm_id: None,
+        organization_id: None,
         roles: vec![create_basic_role(satker_code)],
         permissions: vec![],
-        session_data: Default::default(),
+        session_data: None,
         secreton_access_policy: create_secreton_access_policy(satker_code),
-        last_auth: chrono::Utc::now(),
         security_context: Default::default(),
+        attributes: None,
+        enabled: true,
+        federated: false,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        deleted_at: None,
+        login_count: 0,
     }
 }
 
@@ -849,34 +878,54 @@ fn create_admin_user(admin_level: &str, admin_satker: &str, nip: &str) -> User {
     user
 }
 
-fn create_basic_role(satker_code: &str) -> authenc::models::Role {
-    authenc::models::Role {
+fn create_basic_role(satker_code: &str) -> authenc::models::user::Role {
+    authenc::models::user::Role {
         id: Uuid::new_v4(),
         name: "SecretonUser".to_string(),
-        scope: authenc::models::RoleScope::Satker(satker_code.to_string()),
+        description: Some("Basic Secreton user role".to_string()),
+        scope: authenc::models::user::RoleScope::Satker(satker_code.to_string()),
         permissions: vec![],
-        managed_by: authenc::models::AdminLevel::AdminSatker(satker_code.to_string()),
+        managed_by: authenc::models::user::AdminLevel::AdminSatker(satker_code.to_string()),
+        realm_id: None,
+        composite: false,
+        client_role: false,
+        client_id: None,
+        priority: 100,
+        active: true,
+        attributes: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     }
 }
 
-fn create_admin_role(admin_level: &str, admin_satker: &str) -> authenc::models::Role {
-    authenc::models::Role {
+fn create_admin_role(admin_level: &str, admin_satker: &str) -> authenc::models::user::Role {
+    authenc::models::user::Role {
         id: Uuid::new_v4(),
         name: format!("SecretonAdmin{}", admin_level),
+        description: Some(format!("Admin role for {}", admin_level)),
         scope: match admin_level {
-            "AdminPusat" | "AdminEselonI" => authenc::models::RoleScope::Pusat,
-            "AdminWilayah" => authenc::models::RoleScope::Wilayah(admin_satker.to_string()),
-            "AdminSatker" => authenc::models::RoleScope::Satker(admin_satker.to_string()),
-            _ => authenc::models::RoleScope::Satker(admin_satker.to_string()),
+            "AdminPusat" | "AdminEselonI" => authenc::models::user::RoleScope::Pusat,
+            "AdminWilayah" => authenc::models::user::RoleScope::Wilayah(admin_satker.to_string()),
+            "AdminSatker" => authenc::models::user::RoleScope::Satker(admin_satker.to_string()),
+            _ => authenc::models::user::RoleScope::Satker(admin_satker.to_string()),
         },
         permissions: vec![],
         managed_by: match admin_level {
-            "AdminPusat" => authenc::models::AdminLevel::AdminPusat,
-            "AdminEselonI" => authenc::models::AdminLevel::AdminEselonI,
-            "AdminWilayah" => authenc::models::AdminLevel::AdminWilayah(admin_satker.to_string()),
-            "AdminSatker" => authenc::models::AdminLevel::AdminSatker(admin_satker.to_string()),
-            _ => authenc::models::AdminLevel::AdminSatker(admin_satker.to_string()),
+            "AdminPusat" => authenc::models::user::AdminLevel::AdminPusat,
+            "AdminEselonI" => authenc::models::user::AdminLevel::AdminEselonI,
+            "AdminWilayah" => authenc::models::user::AdminLevel::AdminWilayah(admin_satker.to_string()),
+            "AdminSatker" => authenc::models::user::AdminLevel::AdminSatker(admin_satker.to_string()),
+            _ => authenc::models::user::AdminLevel::AdminSatker(admin_satker.to_string()),
         },
+        realm_id: None,
+        composite: false,
+        client_role: false,
+        client_id: None,
+        priority: 100,
+        active: true,
+        attributes: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     }
 }
 

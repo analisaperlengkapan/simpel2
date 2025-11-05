@@ -80,12 +80,18 @@ async fn test_webauthn_registration_challenge_generation() {
     let create_user_request = CreateUserRequest {
         username: "testuser".to_string(),
         email: "test@example.com".to_string(),
+        satker_code: "SATKER_TEST".to_string(),
         password: Some("testpassword".to_string()),
         first_name: Some("Test".to_string()),
         last_name: Some("User".to_string()),
+        nip: Some("198001012000011001".to_string()),
+        nama: Some("Test User".to_string()),
+        jabatan: Some("Jaksa Muda".to_string()),
         phone_number: None,
-        realm_id: None, // Set to None to avoid foreign key constraint
+        realm_id: None,
         organization_id: None,
+        roles: None,
+        secreton_access_policy: None,
         attributes: None,
     };
 
@@ -224,12 +230,18 @@ async fn test_webauthn_authentication_challenge_generation() {
     let create_user_request = CreateUserRequest {
         username: "testuser".to_string(),
         email: "test@example.com".to_string(),
+        satker_code: "SATKER_TEST".to_string(),
         password: Some("testpassword".to_string()),
         first_name: Some("Test".to_string()),
         last_name: Some("User".to_string()),
+        nip: Some("198001012000011001".to_string()),
+        nama: Some("Test User".to_string()),
+        jabatan: Some("Jaksa Muda".to_string()),
         phone_number: None,
-        realm_id: None, // Set to None to avoid foreign key constraint
+        realm_id: None,
         organization_id: None,
+        roles: None,
+        secreton_access_policy: None,
         attributes: None,
     };
 

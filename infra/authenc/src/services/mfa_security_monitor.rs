@@ -683,6 +683,184 @@ impl MfaSecurityMonitor {
             }
         });
     }
+
+    /// Record a generic MFA event for tracking and analysis
+    pub async fn record_mfa_event(
+        &self,
+        user_id: Uuid,
+        event_type: &str,
+        ip_address: &str,
+    ) -> Result<(), AuthencError> {
+        let mut ip_tracking = self.ip_tracking.write().await;
+        let tracking = ip_tracking.entry(ip_address.to_string()).or_insert_with(|| IpTrackingInfo {
+            ip: ip_address.to_string(),
+            failed_attempts: 0,
+            successful_attempts: 0,
+            mfa_setups: 0,
+            last_activity: Instant::now(),
+            first_seen: Instant::now(),
+            user_ids: vec![],
+        });
+
+        tracking.last_activity = Instant::now();
+        if !tracking.user_ids.contains(&user_id) {
+            tracking.user_ids.push(user_id);
+        }
+
+        if event_type.contains("success") {
+            tracking.successful_attempts += 1;
+        } else if event_type.contains("failure") || event_type.contains("fail") {
+            tracking.failed_attempts += 1;
+        }
+
+        info!("Recorded MFA event: {} for user {} from IP {}", event_type, user_id, ip_address);
+        Ok(())
+    }
+
+    /// Record a security event for audit and analysis
+    pub async fn record_security_event(
+        &self,
+        user_id: Uuid,
+        event_type: &str,
+        ip_address: &str,
+    ) -> Result<(), AuthencError> {
+        // Delegate to record_mfa_event for now
+        self.record_mfa_event(user_id, event_type, ip_address).await
+    }
+
+    /// Check for anomalies in MFA usage patterns for a specific user
+    pub async fn check_for_anomalies(&self, user_id: Uuid) -> Result<Vec<String>, AuthencError> {
+        let mut anomalies = Vec::new();
+        
+        // Check for excessive failed attempts across all IPs for this user
+        let ip_tracking = self.ip_tracking.read().await;
+        let user_related_ips: Vec<_> = ip_tracking
+            .values()
+            .filter(|info| info.user_ids.contains(&user_id))
+            .collect();
+
+        let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
+        if total_failed > self.config.max_failed_attempts_per_ip {
+            anomalies.push(format!("Excessive failed MFA attempts: {} across multiple IPs", total_failed));
+        }
+
+        // Check for rapid MFA setups
+        let total_setups = user_related_ips.iter().map(|info| info.mfa_setups).sum::<u32>();
+        if total_setups > self.config.max_setups_per_ip_per_hour {
+            anomalies.push(format!("Suspicious MFA setup pattern: {} setups", total_setups));
+        }
+
+        Ok(anomalies)
+    }
+
+    /// Analyze event correlations for security patterns
+    pub async fn analyze_event_correlation(&self, user_id: Uuid) -> Result<HashMap<String, u32>, AuthencError> {
+        let mut correlations = HashMap::new();
+        
+        let ip_tracking = self.ip_tracking.read().await;
+        let user_related_ips: Vec<_> = ip_tracking
+            .values()
+            .filter(|info| info.user_ids.contains(&user_id))
+            .collect();
+
+        let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
+        let total_successful = user_related_ips.iter().map(|info| info.successful_attempts).sum::<u32>();
+        let total_setups = user_related_ips.iter().map(|info| info.mfa_setups).sum::<u32>();
+        let unique_ips = user_related_ips.len() as u32;
+
+        correlations.insert("total_failed_attempts".to_string(), total_failed);
+        correlations.insert("total_successful_attempts".to_string(), total_successful);
+        correlations.insert("total_mfa_setups".to_string(), total_setups);
+        correlations.insert("unique_ip_count".to_string(), unique_ips);
+
+        // Calculate success rate
+        if total_failed + total_successful > 0 {
+            let success_rate = (total_successful * 100) / (total_failed + total_successful);
+            correlations.insert("success_rate_percent".to_string(), success_rate);
+        }
+
+        Ok(correlations)
+    }
+
+    /// Analyze threats and provide automated response suggestions
+    pub async fn analyze_and_respond_to_threats(&self, user_id: Uuid) -> Result<HashMap<String, String>, AuthencError> {
+        let mut response = HashMap::new();
+        
+        let anomalies = self.check_for_anomalies(user_id).await?;
+        let correlations = self.analyze_event_correlation(user_id).await?;
+
+        // Determine threat level
+        let threat_level = if anomalies.len() > 3 {
+            "CRITICAL"
+        } else if anomalies.len() > 1 {
+            "HIGH"
+        } else if anomalies.len() > 0 {
+            "MEDIUM"
+        } else {
+            "LOW"
+        };
+
+        response.insert("threat_level".to_string(), threat_level.to_string());
+        response.insert("anomaly_count".to_string(), anomalies.len().to_string());
+        response.insert("anomalies".to_string(), anomalies.join("; "));
+
+        // Suggest actions based on threat level
+        let suggested_action = match threat_level {
+            "CRITICAL" => "IMMEDIATE_LOCKOUT_REQUIRED",
+            "HIGH" => "REVIEW_AND_POTENTIAL_LOCKOUT",
+            "MEDIUM" => "INCREASE_MONITORING",
+            _ => "NO_ACTION_REQUIRED",
+        };
+        response.insert("suggested_action".to_string(), suggested_action.to_string());
+
+        // Add correlation metrics
+        if let Some(failed) = correlations.get("total_failed_attempts") {
+            response.insert("total_failed_attempts".to_string(), failed.to_string());
+        }
+        if let Some(success_rate) = correlations.get("success_rate_percent") {
+            response.insert("success_rate_percent".to_string(), success_rate.to_string());
+        }
+
+        warn!("Threat analysis for user {}: {}", user_id, threat_level);
+        Ok(response)
+    }
+
+    /// Collect comprehensive security metrics for reporting
+    pub async fn collect_security_metrics(&self) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
+        use serde_json::json;
+        
+        let mut metrics = HashMap::new();
+        let ip_tracking = self.ip_tracking.read().await;
+
+        let total_tracked_ips = ip_tracking.len();
+        let total_failed_attempts: u32 = ip_tracking.values().map(|info| info.failed_attempts).sum();
+        let total_successful_attempts: u32 = ip_tracking.values().map(|info| info.successful_attempts).sum();
+        let total_mfa_setups: u32 = ip_tracking.values().map(|info| info.mfa_setups).sum();
+
+        metrics.insert("total_tracked_ips".to_string(), json!(total_tracked_ips));
+        metrics.insert("total_failed_attempts".to_string(), json!(total_failed_attempts));
+        metrics.insert("total_successful_attempts".to_string(), json!(total_successful_attempts));
+        metrics.insert("total_mfa_setups".to_string(), json!(total_mfa_setups));
+
+        // Calculate overall success rate
+        if total_failed_attempts + total_successful_attempts > 0 {
+            let success_rate = (total_successful_attempts as f64 * 100.0) 
+                / (total_failed_attempts + total_successful_attempts) as f64;
+            metrics.insert("overall_success_rate_percent".to_string(), json!(success_rate));
+        }
+
+        // Identify high-risk IPs
+        let high_risk_ips: Vec<String> = ip_tracking
+            .values()
+            .filter(|info| info.failed_attempts > self.config.max_failed_attempts_per_ip / 2)
+            .map(|info| info.ip.clone())
+            .collect();
+        metrics.insert("high_risk_ip_count".to_string(), json!(high_risk_ips.len()));
+        metrics.insert("high_risk_ips".to_string(), json!(high_risk_ips));
+
+        info!("Collected comprehensive security metrics: {} IPs tracked", total_tracked_ips);
+        Ok(metrics)
+    }
 }
 
 #[cfg(test)]

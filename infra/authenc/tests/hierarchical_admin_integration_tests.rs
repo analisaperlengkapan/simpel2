@@ -32,7 +32,7 @@ mod hierarchical_admin_tests {
     async fn test_admin_pusat_comprehensive_access() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create AdminPusat user
         let admin_pusat = create_admin_user(AdminLevel::AdminPusat, "KEJAGUNG");
@@ -133,7 +133,7 @@ mod hierarchical_admin_tests {
     async fn test_admin_eselon_i_regional_access() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create AdminEselonI user
         let admin_eselon_i = create_admin_user(AdminLevel::AdminEselonI, "KEJAGUNG");
@@ -236,7 +236,7 @@ mod hierarchical_admin_tests {
     async fn test_admin_wilayah_jurisdictional_access() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test different wilayah admin scenarios
         let wilayah_scenarios = vec![
@@ -382,7 +382,7 @@ mod hierarchical_admin_tests {
     async fn test_admin_satker_unit_specific_access() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test AdminSatker for specific units
         let satker_units = vec![
@@ -508,7 +508,7 @@ mod hierarchical_admin_tests {
     async fn test_hierarchical_role_delegation() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test role delegation scenarios
         let delegation_scenarios = vec![
@@ -642,7 +642,7 @@ mod hierarchical_admin_tests {
     async fn test_hierarchical_audit_trail() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Create admin users at different levels
         let admin_users = vec![
@@ -752,7 +752,7 @@ mod hierarchical_admin_tests {
     async fn test_emergency_hierarchical_override() {
         let config = AuthencConfig::test_config();
         let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
+        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
 
         // Test emergency override scenarios
         let emergency_scenarios = vec![
@@ -918,6 +918,7 @@ fn create_admin_user(admin_level: AdminLevel, satker_code: &str) -> User {
     user.roles.push(Role {
         id: Uuid::new_v4(),
         name: format!("Admin_{:?}", admin_level),
+        description: Some(format!("Admin role for {:?}", admin_level)),
         scope: match &admin_level {
             AdminLevel::AdminPusat | AdminLevel::AdminEselonI => RoleScope::Pusat,
             AdminLevel::AdminWilayah(wilayah) => RoleScope::Wilayah(wilayah.clone()),
@@ -925,6 +926,15 @@ fn create_admin_user(admin_level: AdminLevel, satker_code: &str) -> User {
         },
         permissions: vec![],
         managed_by: admin_level.clone(),
+        realm_id: None,
+        composite: false,
+        client_role: false,
+        client_id: None,
+        priority: 100,
+        active: true,
+        attributes: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
     });
 
     // Set access policy based on admin level
