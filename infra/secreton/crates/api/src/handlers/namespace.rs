@@ -15,7 +15,7 @@ use axum::{
     Router,
     extract::{Path, Query, State},
     response::Json,
-    routing::get,
+    routing::{delete, get, post, put},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -37,14 +37,15 @@ use crate::{
 /// Create namespace routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/namespaces", get(list_namespaces).post(create_namespace))
+        .route("/namespaces", post(create_namespace))
+        .route("/namespaces", get(list_namespaces))
         .route(
-            "/namespaces/:id",
+            "/namespaces/{id}",
             get(get_namespace)
                 .put(update_namespace)
                 .delete(delete_namespace),
         )
-        .route("/namespaces/:id/stats", get(get_namespace_stats))
+        .route("/namespaces/{id}/stats", get(get_namespace_stats))
 }
 
 // ============================================================================

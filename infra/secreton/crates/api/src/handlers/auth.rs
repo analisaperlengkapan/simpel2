@@ -24,15 +24,15 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/login", post(login))
         .route("/logout", post(logout))
-        .route("/refresh", post(refresh_token))
-        .route("/verify", post(verify_token))
+        .route("/token/refresh", post(refresh_token))
+        .route("/token/verify", post(verify_token))
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
-        .route("/oauth/:provider", get(oauth_login))
-        .route("/oauth/:provider/callback", get(oauth_callback))
+        .route("/oauth/{provider}", get(oauth_login))
+        .route("/oauth/{provider}/callback", get(oauth_callback))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/:session_id", delete(revoke_session))
+        .route("/sessions/{session_id}", delete(revoke_session))
 }
 
 #[cfg(test)]

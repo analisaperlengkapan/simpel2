@@ -1,75 +1,217 @@
-# Server configuration
-[server]
-host = "127.0.0.1"
-port = 8080
-log_level = "info"
-storage_path = "./data"
+# Default configuration for Secreton Secret Management Service# Default configuration for Secreton Secret Management Service# Default configuration for Secreton Secret Management Service
 
-# Database configuration - Optimized for PostgreSQL
+# This file contains base configuration that applies to all environments
+
+# Override specific values in environment-specific files (e.g., production.toml)# This file contains base configuration that applies to all environments# This file contains base configuration that applies to all environments
+
+# Secrets should NEVER be stored here - use environment variables instead
+
+# Override specific values in environment-specific files (e.g., production.toml)# Override specific values in environment-specific files (e.g., production.toml)
+
+# Note: This is a simplified config for testing
+
+# Full config with all options available via code defaults# Secrets should NEVER be stored here - use environment variables instead# Secrets should NEVER be stored here - use environment variables instead
+
+
+
 [database]
-# PostgreSQL connection URL (recommended for production)
-url = "postgresql://secreton_user:secure_password@localhost:5432/secreton_db"
-# Optimized connection pool settings for PostgreSQL
-max_connections = 20
-min_connections = 5
-max_lifetime = 1800  # 30 minutes
-idle_timeout = 300   # 5 minutes
-connection_timeout = 10
-# PostgreSQL-specific optimizations
-statement_cache_size = 1000
-prepared_statement_cache_size = 100
+
+host = "localhost"
+
+port = 5432# HTTP Server configuration# HTTP Server configuration
+
+database = "secreton"
+
+username = "secreton"[http][http]
+
+password = "secreton"
+
+max_connections = 20bind_address = "127.0.0.1:8200"bind_address = "127.0.0.1:8200"
+
+connection_timeout = 30
+
+timeout = "30s"timeout = "30s"
+
+max_body_size = 16777216  # 16 MBmax_body_size = 16777216  # 16 MB
+
+keep_alive = "75s"keep_alive = "75s"
+
+compression = truecompression = true
+
+
+
+# gRPC Server configuration# gRPC Server configuration
+
+[grpc][grpc]
+
+enabled = trueenabled = true
+
+bind_address = "127.0.0.1:8201"bind_address = "127.0.0.1:8201"
+
+timeout = "30s"timeout = "30s"
+
+max_message_size = 4194304  # 4 MBmax_message_size = 4194304  # 4 MB
+
+reflection = falsereflection = false
+
+health_check = truehealth_check = true
+
+
+
+# Authentication configuration# Database configuration
+
+[auth][database]
+
+[auth.jwt]host = "localhost"
+
+# DO NOT set JWT secret here - use JWT_SECRET environment variableport = 5432
+
+secret = "change-this-secret-in-production"database = "secreton"
+
+expiration = "3600s"  # 1 hourusername = "secreton"
+
+refresh_expiration = "604800s"  # 7 dayspassword = "secreton"  # Override with DATABASE_URL env var in production
+
+algorithm = "HS256"max_connections = 20
+
+issuer = "Secreton"connection_timeout = 30
+
+audience = "secreton-api"
 
 # Authentication configuration
-[auth]
-token_ttl = 3600  # 1 hour in seconds
-refresh_token_ttl = 2592000  # 30 days in seconds
-jwt_secret = "change-this-to-a-secure-random-string"
 
-# Multi-Factor Authentication (MFA) configuration for government employees
-[mfa]
-# Enable MFA enforcement for all users
+[auth.session][auth]
+
+timeout = "3600s"[auth.jwt]
+
+store = "Memory"# DO NOT set JWT secret here - use JWT_SECRET environment variable
+
+secret = "change-this-secret-in-production"
+
+[auth.session.cookie]expiration = "3600s"  # 1 hour
+
+name = "secreton-session"refresh_expiration = "604800s"  # 7 days
+
+path = "/"algorithm = "HS256"
+
+secure = false  # Set to true in production with TLSissuer = "Secreton"
+
+http_only = trueaudience = "secreton-api"
+
+same_site = "Strict"
+
+[auth.session]
+
+[auth.mfa]timeout = "3600s"
+
+enabled = truestore = "Memory"
+
+
+
+[auth.mfa.totp][auth.session.cookie]
+
+issuer = "Secreton Vault"name = "secreton-session"
+
+secret_length = 32path = "/"
+
+time_step = 30secure = false  # Set to true in production with TLS
+
+code_length = 6http_only = true
+
+skew_tolerance = 1same_site = "Strict"
+
+
+
+# Rate limiting configuration# Multi-Factor Authentication (MFA) configuration for government employees
+
+[rate_limit][mfa]
+
+enabled = true# Enable MFA enforcement for all users
+
 enabled = true
-# Default MFA method for new users
-default_method = "TOTP"
-# Supported MFA methods
-supported_methods = ["TOTP", "SMS", "Email"]
 
-# TOTP (Time-based One-Time Password) configuration
-[mfa.totp]
-# TOTP issuer name displayed in authenticator apps
-issuer = "SIMPelv2 Kejaksaan RI"
-# Time window in seconds (standard is 30)
-time_window = 30
-# Number of digits in TOTP code (6 or 8)
-digits = 6
-# Hash algorithm (SHA1, SHA256, SHA512)
+[rate_limit.global]# Default MFA method for new users
+
+requests = 1000default_method = "TOTP"
+
+window = "60s"# Supported MFA methods
+
+burst = 100supported_methods = ["TOTP", "SMS", "Email"]
+
+
+
+# Database configuration# TOTP (Time-based One-Time Password) configuration
+
+[database][mfa.totp]
+
+host = "localhost"# TOTP issuer name displayed in authenticator apps
+
+port = 5432issuer = "SIMPelv2 Kejaksaan RI"
+
+database = "secreton"# Time window in seconds (standard is 30)
+
+username = "secreton"time_window = 30
+
+password = "secreton"  # Override with DATABASE_URL env var in production# Number of digits in TOTP code (6 or 8)
+
+max_connections = 20digits = 6
+
+connection_timeout = 30# Hash algorithm (SHA1, SHA256, SHA512)
+
 algorithm = "SHA1"
-# Clock skew tolerance (number of time windows to accept)
-skew_tolerance = 1
-# QR code image size in pixels
-qr_code_size = 256
 
-# MFA enforcement policies for government employees
+# Monitoring configuration# Clock skew tolerance (number of time windows to accept)
+
+[monitoring]skew_tolerance = 1
+
+metrics = true# QR code image size in pixels
+
+metrics_path = "/metrics"qr_code_size = 256
+
+health_path = "/health"
+
+tracing = true# MFA enforcement policies for government employees
+
 [mfa.policies]
-# Require MFA for all government employees
-enforce_for_all = true
-# Grace period for MFA setup (in days)
-setup_grace_period = 7
-# Maximum failed MFA attempts before account lockout
-max_failed_attempts = 5
-# Account lockout duration in minutes
-lockout_duration = 30
-# Require MFA re-verification after this many hours
+
+# CORS configuration# Require MFA for all government employees
+
+[cors]enforce_for_all = true
+
+enabled = true# Grace period for MFA setup (in days)
+
+allowed_origins = ["*"]setup_grace_period = 7
+
+allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]# Maximum failed MFA attempts before account lockout
+
+allowed_headers = ["Content-Type", "Authorization", "X-Requested-With"]max_failed_attempts = 5
+
+exposed_headers = []# Account lockout duration in minutes
+
+max_age = "3600s"lockout_duration = 30
+
+allow_credentials = true# Require MFA re-verification after this many hours
+
 reauth_interval = 8
 
-# Role-based MFA requirements
-[mfa.policies.roles]
-# Administrative roles require immediate MFA setup
-admin_immediate_setup = ["AdminPusat", "AdminEselonI", "AdminWilayah", "AdminSatker"]
+# Logging configuration
+
+[logging]# Role-based MFA requirements
+
+level = "info"[mfa.policies.roles]
+
+format = "pretty"# Administrative roles require immediate MFA setup
+
+json = falseadmin_immediate_setup = ["AdminPusat", "AdminEselonI", "AdminWilayah", "AdminSatker"]
+
 # High-privilege roles require stricter MFA policies
-high_privilege_roles = ["AdminPusat", "AdminEselonI"]
-# Standard employee roles
-standard_roles = ["PegawaiNegeri", "PegawaiKontrak"]
+
+# HSM configuration (optional)high_privilege_roles = ["AdminPusat", "AdminEselonI"]
+
+[hsm]# Standard employee roles
+
+enabled = falsestandard_roles = ["PegawaiNegeri", "PegawaiKontrak"]
+
 
 # Organizational unit (Satker) specific MFA policies
 [mfa.policies.satker]

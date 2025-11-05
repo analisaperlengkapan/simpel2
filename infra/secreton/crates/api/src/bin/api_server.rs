@@ -22,8 +22,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     print_startup_banner();
 
     info!("Loading configuration...");
-    // Load configuration
-    let config = ApiConfig::default();
+    // Load configuration with hierarchy: default.toml → production.toml → env vars
+    // This provides better security and auditability for Secret Management service
+    let config = ApiConfig::load().map_err(|e| {
+        error!("Failed to load configuration: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
 
     info!("Initializing service container...");
     // Create service container (includes SealService, storage, crypto, etc.)

@@ -829,8 +829,91 @@ pub struct FeatureConfig {
 }
 
 impl AppConfig {
-    /// Load configuration from environment variables with sensible defaults
-    pub fn from_env() -> Result<Self> {
+    /// Load configuration with hierarchy: default.toml → production.toml → env vars
+    /// This is the recommended way to load configuration for production deployments.
+    pub fn load() -> Result<Self> {
+        // 1. Try to load default config
+        let mut config = if PathBuf::from("config/default.toml").exists() {
+            Self::from_file("config/default.toml")?
+        } else {
+            Self::default()
+        };
+
+        // 2. Override with environment-specific config (production.toml)
+        let env = env::var("AUTHENC_ENV").unwrap_or_else(|_| "production".to_string());
+        let env_config_path = format!("config/{}.toml", env);
+        if PathBuf::from(&env_config_path).exists() {
+            let env_config = Self::from_file(&env_config_path)?;
+            config.merge(env_config);
+        }
+
+        // 3. Override with environment variables (for secrets)
+        config.apply_env_overrides()?;
+
+        // 4. Validate final configuration
+        config.validate()?;
+
+        Ok(config)
+    }
+
+    /// Load configuration from a TOML file
+    pub fn from_file(path: &str) -> Result<Self> {
+        let contents = std::fs::read_to_string(path).map_err(|e| {
+            AuthencError::validation(&format!("Failed to read config file {}: {}", path, e))
+        })?;
+
+        toml::from_str(&contents).map_err(|e| {
+            AuthencError::validation(&format!("Failed to parse config file {}: {}", path, e))
+        })
+    }
+
+    /// Merge another config into this one (other config takes precedence)
+    fn merge(&mut self, other: Self) {
+        // Server config
+        if other.server.host != default_host() {
+            self.server.host = other.server.host;
+        }
+        if other.server.port != default_port() {
+            self.server.port = other.server.port;
+        }
+        if other.server.workers.is_some() {
+            self.server.workers = other.server.workers;
+        }
+
+        // Database config (always override if different from defaults)
+        if other.database.host != "localhost" {
+            self.database.host = other.database.host;
+        }
+        if other.database.port != 5432 {
+            self.database.port = other.database.port;
+        }
+        if other.database.database != "authenc" {
+            self.database.database = other.database.database;
+        }
+        if other.database.username != "postgres" {
+            self.database.username = other.database.username;
+        }
+        if other.database.password != "postgres" {
+            self.database.password = other.database.password;
+        }
+
+        // Security config
+        if other.security.jwt_secret != "default_jwt_secret_change_in_production"
+            && !other.security.jwt_secret.is_empty()
+        {
+            self.security.jwt_secret = other.security.jwt_secret;
+        }
+
+        // Merge other fields
+        self.observability = other.observability;
+        self.features = other.features;
+        self.rate_limit = other.rate_limit;
+        self.adaptive_rate_limit = other.adaptive_rate_limit;
+        self.mfa_rate_limit = other.mfa_rate_limit;
+    }
+
+    /// Apply environment variable overrides (for secrets and runtime config)
+    fn apply_env_overrides(&mut self) -> Result<()> {
         let mut config = Self::default();
 
         // Server configuration
@@ -913,17 +996,28 @@ impl AppConfig {
         if let Ok(features) = env::var("ENABLED_FEATURES") {
             for feature in features.split(',') {
                 match feature.trim() {
-                    "api_docs" => config.features.enable_api_docs = true,
-                    "metrics" => config.features.enable_metrics = true,
-                    "health_checks" => config.features.enable_health_checks = true,
+                    "api_docs" => self.features.enable_api_docs = true,
+                    "metrics" => self.features.enable_metrics = true,
+                    "health_checks" => self.features.enable_health_checks = true,
                     _ => {}
                 }
             }
         }
 
-        // Validate configuration
-        config.validate()?;
+        Ok(())
+    }
 
+    /// Load configuration from environment variables only (legacy method)
+    /// This method is kept for backward compatibility.
+    /// Use `load()` instead for production deployments.
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `load()` instead for file-based config with env overrides"
+    )]
+    pub fn from_env() -> Result<Self> {
+        let mut config = Self::default();
+        config.apply_env_overrides()?;
+        config.validate()?;
         Ok(config)
     }
 

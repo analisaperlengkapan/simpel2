@@ -57,7 +57,7 @@ pub fn create_raft_router(state: RaftApiState) -> Router {
     Router::new()
         .route("/status", get(get_status))
         .route("/peers", post(add_peer))
-        .route("/peers/:node_id", delete(remove_peer))
+        .route("/peers/{node_id}", delete(remove_peer))
         .route("/leader", get(get_leader))
         .with_state(state)
 }

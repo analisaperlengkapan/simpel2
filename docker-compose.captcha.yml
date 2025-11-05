@@ -73,7 +73,7 @@ services:
       - "--storage.tsdb.retention.time=90d"
       - "--web.enable-lifecycle"
     volumes:
-      - ./config/prometheus/captcha.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/config/prometheus/captcha.yml:/etc/prometheus/prometheus.yml:ro
       - captcha_prometheus_data:/prometheus
     networks:
       - simpelv2-network
@@ -197,7 +197,7 @@ services:
       - "--storage.path=/alertmanager"
       - "--web.external-url=http://localhost:9093"
     volumes:
-      - ./config/alertmanager/captcha.yml:/etc/alertmanager/config.yml:ro
+      - ./infra/monitoring/config/alertmanager/captcha.yml:/etc/alertmanager/config.yml:ro
       - captcha_alertmanager_data:/alertmanager
     networks:
       - simpelv2-network

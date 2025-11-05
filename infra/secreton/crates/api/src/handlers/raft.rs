@@ -25,15 +25,13 @@ use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
 /// Create Raft management routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/raft/status", get(get_cluster_status))
-        .route("/raft/peers", get(list_peers).post(add_peer))
-        .route("/raft/peers/:node_id", delete(remove_peer))
-        .route(
-            "/raft/snapshot",
-            post(create_snapshot).get(download_snapshot),
-        )
+        .route("/raft/join", post(join_cluster))
+        .route("/raft/peers", get(list_peers))
+        .route("/raft/peers/{node_id}", delete(remove_peer))
+        .route("/raft/status", get(raft_status))
+        .route("/raft/snapshot", post(create_snapshot))
         .route("/raft/snapshots", get(list_snapshots))
-        .route("/raft/restore", post(restore_snapshot))
+        .with_state(state)
 }
 
 /// Cluster status response

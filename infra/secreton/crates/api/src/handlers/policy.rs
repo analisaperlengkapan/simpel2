@@ -38,13 +38,13 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/policies", get(list_policies))
         .route(
-            "/policies/:name",
+            "/policies/{name}",
             post(create_policy)
                 .get(get_policy)
                 .put(update_policy)
                 .delete(delete_policy),
         )
-        .route("/policies/:name/test", post(test_policy))
+        .route("/policies/{name}/test", post(test_policy))
 }
 
 // ============================================================================

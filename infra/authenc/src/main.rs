@@ -3,8 +3,9 @@ use authenc::{app::ApplicationBuilder, config::AppConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load configuration
-    let config = AppConfig::from_env()?;
+    // Load configuration with hierarchy: default.toml → production.toml → env vars
+    // This provides better security and auditability for IAM service
+    let config = AppConfig::load()?;
 
     // Initialize logging
     authenc::app::initialize_logging(&config)?;

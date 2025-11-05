@@ -50,7 +50,7 @@ pub fn create_routes() -> Router<AppState> {
         // Wrapping operations
         .route("/wrapping/wrap", post(wrap_data))
         .route("/wrapping/unwrap", post(unwrap_token))
-        .route("/wrapping/lookup/:token", get(lookup_token))
+        .route("/wrapping/lookup/{token}", get(lookup_token))
         .route("/wrapping/rewrap", post(rewrap_token))
 }
 

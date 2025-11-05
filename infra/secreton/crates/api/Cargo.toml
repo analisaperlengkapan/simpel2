@@ -58,6 +58,10 @@ tokio-postgres.workspace = true
 jsonwebtoken.workspace = true
 x509-parser.workspace = true
 
+# Configuration
+toml.workspace = true
+url.workspace = true
+
 # Internal crates
 secreton-core.workspace = true
 secreton-storage.workspace = true
