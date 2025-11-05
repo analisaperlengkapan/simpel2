@@ -52,8 +52,8 @@ jobs:
 
       - name: Run cargo fix
         run: |
-          cargo fix --workspace --all --allow-dirty --allow-staged || true
-          cargo clippy --fix --allow-dirty --allow-staged --workspace || true
+          cargo fix --workspace --all --allow-dirty --allow-staged
+          cargo clippy --fix --allow-dirty --allow-staged --workspace
           cargo fmt --all
 
       - name: Validate changes with cargo check
