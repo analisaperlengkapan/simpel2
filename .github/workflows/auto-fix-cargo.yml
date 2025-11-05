@@ -58,7 +58,6 @@ jobs:
 
       - name: Validate changes with cargo check
         run: cargo check --workspace --all --verbose
-        continue-on-error: false
 
       - name: Run tests
         run: cargo test --workspace --all --verbose
