@@ -38,6 +38,20 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
+      - name: Verify workspace structure
+        run: |
+          echo "📁 Workspace structure:"
+          ls -la infra/
+          echo ""
+          echo "✅ authenc exists: $([ -d infra/authenc ] && echo 'yes' || echo 'no')"
+          echo "✅ secreton exists: $([ -d infra/secreton ] && echo 'yes' || echo 'no')"
+
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -67,12 +81,17 @@ jobs:
           cargo fmt --all
 
       - name: Fix infra/secreton workspace
-        working-directory: infra/secreton
         run: |
-          echo "🔧 Fixing infra/secreton workspace..."
-          cargo fix --all-targets --allow-dirty --allow-staged || true
-          cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
-          cargo fmt --all
+          if [ -d "infra/secreton" ]; then
+            echo "🔧 Fixing infra/secreton workspace..."
+            cd infra/secreton
+            cargo fix --all-targets --allow-dirty --allow-staged || true
+            cargo clippy --fix --all-targets --allow-dirty --allow-staged || true
+            cargo fmt --all
+            cd ../..
+          else
+            echo "⚠️ infra/secreton directory not found, skipping..."
+          fi
 
       - name: Check for changes
         id: check_changes
@@ -95,8 +114,12 @@ jobs:
           echo "Validating authenc workspace..."
           cd infra/authenc && cargo check --all-targets --verbose && cd ../..
 
-          echo "Validating secreton workspace..."
-          cd infra/secreton && cargo check --all-targets --verbose && cd ../..
+          if [ -d "infra/secreton" ]; then
+            echo "Validating secreton workspace..."
+            cd infra/secreton && cargo check --all-targets --verbose && cd ../..
+          else
+            echo "⚠️ Skipping secreton validation (directory not found)"
+          fi
 
       - name: Run tests
         if: steps.check_changes.outputs.has_changes == 'true'
@@ -137,8 +160,8 @@ jobs:
 
             ### Workspaces Fixed
             - 📦 Root workspace (layanan/*)
-            - 🔐 infra/authenc (IAM system)
-            - 🔒 infra/secreton (Vault system)
+            - 🔐 infra/authenc (IAM system with protobuf support)
+            - 🔒 infra/secreton (Vault system - if present)
 
             ### Validation
             - ✅ Cargo check passed for all workspaces
