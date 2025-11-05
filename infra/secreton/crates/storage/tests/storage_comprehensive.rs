@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 use secreton_storage::{
-    EncryptionMetadata, MemoryBackend, QueryParams, SecurityLevel, StorageBackend,
-    StorageConfig, StorageError, VaultEntry,
+    EncryptionMetadata, MemoryBackend, QueryParams, SecurityLevel, StorageBackend, StorageConfig,
+    StorageError, VaultEntry,
 };
 use std::collections::HashMap;
 use uuid::Uuid;

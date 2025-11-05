@@ -3,7 +3,7 @@
 //! Provides easy creation and configuration of different storage backends.
 
 use crate::{
-    backends::PostgresBackend, MemoryBackend, StorageBackend, StorageError, StorageResult,
+    MemoryBackend, StorageBackend, StorageError, StorageResult, backends::PostgresBackend,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -44,18 +44,17 @@ pub struct StorageFactory;
 
 impl StorageFactory {
     /// Create a storage backend from configuration
-    pub async fn create(
-        config: StorageFactoryConfig,
-    ) -> StorageResult<Arc<dyn StorageBackend>> {
+    pub async fn create(config: StorageFactoryConfig) -> StorageResult<Arc<dyn StorageBackend>> {
         match config.backend_type {
             StorageBackendType::Memory => Ok(Arc::new(MemoryBackend::new())),
 
             StorageBackendType::Postgres => {
-                let postgres_config = config.postgres_config.ok_or_else(|| {
-                    StorageError::ConfigurationError {
-                        message: "PostgreSQL backend configuration required".to_string(),
-                    }
-                })?;
+                let postgres_config =
+                    config
+                        .postgres_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "PostgreSQL backend configuration required".to_string(),
+                        })?;
 
                 let backend = PostgresBackend::new(&postgres_config.connection_string).await?;
                 Ok(Arc::new(backend))
@@ -102,6 +101,4 @@ mod tests {
         let backend = StorageFactory::create_memory();
         assert!(Arc::strong_count(&backend) == 1);
     }
-
-
 }

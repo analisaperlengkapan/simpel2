@@ -140,7 +140,8 @@ impl TotpConfig {
     fn generate_code(&self, counter: u64) -> String {
         // Simplified TOTP generation (production would use proper HMAC-SHA1)
         let hash = (counter ^ 0x123456789ABCDEF).to_string();
-        let code = hash.chars()
+        let code = hash
+            .chars()
             .filter(|c| c.is_numeric())
             .take(self.digits as usize)
             .collect::<String>();
@@ -248,7 +249,8 @@ impl MfaService {
     ) -> Result<TotpConfig, MfaError> {
         let mut configs = self.configs.write().await;
 
-        let mut config = configs.entry(user_id.to_string())
+        let mut config = configs
+            .entry(user_id.to_string())
             .or_insert_with(|| MfaConfig::new(user_id.to_string()));
 
         if config.totp.is_some() {
@@ -267,17 +269,16 @@ impl MfaService {
         user_id = %user_id,
         operation = "verify_totp"
     ))]
-    pub async fn verify_totp(
-        &self,
-        user_id: &str,
-        code: &str,
-    ) -> Result<bool, MfaError> {
+    pub async fn verify_totp(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
         let totp = {
             let configs = self.configs.read().await;
-            let config = configs.get(user_id)
+            let config = configs
+                .get(user_id)
                 .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
-            config.totp.as_ref()
+            config
+                .totp
+                .as_ref()
                 .ok_or_else(|| MfaError::NotConfigured("TOTP".to_string()))?
                 .clone()
         };
@@ -304,7 +305,8 @@ impl MfaService {
 
         // Record successful verification
         let mut history = self.totp_history.write().await;
-        history.entry(user_id.to_string())
+        history
+            .entry(user_id.to_string())
             .or_insert_with(Vec::new)
             .push(TotpHistory {
                 code: code.to_string(),
@@ -325,13 +327,10 @@ impl MfaService {
         user_id = %user_id,
         operation = "verify_recovery_code"
     ))]
-    pub async fn verify_recovery_code(
-        &self,
-        user_id: &str,
-        code: &str,
-    ) -> Result<bool, MfaError> {
+    pub async fn verify_recovery_code(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
         let mut configs = self.configs.write().await;
-        let config = configs.get_mut(user_id)
+        let config = configs
+            .get_mut(user_id)
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
         // Check if already used
@@ -358,7 +357,8 @@ impl MfaService {
     ))]
     pub async fn disable_totp(&self, user_id: &str) -> Result<(), MfaError> {
         let mut configs = self.configs.write().await;
-        let config = configs.get_mut(user_id)
+        let config = configs
+            .get_mut(user_id)
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
         config.totp = None;
@@ -376,7 +376,8 @@ impl MfaService {
     /// Check if MFA is configured for user
     pub async fn is_configured(&self, user_id: &str) -> bool {
         let configs = self.configs.read().await;
-        configs.get(user_id)
+        configs
+            .get(user_id)
             .map(|c| !c.enabled_methods.is_empty())
             .unwrap_or(false)
     }
@@ -388,7 +389,8 @@ impl MfaService {
     ))]
     pub async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>, MfaError> {
         let mut configs = self.configs.write().await;
-        let config = configs.get_mut(user_id)
+        let config = configs
+            .get_mut(user_id)
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
         config.recovery_codes = MfaConfig::generate_recovery_codes();
@@ -426,10 +428,7 @@ mod tests {
 
     #[test]
     fn test_totp_config_generation() {
-        let config = TotpConfig::new(
-            "Secreton".to_string(),
-            "user@example.com".to_string(),
-        );
+        let config = TotpConfig::new("Secreton".to_string(), "user@example.com".to_string());
 
         assert_eq!(config.issuer, "Secreton");
         assert_eq!(config.period, 30);
@@ -441,11 +440,14 @@ mod tests {
     async fn test_enable_totp() {
         let service = MfaService::new();
 
-        let config = service.enable_totp(
-            "user1",
-            "Secreton".to_string(),
-            "user1@example.com".to_string(),
-        ).await.unwrap();
+        let config = service
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@example.com".to_string(),
+            )
+            .await
+            .unwrap();
 
         assert!(!config.secret.is_empty());
         assert!(service.is_configured("user1").await);
@@ -455,11 +457,14 @@ mod tests {
     async fn test_recovery_codes() {
         let service = MfaService::new();
 
-        service.enable_totp(
-            "user1",
-            "Secreton".to_string(),
-            "user1@example.com".to_string(),
-        ).await.unwrap();
+        service
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@example.com".to_string(),
+            )
+            .await
+            .unwrap();
 
         let config = service.get_config("user1").await.unwrap();
         assert_eq!(config.recovery_codes.len(), 10);
@@ -475,11 +480,14 @@ mod tests {
     async fn test_verify_recovery_code() {
         let service = MfaService::new();
 
-        service.enable_totp(
-            "user1",
-            "Secreton".to_string(),
-            "user1@example.com".to_string(),
-        ).await.unwrap();
+        service
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@example.com".to_string(),
+            )
+            .await
+            .unwrap();
 
         let config = service.get_config("user1").await.unwrap();
         let recovery_code = config.recovery_codes[0].clone();
@@ -497,11 +505,14 @@ mod tests {
     async fn test_regenerate_recovery_codes() {
         let service = MfaService::new();
 
-        service.enable_totp(
-            "user1",
-            "Secreton".to_string(),
-            "user1@example.com".to_string(),
-        ).await.unwrap();
+        service
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@example.com".to_string(),
+            )
+            .await
+            .unwrap();
 
         let old_codes = service.get_config("user1").await.unwrap().recovery_codes;
         let new_codes = service.regenerate_recovery_codes("user1").await.unwrap();

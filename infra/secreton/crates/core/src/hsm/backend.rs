@@ -126,7 +126,10 @@ impl HsmBackend {
             return Ok(());
         }
 
-        info!("Initializing HSM backend with provider: {:?}", self.config.provider);
+        info!(
+            "Initializing HSM backend with provider: {:?}",
+            self.config.provider
+        );
 
         let provider: Box<dyn HsmProviderTrait + Send + Sync> = match self.config.provider {
             HsmProviderType::Pkcs11 => {
@@ -180,7 +183,9 @@ impl HsmBackend {
         drop(metadata_lock);
 
         // Generate key in HSM
-        provider.generate_key(key_id, algorithm, key_size, &usage).await?;
+        provider
+            .generate_key(key_id, algorithm, key_size, &usage)
+            .await?;
 
         // Create metadata
         let metadata = HsmKeyMetadata {
@@ -201,12 +206,7 @@ impl HsmBackend {
     }
 
     /// Sign data using HSM key
-    pub async fn hsm_sign(
-        &self,
-        key_id: &str,
-        data: &[u8],
-        algorithm: &str,
-    ) -> HsmResult<Vec<u8>> {
+    pub async fn hsm_sign(&self, key_id: &str, data: &[u8], algorithm: &str) -> HsmResult<Vec<u8>> {
         let provider_lock = self.provider.read().await;
         let provider = provider_lock
             .as_ref()
@@ -464,4 +464,3 @@ mod tests {
         assert!(result.unwrap());
     }
 }
-

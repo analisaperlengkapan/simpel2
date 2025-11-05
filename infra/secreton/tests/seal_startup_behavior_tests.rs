@@ -8,7 +8,7 @@
 //! 4. Middleware properly checks seal status
 //! 5. Health check reflects seal status (503 when sealed)
 
-use secreton_core::services::seal::{SealService, SealConfig, InMemoryVaultStateStorage};
+use secreton_core::services::seal::{InMemoryVaultStateStorage, SealConfig, SealService};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -19,12 +19,21 @@ async fn test_vault_starts_sealed_by_default() {
     let seal_service = SealService::with_storage(config, storage);
 
     // Verify vault is sealed at startup
-    assert!(seal_service.is_sealed().await, "Vault should start in sealed mode");
-    assert!(!seal_service.is_unsealed().await, "Vault should not be unsealed at startup");
+    assert!(
+        seal_service.is_sealed().await,
+        "Vault should start in sealed mode"
+    );
+    assert!(
+        !seal_service.is_unsealed().await,
+        "Vault should not be unsealed at startup"
+    );
 
     // Verify status
     let status = seal_service.status().await;
-    assert_eq!(status.state, secreton_core::services::seal::SealState::Sealed);
+    assert_eq!(
+        status.state,
+        secreton_core::services::seal::SealState::Sealed
+    );
 }
 
 #[tokio::test]
@@ -46,12 +55,21 @@ async fn test_initialize_does_not_auto_unseal() {
     assert_eq!(shares.len(), 5, "Should generate 5 shares");
 
     // CRITICAL: Vault should remain SEALED after initialization
-    assert!(seal_service.is_sealed().await, "Vault should remain sealed after initialization");
-    assert!(!seal_service.is_unsealed().await, "Vault should not be unsealed after initialization");
+    assert!(
+        seal_service.is_sealed().await,
+        "Vault should remain sealed after initialization"
+    );
+    assert!(
+        !seal_service.is_unsealed().await,
+        "Vault should not be unsealed after initialization"
+    );
 
     // Verify master key is NOT available when sealed
     let master_key_result = seal_service.get_master_key().await;
-    assert!(master_key_result.is_err(), "Master key should not be available when sealed");
+    assert!(
+        master_key_result.is_err(),
+        "Master key should not be available when sealed"
+    );
 }
 
 #[tokio::test]
@@ -80,12 +98,21 @@ async fn test_manual_unseal_required_after_init() {
     }
 
     // Now vault should be unsealed
-    assert!(seal_service.is_unsealed().await, "Vault should be unsealed after providing threshold shares");
-    assert!(!seal_service.is_sealed().await, "Vault should not be sealed after unseal");
+    assert!(
+        seal_service.is_unsealed().await,
+        "Vault should be unsealed after providing threshold shares"
+    );
+    assert!(
+        !seal_service.is_sealed().await,
+        "Vault should not be sealed after unseal"
+    );
 
     // Master key should be available after unseal
     let master_key_result = seal_service.get_master_key().await;
-    assert!(master_key_result.is_ok(), "Master key should be available when unsealed");
+    assert!(
+        master_key_result.is_ok(),
+        "Master key should be available when unsealed"
+    );
 }
 
 #[tokio::test]
@@ -111,7 +138,10 @@ async fn test_seal_clears_master_key_from_memory() {
 
     // Verify sealed and master key NOT available
     assert!(seal_service.is_sealed().await, "Vault should be sealed");
-    assert!(seal_service.get_master_key().await.is_err(), "Master key should not be available after seal");
+    assert!(
+        seal_service.get_master_key().await.is_err(),
+        "Master key should not be available after seal"
+    );
 }
 
 #[tokio::test]
@@ -135,26 +165,50 @@ async fn test_unseal_progress_tracking() {
     seal_service.unseal_with_share(&share_bytes).await.unwrap();
 
     let status = seal_service.status().await;
-    assert_eq!(status.progress, 1, "Progress should be 1 after providing 1 share");
-    assert_eq!(status.state, secreton_core::services::seal::SealState::Unsealing);
-    assert!(seal_service.is_sealed().await, "Vault should still be sealed with only 1 share");
+    assert_eq!(
+        status.progress, 1,
+        "Progress should be 1 after providing 1 share"
+    );
+    assert_eq!(
+        status.state,
+        secreton_core::services::seal::SealState::Unsealing
+    );
+    assert!(
+        seal_service.is_sealed().await,
+        "Vault should still be sealed with only 1 share"
+    );
 
     // Provide 2nd share
     let share_bytes = shares[1].to_bytes().unwrap();
     seal_service.unseal_with_share(&share_bytes).await.unwrap();
 
     let status = seal_service.status().await;
-    assert_eq!(status.progress, 2, "Progress should be 2 after providing 2 shares");
-    assert!(seal_service.is_sealed().await, "Vault should still be sealed with only 2 shares");
+    assert_eq!(
+        status.progress, 2,
+        "Progress should be 2 after providing 2 shares"
+    );
+    assert!(
+        seal_service.is_sealed().await,
+        "Vault should still be sealed with only 2 shares"
+    );
 
     // Provide 3rd share (threshold met)
     let share_bytes = shares[2].to_bytes().unwrap();
     seal_service.unseal_with_share(&share_bytes).await.unwrap();
 
     let status = seal_service.status().await;
-    assert_eq!(status.progress, 0, "Progress should reset to 0 after successful unseal");
-    assert_eq!(status.state, secreton_core::services::seal::SealState::Unsealed);
-    assert!(seal_service.is_unsealed().await, "Vault should be unsealed after threshold met");
+    assert_eq!(
+        status.progress, 0,
+        "Progress should reset to 0 after successful unseal"
+    );
+    assert_eq!(
+        status.state,
+        secreton_core::services::seal::SealState::Unsealed
+    );
+    assert!(
+        seal_service.is_unsealed().await,
+        "Vault should be unsealed after threshold met"
+    );
 }
 
 #[tokio::test]
@@ -184,11 +238,20 @@ async fn test_load_from_storage_starts_sealed() {
     assert!(loaded, "Should successfully load vault state");
 
     // CRITICAL: Vault should be sealed after loading from storage
-    assert!(service2.is_sealed().await, "Vault should be sealed after loading from storage");
-    assert!(!service2.is_unsealed().await, "Vault should not be unsealed after loading");
+    assert!(
+        service2.is_sealed().await,
+        "Vault should be sealed after loading from storage"
+    );
+    assert!(
+        !service2.is_unsealed().await,
+        "Vault should not be unsealed after loading"
+    );
 
     // Master key should NOT be available
-    assert!(service2.get_master_key().await.is_err(), "Master key should not be available when sealed");
+    assert!(
+        service2.get_master_key().await.is_err(),
+        "Master key should not be available when sealed"
+    );
 
     // Unseal with shares
     for share in shares.iter().take(3) {
@@ -197,7 +260,10 @@ async fn test_load_from_storage_starts_sealed() {
     }
 
     // Now should be unsealed
-    assert!(service2.is_unsealed().await, "Vault should be unsealed after providing shares");
+    assert!(
+        service2.is_unsealed().await,
+        "Vault should be unsealed after providing shares"
+    );
 }
 
 #[tokio::test]
@@ -233,7 +299,10 @@ async fn test_duplicate_shares_ignored() {
     seal_service.unseal_with_share(&share_bytes).await.unwrap();
 
     let status = seal_service.status().await;
-    assert_eq!(status.progress, 1, "Duplicate share should only be counted once");
+    assert_eq!(
+        status.progress, 1,
+        "Duplicate share should only be counted once"
+    );
 }
 
 #[tokio::test]
@@ -260,6 +329,8 @@ async fn test_reset_unseal_progress() {
 
     let status = seal_service.status().await;
     assert_eq!(status.progress, 0, "Progress should be reset to 0");
-    assert_eq!(status.state, secreton_core::services::seal::SealState::Sealed);
+    assert_eq!(
+        status.state,
+        secreton_core::services::seal::SealState::Sealed
+    );
 }
-

@@ -1,8 +1,8 @@
 //! Authentication methods
 
-pub mod userpass;
 pub mod approle;
 pub mod kubernetes;
+pub mod userpass;
 
 use anyhow::Result;
 use std::collections::HashMap;
@@ -37,7 +37,10 @@ pub async fn renew_token(
         .await?;
 
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!("Token renewal failed: {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "Token renewal failed: {}",
+            response.status()
+        ));
     }
 
     let body: serde_json::Value = response.json().await?;

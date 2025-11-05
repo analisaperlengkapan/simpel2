@@ -305,11 +305,7 @@ impl WrappingService {
     /// - `DecryptionFailed` if decryption fails
     /// - `InvalidNamespace` if namespace doesn't match
     #[instrument(skip(self), fields(token = %token, namespace = %namespace))]
-    pub async fn unwrap(
-        &self,
-        token: &str,
-        namespace: &str,
-    ) -> Result<JsonValue, WrappingError> {
+    pub async fn unwrap(&self, token: &str, namespace: &str) -> Result<JsonValue, WrappingError> {
         // Get token from cache or database
         let wrapped_token = self.get_token(token).await?;
 
@@ -339,7 +335,10 @@ impl WrappingService {
 
         // Decrypt data
         let data_bytes = self
-            .decrypt_data(&wrapped_token.encrypted_data, &wrapped_token.encryption_metadata)
+            .decrypt_data(
+                &wrapped_token.encrypted_data,
+                &wrapped_token.encryption_metadata,
+            )
             .await?;
 
         // Deserialize data
@@ -430,10 +429,7 @@ impl WrappingService {
         })?;
 
         let result = client
-            .execute(
-                "DELETE FROM wrapping_tokens WHERE expires_at < NOW()",
-                &[],
-            )
+            .execute("DELETE FROM wrapping_tokens WHERE expires_at < NOW()", &[])
             .await
             .map_err(|e| {
                 WrappingError::StorageError(format!("Failed to cleanup expired tokens: {}", e))
@@ -456,13 +452,10 @@ impl WrappingService {
     // Private helper methods
 
     /// Encrypt data using AES-256-GCM
-    async fn encrypt_data(
-        &self,
-        data: &[u8],
-    ) -> Result<(Vec<u8>, JsonValue), WrappingError> {
+    async fn encrypt_data(&self, data: &[u8]) -> Result<(Vec<u8>, JsonValue), WrappingError> {
         use aes_gcm::{
-            aead::{Aead, KeyInit, OsRng},
             Aes256Gcm, Nonce,
+            aead::{Aead, KeyInit, OsRng},
         };
         use rand::RngCore;
 
@@ -479,9 +472,9 @@ impl WrappingService {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // Encrypt
-        let ciphertext = cipher.encrypt(nonce, data).map_err(|e| {
-            WrappingError::EncryptionFailed(format!("Encryption failed: {}", e))
-        })?;
+        let ciphertext = cipher
+            .encrypt(nonce, data)
+            .map_err(|e| WrappingError::EncryptionFailed(format!("Encryption failed: {}", e)))?;
 
         // Store key and nonce in metadata (in production, use Transit engine or HSM)
         let metadata = serde_json::json!({
@@ -499,12 +492,12 @@ impl WrappingService {
         ciphertext: &[u8],
         metadata: &JsonValue,
     ) -> Result<Vec<u8>, WrappingError> {
-        use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 
         // Extract key and nonce from metadata
-        let key_b64 = metadata["key"]
-            .as_str()
-            .ok_or_else(|| WrappingError::DecryptionFailed("Missing key in metadata".to_string()))?;
+        let key_b64 = metadata["key"].as_str().ok_or_else(|| {
+            WrappingError::DecryptionFailed("Missing key in metadata".to_string())
+        })?;
         let nonce_b64 = metadata["nonce"].as_str().ok_or_else(|| {
             WrappingError::DecryptionFailed("Missing nonce in metadata".to_string())
         })?;
@@ -521,9 +514,9 @@ impl WrappingService {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // Decrypt
-        let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
-            WrappingError::DecryptionFailed(format!("Decryption failed: {}", e))
-        })?;
+        let plaintext = cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|e| WrappingError::DecryptionFailed(format!("Decryption failed: {}", e)))?;
 
         Ok(plaintext)
     }
@@ -621,9 +614,7 @@ impl WrappingService {
         client
             .execute("DELETE FROM wrapping_tokens WHERE token = $1", &[&token])
             .await
-            .map_err(|e| {
-                WrappingError::StorageError(format!("Failed to delete token: {}", e))
-            })?;
+            .map_err(|e| WrappingError::StorageError(format!("Failed to delete token: {}", e)))?;
 
         Ok(())
     }

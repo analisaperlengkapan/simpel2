@@ -274,6 +274,11 @@ criterion.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
 
+# Shamir Secret Sharing (for tests)
+num-bigint.workspace = true
+num-traits.workspace = true
+flate2.workspace = true
+
 [[bench]]
 name = "performance"
 harness = false

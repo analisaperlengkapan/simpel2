@@ -2,7 +2,7 @@
 //!
 //! Simple HTTP API for the Secreton transit engine
 
-use axum::{routing::get, Json, Router};
+use axum::{Json, Router, routing::get};
 use serde::{Deserialize, Serialize};
 
 pub mod audit;
@@ -23,7 +23,7 @@ pub mod services;
 pub mod transit;
 
 pub use error::{ApiError, ApiResult};
-pub use kv::{create_kv_router, KVApiState, KVEngine};
+pub use kv::{KVApiState, KVEngine, create_kv_router};
 pub use models::PaginatedResponse;
 pub use response::{
     ApiResponse, DependencyStatus, ErrorDetails, HealthCheckDependencies, HealthCheckResponse,
@@ -31,7 +31,7 @@ pub use response::{
 };
 // TODO: Re-enable after OpenRaft migration
 // pub use raft::{create_raft_router, RaftApiState};
-pub use transit::{create_transit_router, TransitApiState};
+pub use transit::{TransitApiState, create_transit_router};
 #[derive(Clone)]
 pub struct ApiState {
     pub transit: TransitApiState,

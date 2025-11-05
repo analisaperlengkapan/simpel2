@@ -8,13 +8,8 @@
 //! - Audit logging
 //! - Error handling
 
-use secreton_api::{
-    handlers::dynamic::*,
-    services::ServiceContainer,
-};
-use secreton_core::services::secrets::database::{
-    DatabaseConnection, DatabaseRole, DatabaseType,
-};
+use secreton_api::{handlers::dynamic::*, services::ServiceContainer};
+use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
 use secreton_storage::MemoryBackend;
 use std::sync::Arc;
 
@@ -70,9 +65,7 @@ async fn test_create_database_role() {
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
             "GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{username}}".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
@@ -104,9 +97,7 @@ async fn test_role_validation_empty_name() {
         creation_statements: vec![
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
@@ -136,15 +127,16 @@ async fn test_role_validation_no_creation_statements() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
 
     let result = services.database_engine.create_role(role).await;
-    assert!(result.is_err(), "Role creation without creation statements should fail");
+    assert!(
+        result.is_err(),
+        "Role creation without creation statements should fail"
+    );
 }
 
 #[tokio::test]
@@ -160,15 +152,16 @@ async fn test_role_validation_nonexistent_database() {
         creation_statements: vec![
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
 
     let result = services.database_engine.create_role(role).await;
-    assert!(result.is_err(), "Role creation for non-existent database should fail");
+    assert!(
+        result.is_err(),
+        "Role creation for non-existent database should fail"
+    );
 }
 
 #[tokio::test]
@@ -176,15 +169,25 @@ async fn test_username_generation_format() {
     let services = create_test_services().await;
 
     // Generate username for PostgreSQL
-    let username = services.database_engine.generate_username(&DatabaseType::PostgreSQL, "readonly");
+    let username = services
+        .database_engine
+        .generate_username(&DatabaseType::PostgreSQL, "readonly");
 
     // Verify format: v-{role}-{random}
-    assert!(username.starts_with("v-readonly-"), "Username should start with v-readonly-");
-    assert!(username.len() > "v-readonly-".len(), "Username should have random suffix");
+    assert!(
+        username.starts_with("v-readonly-"),
+        "Username should start with v-readonly-"
+    );
+    assert!(
+        username.len() > "v-readonly-".len(),
+        "Username should have random suffix"
+    );
 
     // Verify only valid characters
-    assert!(username.chars().all(|c| c.is_alphanumeric() || c == '-'),
-        "Username should only contain alphanumeric and dash");
+    assert!(
+        username.chars().all(|c| c.is_alphanumeric() || c == '-'),
+        "Username should only contain alphanumeric and dash"
+    );
 }
 
 #[tokio::test]
@@ -214,8 +217,14 @@ async fn test_password_generation_security() {
         let has_lower = password.chars().any(|c| c.is_lowercase());
         let has_digit = password.chars().any(|c| c.is_numeric());
 
-        let type_count = [has_upper, has_lower, has_digit].iter().filter(|&&x| x).count();
-        assert!(type_count >= 2, "Password should have diverse character types");
+        let type_count = [has_upper, has_lower, has_digit]
+            .iter()
+            .filter(|&&x| x)
+            .count();
+        assert!(
+            type_count >= 2,
+            "Password should have diverse character types"
+        );
     }
 }
 
@@ -223,15 +232,23 @@ async fn test_password_generation_security() {
 async fn test_sql_injection_detection() {
     // Test dangerous SQL patterns
     assert!(contains_dangerous_sql("DROP TABLE users;--"));
-    assert!(contains_dangerous_sql("SELECT * FROM users; DROP TABLE users;"));
+    assert!(contains_dangerous_sql(
+        "SELECT * FROM users; DROP TABLE users;"
+    ));
     assert!(contains_dangerous_sql("/* comment */ DROP DATABASE"));
     assert!(contains_dangerous_sql("EXEC sp_executesql"));
     assert!(contains_dangerous_sql("xp_cmdshell"));
 
     // Test safe SQL patterns
-    assert!(!contains_dangerous_sql("CREATE USER {{username}} WITH PASSWORD '{{password}}'"));
-    assert!(!contains_dangerous_sql("GRANT SELECT ON database.* TO {{username}}"));
-    assert!(!contains_dangerous_sql("ALTER USER {{username}} WITH PASSWORD '{{password}}'"));
+    assert!(!contains_dangerous_sql(
+        "CREATE USER {{username}} WITH PASSWORD '{{password}}'"
+    ));
+    assert!(!contains_dangerous_sql(
+        "GRANT SELECT ON database.* TO {{username}}"
+    ));
+    assert!(!contains_dangerous_sql(
+        "ALTER USER {{username}} WITH PASSWORD '{{password}}'"
+    ));
 }
 
 #[tokio::test]
@@ -256,9 +273,7 @@ async fn test_ttl_validation() {
         creation_statements: vec![
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
@@ -273,15 +288,18 @@ async fn test_lease_integration() {
     let services = create_test_services().await;
 
     // Create a lease
-    let lease = services.lease_manager.create_lease(
-        "test-user",
-        "database/creds/readonly",
-        "database",
-        3600,
-        86400,
-        true,
-        None,
-    ).await;
+    let lease = services
+        .lease_manager
+        .create_lease(
+            "test-user",
+            "database/creds/readonly",
+            "database",
+            3600,
+            86400,
+            true,
+            None,
+        )
+        .await;
 
     assert!(lease.is_ok(), "Lease creation should succeed");
 
@@ -304,7 +322,9 @@ async fn test_connection_url_building() {
         ..Default::default()
     };
 
-    let url = services.database_engine.build_connection_url(&connection, "testuser", "testpass");
+    let url = services
+        .database_engine
+        .build_connection_url(&connection, "testuser", "testpass");
 
     // Verify URL contains credentials
     assert!(url.contains("testuser"), "URL should contain username");
@@ -335,9 +355,7 @@ async fn test_credential_lifecycle() {
         creation_statements: vec![
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
@@ -347,15 +365,18 @@ async fn test_credential_lifecycle() {
     // For now, we verify the setup is correct
 
     // 4. Verify lease manager is ready
-    let lease = services.lease_manager.create_lease(
-        "test-user",
-        "database/creds/readonly",
-        "database",
-        3600,
-        86400,
-        true,
-        None,
-    ).await;
+    let lease = services
+        .lease_manager
+        .create_lease(
+            "test-user",
+            "database/creds/readonly",
+            "database",
+            3600,
+            86400,
+            true,
+            None,
+        )
+        .await;
 
     assert!(lease.is_ok(), "Lease creation should succeed");
 }
@@ -372,7 +393,13 @@ async fn test_multiple_database_types() {
         verify_connection: false,
         ..Default::default()
     };
-    assert!(services.database_engine.configure_connection(pg_config).await.is_ok());
+    assert!(
+        services
+            .database_engine
+            .configure_connection(pg_config)
+            .await
+            .is_ok()
+    );
 
     // Test MySQL (not yet implemented, should fail gracefully)
     let mysql_config = DatabaseConnection {
@@ -384,7 +411,13 @@ async fn test_multiple_database_types() {
     };
     // MySQL support not yet implemented, so this should succeed in configuration
     // but fail when trying to generate credentials
-    assert!(services.database_engine.configure_connection(mysql_config).await.is_ok());
+    assert!(
+        services
+            .database_engine
+            .configure_connection(mysql_config)
+            .await
+            .is_ok()
+    );
 }
 
 #[tokio::test]
@@ -409,9 +442,7 @@ async fn test_concurrent_credential_generation() {
         creation_statements: vec![
             "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
         ],
-        revocation_statements: vec![
-            "DROP USER IF EXISTS {{username}}".to_string(),
-        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
         renew_statements: vec![],
     };
@@ -422,7 +453,9 @@ async fn test_concurrent_credential_generation() {
     for _ in 0..10 {
         let services = services.clone();
         let handle = tokio::spawn(async move {
-            services.database_engine.generate_username(&DatabaseType::PostgreSQL, "readonly")
+            services
+                .database_engine
+                .generate_username(&DatabaseType::PostgreSQL, "readonly")
         });
         handles.push(handle);
     }
@@ -457,15 +490,18 @@ async fn test_audit_logging_integration() {
     services.database_engine.configure_connection(config).await;
 
     // Log audit event
-    let result = services.audit.log_event(
-        "test-user",
-        "database_connection_configured",
-        "database/config/test-postgres",
-        serde_json::json!({
-            "name": "test-postgres",
-            "db_type": "postgresql",
-        }),
-    ).await;
+    let result = services
+        .audit
+        .log_event(
+            "test-user",
+            "database_connection_configured",
+            "database/config/test-postgres",
+            serde_json::json!({
+                "name": "test-postgres",
+                "db_type": "postgresql",
+            }),
+        )
+        .await;
 
     assert!(result.is_ok(), "Audit logging should succeed");
 }

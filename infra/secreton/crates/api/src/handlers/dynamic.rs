@@ -4,40 +4,34 @@
 //! role management, and lease integration.
 
 use axum::{
+    Router,
     extract::{Path, Query, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-use crate::{
-    handlers::AppState,
-    ApiResponse, ApiResult, ApiError,
-};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
 
-use secreton_core::services::secrets::database::{
-    DatabaseConnection, DatabaseRole, DatabaseCredentials, DatabaseType,
-};
+use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
 
 /// Create dynamic secrets routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Credential generation
         .route("/database/creds/:role", get(generate_database_credentials))
-
         // Role management
         .route("/database/roles", get(list_database_roles))
         .route("/database/roles/:role", post(create_database_role))
         .route("/database/roles/:role", get(get_database_role))
         .route("/database/roles/:role", put(update_database_role))
         .route("/database/roles/:role", delete(delete_database_role))
-
         // Connection management
-        .route("/database/config/:name", post(configure_database_connection))
+        .route(
+            "/database/config/:name",
+            post(configure_database_connection),
+        )
         .route("/database/config/:name", get(get_database_connection))
         .route("/database/config/:name", delete(delete_database_connection))
 }
@@ -100,7 +94,9 @@ pub async fn generate_database_credentials(
     let (credentials, lease) = db_engine
         .generate_credentials_with_lease(&role_name, params.ttl, lease_manager, user)
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to generate credentials: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to generate credentials: {}", e),
+        })?;
 
     // Log audit event
     // TODO: Fix audit logging
@@ -153,8 +149,12 @@ pub struct CreateRoleRequest {
     pub renew_statements: Vec<String>,
 }
 
-fn default_ttl() -> u32 { 3600 }
-fn default_max_ttl() -> u32 { 86400 }
+fn default_ttl() -> u32 {
+    3600
+}
+fn default_max_ttl() -> u32 {
+    86400
+}
 
 /// Response for role operations
 #[derive(Debug, Serialize)]
@@ -173,43 +173,51 @@ pub async fn create_database_role(
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
     // Validate role name
     if role_name.is_empty() {
-        return Err(ApiError::BadRequest { message: "Role name cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Role name cannot be empty".to_string(),
+        });
     }
 
     // Validate statements contain placeholders
     for stmt in &request.creation_statements {
         if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
-            return Err(ApiError::BadRequest { message:
-                "Creation statements must contain {{username}} or {{password}} placeholders".to_string()
+            return Err(ApiError::BadRequest {
+                message:
+                    "Creation statements must contain {{username}} or {{password}} placeholders"
+                        .to_string(),
             });
         }
 
         // Basic SQL injection prevention
         if contains_dangerous_sql(stmt) {
-            return Err(ApiError::BadRequest { message:
-                "Creation statements contain potentially dangerous SQL".to_string()
+            return Err(ApiError::BadRequest {
+                message: "Creation statements contain potentially dangerous SQL".to_string(),
             });
         }
     }
 
     for stmt in &request.revocation_statements {
         if !stmt.contains("{{username}}") {
-            return Err(ApiError::BadRequest { message:
-                "Revocation statements must contain {{username}} placeholder".to_string()
+            return Err(ApiError::BadRequest {
+                message: "Revocation statements must contain {{username}} placeholder".to_string(),
             });
         }
 
         if contains_dangerous_sql(stmt) {
-            return Err(ApiError::BadRequest { message:
-                "Revocation statements contain potentially dangerous SQL".to_string()
+            return Err(ApiError::BadRequest {
+                message: "Revocation statements contain potentially dangerous SQL".to_string(),
             });
         }
     }
 
     // Validate TTL values
     if request.default_ttl == 0 || request.default_ttl > request.max_ttl {
-        return Err(ApiError::BadRequest { message: format!("Invalid TTL: default_ttl ({}) must be between 1 and max_ttl ({})",
-                request.default_ttl, request.max_ttl) });
+        return Err(ApiError::BadRequest {
+            message: format!(
+                "Invalid TTL: default_ttl ({}) must be between 1 and max_ttl ({})",
+                request.default_ttl, request.max_ttl
+            ),
+        });
     }
 
     // Create role
@@ -224,10 +232,13 @@ pub async fn create_database_role(
         renew_statements: request.renew_statements,
     };
 
-    state.database_engine
+    state
+        .database_engine
         .create_role(role)
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to create role: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to create role: {}", e),
+        })?;
 
     // Log audit event
     // TODO: Fix audit logging
@@ -257,7 +268,9 @@ pub async fn get_database_role(
     Path(role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
     // TODO: Implement role retrieval in database engine
-    Err(ApiError::NotFound { resource: format!("Role {} not found", role_name) })
+    Err(ApiError::NotFound {
+        resource: format!("Role {} not found", role_name),
+    })
 }
 
 /// Update database role
@@ -317,10 +330,18 @@ pub struct ConfigureConnectionRequest {
     pub root_rotation_statements: Vec<String>,
 }
 
-fn default_max_connections() -> u32 { 4 }
-fn default_max_idle() -> u32 { 2 }
-fn default_max_lifetime() -> u32 { 3600 }
-fn default_verify() -> bool { true }
+fn default_max_connections() -> u32 {
+    4
+}
+fn default_max_idle() -> u32 {
+    2
+}
+fn default_max_lifetime() -> u32 {
+    3600
+}
+fn default_verify() -> bool {
+    true
+}
 
 /// Response for connection operations
 #[derive(Debug, Serialize)]
@@ -338,12 +359,16 @@ pub async fn configure_database_connection(
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
     // Validate connection name
     if name.is_empty() {
-        return Err(ApiError::BadRequest { message: "Connection name cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Connection name cannot be empty".to_string(),
+        });
     }
 
     // Validate connection URL
     if request.connection_url.is_empty() {
-        return Err(ApiError::BadRequest { message: "Connection URL cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Connection URL cannot be empty".to_string(),
+        });
     }
 
     // Parse database type
@@ -354,7 +379,11 @@ pub async fn configure_database_connection(
         "redis" => DatabaseType::Redis,
         "cassandra" => DatabaseType::Cassandra,
         "mssql" | "sqlserver" => DatabaseType::MSSQL,
-        _ => return Err(ApiError::BadRequest { message: format!("Unsupported database type: {}", request.db_type) }),
+        _ => {
+            return Err(ApiError::BadRequest {
+                message: format!("Unsupported database type: {}", request.db_type),
+            });
+        }
     };
 
     // Create connection config
@@ -372,10 +401,13 @@ pub async fn configure_database_connection(
     };
 
     // Configure connection
-    state.database_engine
+    state
+        .database_engine
         .configure_connection(config)
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to configure connection: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to configure connection: {}", e),
+        })?;
 
     // Log audit event
     // TODO: Fix audit logging
@@ -395,7 +427,9 @@ pub async fn get_database_connection(
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
     // TODO: Implement connection retrieval in database engine
-    Err(ApiError::NotFound { resource: format!("Connection {} not found", name) })
+    Err(ApiError::NotFound {
+        resource: format!("Connection {} not found", name),
+    })
 }
 
 /// Delete database connection
@@ -418,12 +452,23 @@ pub async fn delete_database_connection(
 /// Basic SQL injection prevention
 fn contains_dangerous_sql(sql: &str) -> bool {
     let dangerous_patterns = [
-        ";--", "/*", "*/", "xp_", "sp_", "exec", "execute",
-        "drop database", "drop table", "truncate", "delete from",
+        ";--",
+        "/*",
+        "*/",
+        "xp_",
+        "sp_",
+        "exec",
+        "execute",
+        "drop database",
+        "drop table",
+        "truncate",
+        "delete from",
     ];
 
     let sql_lower = sql.to_lowercase();
-    dangerous_patterns.iter().any(|pattern| sql_lower.contains(pattern))
+    dangerous_patterns
+        .iter()
+        .any(|pattern| sql_lower.contains(pattern))
 }
 
 #[cfg(test)]
@@ -433,10 +478,16 @@ mod tests {
     #[test]
     fn test_sql_injection_detection() {
         assert!(contains_dangerous_sql("DROP TABLE users;--"));
-        assert!(contains_dangerous_sql("SELECT * FROM users; DROP TABLE users;"));
+        assert!(contains_dangerous_sql(
+            "SELECT * FROM users; DROP TABLE users;"
+        ));
         assert!(contains_dangerous_sql("/* comment */ DROP DATABASE"));
-        assert!(!contains_dangerous_sql("CREATE USER {{username}} WITH PASSWORD '{{password}}'"));
-        assert!(!contains_dangerous_sql("GRANT SELECT ON database.* TO {{username}}"));
+        assert!(!contains_dangerous_sql(
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'"
+        ));
+        assert!(!contains_dangerous_sql(
+            "GRANT SELECT ON database.* TO {{username}}"
+        ));
     }
 
     #[test]

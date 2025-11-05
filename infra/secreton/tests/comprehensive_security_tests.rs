@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use anyhow::Result;
+use secreton_core::storage::secure::{MemoryKeyStore, SecureStorage, SharedSecureStorage};
 use serde::{Deserialize, Serialize};
-use secreton_core::storage::secure::{SecureStorage, SharedSecureStorage, MemoryKeyStore};
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct TestData {
@@ -18,11 +18,8 @@ async fn test_secure_storage_basic_operations() -> Result<()> {
     let key_store = Arc::new(MemoryKeyStore::new());
 
     // Create secure storage with default configuration
-    let storage = SecureStorage::new_with_keystore(
-        b"test-master-key-for-basic-ops",
-        key_store,
-        None,
-    ).await?;
+    let storage =
+        SecureStorage::new_with_keystore(b"test-master-key-for-basic-ops", key_store, None).await?;
 
     let shared_storage = SharedSecureStorage::new(storage);
 
@@ -53,11 +50,9 @@ async fn test_secure_storage_key_rotation() -> Result<()> {
     let key_store = Arc::new(MemoryKeyStore::new());
 
     // Create secure storage
-    let storage = SecureStorage::new_with_keystore(
-        b"test-master-key-for-rotation",
-        key_store.clone(),
-        None,
-    ).await?;
+    let storage =
+        SecureStorage::new_with_keystore(b"test-master-key-for-rotation", key_store.clone(), None)
+            .await?;
 
     let shared_storage = SharedSecureStorage::new(storage);
 
@@ -72,11 +67,18 @@ async fn test_secure_storage_key_rotation() -> Result<()> {
     // For now, we'll just verify that the same key is used
     let new_key_id = shared_storage.current_key_id();
 
-    assert_eq!(initial_key_id, new_key_id, "Key ID should remain the same without rotation");
+    assert_eq!(
+        initial_key_id, new_key_id,
+        "Key ID should remain the same without rotation"
+    );
 
     // Verify we can still decrypt data
     let decrypted = shared_storage.decrypt(&encrypted_initial).await?;
-    assert_eq!(test_data.to_vec(), decrypted, "Should be able to decrypt data");
+    assert_eq!(
+        test_data.to_vec(),
+        decrypted,
+        "Should be able to decrypt data"
+    );
 
     // Encrypt new data with the new key
     let new_data = b"data encrypted with new key";
@@ -84,7 +86,11 @@ async fn test_secure_storage_key_rotation() -> Result<()> {
 
     // Decrypt the new data
     let decrypted_new = shared_storage.decrypt(&encrypted_new).await?;
-    assert_eq!(new_data.to_vec(), decrypted_new, "New data should decrypt correctly");
+    assert_eq!(
+        new_data.to_vec(),
+        decrypted_new,
+        "New data should decrypt correctly"
+    );
 
     println!("  ✅ Key rotation operations verified");
     Ok(())
@@ -96,23 +102,26 @@ async fn test_secure_storage_error_handling() -> Result<()> {
 
     // Create secure storage
     let key_store = Arc::new(MemoryKeyStore::new());
-    let storage = SecureStorage::new_with_keystore(
-        b"test-master-key-for-errors",
-        key_store,
-        None,
-    ).await?;
+    let storage =
+        SecureStorage::new_with_keystore(b"test-master-key-for-errors", key_store, None).await?;
 
     let shared_storage = SharedSecureStorage::new(storage);
 
     // Test decrypting invalid data
     let invalid_data = "not-valid-base64!";
     let decrypt_result = shared_storage.decrypt(invalid_data).await;
-    assert!(decrypt_result.is_err(), "Should fail to decrypt invalid data");
+    assert!(
+        decrypt_result.is_err(),
+        "Should fail to decrypt invalid data"
+    );
 
     // Test decrypting valid base64 but invalid encrypted data
     let fake_encrypted = base64::encode(b"not-encrypted-data");
     let decrypt_fake_result = shared_storage.decrypt(&fake_encrypted).await;
-    assert!(decrypt_fake_result.is_err(), "Should fail to decrypt fake encrypted data");
+    assert!(
+        decrypt_fake_result.is_err(),
+        "Should fail to decrypt fake encrypted data"
+    );
 
     println!("  ✅ Error handling verified");
     Ok(())
@@ -124,11 +133,8 @@ async fn test_secure_storage_concurrent_access() -> Result<()> {
 
     // Create secure storage
     let key_store = Arc::new(MemoryKeyStore::new());
-    let storage = SecureStorage::new_with_keystore(
-        b"test-master-key-concurrent",
-        key_store,
-        None,
-    ).await?;
+    let storage =
+        SecureStorage::new_with_keystore(b"test-master-key-concurrent", key_store, None).await?;
 
     let shared_storage = Arc::new(SharedSecureStorage::new(storage));
 
@@ -149,7 +155,10 @@ async fn test_secure_storage_concurrent_access() -> Result<()> {
     // Wait for all tasks to complete
     for handle in handles {
         let (original, decrypted) = handle.await??;
-        assert_eq!(original, decrypted, "Concurrent operation should preserve data integrity");
+        assert_eq!(
+            original, decrypted,
+            "Concurrent operation should preserve data integrity"
+        );
     }
 
     println!("  ✅ Concurrent access verified");
@@ -162,11 +171,8 @@ async fn test_secure_storage_large_data() -> Result<()> {
 
     // Create secure storage
     let key_store = Arc::new(MemoryKeyStore::new());
-    let storage = SecureStorage::new_with_keystore(
-        b"test-master-key-large-data",
-        key_store,
-        None,
-    ).await?;
+    let storage =
+        SecureStorage::new_with_keystore(b"test-master-key-large-data", key_store, None).await?;
 
     let shared_storage = SharedSecureStorage::new(storage);
 
@@ -175,11 +181,17 @@ async fn test_secure_storage_large_data() -> Result<()> {
 
     // Encrypt large data
     let encrypted = shared_storage.encrypt(&large_data).await?;
-    assert!(!encrypted.is_empty(), "Large data encryption should succeed");
+    assert!(
+        !encrypted.is_empty(),
+        "Large data encryption should succeed"
+    );
 
     // Decrypt large data
     let decrypted = shared_storage.decrypt(&encrypted).await?;
-    assert_eq!(large_data, decrypted, "Large data should round-trip correctly");
+    assert_eq!(
+        large_data, decrypted,
+        "Large data should round-trip correctly"
+    );
 
     println!("  ✅ Large data handling verified");
     Ok(())

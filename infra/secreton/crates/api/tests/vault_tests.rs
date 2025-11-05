@@ -6,10 +6,10 @@
 use axum::http::StatusCode;
 use serde_json::json;
 use std::collections::HashMap;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
-use crate::handlers::vault::*;
 use crate::config::ApiConfig;
+use crate::handlers::vault::*;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
 use std::sync::Arc;
@@ -93,7 +93,10 @@ mod vault_integration_tests {
         assert!(body.success);
         let updated_secret = body.data;
         assert_eq!(updated_secret.version, 2);
-        assert_eq!(updated_secret.data["api_key"], "updated-secret-api-key-67890");
+        assert_eq!(
+            updated_secret.data["api_key"],
+            "updated-secret-api-key-67890"
+        );
 
         // 4. List secrets
         let response = server.get("/secrets").await;
@@ -181,7 +184,10 @@ mod vault_integration_tests {
         let body: ApiResponse<DecryptResponse> = response.json();
         assert!(body.success);
         let decrypt_response = body.data;
-        assert_eq!(decrypt_response.plaintext, "This is sensitive data that needs encryption");
+        assert_eq!(
+            decrypt_response.plaintext,
+            "This is sensitive data that needs encryption"
+        );
 
         // 6. Rotate the key
         let response = server.post(&format!("/keys/{}/rotate", key_id)).await;
@@ -333,10 +339,7 @@ mod vault_integration_tests {
         let server = create_test_server().await;
 
         // Test with malformed JSON
-        let response = server
-            .post("/secrets/test")
-            .raw("invalid json")
-            .await;
+        let response = server.post("/secrets/test").raw("invalid json").await;
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 
         // Test with missing required fields
@@ -345,18 +348,19 @@ mod vault_integration_tests {
             // Missing metadata
         });
 
-        let response = server
-            .post("/secrets/test")
-            .json(&invalid_payload)
-            .await;
+        let response = server.post("/secrets/test").json(&invalid_payload).await;
         // Should handle gracefully
-        assert!(response.status_code().is_client_error() || response.status_code().is_server_error());
+        assert!(
+            response.status_code().is_client_error() || response.status_code().is_server_error()
+        );
 
         // Test with extremely long path
         let long_path = "a".repeat(1000);
         let response = server.get(&format!("/secrets/{}", long_path)).await;
         // Should handle gracefully without crashing
-        assert!(response.status_code().is_client_error() || response.status_code().is_server_error());
+        assert!(
+            response.status_code().is_client_error() || response.status_code().is_server_error()
+        );
     }
 
     #[tokio::test]
@@ -372,8 +376,14 @@ mod vault_integration_tests {
         }
 
         // Most requests should succeed, but some might be rate limited
-        let success_count = responses.iter().filter(|&&status| status == StatusCode::OK).count();
-        let rate_limited_count = responses.iter().filter(|&&status| status == StatusCode::TOO_MANY_REQUESTS).count();
+        let success_count = responses
+            .iter()
+            .filter(|&&status| status == StatusCode::OK)
+            .count();
+        let rate_limited_count = responses
+            .iter()
+            .filter(|&&status| status == StatusCode::TOO_MANY_REQUESTS)
+            .count();
 
         assert!(success_count > 0, "Should have some successful requests");
         // Note: Actual rate limiting implementation would need to be added

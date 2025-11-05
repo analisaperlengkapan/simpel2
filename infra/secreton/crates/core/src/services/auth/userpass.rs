@@ -90,7 +90,11 @@ pub struct UserPassUser {
 
 impl UserPassUser {
     /// Create a new user with hashed password
-    pub fn new(username: String, password: &str, policies: Vec<String>) -> Result<Self, UserPassError> {
+    pub fn new(
+        username: String,
+        password: &str,
+        policies: Vec<String>,
+    ) -> Result<Self, UserPassError> {
         let password_hash = Self::hash_password(password)?;
 
         Ok(Self {
@@ -98,7 +102,7 @@ impl UserPassUser {
             password_hash,
             metadata: HashMap::new(),
             policies,
-            token_ttl: Some(3600), // 1 hour default
+            token_ttl: Some(3600),      // 1 hour default
             token_max_ttl: Some(86400), // 24 hours default
             enabled: true,
             locked: false,
@@ -244,7 +248,10 @@ impl PasswordPolicy {
     /// Validate password against policy
     pub fn validate(&self, password: &str) -> Result<(), String> {
         if password.len() < self.min_length {
-            return Err(format!("Password must be at least {} characters", self.min_length));
+            return Err(format!(
+                "Password must be at least {} characters",
+                self.min_length
+            ));
         }
 
         if self.require_uppercase && !password.chars().any(|c| c.is_uppercase()) {
@@ -291,7 +298,9 @@ impl UserPassAuth {
         metadata: HashMap<String, String>,
     ) -> Result<(), UserPassError> {
         // Validate password policy
-        self.config.password_policy.validate(password)
+        self.config
+            .password_policy
+            .validate(password)
             .map_err(|e| UserPassError::HashingError(e))?;
 
         let mut users = self.users.write().await;
@@ -313,9 +322,15 @@ impl UserPassAuth {
     }
 
     /// Update user password
-    pub async fn update_password(&self, username: &str, new_password: &str) -> Result<(), UserPassError> {
+    pub async fn update_password(
+        &self,
+        username: &str,
+        new_password: &str,
+    ) -> Result<(), UserPassError> {
         // Validate password policy
-        self.config.password_policy.validate(new_password)
+        self.config
+            .password_policy
+            .validate(new_password)
             .map_err(|e| UserPassError::HashingError(e))?;
 
         let mut users = self.users.write().await;
@@ -359,7 +374,11 @@ impl UserPassAuth {
     }
 
     /// Authenticate user
-    pub async fn authenticate(&self, username: &str, password: &str) -> Result<UserInfo, UserPassError> {
+    pub async fn authenticate(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<UserInfo, UserPassError> {
         let mut users = self.users.write().await;
 
         let user = users
@@ -389,7 +408,11 @@ impl UserPassAuth {
     }
 
     /// Enable/disable user
-    pub async fn set_user_enabled(&self, username: &str, enabled: bool) -> Result<(), UserPassError> {
+    pub async fn set_user_enabled(
+        &self,
+        username: &str,
+        enabled: bool,
+    ) -> Result<(), UserPassError> {
         let mut users = self.users.write().await;
         let user = users
             .get_mut(username)

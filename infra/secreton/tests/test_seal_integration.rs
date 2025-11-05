@@ -1,8 +1,8 @@
 // Standalone test for Seal/Unseal with Shamir integration
 // Run with: cargo test --test test_seal_integration
 
-use secreton_core::services::seal::{SealConfig, SealService};
 use chrono::Utc;
+use secreton_core::services::seal::{SealConfig, SealService};
 
 #[tokio::test]
 async fn test_seal_unseal_with_shamir() {

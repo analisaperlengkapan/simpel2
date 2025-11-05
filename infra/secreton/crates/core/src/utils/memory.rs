@@ -107,7 +107,10 @@ impl Drop for SecureSecretString {
 impl SecureSecretString {
     /// Create a new secure secret string
     pub fn new(data: String, sensitivity_level: SensitivityLevel) -> Self {
-        Self { data, sensitivity_level }
+        Self {
+            data,
+            sensitivity_level,
+        }
     }
 
     /// Create from a string slice
@@ -161,7 +164,10 @@ impl Drop for SecureSecretBytes {
 impl SecureSecretBytes {
     /// Create a new secure secret byte array
     pub fn new(data: Vec<u8>, sensitivity_level: SensitivityLevel) -> Self {
-        Self { data, sensitivity_level }
+        Self {
+            data,
+            sensitivity_level,
+        }
     }
 
     /// Create from a byte slice
@@ -226,8 +232,11 @@ impl<T> LazySecretCryptoContext<T> {
         }
 
         let context = (self.initializer)()?;
-        self.context.set(context)
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to initialize secret crypto context")))?;
+        self.context.set(context).map_err(|_| {
+            SecretonError::from(CoreError::internal(
+                "Failed to initialize secret crypto context",
+            ))
+        })?;
 
         Ok(self.context.get().unwrap())
     }
@@ -349,7 +358,12 @@ impl SecretMemoryTracker {
     }
 
     /// Track a secret allocation
-    pub async fn track_allocation(&self, size: usize, tag: String, sensitivity_level: SensitivityLevel) {
+    pub async fn track_allocation(
+        &self,
+        size: usize,
+        tag: String,
+        sensitivity_level: SensitivityLevel,
+    ) {
         let mut allocations = self.allocations.lock().await;
         let mut total = self.total_allocated.lock().await;
         let mut peak = self.peak_usage.lock().await;
@@ -367,7 +381,10 @@ impl SecretMemoryTracker {
             *peak = *total;
         }
 
-        if matches!(sensitivity_level, SensitivityLevel::High | SensitivityLevel::Critical) {
+        if matches!(
+            sensitivity_level,
+            SensitivityLevel::High | SensitivityLevel::Critical
+        ) {
             *sensitive += size;
         }
 
@@ -384,7 +401,10 @@ impl SecretMemoryTracker {
 
         *total = total.saturating_sub(size);
 
-        if matches!(sensitivity_level, SensitivityLevel::High | SensitivityLevel::Critical) {
+        if matches!(
+            sensitivity_level,
+            SensitivityLevel::High | SensitivityLevel::Critical
+        ) {
             *sensitive = sensitive.saturating_sub(size);
         }
 
@@ -463,7 +483,11 @@ impl SecretMemoryTracker {
 
         let removed_count = initial_count - allocations.len();
         if removed_count > 0 {
-            debug!("Cleaned up {} old secret allocation records, {} remaining", removed_count, allocations.len());
+            debug!(
+                "Cleaned up {} old secret allocation records, {} remaining",
+                removed_count,
+                allocations.len()
+            );
         }
     }
 }
@@ -582,7 +606,8 @@ mod tests {
 
     #[test]
     fn test_secure_secret_memory() {
-        let mut secure_data = SecureSecretMemory::new("secret_key".to_string(), SensitivityLevel::High);
+        let mut secure_data =
+            SecureSecretMemory::new("secret_key".to_string(), SensitivityLevel::High);
         assert_eq!(secure_data.access(), "secret_key");
         assert_eq!(secure_data.access_count(), 1);
         assert_eq!(secure_data.sensitivity_level(), SensitivityLevel::High);
@@ -593,7 +618,8 @@ mod tests {
 
     #[test]
     fn test_secure_secret_string() {
-        let secure_str = SecureSecretString::new("password123".to_string(), SensitivityLevel::Critical);
+        let secure_str =
+            SecureSecretString::new("password123".to_string(), SensitivityLevel::Critical);
         assert_eq!(secure_str.as_str(), "password123");
         assert_eq!(secure_str.len(), 11);
         assert!(!secure_str.is_empty());
@@ -624,10 +650,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_lazy_secret_crypto_context() {
-        let context = LazySecretCryptoContext::new(
-            || Ok("initialized".to_string()),
-            SensitivityLevel::High,
-        );
+        let context =
+            LazySecretCryptoContext::new(|| Ok("initialized".to_string()), SensitivityLevel::High);
 
         assert!(!context.is_initialized());
         assert_eq!(context.sensitivity_level(), SensitivityLevel::High);
@@ -639,11 +663,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_secret_memory_pool() {
-        let pool = SecretMemoryPool::new(
-            3,
-            || String::new(),
-            SensitivityLevel::Medium,
-        );
+        let pool = SecretMemoryPool::new(3, || String::new(), SensitivityLevel::Medium);
 
         let item1 = pool.get().await;
         let item2 = pool.get().await;
@@ -660,12 +680,16 @@ mod tests {
     async fn test_secret_memory_tracker() {
         let tracker = SecretMemoryTracker::new();
 
-        tracker.track_allocation(1024, "test_secret".to_string(), SensitivityLevel::High).await;
+        tracker
+            .track_allocation(1024, "test_secret".to_string(), SensitivityLevel::High)
+            .await;
         assert_eq!(tracker.current_usage().await, 1024);
         assert_eq!(tracker.peak_usage().await, 1024);
         assert_eq!(tracker.sensitive_usage().await, 1024);
 
-        tracker.track_deallocation(512, SensitivityLevel::High).await;
+        tracker
+            .track_deallocation(512, SensitivityLevel::High)
+            .await;
         assert_eq!(tracker.current_usage().await, 512);
         assert_eq!(tracker.sensitive_usage().await, 512);
         assert_eq!(tracker.peak_usage().await, 1024);

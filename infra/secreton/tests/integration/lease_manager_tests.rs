@@ -488,11 +488,11 @@ async fn test_list_leases_with_filters() {
             None,
             HashMap::new(),
         )
-     .unwrap();
+        .await
+        .unwrap();
 
     manager
-   .crea
-
+        .create_lease(
             "user1",
             "/secret/data/test3",
             "kv",

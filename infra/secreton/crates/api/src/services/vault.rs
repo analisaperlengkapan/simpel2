@@ -1,9 +1,9 @@
 //! Vault service for business logic operations.
 
+use anyhow::Result;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use secreton_core::audit::AuditLogger;
@@ -223,11 +223,11 @@ pub struct DecryptResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secreton_crypto::SecurityParams;
-    use secreton_storage::MemoryBackend;
     use crate::config::AuthConfig;
     use crate::services::auth::AuthService;
     use secreton_core::audit::AuditLogger;
+    use secreton_crypto::SecurityParams;
+    use secreton_storage::MemoryBackend;
 
     #[tokio::test]
     async fn test_vault_service_creation() {

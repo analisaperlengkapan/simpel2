@@ -12,9 +12,8 @@ pub async fn authenticate(
         .get("role")
         .ok_or_else(|| anyhow::anyhow!("Missing role"))?;
 
-    let jwt_path = config
-        .get("jwt_path")
-        .unwrap_or(&"/var/run/secrets/kubernetes.io/serviceaccount/token".to_string());
+    let default_path = "/var/run/secrets/kubernetes.io/serviceaccount/token".to_string();
+    let jwt_path = config.get("jwt_path").unwrap_or(&default_path);
 
     let jwt = tokio::fs::read_to_string(jwt_path).await?;
 

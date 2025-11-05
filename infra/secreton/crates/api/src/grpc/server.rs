@@ -4,14 +4,53 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tonic::{transport::Server, Request, Response, Status};
-use tracing::{info, error, instrument, warn};
+use tonic::{Request, Response, Status, transport::Server};
+use tracing::{info, instrument, warn};
 
-use secreton_storage::StorageBackend;
 use secreton_crypto::transit::TransitEngine;
+use secreton_storage::StorageBackend;
 
-use crate::grpc::{secreton::v1::*, common::v1::*, tls::GrpcTlsConfig};
+use crate::grpc::{common::v1::*, secreton::v1::*, tls::GrpcTlsConfig};
 use crate::services::ServiceContainer;
+
+// Snapshot types (not yet in proto, placeholders for future implementation)
+#[derive(Debug, Clone)]
+pub struct CreateSnapshotRequest {}
+
+#[derive(Debug, Clone)]
+pub struct CreateSnapshotResponse {
+    pub snapshot_id: String,
+    pub size_bytes: u64,
+    pub compressed_size_bytes: u64,
+    pub checksum: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct SnapshotInfo {
+    pub snapshot_id: String,
+    pub size_bytes: u64,
+    pub compressed_size_bytes: u64,
+    pub checksum: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ListSnapshotsRequest {}
+
+#[derive(Debug, Clone)]
+pub struct ListSnapshotsResponse {
+    pub snapshots: Vec<SnapshotInfo>,
+    pub total: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct RestoreSnapshotRequest {
+    pub snapshot_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RestoreSnapshotResponse {}
 
 /// gRPC service implementation
 #[derive(Clone)]
@@ -26,14 +65,19 @@ pub struct SecretonGrpcService {
 
 impl SecretonGrpcService {
     /// Create a new gRPC service
-    pub fn new(
-        storage: Arc<dyn StorageBackend>,
-        transit: Arc<TransitEngine>,
-    ) -> Self {
+    pub fn new(storage: Arc<dyn StorageBackend>, transit: Arc<TransitEngine>) -> Self {
+        // Create a minimal mock pool for testing
+        let pg_config = tokio_postgres::Config::new();
+        let mgr = deadpool_postgres::Manager::new(pg_config, tokio_postgres::NoTls);
+        let pool = deadpool_postgres::Pool::builder(mgr)
+            .max_size(1)
+            .build()
+            .unwrap();
+
         Self {
             storage: storage.clone(),
             transit,
-            services: Arc::new(ServiceContainer::new_mock(storage)),
+            services: Arc::new(ServiceContainer::new_mock(storage, pool)),
         }
     }
 
@@ -74,7 +118,8 @@ impl SecretonGrpcService {
         info!("Starting gRPC server on {} with mTLS", addr);
 
         // Validate TLS configuration
-        tls_config.validate()
+        tls_config
+            .validate()
             .map_err(|e| format!("TLS configuration validation failed: {}", e))?;
 
         // Load TLS configuration
@@ -180,9 +225,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         // TODO: Integrate with actual KV storage service
 
-        let response = DeleteSecretResponse {
-            success: true,
-        };
+        let response = DeleteSecretResponse { success: true };
 
         Ok(Response::new(response))
     }
@@ -228,7 +271,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             _ => return Err(Status::invalid_argument("Unsupported key type")),
         };
 
-        self.transit.create_key(req.name.clone(), crypto_key_type, None)
+        self.transit
+            .create_key(req.name.clone(), crypto_key_type, None)
             .await
             .map_err(|e| Status::internal(format!("Failed to create key: {}", e)))?;
 
@@ -252,7 +296,9 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         let context = req.context.as_deref();
 
-        let ciphertext = self.transit.encrypt(&req.key_name, &req.plaintext, context, None)
+        let ciphertext = self
+            .transit
+            .encrypt(&req.key_name, &req.plaintext, context, None)
             .await
             .map_err(|e| Status::internal(format!("Encryption failed: {}", e)))?;
 
@@ -275,22 +321,19 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         let context = req.context.as_deref();
 
-        let plaintext = self.transit.decrypt(&req.key_name, &req.ciphertext, context)
+        let plaintext = self
+            .transit
+            .decrypt(&req.key_name, &req.ciphertext, context)
             .await
             .map_err(|e| Status::internal(format!("Decryption failed: {}", e)))?;
 
-        let response = DecryptResponse {
-            plaintext,
-        };
+        let response = DecryptResponse { plaintext };
 
         Ok(Response::new(response))
     }
 
     #[instrument(skip(self, request))]
-    async fn sign(
-        &self,
-        request: Request<SignRequest>,
-    ) -> Result<Response<SignResponse>, Status> {
+    async fn sign(&self, request: Request<SignRequest>) -> Result<Response<SignResponse>, Status> {
         let req = request.into_inner();
 
         info!("Signing data with key: {}", req.key_name);
@@ -305,7 +348,9 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             _ => None,
         };
 
-        let signature = self.transit.sign(&req.key_name, &req.data, crypto_algorithm, None)
+        let signature = self
+            .transit
+            .sign(&req.key_name, &req.data, crypto_algorithm, None)
             .await
             .map_err(|e| Status::internal(format!("Signing failed: {}", e)))?;
 
@@ -336,13 +381,13 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             _ => None,
         };
 
-        let valid = self.transit.verify(&req.key_name, &req.data, &req.signature, crypto_algorithm)
+        let valid = self
+            .transit
+            .verify(&req.key_name, &req.data, &req.signature, crypto_algorithm)
             .await
             .map_err(|e| Status::internal(format!("Verification failed: {}", e)))?;
 
-        let response = VerifyResponse {
-            valid,
-        };
+        let response = VerifyResponse { valid };
 
         Ok(Response::new(response))
     }
@@ -356,7 +401,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Rotating key: {}", req.key_name);
 
-        self.transit.rotate_key(&req.key_name)
+        self.transit
+            .rotate_key(&req.key_name)
             .await
             .map_err(|e| Status::internal(format!("Key rotation failed: {}", e)))?;
 
@@ -373,64 +419,80 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         _request: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusResponse>, Status> {
-        info!("Getting cluster status via gRPC");
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
+        }
 
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
+        #[cfg(feature = "raft-consensus")]
+        {
+            info!("Getting cluster status via gRPC");
 
-        // Get cluster status
-        let status = raft_storage.status().await
-            .map_err(|e| {
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
+
+            // Get cluster status
+            let status = raft_storage.status().await.map_err(|e| {
                 error!("Failed to get cluster status: {}", e);
                 Status::internal(format!("Failed to get cluster status: {}", e))
             })?;
 
-        // Determine node state
-        let state = if status.is_leader {
-            "leader".to_string()
-        } else if status.leader_id.is_some() {
-            "follower".to_string()
-        } else {
-            "candidate".to_string()
-        };
-
-        // Build node information
-        let nodes = status.membership.iter().map(|&node_id| {
-            let node_state = if Some(node_id) == status.leader_id {
+            // Determine node state
+            let state = if status.is_leader {
                 "leader".to_string()
-            } else {
+            } else if status.leader_id.is_some() {
                 "follower".to_string()
+            } else {
+                "candidate".to_string()
             };
 
-            NodeInfo {
-                node_id,
-                address: format!("node-{}", node_id), // TODO: Get actual address from config
-                state: node_state,
-            }
-        }).collect();
+            // Build node information
+            let nodes = status
+                .membership
+                .iter()
+                .map(|&node_id| {
+                    let node_state = if Some(node_id) == status.leader_id {
+                        "leader".to_string()
+                    } else {
+                        "follower".to_string()
+                    };
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_cluster_status_requests", 1);
-        metrics::gauge!("secreton_raft_current_term", status.current_term as f64);
-        metrics::gauge!("secreton_raft_is_leader", if status.is_leader { 1.0 } else { 0.0 });
+                    NodeInfo {
+                        node_id,
+                        address: format!("node-{}", node_id), // TODO: Get actual address from config
+                        state: node_state,
+                    }
+                })
+                .collect();
 
-        let response = ClusterStatusResponse {
-            node_id: status.node_id,
-            state,
-            leader_id: status.leader_id.unwrap_or(0),
-            term: status.current_term,
-            commit_index: status.last_applied.unwrap_or(0),
-            nodes,
-        };
+            // Record metrics
+            metrics::counter!("secreton_grpc_cluster_status_requests").increment(1);
+            metrics::gauge!("secreton_raft_current_term").set(status.current_term as f64);
+            metrics::gauge!("secreton_raft_is_leader").set(if status.is_leader {
+                1.0
+            } else {
+                0.0
+            });
 
-        info!("Cluster status retrieved successfully via gRPC");
-        Ok(Response::new(response))
+            let response = ClusterStatusResponse {
+                node_id: status.node_id,
+                state,
+                leader_id: status.leader_id.unwrap_or(0),
+                term: status.current_term,
+                commit_index: status.last_applied.unwrap_or(0),
+                nodes,
+            };
+
+            info!("Cluster status retrieved successfully via gRPC");
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, _request))]
@@ -438,62 +500,79 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         _request: Request<ListPeersRequest>,
     ) -> Result<Response<ListPeersResponse>, Status> {
-        info!("Listing cluster peers via gRPC");
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
+        }
 
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
+        #[cfg(feature = "raft-consensus")]
+        {
+            info!("Listing cluster peers via gRPC");
 
-        // Get cluster status
-        let status = raft_storage.status().await
-            .map_err(|e| {
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
+
+            // Get cluster status
+            let status = raft_storage.status().await.map_err(|e| {
                 error!("Failed to get cluster status: {}", e);
                 Status::internal(format!("Failed to get cluster status: {}", e))
             })?;
 
-        // Build peer list
-        let peers = status.membership.iter().map(|&node_id| {
-            let is_leader = Some(node_id) == status.leader_id;
-            let state = if is_leader {
-                "leader".to_string()
-            } else {
-                "follower".to_string()
-            };
+            // Build peer list
+            let peers = status
+                .membership
+                .iter()
+                .map(|&node_id| {
+                    let is_leader = Some(node_id) == status.leader_id;
+                    let state = if is_leader {
+                        "leader".to_string()
+                    } else {
+                        "follower".to_string()
+                    };
 
-            // Calculate replication lag for followers
-            let replication_lag = if !is_leader && status.last_log_index.is_some() && status.last_applied.is_some() {
-                Some(status.last_log_index.unwrap().saturating_sub(status.last_applied.unwrap()))
-            } else {
-                None
-            };
+                    // Calculate replication lag for followers
+                    let replication_lag = if !is_leader
+                        && status.last_log_index.is_some()
+                        && status.last_applied.is_some()
+                    {
+                        Some(
+                            status
+                                .last_log_index
+                                .unwrap()
+                                .saturating_sub(status.last_applied.unwrap()),
+                        )
+                    } else {
+                        None
+                    };
 
-            PeerInfo {
-                node_id,
-                address: format!("node-{}", node_id), // TODO: Get actual address from config
-                state,
-                health: "healthy".to_string(), // TODO: Implement actual health checks
-                replication_lag,
-                last_heartbeat: None, // TODO: Track heartbeat timestamps
-            }
-        }).collect();
+                    PeerInfo {
+                        node_id,
+                        address: format!("node-{}", node_id), // TODO: Get actual address from config
+                        state,
+                        health: "healthy".to_string(), // TODO: Implement actual health checks
+                        replication_lag,
+                        last_heartbeat: None, // TODO: Track heartbeat timestamps
+                    }
+                })
+                .collect();
 
-        let total = peers.len() as i32;
+            let total = peers.len() as i32;
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_list_peers_requests", 1);
+            // Record metrics
+            metrics::counter!("secreton_grpc_list_peers_requests").increment(1);
 
-        let response = ListPeersResponse {
-            peers,
-            total,
-        };
+            let response = ListPeersResponse { peers, total };
 
-        info!("Listed {} peers via gRPC", total);
-        Ok(Response::new(response))
+            info!("Listed {} peers via gRPC", total);
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, request))]
@@ -501,42 +580,53 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<AddNodeRequest>,
     ) -> Result<Response<AddNodeResponse>, Status> {
-        let req = request.into_inner();
-
-        info!("Adding node {} at {} via gRPC", req.node_id, req.address);
-
-        // Validate request
-        if req.address.is_empty() {
-            return Err(Status::invalid_argument("Address cannot be empty"));
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
         }
 
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
+        #[cfg(feature = "raft-consensus")]
+        {
+            let req = request.into_inner();
 
-        // Add the node
-        raft_storage.add_node(req.node_id, req.address.clone()).await
-            .map_err(|e| {
-                error!("Failed to add node: {}", e);
-                Status::internal(format!("Failed to add node: {}", e))
-            })?;
+            info!("Adding node {} at {} via gRPC", req.node_id, req.address);
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_add_node_requests", 1);
-        metrics::counter!("secreton_raft_peers_added", 1);
+            // Validate request
+            if req.address.is_empty() {
+                return Err(Status::invalid_argument("Address cannot be empty"));
+            }
 
-        let response = AddNodeResponse {
-            success: true,
-            message: format!("Node {} added successfully", req.node_id),
-        };
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
 
-        info!("Node {} added successfully via gRPC", req.node_id);
-        Ok(Response::new(response))
+            // Add the node
+            raft_storage
+                .add_node(req.node_id, req.address.clone())
+                .await
+                .map_err(|e| {
+                    error!("Failed to add node: {}", e);
+                    Status::internal(format!("Failed to add node: {}", e))
+                })?;
+
+            // Record metrics
+            metrics::counter!("secreton_grpc_add_node_requests").increment(1);
+            metrics::counter!("secreton_raft_peers_added").increment(1);
+
+            let response = AddNodeResponse {
+                success: true,
+                message: format!("Node {} added successfully", req.node_id),
+            };
+
+            info!("Node {} added successfully via gRPC", req.node_id);
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, request))]
@@ -544,52 +634,62 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<RemoveNodeRequest>,
     ) -> Result<Response<RemoveNodeResponse>, Status> {
-        let req = request.into_inner();
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
+        }
 
-        info!("Removing node {} via gRPC", req.node_id);
+        #[cfg(feature = "raft-consensus")]
+        {
+            let req = request.into_inner();
 
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
+            info!("Removing node {} via gRPC", req.node_id);
 
-        // Check if removing this node would break quorum
-        let status = raft_storage.status().await
-            .map_err(|e| {
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
+
+            // Check if removing this node would break quorum
+            let status = raft_storage.status().await.map_err(|e| {
                 error!("Failed to get cluster status: {}", e);
                 Status::internal(format!("Failed to get cluster status: {}", e))
             })?;
 
-        let remaining_nodes = status.membership.len() - 1;
-        if remaining_nodes < 2 {
-            warn!("Cannot remove node: would break quorum (remaining nodes: {})", remaining_nodes);
-            return Err(Status::failed_precondition(
-                "Cannot remove node: would break quorum. Minimum 2 nodes required."
-            ));
-        }
+            let remaining_nodes = status.membership.len() - 1;
+            if remaining_nodes < 2 {
+                warn!(
+                    "Cannot remove node: would break quorum (remaining nodes: {})",
+                    remaining_nodes
+                );
+                return Err(Status::failed_precondition(
+                    "Cannot remove node: would break quorum. Minimum 2 nodes required.",
+                ));
+            }
 
-        // Remove the node
-        raft_storage.remove_node(req.node_id).await
-            .map_err(|e| {
+            // Remove the node
+            raft_storage.remove_node(req.node_id).await.map_err(|e| {
                 error!("Failed to remove node: {}", e);
                 Status::internal(format!("Failed to remove node: {}", e))
             })?;
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_remove_node_requests", 1);
-        metrics::counter!("secreton_raft_peers_removed", 1);
+            // Record metrics
+            metrics::counter!("secreton_grpc_remove_node_requests").increment(1);
+            metrics::counter!("secreton_raft_peers_removed").increment(1);
 
-        let response = RemoveNodeResponse {
-            success: true,
-            message: format!("Node {} removed successfully", req.node_id),
-        };
+            let response = RemoveNodeResponse {
+                success: true,
+                message: format!("Node {} removed successfully", req.node_id),
+            };
 
-        info!("Node {} removed successfully via gRPC", req.node_id);
-        Ok(Response::new(response))
+            info!("Node {} removed successfully via gRPC", req.node_id);
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, request))]
@@ -747,17 +847,20 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             secreton_core::namespace::NamespaceType::Pusat => {
                 return Err(Status::invalid_argument("Cannot create Pusat namespace"));
             }
-            secreton_core::namespace::NamespaceType::Wilayah => {
-                hierarchy
-                    .add_wilayah(req.id.clone(), req.name.clone(), "grpc-user".to_string())
-                    .map_err(|e| Status::internal(e.to_string()))?
-            }
+            secreton_core::namespace::NamespaceType::Wilayah => hierarchy
+                .add_wilayah(req.id.clone(), req.name.clone(), "grpc-user".to_string())
+                .map_err(|e| Status::internal(e.to_string()))?,
             secreton_core::namespace::NamespaceType::Satker => {
                 let parent = req
                     .parent
                     .ok_or_else(|| Status::invalid_argument("Satker requires parent"))?;
                 hierarchy
-                    .add_satker(req.id.clone(), req.name.clone(), parent, "grpc-user".to_string())
+                    .add_satker(
+                        req.id.clone(),
+                        req.name.clone(),
+                        parent,
+                        "grpc-user".to_string(),
+                    )
                     .map_err(|e| Status::internal(e.to_string()))?
             }
         };
@@ -839,8 +942,18 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             namespace.updated_at = chrono::Utc::now();
         }
 
+        // Clone namespace ID before releasing the mutable borrow
+        let namespace_id = namespace.id.clone();
+
+        // Drop the mutable borrow by explicitly ending the scope
+        drop(namespace);
+
         self.services.namespace.update_hierarchy(hierarchy.clone());
 
+        // Get immutable reference after mutable borrow is dropped
+        let namespace = hierarchy
+            .get_namespace(&namespace_id)
+            .ok_or_else(|| Status::internal("Namespace disappeared after update"))?;
         let namespace_info = self.namespace_to_grpc_info(namespace, &hierarchy);
 
         Ok(Response::new(UpdateNamespaceResponse {
@@ -946,78 +1059,6 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             active_policies: namespace.policies.len() as i32,
         }))
     }
-}
-
-// Helper methods for SecretonGrpcService
-impl SecretonGrpcService {
-    fn namespace_to_grpc_info(
-        &self,
-        namespace: &secreton_core::namespace::Namespace,
-        hierarchy: &secreton_core::namespace::NamespaceHierarchy,
-    ) -> NamespaceInfo {
-        let children_count = hierarchy.get_descendants(&namespace.id).len() as i32;
-        let ancestors: Vec<String> = hierarchy
-    .get_ancestors(&namespace.id)
-            .iter()
-            .map(|ns| ns.id.clone())
-            .collect();
-
-        let namespace_type = match namespace.namespace_type {
-            secreton_core::namespace::NamespaceType::Pusat => 1,
-            secreton_core::namespace::NamespaceType::Wilayah => 2,
-            secreton_core::namespace::NamespaceType::Satker => 3,
-        };
-
-        NamespaceInfo {
-            id: namespace.id.clone(),
-            path: namespace.path.clone(),
-            parent: namespace.parent.clone(),
-            name: namespace.name.clone(),
-            namespace_type,
-            policies: namespace.policies.clone(),
-            quotas: Some(self.core_quotas_to_grpc(&namespace.quotas)),
-            metadata: namespace.metadata.clone(),
-            created_at: namespace.created_at.timestamp(),
-            updated_at: namespace.updated_at.timestamp(),
-            created_by: namespace.created_by.clone(),
-            is_active: namespace.is_active,
-            children_count,
-            ancestors,
-        }
-    }
-
-    fn core_quotas_to_grpc(
-        &self,
-        quotas: &secreton_core::namespace::NamespaceQuotas,
-    ) -> NamespaceQuotas {
-        NamespaceQuotas {
-            max_secrets: quotas.max_secrets.map(|v| v as i64),
-            max_storage_bytes: quotas.max_storage_bytes.map(|v| v as i64),
-            max_leases: quotas.max_leases.map(|v| v as i64),
-            max_policies: quotas.max_policies.map(|v| v as i64),
-            current_usage: Some(QuotaUsage {
-                secrets_count: quotas.current_usage.secrets_count as i64,
-                storage_bytes: quotas.current_usage.storage_bytes as i64,
-                leases_count: quotas.current_usage.leases_count as i64,
-                policies_count: quotas.current_usage.policies_count as i64,
-            }),
-        }
-    }
-
-    fn grpc_quotas_to_core(&self, quotas: NamespaceQuotas) -> secreton_core::namespace::NamespaceQuotas {
-        secreton_core::namespace::NamespaceQuotas {
-            max_secrets: quotas.max_secrets.map(|v| v as u64),
-            max_storage_bytes: quotas.max_storage_bytes.map(|v| v as u64),
-            max_leases: quotas.max_leases.map(|v| v as u64),
-            max_policies: quotas.max_policies.map(|v| v as u64),
-            current_usage: quotas.current_usage.map(|u| secreton_core::namespace::QuotaUsage {
-                secrets_count: u.secrets_count as u64,
-                storage_bytes: u.storage_bytes as u64,
-                leases_count: u.leases_count as u64,
-                policies_count: u.policies_count as u64,
-            }).unwrap_or_default(),
-        }
-    }
 
     // ============================================================================
     // Lease Management Methods
@@ -1034,7 +1075,9 @@ impl SecretonGrpcService {
 
         let increment = req.increment.unwrap_or(3600);
 
-        let renewed_lease = self.services.lease_manager
+        let renewed_lease = self
+            .services
+            .lease_manager
             .renew_lease(&req.lease_id, increment)
             .await
             .map_err(|e| Status::internal(format!("Failed to renew lease: {}", e)))?;
@@ -1060,7 +1103,9 @@ impl SecretonGrpcService {
 
         info!("Revoking lease: {}", req.lease_id);
 
-        let revoked_ids = self.services.lease_manager
+        let revoked_ids = self
+            .services
+            .lease_manager
             .revoke_lease(&req.lease_id)
             .await
             .map_err(|e| Status::internal(format!("Failed to revoke lease: {}", e)))?;
@@ -1084,7 +1129,9 @@ impl SecretonGrpcService {
         info!("Revoking leases with prefix: {}", req.prefix);
 
         // List all leases matching the prefix
-        let matching_leases = self.services.lease_manager
+        let matching_leases = self
+            .services
+            .lease_manager
             .list_leases(None, None, None, Some("active".to_string()), None, None)
             .await
             .map_err(|e| Status::internal(format!("Failed to list leases: {}", e)))?;
@@ -1126,7 +1173,9 @@ impl SecretonGrpcService {
 
         info!("Looking up lease: {}", req.lease_id);
 
-        let lease = self.services.lease_manager
+        let lease = self
+            .services
+            .lease_manager
             .lookup_lease(&req.lease_id)
             .await
             .map_err(|e| Status::not_found(format!("Lease not found: {}", e)))?;
@@ -1146,7 +1195,7 @@ impl SecretonGrpcService {
             renewable: lease.renewable,
             max_ttl: lease.max_ttl,
             renew_count: lease.renew_count,
-max_renewals: lease.max_renewals,
+            max_renewals: lease.max_renewals,
             last_renewed_at: lease.last_renewed_at.map(|t| t.timestamp()),
             parent_id: lease.parent_id,
             child_ids: lease.child_ids,
@@ -1168,7 +1217,9 @@ max_renewals: lease.max_renewals,
         let limit = req.limit.unwrap_or(50) as i64;
         let offset = req.offset.unwrap_or(0) as i64;
 
-        let leases = self.services.lease_manager
+        let leases = self
+            .services
+            .lease_manager
             .list_leases(
                 req.user_id,
                 req.namespace,
@@ -1231,7 +1282,9 @@ max_renewals: lease.max_renewals,
     ) -> Result<Response<GetLeaseStatsResponse>, Status> {
         info!("Getting lease statistics");
 
-        let stats = self.services.lease_manager
+        let stats = self
+            .services
+            .lease_manager
             .get_stats()
             .await
             .map_err(|e| Status::internal(format!("Failed to get lease stats: {}", e)))?;
@@ -1259,7 +1312,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<GenerateDatabaseCredentialsRequest>,
     ) -> Result<Response<GenerateDatabaseCredentialsResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1267,7 +1322,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<CreateDatabaseRoleRequest>,
     ) -> Result<Response<CreateDatabaseRoleResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1275,7 +1332,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<GetDatabaseRoleRequest>,
     ) -> Result<Response<GetDatabaseRoleResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1283,7 +1342,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<ListDatabaseRolesRequest>,
     ) -> Result<Response<ListDatabaseRolesResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1291,7 +1352,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<UpdateDatabaseRoleRequest>,
     ) -> Result<Response<UpdateDatabaseRoleResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1299,7 +1362,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<DeleteDatabaseRoleRequest>,
     ) -> Result<Response<DeleteDatabaseRoleResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1307,7 +1372,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<ConfigureDatabaseConnectionRequest>,
     ) -> Result<Response<ConfigureDatabaseConnectionResponse>, Status> {
-        Err(Status::unimplemented("Database secrets engine not yet implemented"))
+        Err(Status::unimplemented(
+            "Database secrets engine not yet implemented",
+        ))
     }
 
     // ============================================================================
@@ -1319,7 +1386,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<ListPoliciesRequest>,
     ) -> Result<Response<ListPoliciesResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1327,7 +1396,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<CreatePolicyRequest>,
     ) -> Result<Response<CreatePolicyResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1335,7 +1406,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<GetPolicyRequest>,
     ) -> Result<Response<GetPolicyResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1343,7 +1416,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<UpdatePolicyRequest>,
     ) -> Result<Response<UpdatePolicyResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1351,7 +1426,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<DeletePolicyRequest>,
     ) -> Result<Response<DeletePolicyResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1359,7 +1436,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<TestPolicyRequest>,
     ) -> Result<Response<TestPolicyResponse>, Status> {
-        Err(Status::unimplemented("Policy management not yet implemented"))
+        Err(Status::unimplemented(
+            "Policy management not yet implemented",
+        ))
     }
 
     // ============================================================================
@@ -1371,7 +1450,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<WrapDataRequest>,
     ) -> Result<Response<WrapDataResponse>, Status> {
-        Err(Status::unimplemented("Response wrapping not yet implemented"))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1379,7 +1460,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<UnwrapTokenRequest>,
     ) -> Result<Response<UnwrapTokenResponse>, Status> {
-        Err(Status::unimplemented("Response wrapping not yet implemented"))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1387,7 +1470,9 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<LookupWrappingTokenRequest>,
     ) -> Result<Response<LookupWrappingTokenResponse>, Status> {
-        Err(Status::unimplemented("Response wrapping not yet implemented"))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
     }
 
     #[instrument(skip(self, _request))]
@@ -1395,7 +1480,93 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<RewrapTokenRequest>,
     ) -> Result<Response<RewrapTokenResponse>, Status> {
-        Err(Status::unimplemented("Response wrapping not yet implemented"))
+        Err(Status::unimplemented(
+            "Response wrapping not yet implemented",
+        ))
+    }
+}
+
+// ================================================================================
+// Helper and Snapshot Methods (not part of gRPC trait)
+// ================================================================================
+impl SecretonGrpcService {
+    // ============================================================================
+    // Helper Methods for Namespace Conversion
+    // ============================================================================
+
+    fn namespace_to_grpc_info(
+        &self,
+        namespace: &secreton_core::namespace::Namespace,
+        hierarchy: &secreton_core::namespace::NamespaceHierarchy,
+    ) -> NamespaceInfo {
+        let children_count = hierarchy.get_descendants(&namespace.id).len() as i32;
+        let ancestors: Vec<String> = hierarchy
+            .get_ancestors(&namespace.id)
+            .iter()
+            .map(|ns| ns.id.clone())
+            .collect();
+
+        let namespace_type = match namespace.namespace_type {
+            secreton_core::namespace::NamespaceType::Pusat => 1,
+            secreton_core::namespace::NamespaceType::Wilayah => 2,
+            secreton_core::namespace::NamespaceType::Satker => 3,
+        };
+
+        NamespaceInfo {
+            id: namespace.id.clone(),
+            path: namespace.path.clone(),
+            parent: namespace.parent.clone(),
+            name: namespace.name.clone(),
+            namespace_type,
+            policies: namespace.policies.clone(),
+            quotas: Some(self.core_quotas_to_grpc(&namespace.quotas)),
+            metadata: namespace.metadata.clone(),
+            created_at: namespace.created_at.timestamp(),
+            updated_at: namespace.updated_at.timestamp(),
+            created_by: namespace.created_by.clone(),
+            is_active: namespace.is_active,
+            children_count,
+            ancestors,
+        }
+    }
+
+    fn core_quotas_to_grpc(
+        &self,
+        quotas: &secreton_core::namespace::NamespaceQuotas,
+    ) -> NamespaceQuotas {
+        NamespaceQuotas {
+            max_secrets: quotas.max_secrets.map(|v| v as i64),
+            max_storage_bytes: quotas.max_storage_bytes.map(|v| v as i64),
+            max_leases: quotas.max_leases.map(|v| v as i64),
+            max_policies: quotas.max_policies.map(|v| v as i64),
+            current_usage: Some(QuotaUsage {
+                secrets_count: quotas.current_usage.secrets_count as i64,
+                storage_bytes: quotas.current_usage.storage_bytes as i64,
+                leases_count: quotas.current_usage.leases_count as i64,
+                policies_count: quotas.current_usage.policies_count as i64,
+            }),
+        }
+    }
+
+    fn grpc_quotas_to_core(
+        &self,
+        quotas: NamespaceQuotas,
+    ) -> secreton_core::namespace::NamespaceQuotas {
+        secreton_core::namespace::NamespaceQuotas {
+            max_secrets: quotas.max_secrets.map(|v| v as u64),
+            max_storage_bytes: quotas.max_storage_bytes.map(|v| v as u64),
+            max_leases: quotas.max_leases.map(|v| v as u64),
+            max_policies: quotas.max_policies.map(|v| v as u64),
+            current_usage: quotas
+                .current_usage
+                .map(|u| secreton_core::namespace::QuotaUsage {
+                    secrets_count: u.secrets_count as u64,
+                    storage_bytes: u.storage_bytes as u64,
+                    leases_count: u.leases_count as u64,
+                    policies_count: u.policies_count as u64,
+                })
+                .unwrap_or_default(),
+        }
     }
 
     // ============================================================================
@@ -1407,82 +1578,93 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<CreateSnapshotRequest>,
     ) -> Result<Response<CreateSnapshotResponse>, Status> {
-        info!("Creating Raft snapshot via gRPC");
-
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
-
-        // Check if this node is the leader
-        if !raft_storage.is_leader().await {
-            warn!("Snapshot creation attempted on non-leader node");
-            return Err(Status::failed_precondition(
-                "Snapshots can only be created on the leader node"
-            ));
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
         }
 
-        // Get current cluster status for metadata
-        let status = raft_storage.status().await
-            .map_err(|e| {
+        #[cfg(feature = "raft-consensus")]
+        {
+            info!("Creating Raft snapshot via gRPC");
+
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
+
+            // Check if this node is the leader
+            if !raft_storage.is_leader().await {
+                warn!("Snapshot creation attempted on non-leader node");
+                return Err(Status::failed_precondition(
+                    "Snapshots can only be created on the leader node",
+                ));
+            }
+
+            // Get current cluster status for metadata
+            let status = raft_storage.status().await.map_err(|e| {
                 error!("Failed to get cluster status: {}", e);
                 Status::internal(format!("Failed to get cluster status: {}", e))
             })?;
 
-        // Generate snapshot ID
-        let snapshot_id = format!("snapshot-{}-{}",
-            chrono::Utc::now().timestamp(),
-            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
-        );
+            // Generate snapshot ID
+            let snapshot_id = format!(
+                "snapshot-{}-{}",
+                chrono::Utc::now().timestamp(),
+                uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+            );
 
-        // Simulate snapshot data
-        let snapshot_data = format!(
-            "{{\"node_id\":{},\"term\":{},\"index\":{},\"timestamp\":{}}}",
-            status.node_id,
-            status.current_term,
-            status.last_applied.unwrap_or(0),
-            chrono::Utc::now().timestamp()
-        );
-        let snapshot_bytes = snapshot_data.as_bytes();
-        let original_size = snapshot_bytes.len() as u64;
+            // Simulate snapshot data
+            let snapshot_data = format!(
+                "{{\"node_id\":{},\"term\":{},\"index\":{},\"timestamp\":{}}}",
+                status.node_id,
+                status.current_term,
+                status.last_applied.unwrap_or(0),
+                chrono::Utc::now().timestamp()
+            );
+            let snapshot_bytes = snapshot_data.as_bytes();
+            let original_size = snapshot_bytes.len() as u64;
 
-        // Compress snapshot data
-        use flate2::write::GzEncoder;
-        use flate2::Compression;
-        use std::io::Write;
+            // Compress snapshot data
+            use flate2::Compression;
+            use flate2::write::GzEncoder;
+            use std::io::Write;
 
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(snapshot_bytes)
-            .map_err(|e| Status::internal(format!("Failed to compress snapshot: {}", e)))?;
-        let compressed_data = encoder.finish()
-            .map_err(|e| Status::internal(format!("Failed to finish compression: {}", e)))?;
-        let compressed_size = compressed_data.len() as u64;
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            encoder
+                .write_all(snapshot_bytes)
+                .map_err(|e| Status::internal(format!("Failed to compress snapshot: {}", e)))?;
+            let compressed_data = encoder
+                .finish()
+                .map_err(|e| Status::internal(format!("Failed to finish compression: {}", e)))?;
+            let compressed_size = compressed_data.len() as u64;
 
-        // Calculate checksum
-        use sha2::{Sha256, Digest};
-        let mut hasher = Sha256::new();
-        hasher.update(&compressed_data);
-        let checksum = format!("{:x}", hasher.finalize());
+            // Calculate checksum
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(&compressed_data);
+            let checksum = format!("{:x}", hasher.finalize());
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_create_snapshot_requests", 1);
-        metrics::counter!("secreton_raft_snapshots_created", 1);
-        metrics::gauge!("secreton_raft_snapshot_size_bytes", original_size as f64);
+            // Record metrics
+            metrics::counter!("secreton_grpc_create_snapshot_requests").increment(1);
+            metrics::counter!("secreton_raft_snapshots_created").increment(1);
+            metrics::gauge!("secreton_raft_snapshot_size_bytes").set(original_size as f64);
 
-        let response = CreateSnapshotResponse {
-            snapshot_id: snapshot_id.clone(),
-            size_bytes: original_size,
-            compressed_size_bytes: compressed_size,
-            checksum,
-            created_at: chrono::Utc::now().timestamp(),
-        };
+            let response = CreateSnapshotResponse {
+                snapshot_id: snapshot_id.clone(),
+                size_bytes: original_size,
+                compressed_size_bytes: compressed_size,
+                checksum,
+                created_at: chrono::Utc::now().timestamp(),
+            };
 
-        info!("Snapshot {} created successfully via gRPC", snapshot_id);
-        Ok(Response::new(response))
+            info!("Snapshot {} created successfully via gRPC", snapshot_id);
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, _request))]
@@ -1490,30 +1672,39 @@ max_renewals: lease.max_renewals,
         &self,
         _request: Request<ListSnapshotsRequest>,
     ) -> Result<Response<ListSnapshotsResponse>, Status> {
-        info!("Listing snapshots via gRPC");
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
+        }
 
-        // Get Raft storage backend
-        let _raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
+        #[cfg(feature = "raft-consensus")]
+        {
+            info!("Listing snapshots via gRPC");
 
-        // TODO: Implement actual snapshot listing from storage
-        let snapshots = Vec::new();
+            // Get Raft storage backend
+            let _raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
 
-        // Record metrics
-        metrics::counter!("secreton_grpc_list_snapshots_requests", 1);
+            // TODO: Implement actual snapshot listing from storage
+            let snapshots = Vec::new();
 
-        let response = ListSnapshotsResponse {
-            snapshots,
-            total: 0,
-        };
+            // Record metrics
+            metrics::counter!("secreton_grpc_list_snapshots_requests").increment(1);
 
-        info!("Listed {} snapshots via gRPC", response.total);
-        Ok(Response::new(response))
+            let response = ListSnapshotsResponse {
+                snapshots,
+                total: 0,
+            };
+
+            info!("Listed {} snapshots via gRPC", response.total);
+            Ok(Response::new(response))
+        }
     }
 
     #[instrument(skip(self, request))]
@@ -1521,47 +1712,57 @@ max_renewals: lease.max_renewals,
         &self,
         request: Request<RestoreSnapshotRequest>,
     ) -> Result<Response<RestoreSnapshotResponse>, Status> {
-        let req = request.into_inner();
-
-        info!("Restoring from snapshot {} via gRPC", req.snapshot_id);
-
-        // Validate snapshot ID
-        if req.snapshot_id.is_empty() {
-            return Err(Status::invalid_argument("Snapshot ID cannot be empty"));
+        #[cfg(not(feature = "raft-consensus"))]
+        {
+            return Err(Status::unimplemented("Raft consensus feature not enabled"));
         }
 
-        if !req.snapshot_id.starts_with("snapshot-") {
-            return Err(Status::invalid_argument(
-                "Invalid snapshot ID format. Must start with 'snapshot-'"
-            ));
+        #[cfg(feature = "raft-consensus")]
+        {
+            let req = request.into_inner();
+
+            info!("Restoring from snapshot {} via gRPC", req.snapshot_id);
+
+            // Validate snapshot ID
+            if req.snapshot_id.is_empty() {
+                return Err(Status::invalid_argument("Snapshot ID cannot be empty"));
+            }
+
+            if !req.snapshot_id.starts_with("snapshot-") {
+                return Err(Status::invalid_argument(
+                    "Invalid snapshot ID format. Must start with 'snapshot-'",
+                ));
+            }
+
+            // Get Raft storage backend
+            let raft_storage = self
+                .storage
+                .as_any()
+                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .ok_or_else(|| {
+                    error!("Storage backend is not a Raft cluster");
+                    Status::failed_precondition("Raft cluster not configured")
+                })?;
+
+            // Check if this node is the leader
+            if !raft_storage.is_leader().await {
+                warn!("Snapshot restore attempted on non-leader node");
+                return Err(Status::failed_precondition(
+                    "Snapshots can only be restored on the leader node",
+                ));
+            }
+
+            // TODO: Implement actual snapshot restoration
+            // This is a complex operation that requires careful implementation
+
+            // Record metrics
+            metrics::counter!("secreton_grpc_restore_snapshot_requests").increment(1);
+            metrics::counter!("secreton_raft_restores_attempted").increment(1);
+
+            warn!("Snapshot restore not yet fully implemented");
+            Err(Status::unimplemented(
+                "Snapshot restore not yet fully implemented",
+            ))
         }
-
-        // Get Raft storage backend
-        let raft_storage = self.storage
-            .as_any()
-            .downcast_ref::<secreton_storage::raft::RaftCluster>()
-            .ok_or_else(|| {
-                error!("Storage backend is not a Raft cluster");
-                Status::failed_precondition("Raft cluster not configured")
-            })?;
-
-        // Check if this node is the leader
-        if !raft_storage.is_leader().await {
-            warn!("Snapshot restore attempted on non-leader node");
-            return Err(Status::failed_precondition(
-                "Snapshots can only be restored on the leader node"
-            ));
-        }
-
-        // TODO: Implement actual snapshot restoration
-        // This is a complex operation that requires careful implementation
-
-        // Record metrics
-        metrics::counter!("secreton_grpc_restore_snapshot_requests", 1);
-        metrics::counter!("secreton_raft_restores_attempted", 1);
-
-        warn!("Snapshot restore not yet fully implemented");
-        Err(Status::unimplemented("Snapshot restore not yet fully implemented"))
     }
 }
-

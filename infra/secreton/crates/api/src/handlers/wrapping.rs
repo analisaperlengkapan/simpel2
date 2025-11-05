@@ -29,26 +29,20 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
     response::Json,
     routing::{get, post},
-    Router,
 };
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use chrono::{DateTime, Utc};
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument};
 
-use crate::{
-    handlers::AppState,
-    ApiResponse, ApiResult, ApiError,
-};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
 
-use secreton_core::services::wrapping::{
-    WrappingService, WrapRequest, WrapResponse, WrappedTokenInfo, WrappingError,
-};
+use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
 /// Create wrapping management routes
 pub fn create_routes() -> Router<AppState> {
@@ -131,13 +125,13 @@ pub async fn wrap_data(
     // Validate TTL
     if request.ttl == 0 {
         return Err(ApiError::BadRequest {
-            message: "TTL must be at least 1 second".to_string()
+            message: "TTL must be at least 1 second".to_string(),
         });
     }
 
     if request.ttl > 86400 {
         return Err(ApiError::BadRequest {
-            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string()
+            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string(),
         });
     }
 
@@ -149,17 +143,24 @@ pub async fn wrap_data(
     };
 
     // Wrap the data
-    let wrap_response = state.wrapping_service
+    let wrap_response = state
+        .wrapping_service
         .wrap(wrap_request)
         .await
         .map_err(|e| match e {
             WrappingError::InvalidTtl(msg) => ApiError::BadRequest { message: msg },
             WrappingError::DataTooLarge(size, max) => ApiError::BadRequest {
-                message: format!("Data too large: {} bytes (max: {} bytes)", size, max)
+                message: format!("Data too large: {} bytes (max: {} bytes)", size, max),
             },
-            WrappingError::EncryptionFailed(msg) => ApiError::Internal(anyhow::anyhow!("Encryption failed: {}", msg)),
-            WrappingError::StorageError(msg) => ApiError::Internal(anyhow::anyhow!("Storage error: {}", msg)),
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to wrap data: {}", e)),
+            WrappingError::EncryptionFailed(msg) => ApiError::Internal {
+                message: format!("Encryption failed: {}", msg.to_string()),
+            },
+            WrappingError::StorageError(msg) => ApiError::Internal {
+                message: format!("Storage error: {}", msg.to_string()),
+            },
+            _ => ApiError::Internal {
+                message: format!("Failed to wrap data: {}", e.to_string()),
+            },
         })?;
 
     // Generate accessor (same as token for now, in production use separate ID)
@@ -241,39 +242,47 @@ pub async fn unwrap_token(
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
-            message: "Invalid token format".to_string()
+            message: "Invalid token format".to_string(),
         });
     }
 
     // Lookup token first to get metadata
-    let token_info = state.wrapping_service
+    let token_info = state
+        .wrapping_service
         .lookup(&request.token, namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
-                resource: format!("Wrapping token not found: {}", token)
+                resource: format!("Wrapping token not found: {}", token),
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to lookup token: {}", e)),
+            _ => ApiError::Internal {
+                message: format!("Failed to lookup token: {}", e.to_string()),
+            },
         })?;
 
     // Unwrap the token
-    let data = state.wrapping_service
+    let data = state
+        .wrapping_service
         .unwrap(&request.token, namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
-                resource: format!("Wrapping token not found: {}", token)
+                resource: format!("Wrapping token not found: {}", token),
             },
             WrappingError::TokenAlreadyUnwrapped => ApiError::BadRequest {
-                message: "Token has already been unwrapped (one-time use enforced)".to_string()
+                message: "Token has already been unwrapped (one-time use enforced)".to_string(),
             },
             WrappingError::TokenExpired(expired_at) => ApiError::BadRequest {
-                message: format!("Token expired at {}", expired_at)
+                message: format!("Token expired at {}", expired_at),
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
-            WrappingError::DecryptionFailed(msg) => ApiError::Internal(anyhow::anyhow!("Decryption failed: {}", msg)),
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to unwrap token: {}", e)),
+            WrappingError::DecryptionFailed(msg) => ApiError::Internal {
+                message: format!("Decryption failed: {}", msg.to_string()),
+            },
+            _ => ApiError::Internal {
+                message: format!("Failed to unwrap token: {}", e.to_string()),
+            },
         })?;
 
     // Log audit event
@@ -326,20 +335,23 @@ pub async fn lookup_token(
     // Validate token format
     if !token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
-            message: "Invalid token format".to_string()
+            message: "Invalid token format".to_string(),
         });
     }
 
     // Lookup token metadata
-    let token_info = state.wrapping_service
+    let token_info = state
+        .wrapping_service
         .lookup(&token, namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
-                resource: format!("Wrapping token not found: {}", token)
+                resource: format!("Wrapping token not found: {}", token),
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to lookup token: {}", e)),
+            _ => ApiError::Internal {
+                message: format!("Failed to lookup token: {}", e.to_string()),
+            },
         })?;
 
     // Log audit event
@@ -403,39 +415,42 @@ pub async fn rewrap_token(
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
-            message: "Invalid token format".to_string()
+            message: "Invalid token format".to_string(),
         });
     }
 
     // Validate new TTL
     if request.ttl == 0 {
         return Err(ApiError::BadRequest {
-            message: "TTL must be at least 1 second".to_string()
+            message: "TTL must be at least 1 second".to_string(),
         });
     }
 
     if request.ttl > 86400 {
         return Err(ApiError::BadRequest {
-            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string()
+            message: "TTL cannot exceed 86400 seconds (24 hours)".to_string(),
         });
     }
 
     // Unwrap the original token to get data
-    let data = state.wrapping_service
+    let data = state
+        .wrapping_service
         .unwrap(&request.token, namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
-                resource: format!("Wrapping token not found: {}", token)
+                resource: format!("Wrapping token not found: {}", token),
             },
             WrappingError::TokenAlreadyUnwrapped => ApiError::BadRequest {
-                message: "Token has already been unwrapped".to_string()
+                message: "Token has already been unwrapped".to_string(),
             },
             WrappingError::TokenExpired(expired_at) => ApiError::BadRequest {
-                message: format!("Token expired at {}", expired_at)
+                message: format!("Token expired at {}", expired_at),
             },
             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to unwrap token: {}", e)),
+            _ => ApiError::Internal {
+                message: format!("Failed to unwrap token: {}", e.to_string()),
+            },
         })?;
 
     // Wrap with new TTL
@@ -445,15 +460,18 @@ pub async fn rewrap_token(
         namespace: namespace.to_string(),
     };
 
-    let wrap_response = state.wrapping_service
+    let wrap_response = state
+        .wrapping_service
         .wrap(wrap_request)
         .await
         .map_err(|e| match e {
             WrappingError::InvalidTtl(msg) => ApiError::BadRequest { message: msg },
             WrappingError::DataTooLarge(size, max) => ApiError::BadRequest {
-                message: format!("Data too large: {} bytes (max: {} bytes)", size, max)
+                message: format!("Data too large: {} bytes (max: {} bytes)", size, max),
             },
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to rewrap data: {}", e)),
+            _ => ApiError::Internal {
+                message: format!("Failed to rewrap data: {}", e.to_string()),
+            },
         })?;
 
     // Generate accessor

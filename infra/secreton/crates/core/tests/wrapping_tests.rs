@@ -35,9 +35,7 @@
 
 use chrono::Utc;
 use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
-use secreton_core::services::wrapping::{
-    TokenStatus, WrapRequest, WrappingError, WrappingService,
-};
+use secreton_core::services::wrapping::{TokenStatus, WrapRequest, WrappingError, WrappingService};
 use serde_json::json;
 use std::time::Duration;
 use tokio_postgres::NoTls;
@@ -119,10 +117,7 @@ async fn test_wrap_and_unwrap_success() {
         namespace: "default".to_string(),
     };
 
-    let response = service
-        .wrap(request)
-        .await
-        .expect("Failed to wrap data");
+    let response = service.wrap(request).await.expect("Failed to wrap data");
 
     assert!(response.token.starts_with("wrap_"));
     assert_eq!(response.ttl, 300);
@@ -326,10 +321,7 @@ async fn test_cleanup_expired_tokens() {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Cleanup expired tokens
-    let count = service
-        .cleanup_expired()
-        .await
-        .expect("Failed to cleanup");
+    let count = service.cleanup_expired().await.expect("Failed to cleanup");
 
     assert_eq!(count, 5, "Should cleanup all 5 expired tokens");
 }

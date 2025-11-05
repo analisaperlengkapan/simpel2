@@ -1,12 +1,11 @@
 //! Error handling for the Secreton API.
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -114,6 +113,9 @@ impl ApiError {
         match self {
             Self::Authentication { .. } => "AUTH_FAILED",
             Self::Authorization { .. } => "AUTHZ_FAILED",
+            Self::Unauthorized => "UNAUTHORIZED",
+            Self::Forbidden => "FORBIDDEN",
+            Self::NotImplemented(_) => "NOT_IMPLEMENTED",
             Self::RateLimit { .. } => "RATE_LIMITED",
             Self::Validation { .. } => "INVALID_REQUEST",
             Self::NotFound { .. } => "NOT_FOUND",

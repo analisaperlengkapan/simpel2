@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 use tracing::instrument;
+use uuid::Uuid;
 
 /// Error types for token service
 #[derive(Debug, thiserror::Error)]
@@ -179,7 +179,9 @@ impl Token {
     /// Renew token
     pub fn renew(&mut self, increment: u32) -> Result<(), TokenError> {
         if !self.can_renew() {
-            return Err(TokenError::RenewalFailed("Token cannot be renewed".to_string()));
+            return Err(TokenError::RenewalFailed(
+                "Token cannot be renewed".to_string(),
+            ));
         }
 
         let new_ttl = increment.min(self.max_ttl);
@@ -262,11 +264,13 @@ impl TokenService {
     /// Lookup token by value
     pub async fn lookup_token(&self, token_value: &str) -> Result<Token, TokenError> {
         let token_by_value = self.token_by_value.read().await;
-        let token_id = token_by_value.get(token_value)
+        let token_id = token_by_value
+            .get(token_value)
             .ok_or_else(|| TokenError::TokenNotFound(token_value.to_string()))?;
 
         let tokens = self.tokens.read().await;
-        let token = tokens.get(token_id)
+        let token = tokens
+            .get(token_id)
             .ok_or_else(|| TokenError::TokenNotFound(token_id.clone()))?;
 
         Ok(token.clone())
@@ -297,13 +301,15 @@ impl TokenService {
         increment: u32,
     ) -> Result<Token, TokenError> {
         let token_by_value = self.token_by_value.read().await;
-        let token_id = token_by_value.get(token_value)
+        let token_id = token_by_value
+            .get(token_value)
             .ok_or_else(|| TokenError::TokenNotFound(token_value.to_string()))?
             .clone();
         drop(token_by_value);
 
         let mut tokens = self.tokens.write().await;
-        let token = tokens.get_mut(&token_id)
+        let token = tokens
+            .get_mut(&token_id)
             .ok_or_else(|| TokenError::TokenNotFound(token_id.clone()))?;
 
         token.renew(increment)?;
@@ -315,19 +321,22 @@ impl TokenService {
     #[instrument(skip(self, token_value), fields(operation = "revoke_token"))]
     pub async fn revoke_token(&self, token_value: &str) -> Result<(), TokenError> {
         let token_by_value = self.token_by_value.read().await;
-        let token_id = token_by_value.get(token_value)
+        let token_id = token_by_value
+            .get(token_value)
             .ok_or_else(|| TokenError::TokenNotFound(token_value.to_string()))?
             .clone();
         drop(token_by_value);
 
         let mut tokens = self.tokens.write().await;
-        let token = tokens.get_mut(&token_id)
+        let token = tokens
+            .get_mut(&token_id)
             .ok_or_else(|| TokenError::TokenNotFound(token_id.clone()))?;
 
         token.revoke();
 
         // Revoke all child tokens
-        let child_ids: Vec<String> = tokens.values()
+        let child_ids: Vec<String> = tokens
+            .values()
             .filter(|t| t.parent_id.as_ref() == Some(&token_id))
             .map(|t| t.id.clone())
             .collect();
@@ -345,7 +354,8 @@ impl TokenService {
     pub async fn list_tokens(&self, entity_id: Option<&str>) -> Vec<Token> {
         let tokens = self.tokens.read().await;
 
-        tokens.values()
+        tokens
+            .values()
             .filter(|t| {
                 if let Some(eid) = entity_id {
                     t.entity_id.as_deref() == Some(eid)
@@ -364,7 +374,8 @@ impl TokenService {
         let mut token_by_value = self.token_by_value.write().await;
 
         let now = Utc::now();
-        let expired: Vec<String> = tokens.values()
+        let expired: Vec<String> = tokens
+            .values()
             .filter(|t| {
                 if let Some(expires_at) = t.expires_at {
                     now > expires_at
@@ -412,16 +423,19 @@ mod tests {
     async fn test_create_token() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Service,
-            vec!["default".to_string()],
-            3600,
-            86400,
-            "test-token".to_string(),
-            None,
-            HashMap::new(),
-            0,
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Service,
+                vec!["default".to_string()],
+                3600,
+                86400,
+                "test-token".to_string(),
+                None,
+                HashMap::new(),
+                0,
+            )
+            .await
+            .unwrap();
 
         assert!(token.token.starts_with("hvs."));
         assert_eq!(token.policies.len(), 1);
@@ -432,16 +446,19 @@ mod tests {
     async fn test_verify_token() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Service,
-            vec!["default".to_string()],
-            3600,
-            86400,
-            "test-token".to_string(),
-            None,
-            HashMap::new(),
-            0,
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Service,
+                vec!["default".to_string()],
+                3600,
+                86400,
+                "test-token".to_string(),
+                None,
+                HashMap::new(),
+                0,
+            )
+            .await
+            .unwrap();
 
         let verified = service.verify_token(&token.token).await;
         assert!(verified.is_ok());
@@ -451,16 +468,19 @@ mod tests {
     async fn test_renew_token() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Service,
-            vec!["default".to_string()],
-            1800,
-            86400,
-            "test-token".to_string(),
-            None,
-            HashMap::new(),
-            0,
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Service,
+                vec!["default".to_string()],
+                1800,
+                86400,
+                "test-token".to_string(),
+                None,
+                HashMap::new(),
+                0,
+            )
+            .await
+            .unwrap();
 
         let renewed = service.renew_token(&token.token, 3600).await.unwrap();
         assert_eq!(renewed.renew_count, 1);
@@ -471,16 +491,19 @@ mod tests {
     async fn test_revoke_token() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Service,
-            vec!["default".to_string()],
-            3600,
-            86400,
-            "test-token".to_string(),
-            None,
-            HashMap::new(),
-            0,
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Service,
+                vec!["default".to_string()],
+                3600,
+                86400,
+                "test-token".to_string(),
+                None,
+                HashMap::new(),
+                0,
+            )
+            .await
+            .unwrap();
 
         service.revoke_token(&token.token).await.unwrap();
 
@@ -492,16 +515,19 @@ mod tests {
     async fn test_batch_token_no_renew() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Batch,
-            vec!["default".to_string()],
-            3600,
-            86400,
-            "batch-token".to_string(),
-            None,
-            HashMap::new(),
-            0,
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Batch,
+                vec!["default".to_string()],
+                3600,
+                86400,
+                "batch-token".to_string(),
+                None,
+                HashMap::new(),
+                0,
+            )
+            .await
+            .unwrap();
 
         let result = service.renew_token(&token.token, 3600).await;
         assert!(result.is_err());
@@ -511,18 +537,20 @@ mod tests {
     async fn test_token_with_uses() {
         let service = TokenService::new();
 
-        let token = service.create_token(
-            TokenType::Service,
-            vec!["default".to_string()],
-            3600,
-            86400,
-            "limited-token".to_string(),
-            None,
-            HashMap::new(),
-            3, // 3 uses
-        ).await.unwrap();
+        let token = service
+            .create_token(
+                TokenType::Service,
+                vec!["default".to_string()],
+                3600,
+                86400,
+                "limited-token".to_string(),
+                None,
+                HashMap::new(),
+                3, // 3 uses
+            )
+            .await
+            .unwrap();
 
         assert_eq!(token.num_uses, 3);
     }
 }
-

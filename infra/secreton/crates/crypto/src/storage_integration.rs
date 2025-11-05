@@ -7,7 +7,7 @@ use crate::{
     error::{CryptoError, CryptoResult},
     transit::{KeyType, TransitEngine},
 };
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -124,10 +124,7 @@ impl CryptoStorageBridge {
     }
 
     /// Decrypt data from storage
-    pub async fn decrypt_from_storage(
-        &self,
-        entry: &EncryptedVaultEntry,
-    ) -> CryptoResult<Vec<u8>> {
+    pub async fn decrypt_from_storage(&self, entry: &EncryptedVaultEntry) -> CryptoResult<Vec<u8>> {
         let transit = self.transit.read().await;
 
         // Reconstruct encrypted format
@@ -157,11 +154,15 @@ impl CryptoStorageBridge {
         let plaintext = self.decrypt_from_storage(entry).await?;
 
         // Encrypt with new key version
-        self.encrypt_for_storage(&plaintext, Some(&entry.key_id)).await
+        self.encrypt_for_storage(&plaintext, Some(&entry.key_id))
+            .await
     }
 
     /// Get key information
-    pub async fn get_key_info(&self, key_name: &str) -> CryptoResult<crate::transit::keys::KeyInfo> {
+    pub async fn get_key_info(
+        &self,
+        key_name: &str,
+    ) -> CryptoResult<crate::transit::keys::KeyInfo> {
         let transit = self.transit.read().await;
         transit.get_key_info(key_name).await
     }
@@ -203,16 +204,10 @@ mod tests {
         let plaintext = b"Hello, World!";
 
         // Encrypt
-        let encrypted = bridge
-            .encrypt_for_storage(plaintext, None)
-            .await
-            .unwrap();
+        let encrypted = bridge.encrypt_for_storage(plaintext, None).await.unwrap();
 
         // Decrypt
-        let decrypted = bridge
-            .decrypt_from_storage(&encrypted)
-            .await
-            .unwrap();
+        let decrypted = bridge.decrypt_from_storage(&encrypted).await.unwrap();
 
         assert_eq!(plaintext, decrypted.as_slice());
     }
@@ -225,10 +220,7 @@ mod tests {
 
         // Encrypt with version 1
         let plaintext = b"Test data";
-        let encrypted_v1 = bridge
-            .encrypt_for_storage(plaintext, None)
-            .await
-            .unwrap();
+        let encrypted_v1 = bridge.encrypt_for_storage(plaintext, None).await.unwrap();
 
         assert_eq!(encrypted_v1.key_version, 1);
 
@@ -236,10 +228,7 @@ mod tests {
         bridge.rotate_key("rotate-key").await.unwrap();
 
         // Encrypt with version 2
-        let encrypted_v2 = bridge
-            .encrypt_for_storage(plaintext, None)
-            .await
-            .unwrap();
+        let encrypted_v2 = bridge.encrypt_for_storage(plaintext, None).await.unwrap();
 
         assert_eq!(encrypted_v2.key_version, 2);
 

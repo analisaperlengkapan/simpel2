@@ -5,8 +5,8 @@
 //! for secure master key distribution.
 
 use chrono::{DateTime, Utc};
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -14,18 +14,18 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Import Shamir Secret Sharing from crypto crate
 use secreton_crypto::shamir::{
-    generate_shares_with_commitments, reconstruct_secret_verified, validate_shares, Commitment,
-    Share, ShamirConfig,
+    Commitment, ShamirConfig, Share, generate_shares_with_commitments, reconstruct_secret_verified,
+    validate_shares,
 };
 
 // Import crypto primitives for master key encryption
 use aes_gcm::{
-    aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit},
 };
-use argon2::{Argon2, PasswordHasher};
 use argon2::password_hash::SaltString;
-use sha2::{Sha256, Digest};
+use argon2::{Argon2, PasswordHasher};
+use sha2::{Digest, Sha256};
 use tracing::instrument;
 
 /// Seal errors
@@ -360,7 +360,8 @@ impl SealService {
             .map_err(|e| SealError::KeyDerivationFailed(e.to_string()))?;
 
         // Extract the hash bytes (32 bytes for AES-256)
-        let hash_bytes = password_hash.hash
+        let hash_bytes = password_hash
+            .hash
             .ok_or_else(|| SealError::KeyDerivationFailed("No hash generated".to_string()))?;
 
         Ok(hash_bytes.as_bytes()[..32].to_vec())
@@ -437,14 +438,17 @@ impl SealService {
         metadata: EncryptionMetadata,
         commitment: &Commitment,
     ) -> Result<(), SealError> {
-        let storage = self.storage_backend.as_ref()
+        let storage = self
+            .storage_backend
+            .as_ref()
             .ok_or_else(|| SealError::StorageError("No storage backend configured".to_string()))?;
 
         let config = self.config.read().await;
 
         // Serialize commitment to JSON
-        let commitment_bytes = serde_json::to_vec(commitment)
-            .map_err(|e| SealError::StorageError(format!("Failed to serialize commitment: {}", e)))?;
+        let commitment_bytes = serde_json::to_vec(commitment).map_err(|e| {
+            SealError::StorageError(format!("Failed to serialize commitment: {}", e))
+        })?;
 
         let vault_state = VaultState {
             encrypted_master_key,
@@ -456,7 +460,9 @@ impl SealService {
             updated_at: Utc::now(),
         };
 
-        storage.store_vault_state(&vault_state).await
+        storage
+            .store_vault_state(&vault_state)
+            .await
             .map_err(|e| SealError::StorageError(e))?;
 
         Ok(())
@@ -464,10 +470,14 @@ impl SealService {
 
     /// Load encrypted master key from storage backend
     async fn load_encrypted_master_key(&self) -> Result<Option<VaultState>, SealError> {
-        let storage = self.storage_backend.as_ref()
+        let storage = self
+            .storage_backend
+            .as_ref()
             .ok_or_else(|| SealError::StorageError("No storage backend configured".to_string()))?;
 
-        storage.load_vault_state().await
+        storage
+            .load_vault_state()
+            .await
             .map_err(|e| SealError::StorageError(e))
     }
 
@@ -527,7 +537,8 @@ impl SealService {
                 Self::encrypt_master_key(&master_key_bytes, &seal_key)?;
 
             // Store encrypted master key
-            self.store_encrypted_master_key(encrypted_master_key, metadata, &commitment).await?;
+            self.store_encrypted_master_key(encrypted_master_key, metadata, &commitment)
+                .await?;
         }
 
         // CRITICAL SECURITY FIX: DO NOT store master key in memory after init
@@ -540,7 +551,11 @@ impl SealService {
         master_key_bytes_mut.zeroize();
 
         // Vault remains sealed - state is already Sealed, no change needed
-        tracing::info!("Vault initialized successfully. Vault remains SEALED. Operators must unseal with {} of {} shares.", threshold, num_shares);
+        tracing::info!(
+            "Vault initialized successfully. Vault remains SEALED. Operators must unseal with {} of {} shares.",
+            threshold,
+            num_shares
+        );
 
         Ok(shares)
     }
@@ -592,14 +607,11 @@ impl SealService {
         drop(state);
 
         // Deserialize and validate share
-        let share =
-            Share::from_bytes(share_bytes).map_err(|_| SealError::InvalidUnsealKey)?;
+        let share = Share::from_bytes(share_bytes).map_err(|_| SealError::InvalidUnsealKey)?;
 
         // Get commitment for verification
         let commitment_lock = self.commitment.read().await;
-        let commitment = commitment_lock
-            .as_ref()
-            .ok_or(SealError::NotInitialized)?;
+        let commitment = commitment_lock.as_ref().ok_or(SealError::NotInitialized)?;
 
         // Verify share against commitment using Feldman VSS
         secreton_crypto::shamir::verify_share_with_commitment(&share, commitment)
@@ -623,9 +635,7 @@ impl SealService {
         if shares.len() >= threshold {
             // Get commitment again for reconstruction
             let commitment_lock = self.commitment.read().await;
-            let commitment = commitment_lock
-                .as_ref()
-                .ok_or(SealError::NotInitialized)?;
+            let commitment = commitment_lock.as_ref().ok_or(SealError::NotInitialized)?;
 
             // Reconstruct seal key using Shamir with verification
             // Note: In a real implementation, the seal key would be different from master key
@@ -636,24 +646,25 @@ impl SealService {
             drop(commitment_lock);
 
             // Try to load encrypted master key from storage
-            let master_key_bytes = if let Some(vault_state) = self.load_encrypted_master_key().await? {
-                // Decrypt master key using reconstructed seal key
-                // Use hash of reconstructed key as seal key (same as in initialize)
-                let mut hasher = Sha256::new();
-                hasher.update(&reconstructed_seal_key);
-                hasher.update(b"seal-key-derivation");
-                let seal_key = hasher.finalize().to_vec();
+            let master_key_bytes =
+                if let Some(vault_state) = self.load_encrypted_master_key().await? {
+                    // Decrypt master key using reconstructed seal key
+                    // Use hash of reconstructed key as seal key (same as in initialize)
+                    let mut hasher = Sha256::new();
+                    hasher.update(&reconstructed_seal_key);
+                    hasher.update(b"seal-key-derivation");
+                    let seal_key = hasher.finalize().to_vec();
 
-                Self::decrypt_master_key(
-                    &vault_state.encrypted_master_key,
-                    &seal_key,
-                    &vault_state.encryption_metadata,
-                )?
-            } else {
-                // No stored master key, use reconstructed key directly
-                // This happens when storage backend is not configured
-                reconstructed_seal_key
-            };
+                    Self::decrypt_master_key(
+                        &vault_state.encrypted_master_key,
+                        &seal_key,
+                        &vault_state.encryption_metadata,
+                    )?
+                } else {
+                    // No stored master key, use reconstructed key directly
+                    // This happens when storage backend is not configured
+                    reconstructed_seal_key
+                };
 
             // Store master key in memory
             let mut master_key = self.master_key.write().await;
@@ -680,7 +691,7 @@ impl SealService {
     /// Converts string key to share bytes (assumes base64 encoding)
     pub async fn unseal(&self, key: String) -> Result<SealStatus, SealError> {
         // Decode base64 key to bytes
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
         let share_bytes = general_purpose::STANDARD
             .decode(&key)
             .map_err(|_| SealError::InvalidUnsealKey)?;
@@ -754,8 +765,7 @@ impl SealService {
     /// Provide rekey share
     pub async fn rekey_update(&self, key: String) -> Result<RekeyOperation, SealError> {
         let mut rekey_opt = self.rekey_operation.write().await;
-        let rekey = rekey_opt.as_mut()
-            .ok_or(SealError::NoRekeyInProgress)?;
+        let rekey = rekey_opt.as_mut().ok_or(SealError::NoRekeyInProgress)?;
 
         // Validate key
         if key.is_empty() {
@@ -868,7 +878,8 @@ impl SealService {
                 Self::encrypt_master_key(&new_master_key_bytes, &seal_key)?;
 
             // Store encrypted master key (this will update the version)
-            self.store_encrypted_master_key(encrypted_master_key, metadata, &commitment).await?;
+            self.store_encrypted_master_key(encrypted_master_key, metadata, &commitment)
+                .await?;
         }
 
         // Update master key in memory
@@ -890,7 +901,9 @@ impl SealService {
 
             // Deserialize and store commitment
             let commitment: Commitment = serde_json::from_slice(&vault_state.shamir_commitments)
-                .map_err(|e| SealError::StorageError(format!("Failed to deserialize commitment: {}", e)))?;
+                .map_err(|e| {
+                    SealError::StorageError(format!("Failed to deserialize commitment: {}", e))
+                })?;
 
             let mut commitment_lock = self.commitment.write().await;
             *commitment_lock = Some(commitment);
@@ -927,7 +940,10 @@ mod tests {
 
         // CRITICAL SECURITY FIX: After initialization, vault remains SEALED
         // This follows HashiCorp Vault best practices
-        assert!(service.is_sealed().await, "Vault should remain sealed after initialization");
+        assert!(
+            service.is_sealed().await,
+            "Vault should remain sealed after initialization"
+        );
 
         // Unseal with threshold shares (3 of 5)
         for share in shares.iter().take(3) {
@@ -968,7 +984,10 @@ mod tests {
         assert!(!state.encrypted_master_key.is_empty());
 
         // CRITICAL SECURITY FIX: After initialization, vault remains SEALED
-        assert!(service.is_sealed().await, "Vault should remain sealed after initialization");
+        assert!(
+            service.is_sealed().await,
+            "Vault should remain sealed after initialization"
+        );
 
         // Unseal to get master key
         for share in shares.iter().take(3) {
@@ -1095,7 +1114,8 @@ mod tests {
         let seal_key = vec![2u8; 32];
 
         // Encrypt
-        let (ciphertext, metadata) = SealService::encrypt_master_key(&master_key, &seal_key).unwrap();
+        let (ciphertext, metadata) =
+            SealService::encrypt_master_key(&master_key, &seal_key).unwrap();
         assert!(!ciphertext.is_empty());
         assert_eq!(metadata.algorithm, "aes-256-gcm");
         assert_eq!(metadata.kdf, "argon2id");
@@ -1112,7 +1132,8 @@ mod tests {
         let wrong_key = vec![3u8; 32];
 
         // Encrypt with correct key
-        let (ciphertext, metadata) = SealService::encrypt_master_key(&master_key, &seal_key).unwrap();
+        let (ciphertext, metadata) =
+            SealService::encrypt_master_key(&master_key, &seal_key).unwrap();
 
         // Try to decrypt with wrong key
         let result = SealService::decrypt_master_key(&ciphertext, &wrong_key, &metadata);
@@ -1262,11 +1283,7 @@ mod tests {
         assert!(service.is_sealed().await);
 
         // Test different combinations of 3 shares
-        let combinations = vec![
-            vec![0, 1, 2],
-            vec![0, 2, 4],
-            vec![1, 3, 4],
-        ];
+        let combinations = vec![vec![0, 1, 2], vec![0, 2, 4], vec![1, 3, 4]];
 
         for combo in combinations {
             // Seal if not already sealed (first iteration is already sealed)

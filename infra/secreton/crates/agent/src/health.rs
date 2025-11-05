@@ -1,7 +1,7 @@
 //! Health check endpoint
 
 use anyhow::Result;
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
 use serde::Serialize;
 use std::net::SocketAddr;
 use std::sync::Arc;

@@ -11,8 +11,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_postgres::Row;
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
-use tracing::{debug, error, info, warn, instrument};
 
 /// Lease error types
 #[derive(Debug, thiserror::Error)]
@@ -186,45 +186,61 @@ impl LeaseManager {
     }
 
     /// Set metrics registry for monitoring
-    pub fn with_metrics(mut self, registry: Arc<crate::services::metrics::MetricsRegistry>) -> Self {
+    pub fn with_metrics(
+        mut self,
+        registry: Arc<crate::services::metrics::MetricsRegistry>,
+    ) -> Self {
         self.metrics_registry = Some(registry);
         self
     }
 
     /// Helper to convert database row to EnhancedLease
     fn row_to_lease(&self, row: &Row) -> Result<EnhancedLease, LeaseError> {
-        let metadata_json: serde_json::Value = row.try_get("metadata")
+        let metadata_json: serde_json::Value = row
+            .try_get("metadata")
             .map_err(|e| LeaseError::StorageError(format!("Failed to get metadata: {}", e)))?;
 
-        let metadata: HashMap<String, String> = serde_json::from_value(metadata_json)
-            .unwrap_or_default();
+        let metadata: HashMap<String, String> =
+            serde_json::from_value(metadata_json).unwrap_or_default();
 
         Ok(EnhancedLease {
-            id: row.try_get("id")
+            id: row
+                .try_get("id")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get id: {}", e)))?,
-            user: row.try_get("user_id")
+            user: row
+                .try_get("user_id")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get user_id: {}", e)))?,
-            resource: row.try_get("resource")
+            resource: row
+                .try_get("resource")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get resource: {}", e)))?,
-            resource_type: row.try_get("resource_type")
-                .map_err(|e| LeaseError::StorageError(format!("Failed to get resource_type: {}", e)))?,
-            issued_at: row.try_get("issued_at")
+            resource_type: row.try_get("resource_type").map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get resource_type: {}", e))
+            })?,
+            issued_at: row
+                .try_get("issued_at")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get issued_at: {}", e)))?,
-            expired_at: row.try_get("expired_at")
-                .map_err(|e| LeaseError::StorageError(format!("Failed to get expired_at: {}", e)))?,
-            status: row.try_get("status")
+            expired_at: row.try_get("expired_at").map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get expired_at: {}", e))
+            })?,
+            status: row
+                .try_get("status")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get status: {}", e)))?,
-            namespace: row.try_get("namespace")
+            namespace: row
+                .try_get("namespace")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get namespace: {}", e)))?,
             parent_id: row.try_get("parent_id").ok(),
             child_ids: Vec::new(), // Will be populated separately if needed
-            renewable: row.try_get("renewable")
+            renewable: row
+                .try_get("renewable")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get renewable: {}", e)))?,
-            max_ttl: row.try_get("max_ttl")
+            max_ttl: row
+                .try_get("max_ttl")
                 .map_err(|e| LeaseError::StorageError(format!("Failed to get max_ttl: {}", e)))?,
-            renew_count: row.try_get::<_, i32>("renew_count")
-                .map_err(|e| LeaseError::StorageError(format!("Failed to get renew_count: {}", e)))? as u32,
-            max_renewals: row.try_get::<_, Option<i32>>("max_renewals")
+            renew_count: row.try_get::<_, i32>("renew_count").map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get renew_count: {}", e))
+            })? as u32,
+            max_renewals: row
+                .try_get::<_, Option<i32>>("max_renewals")
                 .ok()
                 .flatten()
                 .map(|v| v as u32),
@@ -259,9 +275,10 @@ impl LeaseManager {
     ) -> Result<EnhancedLease, LeaseError> {
         // Validation
         if ttl_secs <= 0 || ttl_secs > max_ttl {
-            return Err(LeaseError::InvalidTtl(
-                format!("TTL {} must be between 1 and {}", ttl_secs, max_ttl)
-            ));
+            return Err(LeaseError::InvalidTtl(format!(
+                "TTL {} must be between 1 and {}",
+                ttl_secs, max_ttl
+            )));
         }
 
         if user.is_empty() {
@@ -269,16 +286,19 @@ impl LeaseManager {
         }
 
         if resource.is_empty() {
-            return Err(LeaseError::InvalidTtl("Resource cannot be empty".to_string()));
+            return Err(LeaseError::InvalidTtl(
+                "Resource cannot be empty".to_string(),
+            ));
         }
 
         // Verify parent exists if specified
         if let Some(ref parent_id) = parent_id {
             let parent = self.lookup_lease(parent_id).await?;
             if parent.status != "active" {
-                return Err(LeaseError::StorageError(
-                    format!("Parent lease {} is not active", parent_id)
-                ));
+                return Err(LeaseError::StorageError(format!(
+                    "Parent lease {} is not active",
+                    parent_id
+                )));
             }
         }
 
@@ -304,11 +324,14 @@ impl LeaseManager {
         };
 
         // Store in database
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
-        let metadata_json = serde_json::to_value(&metadata)
-            .map_err(|e| LeaseError::StorageError(format!("Failed to serialize metadata: {}", e)))?;
+        let metadata_json = serde_json::to_value(&metadata).map_err(|e| {
+            LeaseError::StorageError(format!("Failed to serialize metadata: {}", e))
+        })?;
 
         let query = r#"
             INSERT INTO leases
@@ -317,26 +340,29 @@ impl LeaseManager {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         "#;
 
-        client.execute(
-            query,
-            &[
-                &lease.id,
-                &lease.user,
-                &lease.resource,
-                &lease.resource_type,
-                &lease.namespace,
-                &lease.status,
-                &lease.issued_at,
-                &lease.expired_at,
-                &lease.renewable,
-                &lease.max_ttl,
-                &(lease.renew_count as i32),
-                &lease.max_renewals.map(|v| v as i32),
-                &lease.parent_id,
-                &lease.revoke_callback,
-                &metadata_json,
-            ],
-        ).await.map_err(|e| LeaseError::StorageError(format!("Failed to insert lease: {}", e)))?;
+        client
+            .execute(
+                query,
+                &[
+                    &lease.id,
+                    &lease.user,
+                    &lease.resource,
+                    &lease.resource_type,
+                    &lease.namespace,
+                    &lease.status,
+                    &lease.issued_at,
+                    &lease.expired_at,
+                    &lease.renewable,
+                    &lease.max_ttl,
+                    &(lease.renew_count as i32),
+                    &lease.max_renewals.map(|v| v as i32),
+                    &lease.parent_id,
+                    &lease.revoke_callback,
+                    &metadata_json,
+                ],
+            )
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to insert lease: {}", e)))?;
 
         // Update cache
         let mut cache = self.cache.write().await;
@@ -381,7 +407,9 @@ impl LeaseManager {
 
         // Validate increment
         if increment <= 0 {
-            return Err(LeaseError::InvalidTtl("Increment must be positive".to_string()));
+            return Err(LeaseError::InvalidTtl(
+                "Increment must be positive".to_string(),
+            ));
         }
 
         // Calculate new expiration (capped at max_ttl)
@@ -391,8 +419,10 @@ impl LeaseManager {
         lease.last_renewed_at = Some(now);
 
         // Update in database
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = r#"
             UPDATE leases
@@ -400,15 +430,18 @@ impl LeaseManager {
             WHERE id = $4 AND status = 'active'
         "#;
 
-        let rows_affected = client.execute(
-            query,
-            &[
-                &lease.expired_at,
-                &(lease.renew_count as i32),
-                &lease.last_renewed_at,
-                &lease_id,
-            ],
-        ).await.map_err(|e| LeaseError::StorageError(format!("Failed to update lease: {}", e)))?;
+        let rows_affected = client
+            .execute(
+                query,
+                &[
+                    &lease.expired_at,
+                    &(lease.renew_count as i32),
+                    &lease.last_renewed_at,
+                    &lease_id,
+                ],
+            )
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to update lease: {}", e)))?;
 
         if rows_affected == 0 {
             return Err(LeaseError::LeaseNotFound(lease_id.to_string()));
@@ -434,7 +467,9 @@ impl LeaseManager {
     fn revoke_lease_recursive<'a>(
         &'a self,
         lease_id: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<String>, LeaseError>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Vec<String>, LeaseError>> + Send + 'a>,
+    > {
         Box::pin(async move {
             let mut revoked_ids = Vec::new();
 
@@ -456,8 +491,9 @@ impl LeaseManager {
             }
 
             // Revoke this lease
-            let client = self.pool.get().await
-                .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+            let client = self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
             let query = r#"
                 UPDATE leases
@@ -465,8 +501,10 @@ impl LeaseManager {
                 WHERE id = $1 AND status = 'active'
             "#;
 
-            let rows_affected = client.execute(query, &[&lease_id])
-                .await.map_err(|e| LeaseError::StorageError(format!("Failed to revoke lease: {}", e)))?;
+            let rows_affected = client
+                .execute(query, &[&lease_id])
+                .await
+                .map_err(|e| LeaseError::StorageError(format!("Failed to revoke lease: {}", e)))?;
 
             if rows_affected > 0 {
                 revoked_ids.push(lease_id.to_string());
@@ -488,8 +526,10 @@ impl LeaseManager {
 
     /// Get child leases for a parent lease
     async fn get_child_leases(&self, parent_id: &str) -> Result<Vec<EnhancedLease>, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = r#"
             SELECT id, user_id, resource, resource_type, namespace, status, issued_at, expired_at,
@@ -499,8 +539,9 @@ impl LeaseManager {
             WHERE parent_id = $1
         "#;
 
-        let rows = client.query(query, &[&parent_id])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to query child leases: {}", e)))?;
+        let rows = client.query(query, &[&parent_id]).await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to query child leases: {}", e))
+        })?;
 
         rows.iter().map(|row| self.row_to_lease(row)).collect()
     }
@@ -520,8 +561,10 @@ impl LeaseManager {
         }
 
         // Query database
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = r#"
             SELECT id, user_id, resource, resource_type, namespace, status, issued_at, expired_at,
@@ -531,10 +574,13 @@ impl LeaseManager {
             WHERE id = $1
         "#;
 
-        let rows = client.query(query, &[&lease_id])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to query lease: {}", e)))?;
+        let rows = client
+            .query(query, &[&lease_id])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to query lease: {}", e)))?;
 
-        let row = rows.first()
+        let row = rows
+            .first()
             .ok_or_else(|| LeaseError::LeaseNotFound(lease_id.to_string()))?;
 
         let lease = self.row_to_lease(row)?;
@@ -563,16 +609,20 @@ impl LeaseManager {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<EnhancedLease>, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
-        let mut query = String::from(r#"
+        let mut query = String::from(
+            r#"
             SELECT id, user_id, resource, resource_type, namespace, status, issued_at, expired_at,
                    last_renewed_at, renewable, max_ttl, renew_count, max_renewals, parent_id,
                    revoke_callback, metadata
             FROM leases
             WHERE 1=1
-        "#);
+        "#,
+        );
 
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
         let mut param_count = 1;
@@ -614,19 +664,25 @@ impl LeaseManager {
             params.push(Box::new(off));
         }
 
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-            params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
 
-        let rows = client.query(&query, &param_refs[..])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to list leases: {}", e)))?;
+        let rows = client
+            .query(&query, &param_refs[..])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to list leases: {}", e)))?;
 
         rows.iter().map(|row| self.row_to_lease(row)).collect()
     }
 
     /// Get expired leases
     pub async fn get_expired_leases(&self) -> Result<Vec<EnhancedLease>, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = r#"
             SELECT id, user_id, resource, resource_type, namespace, status, issued_at, expired_at,
@@ -637,8 +693,9 @@ impl LeaseManager {
             ORDER BY expired_at ASC
         "#;
 
-        let rows = client.query(query, &[])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to query expired leases: {}", e)))?;
+        let rows = client.query(query, &[]).await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to query expired leases: {}", e))
+        })?;
 
         rows.iter().map(|row| self.row_to_lease(row)).collect()
     }
@@ -646,16 +703,21 @@ impl LeaseManager {
     /// Cleanup expired leases by marking them as expired
     #[instrument(skip(self), fields(operation = "cleanup_expired"))]
     pub async fn cleanup_expired(&self) -> Result<usize, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         // Use the database function to expire leases
         let query = "SELECT expire_old_leases()";
 
-        let row = client.query_one(query, &[])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to expire leases: {}", e)))?;
+        let row = client
+            .query_one(query, &[])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to expire leases: {}", e)))?;
 
-        let count: i32 = row.try_get(0)
+        let count: i32 = row
+            .try_get(0)
             .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
 
         // Clear cache for expired leases
@@ -667,15 +729,20 @@ impl LeaseManager {
 
     /// Count active leases
     pub async fn count_active(&self) -> Result<usize, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = "SELECT COUNT(*) FROM leases WHERE status = 'active'";
 
-        let row = client.query_one(query, &[])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to count leases: {}", e)))?;
+        let row = client
+            .query_one(query, &[])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to count leases: {}", e)))?;
 
-        let count: i64 = row.try_get(0)
+        let count: i64 = row
+            .try_get(0)
             .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
 
         Ok(count as usize)
@@ -683,15 +750,20 @@ impl LeaseManager {
 
     /// Count leases by namespace
     pub async fn count_by_namespace(&self, namespace: &str) -> Result<usize, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = "SELECT COUNT(*) FROM leases WHERE namespace = $1 AND status = 'active'";
 
-        let row = client.query_one(query, &[&namespace])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to count leases: {}", e)))?;
+        let row = client
+            .query_one(query, &[&namespace])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to count leases: {}", e)))?;
 
-        let count: i64 = row.try_get(0)
+        let count: i64 = row
+            .try_get(0)
             .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
 
         Ok(count as usize)
@@ -706,7 +778,8 @@ impl LeaseManager {
     ///
     /// A `tokio::task::JoinHandle` that can be used to wait for or cancel the scheduler.
     pub fn start_expiration_scheduler(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
-        let check_interval = std::time::Duration::from_secs(self.scheduler_config.check_interval_secs);
+        let check_interval =
+            std::time::Duration::from_secs(self.scheduler_config.check_interval_secs);
 
         info!(
             "Starting lease expiration scheduler with check interval: {:?}",
@@ -734,11 +807,26 @@ impl LeaseManager {
 
                         // Update metrics if registry is available
                         if let Some(ref registry) = self.metrics_registry {
-                            registry.increment_counter("secreton_leases_expired_total", stats.expired_count as u64).await;
-                            registry.increment_counter("secreton_leases_revoked_total", stats.revoked_count as u64).await;
+                            registry
+                                .increment_counter(
+                                    "secreton_leases_expired_total",
+                                    stats.expired_count as u64,
+                                )
+                                .await;
+                            registry
+                                .increment_counter(
+                                    "secreton_leases_revoked_total",
+                                    stats.revoked_count as u64,
+                                )
+                                .await;
 
                             if stats.notified_count > 0 {
-                                registry.increment_counter("secreton_leases_expiration_notifications_total", stats.notified_count as u64).await;
+                                registry
+                                    .increment_counter(
+                                        "secreton_leases_expiration_notifications_total",
+                                        stats.notified_count as u64,
+                                    )
+                                    .await;
                             }
                         }
                     }
@@ -747,7 +835,9 @@ impl LeaseManager {
 
                         // Update error metrics if registry is available
                         if let Some(ref registry) = self.metrics_registry {
-                            registry.increment_counter("secreton_leases_expiration_errors_total", 1).await;
+                            registry
+                                .increment_counter("secreton_leases_expiration_errors_total", 1)
+                                .await;
                         }
                     }
                 }
@@ -774,7 +864,11 @@ impl LeaseManager {
             match self.revoke_lease(&lease.id).await {
                 Ok(revoked_ids) => {
                     stats.revoked_count += revoked_ids.len();
-                    debug!("Revoked expired lease: {} (and {} children)", lease.id, revoked_ids.len() - 1);
+                    debug!(
+                        "Revoked expired lease: {} (and {} children)",
+                        lease.id,
+                        revoked_ids.len() - 1
+                    );
                 }
                 Err(e) => {
                     warn!("Failed to revoke expired lease {}: {}", lease.id, e);
@@ -803,8 +897,10 @@ impl LeaseManager {
 
     /// Get leases that are expiring soon (within notification threshold)
     async fn get_expiring_soon_leases(&self) -> Result<Vec<EnhancedLease>, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let threshold_secs = self.scheduler_config.notification_threshold_secs;
 
@@ -819,8 +915,9 @@ impl LeaseManager {
             ORDER BY expired_at ASC
         "#;
 
-        let rows = client.query(query, &[&threshold_secs])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to query expiring leases: {}", e)))?;
+        let rows = client.query(query, &[&threshold_secs]).await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to query expiring leases: {}", e))
+        })?;
 
         rows.iter().map(|row| self.row_to_lease(row)).collect()
     }
@@ -852,8 +949,10 @@ impl LeaseManager {
 
     /// Get lease statistics
     pub async fn get_stats(&self) -> Result<LeaseStats, LeaseError> {
-        let client = self.pool.get().await
-            .map_err(|e| LeaseError::StorageError(format!("Failed to get DB connection: {}", e)))?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         let query = r#"
             SELECT
@@ -866,8 +965,10 @@ impl LeaseManager {
             FROM leases
         "#;
 
-        let row = client.query_one(query, &[])
-            .await.map_err(|e| LeaseError::StorageError(format!("Failed to get stats: {}", e)))?;
+        let row = client
+            .query_one(query, &[])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to get stats: {}", e)))?;
 
         Ok(LeaseStats {
             active_count: row.try_get::<_, i64>(0).unwrap_or(0) as usize,
@@ -909,12 +1010,7 @@ pub struct LeaseStats {
 
 // Legacy functions for compatibility - deprecated, use LeaseManager instead
 #[deprecated(note = "Use LeaseManager::create_lease instead")]
-pub async fn create_lease(
-    user: &str,
-    resource: &str,
-    resource_type: &str,
-    ttl_secs: i64,
-) -> Lease {
+pub async fn create_lease(user: &str, resource: &str, resource_type: &str, ttl_secs: i64) -> Lease {
     let now = Utc::now();
     Lease {
         id: Uuid::new_v4().to_string(),
@@ -929,10 +1025,7 @@ pub async fn create_lease(
 }
 
 #[deprecated(note = "Use LeaseManager::renew_lease instead")]
-pub async fn renew_lease(
-    lease_id: &str,
-    ttl_secs: i64,
-) -> Lease {
+pub async fn renew_lease(lease_id: &str, ttl_secs: i64) -> Lease {
     let now = Utc::now();
     Lease {
         id: lease_id.to_string(),
@@ -954,8 +1047,9 @@ mod tests {
 
     async fn setup_test_pool() -> Pool {
         // Use in-memory or test database
-        let database_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
+        let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+            "postgresql://postgres:postgres@localhost/secreton_test".to_string()
+        });
 
         let mut cfg = Config::new();
         cfg.url = Some(database_url);
@@ -968,19 +1062,22 @@ mod tests {
         let pool = setup_test_pool().await;
         let manager = LeaseManager::new(pool);
 
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                3600,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(lease.user, "user1");
         assert_eq!(lease.status, "active");
@@ -993,19 +1090,22 @@ mod tests {
         let pool = setup_test_pool().await;
         let manager = LeaseManager::new(pool);
 
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            1800,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                1800,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         let renewed = manager.renew_lease(&lease.id, 3600).await.unwrap();
         assert_eq!(renewed.renew_count, 1);
@@ -1018,19 +1118,22 @@ mod tests {
         let pool = setup_test_pool().await;
         let manager = LeaseManager::new(pool);
 
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                3600,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         let revoked = manager.revoke_lease(&lease.id).await.unwrap();
         assert_eq!(revoked.len(), 1);
@@ -1045,33 +1148,39 @@ mod tests {
         let pool = setup_test_pool().await;
         let manager = LeaseManager::new(pool);
 
-        let parent = manager.create_lease(
-            "user1",
-            "/parent",
-            "kv",
-            "default",
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let parent = manager
+            .create_lease(
+                "user1",
+                "/parent",
+                "kv",
+                "default",
+                3600,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
-        let _child = manager.create_lease(
-            "user1",
-            "/child",
-            "kv",
-            "default",
-            3600,
-            86400,
-            true,
-            Some(parent.id.clone()),
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let _child = manager
+            .create_lease(
+                "user1",
+                "/child",
+                "kv",
+                "default",
+                3600,
+                86400,
+                true,
+                Some(parent.id.clone()),
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // Revoke parent should revoke child too
         let revoked = manager.revoke_lease(&parent.id).await.unwrap();
@@ -1085,44 +1194,59 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         // Create multiple leases
-        manager.create_lease(
-            "user1",
-            "/secret/data/test1",
-            "kv",
-            "default",
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        manager
+            .create_lease(
+                "user1",
+                "/secret/data/test1",
+                "kv",
+                "default",
+                3600,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
-        manager.create_lease(
-            "user2",
-            "/secret/data/test2",
-            "database",
-            "default",
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        manager
+            .create_lease(
+                "user2",
+                "/secret/data/test2",
+                "database",
+                "default",
+                3600,
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // List all leases
-        let all_leases = manager.list_leases(None, None, None, None, None, None).await.unwrap();
+        let all_leases = manager
+            .list_leases(None, None, None, None, None, None)
+            .await
+            .unwrap();
         assert!(all_leases.len() >= 2);
 
         // List leases for user1
-        let user1_leases = manager.list_leases(Some("user1"), None, None, None, None, None).await.unwrap();
+        let user1_leases = manager
+            .list_leases(Some("user1"), None, None, None, None, None)
+            .await
+            .unwrap();
         assert!(user1_leases.iter().all(|l| l.user == "user1"));
 
         // List database leases
-        let db_leases = manager.list_leases(None, None, Some("database"), None, None, None).await.unwrap();
+        let db_leases = manager
+            .list_leases(None, None, Some("database"), None, None, None)
+            .await
+            .unwrap();
         assert!(db_leases.iter().all(|l| l.resource_type == "database"));
     }
 
@@ -1132,19 +1256,22 @@ mod tests {
         let pool = setup_test_pool().await;
         let manager = LeaseManager::new(pool);
 
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            1800,
-            86400,
-            true,
-            None,
-            Some(2), // Max 2 renewals
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                1800,
+                86400,
+                true,
+                None,
+                Some(2), // Max 2 renewals
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // First renewal should succeed
         manager.renew_lease(&lease.id, 1800).await.unwrap();
@@ -1165,19 +1292,22 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         // Create a lease that expires immediately
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            1, // 1 second TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                1, // 1 second TTL
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // Wait for expiration
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -1198,7 +1328,7 @@ mod tests {
 
         // Create manager with custom config for faster testing
         let config = LeaseSchedulerConfig {
-            check_interval_secs: 2, // Check every 2 seconds
+            check_interval_secs: 2,          // Check every 2 seconds
             notification_threshold_secs: 10, // Notify 10 seconds before expiry
             enable_notifications: true,
         };
@@ -1206,19 +1336,22 @@ mod tests {
         let manager = Arc::new(LeaseManager::with_config(pool, config));
 
         // Create a lease that expires in 3 seconds
-        let lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            3, // 3 second TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                3, // 3 second TTL
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // Start the scheduler
         let scheduler_handle = manager.clone().start_expiration_scheduler();
@@ -1248,19 +1381,22 @@ mod tests {
         let manager = LeaseManager::with_config(pool, config);
 
         // Create a lease that expires in 4 minutes (within notification threshold)
-        let _lease = manager.create_lease(
-            "user1",
-            "/secret/data/test",
-            "kv",
-            "default",
-            240, // 4 minutes TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let _lease = manager
+            .create_lease(
+                "user1",
+                "/secret/data/test",
+                "kv",
+                "default",
+                240, // 4 minutes TTL
+                86400,
+                true,
+                None,
+                None,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // Get leases expiring soon
         let expiring = manager.get_expiring_soon_leases().await.unwrap();

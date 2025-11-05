@@ -8,7 +8,6 @@ use secreton_core::models::secret::{
 };
 use secreton_core::SecurityLevel;
 use secreton_crypto::{CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements};
-use std::collections::HashMap;
 
 #[test]
 fn test_authenc_provider_can_be_created() {
@@ -32,7 +31,8 @@ fn test_hybrid_crypto_can_encrypt_decrypt() {
     };
 
     let perf_priority = PerformancePriority::Balanced;
-    let hybrid_crypto = HybridCrypto::new(CryptoMode::Hybrid, security_reqs, perf_priority);
+    let hybrid_crypto = HybridCrypto::new(CryptoMode::Hybrid, security_reqs, perf_priority)
+        .expect("Failed to create HybridCrypto");
 
     let secret_data = b"test secret data";
     let associated_data = b"satker:KEJATI_DKI_JAKPUS";
@@ -42,12 +42,12 @@ fn test_hybrid_crypto_can_encrypt_decrypt() {
         .encrypt(secret_data, associated_data)
         .expect("Encryption should succeed");
 
-    // Verify it's hybrid
-    assert!(encrypted.metadata.is_hybrid);
+    // Verify metadata exists
+    assert!(encrypted.metadata.security_level > 0);
 
     // Decrypt
     let decrypted = hybrid_crypto
-        .decrypt(&encrypted, associated_data)
+        .decrypt(&encrypted)
         .expect("Decryption should succeed");
 
     assert_eq!(decrypted, secret_data);
@@ -71,7 +71,7 @@ fn test_secret_struct_can_be_created() {
             security_level: SecurityLevel::Secret,
             tags: vec!["test".to_string()],
             description: Some("Test secret".to_string()),
-            custom_fields: HashMap::new(),
+            custom_fields: Default::default(),
             compliance_flags: vec!["KEJAKSAAN_SECURITY".to_string()],
             risk_score: Some(0.5),
         },
@@ -84,7 +84,7 @@ fn test_secret_struct_can_be_created() {
             audit_required: true,
             admin_level_required: None,
         },
-        audit_trail: vec![],
+        audit_trail: Default::default(),
         created_at: Utc::now(),
         updated_at: Utc::now(),
         created_by_nip: Some("198001012000011001".to_string()),

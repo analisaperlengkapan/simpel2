@@ -142,13 +142,17 @@ impl SecretId {
 
     pub fn consume_use(&mut self) {
         if let Some(ref mut uses) = self.num_uses {
-            if *uses > 0 { *uses -= 1; }
+            if *uses > 0 {
+                *uses -= 1;
+            }
         }
         self.last_used_at = Some(Utc::now());
     }
 
     pub fn check_cidr(&self, client_ip: &str) -> bool {
-        if self.cidr_list.is_empty() { return true; }
+        if self.cidr_list.is_empty() {
+            return true;
+        }
         self.cidr_list.iter().any(|cidr| {
             if cidr.contains('/') {
                 let parts: Vec<&str> = cidr.split('/').collect();
@@ -203,7 +207,8 @@ impl AppRoleAuth {
         cidr_list: Vec<String>,
     ) -> Result<SecretId, AppRoleError> {
         let roles = self.roles.read().await;
-        let role = roles.get(role_name)
+        let role = roles
+            .get(role_name)
             .ok_or_else(|| AppRoleError::RoleNotFound(role_name.to_string()))?;
 
         let mut secret_id = SecretId::new(
@@ -232,12 +237,15 @@ impl AppRoleAuth {
         secret_id: &str,
         client_ip: Option<&str>,
     ) -> Result<AppRoleLoginResponse, AppRoleError> {
-        let role = self.get_role_by_id(role_id).await
+        let role = self
+            .get_role_by_id(role_id)
+            .await
             .ok_or(AppRoleError::InvalidRoleId)?;
 
         if role.bind_secret_id {
             let mut secret_ids = self.secret_ids.write().await;
-            let mut secret = secret_ids.get_mut(secret_id)
+            let mut secret = secret_ids
+                .get_mut(secret_id)
                 .ok_or(AppRoleError::SecretIdNotFound)?
                 .clone();
 
@@ -275,7 +283,8 @@ impl AppRoleAuth {
 
     pub async fn list_secret_id_accessors(&self, role_name: &str) -> Vec<String> {
         let secret_ids = self.secret_ids.read().await;
-        secret_ids.values()
+        secret_ids
+            .values()
             .filter(|s| s.role_name == role_name)
             .map(|s| s.secret_id_accessor.clone())
             .collect()
@@ -283,7 +292,8 @@ impl AppRoleAuth {
 
     pub async fn destroy_secret_id(&self, accessor: &str) -> Result<(), AppRoleError> {
         let mut secret_ids = self.secret_ids.write().await;
-        let secret_id = secret_ids.values()
+        let secret_id = secret_ids
+            .values()
             .find(|s| s.secret_id_accessor == accessor)
             .map(|s| s.secret_id.clone())
             .ok_or(AppRoleError::SecretIdNotFound)?;
@@ -328,8 +338,14 @@ mod tests {
         let role_id = role.role_id.clone();
         approle.create_role(role).await.unwrap();
 
-        let secret = approle.generate_secret_id("app1", HashMap::new(), Vec::new()).await.unwrap();
-        let response = approle.login(&role_id, &secret.secret_id, None).await.unwrap();
+        let secret = approle
+            .generate_secret_id("app1", HashMap::new(), Vec::new())
+            .await
+            .unwrap();
+        let response = approle
+            .login(&role_id, &secret.secret_id, None)
+            .await
+            .unwrap();
         assert_eq!(response.role_name, "app1");
     }
 }

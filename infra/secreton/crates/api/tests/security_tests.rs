@@ -3,12 +3,12 @@
 //! Tests various attack vectors including injection attacks, authentication bypass,
 //! authorization bypass, data exfiltration, and DoS attempts.
 
-use axum::http::{header::AUTHORIZATION, HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode, header::AUTHORIZATION};
 use serde_json::json;
 use std::collections::HashMap;
 
-use crate::handlers::vault::*;
 use crate::config::ApiConfig;
+use crate::handlers::vault::*;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
 use std::sync::Arc;
@@ -47,9 +47,9 @@ mod security_penetration_tests {
             let response = server.get(&format!("/secrets/{}", malicious_input)).await;
             // Should either return 404 (not found) or handle gracefully, not crash
             assert!(
-                response.status_code() == StatusCode::NOT_FOUND ||
-                response.status_code() == StatusCode::BAD_REQUEST ||
-                response.status_code() == StatusCode::UNAUTHORIZED,
+                response.status_code() == StatusCode::NOT_FOUND
+                    || response.status_code() == StatusCode::BAD_REQUEST
+                    || response.status_code() == StatusCode::UNAUTHORIZED,
                 "SQL injection attempt should be handled safely: {}",
                 malicious_input
             );
@@ -57,9 +57,9 @@ mod security_penetration_tests {
             // Test in key operations
             let response = server.get(&format!("/keys/{}", malicious_input)).await;
             assert!(
-                response.status_code() == StatusCode::NOT_FOUND ||
-                response.status_code() == StatusCode::BAD_REQUEST ||
-                response.status_code() == StatusCode::UNAUTHORIZED,
+                response.status_code() == StatusCode::NOT_FOUND
+                    || response.status_code() == StatusCode::BAD_REQUEST
+                    || response.status_code() == StatusCode::UNAUTHORIZED,
                 "SQL injection in keys should be handled safely: {}",
                 malicious_input
             );
@@ -91,14 +91,17 @@ mod security_penetration_tests {
             });
 
             let response = server
-                .post(&format!("/secrets/xss-test/{}", payload.replace(['/', '\\'], "_")))
+                .post(&format!(
+                    "/secrets/xss-test/{}",
+                    payload.replace(['/', '\\'], "_")
+                ))
                 .json(&create_payload)
                 .await;
 
             // Should either reject the request or sanitize the input
             assert!(
-                response.status_code() == StatusCode::BAD_REQUEST ||
-                response.status_code() == StatusCode::OK,
+                response.status_code() == StatusCode::BAD_REQUEST
+                    || response.status_code() == StatusCode::OK,
                 "XSS payload should be handled safely: {}",
                 payload
             );
@@ -106,7 +109,10 @@ mod security_penetration_tests {
             if response.status_code() == StatusCode::OK {
                 // If accepted, verify the data is properly stored (sanitized)
                 let read_response = server
-                    .get(&format!("/secrets/xss-test/{}", payload.replace(['/', '\\'], "_")))
+                    .get(&format!(
+                        "/secrets/xss-test/{}",
+                        payload.replace(['/', '\\'], "_")
+                    ))
                     .await;
 
                 if read_response.status_code() == StatusCode::OK {
@@ -146,9 +152,9 @@ mod security_penetration_tests {
             let body: serde_json::Value = response.json();
             if let Some(data) = body.get("data") {
                 assert!(
-                    !data.to_string().contains("root:") &&
-                    !data.to_string().contains("password") &&
-                    !data.to_string().contains("shadow"),
+                    !data.to_string().contains("root:")
+                        && !data.to_string().contains("password")
+                        && !data.to_string().contains("shadow"),
                     "Should not leak system information"
                 );
             }
@@ -172,13 +178,10 @@ mod security_penetration_tests {
             let mut headers = HeaderMap::new();
             headers.insert(
                 AUTHORIZATION,
-                format!("{} {}", auth_prefix, token_value).parse()
+                format!("{} {}", auth_prefix, token_value).parse(),
             );
 
-            let response = server
-                .get("/secrets/sensitive/data")
-                .headers(headers)
-                .await;
+            let response = server.get("/secrets/sensitive/data").headers(headers).await;
 
             // Should reject unauthorized access
             assert_eq!(
@@ -208,8 +211,8 @@ mod security_penetration_tests {
 
             // Should require proper authorization
             assert!(
-                response.status_code() == StatusCode::UNAUTHORIZED ||
-                response.status_code() == StatusCode::FORBIDDEN,
+                response.status_code() == StatusCode::UNAUTHORIZED
+                    || response.status_code() == StatusCode::FORBIDDEN,
                 "Admin endpoint should require authorization: {}",
                 endpoint
             );
@@ -268,15 +271,12 @@ mod security_penetration_tests {
             }
         });
 
-        let response = server
-            .post("/secrets/dos-test")
-            .json(&large_payload)
-            .await;
+        let response = server.post("/secrets/dos-test").json(&large_payload).await;
 
         // Should reject oversized payloads
         assert!(
-            response.status_code() == StatusCode::PAYLOAD_TOO_LARGE ||
-            response.status_code() == StatusCode::BAD_REQUEST,
+            response.status_code() == StatusCode::PAYLOAD_TOO_LARGE
+                || response.status_code() == StatusCode::BAD_REQUEST,
             "Should prevent DoS via large payloads"
         );
 
@@ -313,8 +313,8 @@ mod security_penetration_tests {
 
         // Should require proper authentication for state-changing operations
         assert!(
-            response.status_code() == StatusCode::UNAUTHORIZED ||
-            response.status_code() == StatusCode::OK,
+            response.status_code() == StatusCode::UNAUTHORIZED
+                || response.status_code() == StatusCode::OK,
             "CSRF test should be handled properly"
         );
     }
@@ -326,22 +326,19 @@ mod security_penetration_tests {
         // Test various malformed inputs
         let malicious_inputs = vec![
             json!({"data": null}),
-            json!({"data": {"": ""}}), // Empty key
+            json!({"data": {"": ""}}),           // Empty key
             json!({"metadata": {"tags": [""]}}), // Empty tags
-            json!({"ttl": -1}), // Negative TTL
-            json!({"data": {"key": null}}), // Null values
+            json!({"ttl": -1}),                  // Negative TTL
+            json!({"data": {"key": null}}),      // Null values
         ];
 
         for input in malicious_inputs {
-            let response = server
-                .post("/secrets/validation-test")
-                .json(&input)
-                .await;
+            let response = server.post("/secrets/validation-test").json(&input).await;
 
             // Should validate inputs properly
             assert!(
-                response.status_code() == StatusCode::BAD_REQUEST ||
-                response.status_code() == StatusCode::OK,
+                response.status_code() == StatusCode::BAD_REQUEST
+                    || response.status_code() == StatusCode::OK,
                 "Should validate input properly"
             );
         }
@@ -360,10 +357,10 @@ mod security_penetration_tests {
             // Error messages should not leak sensitive information
             let error_message = body.to_string();
             assert!(
-                !error_message.contains("stack trace") &&
-                !error_message.contains("/usr/") &&
-                !error_message.contains("/home/") &&
-                !error_message.contains("root"),
+                !error_message.contains("stack trace")
+                    && !error_message.contains("/usr/")
+                    && !error_message.contains("/home/")
+                    && !error_message.contains("root"),
                 "Error messages should not leak system information"
             );
         }
@@ -378,9 +375,9 @@ mod security_penetration_tests {
 
         let mut response_times = Vec::new();
         let test_paths = vec![
-            "/secrets/existing-secret",  // Should exist
-            "/secrets/non-existent-1",   // Should not exist
-            "/secrets/non-existent-2",   // Should not exist
+            "/secrets/existing-secret", // Should exist
+            "/secrets/non-existent-1",  // Should not exist
+            "/secrets/non-existent-2",  // Should not exist
         ];
 
         for path in test_paths {
@@ -396,14 +393,18 @@ mod security_penetration_tests {
 
         // Verify that response times don't leak information
         // (e.g., existing vs non-existing resources shouldn't have dramatically different response times)
-        let existing_time = response_times.iter().find(|(p, _, _)| p.contains("existing")).1;
+        let existing_time = response_times
+            .iter()
+            .find(|(p, _, _)| p.contains("existing"))
+            .1;
         let non_existing_times: Vec<_> = response_times
             .iter()
             .filter(|(p, _, _)| p.contains("non-existent"))
             .map(|(_, t, _)| t)
             .collect();
 
-        let avg_non_existing = non_existing_times.iter().sum::<Duration>() / non_existing_times.len() as u32;
+        let avg_non_existing =
+            non_existing_times.iter().sum::<Duration>() / non_existing_times.len() as u32;
 
         // The ratio should not be too extreme (indicating timing leaks)
         let ratio = existing_time.as_nanos() as f64 / avg_non_existing.as_nanos() as f64;
@@ -430,8 +431,8 @@ mod security_penetration_tests {
 
         // Should reject weak cryptographic parameters
         assert!(
-            response.status_code() == StatusCode::BAD_REQUEST ||
-            response.status_code() == StatusCode::OK,
+            response.status_code() == StatusCode::BAD_REQUEST
+                || response.status_code() == StatusCode::OK,
             "Should handle weak cryptographic parameters"
         );
 
@@ -467,8 +468,8 @@ mod security_penetration_tests {
         // Should prevent audit log tampering
         if response.status_code() != StatusCode::NOT_FOUND {
             assert!(
-                response.status_code() == StatusCode::UNAUTHORIZED ||
-                response.status_code() == StatusCode::FORBIDDEN,
+                response.status_code() == StatusCode::UNAUTHORIZED
+                    || response.status_code() == StatusCode::FORBIDDEN,
                 "Should prevent audit log tampering"
             );
         }
@@ -482,7 +483,9 @@ mod security_penetration_tests {
 
             // Should have the secret creation audit entry
             assert!(
-                audit_entries.iter().any(|e| e.action.contains("SecretCreation")),
+                audit_entries
+                    .iter()
+                    .any(|e| e.action.contains("SecretCreation")),
                 "Audit logs should be tamper-evident"
             );
         }

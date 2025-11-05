@@ -12,11 +12,10 @@
 //! - GET /v1/sys/namespaces/{id}/stats - Usage statistics, quota enforcement
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::Json,
-    routing::{delete, get, post, put},
     Router,
+    extract::{Path, Query, State},
+    response::Json,
+    routing::get,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -24,15 +23,15 @@ use std::collections::HashMap;
 use secreton_core::{
     error::CoreError,
     namespace::{
-        AccessCheckResult, AdminLevel, JwtClaims, Namespace, NamespaceAccessControl,
-        NamespaceHierarchy, NamespaceQuotas, NamespaceType, QuotaUsage,
+        AdminLevel, JwtClaims, Namespace, NamespaceAccessControl, NamespaceHierarchy,
+        NamespaceQuotas, NamespaceType, QuotaUsage,
     },
 };
 
 use crate::{
+    ApiError, ApiResponse, ApiResult,
     handlers::AppState,
     models::{PaginatedResponse, PaginationQuery},
-    ApiResponse, ApiResult,
 };
 
 /// Create namespace routes
@@ -165,10 +164,12 @@ fn extract_jwt_claims(state: &AppState) -> Result<JwtClaims, CoreError> {
     Ok(JwtClaims {
         sub: "admin".to_string(),
         name: "Admin User".to_string(),
-        email: Some("admin@kejaksaan.go.id".to_string()),
+        email: "admin@kejaksaan.go.id".to_string(),
         satker_code: None,
         wilayah_code: None,
         admin_level: AdminLevel::Pusat,
+        roles: vec!["admin".to_string()],
+        permissions: vec!["*".to_string()],
         exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
         iat: chrono::Utc::now().timestamp(),
         iss: "authenc".to_string(),
@@ -333,7 +334,7 @@ pub async fn list_namespaces(
         .iter()
         .skip(offset)
         .take(limit)
-        .map(|ns| namespace_to_response(ns, hierarchy))
+        .map(|ns| namespace_to_response(ns, &hierarchy))
         .collect();
 
     let response = PaginatedResponse::new(
@@ -388,52 +389,38 @@ pub async fn create_namespace(
         AdminLevel::Wilayah => {
             // Can only create satkers under their wilayah
             if request.namespace_type != NamespaceType::Satker {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    "Wilayah admin can only create satker namespaces".to_string(),
-                ));
+                return Err(ApiError::Forbidden);
             }
 
             // Verify parent is their wilayah
             if let Some(wilayah_code) = &claims.wilayah_code {
                 let expected_parent = format!("wilayah-{}", wilayah_code.to_lowercase());
                 if request.parent.as_ref() != Some(&expected_parent) {
-                    return Err((
-                        StatusCode::FORBIDDEN,
-                        "Wilayah admin can only create satkers under their own wilayah"
-                            .to_string(),
-                    ));
+                    return Err(ApiError::Forbidden);
                 }
             } else {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    "Wilayah admin must have wilayah_code in JWT claims".to_string(),
-                ));
+                return Err(ApiError::Forbidden);
             }
         }
         AdminLevel::Satker => {
-            return Err((
-                StatusCode::FORBIDDEN,
-                "Satker admin cannot create namespaces".to_string(),
-            ));
+            return Err(ApiError::Forbidden);
         }
     }
 
     // Create namespace based on type
     let namespace = match request.namespace_type {
         NamespaceType::Pusat => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "Cannot create Pusat namespace (already exists)".to_string(),
-            ));
+            return Err(ApiError::BadRequest {
+                message: "Cannot create Pusat namespace (already exists)".to_string(),
+            });
         }
         NamespaceType::Wilayah => {
             hierarchy.add_wilayah(request.id.clone(), request.name.clone(), claims.sub.clone())?
         }
         NamespaceType::Satker => {
-            let parent = request.parent.ok_or_else(|| {
-                CoreError::validation("Satker namespace requires parent wilayah")
-            })?;
+            let parent = request
+                .parent
+                .ok_or_else(|| CoreError::validation("Satker namespace requires parent wilayah"))?;
 
             hierarchy.add_satker(
                 request.id.clone(),
@@ -503,10 +490,9 @@ pub async fn get_namespace(
 
     // Check access
     if !access_control.check_access(&claims, &id)? {
-        return Err((
-            StatusCode::FORBIDDEN,
-            format!("Access denied to namespace: {}", id),
-        ));
+        return Err(ApiError::Authorization {
+            message: format!("Access denied to namespace: {}", id),
+        });
     }
 
     // Get namespace
@@ -514,7 +500,7 @@ pub async fn get_namespace(
         .get_namespace(&id)
         .ok_or_else(|| CoreError::not_found(format!("namespace: {}", id)))?;
 
-    let response = namespace_to_response(namespace, hierarchy);
+    let response = namespace_to_response(namespace, &hierarchy);
 
     // Audit log
     tracing::info!(
@@ -554,10 +540,9 @@ pub async fn update_namespace(
 
     // Check access
     if !access_control.check_access(&claims, &id)? {
-        return Err((
-            StatusCode::FORBIDDEN,
-            format!("Access denied to namespace: {}", id),
-        ));
+        return Err(ApiError::Authorization {
+            message: format!("Access denied to namespace: {}", id),
+        });
     }
 
     // Additional authorization check for updates
@@ -570,10 +555,9 @@ pub async fn update_namespace(
             // Already checked by access_control.check_access
         }
         AdminLevel::Satker => {
-            return Err((
-                StatusCode::FORBIDDEN,
-                "Satker admin cannot update namespaces".to_string(),
-            ));
+            return Err(ApiError::Authorization {
+                message: "Satker admin cannot update namespaces".to_string(),
+            });
         }
     }
 
@@ -607,11 +591,18 @@ pub async fn update_namespace(
         namespace.updated_at = chrono::Utc::now();
     }
 
+    // Clone namespace ID before dropping mutable borrow
+    let namespace_id_clone = namespace.id.clone();
+
     // Update state
     state.namespace.update_hierarchy(hierarchy.clone());
 
     // TODO: Persist to database
 
+    // Get immutable reference after mutable borrow is dropped
+    let namespace = hierarchy
+        .get_namespace(&namespace_id_clone)
+        .ok_or_else(|| CoreError::not_found(format!("namespace: {}", namespace_id_clone)))?;
     let response = namespace_to_response(namespace, &hierarchy);
 
     // Audit log
@@ -645,10 +636,9 @@ pub async fn delete_namespace(
 
     // Cannot delete pusat namespace
     if id == "pusat" {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Cannot delete pusat namespace".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Cannot delete pusat namespace".to_string(),
+        });
     }
 
     // Get mutable hierarchy
@@ -659,10 +649,9 @@ pub async fn delete_namespace(
 
     // Check access
     if !access_control.check_access(&claims, &id)? {
-        return Err((
-            StatusCode::FORBIDDEN,
-            format!("Access denied to namespace: {}", id),
-        ));
+        return Err(ApiError::Authorization {
+            message: format!("Access denied to namespace: {}", id),
+        });
     }
 
     // Additional authorization check for deletion
@@ -677,42 +666,35 @@ pub async fn delete_namespace(
                 .ok_or_else(|| CoreError::not_found(format!("namespace: {}", id)))?;
 
             if namespace.namespace_type != NamespaceType::Satker {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    "Wilayah admin can only delete satker namespaces".to_string(),
-                ));
+                return Err(ApiError::Authorization {
+                    message: "Wilayah admin can only delete satker namespaces".to_string(),
+                });
             }
 
             // Verify parent is their wilayah
             if let Some(wilayah_code) = &claims.wilayah_code {
                 let expected_parent = format!("wilayah-{}", wilayah_code.to_lowercase());
                 if namespace.parent.as_ref() != Some(&expected_parent) {
-                    return Err((
-                        StatusCode::FORBIDDEN,
-                        "Wilayah admin can only delete satkers under their own wilayah"
+                    return Err(ApiError::Authorization {
+                        message: "Wilayah admin can only delete satkers under their own wilayah"
                             .to_string(),
-                    ));
+                    });
                 }
             }
         }
         AdminLevel::Satker => {
-            return Err((
-                StatusCode::FORBIDDEN,
-                "Satker admin cannot delete namespaces".to_string(),
-            ));
+            return Err(ApiError::Authorization {
+                message: "Satker admin cannot delete namespaces".to_string(),
+            });
         }
     }
 
     // Check if namespace has children
     let descendants = hierarchy.get_descendants(&id);
     if !descendants.is_empty() {
-        return Err((
-            StatusCode::CONFLICT,
-            format!(
-                "Cannot delete namespace with {} children. Delete children first.",
-                descendants.len()
-            ),
-        ));
+        return Err(ApiError::Conflict {
+            resource: format!("namespace {} with {} children", id, descendants.len()),
+        });
     }
 
     // Check if namespace has active resources (secrets, leases, etc.)
@@ -761,10 +743,9 @@ pub async fn get_namespace_stats(
 
     // Check access
     if !access_control.check_access(&claims, &id)? {
-        return Err((
-            StatusCode::FORBIDDEN,
-            format!("Access denied to namespace: {}", id),
-        ));
+        return Err(ApiError::Authorization {
+            message: format!("Access denied to namespace: {}", id),
+        });
     }
 
     // Get namespace

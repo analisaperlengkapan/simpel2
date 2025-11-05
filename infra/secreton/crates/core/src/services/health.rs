@@ -345,11 +345,7 @@ mod tests {
             }
 
             async fn check(&self) -> HealthCheckResult {
-                HealthCheckResult::degraded(
-                    "slow".to_string(),
-                    "Slow response".to_string(),
-                    150,
-                )
+                HealthCheckResult::degraded("slow".to_string(), "Slow response".to_string(), 150)
             }
         }
 

@@ -65,15 +65,21 @@ fn test_security_requirements_validation() {
     assert!(!balanced_security.quantum_safe);
 
     // Test compliance requirements
-    assert!(high_security
-        .compliance_flags
-        .contains(&"NIST_PQC".to_string()));
-    assert!(high_security
-        .compliance_flags
-        .contains(&"KEJAKSAAN_SECURITY".to_string()));
-    assert!(!balanced_security
-        .compliance_flags
-        .contains(&"NIST_PQC".to_string()));
+    assert!(
+        high_security
+            .compliance_flags
+            .contains(&"NIST_PQC".to_string())
+    );
+    assert!(
+        high_security
+            .compliance_flags
+            .contains(&"KEJAKSAAN_SECURITY".to_string())
+    );
+    assert!(
+        !balanced_security
+            .compliance_flags
+            .contains(&"NIST_PQC".to_string())
+    );
 }
 
 #[test]
@@ -408,18 +414,26 @@ fn test_compliance_flags() {
     .unwrap();
 
     let requirements = crypto.security_requirements();
-    assert!(requirements
-        .compliance_flags
-        .contains(&"KEJAKSAAN_RI".to_string()));
-    assert!(requirements
-        .compliance_flags
-        .contains(&"NIST_PQC".to_string()));
-    assert!(requirements
-        .compliance_flags
-        .contains(&"FIPS_203".to_string()));
-    assert!(requirements
-        .compliance_flags
-        .contains(&"FIPS_204".to_string()));
+    assert!(
+        requirements
+            .compliance_flags
+            .contains(&"KEJAKSAAN_RI".to_string())
+    );
+    assert!(
+        requirements
+            .compliance_flags
+            .contains(&"NIST_PQC".to_string())
+    );
+    assert!(
+        requirements
+            .compliance_flags
+            .contains(&"FIPS_203".to_string())
+    );
+    assert!(
+        requirements
+            .compliance_flags
+            .contains(&"FIPS_204".to_string())
+    );
 }
 
 #[test]

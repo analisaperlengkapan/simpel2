@@ -5,21 +5,19 @@
 //!
 //! Run with: cargo run --example lease_scheduler_example
 
+use deadpool_postgres::{Config, Runtime};
 use secreton_core::services::lease::{LeaseManager, LeaseSchedulerConfig};
 use secreton_core::services::metrics::MetricsRegistry;
-use deadpool_postgres::{Config, Runtime};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     info!("Starting lease expiration scheduler example");
 
@@ -38,15 +36,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create custom scheduler configuration
     let scheduler_config = LeaseSchedulerConfig {
-        check_interval_secs: 10,        // Check every 10 seconds for demo
+        check_interval_secs: 10,         // Check every 10 seconds for demo
         notification_threshold_secs: 30, // Notify 30 seconds before expiry
         enable_notifications: true,      // Enable notifications
     };
 
     // Create lease manager with custom config and metrics
     let manager = Arc::new(
-        LeaseManager::with_config(pool, scheduler_config)
-            .with_metrics(metrics_registry.clone())
+        LeaseManager::with_config(pool, scheduler_config).with_metrics(metrics_registry.clone()),
     );
 
     info!("Lease manager created with custom configuration");
@@ -55,51 +52,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Creating test leases...");
 
     // Lease 1: Expires in 15 seconds
-    let lease1 = manager.create_lease(
-        "user1",
-        "/secret/data/test1",
-        "kv",
-        "default",
-        15, // 15 seconds TTL
-        86400,
-        true,
-        None,
-        None,
-        None,
-        HashMap::new(),
-    ).await?;
+    let lease1 = manager
+        .create_lease(
+            "user1",
+            "/secret/data/test1",
+            "kv",
+            "default",
+            15, // 15 seconds TTL
+            86400,
+            true,
+            None,
+            None,
+            None,
+            HashMap::new(),
+        )
+        .await?;
     info!("Created lease 1: {} (expires in 15 seconds)", lease1.id);
 
     // Lease 2: Expires in 25 seconds
-    let lease2 = manager.create_lease(
-        "user2",
-        "/secret/data/test2",
-        "kv",
-        "default",
-        25, // 25 seconds TTL
-        86400,
-        true,
-        None,
-        None,
-        None,
-        HashMap::new(),
-    ).await?;
+    let lease2 = manager
+        .create_lease(
+            "user2",
+            "/secret/data/test2",
+            "kv",
+            "default",
+            25, // 25 seconds TTL
+            86400,
+            true,
+            None,
+            None,
+            None,
+            HashMap::new(),
+        )
+        .await?;
     info!("Created lease 2: {} (expires in 25 seconds)", lease2.id);
 
     // Lease 3: Expires in 60 seconds (won't expire during demo)
-    let lease3 = manager.create_lease(
-        "user3",
-        "/secret/data/test3",
-        "kv",
-        "default",
-        60, // 60 seconds TTL
-        86400,
-        true,
-        None,
-        None,
-        None,
-        HashMap::new(),
-    ).await?;
+    let lease3 = manager
+        .create_lease(
+            "user3",
+            "/secret/data/test3",
+            "kv",
+            "default",
+            60, // 60 seconds TTL
+            86400,
+            true,
+            None,
+            None,
+            None,
+            HashMap::new(),
+        )
+        .await?;
     info!("Created lease 3: {} (expires in 60 seconds)", lease3.id);
 
     // Start the expiration scheduler

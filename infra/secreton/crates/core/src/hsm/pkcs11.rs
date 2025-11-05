@@ -37,11 +37,9 @@ impl Pkcs11Provider {
     pub async fn initialize(&self) -> HsmResult<()> {
         info!("Initializing PKCS#11 provider");
 
-        let library_path = self
-            .config
-            .pkcs11_library_path
-            .as_ref()
-            .ok_or_else(|| HsmError::ConfigError("PKCS#11 library path not configured".to_string()))?;
+        let library_path = self.config.pkcs11_library_path.as_ref().ok_or_else(|| {
+            HsmError::ConfigError("PKCS#11 library path not configured".to_string())
+        })?;
 
         debug!("Loading PKCS#11 library from: {:?}", library_path);
 
@@ -156,7 +154,10 @@ impl Pkcs11Provider {
         // Mock signature for now
         let signature = vec![0u8; 64]; // Mock 64-byte signature
 
-        debug!("Data signed successfully, signature_len={}", signature.len());
+        debug!(
+            "Data signed successfully, signature_len={}",
+            signature.len()
+        );
         Ok(signature)
     }
 
@@ -180,7 +181,10 @@ impl Pkcs11Provider {
         let mut ciphertext = plaintext.to_vec();
         ciphertext.extend_from_slice(&[0u8; 16]);
 
-        debug!("Data encrypted successfully, ciphertext_len={}", ciphertext.len());
+        debug!(
+            "Data encrypted successfully, ciphertext_len={}",
+            ciphertext.len()
+        );
         Ok(ciphertext)
     }
 
@@ -202,11 +206,16 @@ impl Pkcs11Provider {
 
         // Mock plaintext for now (remove last 16 bytes)
         if ciphertext.len() < 16 {
-            return Err(HsmError::DecryptionFailed("Ciphertext too short".to_string()));
+            return Err(HsmError::DecryptionFailed(
+                "Ciphertext too short".to_string(),
+            ));
         }
         let plaintext = ciphertext[..ciphertext.len() - 16].to_vec();
 
-        debug!("Data decrypted successfully, plaintext_len={}", plaintext.len());
+        debug!(
+            "Data decrypted successfully, plaintext_len={}",
+            plaintext.len()
+        );
         Ok(plaintext)
     }
 

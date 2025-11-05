@@ -110,7 +110,7 @@ impl SecretonAgent {
         let token = Arc::clone(&self.token);
         let http_client = self.http_client.clone();
         let server_url = self.config.server_url.clone();
-        let renewal_interval = self.config.token_renewal_interval;
+        let renewal_interval = self.config.token_renewal_interval();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(renewal_interval);
@@ -150,7 +150,7 @@ impl SecretonAgent {
         let http_client = self.http_client.clone();
         let server_url = self.config.server_url.clone();
         let templates = self.config.templates.clone();
-        let render_interval = self.config.template_interval;
+        let render_interval = self.config.template_interval();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(render_interval);
@@ -193,7 +193,7 @@ impl SecretonAgent {
     async fn start_health_server(
         &self,
         port: u16,
-        mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+        shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     ) -> Result<()> {
         let token = Arc::clone(&self.token);
 

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod engine_registry_tests {
-    use secreton_core::secrets::engine::memory::MemorySecretsEngine;
     use secreton_core::secrets::engine::SecretsEngineRegistry;
+    use secreton_core::secrets::engine::memory::MemorySecretsEngine;
 
     #[tokio::test]
     async fn test_registry_multiple_engines() {

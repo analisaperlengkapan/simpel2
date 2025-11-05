@@ -7,8 +7,8 @@ use super::types::{Entry, LogId, NodeId, SecretonTypeConfig, Vote};
 use async_trait::async_trait;
 use openraft::storage::{LogState, RaftLogStorage, RaftStateMachine, Snapshot};
 use openraft::{
-    ErrorSubject, ErrorVerb, RaftLogReader, RaftSnapshotBuilder, SnapshotMeta,
-    StorageError, StoredMembership,
+    ErrorSubject, ErrorVerb, RaftLogReader, RaftSnapshotBuilder, SnapshotMeta, StorageError,
+    StoredMembership,
 };
 use std::fmt::Debug;
 use std::io::Cursor;
@@ -79,7 +79,9 @@ impl RaftLogReader<SecretonTypeConfig> for SecretonStorage {
 impl RaftLogStorage<SecretonTypeConfig> for SecretonStorage {
     type LogReader = Self;
 
-    async fn get_log_state(&mut self) -> Result<LogState<SecretonTypeConfig>, StorageError<NodeId>> {
+    async fn get_log_state(
+        &mut self,
+    ) -> Result<LogState<SecretonTypeConfig>, StorageError<NodeId>> {
         let log = self.log.read().await;
         let last_purged = *self.last_purged_log_id.read().await;
 
@@ -100,7 +102,11 @@ impl RaftLogStorage<SecretonTypeConfig> for SecretonStorage {
         Ok(*self.vote.read().await)
     }
 
-    async fn append<I>(&mut self, entries: I, callback: openraft::storage::LogFlushed<SecretonTypeConfig>) -> Result<(), StorageError<NodeId>>
+    async fn append<I>(
+        &mut self,
+        entries: I,
+        callback: openraft::storage::LogFlushed<SecretonTypeConfig>,
+    ) -> Result<(), StorageError<NodeId>>
     where
         I: IntoIterator<Item = Entry> + Send,
         I::IntoIter: Send,
@@ -191,14 +197,13 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStorage {
 
         // Deserialize snapshot
         let (snapshot_data, _): (StateMachineSnapshot, _) =
-            bincode::decode_from_slice(&data, bincode::config::standard())
-                .map_err(|e| {
-                    StorageError::from_io_error(
-                        ErrorSubject::Snapshot(Some(meta.signature())),
-                        ErrorVerb::Read,
-                        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
-                    )
-                })?;
+            bincode::decode_from_slice(&data, bincode::config::standard()).map_err(|e| {
+                StorageError::from_io_error(
+                    ErrorSubject::Snapshot(Some(meta.signature())),
+                    ErrorVerb::Read,
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+                )
+            })?;
 
         // Restore state machine
         let sm = self.state_machine.read().await;

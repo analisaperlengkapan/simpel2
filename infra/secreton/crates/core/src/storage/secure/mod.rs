@@ -71,15 +71,15 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
     Aes256Gcm, Key, Nonce,
+    aead::{Aead, KeyInit, OsRng},
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use argon2::{Argon2, Params};
 use async_trait::async_trait;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use rand::RngCore;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 use tracing::info;
 use uuid::Uuid;

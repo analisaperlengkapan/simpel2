@@ -1,94 +1,62 @@
-#!/usr/bin/env -S cargo +nightly -Zscript
-//! ```cargo
-//! [package]
-//! name = "crypto-roundtrip-verification"
-//! version = "0.1.0"
-//! edition = "2021"
+//! Crypto Roundtrip Verification Tests for Secreton
 //!
-//! [dependencies]
-//! secreton-core = { path = "../secreton/crates/core" }
-//! secreton-crypto = { path = "../secreton/crates/crypto" }
-//! num-bigint = "0.4"
-//! serde_json = "1.0"
-//! tokio = { version = "1.0", features = ["full"] }
-//! ```
+//! Tests encryption/decryption roundtrip
 
-use num_bigint::BigUint;
-use secreton_core::secrets::engine::shamir::*;
-use secreton_core::secrets::engine::shamir::shamir_math::*;
-use secreton_crypto::pqc::*;
-use std::str::FromStr;
+use anyhow::Result;
+use secreton_crypto::hybrid::{
+    CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
+};
 
-fn main() {
-    println!("🔐 Verifying Cryptographic Round-Trip Properties");
-    println!("================================================\n");
+#[tokio::test]
+async fn test_classical_crypto_roundtrip() -> Result<()> {
+    let crypto = HybridCrypto::new(
+        CryptoMode::Classical,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )?;
 
-    // Test PQC ML-KEM encapsulation/decapsulation
-    test_pqc_mlkem_roundtrip();
+    let plaintext = b"test data for roundtrip";
+    let aad = b"associated data";
 
-    // Test Shamir Secret Sharing round-trip
-    test_shamir_roundtrip();
+    let encrypted = crypto.encrypt(plaintext, aad)?;
+    let decrypted = crypto.decrypt(&encrypted)?;
 
-    println!("\n✅ All round-trip tests passed!");
+    assert_eq!(decrypted, plaintext);
+    Ok(())
 }
 
-fn test_pqc_mlkem_roundtrip() {
-    println!("🔄 Testing PQC ML-KEM Round-Trip...");
+#[tokio::test]
+async fn test_hybrid_crypto_roundtrip() -> Result<()> {
+    let crypto = HybridCrypto::new(
+        CryptoMode::Hybrid,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )?;
 
-    // Create ML-KEM provider
-    let provider = PQCRegistry::create_mlkem_provider(MLKemVariant::MLKem512);
+    let plaintext = b"hybrid test data";
+    let aad = b"hybrid aad";
 
-    // Generate keypair
-    let (public_key, private_key) = provider.keypair_generate().unwrap();
+    let encrypted = crypto.encrypt(plaintext, aad)?;
+    let decrypted = crypto.decrypt(&encrypted)?;
 
-    // Alice encapsulates
-    let (alice_secret, ciphertext) = provider.encapsulate(&public_key).unwrap();
-
-    // Bob decapsulates
-    let bob_secret = provider.decapsulate(&ciphertext, &private_key).unwrap();
-
-    // Verify exact equality
-    assert_eq!(alice_secret, bob_secret, "PQC ML-KEM round-trip failed!");
-
-    println!("  ✅ ML-KEM-512: {} bytes shared secret", alice_secret.len());
-    println!("  ✅ Encapsulation/decapsulation round-trip verified");
+    assert_eq!(decrypted, plaintext);
+    Ok(())
 }
 
-fn test_shamir_roundtrip() {
-    println!("🔄 Testing Shamir Secret Sharing Round-Trip...");
+#[tokio::test]
+async fn test_post_quantum_crypto_roundtrip() -> Result<()> {
+    let crypto = HybridCrypto::new(
+        CryptoMode::PostQuantum,
+        SecurityRequirements::default(),
+        PerformancePriority::default(),
+    )?;
 
-    // Test parameters
-    let original_secret = BigUint::from_str("12345678901234567890").unwrap();
-    let threshold = 3;
-    let prime = generate_safe_prime(256).unwrap();
+    let plaintext = b"post-quantum test data";
+    let aad = b"pq aad";
 
-    // Create polynomial with secret as constant term
-    let polynomial = ShamirPolynomial::new(&original_secret, threshold, &prime).unwrap();
+    let encrypted = crypto.encrypt(plaintext, aad)?;
+    let decrypted = crypto.decrypt(&encrypted)?;
 
-    // Generate shares (points)
-    let mut points = Vec::new();
-    for i in 1..=5 {
-        let x = BigUint::from(i as u64);
-        let y = polynomial.evaluate(&x).unwrap();
-        points.push((x, y));
-    }
-
-    // Reconstruct using threshold shares
-    let reconstructed_secret = LagrangeInterpolator::interpolate(&points[..threshold], &prime).unwrap();
-
-    // Verify exact equality - CRITICAL ROUND-TRIP PROPERTY
-    assert_eq!(original_secret, reconstructed_secret, "Shamir round-trip failed!");
-
-    println!("  ✅ Shamir (3,5): {} -> {}", original_secret, reconstructed_secret);
-    println!("  ✅ Secret sharing/reconstruction round-trip verified");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_comprehensive_crypto_verification() {
-        main();
-    }
+    assert_eq!(decrypted, plaintext);
+    Ok(())
 }

@@ -14,16 +14,16 @@ use tokio::sync::RwLock;
 pub enum LdapError {
     #[error("LDAP bind failed: {0}")]
     BindFailed(String),
-    
+
     #[error("User not found: {0}")]
     UserNotFound(String),
-    
+
     #[error("Group not found: {0}")]
     GroupNotFound(String),
-    
+
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
-    
+
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
 }
@@ -33,37 +33,37 @@ pub enum LdapError {
 pub struct LdapConfig {
     /// LDAP server URL (ldap:// or ldaps://)
     pub url: String,
-    
+
     /// Base DN for user search
     pub user_dn: String,
-    
+
     /// User attribute (e.g., "uid", "sAMAccountName")
     pub user_attr: String,
-    
+
     /// Base DN for group search
     pub group_dn: String,
-    
+
     /// Group filter
     pub group_filter: String,
-    
+
     /// Group attribute (e.g., "cn")
     pub group_attr: String,
-    
+
     /// Bind DN for search (optional)
     pub bind_dn: Option<String>,
-    
+
     /// Bind password (optional)
     pub bind_password: Option<String>,
-    
+
     /// Use TLS
     pub use_tls: bool,
-    
+
     /// Certificate path for TLS
     pub certificate: Option<String>,
-    
+
     /// Enable nested group search
     pub nested_groups: bool,
-    
+
     /// Case sensitive username
     pub case_sensitive_names: bool,
 }
@@ -92,19 +92,19 @@ impl Default for LdapConfig {
 pub struct LdapUser {
     /// Username
     pub username: String,
-    
+
     /// Distinguished Name
     pub dn: String,
-    
+
     /// Display name
     pub display_name: Option<String>,
-    
+
     /// Email
     pub email: Option<String>,
-    
+
     /// Groups (CNs)
     pub groups: Vec<String>,
-    
+
     /// Additional attributes
     pub attributes: HashMap<String, Vec<String>>,
 }
@@ -114,7 +114,7 @@ pub struct LdapUser {
 pub struct LdapGroupMapping {
     /// LDAP group name
     pub ldap_group: String,
-    
+
     /// Vault policies to assign
     pub policies: Vec<String>,
 }
@@ -142,18 +142,18 @@ impl LdapConnection {
             last_used: Utc::now(),
         }
     }
-    
+
     async fn bind(&mut self, dn: &str, password: &str) -> Result<(), LdapError> {
         self.last_used = Utc::now();
-        
+
         // Simulate LDAP bind operation
         if password.is_empty() {
             return Err(LdapError::BindFailed("Empty password".to_string()));
         }
-        
+
         Ok(())
     }
-    
+
     async fn search_user(
         &mut self,
         base_dn: &str,
@@ -161,10 +161,10 @@ impl LdapConnection {
         username: &str,
     ) -> Result<Option<LdapUser>, LdapError> {
         self.last_used = Utc::now();
-        
+
         // Simulate LDAP search
         let dn = format!("{}={},{}", user_attr, username, base_dn);
-        
+
         Ok(Some(LdapUser {
             username: username.to_string(),
             dn: dn.clone(),
@@ -174,7 +174,7 @@ impl LdapConnection {
             attributes: HashMap::new(),
         }))
     }
-    
+
     async fn search_groups(
         &mut self,
         base_dn: &str,
@@ -182,15 +182,15 @@ impl LdapConnection {
         nested: bool,
     ) -> Result<Vec<String>, LdapError> {
         self.last_used = Utc::now();
-        
+
         // Simulate group search
         let mut groups = vec!["users".to_string()];
-        
+
         // Simulate nested group search
         if nested {
             groups.push("all-users".to_string());
         }
-        
+
         Ok(groups)
     }
 }
@@ -204,12 +204,12 @@ impl LdapAuth {
             connection_pool: Arc::new(RwLock::new(Vec::new())),
         }
     }
-    
+
     /// Get or create connection
     async fn get_connection(&self) -> Result<LdapConnection, LdapError> {
         let mut pool = self.connection_pool.write().await;
         let config = self.config.read().await;
-        
+
         // Reuse existing connection if available
         if let Some(conn) = pool.first_mut() {
             let age = Utc::now() - conn.last_used;
@@ -217,19 +217,19 @@ impl LdapAuth {
                 return Ok(conn.clone());
             }
         }
-        
+
         // Create new connection
         let conn = LdapConnection::new(config.url.clone());
         pool.insert(0, conn.clone());
-        
+
         // Keep pool size reasonable
         if pool.len() > 10 {
             pool.truncate(10);
         }
-        
+
         Ok(conn)
     }
-    
+
     /// Authenticate user
     pub async fn authenticate(
         &self,
@@ -238,94 +238,88 @@ impl LdapAuth {
     ) -> Result<LdapUser, LdapError> {
         let config = self.config.read().await;
         let mut conn = self.get_connection().await?;
-        
+
         // Normalize username if needed
         let username = if config.case_sensitive_names {
             username.to_string()
         } else {
             username.to_lowercase()
         };
-        
+
         // If bind DN is configured, bind as service account first
-        if let (Some(bind_dn), Some(bind_password)) = 
-            (&config.bind_dn, &config.bind_password) {
+        if let (Some(bind_dn), Some(bind_password)) = (&config.bind_dn, &config.bind_password) {
             conn.bind(bind_dn, bind_password).await?;
         }
-        
+
         // Search for user
-        let mut user = conn.search_user(
-            &config.user_dn,
-            &config.user_attr,
-            &username,
-        ).await?
+        let mut user = conn
+            .search_user(&config.user_dn, &config.user_attr, &username)
+            .await?
             .ok_or_else(|| LdapError::UserNotFound(username.clone()))?;
-        
+
         // Bind as user to verify password
         conn.bind(&user.dn, password).await?;
-        
+
         // Search for groups
-        let groups = conn.search_groups(
-            &config.group_dn,
-            &user.dn,
-            config.nested_groups,
-        ).await?;
-        
+        let groups = conn
+            .search_groups(&config.group_dn, &user.dn, config.nested_groups)
+            .await?;
+
         user.groups = groups;
-        
+
         drop(config);
-        
+
         Ok(user)
     }
-    
+
     /// Add group mapping
-    pub async fn add_group_mapping(
-        &self,
-        ldap_group: String,
-        policies: Vec<String>,
-    ) {
+    pub async fn add_group_mapping(&self, ldap_group: String, policies: Vec<String>) {
         let mut mappings = self.group_mappings.write().await;
-        mappings.insert(ldap_group.clone(), LdapGroupMapping {
-            ldap_group,
-            policies,
-        });
+        mappings.insert(
+            ldap_group.clone(),
+            LdapGroupMapping {
+                ldap_group,
+                policies,
+            },
+        );
     }
-    
+
     /// Get policies for user based on group mappings
     pub async fn get_user_policies(&self, user: &LdapUser) -> Vec<String> {
         let mappings = self.group_mappings.read().await;
         let mut policies = HashSet::new();
-        
+
         for group in &user.groups {
             if let Some(mapping) = mappings.get(group) {
                 policies.extend(mapping.policies.iter().cloned());
             }
         }
-        
+
         policies.into_iter().collect()
     }
-    
+
     /// Update configuration
     pub async fn update_config(&self, config: LdapConfig) {
         let mut current = self.config.write().await;
         *current = config;
-        
+
         // Clear connection pool on config change
         let mut pool = self.connection_pool.write().await;
         pool.clear();
     }
-    
+
     /// Get current configuration
     pub async fn get_config(&self) -> LdapConfig {
         let config = self.config.read().await;
         config.clone()
     }
-    
+
     /// List group mappings
     pub async fn list_group_mappings(&self) -> Vec<LdapGroupMapping> {
         let mappings = self.group_mappings.read().await;
         mappings.values().cloned().collect()
     }
-    
+
     /// Remove group mapping
     pub async fn remove_group_mapping(&self, ldap_group: &str) {
         let mut mappings = self.group_mappings.write().await;
@@ -336,47 +330,46 @@ impl LdapAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_ldap_authenticate() {
         let config = LdapConfig::default();
         let ldap = LdapAuth::new(config);
-        
+
         let result = ldap.authenticate("testuser", "password123").await;
         assert!(result.is_ok());
-        
+
         let user = result.unwrap();
         assert_eq!(user.username, "testuser");
         assert!(!user.groups.is_empty());
     }
-    
+
     #[tokio::test]
     async fn test_group_mapping() {
         let config = LdapConfig::default();
         let ldap = LdapAuth::new(config);
-        
+
         ldap.add_group_mapping(
             "admins".to_string(),
             vec!["admin".to_string(), "write".to_string()],
-        ).await;
-        
-        ldap.add_group_mapping(
-            "users".to_string(),
-            vec!["read".to_string()],
-        ).await;
-        
+        )
+        .await;
+
+        ldap.add_group_mapping("users".to_string(), vec!["read".to_string()])
+            .await;
+
         let user = ldap.authenticate("testuser", "password123").await.unwrap();
         let policies = ldap.get_user_policies(&user).await;
-        
+
         assert!(policies.contains(&"read".to_string()));
     }
-    
+
     #[tokio::test]
     async fn test_case_sensitivity() {
         let mut config = LdapConfig::default();
         config.case_sensitive_names = false;
         let ldap = LdapAuth::new(config);
-        
+
         let user1 = ldap.authenticate("TestUser", "password123").await.unwrap();
         assert_eq!(user1.username, "testuser");
     }

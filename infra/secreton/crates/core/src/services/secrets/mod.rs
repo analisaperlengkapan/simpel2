@@ -2,6 +2,7 @@
 
 pub mod cubbyhole;
 pub mod database;
+pub mod enhanced;
 pub mod kmip;
 pub mod kvv2;
 pub mod lease_integration;
@@ -11,6 +12,7 @@ pub mod transit;
 
 pub use cubbyhole::*;
 pub use database::*;
+pub use enhanced::*;
 pub use kmip::*;
 pub use kvv2::*;
 pub use lease_integration::*;

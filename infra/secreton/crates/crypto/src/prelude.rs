@@ -16,7 +16,7 @@ pub use crate::encryption::{
 
 // Re-export key derivation
 pub use crate::key_derivation::{
-    derive_key, derive_key_argon2id, derive_key_pbkdf2, DerivedKey, KdfParams,
+    DerivedKey, KdfParams, derive_key, derive_key_argon2id, derive_key_pbkdf2,
 };
 
 // Re-export transit engine

@@ -152,11 +152,7 @@ impl NamespaceValidator {
     ) -> Result<NamespacePath, CoreError> {
         // Parse the path
         let namespace_path = NamespacePath::parse(path).map_err(|e| {
-            tracing::warn!(
-                "Invalid path format: {} - Error: {}",
-                path,
-                e
-            );
+            tracing::warn!("Invalid path format: {} - Error: {}", path, e);
             CoreError::from(e)
         })?;
 
@@ -403,9 +399,7 @@ mod tests {
         );
 
         // Invalid path format
-        let result = validator
-            .validate_read(&claims, "invalid-path", None)
-            .await;
+        let result = validator.validate_read(&claims, "invalid-path", None).await;
 
         assert!(result.is_err());
     }
@@ -414,12 +408,7 @@ mod tests {
     async fn test_validate_nonexistent_namespace() {
         let (_, _, validator) = create_test_setup();
 
-        let claims = JwtClaims::new_test(
-            "user1".to_string(),
-            AdminLevel::Pusat,
-            None,
-            None,
-        );
+        let claims = JwtClaims::new_test("user1".to_string(), AdminLevel::Pusat, None, None);
 
         // Namespace doesn't exist
         let result = validator
@@ -460,6 +449,10 @@ mod tests {
         let (_, _, validator) = create_test_setup();
 
         assert!(validator.validate_namespace_exists("satker-kja001").is_ok());
-        assert!(validator.validate_namespace_exists("satker-kja999").is_err());
+        assert!(
+            validator
+                .validate_namespace_exists("satker-kja999")
+                .is_err()
+        );
     }
 }

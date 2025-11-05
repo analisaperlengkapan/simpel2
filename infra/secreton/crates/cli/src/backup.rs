@@ -952,10 +952,7 @@ fn convert_to_backup_entry(path: &str, data: &serde_json::Value) -> VaultEntryBa
                     .collect()
             })
             .unwrap_or_default(),
-        version: data
-            .get("version")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(1) as u32,
+        version: data.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32,
         owner_id: data
             .get("owner_id")
             .and_then(|v| v.as_str())
@@ -995,7 +992,10 @@ fn convert_to_audit_backup(data: &serde_json::Value) -> AuditLogBackup {
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string(),
-        nip: data.get("nip").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        nip: data
+            .get("nip")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         satker_code: data
             .get("satker_code")
             .and_then(|v| v.as_str())
@@ -1015,13 +1015,11 @@ fn calculate_checksum(data: &[u8]) -> String {
 }
 
 fn compress_data(data: &[u8], level: u8) -> Result<Vec<u8>> {
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::new(level as u32));
-    encoder
-        .write_all(data)
-        .context("Failed to compress data")?;
+    encoder.write_all(data).context("Failed to compress data")?;
     encoder.finish().context("Failed to finish compression")
 }
 
@@ -1038,8 +1036,8 @@ fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
 
 fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
     use aes_gcm::{
-        aead::{Aead, KeyInit},
         Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit},
     };
     use argon2::Argon2;
 
@@ -1064,8 +1062,8 @@ fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
 
 fn decrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
     use aes_gcm::{
-        aead::{Aead, KeyInit},
         Aes256Gcm, Nonce,
+        aead::{Aead, KeyInit},
     };
     use argon2::Argon2;
 
@@ -1108,4 +1106,3 @@ async fn load_backup_manifest(file_path: &str, password: &str) -> Result<BackupM
 
     Ok(backup_data.manifest)
 }
-

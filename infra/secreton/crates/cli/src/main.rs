@@ -1,16 +1,16 @@
 use anyhow::Result;
 use base64::prelude::*;
 use clap::{Parser, Subcommand};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 mod backup;
 mod config;
 mod seal;
 
-use backup::{execute_backup_command, BackupCommand};
+use backup::{BackupCommand, execute_backup_command};
 use config::CliConfig;
-use seal::{execute_seal_command, SealCommand};
+use seal::{SealCommand, execute_seal_command};
 
 #[derive(Parser)]
 #[command(

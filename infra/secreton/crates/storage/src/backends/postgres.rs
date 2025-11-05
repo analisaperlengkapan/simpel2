@@ -22,7 +22,7 @@ impl PostgresBackend {
         let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).map_err(|e| {
             StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to create PostgreSQL pool: {}", e),
+                message: format!("Failed to create PostgreSQL pool: {}", e),
             }
         })?;
 
@@ -44,7 +44,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = r#"
@@ -57,14 +57,14 @@ impl StorageBackend for PostgresBackend {
             serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
                 StorageError::SerializationError {
                     source: None,
-            message: format!("Failed to serialize encryption metadata: {}", e),
+                    message: format!("Failed to serialize encryption metadata: {}", e),
                 }
             })?;
 
         let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
             StorageError::SerializationError {
                 source: None,
-            message: format!("Failed to serialize metadata: {}", e),
+                message: format!("Failed to serialize metadata: {}", e),
             }
         })?;
 
@@ -89,7 +89,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Failed to store vault entry: {}", e),
+                message: format!("Failed to store vault entry: {}", e),
             })?;
 
         Ok(())
@@ -102,7 +102,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = r#"
@@ -116,7 +116,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Failed to query vault entry: {}", e),
+                message: format!("Failed to query vault entry: {}", e),
             })?;
 
         if rows.is_empty() {
@@ -135,7 +135,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = r#"
@@ -149,7 +149,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Failed to query vault entry: {}", e),
+                message: format!("Failed to query vault entry: {}", e),
             })?;
 
         if rows.is_empty() {
@@ -168,7 +168,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let mut query = "SELECT id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at FROM vault_entries WHERE 1=1".to_string();
@@ -202,7 +202,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to list vault entries: {}", e),
+                    message: format!("Failed to list vault entries: {}", e),
                 })?;
 
         let mut entries = Vec::new();
@@ -220,7 +220,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = r#"
@@ -234,14 +234,14 @@ impl StorageBackend for PostgresBackend {
             serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
                 StorageError::SerializationError {
                     source: None,
-            message: format!("Failed to serialize encryption metadata: {}", e),
+                    message: format!("Failed to serialize encryption metadata: {}", e),
                 }
             })?;
 
         let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
             StorageError::SerializationError {
                 source: None,
-            message: format!("Failed to serialize metadata: {}", e),
+                message: format!("Failed to serialize metadata: {}", e),
             }
         })?;
 
@@ -264,7 +264,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Failed to update vault entry: {}", e),
+                message: format!("Failed to update vault entry: {}", e),
             })?;
 
         if rows_affected == 0 {
@@ -284,7 +284,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = "DELETE FROM vault_entries WHERE id = $1";
@@ -295,7 +295,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to delete vault entry: {}", e),
+                    message: format!("Failed to delete vault entry: {}", e),
                 })?;
 
         Ok(rows_affected > 0)
@@ -308,7 +308,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = "DELETE FROM vault_entries WHERE path = $1";
@@ -319,7 +319,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to delete vault entry: {}", e),
+                    message: format!("Failed to delete vault entry: {}", e),
                 })?;
 
         Ok(rows_affected > 0)
@@ -332,7 +332,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let mut query = "SELECT COUNT(*) FROM vault_entries WHERE 1=1".to_string();
@@ -361,7 +361,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to count vault entries: {}", e),
+                    message: format!("Failed to count vault entries: {}", e),
                 })?;
 
         let count: i64 = rows[0].get(0);
@@ -375,7 +375,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let query = "SELECT EXISTS(SELECT 1 FROM vault_entries WHERE path = $1)";
@@ -384,7 +384,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Failed to check existence: {}", e),
+                message: format!("Failed to check existence: {}", e),
             })?;
 
         let exists: bool = rows[0].get(0);
@@ -398,7 +398,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         client
@@ -406,7 +406,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::QueryFailed {
                 source: None,
-            message: format!("Health check failed: {}", e),
+                message: format!("Health check failed: {}", e),
             })?;
 
         Ok(HealthStatus {
@@ -426,7 +426,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let count_query = "SELECT COUNT(*) FROM vault_entries";
@@ -438,7 +438,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to get entry count: {}", e),
+                    message: format!("Failed to get entry count: {}", e),
                 })?;
 
         let size_rows =
@@ -447,7 +447,7 @@ impl StorageBackend for PostgresBackend {
                 .await
                 .map_err(|e| StorageError::QueryFailed {
                     source: None,
-            message: format!("Failed to get storage size: {}", e),
+                    message: format!("Failed to get storage size: {}", e),
                 })?;
 
         let total_entries: i64 = count_rows[0].get(0);
@@ -484,7 +484,7 @@ impl StorageBackend for PostgresBackend {
             .await
             .map_err(|e| StorageError::ConnectionFailed {
                 source: None,
-            message: format!("Failed to get connection: {}", e),
+                message: format!("Failed to get connection: {}", e),
             })?;
 
         let create_table_query = r#"
@@ -529,7 +529,7 @@ impl PostgresBackend {
             serde_json::from_value(encryption_metadata_value).map_err(|e| {
                 StorageError::SerializationError {
                     source: None,
-            message: format!("Failed to deserialize encryption metadata: {}", e),
+                    message: format!("Failed to deserialize encryption metadata: {}", e),
                 }
             })?;
 
@@ -537,7 +537,7 @@ impl PostgresBackend {
         let metadata = serde_json::from_value(metadata_value).map_err(|e| {
             StorageError::SerializationError {
                 source: None,
-            message: format!("Failed to deserialize metadata: {}", e),
+                message: format!("Failed to deserialize metadata: {}", e),
             }
         })?;
 

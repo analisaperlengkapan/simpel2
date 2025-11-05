@@ -3,23 +3,23 @@
 //! Provides centralized access to all application services
 //! including storage, crypto, authentication, and business logic.
 
+pub mod admin;
 pub mod auth;
 pub mod vault;
-pub mod admin;
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
 use crate::config::ApiConfig;
 use secreton_core::audit::AuditLogger;
+use secreton_core::hsm::HsmBackend;
 use secreton_core::namespace::NamespaceService;
-use secreton_core::services::seal::{SealService, SealConfig, VaultState, VaultStateStorage};
-use secreton_core::services::secrets::database::DatabaseSecretsEngine;
 use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::policy::PolicySet;
+use secreton_core::services::seal::{SealConfig, SealService, VaultState, VaultStateStorage};
+use secreton_core::services::secrets::database::DatabaseSecretsEngine;
 use secreton_core::services::wrapping::WrappingService;
-use secreton_core::hsm::HsmBackend;
-use secreton_crypto::{CryptoEngine, SecurityParams};
+use secreton_crypto::CryptoEngine;
 use secreton_storage::StorageBackend;
 use std::sync::RwLock;
 
@@ -128,25 +128,17 @@ impl ServiceContainer {
         let audit = Arc::new(AuditLogger::new(vec![]));
 
         // Initialize authentication service
-        let auth = Arc::new(auth::AuthService::new(
-            storage.clone(),
-            crypto.clone(),
-            &config.auth,
-        ).await?);
+        let auth =
+            Arc::new(auth::AuthService::new(storage.clone(), crypto.clone(), &config.auth).await?);
 
         // Initialize vault service
-        let vault = Arc::new(vault::VaultService::new(
-            storage.clone(),
-            crypto.clone(),
-            audit.clone(),
-        ).await?);
+        let vault = Arc::new(
+            vault::VaultService::new(storage.clone(), crypto.clone(), audit.clone()).await?,
+        );
 
         // Initialize admin service
-        let admin = Arc::new(admin::AdminService::new(
-            storage.clone(),
-            auth.clone(),
-            audit.clone(),
-        ).await?);
+        let admin =
+            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), audit.clone()).await?);
 
         // Initialize seal/unseal service
         let seal_config = SealConfig {
@@ -171,7 +163,9 @@ impl ServiceContainer {
         match seal.load_from_storage().await {
             Ok(true) => {
                 tracing::info!("✅ Vault state loaded from storage. Vault is SEALED.");
-                tracing::info!("   Operators must unseal with threshold shares before vault can be used.");
+                tracing::info!(
+                    "   Operators must unseal with threshold shares before vault can be used."
+                );
             }
             Ok(false) => {
                 tracing::warn!("⚠️  Vault not initialized. Use /v1/sys/init to initialize.");
@@ -184,7 +178,9 @@ impl ServiceContainer {
 
         // Check seal status and log
         if seal.is_sealed().await {
-            tracing::warn!("🔒 Vault is SEALED. All secret operations will be blocked until unsealed.");
+            tracing::warn!(
+                "🔒 Vault is SEALED. All secret operations will be blocked until unsealed."
+            );
         } else {
             tracing::info!("🔓 Vault is UNSEALED. Secret operations are allowed.");
         }
@@ -220,19 +216,17 @@ impl ServiceContainer {
         let hsm = if config.hsm.enabled {
             tracing::info!("Initializing HSM backend...");
             match HsmBackend::new(config.hsm.clone()) {
-                Ok(hsm_backend) => {
-                    match hsm_backend.initialize().await {
-                        Ok(()) => {
-                            tracing::info!("✅ HSM backend initialized successfully");
-                            Some(Arc::new(hsm_backend))
-                        }
-                        Err(e) => {
-                            tracing::error!("❌ Failed to initialize HSM backend: {:?}", e);
-                            tracing::warn!("   Continuing without HSM support");
-                            None
-                        }
+                Ok(hsm_backend) => match hsm_backend.initialize().await {
+                    Ok(()) => {
+                        tracing::info!("✅ HSM backend initialized successfully");
+                        Some(Arc::new(hsm_backend))
                     }
-                }
+                    Err(e) => {
+                        tracing::error!("❌ Failed to initialize HSM backend: {:?}", e);
+                        tracing::warn!("   Continuing without HSM support");
+                        None
+                    }
+                },
                 Err(e) => {
                     tracing::error!("❌ Failed to create HSM backend: {:?}", e);
                     tracing::warn!("   Continuing without HSM support");
@@ -272,8 +266,8 @@ impl ServiceContainer {
         use secreton_storage::{RaftCluster, RaftClusterConfig};
 
         // Get storage backend type from config or environment
-        let backend_type = std::env::var("Secreton_STORAGE_BACKEND")
-            .unwrap_or_else(|_| "memory".to_string());
+        let backend_type =
+            std::env::var("Secreton_STORAGE_BACKEND").unwrap_or_else(|_| "memory".to_string());
 
         tracing::info!("Initializing storage backend: {}", backend_type);
 
@@ -306,7 +300,10 @@ impl ServiceContainer {
             }
 
             _ => {
-                tracing::warn!("Unknown storage backend '{}', falling back to memory", backend_type);
+                tracing::warn!(
+                    "Unknown storage backend '{}', falling back to memory",
+                    backend_type
+                );
                 Ok(Arc::new(MemoryBackend::new()))
             }
         }
@@ -314,7 +311,7 @@ impl ServiceContainer {
 
     /// Create database connection pool
     async fn create_database_pool(config: &ApiConfig) -> Result<deadpool_postgres::Pool> {
-        use deadpool_postgres::{Config, Manager, ManagerConfig, Pool, RecyclingMethod, Runtime};
+        use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
         use tokio_postgres::NoTls;
 
         let mut cfg = Config::new();
@@ -333,7 +330,10 @@ impl ServiceContainer {
     }
 
     /// Create a mock service container for testing/gRPC
-    pub fn new_mock(storage: Arc<dyn StorageBackend + Send + Sync>, pool: deadpool_postgres::Pool) -> Self {
+    pub fn new_mock(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        pool: deadpool_postgres::Pool,
+    ) -> Self {
         let crypto = Arc::new(CryptoEngine::new());
         let audit = Arc::new(AuditLogger::new(vec![]));
 
@@ -368,7 +368,10 @@ impl ServiceContainer {
             pool,
             crypto: crypto.clone(),
             auth: Arc::new(auth::AuthService::new_mock(storage.clone(), crypto.clone())),
-            vault: Arc::new(vault::VaultService::new_mock(storage.clone(), crypto.clone())),
+            vault: Arc::new(vault::VaultService::new_mock(
+                storage.clone(),
+                crypto.clone(),
+            )),
             admin: Arc::new(admin::AdminService::new_mock(storage.clone())),
             audit,
             seal,

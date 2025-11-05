@@ -441,10 +441,12 @@ fn test_namespace_creation_with_invalid_parent() {
     );
 
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("wilayah namespace: wilayah-nonexistent"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("wilayah namespace: wilayah-nonexistent")
+    );
 
     // Try to add wilayah with invalid ID format
     let result = hierarchy.add_wilayah(
@@ -454,10 +456,12 @@ fn test_namespace_creation_with_invalid_parent() {
     );
 
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Wilayah ID must start with 'wilayah-'"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Wilayah ID must start with 'wilayah-'")
+    );
 
     // Try to add satker with invalid ID format
     hierarchy
@@ -476,10 +480,12 @@ fn test_namespace_creation_with_invalid_parent() {
     );
 
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Satker ID must start with 'satker-'"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Satker ID must start with 'satker-'")
+    );
 }
 
 #[test]

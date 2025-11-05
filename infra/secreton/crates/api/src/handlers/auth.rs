@@ -4,11 +4,11 @@
 //! and OAuth2 integration.
 
 use axum::{
-    extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
-    response::Json,
-    routing::{get, post, delete},
     Router,
+    extract::{Path, Query, State},
+    http::HeaderMap,
+    response::Json,
+    routing::{delete, get, post},
 };
 
 use serde::{Deserialize, Serialize};
@@ -17,11 +17,7 @@ use std::collections::HashMap;
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
 
-use crate::{
-    handlers::AppState,
-    ApiResponse, ApiResult, ApiError,
-};
-use secreton_core::models::audit::AuditEventType;
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
 
 /// Create authentication routes
 pub fn create_routes() -> Router<AppState> {
@@ -107,7 +103,11 @@ mod tests {
         assert!(body.success);
         let data = body.data.expect("oauth payload");
         assert_eq!(data["provider"], "github");
-        assert!(data["auth_url"].as_str().contains("https://oauth.provider.com"));
+        assert!(
+            data["auth_url"]
+                .as_str()
+                .contains("https://oauth.provider.com")
+        );
     }
 }
 
@@ -131,7 +131,7 @@ pub struct MfaSetupRequest {
 #[derive(Debug, Serialize)]
 pub struct MfaSetupResponse {
     pub method: String,
-    pub secret: Option<String>, // For TOTP
+    pub secret: Option<String>,  // For TOTP
     pub qr_code: Option<String>, // For TOTP
     pub backup_codes: Vec<String>,
 }
@@ -178,23 +178,28 @@ pub async fn login(
         user: UserInfo {
             username: request.username,
             email: Some("user@example.com".to_string()),
-            },
+            display_name: Some("User".to_string()),
+            groups: vec![],
+            policies: vec!["default".to_string()],
+            metadata: std::collections::HashMap::new(),
+        },
         mfa_required: false,
     };
     // Audit: authentication success (placeholder always success here)
-    let _ = state
-        .audit
-        .log_event(
-            AuditEventType::AuthenticationSuccess {
-                user: response.user.username.clone(),
-                method: "password".to_string(),
-            },
-            Some(response.user.username.clone()),
-            None,
-            None,
-            Default::default(),
-        )
-        .await;
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "authentication_success".to_string(),
+        actor: Some(response.user.username.clone()),
+        resource_type: "auth".to_string(),
+        resource_id: response.user.username.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -214,19 +219,20 @@ pub async fn logout(
         "message": "Successfully logged out"
     });
     // Audit: session terminated (without real session id here)
-    let _ = state
-        .audit
-        .log_event(
-            AuditEventType::SessionTerminated {
-                user: "unknown".to_string(),
-                session_reason: "logout".to_string(),
-            },
-            None,
-            None,
-            None,
-            Default::default(),
-        )
-        .await;
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "session_terminated".to_string(),
+        actor: Some("unknown".to_string()),
+        resource_type: "session".to_string(),
+        resource_id: "logout".to_string(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(data)))
 }
@@ -251,23 +257,28 @@ pub async fn refresh_token(
         user: UserInfo {
             username: "user".to_string(),
             email: Some("user@example.com".to_string()),
-            },
+            display_name: Some("User".to_string()),
+            groups: vec![],
+            policies: vec!["default".to_string()],
+            metadata: std::collections::HashMap::new(),
+        },
         mfa_required: false,
     };
     // Audit: token refresh
-    let _ = state
-        .audit
-        .log_event(
-            AuditEventType::AuthenticationSuccess {
-                user: response.user.username.clone(),
-                method: "refresh_token".to_string(),
-            },
-            Some(response.user.username.clone()),
-            None,
-            None,
-            Default::default(),
-        )
-        .await;
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "token_refresh".to_string(),
+        actor: Some(response.user.username.clone()),
+        resource_type: "auth".to_string(),
+        resource_id: response.user.username.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -286,7 +297,11 @@ pub async fn verify_token(
     let user = UserInfo {
         username: "user".to_string(),
         email: Some("user@example.com".to_string()),
-        };
+        display_name: Some("User".to_string()),
+        groups: vec![],
+        policies: vec!["default".to_string()],
+        metadata: std::collections::HashMap::new(),
+    };
 
     Ok(Json(ApiResponse::success(user)))
 }
@@ -314,7 +329,11 @@ pub async fn setup_mfa(
             ],
         },
         _ => {
-            return Err(ApiError::Validation("Unsupported MFA method".to_string()));
+            return Err(ApiError::Validation {
+                message: "Unsupported MFA method".to_string(),
+                field: None,
+                details: None,
+            });
         }
     };
 
@@ -337,19 +356,20 @@ pub async fn verify_mfa(
         "method": request.method
     });
     // Audit: MFASuccess (no real user context yet)
-    let _ = state
-        .audit
-        .log_event(
-            AuditEventType::MFASuccess {
-                user: "unknown".to_string(),
-                method: request.method.clone(),
-            },
-            None,
-            None,
-            None,
-            Default::default(),
-        )
-        .await;
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "mfa_enabled".to_string(),
+        actor: Some("unknown".to_string()),
+        resource_type: "mfa".to_string(),
+        resource_id: request.method.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(data)))
 }
@@ -368,19 +388,20 @@ pub async fn disable_mfa(
         "message": "MFA successfully disabled"
     });
     // Audit: MFARemoval
-    let _ = state
-        .audit
-        .log_event(
-            AuditEventType::MFARemoval {
-                user: "unknown".to_string(),
-                method: "unknown".to_string(),
-            },
-            None,
-            None,
-            None,
-            Default::default(),
-        )
-        .await;
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "mfa_disabled".to_string(),
+        actor: Some("unknown".to_string()),
+        resource_type: "mfa".to_string(),
+        resource_id: "unknown".to_string(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(data)))
 }
@@ -428,7 +449,11 @@ pub async fn oauth_callback(
         user: UserInfo {
             username: "oauth_user".to_string(),
             email: Some("oauth@example.com".to_string()),
-            },
+            display_name: Some("OAuth User".to_string()),
+            groups: vec![],
+            policies: vec!["default".to_string()],
+            metadata: std::collections::HashMap::new(),
+        },
         mfa_required: false,
     };
 
@@ -446,7 +471,9 @@ pub async fn list_sessions(
 
     let sessions = vec![
         SessionInfo {
-            user_ip_address: "192.168.1.1".to_string(),
+            id: "session-1".to_string(),
+            user_id: "user-1".to_string(),
+            ip_address: "192.168.1.1".to_string(),
             user_agent: "Mozilla/5.0".to_string(),
             created_at: chrono::Utc::now() - chrono::Duration::hours(2),
             last_accessed: chrono::Utc::now(),
@@ -454,7 +481,9 @@ pub async fn list_sessions(
             is_current: true,
         },
         SessionInfo {
-            user_ip_address: "10.0.0.1".to_string(),
+            id: "session-2".to_string(),
+            user_id: "user-1".to_string(),
+            ip_address: "10.0.0.1".to_string(),
             user_agent: "curl/7.68.0".to_string(),
             created_at: chrono::Utc::now() - chrono::Duration::days(1),
             last_accessed: chrono::Utc::now() - chrono::Duration::hours(6),

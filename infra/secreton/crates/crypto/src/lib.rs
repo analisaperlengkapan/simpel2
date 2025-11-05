@@ -3,8 +3,8 @@
 //! High-performance, secure cryptographic primitives and protocols
 //! with comprehensive RustCrypto integration and transit engine support.
 
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -37,7 +37,7 @@ pub use hybrid::{
 pub type EncryptionService = CryptoEngine;
 pub use error::*;
 pub use key_derivation::{
-    derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch, DerivedKey, KdfParams,
+    DerivedKey, KdfParams, derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch,
 };
 pub use kv_engine::*;
 pub use pq_key_management::{
@@ -51,17 +51,6 @@ pub use storage_integration::{
     CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata, KeyInfo,
 };
 pub use transit::{
-    algorithms,
-    batch,
-    // Functions from algorithms
-    constant_time_eq,
-    derive_key as transit_derive_key,
-    generate_random,
-    generate_salt,
-    hash_data,
-    keys,
-    operations,
-    policies,
     AuditLogger,
     CreateKeyRequest,
     CreateKeyResponse,
@@ -90,6 +79,17 @@ pub use transit::{
     TransitOperations,
     VerifyRequest,
     VerifyResponse,
+    algorithms,
+    batch,
+    // Functions from algorithms
+    constant_time_eq,
+    derive_key as transit_derive_key,
+    generate_random,
+    generate_salt,
+    hash_data,
+    keys,
+    operations,
+    policies,
 };
 
 /// Supported cryptographic algorithms

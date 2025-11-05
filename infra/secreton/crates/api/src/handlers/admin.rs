@@ -4,19 +4,18 @@
 //! monitoring, and maintenance operations.
 
 use axum::{
+    Router,
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
+    ApiError, ApiResponse, ApiResult,
     handlers::{AppState, ListQuery},
-    ApiResponse, ApiResult, ApiError,
 };
 
 /// Create administrative routes
@@ -31,34 +30,32 @@ pub fn create_routes() -> Router<AppState> {
         .route("/users/:user_id/roles", get(get_user_roles))
         .route("/users/:user_id/roles", post(assign_user_roles))
         .route("/users/:user_id/permissions", get(get_user_permissions))
-
         // Role management
         .route("/roles", get(list_roles))
         .route("/roles", post(create_role))
         .route("/roles/:role_name", get(get_role))
         .route("/roles/:role_name", put(update_role))
         .route("/roles/:role_name", delete(delete_role))
-
         // System configuration
         .route("/config", get(get_config))
         .route("/config", put(update_config))
         .route("/config/reload", post(reload_config))
-
         // System monitoring
         .route("/metrics", get(get_system_metrics))
         .route("/status", get(get_system_status))
         .route("/logs", get(get_system_logs))
-
         // Maintenance operations
         .route("/maintenance/gc", post(run_garbage_collection))
         .route("/maintenance/compact", post(compact_database))
         .route("/maintenance/vacuum", post(vacuum_database))
-
         // Security operations
         .route("/security/scan", post(run_security_scan))
         .route("/security/reports", get(get_security_reports))
         .route("/security/incidents", get(get_security_incidents))
-        .route("/security/incidents/:incident_id", get(get_security_incident))
+        .route(
+            "/security/incidents/:incident_id",
+            get(get_security_incident),
+        )
 }
 
 #[cfg(test)]
@@ -342,18 +339,19 @@ pub async fn list_users(
     Query(query): Query<ListQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<UserResponse>>>> {
     // TODO: Implement user listing
-    let users = vec![
-        UserResponse {
-            username: "admin".to_string(),
-            email: Some("admin@example.com".to_string()),
-            full_name: Some("System Administrator".to_string()),
-            enabled: true,
-            last_login: Some(chrono::Utc::now()),
-            created_at: chrono::Utc::now() - chrono::Duration::days(30),
-            updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
-        },
-    ];
+    let users = vec![UserResponse {
+        id: uuid::Uuid::new_v4().to_string(),
+        username: "admin".to_string(),
+        email: "admin@example.com".to_string(),
+        full_name: Some("System Administrator".to_string()),
+        enabled: true,
+        roles: vec!["admin".to_string()],
+        permissions: vec!["*".to_string()],
+        last_login: Some(chrono::Utc::now()),
+        created_at: chrono::Utc::now() - chrono::Duration::days(30),
+        updated_at: chrono::Utc::now(),
+        metadata: HashMap::new(),
+    }];
 
     Ok(Json(ApiResponse::success(users)))
 }
@@ -388,9 +386,11 @@ pub async fn get_user(
     let user = UserResponse {
         id: user_id,
         username: "testuser".to_string(),
-        email: Some("test@example.com".to_string()),
+        email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
         enabled: true,
+        roles: vec!["user".to_string()],
+        permissions: vec!["read".to_string()],
         last_login: Some(chrono::Utc::now()),
         created_at: chrono::Utc::now() - chrono::Duration::days(7),
         updated_at: chrono::Utc::now(),
@@ -412,6 +412,8 @@ pub async fn update_user(
         email: request.email.unwrap_or("test@example.com".to_string()),
         full_name: request.full_name,
         enabled: request.enabled.unwrap_or(true),
+        roles: vec!["user".to_string()],
+        permissions: vec!["read".to_string()],
         last_login: Some(chrono::Utc::now()),
         created_at: chrono::Utc::now() - chrono::Duration::days(7),
         updated_at: chrono::Utc::now(),
@@ -532,16 +534,15 @@ pub async fn run_security_scan(
         status: "completed".to_string(),
         started_at: chrono::Utc::now() - chrono::Duration::minutes(5),
         completed_at: Some(chrono::Utc::now()),
-        findings: vec![
-            SecurityFinding {
-                severity: "low".to_string(),
-                category: "configuration".to_string(),
-                title: "Default admin password".to_string(),
-                description: "The default admin password should be changed".to_string(),
-                recommendation: "Change the default admin password to a strong, unique password".to_string(),
-                affected_resources: vec!["admin".to_string()],
-            },
-        ],
+        findings: vec![SecurityFinding {
+            severity: "low".to_string(),
+            category: "configuration".to_string(),
+            title: "Default admin password".to_string(),
+            description: "The default admin password should be changed".to_string(),
+            recommendation: "Change the default admin password to a strong, unique password"
+                .to_string(),
+            affected_resources: vec!["admin".to_string()],
+        }],
     };
 
     Ok(Json(ApiResponse::success(scan_result)))
@@ -552,18 +553,18 @@ pub async fn get_security_incidents(
     Query(query): Query<ListQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<SecurityIncident>>>> {
     // TODO: Implement incident retrieval
-    let incidents = vec![
-        SecurityIncident {
-            severity: "medium".to_string(),
-            status: "resolved".to_string(),
-            title: "Multiple failed login attempts".to_string(),
-            description: "User account experienced 5 failed login attempts from IP 192.168.1.100".to_string(),
-            source: "authentication".to_string(),
-            created_at: chrono::Utc::now() - chrono::Duration::hours(2),
-            updated_at: chrono::Utc::now() - chrono::Duration::minutes(30),
-            resolved_at: Some(chrono::Utc::now() - chrono::Duration::minutes(30)),
-        },
-    ];
+    let incidents = vec![SecurityIncident {
+        id: uuid::Uuid::new_v4().to_string(),
+        severity: "medium".to_string(),
+        status: "resolved".to_string(),
+        title: "Multiple failed login attempts".to_string(),
+        description: "User account experienced 5 failed login attempts from IP 192.168.1.100"
+            .to_string(),
+        source: "authentication".to_string(),
+        created_at: chrono::Utc::now() - chrono::Duration::hours(2),
+        updated_at: chrono::Utc::now() - chrono::Duration::minutes(30),
+        resolved_at: Some(chrono::Utc::now() - chrono::Duration::minutes(30)),
+    }];
 
     Ok(Json(ApiResponse::success(incidents)))
 }
@@ -596,102 +597,123 @@ pub async fn compact_database(
     Ok(Json(ApiResponse::success(data)))
 }
 
-
 // Stub handlers for missing functions
 pub async fn delete_user(
     State(_state): State<AppState>,
     Path(_user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("delete_user not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "delete_user not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_user_roles(
     State(_state): State<AppState>,
     Path(_user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented("get_user_roles not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_user_roles not yet implemented".to_string(),
+    ))
 }
 
 pub async fn assign_user_roles(
     State(_state): State<AppState>,
     Path(_user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("assign_user_roles not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "assign_user_roles not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_user_permissions(
     State(_state): State<AppState>,
     Path(_user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented("get_user_permissions not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_user_permissions not yet implemented".to_string(),
+    ))
 }
 
 pub async fn list_roles(
     State(_state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented("list_roles not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "list_roles not yet implemented".to_string(),
+    ))
 }
 
-pub async fn create_role(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("create_role not yet implemented".to_string()))
+pub async fn create_role(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented(
+        "create_role not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_role(
     State(_state): State<AppState>,
     Path(_role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    Err(ApiError::NotImplemented("get_role not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_role not yet implemented".to_string(),
+    ))
 }
 
 pub async fn update_role(
     State(_state): State<AppState>,
     Path(_role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("update_role not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "update_role not yet implemented".to_string(),
+    ))
 }
 
 pub async fn delete_role(
     State(_state): State<AppState>,
     Path(_role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("delete_role not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "delete_role not yet implemented".to_string(),
+    ))
 }
 
-pub async fn update_config(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("update_config not yet implemented".to_string()))
+pub async fn update_config(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented(
+        "update_config not yet implemented".to_string(),
+    ))
 }
 
-pub async fn reload_config(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("reload_config not yet implemented".to_string()))
+pub async fn reload_config(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented(
+        "reload_config not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_system_logs(
     State(_state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented("get_system_logs not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_system_logs not yet implemented".to_string(),
+    ))
 }
 
-pub async fn vacuum_database(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    Err(ApiError::NotImplemented("vacuum_database not yet implemented".to_string()))
+pub async fn vacuum_database(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<()>>> {
+    Err(ApiError::NotImplemented(
+        "vacuum_database not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_security_reports(
     State(_state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented("get_security_reports not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_security_reports not yet implemented".to_string(),
+    ))
 }
 
 pub async fn get_security_incident(
     State(_state): State<AppState>,
     Path(_incident_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    Err(ApiError::NotImplemented("get_security_incident not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "get_security_incident not yet implemented".to_string(),
+    ))
 }

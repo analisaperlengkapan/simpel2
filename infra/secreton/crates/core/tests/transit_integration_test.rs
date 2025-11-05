@@ -1,6 +1,6 @@
 //! Integration tests for Transit Secrets Engine
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use secreton_core::secrets::engine::{
     CreateKeyRequest, DecryptRequest, EncryptRequest, SecretsEngine, TransitSecretsEngine,
 };

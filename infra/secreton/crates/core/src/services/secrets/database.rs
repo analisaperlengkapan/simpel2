@@ -5,15 +5,15 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
+use rand::Rng;
+use rand::distributions::Alphanumeric;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio_postgres::{Client as PgClient, Connection as PgConnection, NoTls};
 use uuid::Uuid;
-use tokio_postgres::{NoTls, Client as PgClient, Connection as PgConnection};
-use rand::Rng;
-use rand::distributions::Alphanumeric;
-use rand::rngs::OsRng;
 
 /// Error types for database secrets engine
 #[derive(Debug, thiserror::Error)]
@@ -210,13 +210,20 @@ impl DatabaseSecretsEngine {
     }
 
     /// Configure database connection
-    pub async fn configure_connection(&self, config: DatabaseConnection) -> Result<(), DatabaseError> {
+    pub async fn configure_connection(
+        &self,
+        config: DatabaseConnection,
+    ) -> Result<(), DatabaseError> {
         // Validate configuration
         if config.name.is_empty() {
-            return Err(DatabaseError::InvalidConfig("Connection name cannot be empty".to_string()));
+            return Err(DatabaseError::InvalidConfig(
+                "Connection name cannot be empty".to_string(),
+            ));
         }
         if config.connection_url.is_empty() {
-            return Err(DatabaseError::InvalidConfig("Connection URL cannot be empty".to_string()));
+            return Err(DatabaseError::InvalidConfig(
+                "Connection URL cannot be empty".to_string(),
+            ));
         }
 
         // Test connection if requested
@@ -235,7 +242,7 @@ impl DatabaseSecretsEngine {
     async fn test_connection(&self, config: &DatabaseConnection) -> Result<(), DatabaseError> {
         if !config.connection_url.contains("://") {
             return Err(DatabaseError::ConnectionError(
-                "Invalid connection URL format".to_string()
+                "Invalid connection URL format".to_string(),
             ));
         }
 
@@ -244,7 +251,12 @@ impl DatabaseSecretsEngine {
                 // Test PostgreSQL connection
                 let (client, connection) = tokio_postgres::connect(&config.connection_url, NoTls)
                     .await
-                    .map_err(|e| DatabaseError::ConnectionError(format!("PostgreSQL connection failed: {}", e)))?;
+                    .map_err(|e| {
+                        DatabaseError::ConnectionError(format!(
+                            "PostgreSQL connection failed: {}",
+                            e
+                        ))
+                    })?;
 
                 // Spawn connection handler
                 tokio::spawn(async move {
@@ -254,20 +266,28 @@ impl DatabaseSecretsEngine {
                 });
 
                 // Test query
-                client.query_one("SELECT 1", &[])
-                    .await
-                    .map_err(|e| DatabaseError::ConnectionError(format!("PostgreSQL test query failed: {}", e)))?;
+                client.query_one("SELECT 1", &[]).await.map_err(|e| {
+                    DatabaseError::ConnectionError(format!("PostgreSQL test query failed: {}", e))
+                })?;
 
                 // Store client for reuse
                 let mut pools = self.db_pools.write().await;
-                pools.insert(config.name.clone(), DbPool::PostgreSQL(Arc::new(RwLock::new(Some(client)))));
+                pools.insert(
+                    config.name.clone(),
+                    DbPool::PostgreSQL(Arc::new(RwLock::new(Some(client)))),
+                );
             }
             DatabaseType::MySQL => {
                 // MySQL support to be implemented
-                return Err(DatabaseError::UnsupportedDatabase("MySQL support not yet implemented".to_string()));
+                return Err(DatabaseError::UnsupportedDatabase(
+                    "MySQL support not yet implemented".to_string(),
+                ));
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", config.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    config.db_type.as_str()
+                )));
             }
         }
 
@@ -278,18 +298,23 @@ impl DatabaseSecretsEngine {
     pub async fn create_role(&self, role: DatabaseRole) -> Result<(), DatabaseError> {
         // Validate role
         if role.name.is_empty() {
-            return Err(DatabaseError::InvalidConfig("Role name cannot be empty".to_string()));
+            return Err(DatabaseError::InvalidConfig(
+                "Role name cannot be empty".to_string(),
+            ));
         }
         if role.creation_statements.is_empty() {
-            return Err(DatabaseError::InvalidConfig("Creation statements required".to_string()));
+            return Err(DatabaseError::InvalidConfig(
+                "Creation statements required".to_string(),
+            ));
         }
 
         // Verify database connection exists
         let connections = self.connections.read().await;
         if !connections.contains_key(&role.db_name) {
-            return Err(DatabaseError::InvalidConfig(
-                format!("Database connection '{}' not found", role.db_name)
-            ));
+            return Err(DatabaseError::InvalidConfig(format!(
+                "Database connection '{}' not found",
+                role.db_name
+            )));
         }
         drop(connections);
 
@@ -301,31 +326,39 @@ impl DatabaseSecretsEngine {
     }
 
     /// Generate credentials for a role
-    pub async fn generate_credentials(&self, role_name: &str, ttl: Option<u32>)
-        -> Result<DatabaseCredentials, DatabaseError>
-    {
+    pub async fn generate_credentials(
+        &self,
+        role_name: &str,
+        ttl: Option<u32>,
+    ) -> Result<DatabaseCredentials, DatabaseError> {
         // Get role
         let roles = self.roles.read().await;
-        let role = roles.get(role_name)
+        let role = roles
+            .get(role_name)
             .ok_or_else(|| DatabaseError::RoleNotFound(role_name.to_string()))?
             .clone();
         drop(roles);
 
         // Get connection
         let connections = self.connections.read().await;
-        let connection = connections.get(&role.db_name)
-            .ok_or_else(|| DatabaseError::InvalidConfig(
-                format!("Database connection '{}' not found", role.db_name)
-            ))?
+        let connection = connections
+            .get(&role.db_name)
+            .ok_or_else(|| {
+                DatabaseError::InvalidConfig(format!(
+                    "Database connection '{}' not found",
+                    role.db_name
+                ))
+            })?
             .clone();
         drop(connections);
 
         // Determine TTL
         let ttl = ttl.unwrap_or(role.default_ttl);
         if ttl > role.max_ttl {
-            return Err(DatabaseError::InvalidConfig(
-                format!("TTL {} exceeds maximum {}", ttl, role.max_ttl)
-            ));
+            return Err(DatabaseError::InvalidConfig(format!(
+                "TTL {} exceeds maximum {}",
+                ttl, role.max_ttl
+            )));
         }
 
         // Generate username and password
@@ -338,7 +371,8 @@ impl DatabaseSecretsEngine {
             &role.creation_statements,
             &username,
             &password,
-        ).await?;
+        )
+        .await?;
 
         // Create credentials record
         let now = Utc::now();
@@ -370,7 +404,7 @@ impl DatabaseSecretsEngine {
                 format!("v-{}-{}", role_name, short_uuid)
             }
             DatabaseType::MongoDB => {
-                format!("v_{}_{}",  role_name.replace("-", "_"), short_uuid)
+                format!("v_{}_{}", role_name.replace("-", "_"), short_uuid)
             }
             _ => format!("vault_{}_{}", role_name, short_uuid),
         }
@@ -404,20 +438,27 @@ impl DatabaseSecretsEngine {
         for stmt in statements {
             if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
                 return Err(DatabaseError::CredentialGenerationFailed(
-                    "Creation statements must contain {{username}} or {{password}} placeholders".to_string()
+                    "Creation statements must contain {{username}} or {{password}} placeholders"
+                        .to_string(),
                 ));
             }
         }
 
         match connection.db_type {
             DatabaseType::PostgreSQL => {
-                self.execute_postgres_statements(connection, statements, username, password).await?;
+                self.execute_postgres_statements(connection, statements, username, password)
+                    .await?;
             }
             DatabaseType::MySQL => {
-                return Err(DatabaseError::UnsupportedDatabase("MySQL support not yet implemented".to_string()));
+                return Err(DatabaseError::UnsupportedDatabase(
+                    "MySQL support not yet implemented".to_string(),
+                ));
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", connection.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    connection.db_type.as_str()
+                )));
             }
         }
 
@@ -445,9 +486,15 @@ impl DatabaseSecretsEngine {
 
         // Reconnect if needed
         if needs_reconnect {
-            let (new_client, connection_handle) = tokio_postgres::connect(&connection.connection_url, NoTls)
-                .await
-                .map_err(|e| DatabaseError::ConnectionError(format!("PostgreSQL connection failed: {}", e)))?;
+            let (new_client, connection_handle) =
+                tokio_postgres::connect(&connection.connection_url, NoTls)
+                    .await
+                    .map_err(|e| {
+                        DatabaseError::ConnectionError(format!(
+                            "PostgreSQL connection failed: {}",
+                            e
+                        ))
+                    })?;
 
             tokio::spawn(async move {
                 if let Err(e) = connection_handle.await {
@@ -456,7 +503,10 @@ impl DatabaseSecretsEngine {
             });
 
             let mut pools = self.db_pools.write().await;
-            pools.insert(connection.name.clone(), DbPool::PostgreSQL(Arc::new(RwLock::new(Some(new_client)))));
+            pools.insert(
+                connection.name.clone(),
+                DbPool::PostgreSQL(Arc::new(RwLock::new(Some(new_client)))),
+            );
         }
 
         // Execute statements
@@ -469,9 +519,12 @@ impl DatabaseSecretsEngine {
                         .replace("{{username}}", username)
                         .replace("{{password}}", password);
 
-                    pg_client.execute(&sql, &[])
-                        .await
-                        .map_err(|e| DatabaseError::CredentialGenerationFailed(format!("Failed to execute statement: {}", e)))?;
+                    pg_client.execute(&sql, &[]).await.map_err(|e| {
+                        DatabaseError::CredentialGenerationFailed(format!(
+                            "Failed to execute statement: {}",
+                            e
+                        ))
+                    })?;
                 }
             }
         }
@@ -479,7 +532,12 @@ impl DatabaseSecretsEngine {
         Ok(())
     }
     /// Build connection URL with credentials
-    fn build_connection_url(&self, connection: &DatabaseConnection, username: &str, password: &str) -> String {
+    fn build_connection_url(
+        &self,
+        connection: &DatabaseConnection,
+        username: &str,
+        password: &str,
+    ) -> String {
         // Simple URL building (production would be more sophisticated)
         let url = &connection.connection_url;
 
@@ -494,7 +552,7 @@ impl DatabaseSecretsEngine {
                     &url[..pos],
                     username,
                     password,
-                    &url[pos+3..]
+                    &url[pos + 3..]
                 )
             } else {
                 url.clone()
@@ -506,24 +564,28 @@ impl DatabaseSecretsEngine {
     pub async fn revoke_credentials(&self, credential_id: &str) -> Result<(), DatabaseError> {
         // Get credentials
         let mut active = self.active_credentials.write().await;
-        let credentials = active.remove(credential_id)
-            .ok_or_else(|| DatabaseError::RevocationFailed(
-                format!("Credentials {} not found", credential_id)
-            ))?;
+        let credentials = active.remove(credential_id).ok_or_else(|| {
+            DatabaseError::RevocationFailed(format!("Credentials {} not found", credential_id))
+        })?;
         drop(active);
 
         // Get role and connection
         let roles = self.roles.read().await;
-        let role = roles.get(&credentials.role_name)
+        let role = roles
+            .get(&credentials.role_name)
             .ok_or_else(|| DatabaseError::RoleNotFound(credentials.role_name.clone()))?
             .clone();
         drop(roles);
 
         let connections = self.connections.read().await;
-        let connection = connections.get(&role.db_name)
-            .ok_or_else(|| DatabaseError::InvalidConfig(
-                format!("Database connection '{}' not found", role.db_name)
-            ))?
+        let connection = connections
+            .get(&role.db_name)
+            .ok_or_else(|| {
+                DatabaseError::InvalidConfig(format!(
+                    "Database connection '{}' not found",
+                    role.db_name
+                ))
+            })?
             .clone();
         drop(connections);
 
@@ -532,7 +594,8 @@ impl DatabaseSecretsEngine {
             &connection,
             &role.revocation_statements,
             &credentials.username,
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
@@ -546,19 +609,25 @@ impl DatabaseSecretsEngine {
     ) -> Result<(), DatabaseError> {
         if statements.is_empty() {
             return Err(DatabaseError::RevocationFailed(
-                "No revocation statements configured".to_string()
+                "No revocation statements configured".to_string(),
             ));
         }
 
         match connection.db_type {
             DatabaseType::PostgreSQL => {
-                self.execute_postgres_revocation(connection, statements, username).await?;
+                self.execute_postgres_revocation(connection, statements, username)
+                    .await?;
             }
             DatabaseType::MySQL => {
-                return Err(DatabaseError::UnsupportedDatabase("MySQL support not yet implemented".to_string()));
+                return Err(DatabaseError::UnsupportedDatabase(
+                    "MySQL support not yet implemented".to_string(),
+                ));
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", connection.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    connection.db_type.as_str()
+                )));
             }
         }
 
@@ -573,8 +642,9 @@ impl DatabaseSecretsEngine {
         username: &str,
     ) -> Result<(), DatabaseError> {
         let pools = self.db_pools.read().await;
-        let pool = pools.get(&connection.name)
-            .ok_or_else(|| DatabaseError::ConnectionError(format!("No connection pool for {}", connection.name)))?;
+        let pool = pools.get(&connection.name).ok_or_else(|| {
+            DatabaseError::ConnectionError(format!("No connection pool for {}", connection.name))
+        })?;
 
         if let DbPool::PostgreSQL(client_lock) = pool {
             let client_opt = client_lock.read().await;
@@ -617,23 +687,31 @@ impl DatabaseSecretsEngine {
 
         let max_ttl = {
             let roles = futures::executor::block_on(self.roles.read());
-            roles.get(role_name).map(|r| r.max_ttl as i64).unwrap_or(86400)
+            roles
+                .get(role_name)
+                .map(|r| r.max_ttl as i64)
+                .unwrap_or(86400)
         };
 
         let resource_path = format!("database/creds/{}", role_name);
-        let lease = lease_manager.create_lease(
-            user,
-            &resource_path,
-            "database",
-            "default", // namespace
-            ttl_secs,
-            max_ttl,
-            true, // renewable
-            None, // no parent
-            None, // no max_renewals
-            None, // no revoke_callback
-            std::collections::HashMap::new(), // empty metadata
-        ).await.map_err(|e| DatabaseError::CredentialGenerationFailed(format!("Failed to create lease: {}", e)))?;
+        let lease = lease_manager
+            .create_lease(
+                user,
+                &resource_path,
+                "database",
+                "default", // namespace
+                ttl_secs,
+                max_ttl,
+                true,                             // renewable
+                None,                             // no parent
+                None,                             // no max_renewals
+                None,                             // no revoke_callback
+                std::collections::HashMap::new(), // empty metadata
+            )
+            .await
+            .map_err(|e| {
+                DatabaseError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))
+            })?;
 
         Ok((credentials, lease))
     }
@@ -649,35 +727,45 @@ impl DatabaseSecretsEngine {
         self.revoke_credentials(credential_id).await?;
 
         // Revoke lease
-        lease_manager.revoke_lease(lease_id).await
-            .map_err(|e| DatabaseError::RevocationFailed(format!("Failed to revoke lease: {}", e)))?;
+        lease_manager.revoke_lease(lease_id).await.map_err(|e| {
+            DatabaseError::RevocationFailed(format!("Failed to revoke lease: {}", e))
+        })?;
 
         Ok(())
     }
 
     /// Rotate credentials for a specific credential ID
-    pub async fn rotate_credentials(&self, credential_id: &str) -> Result<DatabaseCredentials, DatabaseError> {
+    pub async fn rotate_credentials(
+        &self,
+        credential_id: &str,
+    ) -> Result<DatabaseCredentials, DatabaseError> {
         // Get existing credentials
         let active = self.active_credentials.read().await;
-        let old_credentials = active.get(credential_id)
-            .ok_or_else(|| DatabaseError::RotationFailed(
-                format!("Credentials {} not found", credential_id)
-            ))?
+        let old_credentials = active
+            .get(credential_id)
+            .ok_or_else(|| {
+                DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+            })?
             .clone();
         drop(active);
 
         // Get role and connection
         let roles = self.roles.read().await;
-        let role = roles.get(&old_credentials.role_name)
+        let role = roles
+            .get(&old_credentials.role_name)
             .ok_or_else(|| DatabaseError::RoleNotFound(old_credentials.role_name.clone()))?
             .clone();
         drop(roles);
 
         let connections = self.connections.read().await;
-        let connection = connections.get(&role.db_name)
-            .ok_or_else(|| DatabaseError::InvalidConfig(
-                format!("Database connection '{}' not found", role.db_name)
-            ))?
+        let connection = connections
+            .get(&role.db_name)
+            .ok_or_else(|| {
+                DatabaseError::InvalidConfig(format!(
+                    "Database connection '{}' not found",
+                    role.db_name
+                ))
+            })?
             .clone();
         drop(connections);
 
@@ -691,14 +779,16 @@ impl DatabaseSecretsEngine {
                 &role.rotation_statements,
                 &old_credentials.username,
                 &new_password,
-            ).await?;
+            )
+            .await?;
         } else {
             // If no rotation statements, revoke old and create new
             self.execute_revocation_statements(
                 &connection,
                 &role.revocation_statements,
                 &old_credentials.username,
-            ).await?;
+            )
+            .await?;
 
             let new_username = self.generate_username(&connection.db_type, &role.name);
             self.execute_creation_statements(
@@ -706,7 +796,8 @@ impl DatabaseSecretsEngine {
                 &role.creation_statements,
                 &new_username,
                 &new_password,
-            ).await?;
+            )
+            .await?;
 
             // Update credentials with new username
             let now = Utc::now();
@@ -715,7 +806,11 @@ impl DatabaseSecretsEngine {
                 id: Uuid::new_v4().to_string(),
                 username: new_username.clone(),
                 password: new_password.clone(),
-                connection_url: Some(self.build_connection_url(&connection, &new_username, &new_password)),
+                connection_url: Some(self.build_connection_url(
+                    &connection,
+                    &new_username,
+                    &new_password,
+                )),
                 created_at: now,
                 expires_at: now + Duration::seconds(ttl),
                 role_name: old_credentials.role_name.clone(),
@@ -737,7 +832,11 @@ impl DatabaseSecretsEngine {
             id: old_credentials.id.clone(),
             username: old_credentials.username.clone(),
             password: new_password.clone(),
-            connection_url: Some(self.build_connection_url(&connection, &old_credentials.username, &new_password)),
+            connection_url: Some(self.build_connection_url(
+                &connection,
+                &old_credentials.username,
+                &new_password,
+            )),
             created_at: now,
             expires_at: now + Duration::seconds(ttl),
             role_name: old_credentials.role_name.clone(),
@@ -762,8 +861,12 @@ impl DatabaseSecretsEngine {
         match connection.db_type {
             DatabaseType::PostgreSQL => {
                 let pools = self.db_pools.read().await;
-                let pool = pools.get(&connection.name)
-                    .ok_or_else(|| DatabaseError::ConnectionError(format!("No connection pool for {}", connection.name)))?;
+                let pool = pools.get(&connection.name).ok_or_else(|| {
+                    DatabaseError::ConnectionError(format!(
+                        "No connection pool for {}",
+                        connection.name
+                    ))
+                })?;
 
                 if let DbPool::PostgreSQL(client_lock) = pool {
                     let client_opt = client_lock.read().await;
@@ -773,18 +876,26 @@ impl DatabaseSecretsEngine {
                                 .replace("{{username}}", username)
                                 .replace("{{password}}", new_password);
 
-                            pg_client.execute(&sql, &[])
-                                .await
-                                .map_err(|e| DatabaseError::RotationFailed(format!("Failed to execute rotation statement: {}", e)))?;
+                            pg_client.execute(&sql, &[]).await.map_err(|e| {
+                                DatabaseError::RotationFailed(format!(
+                                    "Failed to execute rotation statement: {}",
+                                    e
+                                ))
+                            })?;
                         }
                     }
                 }
             }
             DatabaseType::MySQL => {
-                return Err(DatabaseError::UnsupportedDatabase("MySQL support not yet implemented".to_string()));
+                return Err(DatabaseError::UnsupportedDatabase(
+                    "MySQL support not yet implemented".to_string(),
+                ));
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", connection.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    connection.db_type.as_str()
+                )));
             }
         }
 
@@ -803,7 +914,9 @@ impl DatabaseSecretsEngine {
         let credentials = self.renew_lease(credential_id, increment).await?;
 
         // Renew lease
-        let lease = lease_manager.renew_lease(lease_id, increment as i64).await
+        let lease = lease_manager
+            .renew_lease(lease_id, increment as i64)
+            .await
             .map_err(|e| DatabaseError::RotationFailed(format!("Failed to renew lease: {}", e)))?;
 
         Ok((credentials, lease))
@@ -817,14 +930,14 @@ impl DatabaseSecretsEngine {
     ) -> Result<DatabaseCredentials, DatabaseError> {
         // Get existing credentials
         let mut active = self.active_credentials.write().await;
-        let credentials = active.get_mut(credential_id)
-            .ok_or_else(|| DatabaseError::RotationFailed(
-                format!("Credentials {} not found", credential_id)
-            ))?;
+        let credentials = active.get_mut(credential_id).ok_or_else(|| {
+            DatabaseError::RotationFailed(format!("Credentials {} not found", credential_id))
+        })?;
 
         // Get role to check max_ttl
         let roles = self.roles.read().await;
-        let role = roles.get(&credentials.role_name)
+        let role = roles
+            .get(&credentials.role_name)
             .ok_or_else(|| DatabaseError::RoleNotFound(credentials.role_name.clone()))?
             .clone();
         drop(roles);
@@ -836,9 +949,10 @@ impl DatabaseSecretsEngine {
 
         // Check against max_ttl
         if new_ttl > role.max_ttl as i64 {
-            return Err(DatabaseError::InvalidConfig(
-                format!("New TTL {} exceeds maximum {}", new_ttl, role.max_ttl)
-            ));
+            return Err(DatabaseError::InvalidConfig(format!(
+                "New TTL {} exceeds maximum {}",
+                new_ttl, role.max_ttl
+            )));
         }
 
         // Update expiration time
@@ -847,10 +961,14 @@ impl DatabaseSecretsEngine {
         // Execute renew statements if configured
         if !role.renew_statements.is_empty() {
             let connections = self.connections.read().await;
-            let connection = connections.get(&role.db_name)
-                .ok_or_else(|| DatabaseError::InvalidConfig(
-                    format!("Database connection '{}' not found", role.db_name)
-                ))?
+            let connection = connections
+                .get(&role.db_name)
+                .ok_or_else(|| {
+                    DatabaseError::InvalidConfig(format!(
+                        "Database connection '{}' not found",
+                        role.db_name
+                    ))
+                })?
                 .clone();
             drop(connections);
 
@@ -859,7 +977,8 @@ impl DatabaseSecretsEngine {
                 &role.renew_statements,
                 &credentials.username,
                 new_ttl as u32,
-            ).await?;
+            )
+            .await?;
         }
 
         Ok(credentials.clone())
@@ -876,8 +995,12 @@ impl DatabaseSecretsEngine {
         match connection.db_type {
             DatabaseType::PostgreSQL => {
                 let pools = self.db_pools.read().await;
-                let pool = pools.get(&connection.name)
-                    .ok_or_else(|| DatabaseError::ConnectionError(format!("No connection pool for {}", connection.name)))?;
+                let pool = pools.get(&connection.name).ok_or_else(|| {
+                    DatabaseError::ConnectionError(format!(
+                        "No connection pool for {}",
+                        connection.name
+                    ))
+                })?;
 
                 if let DbPool::PostgreSQL(client_lock) = pool {
                     let client_opt = client_lock.read().await;
@@ -887,18 +1010,26 @@ impl DatabaseSecretsEngine {
                                 .replace("{{username}}", username)
                                 .replace("{{ttl}}", &new_ttl.to_string());
 
-                            pg_client.execute(&sql, &[])
-                                .await
-                                .map_err(|e| DatabaseError::RotationFailed(format!("Failed to execute renew statement: {}", e)))?;
+                            pg_client.execute(&sql, &[]).await.map_err(|e| {
+                                DatabaseError::RotationFailed(format!(
+                                    "Failed to execute renew statement: {}",
+                                    e
+                                ))
+                            })?;
                         }
                     }
                 }
             }
             DatabaseType::MySQL => {
-                return Err(DatabaseError::UnsupportedDatabase("MySQL support not yet implemented".to_string()));
+                return Err(DatabaseError::UnsupportedDatabase(
+                    "MySQL support not yet implemented".to_string(),
+                ));
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", connection.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    connection.db_type.as_str()
+                )));
             }
         }
 
@@ -917,22 +1048,24 @@ impl DatabaseSecretsEngine {
         user: &str,
     ) -> Result<(DatabaseCredentials, crate::services::lease::EnhancedLease), DatabaseError> {
         // Always use the lease-integrated method
-        self.generate_credentials_with_lease(role_name, ttl, lease_manager, user).await
+        self.generate_credentials_with_lease(role_name, ttl, lease_manager, user)
+            .await
     }
 
     /// Rotate root credentials
     pub async fn rotate_root(&self, connection_name: &str) -> Result<(), DatabaseError> {
         let connections = self.connections.read().await;
-        let connection = connections.get(connection_name)
-            .ok_or_else(|| DatabaseError::InvalidConfig(
-                format!("Connection '{}' not found", connection_name)
-            ))?
+        let connection = connections
+            .get(connection_name)
+            .ok_or_else(|| {
+                DatabaseError::InvalidConfig(format!("Connection '{}' not found", connection_name))
+            })?
             .clone();
         drop(connections);
 
         if connection.root_rotation_statements.is_empty() {
             return Err(DatabaseError::RotationFailed(
-                "No root rotation statements configured".to_string()
+                "No root rotation statements configured".to_string(),
             ));
         }
 
@@ -943,26 +1076,39 @@ impl DatabaseSecretsEngine {
         match connection.db_type {
             DatabaseType::PostgreSQL => {
                 let pools = self.db_pools.read().await;
-                let pool = pools.get(&connection.name)
-                    .ok_or_else(|| DatabaseError::ConnectionError(format!("No connection pool for {}", connection.name)))?;
+                let pool = pools.get(&connection.name).ok_or_else(|| {
+                    DatabaseError::ConnectionError(format!(
+                        "No connection pool for {}",
+                        connection.name
+                    ))
+                })?;
 
                 if let DbPool::PostgreSQL(client_lock) = pool {
                     let client_opt = client_lock.read().await;
                     if let Some(ref pg_client) = *client_opt {
                         for stmt in &connection.root_rotation_statements {
                             let sql = stmt
-                                .replace("{{username}}", connection.username.as_deref().unwrap_or("postgres"))
+                                .replace(
+                                    "{{username}}",
+                                    connection.username.as_deref().unwrap_or("postgres"),
+                                )
                                 .replace("{{password}}", &new_password);
 
-                            pg_client.execute(&sql, &[])
-                                .await
-                                .map_err(|e| DatabaseError::RotationFailed(format!("Failed to execute root rotation: {}", e)))?;
+                            pg_client.execute(&sql, &[]).await.map_err(|e| {
+                                DatabaseError::RotationFailed(format!(
+                                    "Failed to execute root rotation: {}",
+                                    e
+                                ))
+                            })?;
                         }
                     }
                 }
             }
             _ => {
-                return Err(DatabaseError::UnsupportedDatabase(format!("{} not yet supported", connection.db_type.as_str())));
+                return Err(DatabaseError::UnsupportedDatabase(format!(
+                    "{} not yet supported",
+                    connection.db_type.as_str()
+                )));
             }
         }
 
@@ -1032,9 +1178,7 @@ mod tests {
                 "CREATE USER '{{username}}'@'%' IDENTIFIED BY '{{password}}'".to_string(),
                 "GRANT SELECT ON *.* TO '{{username}}'@'%'".to_string(),
             ],
-            revocation_statements: vec![
-                "DROP USER '{{username}}'@'%'".to_string(),
-            ],
+            revocation_statements: vec!["DROP USER '{{username}}'@'%'".to_string()],
             ..Default::default()
         };
 
@@ -1064,9 +1208,7 @@ mod tests {
             creation_statements: vec![
                 "CREATE USER '{{username}}'@'%' IDENTIFIED BY '{{password}}'".to_string(),
             ],
-            revocation_statements: vec![
-                "DROP USER '{{username}}'@'%'".to_string(),
-            ],
+            revocation_statements: vec!["DROP USER '{{username}}'@'%'".to_string()],
             ..Default::default()
         };
         engine.create_role(role).await.unwrap();
@@ -1115,9 +1257,7 @@ mod tests {
         let engine = DatabaseSecretsEngine::new();
 
         // Generate multiple passwords to verify randomness
-        let passwords: Vec<String> = (0..10)
-            .map(|_| engine.generate_password(32))
-            .collect();
+        let passwords: Vec<String> = (0..10).map(|_| engine.generate_password(32)).collect();
 
         // All passwords should be 32 characters
         for password in &passwords {
@@ -1138,8 +1278,14 @@ mod tests {
             let has_digit = password.chars().any(|c| c.is_numeric());
 
             // At least 2 of 3 character types should be present in a 32-char password
-            let type_count = [has_upper, has_lower, has_digit].iter().filter(|&&x| x).count();
-            assert!(type_count >= 2, "Password should have diverse character types");
+            let type_count = [has_upper, has_lower, has_digit]
+                .iter()
+                .filter(|&&x| x)
+                .count();
+            assert!(
+                type_count >= 2,
+                "Password should have diverse character types"
+            );
         }
     }
 
@@ -1207,9 +1353,7 @@ mod tests {
             creation_statements: vec![
                 "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
             ],
-            revocation_statements: vec![
-                "DROP USER IF EXISTS {{username}}".to_string(),
-            ],
+            revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             ..Default::default()
         };
         engine.create_role(role).await.unwrap();
@@ -1241,9 +1385,7 @@ mod tests {
         let role = DatabaseRole {
             name: "test-role".to_string(),
             db_name: "test-db".to_string(),
-            creation_statements: vec![
-                "CREATE USER testuser WITH PASSWORD 'testpass'".to_string(),
-            ],
+            creation_statements: vec!["CREATE USER testuser WITH PASSWORD 'testpass'".to_string()],
             ..Default::default()
         };
         engine.create_role(role).await.unwrap();
@@ -1274,9 +1416,7 @@ mod tests {
             creation_statements: vec![
                 "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
             ],
-            revocation_statements: vec![
-                "DROP USER IF EXISTS {{username}}".to_string(),
-            ],
+            revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             // No renew_statements - test without DB connection
             renew_statements: vec![],
             ..Default::default()
@@ -1335,213 +1475,194 @@ mod tests {
     }
 }
 
-    #[tokio::test]
-    #[ignore] // Requires database connection
-    async fn test_generate_credentials_ensure_lease() {
-        use deadpool_postgres::{Config, Runtime};
-        use tokio_postgres::NoTls;
+#[tokio::test]
+#[ignore] // Requires database connection
+async fn test_generate_credentials_ensure_lease() {
+    use deadpool_postgres::{Config, Runtime};
+    use tokio_postgres::NoTls;
 
-        let engine = DatabaseSecretsEngine::new();
+    let engine = DatabaseSecretsEngine::new();
 
-        // Setup connection
-        let config = DatabaseConnection {
-            name: "test-db".to_string(),
-            db_type: DatabaseType::PostgreSQL,
-            connection_url: "postgresql://localhost:5432/testdb".to_string(),
-            verify_connection: false,
-            ..Default::default()
-        };
-        engine.configure_connection(config).await.unwrap();
+    // Setup connection
+    let config = DatabaseConnection {
+        name: "test-db".to_string(),
+        db_type: DatabaseType::PostgreSQL,
+        connection_url: "postgresql://localhost:5432/testdb".to_string(),
+        verify_connection: false,
+        ..Default::default()
+    };
+    engine.configure_connection(config).await.unwrap();
 
-        // Create role
-        let role = DatabaseRole {
-            name: "readonly".to_string(),
-            db_name: "test-db".to_string(),
-            default_ttl: 3600,
-            max_ttl: 7200,
-            creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
-            ],
-            revocation_statements: vec![
-                "DROP USER IF EXISTS {{username}}".to_string(),
-            ],
-            ..Default::default()
-        };
-        engine.create_role(role).await.unwrap();
+    // Create role
+    let role = DatabaseRole {
+        name: "readonly".to_string(),
+        db_name: "test-db".to_string(),
+        default_ttl: 3600,
+        max_ttl: 7200,
+        creation_statements: vec![
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
+        ..Default::default()
+    };
+    engine.create_role(role).await.unwrap();
 
-        // Setup lease manager
-        let database_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
+    // Setup lease manager
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
 
-        let mut cfg = Config::new();
-        cfg.url = Some(database_url);
-        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
-        let lease_manager = crate::services::lease::LeaseManager::new(pool);
+    let mut cfg = Config::new();
+    cfg.url = Some(database_url);
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+    let lease_manager = crate::services::lease::LeaseManager::new(pool);
 
-        // Generate credentials with lease
-        let result = engine.generate_credentials_ensure_lease(
-            "readonly",
-            Some(3600),
-            &lease_manager,
-            "user1",
-        ).await;
+    // Generate credentials with lease
+    let result = engine
+        .generate_credentials_ensure_lease("readonly", Some(3600), &lease_manager, "user1")
+        .await;
 
-        // Should succeed (or fail with connection error if no DB available)
-        // The important part is that the method signature ensures lease is always created
-        match result {
-            Ok((credentials, lease)) => {
-                assert_eq!(credentials.role_name, "readonly");
-                assert_eq!(lease.user, "user1");
-                assert_eq!(lease.resource_type, "database");
-                assert!(lease.renewable);
-            }
-            Err(e) => {
-                // Expected if no database connection available
-                println!("Test skipped due to database connection error: {}", e);
-            }
+    // Should succeed (or fail with connection error if no DB available)
+    // The important part is that the method signature ensures lease is always created
+    match result {
+        Ok((credentials, lease)) => {
+            assert_eq!(credentials.role_name, "readonly");
+            assert_eq!(lease.user, "user1");
+            assert_eq!(lease.resource_type, "database");
+            assert!(lease.renewable);
+        }
+        Err(e) => {
+            // Expected if no database connection available
+            println!("Test skipped due to database connection error: {}", e);
         }
     }
+}
 
-    #[tokio::test]
-    #[ignore] // Requires database connection
-    async fn test_renew_lease_with_manager() {
-        use deadpool_postgres::{Config, Runtime};
-        use tokio_postgres::NoTls;
+#[tokio::test]
+#[ignore] // Requires database connection
+async fn test_renew_lease_with_manager() {
+    use deadpool_postgres::{Config, Runtime};
+    use tokio_postgres::NoTls;
 
-        let engine = DatabaseSecretsEngine::new();
+    let engine = DatabaseSecretsEngine::new();
 
-        // Setup connection and role
-        let config = DatabaseConnection {
-            name: "test-db".to_string(),
-            db_type: DatabaseType::PostgreSQL,
-            connection_url: "postgresql://localhost:5432/testdb".to_string(),
-            verify_connection: false,
-            ..Default::default()
-        };
-        engine.configure_connection(config).await.unwrap();
+    // Setup connection and role
+    let config = DatabaseConnection {
+        name: "test-db".to_string(),
+        db_type: DatabaseType::PostgreSQL,
+        connection_url: "postgresql://localhost:5432/testdb".to_string(),
+        verify_connection: false,
+        ..Default::default()
+    };
+    engine.configure_connection(config).await.unwrap();
 
-        let role = DatabaseRole {
-            name: "readonly".to_string(),
-            db_name: "test-db".to_string(),
-            default_ttl: 3600,
-            max_ttl: 7200,
-            creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
-            ],
-            revocation_statements: vec![
-                "DROP USER IF EXISTS {{username}}".to_string(),
-            ],
-            ..Default::default()
-        };
-        engine.create_role(role).await.unwrap();
+    let role = DatabaseRole {
+        name: "readonly".to_string(),
+        db_name: "test-db".to_string(),
+        default_ttl: 3600,
+        max_ttl: 7200,
+        creation_statements: vec![
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
+        ..Default::default()
+    };
+    engine.create_role(role).await.unwrap();
 
-        // Setup lease manager
-        let database_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
+    // Setup lease manager
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
 
-        let mut cfg = Config::new();
-        cfg.url = Some(database_url);
-        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
-        let lease_manager = crate::services::lease::LeaseManager::new(pool);
+    let mut cfg = Config::new();
+    cfg.url = Some(database_url);
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+    let lease_manager = crate::services::lease::LeaseManager::new(pool);
 
-        // Generate credentials with lease
-        match engine.generate_credentials_ensure_lease(
-            "readonly",
-            Some(1800),
-            &lease_manager,
-            "user1",
-        ).await {
-            Ok((credentials, lease)) => {
-                // Renew the lease
-                let result = engine.renew_lease_with_manager(
-                    &credentials.id,
-                    &lease.id,
-                    1800,
-                    &lease_manager,
-                ).await;
+    // Generate credentials with lease
+    match engine
+        .generate_credentials_ensure_lease("readonly", Some(1800), &lease_manager, "user1")
+        .await
+    {
+        Ok((credentials, lease)) => {
+            // Renew the lease
+            let result = engine
+                .renew_lease_with_manager(&credentials.id, &lease.id, 1800, &lease_manager)
+                .await;
 
-                assert!(result.is_ok());
-                let (renewed_creds, renewed_lease) = result.unwrap();
-                assert_eq!(renewed_lease.renew_count, 1);
-                assert!(renewed_lease.last_renewed_at.is_some());
-                assert!(renewed_creds.expires_at > credentials.expires_at);
-            }
-            Err(e) => {
-                println!("Test skipped due to database connection error: {}", e);
-            }
+            assert!(result.is_ok());
+            let (renewed_creds, renewed_lease) = result.unwrap();
+            assert_eq!(renewed_lease.renew_count, 1);
+            assert!(renewed_lease.last_renewed_at.is_some());
+            assert!(renewed_creds.expires_at > credentials.expires_at);
+        }
+        Err(e) => {
+            println!("Test skipped due to database connection error: {}", e);
         }
     }
+}
 
-    #[tokio::test]
-    #[ignore] // Requires database connection
-    async fn test_revoke_credentials_with_lease_integration() {
-        use deadpool_postgres::{Config, Runtime};
-        use tokio_postgres::NoTls;
+#[tokio::test]
+#[ignore] // Requires database connection
+async fn test_revoke_credentials_with_lease_integration() {
+    use deadpool_postgres::{Config, Runtime};
+    use tokio_postgres::NoTls;
 
-        let engine = DatabaseSecretsEngine::new();
+    let engine = DatabaseSecretsEngine::new();
 
-        // Setup connection and role
-        let config = DatabaseConnection {
-            name: "test-db".to_string(),
-            db_type: DatabaseType::PostgreSQL,
-            connection_url: "postgresql://localhost:5432/testdb".to_string(),
-            verify_connection: false,
-            ..Default::default()
-        };
-        engine.configure_connection(config).await.unwrap();
+    // Setup connection and role
+    let config = DatabaseConnection {
+        name: "test-db".to_string(),
+        db_type: DatabaseType::PostgreSQL,
+        connection_url: "postgresql://localhost:5432/testdb".to_string(),
+        verify_connection: false,
+        ..Default::default()
+    };
+    engine.configure_connection(config).await.unwrap();
 
-        let role = DatabaseRole {
-            name: "readonly".to_string(),
-            db_name: "test-db".to_string(),
-            default_ttl: 3600,
-            max_ttl: 7200,
-            creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
-            ],
-            revocation_statements: vec![
-                "DROP USER IF EXISTS {{username}}".to_string(),
-            ],
-            ..Default::default()
-        };
-        engine.create_role(role).await.unwrap();
+    let role = DatabaseRole {
+        name: "readonly".to_string(),
+        db_name: "test-db".to_string(),
+        default_ttl: 3600,
+        max_ttl: 7200,
+        creation_statements: vec![
+            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+        ],
+        revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
+        ..Default::default()
+    };
+    engine.create_role(role).await.unwrap();
 
-        // Setup lease manager
-        let database_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
+    // Setup lease manager
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
 
-        let mut cfg = Config::new();
-        cfg.url = Some(database_url);
-        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
-        let lease_manager = crate::services::lease::LeaseManager::new(pool);
+    let mut cfg = Config::new();
+    cfg.url = Some(database_url);
+    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+    let lease_manager = crate::services::lease::LeaseManager::new(pool);
 
-        // Generate credentials with lease
-        match engine.generate_credentials_ensure_lease(
-            "readonly",
-            Some(3600),
-            &lease_manager,
-            "user1",
-        ).await {
-            Ok((credentials, lease)) => {
-                // Revoke credentials and lease
-                let result = engine.revoke_credentials_with_lease(
-                    &credentials.id,
-                    &lease_manager,
-                    &lease.id,
-                ).await;
+    // Generate credentials with lease
+    match engine
+        .generate_credentials_ensure_lease("readonly", Some(3600), &lease_manager, "user1")
+        .await
+    {
+        Ok((credentials, lease)) => {
+            // Revoke credentials and lease
+            let result = engine
+                .revoke_credentials_with_lease(&credentials.id, &lease_manager, &lease.id)
+                .await;
 
-                assert!(result.is_ok());
+            assert!(result.is_ok());
 
-                // Verify lease is revoked
-                let revoked_lease = lease_manager.lookup_lease(&lease.id).await.unwrap();
-                assert_eq!(revoked_lease.status, "revoked");
+            // Verify lease is revoked
+            let revoked_lease = lease_manager.lookup_lease(&lease.id).await.unwrap();
+            assert_eq!(revoked_lease.status, "revoked");
 
-                // Verify credentials are removed
-                let active_creds = engine.list_credentials().await;
-                assert!(!active_creds.iter().any(|c| c.id == credentials.id));
-            }
-            Err(e) => {
-                println!("Test skipped due to database connection error: {}", e);
-            }
+            // Verify credentials are removed
+            let active_creds = engine.list_credentials().await;
+            assert!(!active_creds.iter().any(|c| c.id == credentials.id));
+        }
+        Err(e) => {
+            println!("Test skipped due to database connection error: {}", e);
         }
     }
-
+}

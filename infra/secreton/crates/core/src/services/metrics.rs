@@ -229,7 +229,8 @@ impl MetricsRegistry {
             let labels = if metric.labels.is_empty() {
                 String::new()
             } else {
-                let label_str = metric.labels
+                let label_str = metric
+                    .labels
                     .iter()
                     .map(|(k, v)| format!("{}=\"{}\"", k, v))
                     .collect::<Vec<_>>()
@@ -255,7 +256,8 @@ impl MetricsRegistry {
 
                         // Calculate quantiles
                         let mut sorted = values.clone();
-                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                        sorted
+                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                         for (quantile, label) in &[(0.5, "0.5"), (0.9, "0.9"), (0.99, "0.99")] {
                             let idx = ((sorted.len() as f64) * quantile) as usize;
@@ -297,81 +299,111 @@ impl StandardMetrics {
     /// Create and register standard metrics
     pub async fn new(registry: Arc<MetricsRegistry>) -> Self {
         // Request metrics
-        registry.register(Metric::counter(
-            "secreton_requests_total".to_string(),
-            "Total number of requests".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_requests_total".to_string(),
+                "Total number of requests".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::histogram(
-            "secreton_request_duration_seconds".to_string(),
-            "Request duration in seconds".to_string(),
-        )).await;
+        registry
+            .register(Metric::histogram(
+                "secreton_request_duration_seconds".to_string(),
+                "Request duration in seconds".to_string(),
+            ))
+            .await;
 
         // Secret metrics
-        registry.register(Metric::counter(
-            "secreton_secrets_read_total".to_string(),
-            "Total number of secret reads".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_secrets_read_total".to_string(),
+                "Total number of secret reads".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_secrets_written_total".to_string(),
-            "Total number of secret writes".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_secrets_written_total".to_string(),
+                "Total number of secret writes".to_string(),
+            ))
+            .await;
 
         // Token metrics
-        registry.register(Metric::gauge(
-            "secreton_tokens_active".to_string(),
-            "Number of active tokens".to_string(),
-        )).await;
+        registry
+            .register(Metric::gauge(
+                "secreton_tokens_active".to_string(),
+                "Number of active tokens".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_tokens_created_total".to_string(),
-            "Total number of tokens created".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_tokens_created_total".to_string(),
+                "Total number of tokens created".to_string(),
+            ))
+            .await;
 
         // Lease metrics
-        registry.register(Metric::gauge(
-            "secreton_leases_active".to_string(),
-            "Number of active leases".to_string(),
-        )).await;
+        registry
+            .register(Metric::gauge(
+                "secreton_leases_active".to_string(),
+                "Number of active leases".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_leases_expired_total".to_string(),
-            "Total number of leases expired by scheduler".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_leases_expired_total".to_string(),
+                "Total number of leases expired by scheduler".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_leases_revoked_total".to_string(),
-            "Total number of leases revoked by scheduler".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_leases_revoked_total".to_string(),
+                "Total number of leases revoked by scheduler".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_leases_expiration_notifications_total".to_string(),
-            "Total number of lease expiration notifications sent".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_leases_expiration_notifications_total".to_string(),
+                "Total number of lease expiration notifications sent".to_string(),
+            ))
+            .await;
 
-        registry.register(Metric::counter(
-            "secreton_leases_expiration_errors_total".to_string(),
-            "Total number of errors during lease expiration checks".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "secreton_leases_expiration_errors_total".to_string(),
+                "Total number of errors during lease expiration checks".to_string(),
+            ))
+            .await;
 
         Self { registry }
     }
 
     /// Record request
     pub async fn record_request(&self, duration_seconds: f64) {
-        self.registry.increment_counter("secreton_requests_total", 1).await;
-        self.registry.observe_histogram("secreton_request_duration_seconds", duration_seconds).await;
+        self.registry
+            .increment_counter("secreton_requests_total", 1)
+            .await;
+        self.registry
+            .observe_histogram("secreton_request_duration_seconds", duration_seconds)
+            .await;
     }
 
     /// Record secret read
     pub async fn record_secret_read(&self) {
-        self.registry.increment_counter("secreton_secrets_read_total", 1).await;
+        self.registry
+            .increment_counter("secreton_secrets_read_total", 1)
+            .await;
     }
 
     /// Record secret write
     pub async fn record_secret_write(&self) {
-        self.registry.increment_counter("secreton_secrets_written_total", 1).await;
+        self.registry
+            .increment_counter("secreton_secrets_written_total", 1)
+            .await;
     }
 }
 
@@ -383,10 +415,12 @@ mod tests {
     async fn test_counter() {
         let registry = MetricsRegistry::new();
 
-        registry.register(Metric::counter(
-            "test_counter".to_string(),
-            "Test counter".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "test_counter".to_string(),
+                "Test counter".to_string(),
+            ))
+            .await;
 
         registry.increment_counter("test_counter", 5).await;
         registry.increment_counter("test_counter", 3).await;
@@ -399,10 +433,12 @@ mod tests {
     async fn test_gauge() {
         let registry = MetricsRegistry::new();
 
-        registry.register(Metric::gauge(
-            "test_gauge".to_string(),
-            "Test gauge".to_string(),
-        )).await;
+        registry
+            .register(Metric::gauge(
+                "test_gauge".to_string(),
+                "Test gauge".to_string(),
+            ))
+            .await;
 
         registry.set_gauge("test_gauge", 10.5).await;
         registry.increment_gauge("test_gauge", 2.5).await;
@@ -420,10 +456,12 @@ mod tests {
     async fn test_histogram() {
         let registry = MetricsRegistry::new();
 
-        registry.register(Metric::histogram(
-            "test_histogram".to_string(),
-            "Test histogram".to_string(),
-        )).await;
+        registry
+            .register(Metric::histogram(
+                "test_histogram".to_string(),
+                "Test histogram".to_string(),
+            ))
+            .await;
 
         registry.observe_histogram("test_histogram", 1.0).await;
         registry.observe_histogram("test_histogram", 2.0).await;
@@ -441,10 +479,12 @@ mod tests {
     async fn test_prometheus_export() {
         let registry = MetricsRegistry::new();
 
-        registry.register(Metric::counter(
-            "test_total".to_string(),
-            "Test counter".to_string(),
-        )).await;
+        registry
+            .register(Metric::counter(
+                "test_total".to_string(),
+                "Test counter".to_string(),
+            ))
+            .await;
 
         registry.increment_counter("test_total", 42).await;
 

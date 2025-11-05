@@ -181,13 +181,22 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
 
     async fn applied_state(
         &mut self,
-    ) -> Result<(Option<LogId<NodeId>>, openraft::StoredMembership<SecretonTypeConfig>), StorageError<NodeId>> {
+    ) -> Result<
+        (
+            Option<LogId<NodeId>>,
+            openraft::StoredMembership<SecretonTypeConfig>,
+        ),
+        StorageError<NodeId>,
+    > {
         let last_applied = self.last_applied_log.read().await.clone();
         let last_membership = self.last_membership.read().await.clone();
         Ok((last_applied, last_membership))
     }
 
-    async fn apply<I>(&mut self, entries: I) -> Result<Vec<openraft::raft::AppResponse<SecretonTypeConfig>>, StorageError<NodeId>>
+    async fn apply<I>(
+        &mut self,
+        entries: I,
+    ) -> Result<Vec<openraft::raft::AppResponse<SecretonTypeConfig>>, StorageError<NodeId>>
     where
         I: IntoIterator<Item = openraft::Entry<SecretonTypeConfig>> + Send,
         I::IntoIter: Send,
@@ -218,10 +227,8 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
                     }
                 }
                 EntryPayload::Membership(ref mem) => {
-                    *self.last_membership.write().await = openraft::StoredMembership::new(
-                        Some(entry.log_id),
-                        mem.clone(),
-                    );
+                    *self.last_membership.write().await =
+                        openraft::StoredMembership::new(Some(entry.log_id), mem.clone());
                     responses.push(openraft::raft::AppResponse::default());
                 }
             }
@@ -249,26 +256,31 @@ impl Clone for SecretonStateMachine {
 
 #[async_trait]
 impl RaftSnapshotBuilder<SecretonTypeConfig> for SecretonStateMachine {
-    async fn build_snapshot(&mut self) -> Result<openraft::Snapshot<SecretonTypeConfig>, StorageError<NodeId>> {
+    async fn build_snapshot(
+        &mut self,
+    ) -> Result<openraft::Snapshot<SecretonTypeConfig>, StorageError<NodeId>> {
         let snapshot = self.get_snapshot().await;
 
         // Serialize snapshot
-        let data = bincode::encode_to_vec(&snapshot, bincode::config::standard())
-            .map_err(|e| {
-                openraft::StorageError::from_io_error(
-                    openraft::ErrorSubject::Snapshot(None),
-                    openraft::ErrorVerb::Write,
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
-                )
-            })?;
+        let data = bincode::encode_to_vec(&snapshot, bincode::config::standard()).map_err(|e| {
+            openraft::StorageError::from_io_error(
+                openraft::ErrorSubject::Snapshot(None),
+                openraft::ErrorVerb::Write,
+                std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+            )
+        })?;
 
         let last_applied_log = snapshot.last_applied_log;
         let last_membership = snapshot.last_membership;
 
         let snapshot_id = format!(
             "{}-{}-{}",
-            last_applied_log.map(|l| l.leader_id.to_string()).unwrap_or_default(),
-            last_applied_log.map(|l| l.index.to_string()).unwrap_or_default(),
+            last_applied_log
+                .map(|l| l.leader_id.to_string())
+                .unwrap_or_default(),
+            last_applied_log
+                .map(|l| l.index.to_string())
+                .unwrap_or_default(),
             chrono::Utc::now().timestamp()
         );
 

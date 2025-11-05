@@ -1,9 +1,9 @@
 //! Authentication service for user management and token validation.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -49,6 +49,9 @@ pub enum AuthError {
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 // User is now imported from secreton_core::models
@@ -158,7 +161,8 @@ impl AuthService {
             ip_address: ip_address.to_string(),
             user_agent: user_agent.to_string(),
             created_at: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64),
+            expires_at: chrono::Utc::now()
+                + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64),
             last_accessed: chrono::Utc::now(),
         };
 
@@ -246,7 +250,7 @@ impl AuthService {
             updated_at: chrono::Utc::now(),
             last_login: None,
             mfa_enabled: false,
-            roles,
+            roles: roles.into_iter().collect(),
             namespace: "default".to_string(),
             is_locked: false,
             failed_attempts: 0,
@@ -337,7 +341,8 @@ impl AuthService {
                 "admin",
                 Some("System administrator with full access"),
                 vec!["*".to_string()],
-            ).await?;
+            )
+            .await?;
         }
 
         // Create user role
@@ -350,7 +355,8 @@ impl AuthService {
                     "vault:write".to_string(),
                     "vault:list".to_string(),
                 ],
-            ).await?;
+            )
+            .await?;
         }
 
         // Create viewer role
@@ -358,11 +364,9 @@ impl AuthService {
             self.create_role(
                 "viewer",
                 Some("Read-only access to vault"),
-                vec![
-                    "vault:read".to_string(),
-                    "vault:list".to_string(),
-                ],
-            ).await?;
+                vec!["vault:read".to_string(), "vault:list".to_string()],
+            )
+            .await?;
         }
 
         Ok(())
@@ -370,9 +374,9 @@ impl AuthService {
 
     /// Hash password using crypto service
     fn hash_password(&self, password: &str) -> Result<String, AuthError> {
-        use secreton_crypto::hashing;
+        use secreton_crypto::hashing::password;
 
-        let result = hashing::hash_password_argon2(password)
+        let result = password::hash_password_argon2(password)
             .map_err(|e| AuthError::InternalError(format!("Password hashing failed: {}", e)))?;
 
         Ok(result.hash)
@@ -380,9 +384,9 @@ impl AuthService {
 
     /// Verify password using crypto service
     fn verify_password(&self, password: &str, hash: &str) -> Result<bool, AuthError> {
-        use secreton_crypto::hashing;
+        use secreton_crypto::hashing::password;
 
-        hashing::verify_password_argon2(password, hash)
+        password::verify_password_argon2(password, hash)
             .map_err(|e| AuthError::InternalError(format!("Password verification failed: {}", e)))
     }
 

@@ -9,6 +9,12 @@ pub use pki::{Certificate, PrivateKey, SignatureAlgorithm};
 
 // Re-export all crypto functionality from secreton-crypto crate
 pub use secreton_crypto::{
+    // Core types
+    AlgorithmId,
+    CryptoError,
+    CryptoResult,
+    EncryptionService,
+    SecurityParams,
     // Encryption
     encryption::{
         self, Aes256GcmCipher, ChaCha20Poly1305Cipher, CryptoEngine, EncryptedData, SymmetricCipher,
@@ -20,12 +26,12 @@ pub use secreton_crypto::{
     generate_random_bytes,
     // Hashing
     hashing::{
-        self, compute_hash, compute_hash_multiple, compute_hmac_sha256, verify_hmac_sha256,
-        Blake3Hash, HashResult, Sha256Hash, Sha3_256Hash,
+        self, Blake3Hash, HashResult, Sha3_256Hash, Sha256Hash, compute_hash,
+        compute_hash_multiple, compute_hmac_sha256, verify_hmac_sha256,
     },
 
     // Key derivation
-    key_derivation::{self, derive_key, DerivedKey, KdfParams},
+    key_derivation::{self, DerivedKey, KdfParams, derive_key},
 
     // Post-quantum cryptography
     pqc::{
@@ -35,9 +41,9 @@ pub use secreton_crypto::{
 
     // Shamir secret sharing
     shamir::{
-        self, generate_shares, generate_shares_with_commitments, reconstruct_secret,
-        reconstruct_secret_verified, verify_share_with_commitment, verify_shares,
-        verify_shares_batch, Commitment, ShamirConfig, ShamirError, Share,
+        self, Commitment, ShamirConfig, ShamirError, Share, generate_shares,
+        generate_shares_with_commitments, reconstruct_secret, reconstruct_secret_verified,
+        verify_share_with_commitment, verify_shares, verify_shares_batch,
     },
 
     // Storage integration
@@ -48,20 +54,13 @@ pub use secreton_crypto::{
 
     // Transit engine
     transit::{
-        self, algorithms, batch, keys, operations, policies, AuditLogger, CreateKeyRequest,
-        CreateKeyResponse, DecryptRequest, DecryptResponse, DefaultAuditLogger, DeriveKeyRequest,
-        DeriveKeyResponse, EncryptRequest, EncryptResponse, KeyOptions, KeyType, KeyUsage,
-        OperationStats, RandomFormat, RandomRequest, RandomResponse, RotateKeyRequest,
-        RotateKeyResponse, SignRequest, SignResponse, TransitEngine, TransitKey, TransitOperations,
-        VerifyRequest, VerifyResponse,
+        self, AuditLogger, CreateKeyRequest, CreateKeyResponse, DecryptRequest, DecryptResponse,
+        DefaultAuditLogger, DeriveKeyRequest, DeriveKeyResponse, EncryptRequest, EncryptResponse,
+        KeyOptions, KeyType, KeyUsage, OperationStats, RandomFormat, RandomRequest, RandomResponse,
+        RotateKeyRequest, RotateKeyResponse, SignRequest, SignResponse, TransitEngine, TransitKey,
+        TransitOperations, VerifyRequest, VerifyResponse, algorithms, batch, keys, operations,
+        policies,
     },
-
-    // Core types
-    AlgorithmId,
-    CryptoError,
-    CryptoResult,
-    EncryptionService,
-    SecurityParams,
 };
 
 // Convenience aliases for backward compatibility

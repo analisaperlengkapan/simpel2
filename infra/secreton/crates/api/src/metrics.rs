@@ -2,8 +2,8 @@
 //! Tracks operation latency, throughput, and error rates
 
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 /// Metrics for vault operations

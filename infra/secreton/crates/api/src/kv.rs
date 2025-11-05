@@ -1,11 +1,11 @@
 //! KV Secrets Engine API endpoints
 
 use axum::{
+    Router,
     extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -83,7 +83,7 @@ impl KVEngine {
         data: serde_json::Value,
         principal: Option<&str>,
     ) -> Result<SecretMetadata, Box<dyn std::error::Error + Send + Sync>> {
-    let result: Result<SecretMetadata, Box<dyn std::error::Error + Send + Sync>> = async {
+        let result: Result<SecretMetadata, Box<dyn std::error::Error + Send + Sync>> = async {
             let mut store = self.store.write().await;
             let versions = store.entry(path.to_string()).or_insert_with(Vec::new);
 
@@ -101,7 +101,8 @@ impl KVEngine {
 
             info!("Put secret at path: {} (version: {})", path, version);
             Ok(metadata)
-        }.await;
+        }
+        .await;
 
         // Audit log
         let event_type = if result.is_ok() {
@@ -143,12 +144,16 @@ impl KVEngine {
                 };
 
                 if let Some(secret_version) = secret {
-                    return Ok(Some((secret_version.data.clone(), secret_version.metadata.clone())));
+                    return Ok(Some((
+                        secret_version.data.clone(),
+                        secret_version.metadata.clone(),
+                    )));
                 }
             }
 
             Ok(None)
-        }.await;
+        }
+        .await;
 
         // Audit log
         let event = crate::audit::AuditEvent::new(
@@ -293,7 +298,11 @@ pub async fn put_secret(
     Path(path): Path<String>,
     Json(request): Json<CreateSecretRequest>,
 ) -> Result<Json<CreateSecretResponse>, StatusCode> {
-    match state.engine.put_secret(&path, request.data, Some("system")).await {
+    match state
+        .engine
+        .put_secret(&path, request.data, Some("system"))
+        .await
+    {
         Ok(version) => {
             info!(
                 "Created secret at path '{}' version {}",

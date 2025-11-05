@@ -1,7 +1,6 @@
 //! Common API response types
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Standard API response wrapper
 #[derive(Debug, Serialize, Deserialize)]

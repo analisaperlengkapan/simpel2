@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use deadpool_postgres::Pool;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]

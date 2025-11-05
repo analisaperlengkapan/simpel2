@@ -72,9 +72,7 @@ impl InMemoryCache {
         let mut stats = self.stats.write().unwrap();
 
         let original_count = data.len();
-        data.retain(|_, entry| {
-            entry.expires_at.map_or(true, |expires| expires > now)
-        });
+        data.retain(|_, entry| entry.expires_at.map_or(true, |expires| expires > now));
 
         let evicted_count = original_count.saturating_sub(data.len());
         stats.eviction_count += evicted_count as u64;
@@ -97,7 +95,10 @@ impl CacheBackend for InMemoryCache {
         let mut stats = self.stats.write().unwrap();
 
         let result = data.get(key).and_then(|entry| {
-            if entry.expires_at.map_or(true, |expires| std::time::Instant::now() <= expires) {
+            if entry
+                .expires_at
+                .map_or(true, |expires| std::time::Instant::now() <= expires)
+            {
                 Some(entry.data.clone())
             } else {
                 None
@@ -119,7 +120,8 @@ impl CacheBackend for InMemoryCache {
         let mut data = self.data.write().unwrap();
         let mut stats = self.stats.write().unwrap();
 
-        let memory_delta = data.get(key)
+        let memory_delta = data
+            .get(key)
             .map(|old| value.len() as i64 - old.data.len() as i64)
             .unwrap_or_else(|| (value.len() + key.len()) as i64);
 
@@ -287,16 +289,22 @@ where
         self.storage.store(entry).await?;
 
         if let Ok(serialized) = serde_json::to_vec(entry) {
-            let _ = self.cache.set(
-                &Self::cache_key_for_id(entry.id),
-                serialized.clone(),
-                Some(self.default_ttl),
-            ).await;
-            let _ = self.cache.set(
-                &Self::cache_key_for_path(&entry.path),
-                serialized,
-                Some(self.default_ttl),
-            ).await;
+            let _ = self
+                .cache
+                .set(
+                    &Self::cache_key_for_id(entry.id),
+                    serialized.clone(),
+                    Some(self.default_ttl),
+                )
+                .await;
+            let _ = self
+                .cache
+                .set(
+                    &Self::cache_key_for_path(&entry.path),
+                    serialized,
+                    Some(self.default_ttl),
+                )
+                .await;
         }
 
         Ok(())
@@ -315,7 +323,10 @@ where
 
         if let Some(ref entry) = entry {
             if let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self.cache.set(&cache_key, serialized, Some(self.default_ttl)).await;
+                let _ = self
+                    .cache
+                    .set(&cache_key, serialized, Some(self.default_ttl))
+                    .await;
             }
         }
 
@@ -335,7 +346,10 @@ where
 
         if let Some(ref entry) = entry {
             if let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self.cache.set(&cache_key, serialized, Some(self.default_ttl)).await;
+                let _ = self
+                    .cache
+                    .set(&cache_key, serialized, Some(self.default_ttl))
+                    .await;
             }
         }
 
@@ -346,16 +360,22 @@ where
         self.storage.update(entry).await?;
 
         if let Ok(serialized) = serde_json::to_vec(entry) {
-            let _ = self.cache.set(
-                &Self::cache_key_for_id(entry.id),
-                serialized.clone(),
-                Some(self.default_ttl),
-            ).await;
-            let _ = self.cache.set(
-                &Self::cache_key_for_path(&entry.path),
-                serialized,
-                Some(self.default_ttl),
-            ).await;
+            let _ = self
+                .cache
+                .set(
+                    &Self::cache_key_for_id(entry.id),
+                    serialized.clone(),
+                    Some(self.default_ttl),
+                )
+                .await;
+            let _ = self
+                .cache
+                .set(
+                    &Self::cache_key_for_path(&entry.path),
+                    serialized,
+                    Some(self.default_ttl),
+                )
+                .await;
         }
 
         Ok(())
@@ -368,7 +388,10 @@ where
         if result {
             let _ = self.cache.delete(&Self::cache_key_for_id(id)).await;
             if let Some(entry) = entry {
-                let _ = self.cache.delete(&Self::cache_key_for_path(&entry.path)).await;
+                let _ = self
+                    .cache
+                    .delete(&Self::cache_key_for_path(&entry.path))
+                    .await;
             }
         }
 
@@ -398,7 +421,12 @@ where
     }
 
     async fn exists(&self, path: &str) -> StorageResult<bool> {
-        if self.cache.exists(&Self::cache_key_for_path(path)).await.unwrap_or(false) {
+        if self
+            .cache
+            .exists(&Self::cache_key_for_path(path))
+            .await
+            .unwrap_or(false)
+        {
             return Ok(true);
         }
         self.storage.exists(path).await

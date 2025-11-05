@@ -63,6 +63,12 @@ secreton-core.workspace = true
 secreton-storage.workspace = true
 secreton-crypto.workspace = true
 
+[features]
+default = []
+# High-availability mode with Raft consensus (experimental)
+# Note: Raft implementation is currently under development
+raft-consensus = ["secreton-storage/raft-consensus"]
+
 [dev-dependencies]
 criterion.workspace = true
 tempfile.workspace = true

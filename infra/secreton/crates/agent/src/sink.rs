@@ -39,7 +39,9 @@ async fn write_to_file(token: &str, config: &SinkConfig) -> Result<()> {
 /// Write token to environment variable
 fn write_to_env(token: &str, config: &SinkConfig) -> Result<()> {
     if let Some(ref var_name) = config.env_var {
-        std::env::set_var(var_name, token);
+        unsafe {
+            std::env::set_var(var_name, token);
+        }
         tracing::info!("Token set in environment: {}", var_name);
     }
     Ok(())

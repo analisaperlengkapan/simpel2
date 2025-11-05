@@ -28,7 +28,13 @@ pub mod storage;
 pub mod types;
 pub mod utils;
 
-pub use api::{start_security_server, SecurityAPI};
+// Alias for engines module (points to services::secrets::enhanced)
+// This provides backward compatibility with test expectations
+pub mod engines {
+    pub use crate::services::secrets::enhanced::*;
+}
+
+pub use api::{SecurityAPI, start_security_server};
 pub use audit::{AuditLog, AuditLogger, AuditStatus};
 pub use auth::{
     AuthProvider, AuthResult, AuthencAuthProvider, Credentials, PqSignature, TokenValidation,

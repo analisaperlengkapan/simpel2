@@ -442,18 +442,26 @@ mod tests {
 
         // Pusat admin should have access to all namespaces
         assert!(access_control.check_access(&claims, "pusat").unwrap());
-        assert!(access_control
-            .check_access(&claims, "wilayah-sumut")
-            .unwrap());
-        assert!(access_control
-            .check_access(&claims, "wilayah-jabar")
-            .unwrap());
-        assert!(access_control
-            .check_access(&claims, "satker-kja001")
-            .unwrap());
-        assert!(access_control
-            .check_access(&claims, "satker-kja101")
-            .unwrap());
+        assert!(
+            access_control
+                .check_access(&claims, "wilayah-sumut")
+                .unwrap()
+        );
+        assert!(
+            access_control
+                .check_access(&claims, "wilayah-jabar")
+                .unwrap()
+        );
+        assert!(
+            access_control
+                .check_access(&claims, "satker-kja001")
+                .unwrap()
+        );
+        assert!(
+            access_control
+                .check_access(&claims, "satker-kja101")
+                .unwrap()
+        );
     }
 
     #[test]
@@ -469,25 +477,35 @@ mod tests {
         );
 
         // Wilayah admin should have access to their wilayah
-        assert!(access_control
-            .check_access(&claims, "wilayah-sumut")
-            .unwrap());
+        assert!(
+            access_control
+                .check_access(&claims, "wilayah-sumut")
+                .unwrap()
+        );
 
         // And child satkers
-        assert!(access_control
-            .check_access(&claims, "satker-kja001")
-            .unwrap());
-        assert!(access_control
-            .check_access(&claims, "satker-kja002")
-            .unwrap());
+        assert!(
+            access_control
+                .check_access(&claims, "satker-kja001")
+                .unwrap()
+        );
+        assert!(
+            access_control
+                .check_access(&claims, "satker-kja002")
+                .unwrap()
+        );
 
         // But not other wilayah or their satkers
-        assert!(!access_control
-            .check_access(&claims, "wilayah-jabar")
-            .unwrap());
-        assert!(!access_control
-            .check_access(&claims, "satker-kja101")
-            .unwrap());
+        assert!(
+            !access_control
+                .check_access(&claims, "wilayah-jabar")
+                .unwrap()
+        );
+        assert!(
+            !access_control
+                .check_access(&claims, "satker-kja101")
+                .unwrap()
+        );
 
         // And not pusat
         assert!(!access_control.check_access(&claims, "pusat").unwrap());
@@ -506,22 +524,30 @@ mod tests {
         );
 
         // Satker admin should only have access to their own satker
-        assert!(access_control
-            .check_access(&claims, "satker-kja001")
-            .unwrap());
+        assert!(
+            access_control
+                .check_access(&claims, "satker-kja001")
+                .unwrap()
+        );
 
         // Not other satkers
-        assert!(!access_control
-            .check_access(&claims, "satker-kja002")
-            .unwrap());
-        assert!(!access_control
-            .check_access(&claims, "satker-kja101")
-            .unwrap());
+        assert!(
+            !access_control
+                .check_access(&claims, "satker-kja002")
+                .unwrap()
+        );
+        assert!(
+            !access_control
+                .check_access(&claims, "satker-kja101")
+                .unwrap()
+        );
 
         // Not wilayah
-        assert!(!access_control
-            .check_access(&claims, "wilayah-sumut")
-            .unwrap());
+        assert!(
+            !access_control
+                .check_access(&claims, "wilayah-sumut")
+                .unwrap()
+        );
 
         // Not pusat
         assert!(!access_control.check_access(&claims, "pusat").unwrap());

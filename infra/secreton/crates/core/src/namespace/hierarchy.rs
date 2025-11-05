@@ -579,15 +579,19 @@ mod tests {
 
         assert!(hierarchy.validate_path("pusat").is_ok());
         assert!(hierarchy.validate_path("pusat/wilayah-sumut").is_ok());
-        assert!(hierarchy
-            .validate_path("pusat/wilayah-sumut/satker-kja001")
-            .is_ok());
+        assert!(
+            hierarchy
+                .validate_path("pusat/wilayah-sumut/satker-kja001")
+                .is_ok()
+        );
 
         assert!(hierarchy.validate_path("invalid").is_err());
         assert!(hierarchy.validate_path("pusat/invalid").is_err());
-        assert!(hierarchy
-            .validate_path("pusat/wilayah-sumut/satker-kja001/extra")
-            .is_err());
+        assert!(
+            hierarchy
+                .validate_path("pusat/wilayah-sumut/satker-kja001/extra")
+                .is_err()
+        );
     }
 
     #[test]

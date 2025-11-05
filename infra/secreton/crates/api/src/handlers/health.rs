@@ -3,18 +3,14 @@
 //! Provides endpoints for monitoring system health,
 //! readiness, and liveness checks.
 
-use axum::{
-    extract::State,
-    response::Json,
-};
+use axum::{extract::State, response::Json};
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{
-    handlers::AppState,
-    ApiResponse, ApiResult,
-    HealthCheckResponse, HealthCheckDependencies,
+    ApiError, ApiResponse, ApiResult, DependencyStatus, HealthCheckDependencies,
+    HealthCheckResponse, handlers::AppState,
 };
 
 /// Basic health check response
@@ -147,9 +143,7 @@ pub async fn detailed_health_check(
 /// CRITICAL: Returns 503 Service Unavailable if vault is sealed.
 /// This follows HashiCorp Vault best practices where Kubernetes/load balancers
 /// should not route traffic to a sealed vault instance.
-pub async fn readiness_check(
-    State(state): State<AppState>,
-) -> ApiResult<Json<ReadinessResponse>> {
+pub async fn readiness_check(State(state): State<AppState>) -> ApiResult<Json<ReadinessResponse>> {
     let mut checks = HashMap::new();
 
     // Check if database is ready
@@ -182,20 +176,17 @@ pub async fn readiness_check(
     // CRITICAL: Return 503 if not ready (including when sealed)
     // This tells Kubernetes/load balancers to not route traffic here
     if !ready {
-        tracing::warn!("Readiness check failed - vault not ready (possibly sealed)");
-        return Err((
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            "Service not ready".to_string(),
-        ));
+        tracing::warn!("Readiness check failed - service not ready (possibly sealed)");
+        return Err(ApiError::ServiceUnavailable {
+            message: "Service not ready".to_string(),
+        });
     }
 
     Ok(Json(readiness))
 }
 
 /// Liveness check - determines if the service is alive and should not be restarted
-pub async fn liveness_check(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<LivenessResponse>> {
+pub async fn liveness_check(State(_state): State<AppState>) -> ApiResult<Json<LivenessResponse>> {
     // Simple liveness check - if we can respond, we're alive
     let liveness = LivenessResponse {
         alive: true,
@@ -224,9 +215,18 @@ async fn check_database_health(_state: &AppState) -> HealthCheck {
         last_check: chrono::Utc::now(),
         details: Some({
             let mut details = HashMap::new();
-            details.insert("connection_pool".to_string(), serde_json::Value::String("healthy".to_string()));
-            details.insert("active_connections".to_string(), serde_json::Value::Number(serde_json::Number::from(5)));
-            details.insert("max_connections".to_string(), serde_json::Value::Number(serde_json::Number::from(100)));
+            details.insert(
+                "connection_pool".to_string(),
+                serde_json::Value::String("healthy".to_string()),
+            );
+            details.insert(
+                "active_connections".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(5)),
+            );
+            details.insert(
+                "max_connections".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(100)),
+            );
             details
         }),
     }
@@ -250,9 +250,18 @@ async fn check_cache_health(_state: &AppState) -> HealthCheck {
         last_check: chrono::Utc::now(),
         details: Some({
             let mut details = HashMap::new();
-            details.insert("ping".to_string(), serde_json::Value::String("pong".to_string()));
-            details.insert("memory_usage".to_string(), serde_json::Value::String("25%".to_string()));
-            details.insert("connected_clients".to_string(), serde_json::Value::Number(serde_json::Number::from(10)));
+            details.insert(
+                "ping".to_string(),
+                serde_json::Value::String("pong".to_string()),
+            );
+            details.insert(
+                "memory_usage".to_string(),
+                serde_json::Value::String("25%".to_string()),
+            );
+            details.insert(
+                "connected_clients".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(10)),
+            );
             details
         }),
     }
@@ -276,9 +285,18 @@ async fn check_crypto_health(_state: &AppState) -> HealthCheck {
         last_check: chrono::Utc::now(),
         details: Some({
             let mut details = HashMap::new();
-            details.insert("hsm_status".to_string(), serde_json::Value::String("connected".to_string()));
-            details.insert("key_store".to_string(), serde_json::Value::String("accessible".to_string()));
-            details.insert("entropy_available".to_string(), serde_json::Value::Bool(true));
+            details.insert(
+                "hsm_status".to_string(),
+                serde_json::Value::String("connected".to_string()),
+            );
+            details.insert(
+                "key_store".to_string(),
+                serde_json::Value::String("accessible".to_string()),
+            );
+            details.insert(
+                "entropy_available".to_string(),
+                serde_json::Value::Bool(true),
+            );
             details
         }),
     }
@@ -302,9 +320,18 @@ async fn check_storage_health(_state: &AppState) -> HealthCheck {
         last_check: chrono::Utc::now(),
         details: Some({
             let mut details = HashMap::new();
-            details.insert("disk_usage".to_string(), serde_json::Value::String("45%".to_string()));
-            details.insert("backup_status".to_string(), serde_json::Value::String("current".to_string()));
-            details.insert("encryption".to_string(), serde_json::Value::String("enabled".to_string()));
+            details.insert(
+                "disk_usage".to_string(),
+                serde_json::Value::String("45%".to_string()),
+            );
+            details.insert(
+                "backup_status".to_string(),
+                serde_json::Value::String("current".to_string()),
+            );
+            details.insert(
+                "encryption".to_string(),
+                serde_json::Value::String("enabled".to_string()),
+            );
             details
         }),
     }
@@ -362,8 +389,14 @@ async fn check_hsm_health(hsm: &secreton_core::hsm::HsmBackend) -> HealthCheck {
         last_check: chrono::Utc::now(),
         details: Some({
             let mut details = HashMap::new();
-            details.insert("connected".to_string(), serde_json::Value::Bool(hsm_healthy));
-            details.insert("provider".to_string(), serde_json::Value::String("pkcs11".to_string()));
+            details.insert(
+                "connected".to_string(),
+                serde_json::Value::Bool(hsm_healthy),
+            );
+            details.insert(
+                "provider".to_string(),
+                serde_json::Value::String("pkcs11".to_string()),
+            );
             details
         }),
     }
@@ -399,7 +432,10 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
         details: Some({
             let mut details = HashMap::new();
             details.insert("unsealed".to_string(), serde_json::Value::Bool(is_unsealed));
-            details.insert("seal_type".to_string(), serde_json::Value::String("shamir".to_string()));
+            details.insert(
+                "seal_type".to_string(),
+                serde_json::Value::String("shamir".to_string()),
+            );
             details.insert("initialized".to_string(), serde_json::Value::Bool(true));
             details
         }),
@@ -423,7 +459,6 @@ mod tests {
     fn create_state() -> Arc<ServiceContainer> {
         let config = ApiConfig::default();
         tokio::runtime::Runtime::new()
-
             .block_on(ServiceContainer::new(&config))
             .expect("Failed to create services")
             .into()
@@ -489,6 +524,11 @@ mod tests {
         let payload = response.data.expect("detailed data");
         assert_eq!(payload.status, "healthy");
         assert_eq!(payload.checks.len(), 4);
-        assert!(payload.checks.values().all(|check| check.status == "healthy"));
+        assert!(
+            payload
+                .checks
+                .values()
+                .all(|check| check.status == "healthy")
+        );
     }
 }

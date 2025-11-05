@@ -2,7 +2,7 @@
 //!
 //! Tests for HTTP API handlers, middleware, services, and integration
 
-use secreton_api::{create_api_router, ApiState};
+use secreton_api::{ApiState, create_api_router};
 
 async fn create_test_app() -> axum::Router {
     // Create a simple test state for basic API testing

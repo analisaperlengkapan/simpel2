@@ -8,22 +8,19 @@
 //! Operations are fully audited and monitored.
 
 use axum::{
+    Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post},
-    Router,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::net::ToSocketAddrs;
-use tracing::{error, info, instrument, warn};
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use std::net::ToSocketAddrs;
+use std::sync::Arc;
+use tracing::{error, info, instrument, warn};
 
-use crate::{
-    handlers::AppState,
-    ApiError, ApiResponse, ApiResult,
-};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
 
 /// Create Raft management routes
 pub fn create_routes() -> Router<AppState> {
@@ -31,7 +28,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/raft/status", get(get_cluster_status))
         .route("/raft/peers", get(list_peers).post(add_peer))
         .route("/raft/peers/:node_id", delete(remove_peer))
-        .route("/raft/snapshot", post(create_snapshot).get(download_snapshot))
+        .route(
+            "/raft/snapshot",
+            post(create_snapshot).get(download_snapshot),
+        )
         .route("/raft/snapshots", get(list_snapshots))
         .route("/raft/restore", post(restore_snapshot))
 }
@@ -128,7 +128,7 @@ pub struct SnapshotMetadata {
     pub created_at: i64,
     ///ize in bytes
     pub size_bytes: u64,
-/// Compressed size in bytes
+    /// Compressed size in bytes
     pub compressed_size_bytes: u64,
     /// Last included log index
     pub last_included_index: u64,
@@ -191,20 +191,24 @@ pub async fn get_cluster_status(
     info!("Getting Raft cluster status");
 
     // Get Raft storage backend
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Get cluster status
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get cluster status: {}", e),
+        }
+    })?;
 
     // Determine health status
     let health_status = if status.leader_id.is_some() {
@@ -215,32 +219,42 @@ pub async fn get_cluster_status(
     };
 
     // Build peer information
-    let peers = status.membership.iter().map(|&node_id| {
-        let is_leader = Some(node_id) == status.leader_id;
-        let state = if is_leader {
-            "Leader".to_string()
-        } else if node_id == status.node_id {
-            "Follower".to_string()
-        } else {
-            "Follower".to_string()
-        };
+    let peers = status
+        .membership
+        .iter()
+        .map(|&node_id| {
+            let is_leader = Some(node_id) == status.leader_id;
+            let state = if is_leader {
+                "Leader".to_string()
+            } else if node_id == status.node_id {
+                "Follower".to_string()
+            } else {
+                "Follower".to_string()
+            };
 
-        // Calculate replication lag for followers
-        let replication_lag = if !is_leader && status.last_log_index.is_some() && status.last_applied.is_some() {
-            Some(status.last_log_index.unwrap().saturating_sub(status.last_applied.unwrap()))
-        } else {
-            None
-        };
+            // Calculate replication lag for followers
+            let replication_lag =
+                if !is_leader && status.last_log_index.is_some() && status.last_applied.is_some() {
+                    Some(
+                        status
+                            .last_log_index
+                            .unwrap()
+                            .saturating_sub(status.last_applied.unwrap()),
+                    )
+                } else {
+                    None
+                };
 
-        PeerInfo {
-            node_id,
-            address: format!("node-{}", node_id), // TODO: Get actual address from config
-            state,
-            health: NodeHealthStatus::Healthy, // TODO: Implement actual health checks
-            replication_lag,
-            last_heartbeat: None, // TODO: Track heartbeat timestamps
-        }
-    }).collect();
+            PeerInfo {
+                node_id,
+                address: format!("node-{}", node_id), // TODO: Get actual address from config
+                state,
+                health: NodeHealthStatus::Healthy, // TODO: Implement actual health checks
+                replication_lag,
+                last_heartbeat: None, // TODO: Track heartbeat timestamps
+            }
+        })
+        .collect();
 
     let response = ClusterStatusResponse {
         node_id: status.node_id,
@@ -256,7 +270,10 @@ pub async fn get_cluster_status(
 
     // Record metrics
     metrics::gauge!("secreton_raft_current_term", status.current_term as f64);
-    metrics::gauge!("secreton_raft_is_leader", if status.is_leader { 1.0 } else { 0.0 });
+    metrics::gauge!(
+        "secreton_raft_is_leader",
+        if status.is_leader { 1.0 } else { 0.0 }
+    );
     if let Some(last_applied) = status.last_applied {
         metrics::gauge!("secreton_raft_last_applied", last_applied as f64);
     }
@@ -277,38 +294,46 @@ pub async fn list_peers(
     info!("Listing cluster peers");
 
     // Get cluster status first
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get cluster status: {}", e),
+        }
+    })?;
 
     // Build peer list
-    let peers = status.membership.iter().map(|&node_id| {
-        let is_leader = Some(node_id) == status.leader_id;
-        let state = if is_leader {
-            "Leader".to_string()
-        } else {
-            "Follower".to_string()
-        };
+    let peers = status
+        .membership
+        .iter()
+        .map(|&node_id| {
+            let is_leader = Some(node_id) == status.leader_id;
+            let state = if is_leader {
+                "Leader".to_string()
+            } else {
+                "Follower".to_string()
+            };
 
-        PeerInfo {
-            node_id,
-            address: format!("node-{}", node_id),
-            state,
-            health: NodeHealthStatus::Healthy,
-            replication_lag: None,
-            last_heartbeat: None,
-        }
-    }).collect();
+            PeerInfo {
+                node_id,
+                address: format!("node-{}", node_id),
+                state,
+                health: NodeHealthStatus::Healthy,
+                replication_lag: None,
+                last_heartbeat: None,
+            }
+        })
+        .collect();
 
     info!("Listed {} peers", peers.len());
     Ok(Json(ApiResponse::success(peers)))
@@ -346,7 +371,7 @@ pub async fn add_peer(
     if !request.address.contains(':') {
         warn!("Invalid address format: {}", request.address);
         return Err(ApiError::BadRequest(
-            "Address must be in format 'host:port'".to_string()
+            "Address must be in format 'host:port'".to_string(),
         ));
     }
 
@@ -355,62 +380,76 @@ pub async fn add_peer(
         Ok(mut addrs) => {
             if addrs.next().is_none() {
                 warn!("Address does not resolve: {}", request.address);
-                return Err(ApiError::BadRequest(
-                    format!("Address does not resolve: {}", request.address)
-                ));
+                return Err(ApiError::BadRequest(format!(
+                    "Address does not resolve: {}",
+                    request.address
+                )));
             }
             info!("Address {} validated successfully", request.address);
         }
         Err(e) => {
             warn!("Failed to resolve address {}: {}", request.address, e);
-            return Err(ApiError::BadRequest(
-                format!("Invalid address format: {}", e)
-            ));
+            return Err(ApiError::BadRequest(format!(
+                "Invalid address format: {}",
+                e
+            )));
         }
     }
 
     // Get Raft storage backend
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Check if node already exists
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get cluster status: {}", e),
+        }
+    })?;
 
     if status.membership.contains(&request.node_id) {
         warn!("Node {} already exists in cluster", request.node_id);
-        return Err(ApiError::BadRequest(
-            format!("Node {} already exists in cluster", request.node_id)
-        ));
+        return Err(ApiError::BadRequest(format!(
+            "Node {} already exists in cluster",
+            request.node_id
+        )));
     }
 
     // Add the node
-    raft_storage.add_node(request.node_id, request.address.clone()).await
+    raft_storage
+        .add_node(request.node_id, request.address.clone())
+        .await
         .map_err(|e| {
             error!("Failed to add peer: {}", e);
             // Record failure metric
             metrics::counter!("secreton_raft_peer_failures", "operation" => "add").increment(1);
-            ApiError::InternalServerError(format!("Failed to add peer: {}", e))
+            ApiError::Internal {
+                message: format!("Failed to add peer: {}", e),
+            }
         })?;
 
     // Get updated status
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get updated cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get updated cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get updated cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get updated cluster status: {}", e),
+        }
+    })?;
 
     // Build updated peer list
-    let peers = status.membership.iter().map(|&node_id| {
-        PeerInfo {
+    let peers = status
+        .membership
+        .iter()
+        .map(|&node_id| PeerInfo {
             node_id,
             address: if node_id == request.node_id {
                 request.address.clone()
@@ -425,8 +464,8 @@ pub async fn add_peer(
             health: NodeHealthStatus::Healthy,
             replication_lag: None,
             last_heartbeat: None,
-        }
-    }).collect();
+        })
+        .collect();
 
     // Record metrics
     metrics::counter!("secreton_raft_peers_added", 1);
@@ -468,43 +507,54 @@ pub async fn remove_peer(
     // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Check if removing this node would break quorum
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get cluster status: {}", e),
+        }
+    })?;
 
     // Validate node exists in cluster
     if !status.membership.contains(&node_id) {
         warn!("Node {} does not exist in cluster", node_id);
-        return Err(ApiError::BadRequest(
-            format!("Node {} does not exist in cluster", node_id)
-        ));
+        return Err(ApiError::BadRequest(format!(
+            "Node {} does not exist in cluster",
+            node_id
+        )));
     }
 
     // Prevent removing the leader (should transfer leadership first)
     if Some(node_id) == status.leader_id {
-        warn!("Cannot remove leader node {}. Transfer leadership first.", node_id);
+        warn!(
+            "Cannot remove leader node {}. Transfer leadership first.",
+            node_id
+        );
         return Err(ApiError::BadRequest(
-            "Cannot remove leader node. Transfer leadership first.".to_string()
+            "Cannot remove leader node. Transfer leadership first.".to_string(),
         ));
     }
 
     // Check quorum safety
     let remaining_nodes = status.membership.len() - 1;
     if remaining_nodes < 2 {
-        warn!("Cannot remove peer: would break quorum (remaining nodes: {})", remaining_nodes);
+        warn!(
+            "Cannot remove peer: would break quorum (remaining nodes: {})",
+            remaining_nodes
+        );
         return Err(ApiError::BadRequest(
-            "Cannot remove peer: would break quorum. Minimum 2 nodes required.".to_string()
+            "Cannot remove peer: would break quorum. Minimum 2 nodes required.".to_string(),
         ));
     }
 
@@ -513,29 +563,33 @@ pub async fn remove_peer(
     if remaining_nodes < quorum_size {
         warn!("Cannot remove peer: would lose quorum majority");
         return Err(ApiError::BadRequest(
-            "Cannot remove peer: would lose quorum majority.".to_string()
+            "Cannot remove peer: would lose quorum majority.".to_string(),
         ));
     }
 
     // Remove the node
-    raft_storage.remove_node(node_id).await
-        .map_err(|e| {
-            error!("Failed to remove peer: {}", e);
-            // Record failure metric
-            metrics::counter!("secreton_raft_peer_failures", "operation" => "remove").increment(1);
-            ApiError::InternalServerError(format!("Failed to remove peer: {}", e))
-        })?;
+    raft_storage.remove_node(node_id).await.map_err(|e| {
+        error!("Failed to remove peer: {}", e);
+        // Record failure metric
+        metrics::counter!("secreton_raft_peer_failures", "operation" => "remove").increment(1);
+        ApiError::Internal {
+            message: format!("Failed to remove peer: {}", e),
+        }
+    })?;
 
     // Get updated status
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get updated cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get updated cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get updated cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get updated cluster status: {}", e),
+        }
+    })?;
 
     // Build updated peer list
-    let peers = status.membership.iter().map(|&node_id| {
-        PeerInfo {
+    let peers = status
+        .membership
+        .iter()
+        .map(|&node_id| PeerInfo {
             node_id,
             address: format!("node-{}", node_id),
             state: if Some(node_id) == status.leader_id {
@@ -546,8 +600,8 @@ pub async fn remove_peer(
             health: NodeHealthStatus::Healthy,
             replication_lag: None,
             last_heartbeat: None,
-        }
-    }).collect();
+        })
+        .collect();
 
     // Record metrics
     metrics::counter!("secreton_raft_peers_removed", 1);
@@ -592,31 +646,36 @@ pub async fn create_snapshot(
     // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Check if this node is the leader
     if !raft_storage.is_leader().await {
         warn!("Snapshot creation attempted on non-leader node");
         return Err(ApiError::BadRequest(
-            "Snapshots can only be created on the leader node".to_string()
+            "Snapshots can only be created on the leader node".to_string(),
         ));
     }
 
     // Get current cluster status for metadata
-    let status = raft_storage.status().await
-        .map_err(|e| {
-            error!("Failed to get cluster status: {}", e);
-            ApiError::InternalServerError(format!("Failed to get cluster status: {}", e))
-        })?;
+    let status = raft_storage.status().await.map_err(|e| {
+        error!("Failed to get cluster status: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get cluster status: {}", e),
+        }
+    })?;
 
     // Generate snapshot ID (timestamp-based)
-    let snapshot_id = format!("snapshot-{}-{}",
+    let snapshot_id = format!(
+        "snapshot-{}-{}",
         chrono::Utc::now().timestamp(),
         uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
     );
@@ -638,59 +697,66 @@ pub async fn create_snapshot(
     let original_size = snapshot_bytes.len() as u64;
 
     // Compress snapshot data
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use std::io::Write;
 
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(snapshot_bytes)
-        .map_err(|e| {
-            error!("Failed to compress snapshot: {}", e);
-            ApiError::InternalServerError(format!("Failed to compress snapshot: {}", e))
-        })?;
-    let compressed_data = encoder.finish()
-        .map_err(|e| {
-            error!("Failed to finish compression: {}", e);
-            ApiError::InternalServerError(format!("Failed to finish compression: {}", e))
-        })?;
+    encoder.write_all(snapshot_bytes).map_err(|e| {
+        error!("Failed to compress snapshot: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to compress snapshot: {}", e),
+        }
+    })?;
+    let compressed_data = encoder.finish().map_err(|e| {
+        error!("Failed to finish compression: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to finish compression: {}", e),
+        }
+    })?;
     let compressed_size = compressed_data.len() as u64;
 
-    info!("Snapshot compressed: {} bytes -> {} bytes ({}% reduction)",
-        original_size, compressed_size,
+    info!(
+        "Snapshot compressed: {} bytes -> {} bytes ({}% reduction)",
+        original_size,
+        compressed_size,
         100 - (compressed_size * 100 / original_size.max(1))
     );
 
     // Encrypt snapshot using crypto engine
-    let encrypted_data = state.crypto.encrypt(&compressed_data)
-        .map_err(|e| {
-            error!("Failed to encrypt snapshot: {}", e);
-            ApiError::InternalServerError(format!("Failed to encrypt snapshot: {}", e))
-        })?;
+    let encrypted_data = state.crypto.encrypt(&compressed_data).map_err(|e| {
+        error!("Failed to encrypt snapshot: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to encrypt snapshot: {}", e),
+        }
+    })?;
 
     info!("Snapshot encrypted: {} bytes", encrypted_data.len());
 
     // Calculate checksum (SHA-256) of encrypted data
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&encrypted_data);
     let checksum = format!("{:x}", hasher.finalize());
 
     // Sign snapshot with Ed25519
-    let signature_bytes = state.crypto.sign(&encrypted_data)
-        .map_err(|e| {
-            error!("Failed to sign snapshot: {}", e);
-            ApiError::InternalServerError(format!("Failed to sign snapshot: {}", e))
-        })?;
+    let signature_bytes = state.crypto.sign(&encrypted_data).map_err(|e| {
+        error!("Failed to sign snapshot: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to sign snapshot: {}", e),
+        }
+    })?;
     let signature = Some(hex::encode(&signature_bytes));
 
     info!("Snapshot signed with Ed25519");
 
     // Store snapshot in database
-    let client = state.pool.get().await
-        .map_err(|e| {
-            error!("Failed to get database connection: {}", e);
-            ApiError::InternalServerError(format!("Failed to get database connection: {}", e))
-        })?;
+    let client = state.pool.get().await.map_err(|e| {
+        error!("Failed to get database connection: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get database connection: {}", e),
+        }
+    })?;
 
     client.execute(
         "INSERT INTO raft_snapshots (snapshot_id, created_at, size_bytes, compressed_size_bytes,
@@ -710,7 +776,7 @@ pub async fn create_snapshot(
     ).await
     .map_err(|e| {
         error!("Failed to store snapshot: {}", e);
-        ApiError::InternalServerError(format!("Failed to store snapshot: {}", e))
+        ApiError::Internal { message: format!("Failed to store snapshot: {}", e) }
     })?;
 
     info!("Snapshot stored in database");
@@ -731,20 +797,26 @@ pub async fn create_snapshot(
     // Record metrics
     metrics::counter!("secreton_raft_snapshots_created", 1);
     metrics::gauge!("secreton_raft_snapshot_size_bytes", original_size as f64);
-    metrics::gauge!("secreton_raft_snapshot_compressed_size_bytes", compressed_size as f64);
+    metrics::gauge!(
+        "secreton_raft_snapshot_compressed_size_bytes",
+        compressed_size as f64
+    );
 
     // Audit logging
-    state.audit.log_event(
-        "snapshot_created",
-        &format!("Snapshot {} created", snapshot_id),
-        serde_json::json!({
-            "snapshot_id": snapshot_id,
-            "size_bytes": original_size,
-            "compressed_size_bytes": compressed_size,
-            "last_included_index": status.last_applied.unwrap_or(0),
-            "last_included_term": status.current_term,
-        }),
-    ).await;
+    state
+        .audit
+        .log_event(
+            "snapshot_created",
+            &format!("Snapshot {} created", snapshot_id),
+            serde_json::json!({
+                "snapshot_id": snapshot_id,
+                "size_bytes": original_size,
+                "compressed_size_bytes": compressed_size,
+                "last_included_index": status.last_applied.unwrap_or(0),
+                "last_included_term": status.current_term,
+            }),
+        )
+        .await;
 
     // Trigger automatic cleanup of old snapshots
     tokio::spawn(cleanup_old_snapshots(state.pool.clone()));
@@ -776,12 +848,15 @@ pub async fn download_snapshot(
     // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
-    let _raft_storage = state.storage
+    let _raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Get snapshot ID from query parameter or use latest
@@ -789,20 +864,23 @@ pub async fn download_snapshot(
         id
     } else {
         // Get latest snapshot
-        let client = state.pool.get().await
-            .map_err(|e| {
-                error!("Failed to get database connection: {}", e);
-                ApiError::InternalServerError(format!("Failed to get database connection: {}", e))
-            })?;
-
-        let row = client.query_one(
-            "SELECT snapshot_id FROM raft_snapshots ORDER BY created_at DESC LIMIT 1",
-            &[],
-        ).await
-        .map_err(|e| {
-            error!("Failed to get latest snapshot: {}", e);
-            ApiError::NotFound("No snapshots available".to_string())
+        let client = state.pool.get().await.map_err(|e| {
+            error!("Failed to get database connection: {}", e);
+            ApiError::Internal {
+                message: format!("Failed to get database connection: {}", e),
+            }
         })?;
+
+        let row = client
+            .query_one(
+                "SELECT snapshot_id FROM raft_snapshots ORDER BY created_at DESC LIMIT 1",
+                &[],
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to get latest snapshot: {}", e);
+                ApiError::NotFound("No snapshots available".to_string())
+            })?;
 
         row.get::<_, String>(0)
     };
@@ -810,20 +888,23 @@ pub async fn download_snapshot(
     info!("Downloading snapshot: {}", snapshot_id);
 
     // Retrieve snapshot from database
-    let client = state.pool.get().await
-        .map_err(|e| {
-            error!("Failed to get database connection: {}", e);
-            ApiError::InternalServerError(format!("Failed to get database connection: {}", e))
-        })?;
-
-    let row = client.query_one(
-        "SELECT encrypted_data, checksum, signature FROM raft_snapshots WHERE snapshot_id = $1",
-        &[&snapshot_id],
-    ).await
-    .map_err(|e| {
-        error!("Failed to retrieve snapshot: {}", e);
-        ApiError::NotFound(format!("Snapshot not found: {}", snapshot_id))
+    let client = state.pool.get().await.map_err(|e| {
+        error!("Failed to get database connection: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get database connection: {}", e),
+        }
     })?;
+
+    let row = client
+        .query_one(
+            "SELECT encrypted_data, checksum, signature FROM raft_snapshots WHERE snapshot_id = $1",
+            &[&snapshot_id],
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to retrieve snapshot: {}", e);
+            ApiError::NotFound(format!("Snapshot not found: {}", snapshot_id))
+        })?;
 
     let encrypted_data: Vec<u8> = row.get(0);
     let checksum: String = row.get(1);
@@ -832,44 +913,57 @@ pub async fn download_snapshot(
     info!("Snapshot retrieved: {} bytes", encrypted_data.len());
 
     // Verify checksum
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&encrypted_data);
     let computed_checksum = format!("{:x}", hasher.finalize());
 
     if computed_checksum != checksum {
-        error!("Snapshot checksum mismatch: expected {}, got {}", checksum, computed_checksum);
-        return Err(ApiError::InternalServerError("Snapshot integrity check failed".to_string()));
+        error!(
+            "Snapshot checksum mismatch: expected {}, got {}",
+            checksum, computed_checksum
+        );
+        return Err(ApiError::Internal {
+            message: "Snapshot integrity check failed".to_string(),
+        });
     }
 
     info!("Snapshot checksum verified");
 
     // Verify signature if present
     if let Some(sig) = signature {
-        let signature_bytes = hex::decode(&sig)
-            .map_err(|e| {
-                error!("Failed to decode signature: {}", e);
-                ApiError::InternalServerError(format!("Failed to decode signature: {}", e))
-            })?;
+        let signature_bytes = hex::decode(&sig).map_err(|e| {
+            error!("Failed to decode signature: {}", e);
+            ApiError::Internal {
+                message: format!("Failed to decode signature: {}", e),
+            }
+        })?;
 
-        state.crypto.verify(&encrypted_data, &signature_bytes)
+        state
+            .crypto
+            .verify(&encrypted_data, &signature_bytes)
             .map_err(|e| {
                 error!("Snapshot signature verification failed: {}", e);
-                ApiError::InternalServerError("Snapshot signature verification failed".to_string())
+                ApiError::Internal {
+                    message: "Snapshot signature verification failed".to_string(),
+                }
             })?;
 
         info!("Snapshot signature verified");
     }
 
     // Audit logging
-    state.audit.log_event(
-        "snapshot_downloaded",
-        &format!("Snapshot {} downloaded", snapshot_id),
-        serde_json::json!({
-            "snapshot_id": snapshot_id,
-            "size_bytes": encrypted_data.len(),
-        }),
-    ).await;
+    state
+        .audit
+        .log_event(
+            "snapshot_downloaded",
+            &format!("Snapshot {} downloaded", snapshot_id),
+            serde_json::json!({
+                "snapshot_id": snapshot_id,
+                "size_bytes": encrypted_data.len(),
+            }),
+        )
+        .await;
 
     // Return encrypted snapshot data as binary response
     use axum::http::header;
@@ -883,7 +977,9 @@ pub async fn download_snapshot(
         .body(axum::body::Body::from(encrypted_data))
         .map_err(|e| {
             error!("Failed to build response: {}", e);
-            ApiError::InternalServerError(format!("Failed to build response: {}", e))
+            ApiError::Internal {
+                message: format!("Failed to build response: {}", e),
+            }
         })?;
 
     info!("Snapshot {} download complete", snapshot_id);
@@ -913,35 +1009,44 @@ pub async fn list_snapshots(
     // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
-    let _raft_storage = state.storage
+    let _raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Retrieve all snapshots from database
-    let client = state.pool.get().await
-        .map_err(|e| {
-            error!("Failed to get database connection: {}", e);
-            ApiError::InternalServerError(format!("Failed to get database connection: {}", e))
-        })?;
+    let client = state.pool.get().await.map_err(|e| {
+        error!("Failed to get database connection: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get database connection: {}", e),
+        }
+    })?;
 
-    let rows = client.query(
-        "SELECT snapshot_id, created_at, size_bytes, compressed_size_bytes,
+    let rows = client
+        .query(
+            "SELECT snapshot_id, created_at, size_bytes, compressed_size_bytes,
          last_included_index, last_included_term, checksum, signature
          FROM raft_snapshots
          ORDER BY created_at DESC",
-        &[],
-    ).await
-    .map_err(|e| {
-        error!("Failed to list snapshots: {}", e);
-        ApiError::InternalServerError(format!("Failed to list snapshots: {}", e))
-    })?;
+            &[],
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to list snapshots: {}", e);
+            ApiError::Internal {
+                message: format!("Failed to list snapshots: {}", e),
+            }
+        })?;
 
-    let snapshots: Vec<SnapshotMetadata> = rows.iter().map(|row| {
-        SnapshotMetadata {
+    let snapshots: Vec<SnapshotMetadata> = rows
+        .iter()
+        .map(|row| SnapshotMetadata {
             snapshot_id: row.get(0),
             created_at: row.get::<_, chrono::DateTime<Utc>>(1).timestamp(),
             size_bytes: row.get::<_, i64>(2) as u64,
@@ -951,8 +1056,8 @@ pub async fn list_snapshots(
             checksum: row.get(6),
             encrypted: true,
             signature: row.get(7),
-        }
-    }).collect();
+        })
+        .collect();
 
     let response = ListSnapshotsResponse {
         total: snapshots.len(),
@@ -1000,50 +1105,58 @@ pub async fn restore_snapshot(
     // Validate snapshot ID format
     if request.snapshot_id.is_empty() {
         warn!("Attempted to restore with empty snapshot ID");
-        return Err(ApiError::BadRequest("Snapshot ID cannot be empty".to_string()));
+        return Err(ApiError::BadRequest(
+            "Snapshot ID cannot be empty".to_string(),
+        ));
     }
 
     if !request.snapshot_id.starts_with("snapshot-") {
         warn!("Invalid snapshot ID format: {}", request.snapshot_id);
         return Err(ApiError::BadRequest(
-            "Invalid snapshot ID format. Must start with 'snapshot-'".to_string()
+            "Invalid snapshot ID format. Must start with 'snapshot-'".to_string(),
         ));
     }
 
     // Get Raft storage backend
-    let raft_storage = state.storage
+    let raft_storage = state
+        .storage
         .as_any()
         .downcast_ref::<secreton_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
-            ApiError::InternalServerError("Raft cluster not configured".to_string())
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
         })?;
 
     // Check if this node is the leader
     if !raft_storage.is_leader().await {
         warn!("Snapshot restore attempted on non-leader node");
         return Err(ApiError::BadRequest(
-            "Snapshots can only be restored on the leader node".to_string()
+            "Snapshots can only be restored on the leader node".to_string(),
         ));
     }
 
     // Retrieve snapshot from database
-    let client = state.pool.get().await
-        .map_err(|e| {
-            error!("Failed to get database connection: {}", e);
-            ApiError::InternalServerError(format!("Failed to get database connection: {}", e))
-        })?;
+    let client = state.pool.get().await.map_err(|e| {
+        error!("Failed to get database connection: {}", e);
+        ApiError::Internal {
+            message: format!("Failed to get database connection: {}", e),
+        }
+    })?;
 
-    let row = client.query_one(
-        "SELECT encrypted_data, checksum, signature, size_bytes, compressed_size_bytes,
+    let row = client
+        .query_one(
+            "SELECT encrypted_data, checksum, signature, size_bytes, compressed_size_bytes,
          last_included_index, last_included_term, created_at
          FROM raft_snapshots WHERE snapshot_id = $1",
-        &[&request.snapshot_id],
-    ).await
-    .map_err(|e| {
-        error!("Failed to retrieve snapshot: {}", e);
-        ApiError::NotFound(format!("Snapshot not found: {}", request.snapshot_id))
-    })?;
+            &[&request.snapshot_id],
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to retrieve snapshot: {}", e);
+            ApiError::NotFound(format!("Snapshot not found: {}", request.snapshot_id))
+        })?;
 
     let encrypted_data: Vec<u8> = row.get(0);
     let checksum: String = row.get(1);
@@ -1057,44 +1170,53 @@ pub async fn restore_snapshot(
     info!("Snapshot retrieved: {} bytes", encrypted_data.len());
 
     // Step 1: Verify checksum
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&encrypted_data);
     let computed_checksum = format!("{:x}", hasher.finalize());
 
     if computed_checksum != checksum {
-        error!("Snapshot checksum mismatch: expected {}, got {}", checksum, computed_checksum);
-        metrics::counter!("secreton_raft_restore_failures", "reason" => "checksum_mismatch").increment(1);
-        return Err(ApiError::InternalServerError("Snapshot integrity check failed: checksum mismatch".to_string()));
+        error!(
+            "Snapshot checksum mismatch: expected {}, got {}",
+            checksum, computed_checksum
+        );
+        metrics::counter!("secreton_raft_restore_failures", "reason" => "checksum_mismatch")
+            .increment(1);
+        return Err(ApiError::Internal {
+            message: "Snapshot integrity check failed: checksum mismatch".to_string(),
+        });
     }
 
     info!("✓ Snapshot checksum verified");
 
     // Step 2: Verify signature if present
     if let Some(sig) = &signature {
-        let signature_bytes = hex::decode(sig)
-            .map_err(|e| {
-                error!("Failed to decode signature: {}", e);
-                ApiError::InternalServerError(format!("Failed to decode signature: {}", e))
-            })?;
+        let signature_bytes = hex::decode(sig).map_err(|e| {
+            error!("Failed to decode signature: {}", e);
+            ApiError::Internal {
+                message: format!("Failed to decode signature: {}", e),
+            }
+        })?;
 
         state.crypto.verify(&encrypted_data, &signature_bytes)
             .map_err(|e| {
                 error!("Snapshot signature verification failed: {}", e);
                 metrics::counter!("secreton_raft_restore_failures", "reason" => "signature_verification").increment(1);
-                return ApiError::InternalServerError("Snapshot signature verification failed".to_string());
+                return ApiError::Internal { message: "Snapshot signature verification failed".to_string() };
             })?;
 
         info!("✓ Snapshot signature verified");
     }
 
     // Step 3: Decrypt snapshot data
-    let compressed_data = state.crypto.decrypt(&encrypted_data)
-        .map_err(|e| {
-            error!("Failed to decrypt snapshot: {}", e);
-            metrics::counter!("secreton_raft_restore_failures", "reason" => "decryption_failed").increment(1);
-            ApiError::InternalServerError(format!("Failed to decrypt snapshot: {}", e))
-        })?;
+    let compressed_data = state.crypto.decrypt(&encrypted_data).map_err(|e| {
+        error!("Failed to decrypt snapshot: {}", e);
+        metrics::counter!("secreton_raft_restore_failures", "reason" => "decryption_failed")
+            .increment(1);
+        ApiError::Internal {
+            message: format!("Failed to decrypt snapshot: {}", e),
+        }
+    })?;
 
     info!("✓ Snapshot decrypted: {} bytes", compressed_data.len());
 
@@ -1104,32 +1226,46 @@ pub async fn restore_snapshot(
 
     let mut decoder = GzDecoder::new(&compressed_data[..]);
     let mut snapshot_data = Vec::new();
-    decoder.read_to_end(&mut snapshot_data)
-        .map_err(|e| {
-            error!("Failed to decompress snapshot: {}", e);
-            metrics::counter!("secreton_raft_restore_failures", "reason" => "decompression_failed").increment(1);
-            ApiError::InternalServerError(format!("Failed to decompress snapshot: {}", e))
-        })?;
+    decoder.read_to_end(&mut snapshot_data).map_err(|e| {
+        error!("Failed to decompress snapshot: {}", e);
+        metrics::counter!("secreton_raft_restore_failures", "reason" => "decompression_failed")
+            .increment(1);
+        ApiError::Internal {
+            message: format!("Failed to decompress snapshot: {}", e),
+        }
+    })?;
 
     info!("✓ Snapshot decompressed: {} bytes", snapshot_data.len());
 
     // Step 5: Validate snapshot data format
-    let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_data)
-        .map_err(|e| {
-            error!("Failed to parse snapshot data: {}", e);
-            metrics::counter!("secreton_raft_restore_failures", "reason" => "invalid_format").increment(1);
-            ApiError::InternalServerError(format!("Failed to parse snapshot data: {}", e))
-        })?;
+    let snapshot_json: serde_json::Value = serde_json::from_slice(&snapshot_data).map_err(|e| {
+        error!("Failed to parse snapshot data: {}", e);
+        metrics::counter!("secreton_raft_restore_failures", "reason" => "invalid_format")
+            .increment(1);
+        ApiError::Internal {
+            message: format!("Failed to parse snapshot data: {}", e),
+        }
+    })?;
 
     info!("✓ Snapshot data validated");
 
     // Step 6: Check version compatibility
     // In production, this would check if the snapshot version is compatible with current version
     // For now, we'll just log the snapshot metadata
-    info!("Snapshot metadata: node_id={}, term={}, index={}",
-        snapshot_json.get("node_id").and_then(|v| v.as_u64()).unwrap_or(0),
-        snapshot_json.get("term").and_then(|v| v.as_u64()).unwrap_or(0),
-        snapshot_json.get("index").and_then(|v| v.as_u64()).unwrap_or(0)
+    info!(
+        "Snapshot metadata: node_id={}, term={}, index={}",
+        snapshot_json
+            .get("node_id")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        snapshot_json
+            .get("term")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        snapshot_json
+            .get("index")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0)
     );
 
     // Step 7: Create backup of current state before restoration
@@ -1192,32 +1328,48 @@ pub async fn restore_snapshot(
 async fn cleanup_old_snapshots(pool: deadpool_postgres::Pool) {
     const RETENTION_COUNT: i64 = 10;
 
-    info!("Starting automatic snapshot cleanup (retention: {} snapshots)", RETENTION_COUNT);
+    info!(
+        "Starting automatic snapshot cleanup (retention: {} snapshots)",
+        RETENTION_COUNT
+    );
 
     match pool.get().await {
         Ok(client) => {
             // Get count of snapshots
-            match client.query_one("SELECT COUNT(*) FROM raft_snapshots", &[]).await {
+            match client
+                .query_one("SELECT COUNT(*) FROM raft_snapshots", &[])
+                .await
+            {
                 Ok(row) => {
                     let count: i64 = row.get(0);
 
                     if count <= RETENTION_COUNT {
-                        info!("Snapshot count ({}) within retention limit ({}), no cleanup needed", count, RETENTION_COUNT);
+                        info!(
+                            "Snapshot count ({}) within retention limit ({}), no cleanup needed",
+                            count, RETENTION_COUNT
+                        );
                         return;
                     }
 
-                    info!("Snapshot count ({}) exceeds retention limit ({}), cleaning up {} old snapshots",
-                        count, RETENTION_COUNT, count - RETENTION_COUNT);
+                    info!(
+                        "Snapshot count ({}) exceeds retention limit ({}), cleaning up {} old snapshots",
+                        count,
+                        RETENTION_COUNT,
+                        count - RETENTION_COUNT
+                    );
 
                     // Delete old snapshots, keeping the most recent RETENTION_COUNT
-                    match client.execute(
-                        "DELETE FROM raft_snapshots WHERE snapshot_id IN (
+                    match client
+                        .execute(
+                            "DELETE FROM raft_snapshots WHERE snapshot_id IN (
                             SELECT snapshot_id FROM raft_snapshots
                             ORDER BY created_at DESC
                             OFFSET $1
                         )",
-                        &[&RETENTION_COUNT],
-                    ).await {
+                            &[&RETENTION_COUNT],
+                        )
+                        .await
+                    {
                         Ok(deleted) => {
                             info!("✓ Cleaned up {} old snapshots", deleted);
                             metrics::counter!("secreton_raft_snapshots_cleaned", deleted as u64);
@@ -1253,16 +1405,14 @@ mod tests {
             last_applied: Some(100),
             last_log_index: Some(100),
             health_status: NodeHealthStatus::Healthy,
-            peers: vec![
-                PeerInfo {
-                    node_id: 1,
-                    address: "node-1".to_string(),
-                    state: "Leader".to_string(),
-                    health: NodeHealthStatus::Healthy,
-                    replication_lag: None,
-                    last_heartbeat: None,
-                },
-            ],
+            peers: vec![PeerInfo {
+                node_id: 1,
+                address: "node-1".to_string(),
+                state: "Leader".to_string(),
+                health: NodeHealthStatus::Healthy,
+                replication_lag: None,
+                last_heartbeat: None,
+            }],
         };
 
         let json = serde_json::to_string(&status).unwrap();

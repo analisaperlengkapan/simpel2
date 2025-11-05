@@ -3,16 +3,12 @@
 //! Provides REST endpoints for vault seal/unseal operations,
 //! initialization, and rekey functionality.
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn, error, instrument};
+use tracing::{error, info, instrument, warn};
 
 use crate::handlers::AppState;
-use secreton_core::services::seal::{SealService, SealStatus, SealError};
+use secreton_core::services::seal::{SealError, SealStatus};
 
 /// Initialize vault request
 #[derive(Debug, Deserialize)]
@@ -146,8 +142,10 @@ pub async fn get_seal_status(
     let status = state.seal.status().await;
     let response: SealStatusResponse = status.into();
 
-    info!("Seal status: sealed={}, initialized={}, progress={}/{}",
-        response.sealed, response.initialized, response.progress, response.t);
+    info!(
+        "Seal status: sealed={}, initialized={}, progress={}/{}",
+        response.sealed, response.initialized, response.progress, response.t
+    );
 
     Ok(Json(response))
 }
@@ -158,20 +156,20 @@ pub async fn get_seal_status(
 /// CRITICAL SECURITY: This immediately seals the vault and clears the master key from memory.
 /// All subsequent operations (except whitelisted endpoints) will be blocked until unsealed.
 #[instrument(skip(state))]
-pub async fn seal_vault(
-    State(state): State<AppState>,
-) -> Result<StatusCode, (StatusCode, String)> {
+pub async fn seal_vault(State(state): State<AppState>) -> Result<StatusCode, (StatusCode, String)> {
     info!("🔒 Sealing vault");
 
     // TODO: Check admin authentication
     // For now, allow any authenticated user to seal (in production, restrict to admins)
 
     // Seal the vault
-    state.seal.seal().await
-        .map_err(|e| {
-            error!("Failed to seal vault: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to seal vault: {}", e))
-        })?;
+    state.seal.seal().await.map_err(|e| {
+        error!("Failed to seal vault: {:?}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to seal vault: {}", e),
+        )
+    })?;
 
     info!("✅ Vault sealed successfully");
 
@@ -200,36 +198,42 @@ pub async fn unseal_vault(
     // Handle reset if requested
     if request.reset {
         info!("Resetting unseal progress");
-        state.seal.reset_unseal().await
-            .map_err(|e| {
-                error!("Failed to reset unseal: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reset unseal: {}", e))
-            })?;
+        state.seal.reset_unseal().await.map_err(|e| {
+            error!("Failed to reset unseal: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to reset unseal: {}", e),
+            )
+        })?;
     }
 
     // Provide unseal key (Shamir share)
-    let status = state.seal.unseal(request.key).await
-        .map_err(|e| {
-            error!("Unseal failed: {:?}", e);
-            // TODO: Update metrics (unseal_failures)
-            match e {
-                SealError::InvalidUnsealKey => {
-                    (StatusCode::BAD_REQUEST, "Invalid unseal key".to_string())
-                }
-                SealError::AlreadyUnsealed => {
-                    (StatusCode::BAD_REQUEST, "Vault is already unsealed".to_string())
-                }
-                _ => {
-                    (StatusCode::INTERNAL_SERVER_ERROR, format!("Unseal error: {}", e))
-                }
+    let status = state.seal.unseal(request.key).await.map_err(|e| {
+        error!("Unseal failed: {:?}", e);
+        // TODO: Update metrics (unseal_failures)
+        match e {
+            SealError::InvalidUnsealKey => {
+                (StatusCode::BAD_REQUEST, "Invalid unseal key".to_string())
             }
-        })?;
+            SealError::AlreadyUnsealed => (
+                StatusCode::BAD_REQUEST,
+                "Vault is already unsealed".to_string(),
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Unseal error: {}", e),
+            ),
+        }
+    })?;
 
     let response: SealStatusResponse = status.into();
 
     // Log progress
     if response.sealed {
-        info!("Unseal progress: {}/{} shares provided", response.progress, response.t);
+        info!(
+            "Unseal progress: {}/{} shares provided",
+            response.progress, response.t
+        );
     } else {
         info!("✅ Vault unsealed successfully!");
         // TODO: Audit log successful unseal
@@ -295,15 +299,18 @@ pub async fn initialize_vault(
     // In production, this would update the existing service's config
 
     // Initialize vault - generates master key and Shamir shares
-    let shares = state.seal.initialize().await
-        .map_err(|e| {
-            error!("Failed to initialize vault: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to initialize vault: {}", e))
-        })?;
+    let shares = state.seal.initialize().await.map_err(|e| {
+        error!("Failed to initialize vault: {:?}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to initialize vault: {}", e),
+        )
+    })?;
 
     // Encode shares as base64 for distribution
-    use base64::{engine::general_purpose, Engine as _};
-    let encoded_shares: Vec<String> = shares.iter()
+    use base64::{Engine as _, engine::general_purpose};
+    let encoded_shares: Vec<String> = shares
+        .iter()
         .map(|share| {
             let share_bytes = share.to_bytes().expect("Failed to convert share to bytes");
             general_purpose::STANDARD.encode(&share_bytes)
@@ -317,8 +324,14 @@ pub async fn initialize_vault(
 
     info!("✅ Vault initialized successfully");
     info!("⚠️  CRITICAL: Vault remains SEALED after initialization");
-    info!("   Operators must unseal with {} of {} shares", request.secret_threshold, request.secret_shares);
-    info!("   Distribute shares securely to {} operators", request.secret_shares);
+    info!(
+        "   Operators must unseal with {} of {} shares",
+        request.secret_threshold, request.secret_shares
+    );
+    info!(
+        "   Distribute shares securely to {} operators",
+        request.secret_shares
+    );
 
     // TODO: Audit log the initialization
     // state.audit.log_vault_init(request.secret_shares, request.secret_threshold).await;
@@ -422,7 +435,7 @@ mod tests {
 
     #[test]
     fn test_seal_status_conversion() {
-        use secreton_core::services::seal::{SealStatus, SealState, SealConfig};
+        use secreton_core::services::seal::{SealConfig, SealState, SealStatus};
 
         let seal_status = SealStatus {
             state: SealState::Sealed,

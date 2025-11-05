@@ -187,20 +187,33 @@ impl PostQuantumValidator {
     }
 
     /// Validate a post-quantum signature
-    pub async fn validate_signature(&self, signature: &PqSignature, data: &[u8]) -> Result<bool, CoreError> {
+    pub async fn validate_signature(
+        &self,
+        signature: &PqSignature,
+        data: &[u8],
+    ) -> Result<bool, CoreError> {
         match signature {
-            PqSignature::MlDsa { signature: sig, public_key } => {
+            PqSignature::MlDsa {
+                signature: sig,
+                public_key,
+            } => {
                 // TODO: Implement ML-DSA signature verification
                 // This would use a post-quantum cryptography library
                 log::warn!("ML-DSA signature validation not yet implemented");
                 Ok(false)
             }
-            PqSignature::SphincsPlusShake256 { signature: sig, public_key } => {
+            PqSignature::SphincsPlusShake256 {
+                signature: sig,
+                public_key,
+            } => {
                 // TODO: Implement SPHINCS+ signature verification
                 log::warn!("SPHINCS+ signature validation not yet implemented");
                 Ok(false)
             }
-            PqSignature::Hybrid { classical_signature, pq_signature } => {
+            PqSignature::Hybrid {
+                classical_signature,
+                pq_signature,
+            } => {
                 // TODO: Implement hybrid signature verification
                 // Verify both classical and post-quantum signatures
                 log::warn!("Hybrid signature validation not yet implemented");
@@ -214,19 +227,35 @@ impl PostQuantumValidator {
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     /// Authenticate a user with credentials
-    async fn authenticate_user(&self, user_id: &str, credentials: &Credentials) -> Result<AuthResult, CoreError>;
+    async fn authenticate_user(
+        &self,
+        user_id: &str,
+        credentials: &Credentials,
+    ) -> Result<AuthResult, CoreError>;
 
     /// Validate an authentication token
     async fn validate_token(&self, token: &str) -> Result<TokenValidation, CoreError>;
 
     /// Check if user has permission to access a resource
-    async fn check_resource_permissions(&self, user: &User, resource_id: &str) -> Result<bool, CoreError>;
+    async fn check_resource_permissions(
+        &self,
+        user: &User,
+        resource_id: &str,
+    ) -> Result<bool, CoreError>;
 
     /// Validate application access to a resource
-    async fn validate_application_access(&self, app_id: &str, resource: &str) -> Result<bool, CoreError>;
+    async fn validate_application_access(
+        &self,
+        app_id: &str,
+        resource: &str,
+    ) -> Result<bool, CoreError>;
 
     /// Validate post-quantum signature
-    async fn validate_pq_signature(&self, signature: &PqSignature, data: &[u8]) -> Result<bool, CoreError>;
+    async fn validate_pq_signature(
+        &self,
+        signature: &PqSignature,
+        data: &[u8],
+    ) -> Result<bool, CoreError>;
 }
 
 /// Authenc authentication provider implementation
@@ -321,7 +350,11 @@ impl AuthencAuthProvider {
 
 #[async_trait]
 impl AuthProvider for AuthencAuthProvider {
-    async fn authenticate_user(&self, user_id: &str, credentials: &Credentials) -> Result<AuthResult, CoreError> {
+    async fn authenticate_user(
+        &self,
+        user_id: &str,
+        credentials: &Credentials,
+    ) -> Result<AuthResult, CoreError> {
         let url = format!("{}/v1/auth/authenticate", self.authenc_endpoint);
 
         let payload = serde_json::json!({
@@ -385,7 +418,8 @@ impl AuthProvider for AuthencAuthProvider {
 
         let response: TokenValidationResponse = self.execute_request(request).await?;
 
-        let expires_at = response.expires_at
+        let expires_at = response
+            .expires_at
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&chrono::Utc));
 
@@ -399,13 +433,19 @@ impl AuthProvider for AuthencAuthProvider {
 
         // Cache the result if valid
         if validation.valid {
-            self.token_cache.put(token.to_string(), validation.clone()).await;
+            self.token_cache
+                .put(token.to_string(), validation.clone())
+                .await;
         }
 
         Ok(validation)
     }
 
-    async fn check_resource_permissions(&self, user: &User, resource_id: &str) -> Result<bool, CoreError> {
+    async fn check_resource_permissions(
+        &self,
+        user: &User,
+        resource_id: &str,
+    ) -> Result<bool, CoreError> {
         let cache_key = format!("{}:{}", user.id, resource_id);
 
         // Check cache first
@@ -449,7 +489,11 @@ impl AuthProvider for AuthencAuthProvider {
         Ok(response.allowed)
     }
 
-    async fn validate_application_access(&self, app_id: &str, resource: &str) -> Result<bool, CoreError> {
+    async fn validate_application_access(
+        &self,
+        app_id: &str,
+        resource: &str,
+    ) -> Result<bool, CoreError> {
         let url = format!("{}/v1/auth/validate-app-access", self.authenc_endpoint);
 
         let payload = serde_json::json!({
@@ -471,7 +515,11 @@ impl AuthProvider for AuthencAuthProvider {
         Ok(response.allowed)
     }
 
-    async fn validate_pq_signature(&self, signature: &PqSignature, data: &[u8]) -> Result<bool, CoreError> {
+    async fn validate_pq_signature(
+        &self,
+        signature: &PqSignature,
+        data: &[u8],
+    ) -> Result<bool, CoreError> {
         // First, try local validation
         match self.pq_validator.validate_signature(signature, data).await {
             Ok(true) => return Ok(true),
@@ -488,7 +536,10 @@ impl AuthProvider for AuthencAuthProvider {
         let url = format!("{}/v1/crypto/validate-pq-signature", self.authenc_endpoint);
 
         let signature_data = match signature {
-            PqSignature::MlDsa { signature: sig, public_key } => {
+            PqSignature::MlDsa {
+                signature: sig,
+                public_key,
+            } => {
                 serde_json::json!({
                     "algorithm": "ml-dsa",
                     "signature": base64::encode(sig),
@@ -496,7 +547,10 @@ impl AuthProvider for AuthencAuthProvider {
                     "data": base64::encode(data)
                 })
             }
-            PqSignature::SphincsPlusShake256 { signature: sig, public_key } => {
+            PqSignature::SphincsPlusShake256 {
+                signature: sig,
+                public_key,
+            } => {
                 serde_json::json!({
                     "algorithm": "sphincs-plus-shake256",
                     "signature": base64::encode(sig),
@@ -504,7 +558,10 @@ impl AuthProvider for AuthencAuthProvider {
                     "data": base64::encode(data)
                 })
             }
-            PqSignature::Hybrid { classical_signature, pq_signature } => {
+            PqSignature::Hybrid {
+                classical_signature,
+                pq_signature,
+            } => {
                 serde_json::json!({
                     "algorithm": "hybrid",
                     "classical_signature": base64::encode(classical_signature),
@@ -552,7 +609,9 @@ mod tests {
         };
 
         // Test cache put and get
-        cache.put("test_token".to_string(), validation.clone()).await;
+        cache
+            .put("test_token".to_string(), validation.clone())
+            .await;
         let cached = cache.get("test_token").await;
         assert!(cached.is_some());
         assert!(cached.unwrap().valid);
@@ -571,7 +630,10 @@ mod tests {
         };
 
         match ml_dsa_sig {
-            PqSignature::MlDsa { signature, public_key } => {
+            PqSignature::MlDsa {
+                signature,
+                public_key,
+            } => {
                 assert_eq!(signature, vec![1, 2, 3]);
                 assert_eq!(public_key, vec![4, 5, 6]);
             }
@@ -581,10 +643,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authenc_provider_creation() {
-        let provider = AuthencAuthProvider::new(
-            "https://authenc.example.com".to_string(),
-            None,
-        );
+        let provider = AuthencAuthProvider::new("https://authenc.example.com".to_string(), None);
 
         assert_eq!(provider.authenc_endpoint, "https://authenc.example.com");
         assert!(provider.client_cert.is_none());

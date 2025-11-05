@@ -316,7 +316,7 @@ impl DynamicConfig {
                 self.security.require_enhanced_validation = true;
                 self.security.secret_access_timeout_seconds = 10;
                 self.security.audit_retention_days = 730; // 2 years
-                                                          // Switch to post-quantum crypto for maximum security
+                // Switch to post-quantum crypto for maximum security
                 self.crypto_mode = CryptoMode::PostQuantum;
             }
         }

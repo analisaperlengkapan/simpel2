@@ -7,7 +7,7 @@
 mod comprehensive_tests {
     use std::collections::HashMap;
     use std::sync::Arc;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
     /// Test all secrets engines are properly registered and functional
     #[tokio::test]

@@ -3,12 +3,12 @@
 //! OpenID Connect and JWT-based authentication with claims mapping,
 //! role binding, and OIDC discovery support.
 
+use crate::config::Config;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::config::Config;
 
 /// OIDC/JWT authentication errors
 #[derive(Debug, thiserror::Error)]
@@ -186,12 +186,14 @@ impl OidcRole {
     pub fn validate_claims(&self, claims: &JwtClaims) -> Result<(), OidcError> {
         // Check audience
         if !self.bound_audiences.is_empty() {
-            let has_valid_audience = self.bound_audiences.iter()
+            let has_valid_audience = self
+                .bound_audiences
+                .iter()
                 .any(|aud| claims.aud.contains(aud));
 
             if !has_valid_audience {
                 return Err(OidcError::ClaimsValidationFailed(
-                    "Audience mismatch".to_string()
+                    "Audience mismatch".to_string(),
                 ));
             }
         }
@@ -200,7 +202,7 @@ impl OidcRole {
         if let Some(ref bound_sub) = self.bound_subject {
             if &claims.sub != bound_sub {
                 return Err(OidcError::ClaimsValidationFailed(
-                    "Subject mismatch".to_string()
+                    "Subject mismatch".to_string(),
                 ));
             }
         }
@@ -208,18 +210,19 @@ impl OidcRole {
         // Check bound claims
         for (key, expected_values) in &self.bound_claims {
             if let Some(claim_value) = claims.additional.get(key) {
-                let value_str = claim_value.as_str()
-                    .unwrap_or("");
+                let value_str = claim_value.as_str().unwrap_or("");
 
                 if !expected_values.contains(&value_str.to_string()) {
-                    return Err(OidcError::ClaimsValidationFailed(
-                        format!("Claim {} value mismatch", key)
-                    ));
+                    return Err(OidcError::ClaimsValidationFailed(format!(
+                        "Claim {} value mismatch",
+                        key
+                    )));
                 }
             } else {
-                return Err(OidcError::ClaimsValidationFailed(
-                    format!("Required claim {} not found", key)
-                ));
+                return Err(OidcError::ClaimsValidationFailed(format!(
+                    "Required claim {} not found",
+                    key
+                )));
             }
         }
 
@@ -298,7 +301,8 @@ impl OidcAuth {
 
         // Get role
         let roles = self.roles.read().await;
-        let role = roles.get(role_name)
+        let role = roles
+            .get(role_name)
             .ok_or_else(|| OidcError::RoleNotFound(role_name.to_string()))?;
 
         // Validate claims against role
@@ -310,7 +314,9 @@ impl OidcAuth {
         } else if role.user_claim == "email" {
             claims.email.clone().unwrap_or(claims.sub.clone())
         } else {
-            claims.additional.get(&role.user_claim)
+            claims
+                .additional
+                .get(&role.user_claim)
                 .and_then(|v| v.as_str())
                 .unwrap_or(&claims.sub)
                 .to_string()
@@ -321,7 +327,9 @@ impl OidcAuth {
             if groups_claim == "groups" {
                 claims.groups.clone().unwrap_or_default()
             } else {
-                claims.additional.get(groups_claim)
+                claims
+                    .additional
+                    .get(groups_claim)
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
@@ -365,7 +373,8 @@ impl OidcAuth {
     /// Delete role
     pub async fn delete_role(&self, name: &str) -> Result<(), OidcError> {
         let mut roles = self.roles.write().await;
-        roles.remove(name)
+        roles
+            .remove(name)
             .ok_or_else(|| OidcError::RoleNotFound(name.to_string()))?;
         Ok(())
     }

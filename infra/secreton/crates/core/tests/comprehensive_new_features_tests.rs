@@ -237,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_graphql_api_schema_creation() {
-        use crate::graphql_api::{create_graphql_schema, DefaultSecretsManager, GraphQLConfig};
+        use crate::graphql_api::{DefaultSecretsManager, GraphQLConfig, create_graphql_schema};
 
         let config = GraphQLConfig::default();
         let secrets_manager = Arc::new(DefaultSecretsManager::new());
@@ -377,7 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_batch_operations_functionality() {
-        use crate::grpc_api::{proto, DefaultSecretsManager};
+        use crate::grpc_api::{DefaultSecretsManager, proto};
 
         let secrets_manager = Arc::new(DefaultSecretsManager::new());
 
@@ -409,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_response_wrapping_functionality() {
-        use crate::grpc_api::{proto, DefaultSecretsManager};
+        use crate::grpc_api::{DefaultSecretsManager, proto};
 
         let secrets_manager = Arc::new(DefaultSecretsManager::new());
 

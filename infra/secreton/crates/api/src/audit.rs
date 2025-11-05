@@ -56,11 +56,7 @@ pub struct AuditEvent {
 
 impl AuditEvent {
     /// Create a new audit event
-    pub fn new(
-        event_type: AuditEventType,
-        principal: String,
-        success: bool,
-    ) -> Self {
+    pub fn new(event_type: AuditEventType, principal: String, success: bool) -> Self {
         Self {
             timestamp: Utc::now(),
             event_type,
@@ -132,9 +128,9 @@ impl AuditLogger {
     /// Create a new audit logger
     pub fn new(max_events: usize) -> Self {
         // Create core logger with memory backend
-        let core_logger = secreton_core::audit::AuditLogger::new(vec![
-            Arc::new(secreton_core::audit::MemoryBackend::default())
-        ]);
+        let core_logger = secreton_core::audit::AuditLogger::new(vec![Arc::new(
+            secreton_core::audit::MemoryBackend::default(),
+        )]);
 
         Self {
             core_logger: Arc::new(core_logger),
@@ -179,12 +175,7 @@ impl AuditLogger {
     /// Get recent audit events
     pub async fn get_recent(&self, count: usize) -> Vec<AuditEvent> {
         let events = self.events.read().await;
-        events
-            .iter()
-            .rev()
-            .take(count)
-            .cloned()
-            .collect()
+        events.iter().rev().take(count).cloned().collect()
     }
 
     /// Get events by principal
@@ -263,13 +254,9 @@ mod tests {
     async fn test_log_event() {
         let logger = AuditLogger::new(100);
 
-        let event = AuditEvent::new(
-            AuditEventType::SecretCreated,
-            "admin".to_string(),
-            true,
-        )
-        .with_realm("test".to_string())
-        .with_secret_key("api-key-123".to_string());
+        let event = AuditEvent::new(AuditEventType::SecretCreated, "admin".to_string(), true)
+            .with_realm("test".to_string())
+            .with_secret_key("api-key-123".to_string());
 
         logger.log(event).await;
 
@@ -282,11 +269,7 @@ mod tests {
 
         // Log multiple events
         for i in 0..5 {
-            let event = AuditEvent::new(
-                AuditEventType::SecretRead,
-                format!("user{}", i),
-                true,
-            );
+            let event = AuditEvent::new(AuditEventType::SecretRead, format!("user{}", i), true);
             logger.log(event).await;
         }
 
@@ -302,11 +285,7 @@ mod tests {
         // Log events from different principals
         for i in 0..5 {
             let principal = if i % 2 == 0 { "admin" } else { "user" };
-            let event = AuditEvent::new(
-                AuditEventType::SecretRead,
-                principal.to_string(),
-                true,
-            );
+            let event = AuditEvent::new(AuditEventType::SecretRead, principal.to_string(), true);
             logger.log(event).await;
         }
 
@@ -338,11 +317,7 @@ mod tests {
 
         // Log more events than the limit
         for i in 0..10 {
-            let event = AuditEvent::new(
-                AuditEventType::SecretRead,
-                format!("user{}", i),
-                true,
-            );
+            let event = AuditEvent::new(AuditEventType::SecretRead, format!("user{}", i), true);
             logger.log(event).await;
         }
 
@@ -355,24 +330,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_secret_key_masking() {
-        let event = AuditEvent::new(
-            AuditEventType::SecretCreated,
-            "admin".to_string(),
-            true,
-        )
-        .with_secret_key("very-long-secret-key-123".to_string());
+        let event = AuditEvent::new(AuditEventType::SecretCreated, "admin".to_string(), true)
+            .with_secret_key("very-long-secret-key-123".to_string());
 
         assert_eq!(event.secret_key, Some("ver***".to_string()));
     }
 
     #[tokio::test]
     async fn test_secret_key_masking_short() {
-        let event = AuditEvent::new(
-            AuditEventType::SecretCreated,
-            "admin".to_string(),
-            true,
-        )
-        .with_secret_key("ab".to_string());
+        let event = AuditEvent::new(AuditEventType::SecretCreated, "admin".to_string(), true)
+            .with_secret_key("ab".to_string());
 
         assert_eq!(event.secret_key, Some("***".to_string()));
     }

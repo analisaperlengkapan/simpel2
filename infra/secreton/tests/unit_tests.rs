@@ -1,8 +1,9 @@
 //! Unit tests for Secreton Enterprise Vault core components
 
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 /// Mock MFA system for testing
 #[derive(Debug)]
@@ -33,12 +34,10 @@ impl MockMfaSystem {
         }
     }
 
-    fn setup_mfa(&self, user_id: &str, secret: &str) -> Result<TotpConfig, Box<dyn std::error::Error>> {
+    fn setup_mfa(&self, user_id: &str, secret: &str) -> Result<TotpConfig> {
         let mut users = self.users.lock().unwrap();
 
-        let backup_codes: Vec<String> = (0..10)
-            .map(|i| format!("BACKUP-{:08}", i))
-            .collect();
+        let backup_codes: Vec<String> = (0..10).map(|i| format!("BACKUP-{:08}", i)).collect();
 
         let user_state = UserMfaState {
             secret: secret.to_string(),
@@ -57,13 +56,14 @@ impl MockMfaSystem {
         })
     }
 
-    fn verify_totp(&self, user_id: &str, code: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    fn verify_totp(&self, user_id: &str, code: &str) -> Result<bool> {
         let mut users = self.users.lock().unwrap();
-        let user_state = users.get_mut(user_id)
-            .ok_or("User not found")?;
+        let user_state = users
+            .get_mut(user_id)
+            .ok_or_else(|| anyhow!("User not found"))?;
 
         if user_state.is_locked {
-            return Err("Account is locked due to too many failed attempts".into());
+            return Err(anyhow!("Account is locked due to too many failed attempts"));
         }
 
         // Mock TOTP verification - in real implementation would use TOTP algorithm
@@ -79,17 +79,18 @@ impl MockMfaSystem {
 
             if user_state.failed_attempts >= 5 {
                 user_state.is_locked = true;
-                return Err("Account locked due to too many failed attempts".into());
+                return Err(anyhow!("Account locked due to too many failed attempts"));
             }
 
             Ok(false)
         }
     }
 
-    fn verify_backup_code(&self, user_id: &str, code: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    fn verify_backup_code(&self, user_id: &str, code: &str) -> Result<bool> {
         let mut users = self.users.lock().unwrap();
-        let user_state = users.get_mut(user_id)
-            .ok_or("User not found")?;
+        let user_state = users
+            .get_mut(user_id)
+            .ok_or_else(|| anyhow!("User not found"))?;
 
         if let Some(index) = user_state.backup_codes.iter().position(|c| c == code) {
             user_state.backup_codes.remove(index);
@@ -102,17 +103,19 @@ impl MockMfaSystem {
         }
     }
 
-    fn get_remaining_backup_codes(&self, user_id: &str) -> Result<usize, Box<dyn std::error::Error>> {
+    fn get_remaining_backup_codes(&self, user_id: &str) -> Result<usize> {
         let users = self.users.lock().unwrap();
-        let user_state = users.get(user_id)
-            .ok_or("User not found")?;
+        let user_state = users
+            .get(user_id)
+            .ok_or_else(|| anyhow!("User not found"))?;
         Ok(user_state.backup_codes.len())
     }
 
-    fn reset_failed_attempts(&self, user_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    fn reset_failed_attempts(&self, user_id: &str) -> Result<()> {
         let mut users = self.users.lock().unwrap();
-        let user_state = users.get_mut(user_id)
-            .ok_or("User not found")?;
+        let user_state = users
+            .get_mut(user_id)
+            .ok_or_else(|| anyhow!("User not found"))?;
 
         user_state.failed_attempts = 0;
         user_state.last_failed_attempt = None;
@@ -123,7 +126,7 @@ impl MockMfaSystem {
 }
 
 #[test]
-fn test_mfa_setup() -> Result<(), Box<dyn std::error::Error>> {
+fn test_mfa_setup() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
     let user_id = "test_user";
     let secret = "JBSWY3DPEHPK3PXP";
@@ -146,7 +149,7 @@ fn test_mfa_setup() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_totp_verification() -> Result<(), Box<dyn std::error::Error>> {
+fn test_totp_verification() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
     let user_id = "test_user";
 
@@ -163,7 +166,7 @@ fn test_totp_verification() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_backup_code_verification() -> Result<(), Box<dyn std::error::Error>> {
+fn test_backup_code_verification() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
     let user_id = "test_user";
 
@@ -182,7 +185,7 @@ fn test_backup_code_verification() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_rate_limiting() -> Result<(), Box<dyn std::error::Error>> {
+fn test_rate_limiting() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
     let user_id = "test_user";
 
@@ -208,7 +211,7 @@ fn test_rate_limiting() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_account_unlock_with_backup_code() -> Result<(), Box<dyn std::error::Error>> {
+fn test_account_unlock_with_backup_code() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
     let user_id = "test_user";
 
@@ -233,7 +236,7 @@ fn test_account_unlock_with_backup_code() -> Result<(), Box<dyn std::error::Erro
 }
 
 #[test]
-fn test_concurrent_mfa_operations() -> Result<(), Box<dyn std::error::Error>> {
+fn test_concurrent_mfa_operations() -> Result<()> {
     use std::sync::Arc;
     use std::thread;
 
@@ -268,7 +271,7 @@ fn test_concurrent_mfa_operations() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_mfa_error_cases() -> Result<(), Box<dyn std::error::Error>> {
+fn test_mfa_error_cases() -> Result<()> {
     let mfa_system = MockMfaSystem::new();
 
     // Test operations on non-existent user

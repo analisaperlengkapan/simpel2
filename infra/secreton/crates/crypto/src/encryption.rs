@@ -1,6 +1,6 @@
 //! Symmetric encryption implementations
 
-use crate::{generate_random_bytes, AlgorithmId, CryptoError, CryptoResult};
+use crate::{AlgorithmId, CryptoError, CryptoResult, generate_random_bytes};
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chacha20poly1305::ChaCha20Poly1305;

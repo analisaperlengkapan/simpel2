@@ -90,7 +90,12 @@ impl RaftCluster {
             current_term: metrics.current_term,
             leader_id: metrics.current_leader,
             is_leader: metrics.current_leader == Some(self.config.node_id),
-            membership: metrics.membership_config.membership().voter_ids().cloned().collect(),
+            membership: metrics
+                .membership_config
+                .membership()
+                .voter_ids()
+                .cloned()
+                .collect(),
             last_applied: metrics.last_applied.map(|l| l.index),
             last_log_index: metrics.last_log_index.map(|l| l.index),
         })
@@ -107,17 +112,20 @@ impl RaftCluster {
     }
 
     pub async fn propose(&self, cmd: StateMachineCommand) -> StorageResult<StateMachineResponse> {
-        let data = bincode::encode_to_vec(&cmd, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError {
+        let data = bincode::encode_to_vec(&cmd, bincode::config::standard()).map_err(|e| {
+            StorageError::SerializationError {
                 message: format!("Failed to encode command: {}", e),
-            })?;
+            }
+        })?;
         let _response = self
             .raft
             .client_write(openraft::raft::ClientWriteRequest::new(
                 openraft::EntryPayload::Normal(data.into()),
             ))
             .await
-            .map_err(|e| StorageError::ReplicationError(format!("Failed to propose command: {}", e)))?;
+            .map_err(|e| {
+                StorageError::ReplicationError(format!("Failed to propose command: {}", e))
+            })?;
         Ok(StateMachineResponse::Success)
     }
 

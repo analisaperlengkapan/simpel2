@@ -4,12 +4,13 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info, warn};
 
-use secreton_api::{create_api_router, ApiState, KVApiState, TransitApiState, config::ApiConfig, KVEngine};
 use secreton_api::grpc::server::SecretonGrpcService;
 use secreton_api::grpc::tls::GrpcTlsConfig;
 use secreton_api::services::ServiceContainer;
+use secreton_api::{
+    ApiState, KVApiState, KVEngine, TransitApiState, config::ApiConfig, create_api_router,
+};
 use secreton_crypto::transit::TransitEngine;
-use secreton_storage::MemoryBackend;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -52,9 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         transit: TransitApiState {
             engine: Arc::clone(&transit_engine),
         },
-        kv: KVApiState {
-            engine: kv_engine
-        },
+        kv: KVApiState { engine: kv_engine },
         services: Arc::clone(&services),
     };
 
@@ -68,10 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let grpc_enabled = config.grpc.enabled;
 
     // Create gRPC service (shared state with REST)
-    let grpc_service = SecretonGrpcService::new(
-        Arc::clone(&services.storage),
-        Arc::clone(&transit_engine),
-    );
+    let grpc_service =
+        SecretonGrpcService::new(services.storage.clone(), Arc::clone(&transit_engine));
 
     // Start both servers concurrently
     info!("🚀 Starting Secreton servers...");
@@ -97,10 +94,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let grpc_handle = if grpc_enabled {
         if let Some(tls_cfg) = tls_config_opt {
             info!("🔐 gRPC server with mTLS on https://{}", grpc_addr);
-            let mut grpc_tls_config = GrpcTlsConfig::new(
-                tls_cfg.cert_file.clone(),
-                tls_cfg.key_file.clone(),
-            );
+            let mut grpc_tls_config =
+                GrpcTlsConfig::new(tls_cfg.cert_file.clone(), tls_cfg.key_file.clone());
 
             if let Some(ca_file) = &tls_cfg.ca_file {
                 grpc_tls_config = grpc_tls_config
@@ -109,7 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             tokio::spawn(async move {
-                if let Err(e) = grpc_service.serve_with_tls(grpc_addr, grpc_tls_config).await {
+                if let Err(e) = grpc_service
+                    .serve_with_tls(grpc_addr, grpc_tls_config)
+                    .await
+                {
                     error!("gRPC server error: {}", e);
                 }
             })
@@ -164,8 +162,8 @@ async fn serve_rest_with_tls(
     tls_config: secreton_api::config::TlsConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use axum_server::tls_rustls::RustlsConfig;
-    use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-    use rustls_pemfile::{certs, pkcs8_private_keys};
+    use rustls::pki_types::CertificateDer;
+    use rustls_pemfile::certs;
     use std::fs;
     use std::io::BufReader;
 
@@ -174,8 +172,8 @@ async fn serve_rest_with_tls(
     // Load server certificate
     let cert_file = fs::File::open(&tls_config.cert_file)?;
     let mut cert_reader = BufReader::new(cert_file);
-    let cert_chain: Vec<CertificateDer<'static>> = certs(&mut cert_reader)
-        .collect::<Result<Vec<_>, _>>()?;
+    let cert_chain: Vec<CertificateDer<'static>> =
+        certs(&mut cert_reader).collect::<Result<Vec<_>, _>>()?;
 
     if cert_chain.is_empty() {
         return Err("No certificates found in cert file".into());
@@ -184,17 +182,20 @@ async fn serve_rest_with_tls(
     // Load private key
     let key_file = fs::File::open(&tls_config.key_file)?;
     let mut key_reader = BufReader::new(key_file);
-    let mut keys: Vec<rustls::pki_types::PrivatePkcs8KeyDer> = rustls_pemfile::pkcs8_private_keys(&mut key_reader)
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut keys: Vec<rustls::pki_types::PrivatePkcs8KeyDer> =
+        rustls_pemfile::pkcs8_private_keys(&mut key_reader).collect::<Result<Vec<_>, _>>()?;
 
     if keys.is_empty() {
         return Err("No private keys found in key file".into());
     }
 
     // Create TLS configuration
-    let mut server_config = rustls::ServerConfig::builder()
+    let server_config = rustls::ServerConfig::builder()
         .with_no_client_auth()
-        .with_single_cert(cert_chain, rustls::pki_types::PrivateKeyDer::Pkcs8(keys.remove(0)))?;
+        .with_single_cert(
+            cert_chain,
+            rustls::pki_types::PrivateKeyDer::Pkcs8(keys.remove(0)),
+        )?;
 
     info!("Binding REST server to address...");
     let listener = std::net::TcpListener::bind(addr)?;

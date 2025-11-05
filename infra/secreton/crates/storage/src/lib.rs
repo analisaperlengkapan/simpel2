@@ -331,7 +331,10 @@ impl StorageError {
     }
 
     /// Create a connection failed error with source
-    pub fn connection_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+    pub fn connection_failed_with_source<
+        S: Into<String>,
+        E: std::error::Error + Send + Sync + 'static,
+    >(
         message: S,
         source: E,
     ) -> Self {
@@ -350,7 +353,10 @@ impl StorageError {
     }
 
     /// Create a query failed error with source
-    pub fn query_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+    pub fn query_failed_with_source<
+        S: Into<String>,
+        E: std::error::Error + Send + Sync + 'static,
+    >(
         message: S,
         source: E,
     ) -> Self {
@@ -369,7 +375,10 @@ impl StorageError {
     }
 
     /// Create a transaction failed error with source
-    pub fn transaction_failed_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+    pub fn transaction_failed_with_source<
+        S: Into<String>,
+        E: std::error::Error + Send + Sync + 'static,
+    >(
         message: S,
         source: E,
     ) -> Self {
@@ -388,7 +397,10 @@ impl StorageError {
     }
 
     /// Create a serialization error with source
-    pub fn serialization_error_with_source<S: Into<String>, E: std::error::Error + Send + Sync + 'static>(
+    pub fn serialization_error_with_source<
+        S: Into<String>,
+        E: std::error::Error + Send + Sync + 'static,
+    >(
         message: S,
         source: E,
     ) -> Self {
@@ -547,8 +559,6 @@ impl Default for PoolSettings {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -594,7 +604,10 @@ mod tests {
         .add_tag("internal".to_string());
 
         assert_eq!(entry.metadata.get("env"), Some(&serde_json::json!("prod")));
-        assert_eq!(entry.metadata.get("region"), Some(&serde_json::json!("apac")));
+        assert_eq!(
+            entry.metadata.get("region"),
+            Some(&serde_json::json!("apac"))
+        );
 
         let tag_set: HashSet<String> = entry.tags.iter().cloned().collect();
         assert_eq!(tag_set.len(), 2);

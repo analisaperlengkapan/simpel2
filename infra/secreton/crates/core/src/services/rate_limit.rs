@@ -190,19 +190,28 @@ impl RateLimiter {
 
         let mut states = self.states.write().await;
 
-        let state = states.entry(key.to_string()).or_insert_with(|| {
-            match &strategy {
-                RateLimitStrategy::TokenBucket { capacity, refill_rate } => {
-                    LimiterState::TokenBucket(TokenBucketState::new(*capacity, *refill_rate))
-                }
-                RateLimitStrategy::SlidingWindow { max_requests, window_seconds } => {
-                    LimiterState::SlidingWindow(SlidingWindowState::new(*max_requests, *window_seconds))
-                }
-                RateLimitStrategy::FixedWindow { max_requests, window_seconds } => {
-                    LimiterState::SlidingWindow(SlidingWindowState::new(*max_requests, *window_seconds))
-                }
-            }
-        });
+        let state = states
+            .entry(key.to_string())
+            .or_insert_with(|| match &strategy {
+                RateLimitStrategy::TokenBucket {
+                    capacity,
+                    refill_rate,
+                } => LimiterState::TokenBucket(TokenBucketState::new(*capacity, *refill_rate)),
+                RateLimitStrategy::SlidingWindow {
+                    max_requests,
+                    window_seconds,
+                } => LimiterState::SlidingWindow(SlidingWindowState::new(
+                    *max_requests,
+                    *window_seconds,
+                )),
+                RateLimitStrategy::FixedWindow {
+                    max_requests,
+                    window_seconds,
+                } => LimiterState::SlidingWindow(SlidingWindowState::new(
+                    *max_requests,
+                    *window_seconds,
+                )),
+            });
 
         let allowed = match state {
             LimiterState::TokenBucket(bucket) => bucket.consume(1),
@@ -229,19 +238,28 @@ impl RateLimiter {
 
         let mut states = self.states.write().await;
 
-        let state = states.entry(key.to_string()).or_insert_with(|| {
-            match &strategy {
-                RateLimitStrategy::TokenBucket { capacity, refill_rate } => {
-                    LimiterState::TokenBucket(TokenBucketState::new(*capacity, *refill_rate))
-                }
-                RateLimitStrategy::SlidingWindow { max_requests, window_seconds } => {
-                    LimiterState::SlidingWindow(SlidingWindowState::new(*max_requests, *window_seconds))
-                }
-                RateLimitStrategy::FixedWindow { max_requests, window_seconds } => {
-                    LimiterState::SlidingWindow(SlidingWindowState::new(*max_requests, *window_seconds))
-                }
-            }
-        });
+        let state = states
+            .entry(key.to_string())
+            .or_insert_with(|| match &strategy {
+                RateLimitStrategy::TokenBucket {
+                    capacity,
+                    refill_rate,
+                } => LimiterState::TokenBucket(TokenBucketState::new(*capacity, *refill_rate)),
+                RateLimitStrategy::SlidingWindow {
+                    max_requests,
+                    window_seconds,
+                } => LimiterState::SlidingWindow(SlidingWindowState::new(
+                    *max_requests,
+                    *window_seconds,
+                )),
+                RateLimitStrategy::FixedWindow {
+                    max_requests,
+                    window_seconds,
+                } => LimiterState::SlidingWindow(SlidingWindowState::new(
+                    *max_requests,
+                    *window_seconds,
+                )),
+            });
 
         let allowed = match state {
             LimiterState::TokenBucket(bucket) => bucket.consume(cost),

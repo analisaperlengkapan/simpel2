@@ -1,6 +1,6 @@
 use crate::{
-    QueryParams, StorageBackend, StorageResult, StorageStats, StorageTransaction, VaultEntry,
-    HealthStatus,
+    HealthStatus, QueryParams, StorageBackend, StorageResult, StorageStats, StorageTransaction,
+    VaultEntry,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -84,7 +84,10 @@ impl StorageBackend for EncryptedStorage {
 
         if let serde_json::Value::Object(ref mut map) = stats.metadata {
             map.insert("encryption_enabled".to_string(), serde_json::json!(true));
-            map.insert("encryption_key_id".to_string(), serde_json::json!(self.key_id));
+            map.insert(
+                "encryption_key_id".to_string(),
+                serde_json::json!(self.key_id),
+            );
         }
 
         Ok(stats)

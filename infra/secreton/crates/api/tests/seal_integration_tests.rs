@@ -38,7 +38,10 @@ async fn test_initialize_request_validation() {
 
     assert!(threshold <= shares, "Threshold should not exceed shares");
     assert!(threshold >= 1, "Threshold must be at least 1");
-    assert!(shares >= 1 && shares <= 255, "Shares must be between 1 and 255");
+    assert!(
+        shares >= 1 && shares <= 255,
+        "Shares must be between 1 and 255"
+    );
 }
 
 #[tokio::test]
@@ -99,7 +102,7 @@ async fn test_rekey_update_request_structure() {
 
 #[test]
 fn test_seal_status_conversion() {
-    use secreton_core::services::seal::{SealStatus, SealState, SealConfig};
+    use secreton_core::services::seal::{SealConfig, SealState, SealStatus};
 
     let seal_status = SealStatus {
         state: SealState::Sealed,

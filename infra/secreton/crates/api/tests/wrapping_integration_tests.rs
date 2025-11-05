@@ -6,10 +6,10 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use secreton_api::{create_router, config::ApiConfig, services::ServiceContainer};
+use secreton_api::{config::ApiConfig, create_router, services::ServiceContainer};
 
 /// Helper to create test app
 async fn create_test_app() -> axum::Router {
@@ -17,7 +17,7 @@ async fn create_test_app() -> axum::Router {
     let services = std::sync::Arc::new(
         ServiceContainer::new(&config)
             .await
-            .expect("Failed to create services")
+            .expect("Failed to create services"),
     );
 
     create_router(&config, services)
@@ -36,7 +36,9 @@ async fn json_request(
         .header("content-type", "application/json");
 
     let request = if let Some(body) = body {
-        request.body(Body::from(serde_json::to_vec(&body).unwrap())).unwrap()
+        request
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap()
     } else {
         request.body(Body::empty()).unwrap()
     };
@@ -69,7 +71,8 @@ async fn test_wrap_and_unwrap_workflow() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["success"].as_bool().unwrap());
@@ -88,7 +91,8 @@ async fn test_wrap_and_unwrap_workflow() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["success"].as_bool().unwrap());
@@ -114,7 +118,8 @@ async fn test_unwrap_twice_fails() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     let token = response["data"]["token"].as_str().unwrap();
 
@@ -125,7 +130,8 @@ async fn test_unwrap_twice_fails() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request.clone()),
-    ).await;
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
 
     // Second unwrap fails (one-time use enforced)
@@ -134,14 +140,17 @@ async fn test_unwrap_twice_fails() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
-    assert!(response["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("already been unwrapped"));
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("already been unwrapped")
+    );
 }
 
 #[tokio::test]
@@ -159,7 +168,8 @@ async fn test_lookup_token_metadata() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     let token = response["data"]["token"].as_str().unwrap();
 
@@ -169,7 +179,8 @@ async fn test_lookup_token_metadata() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["success"].as_bool().unwrap());
@@ -197,7 +208,8 @@ async fn test_rewrap_token() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     let old_token = response["data"]["token"].as_str().unwrap().to_string();
 
@@ -212,7 +224,8 @@ async fn test_rewrap_token() {
         "POST",
         "/v1/sys/wrapping/rewrap",
         Some(rewrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["success"].as_bool().unwrap());
@@ -229,7 +242,8 @@ async fn test_rewrap_token() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // New token should work
@@ -239,9 +253,13 @@ async fn test_rewrap_token() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(response["data"]["data"]["secret"].as_str().unwrap(), "value");
+    assert_eq!(
+        response["data"]["data"]["secret"].as_str().unwrap(),
+        "value"
+    );
 }
 
 #[tokio::test]
@@ -259,7 +277,8 @@ async fn test_invalid_ttl() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
@@ -275,7 +294,8 @@ async fn test_invalid_ttl() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
@@ -295,14 +315,17 @@ async fn test_invalid_token_format() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
-    assert!(response["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("Invalid token format"));
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Invalid token format")
+    );
 }
 
 #[tokio::test]
@@ -319,7 +342,8 @@ async fn test_token_not_found() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(!response["success"].as_bool().unwrap());
@@ -343,7 +367,8 @@ async fn test_wrap_large_data() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["success"].as_bool().unwrap());
@@ -355,7 +380,8 @@ async fn test_wrap_large_data() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["data"]["data_size"].as_i64().unwrap() > 1000);
@@ -390,7 +416,8 @@ async fn test_wrap_complex_json() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request.clone()),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -403,14 +430,20 @@ async fn test_wrap_complex_json() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
     let data = &response["data"]["data"];
     assert_eq!(data["database"]["host"].as_str().unwrap(), "db.example.com");
     assert_eq!(data["database"]["port"].as_i64().unwrap(), 5432);
-    assert_eq!(data["database"]["credentials"]["username"].as_str().unwrap(), "admin");
+    assert_eq!(
+        data["database"]["credentials"]["username"]
+            .as_str()
+            .unwrap(),
+        "admin"
+    );
     assert_eq!(data["api_keys"][0].as_str().unwrap(), "key1");
 }
 
@@ -429,7 +462,8 @@ async fn test_default_ttl() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["data"]["ttl"].as_i64().unwrap(), 300);
@@ -450,7 +484,8 @@ async fn test_ttl_expiration() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let token = response["data"]["token"].as_str().unwrap().to_string();
@@ -461,7 +496,8 @@ async fn test_ttl_expiration() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["data"]["status"].as_str().unwrap(), "Active");
@@ -476,7 +512,8 @@ async fn test_ttl_expiration() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["data"]["status"].as_str().unwrap(), "Expired");
@@ -489,14 +526,17 @@ async fn test_ttl_expiration() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
-    assert!(response["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("expired"));
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("expired")
+    );
 }
 
 #[tokio::test]
@@ -514,7 +554,8 @@ async fn test_ttl_expiration_before_unwrap() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let token = response["data"]["token"].as_str().unwrap().to_string();
@@ -529,7 +570,8 @@ async fn test_ttl_expiration_before_unwrap() {
         "POST",
         "/v1/sys/wrapping/unwrap",
         Some(unwrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!response["success"].as_bool().unwrap());
@@ -552,7 +594,8 @@ async fn test_ttl_remaining_decreases() {
         "POST",
         "/v1/sys/wrapping/wrap",
         Some(wrap_request),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let token = response["data"]["token"].as_str().unwrap().to_string();
@@ -563,7 +606,8 @@ async fn test_ttl_remaining_decreases() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let initial_ttl = response["data"]["ttl_remaining"].as_i64().unwrap();
@@ -578,7 +622,8 @@ async fn test_ttl_remaining_decreases() {
         "GET",
         &format!("/v1/sys/wrapping/lookup/{}", token),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let remaining_ttl = response["data"]["ttl_remaining"].as_i64().unwrap();

@@ -205,19 +205,19 @@ impl AuditLogBuilder {
                 .action
                 .ok_or_else(|| AuditError::LoggingError("action is required".to_string()))?,
             actor: self.actor,
-            resource_type: self.resource_type.ok_or_else(|| {
-                AuditError::LoggingError("resource_type is required".to_string())
-            })?,
-            resource_id: self.resource_id.ok_or_else(|| {
-                AuditError::LoggingError("resource_id is required".to_string())
-            })?,
+            resource_type: self
+                .resource_type
+                .ok_or_else(|| AuditError::LoggingError("resource_type is required".to_string()))?,
+            resource_id: self
+                .resource_id
+                .ok_or_else(|| AuditError::LoggingError("resource_id is required".to_string()))?,
             status: self
                 .status
                 .ok_or_else(|| AuditError::LoggingError("status is required".to_string()))?,
             ip: self.ip,
             user_agent: self.user_agent,
             namespace: self.namespace,
-         metadata: self.metadata,
+            metadata: self.metadata,
         })
     }
 }

@@ -2,12 +2,12 @@
 //!
 //! Loads and validates MFA policies from configuration files for government compliance.
 
-use crate::services::mfa::{MfaService, MfaError};
+use crate::services::mfa::{MfaError, MfaService};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::fs;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// MFA policy configuration loaded from TOML files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,7 +215,10 @@ impl MfaPolicyLoader {
         let config: MfaPolicyConfig = toml::from_str(&config_content)
             .map_err(|e| MfaError::NotConfigured(format!("Failed to parse config: {}", e)))?;
 
-        info!("Loaded MFA policy configuration from {:?}", config_path.as_ref());
+        info!(
+            "Loaded MFA policy configuration from {:?}",
+            config_path.as_ref()
+        );
 
         let loader = Self { config };
         loader.validate_config()?;
@@ -230,7 +233,7 @@ impl MfaPolicyLoader {
         // Validate TOTP settings
         if mfa.totp.digits != 6 && mfa.totp.digits != 8 {
             return Err(MfaError::NotConfigured(
-                "TOTP digits must be 6 or 8".to_string()
+                "TOTP digits must be 6 or 8".to_string(),
             ));
         }
 
@@ -241,25 +244,27 @@ impl MfaPolicyLoader {
         // Validate policy settings
         if mfa.policies.max_failed_attempts == 0 {
             return Err(MfaError::NotConfigured(
-                "max_failed_attempts must be greater than 0".to_string()
+                "max_failed_attempts must be greater than 0".to_string(),
             ));
         }
 
         if mfa.policies.lockout_duration == 0 {
             return Err(MfaError::NotConfigured(
-                "lockout_duration must be greater than 0".to_string()
+                "lockout_duration must be greater than 0".to_string(),
             ));
         }
 
         // Validate recovery codes settings
         if mfa.recovery_codes.count == 0 {
             return Err(MfaError::NotConfigured(
-                "recovery_codes count must be greater than 0".to_string()
+                "recovery_codes count must be greater than 0".to_string(),
             ));
         }
 
         if mfa.recovery_codes.length < 8 {
-            warn!("Recovery code length is less than 8 characters, consider increasing for security");
+            warn!(
+                "Recovery code length is less than 8 characters, consider increasing for security"
+            );
         }
 
         // Validate security settings
@@ -283,17 +288,38 @@ impl MfaPolicyLoader {
         }
 
         // Check if role requires immediate setup
-        if self.config.mfa.policies.roles.admin_immediate_setup.contains(&role.to_string()) {
+        if self
+            .config
+            .mfa
+            .policies
+            .roles
+            .admin_immediate_setup
+            .contains(&role.to_string())
+        {
             return true;
         }
 
         // Check if role is in high privilege list
-        if self.config.mfa.policies.roles.high_privilege_roles.contains(&role.to_string()) {
+        if self
+            .config
+            .mfa
+            .policies
+            .roles
+            .high_privilege_roles
+            .contains(&role.to_string())
+        {
             return true;
         }
 
         // Check if role is in standard roles list
-        if self.config.mfa.policies.roles.standard_roles.contains(&role.to_string()) {
+        if self
+            .config
+            .mfa
+            .policies
+            .roles
+            .standard_roles
+            .contains(&role.to_string())
+        {
             return true;
         }
 
@@ -303,12 +329,22 @@ impl MfaPolicyLoader {
 
     /// Check if MFA setup should be immediate for a role
     pub fn requires_immediate_setup(&self, role: &str) -> bool {
-        self.config.mfa.policies.roles.admin_immediate_setup.contains(&role.to_string())
+        self.config
+            .mfa
+            .policies
+            .roles
+            .admin_immediate_setup
+            .contains(&role.to_string())
     }
 
     /// Check if satker requires high security MFA policies
     pub fn is_high_security_satker(&self, satker_code: &str) -> bool {
-        self.config.mfa.policies.satker.high_security_satkers.iter()
+        self.config
+            .mfa
+            .policies
+            .satker
+            .high_security_satkers
+            .iter()
             .any(|pattern| {
                 if pattern.ends_with('*') {
                     let prefix = &pattern[..pattern.len() - 1];
@@ -332,7 +368,14 @@ impl MfaPolicyLoader {
     /// Get maximum failed attempts before lockout
     pub fn get_max_failed_attempts(&self, role: &str) -> u32 {
         // Stricter limits for high privilege roles
-        if self.config.mfa.policies.roles.high_privilege_roles.contains(&role.to_string()) {
+        if self
+            .config
+            .mfa
+            .policies
+            .roles
+            .high_privilege_roles
+            .contains(&role.to_string())
+        {
             return std::cmp::min(self.config.mfa.policies.max_failed_attempts, 3);
         }
 
@@ -354,26 +397,40 @@ impl MfaPolicyLoader {
     pub fn generate_compliance_report(&self) -> HashMap<String, serde_json::Value> {
         let mut report = HashMap::new();
 
-        report.insert("mfa_enabled".to_string(),
-            serde_json::Value::Bool(self.config.mfa.enabled));
+        report.insert(
+            "mfa_enabled".to_string(),
+            serde_json::Value::Bool(self.config.mfa.enabled),
+        );
 
-        report.insert("enforce_for_all".to_string(),
-            serde_json::Value::Bool(self.config.mfa.policies.enforce_for_all));
+        report.insert(
+            "enforce_for_all".to_string(),
+            serde_json::Value::Bool(self.config.mfa.policies.enforce_for_all),
+        );
 
-        report.insert("fips_mode".to_string(),
-            serde_json::Value::Bool(self.config.mfa.compliance.fips_mode));
+        report.insert(
+            "fips_mode".to_string(),
+            serde_json::Value::Bool(self.config.mfa.compliance.fips_mode),
+        );
 
-        report.insert("audit_enabled".to_string(),
-            serde_json::Value::Bool(self.config.mfa.audit.enabled));
+        report.insert(
+            "audit_enabled".to_string(),
+            serde_json::Value::Bool(self.config.mfa.audit.enabled),
+        );
 
-        report.insert("hsm_enabled".to_string(),
-            serde_json::Value::Bool(self.config.mfa.security.use_hsm));
+        report.insert(
+            "hsm_enabled".to_string(),
+            serde_json::Value::Bool(self.config.mfa.security.use_hsm),
+        );
 
-        report.insert("backup_enabled".to_string(),
-            serde_json::Value::Bool(self.config.mfa.backup.enabled));
+        report.insert(
+            "backup_enabled".to_string(),
+            serde_json::Value::Bool(self.config.mfa.backup.enabled),
+        );
 
-        report.insert("monitoring_enabled".to_string(),
-            serde_json::Value::Bool(self.config.mfa.monitoring.metrics_enabled));
+        report.insert(
+            "monitoring_enabled".to_string(),
+            serde_json::Value::Bool(self.config.mfa.monitoring.metrics_enabled),
+        );
 
         report
     }
@@ -382,8 +439,8 @@ impl MfaPolicyLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_load_valid_config() {
@@ -484,7 +541,9 @@ max_concurrent_sessions = 3
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(config_content.as_bytes()).unwrap();
 
-        let loader = MfaPolicyLoader::load_from_file(temp_file.path()).await.unwrap();
+        let loader = MfaPolicyLoader::load_from_file(temp_file.path())
+            .await
+            .unwrap();
 
         assert!(loader.config.mfa.enabled);
         assert_eq!(loader.config.mfa.totp.issuer, "Test Kejaksaan RI");
@@ -592,7 +651,9 @@ max_concurrent_sessions = 3
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(config_content.as_bytes()).unwrap();
 
-        let loader = MfaPolicyLoader::load_from_file(temp_file.path()).await.unwrap();
+        let loader = MfaPolicyLoader::load_from_file(temp_file.path())
+            .await
+            .unwrap();
 
         // Test role-based policies
         assert!(loader.requires_immediate_setup("AdminPusat"));
@@ -601,7 +662,10 @@ max_concurrent_sessions = 3
 
         // Test grace period
         assert_eq!(loader.get_setup_grace_period("AdminPusat", "STANDARD"), 0);
-        assert_eq!(loader.get_setup_grace_period("PegawaiNegeri", "STANDARD"), 7);
+        assert_eq!(
+            loader.get_setup_grace_period("PegawaiNegeri", "STANDARD"),
+            7
+        );
 
         // Test max failed attempts
         assert_eq!(loader.get_max_failed_attempts("AdminPusat"), 3); // Stricter for high privilege

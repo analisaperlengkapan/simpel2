@@ -30,19 +30,29 @@ async fn test_shared_state_between_rest_and_grpc() {
         .encrypt(key_name, plaintext, None, None)
         .await;
 
-    assert!(encrypt_result.is_ok(), "Failed to encrypt: {:?}", encrypt_result.err());
+    assert!(
+        encrypt_result.is_ok(),
+        "Failed to encrypt: {:?}",
+        encrypt_result.err()
+    );
 
     let ciphertext = encrypt_result;
 
     // Decrypt using the same engine (simulating REST call)
-    let decrypt_result = transit_engine
-        .decrypt(key_name, &ciphertext, None)
-        .await;
+    let decrypt_result = transit_engine.decrypt(key_name, &ciphertext, None).await;
 
-    assert!(decrypt_result.is_ok(), "Failed to decrypt: {:?}", decrypt_result.err());
+    assert!(
+        decrypt_result.is_ok(),
+        "Failed to decrypt: {:?}",
+        decrypt_result.err()
+    );
 
     let decrypted = decrypt_result;
-    assert_eq!(plaintext, decrypted.as_slice(), "Decrypted data doesn't match original");
+    assert_eq!(
+        plaintext,
+        decrypted.as_slice(),
+        "Decrypted data doesn't match original"
+    );
 }
 
 #[tokio::test]
@@ -92,7 +102,11 @@ async fn test_health_check_integration() {
 
     // Check storage health
     let health_result = storage.health_check().await;
-    assert!(health_result.is_ok(), "Storage health check failed: {:?}", health_result.err());
+    assert!(
+        health_result.is_ok(),
+        "Storage health check failed: {:?}",
+        health_result.err()
+    );
 }
 
 #[tokio::test]
@@ -124,5 +138,8 @@ async fn test_graceful_shutdown() {
         .encrypt("shutdown-test-key", plaintext, None, None)
         .await;
 
-    assert!(result.is_ok(), "Engine not functional after simulated shutdown");
+    assert!(
+        result.is_ok(),
+        "Engine not functional after simulated shutdown"
+    );
 }

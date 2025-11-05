@@ -79,9 +79,7 @@ impl Default for CertConfig {
                 "DigitalSignature".to_string(),
                 "KeyEncipherment".to_string(),
             ],
-            allowed_ext_key_usages: vec![
-                "ClientAuth".to_string(),
-            ],
+            allowed_ext_key_usages: vec!["ClientAuth".to_string()],
             cert_policies: HashMap::new(),
             token_ttl: 3600,
             token_max_ttl: 86400,
@@ -222,9 +220,7 @@ impl CertAuth {
             }
         }
 
-        let serial_number = cert
-            .serial
-            .to_str_radix(16);
+        let serial_number = cert.serial.to_str_radix(16);
 
         let issuer = cert.issuer().to_string();
 
@@ -386,7 +382,8 @@ kYiUa3bQHDn3sVPGWJOsNcTWvJNH4FQCR1234567890abcdefghijk
         auth.add_cert_policy(
             "testuser".to_string(),
             vec!["admin".to_string(), "read".to_string()],
-        ).await;
+        )
+        .await;
 
         let config = auth.config.read().await;
         let policies = config.cert_policies.get("testuser").unwrap();

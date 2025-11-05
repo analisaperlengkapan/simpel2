@@ -1,14 +1,15 @@
 //! Admin service for system management operations.
 
+use anyhow::Result;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use secreton_core::audit::AuditLogger;
-use secreton_storage::StorageBackend;
 use crate::services::auth::AuthService;
+use secreton_core::audit::AuditLogger;
+use secreton_crypto::encryption::CryptoEngine;
+use secreton_storage::StorageBackend;
 
 /// Admin service errors
 #[derive(Error, Debug)]
@@ -145,7 +146,10 @@ impl AdminService {
             duration_ms: duration.as_millis() as u64,
             details: {
                 let mut details = HashMap::new();
-                details.insert("backup_id".to_string(), serde_json::Value::String(backup_id.to_string()));
+                details.insert(
+                    "backup_id".to_string(),
+                    serde_json::Value::String(backup_id.to_string()),
+                );
                 details
             },
         })
@@ -167,8 +171,14 @@ impl AdminService {
             duration_ms: duration.as_millis() as u64,
             details: {
                 let mut details = HashMap::new();
-                details.insert("cleaned_objects".to_string(), serde_json::Value::Number(150.into()));
-                details.insert("freed_space_bytes".to_string(), serde_json::Value::Number(2_621_440.into()));
+                details.insert(
+                    "cleaned_objects".to_string(),
+                    serde_json::Value::Number(150.into()),
+                );
+                details.insert(
+                    "freed_space_bytes".to_string(),
+                    serde_json::Value::Number(2_621_440.into()),
+                );
                 details
             },
         })
@@ -187,9 +197,18 @@ impl AdminService {
             duration_ms: duration.as_millis() as u64,
             details: {
                 let mut details = HashMap::new();
-                details.insert("original_size_bytes".to_string(), serde_json::Value::Number(1_288_490_188.into()));
-                details.insert("compacted_size_bytes".to_string(), serde_json::Value::Number(996_147_200.into()));
-                details.insert("space_saved_bytes".to_string(), serde_json::Value::Number(292_342_988.into()));
+                details.insert(
+                    "original_size_bytes".to_string(),
+                    serde_json::Value::Number(1_288_490_188.into()),
+                );
+                details.insert(
+                    "compacted_size_bytes".to_string(),
+                    serde_json::Value::Number(996_147_200.into()),
+                );
+                details.insert(
+                    "space_saved_bytes".to_string(),
+                    serde_json::Value::Number(292_342_988.into()),
+                );
                 details
             },
         })
@@ -247,9 +266,15 @@ impl AdminService {
             duration_ms: duration.as_millis() as u64,
             details: {
                 let mut details = HashMap::new();
-                details.insert("updated_keys".to_string(), serde_json::Value::Array(
-                    config_updates.keys().map(|k| serde_json::Value::String(k.clone())).collect()
-                ));
+                details.insert(
+                    "updated_keys".to_string(),
+                    serde_json::Value::Array(
+                        config_updates
+                            .keys()
+                            .map(|k| serde_json::Value::String(k.clone()))
+                            .collect(),
+                    ),
+                );
                 details
             },
         })
@@ -295,10 +320,10 @@ pub struct SecurityFinding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secreton_crypto::SecurityParams;
-    use secreton_storage::MemoryBackend;
     use crate::config::AuthConfig;
     use secreton_core::audit::AuditLogger;
+    use secreton_crypto::SecurityParams;
+    use secreton_storage::MemoryBackend;
 
     #[tokio::test]
     async fn test_admin_service_creation() {
@@ -360,11 +385,11 @@ impl AdminService {
     /// Create mock admin service for testing
     pub fn new_mock(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
         Self {
-            storage,
             auth: Arc::new(AuthService::new_mock(
                 storage.clone(),
-                Arc::new(CryptoEngine::new().expect("crypto")),
+                Arc::new(CryptoEngine::new()),
             )),
+            storage,
             audit: Arc::new(AuditLogger::new(vec![])),
         }
     }

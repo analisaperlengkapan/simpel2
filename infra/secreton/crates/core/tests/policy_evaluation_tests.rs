@@ -1,7 +1,9 @@
-use secreton_core::services::policy::{PolicySet, PolicyRule, ControlGroup, Capability, evaluate_with_sentinel};
-use secreton_core::models::sentinel::SentinelPolicy;
-use serde_json::json;
 use chrono::Utc;
+use secreton_core::models::sentinel::SentinelPolicy;
+use secreton_core::services::policy::{
+    Capability, ControlGroup, PolicyRule, PolicySet, evaluate_with_sentinel,
+};
+use serde_json::json;
 
 fn create_test_rule(effect: &str, action: &str, path: &str) -> PolicyRule {
     PolicyRule {
@@ -245,54 +247,40 @@ fn test_capability_enum() {
 
 #[tokio::test]
 async fn test_sentinel_policy_evaluation() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "test-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: "rule { allow }".to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "test-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: "rule { allow }".to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
 
     assert!(result);
 }
 
 #[tokio::test]
 async fn test_sentinel_deny_all() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "deny-all".to_string(),
-            version: 1,
-            policy_type: "deny_all".to_string(),
-            source_code: "".to_string(),
-            egp: false,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "deny-all".to_string(),
+        version: 1,
+        policy_type: "deny_all".to_string(),
+        source_code: "".to_string(),
+        egp: false,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
 
     assert!(!result);
 }
@@ -321,17 +309,12 @@ async fn test_sentinel_version_selection() {
             egp: true,
             rgp: false,
             created_at: Utc::now(),
-        }
+        },
     ];
 
     // Should use version 2 (latest)
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
 
     assert!(result);
 }
@@ -583,9 +566,7 @@ fn test_policy_precedence_deny_after_allow() {
 
 #[test]
 fn test_no_match_default_deny() {
-    let rules = vec![
-        create_test_rule("allow", "read", "secret/allowed/*"),
-    ];
+    let rules = vec![create_test_rule("allow", "read", "secret/allowed/*")];
     let policy_set = PolicySet::new(rules);
 
     // No matching rule - should deny
@@ -595,9 +576,7 @@ fn test_no_match_default_deny() {
 
 #[test]
 fn test_wildcard_path_variations() {
-    let rules = vec![
-        create_test_rule("allow", "read", "secret/*/config"),
-    ];
+    let rules = vec![create_test_rule("allow", "read", "secret/*/config")];
     let policy_set = PolicySet::new(rules);
 
     // Should match single level wildcard
@@ -703,24 +682,23 @@ fn test_context_variations() {
 
 #[tokio::test]
 async fn test_sentinel_path_matching() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "path-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: r#"
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "path-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: r#"
                 rule {
                     path == "secret/allowed/*"
                     allow
                 }
-            "#.to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+            "#
+        .to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
     // Matching path
     let result = evaluate_with_sentinel(
@@ -728,62 +706,56 @@ async fn test_sentinel_path_matching() {
         "user1",
         "secret/allowed/foo",
         "read",
-        None
-    ).await;
+        None,
+    )
+    .await;
     assert!(result);
 }
 
 #[tokio::test]
 async fn test_sentinel_action_matching() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "action-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: r#"
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "action-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: r#"
                 rule {
                     action == "read"
                     allow
                 }
-            "#.to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+            "#
+        .to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(result);
 }
 
 #[tokio::test]
 async fn test_sentinel_context_condition() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "mfa-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: r#"
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "mfa-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: r#"
                 rule {
                     context.mfa_passed == true
                     allow
                 }
-            "#.to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+            "#
+        .to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
     // With MFA passed - should allow
     let context = json!({ "mfa_passed": true });
@@ -792,24 +764,23 @@ async fn test_sentinel_context_condition() {
         "user1",
         "secret/foo",
         "read",
-        Some(&context)
-    ).await;
+        Some(&context),
+    )
+    .await;
     assert!(result);
 
     // Test with explicit deny when MFA is false
-    let sentinel_policies_deny = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "mfa-deny-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: "rule { deny }".to_string(),  // Explicit deny
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+    let sentinel_policies_deny = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "mfa-deny-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: "rule { deny }".to_string(), // Explicit deny
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
     let context = json!({ "mfa_passed": false });
     let result = evaluate_with_sentinel(
@@ -817,93 +788,74 @@ async fn test_sentinel_context_condition() {
         "user1",
         "secret/foo",
         "read",
-        Some(&context)
-    ).await;
+        Some(&context),
+    )
+    .await;
     assert!(!result);
 }
 
 #[tokio::test]
 async fn test_sentinel_explicit_deny() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "deny-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: "rule { deny }".to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "deny-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: "rule { deny }".to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(!result);
 }
 
 #[tokio::test]
 async fn test_sentinel_empty_policy() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "empty-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: "".to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "empty-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: "".to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(!result); // Empty policy denies
 }
 
 #[tokio::test]
 async fn test_sentinel_comments_ignored() {
-    let sentinel_policies = vec![
-        SentinelPolicy {
-            id: 1,
-            namespace: "default".to_string(),
-            name: "comment-policy".to_string(),
-            version: 1,
-            policy_type: "egp".to_string(),
-            source_code: r#"
+    let sentinel_policies = vec![SentinelPolicy {
+        id: 1,
+        namespace: "default".to_string(),
+        name: "comment-policy".to_string(),
+        version: 1,
+        policy_type: "egp".to_string(),
+        source_code: r#"
                 // This is a comment
                 # This is also a comment
                 rule {
                     // deny should be ignored in comments
                     allow
                 }
-            "#.to_string(),
-            egp: true,
-            rgp: false,
-            created_at: Utc::now(),
-        }
-    ];
+            "#
+        .to_string(),
+        egp: true,
+        rgp: false,
+        created_at: Utc::now(),
+    }];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(result);
 }
 
@@ -931,17 +883,12 @@ async fn test_sentinel_multiple_policies_all_must_pass() {
             egp: true,
             rgp: false,
             created_at: Utc::now(),
-        }
+        },
     ];
 
     // All policies allow
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(result);
 
     // One policy denies - should deny overall
@@ -967,15 +914,10 @@ async fn test_sentinel_multiple_policies_all_must_pass() {
             egp: true,
             rgp: false,
             created_at: Utc::now(),
-        }
+        },
     ];
 
-    let result = evaluate_with_sentinel(
-        &sentinel_policies,
-        "user1",
-        "secret/foo",
-        "read",
-        None
-    ).await;
+    let result =
+        evaluate_with_sentinel(&sentinel_policies, "user1", "secret/foo", "read", None).await;
     assert!(!result);
 }

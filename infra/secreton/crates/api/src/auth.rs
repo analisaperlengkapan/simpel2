@@ -4,13 +4,13 @@
 //! and integration with external identity providers.
 
 use axum::{
+    Json,
     http::{HeaderValue, StatusCode},
     response::{IntoResponse, Response},
-    Json,
 };
 use chrono::{Duration, Utc};
 use jsonwebtoken::{
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
+    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
 };
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
@@ -29,6 +29,8 @@ pub struct Claims {
     pub iss: String,              // Issuer
     pub aud: String,              // Audience
     pub jti: String,              // JWT ID
+    #[serde(default)]
+    pub metadata: std::collections::HashMap<String, String>, // Additional metadata
 }
 
 /// Authentication configuration
@@ -184,6 +186,7 @@ impl AuthService {
             iss: self.config.issuer.clone(),
             aud: self.config.audience.clone(),
             jti: Uuid::new_v4().to_string(),
+            metadata: std::collections::HashMap::new(),
         };
 
         encode(&Header::default(), &claims, &self.encoding_key)
@@ -374,14 +377,12 @@ mod tests {
         let config = AuthConfig::default();
         let auth_service = AuthService::new(config);
 
-        let token = auth_service
-            .generate_token(
-                "user123",
-                "Test User",
-                "test@example.com",
-                vec!["crypto-user".to_string()],
-            )
-            ;
+        let token = auth_service.generate_token(
+            "user123",
+            "Test User",
+            "test@example.com",
+            vec!["crypto-user".to_string()],
+        );
 
         let token_data = auth_service.validate_token(&token);
 

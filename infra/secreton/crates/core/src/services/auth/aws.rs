@@ -239,9 +239,15 @@ impl AwsAuth {
     }
 
     /// Create role binding
-    pub async fn create_role_binding(&self, name: String, binding: AwsRoleBinding) -> Result<(), AwsError> {
+    pub async fn create_role_binding(
+        &self,
+        name: String,
+        binding: AwsRoleBinding,
+    ) -> Result<(), AwsError> {
         if binding.role_arn.is_empty() {
-            return Err(AwsError::InvalidCredentials("Role ARN cannot be empty".to_string()));
+            return Err(AwsError::InvalidCredentials(
+                "Role ARN cannot be empty".to_string(),
+            ));
         }
 
         let mut bindings = self.role_bindings.write().await;
@@ -253,7 +259,8 @@ impl AwsAuth {
     pub async fn authenticate_iam(&self, request: AwsIamRequest) -> Result<UserInfo, AwsError> {
         // Get role binding
         let bindings = self.role_bindings.read().await;
-        let binding = bindings.get(&request.role)
+        let binding = bindings
+            .get(&request.role)
             .ok_or_else(|| AwsError::RoleNotFound(request.role.clone()))?
             .clone();
         drop(bindings);
@@ -261,7 +268,7 @@ impl AwsAuth {
         // Verify IAM auth type is allowed
         if !binding.auth_types.contains(&AwsAuthType::IAM) {
             return Err(AwsError::InvalidCredentials(
-                "IAM authentication not allowed for this role".to_string()
+                "IAM authentication not allowed for this role".to_string(),
             ));
         }
 
@@ -273,9 +280,13 @@ impl AwsAuth {
 
         // Verify principal ARN is bound
         if !binding.bound_iam_principal_arns.is_empty() {
-            if !binding.bound_iam_principal_arns.iter().any(|arn| principal_arn.contains(arn)) {
+            if !binding
+                .bound_iam_principal_arns
+                .iter()
+                .any(|arn| principal_arn.contains(arn))
+            {
                 return Err(AwsError::InvalidCredentials(
-                    "Principal ARN not authorized".to_string()
+                    "Principal ARN not authorized".to_string(),
                 ));
             }
         }
@@ -300,7 +311,8 @@ impl AwsAuth {
     pub async fn authenticate_ec2(&self, request: AwsEc2Request) -> Result<UserInfo, AwsError> {
         // Get role binding
         let bindings = self.role_bindings.read().await;
-        let binding = bindings.get(&request.role)
+        let binding = bindings
+            .get(&request.role)
             .ok_or_else(|| AwsError::RoleNotFound(request.role.clone()))?
             .clone();
         drop(bindings);
@@ -308,7 +320,7 @@ impl AwsAuth {
         // Verify EC2 auth type is allowed
         if !binding.auth_types.contains(&AwsAuthType::EC2) {
             return Err(AwsError::InvalidCredentials(
-                "EC2 authentication not allowed for this role".to_string()
+                "EC2 authentication not allowed for this role".to_string(),
             ));
         }
 
@@ -324,16 +336,19 @@ impl AwsAuth {
         if !binding.bound_account_ids.is_empty() {
             if !binding.bound_account_ids.contains(&identity.account_id) {
                 return Err(AwsError::Ec2VerificationFailed(
-                    "Account ID not authorized".to_string()
+                    "Account ID not authorized".to_string(),
                 ));
             }
         }
 
         // Verify instance ID
         if !binding.bound_ec2_instance_ids.is_empty() {
-            if !binding.bound_ec2_instance_ids.contains(&identity.instance_id) {
+            if !binding
+                .bound_ec2_instance_ids
+                .contains(&identity.instance_id)
+            {
                 return Err(AwsError::Ec2VerificationFailed(
-                    "Instance ID not authorized".to_string()
+                    "Instance ID not authorized".to_string(),
                 ));
             }
         }
@@ -371,13 +386,17 @@ impl AwsAuth {
 
         // For now, simple validation
         if request.iam_http_request_method.is_empty() {
-            return Err(AwsError::InvalidSignature("Empty request method".to_string()));
+            return Err(AwsError::InvalidSignature(
+                "Empty request method".to_string(),
+            ));
         }
         if request.iam_request_url.is_empty() {
             return Err(AwsError::InvalidSignature("Empty request URL".to_string()));
         }
         if request.iam_request_headers.is_empty() {
-            return Err(AwsError::InvalidSignature("Empty request headers".to_string()));
+            return Err(AwsError::InvalidSignature(
+                "Empty request headers".to_string(),
+            ));
         }
 
         Ok(())
@@ -417,7 +436,7 @@ impl AwsAuth {
         let nonces = self.ec2_nonces.read().await;
         if nonces.contains_key(nonce) {
             return Err(AwsError::Ec2VerificationFailed(
-                "Nonce already used (replay attack prevented)".to_string()
+                "Nonce already used (replay attack prevented)".to_string(),
             ));
         }
         Ok(())
@@ -441,7 +460,8 @@ impl AwsAuth {
     /// Delete role binding
     pub async fn delete_role(&self, name: &str) -> Result<(), AwsError> {
         let mut bindings = self.role_bindings.write().await;
-        bindings.remove(name)
+        bindings
+            .remove(name)
             .ok_or_else(|| AwsError::RoleNotFound(name.to_string()))?;
         Ok(())
     }
@@ -471,7 +491,9 @@ mod tests {
             ..Default::default()
         };
 
-        let result = auth.create_role_binding("test-role".to_string(), binding).await;
+        let result = auth
+            .create_role_binding("test-role".to_string(), binding)
+            .await;
         assert!(result.is_ok());
 
         let roles = auth.list_roles().await;
@@ -491,7 +513,9 @@ mod tests {
             bound_iam_principal_arns: vec!["arn:aws:iam::123456789012:user/".to_string()],
             ..Default::default()
         };
-        auth.create_role_binding("test-role".to_string(), binding).await.unwrap();
+        auth.create_role_binding("test-role".to_string(), binding)
+            .await
+            .unwrap();
 
         // Create IAM request
         let request = AwsIamRequest {

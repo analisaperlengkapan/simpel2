@@ -1,45 +1,65 @@
 use anyhow::Result;
+use secreton_core::{
+    error::CoreError,
+    storage::{
+        InMemoryStorage, ListOptions, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
+    },
+};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration};
-use secreton_core::{
-    storage::{StorageEngine, InMemoryStorage, StorageEntry},
-    error::CoreError,
-};
+use tokio::time::{Duration, sleep};
+use uuid::Uuid;
+
+// Helper function to create a test VaultEntry
+fn create_test_entry(path: &str, data: &[u8]) -> VaultEntry {
+    VaultEntry::new(
+        path.to_string(),
+        data.to_vec(),
+        json!({}),
+        SecurityLevel::Internal,
+        "test_owner".to_string(),
+    )
+}
 
 #[tokio::test]
 async fn test_memory_storage_basic_operations() -> Result<()> {
     let storage = InMemoryStorage::new();
 
     // Test store and retrieve
-    let key = "test_key";
+    let path = "/test/key";
     let value = b"test_value";
 
-    let entry = StorageEntry {
-        key: key.to_string(),
-        value: value.to_vec(),
-        metadata: std::collections::HashMap::new(),
-    };
+    let entry = VaultEntry::new(
+        path.to_string(),
+        value.to_vec(),
+        json!({}),
+        SecurityLevel::Internal,
+        "test_owner".to_string(),
+    );
 
-    storage.put(entry).await?;
-    let retrieved = storage.get(key).await?;
+    storage.store(&entry).await?;
+    let retrieved = storage.get_by_path(path).await?;
 
     assert!(retrieved.is_some(), "Retrieved value should exist");
-    assert_eq!(retrieved.unwrap().value, value, "Retrieved value should match stored value");
+    assert_eq!(
+        retrieved.unwrap().encrypted_data,
+        value,
+        "Retrieved value should match stored value"
+    );
 
     // Test key existence
-    let exists_entry = storage.get(key).await?;
-    assert!(exists_entry.is_some(), "Key should exist after storing");
+    let exists = storage.exists(path).await?;
+    assert!(exists, "Path should exist after storing");
 
     // Test non-existent key
-    let missing_exists = storage.get("non_existent").await?;
-    assert!(missing_exists.is_none(), "Non-existent key should not exist");
+    let missing_exists = storage.exists("/non/existent").await?;
+    assert!(!missing_exists, "Non-existent path should not exist");
 
     // Test delete
-    storage.delete(key).await?;
-    let deleted_exists = storage.get(key).await?;
-    assert!(deleted_exists.is_none(), "Key should not exist after deletion");
+    storage.delete_by_path(path).await?;
+    let deleted_exists = storage.exists(path).await?;
+    assert!(!deleted_exists, "Path should not exist after deletion");
 
     Ok(())
 }
@@ -49,19 +69,23 @@ async fn test_storage_concurrent_operations() -> Result<()> {
     let storage = Arc::new(InMemoryStorage::new());
 
     // Test concurrent writes
-    let write_handles: Vec<_> = (0..100).map(|i| {
-        let storage_clone = Arc::clone(&storage);
-        tokio::spawn(async move {
-            let key = format!("concurrent_key_{}", i);
-            let value = format!("concurrent_value_{}", i);
-            let entry = StorageEntry {
-                key: key.clone(),
-                value: value.as_bytes().to_vec(),
-                metadata: std::collections::HashMap::new(),
-            };
-            storage_clone.put(entry).await
+    let write_handles: Vec<_> = (0..100)
+        .map(|i| {
+            let storage_clone = Arc::clone(&storage);
+            tokio::spawn(async move {
+                let path = format!("/concurrent/key/{}", i);
+                let value = format!("concurrent_value_{}", i);
+                let entry = VaultEntry::new(
+                    path.clone(),
+                    value.as_bytes().to_vec(),
+                    json!({}),
+                    SecurityLevel::Internal,
+                    "test_owner".to_string(),
+                );
+                storage_clone.store(&entry).await
+            })
         })
-    }).collect();
+        .collect();
 
     // Wait for all writes to complete
     for handle in write_handles {
@@ -70,15 +94,17 @@ async fn test_storage_concurrent_operations() -> Result<()> {
     }
 
     // Test concurrent reads
-    let read_handles: Vec<_> = (0..100).map(|i| {
-        let storage_clone = Arc::clone(&storage);
-        tokio::spawn(async move {
-            let key = format!("concurrent_key_{}", i);
-            let expected_value = format!("concurrent_value_{}", i);
-            let result = storage_clone.get(&key).await;
-            (i, result, expected_value)
+    let read_handles: Vec<_> = (0..100)
+        .map(|i| {
+            let storage_clone = Arc::clone(&storage);
+            tokio::spawn(async move {
+                let path = format!("/concurrent/key/{}", i);
+                let expected_value = format!("concurrent_value_{}", i);
+                let result = storage_clone.get_by_path(&path).await;
+                (i, result, expected_value)
+            })
         })
-    }).collect();
+        .collect();
 
     // Verify all reads
     for handle in read_handles {
@@ -87,53 +113,64 @@ async fn test_storage_concurrent_operations() -> Result<()> {
 
         let actual_entry = result.unwrap();
         assert!(actual_entry.is_some(), "Entry {} should exist", i);
-        assert_eq!(actual_entry.unwrap().value, expected_value.as_bytes(), "Concurrent read {} should match expected value", i);
+        assert_eq!(
+            actual_entry.unwrap().encrypted_data,
+            expected_value.as_bytes(),
+            "Concurrent read {} should match expected value",
+            i
+        );
     }
 
     // Test mixed operations (read/write/delete)
-    let mixed_handles: Vec<_> = (0..50).map(|i| {
-        let storage_clone = Arc::clone(&storage);
-        tokio::spawn(async move {
-            let key = format!("mixed_key_{}", i);
-            let value = format!("mixed_value_{}", i);
+    let mixed_handles: Vec<_> = (0..50)
+        .map(|i| {
+            let storage_clone = Arc::clone(&storage);
+            tokio::spawn(async move {
+                let path = format!("/mixed/key/{}", i);
+                let value = format!("mixed_value_{}", i);
 
-            // Store
-            let entry = StorageEntry {
-                key: key.clone(),
-                value: value.as_bytes().to_vec(),
-                metadata: std::collections::HashMap::new(),
-            };
-            storage_clone.put(entry).await?;
+                // Store
+                let entry = VaultEntry::new(
+                    path.clone(),
+                    value.as_bytes().to_vec(),
+                    json!({}),
+                    SecurityLevel::Internal,
+                    "test_owner".to_string(),
+                );
+                storage_clone.store(&entry).await?;
 
-            // Read back
-            let retrieved = storage_clone.get(&key).await?;
-            assert!(retrieved.is_some());
-            assert_eq!(retrieved.unwrap().value, value.as_bytes());
+                // Read back
+                let retrieved = storage_clone.get_by_path(&path).await?;
+                assert!(retrieved.is_some());
+                assert_eq!(retrieved.unwrap().encrypted_data, value.as_bytes());
 
-            // Update
-            let new_value = format!("updated_mixed_value_{}", i);
-            let updated_entry = StorageEntry {
-                key: key.clone(),
-                value: new_value.as_bytes().to_vec(),
-                metadata: std::collections::HashMap::new(),
-            };
-            storage_clone.put(updated_entry).await?;
+                // Update
+                let new_value = format!("updated_mixed_value_{}", i);
+                let mut updated_entry = entry.clone();
+                updated_entry.encrypted_data = new_value.as_bytes().to_vec();
+                updated_entry.version += 1;
+                updated_entry.updated_at = chrono::Utc::now();
+                storage_clone.update(&updated_entry).await?;
 
-            // Read updated
-            let updated_retrieved = storage_clone.get(&key).await?;
-            assert!(updated_retrieved.is_some());
-            assert_eq!(updated_retrieved.unwrap().value, new_value.as_bytes());
+                // Read updated
+                let updated_retrieved = storage_clone.get_by_path(&path).await?;
+                assert!(updated_retrieved.is_some());
+                assert_eq!(
+                    updated_retrieved.unwrap().encrypted_data,
+                    new_value.as_bytes()
+                );
 
-            // Delete
-            storage_clone.delete(&key).await?;
+                // Delete
+                storage_clone.delete_by_path(&path).await?;
 
-            // Verify deletion
-            let exists = storage_clone.get(&key).await?;
-            assert!(exists.is_none());
+                // Verify deletion
+                let exists = storage_clone.exists(&path).await?;
+                assert!(!exists);
 
-            Ok::<(), CoreError>(())
+                Ok::<(), anyhow::Error>(())
+            })
         })
-    }).collect();
+        .collect();
 
     for handle in mixed_handles {
         let result = handle.await?;
@@ -147,144 +184,157 @@ async fn test_storage_concurrent_operations() -> Result<()> {
 async fn test_storage_edge_cases() -> Result<()> {
     let storage = InMemoryStorage::new();
 
-    // Test empty key
-    let empty_key_result = storage.put(StorageEntry {
-        key: "".to_string(),
-        value: b"value".to_vec(),
-        metadata: std::collections::HashMap::new(),
-    }).await;
-    assert!(empty_key_result.is_err(), "Should fail with empty key");
+    // Test empty path (should fail)
+    let empty_path_result = storage
+        .store(&VaultEntry::new(
+            "".to_string(),
+            b"value".to_vec(),
+            json!({}),
+            SecurityLevel::Internal,
+            "test_owner".to_string(),
+        ))
+        .await;
+    assert!(empty_path_result.is_err(), "Should fail with empty path");
 
-    // Test empty value
-    let empty_value_result = storage.put(StorageEntry {
-        key: "valid_key".to_string(),
-        value: b"".to_vec(),
-        metadata: std::collections::HashMap::new(),
-    }).await;
-    assert!(empty_value_result.is_ok(), "Should succeed with empty value");
+    // Test empty value (should succeed)
+    let empty_value_result = storage
+        .store(&VaultEntry::new(
+            "/valid/path".to_string(),
+            b"".to_vec(),
+            json!({}),
+            SecurityLevel::Internal,
+            "test_owner".to_string(),
+        ))
+        .await;
+    assert!(
+        empty_value_result.is_ok(),
+        "Should succeed with empty value"
+    );
 
-    let empty_entry = storage.get("valid_key").await?;
+    let empty_entry = storage.get_by_path("/valid/path").await?;
     assert!(empty_entry.is_some(), "Should have entry");
-    assert!(empty_entry.unwrap().value.is_empty(), "Should retrieve empty value");
+    assert!(
+        empty_entry.unwrap().encrypted_data.is_empty(),
+        "Should retrieve empty value"
+    );
 
-    // Test very long keys
-    let long_key = "a".repeat(1000);
-    let long_key_result = storage.put(StorageEntry {
-        key: long_key.clone(),
-        value: b"value".to_vec(),
-        metadata: std::collections::HashMap::new(),
-    }).await;
+    // Test very long paths
+    let long_path = format!("/{}", "a".repeat(1000));
+    let long_path_result = storage
+        .store(&VaultEntry::new(
+            long_path.clone(),
+            b"value".to_vec(),
+            json!({}),
+            SecurityLevel::Internal,
+            "test_owner".to_string(),
+        ))
+        .await;
     // This should either succeed or fail gracefully
-    match long_key_result {
+    match long_path_result {
         Ok(_) => {
-            let long_entry = storage.get(&long_key).await?;
+            let long_entry = storage.get_by_path(&long_path).await?;
             assert!(long_entry.is_some(), "Should have entry");
-            assert_eq!(long_entry.unwrap().value, b"value");
-            println!("Long key test passed");
-        },
+            assert_eq!(long_entry.unwrap().encrypted_data, b"value");
+            println!("Long path test passed");
+        }
         Err(e) => {
-            println!("Long key test failed as expected: {:?}", e);
+            println!("Long path test failed as expected: {:?}", e);
         }
     }
 
     // Test very large values
     let large_value = vec![0u8; 1024 * 1024]; // 1MB
-    let large_value_result = storage.put(StorageEntry {
-        key: "large_value_key".to_string(),
-        value: large_value.clone(),
-        metadata: std::collections::HashMap::new(),
-    }).await;
+    let large_value_result = storage
+        .store(&VaultEntry::new(
+            "/large/value".to_string(),
+            large_value.clone(),
+            json!({}),
+            SecurityLevel::Internal,
+            "test_owner".to_string(),
+        ))
+        .await;
     match large_value_result {
         Ok(_) => {
-            let large_entry = storage.get("large_value_key").await?;
+            let large_entry = storage.get_by_path("/large/value").await?;
             assert!(large_entry.is_some(), "Should have entry");
-            assert_eq!(large_entry.unwrap().value.len(), 1024 * 1024);
+            assert_eq!(large_entry.unwrap().encrypted_data.len(), 1024 * 1024);
             println!("Large value test passed");
-        },
+        }
         Err(e) => {
             println!("Large value test failed as expected: {:?}", e);
         }
     }
 
-    // Test special characters in keys
-    let special_keys = vec![
-        "key with spaces",
-        "key/with/slashes",
-        "key\\with\\backslashes",
-        "key:with:colons",
-        "key.with.dots",
-        "key-with-dashes",
-        "key_with_underscores",
-        "key@with@at",
-        "key#with#hash",
-        "key$with$dollar",
-        "key%with%percent",
-        "key^with^caret",
-        "key&with&ampersand",
-        "key*with*asterisk",
-        "key(with)parentheses",
-        "key[with]brackets",
-        "key{with}braces",
-        "key|with|pipe",
-        "key;with;semicolon",
-        "key'with'quotes",
-        "key\"with\"doublequotes",
-        "key<with>angles",
-        "key,with,commas",
-        "key?with?questions",
-        "key=with=equals",
-        "key+with+plus",
-        "key~with~tilde",
-        "key`with`backtick",
+    // Test special characters in paths
+    let special_paths = vec![
+        "/key/with spaces",
+        "/key-with-dashes",
+        "/key_with_underscores",
+        "/key.with.dots",
     ];
 
-    for (i, key) in special_keys.iter().enumerate() {
+    for (i, path) in special_paths.iter().enumerate() {
         let value = format!("value_{}", i);
-        let result = storage.put(StorageEntry {
-            key: key.to_string(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await;
+        let result = storage
+            .store(&VaultEntry::new(
+                path.to_string(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await;
 
         match result {
             Ok(_) => {
-                let entry = storage.get(key).await?;
-                assert!(entry.is_some(), "Should have entry for key '{}'", key);
-                assert_eq!(entry.unwrap().value, value.as_bytes(), "Special key '{}' should work", key);
-            },
+                let entry = storage.get_by_path(path).await?;
+                assert!(entry.is_some(), "Should have entry for path '{}'", path);
+                assert_eq!(
+                    entry.unwrap().encrypted_data,
+                    value.as_bytes(),
+                    "Special path '{}' should work",
+                    path
+                );
+            }
             Err(e) => {
-                println!("Special key '{}' failed as expected: {:?}", key, e);
+                println!("Special path '{}' failed as expected: {:?}", path, e);
             }
         }
     }
 
-    // Test unicode keys
-    let unicode_keys = vec![
-        "键值",
-        "キー",
-        "ключ",
-        "مفتاح",
-        "🔑key🔑",
-        "key_with_émojis_🚀",
-    ];
+    // Test unicode paths
+    let unicode_paths = vec!["/键值", "/キー", "/ключ", "/🔑key🔑"];
 
-    for (i, key) in unicode_keys.iter().enumerate() {
+    for (i, path) in unicode_paths.iter().enumerate() {
         let value = format!("unicode_value_{}", i);
-        let result = storage.put(StorageEntry {
-            key: key.to_string(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await;
+        let result = storage
+            .store(&VaultEntry::new(
+                path.to_string(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await;
 
         match result {
             Ok(_) => {
-                let entry = storage.get(key).await?;
-                assert!(entry.is_some(), "Should have entry for unicode key '{}'", key);
-                assert_eq!(entry.unwrap().value, value.as_bytes(), "Unicode key '{}' should work", key);
-                println!("Unicode key '{}' test passed", key);
-            },
+                let entry = storage.get_by_path(path).await?;
+                assert!(
+                    entry.is_some(),
+                    "Should have entry for unicode path '{}'",
+                    path
+                );
+                assert_eq!(
+                    entry.unwrap().encrypted_data,
+                    value.as_bytes(),
+                    "Unicode path '{}' should work",
+                    path
+                );
+                println!("Unicode path '{}' test passed", path);
+            }
             Err(e) => {
-                println!("Unicode key '{}' failed as expected: {:?}", key, e);
+                println!("Unicode path '{}' failed as expected: {:?}", path, e);
             }
         }
     }
@@ -298,56 +348,65 @@ async fn test_storage_patterns_and_listing() -> Result<()> {
 
     // Create hierarchical data structure
     let test_data = vec![
-        ("app/frontend/config", "frontend_config"),
-        ("app/backend/config", "backend_config"),
-        ("app/database/url", "db_url"),
-        ("app/database/credentials", "db_creds"),
-        ("secrets/api/key1", "api_key_1"),
-        ("secrets/api/key2", "api_key_2"),
-        ("secrets/oauth/client_id", "oauth_client"),
-        ("secrets/oauth/client_secret", "oauth_secret"),
-        ("temp/cache/item1", "cache_item_1"),
-        ("temp/cache/item2", "cache_item_2"),
-        ("temp/sessions/user1", "session_1"),
+        ("/app/frontend/config", "frontend_config"),
+        ("/app/backend/config", "backend_config"),
+        ("/app/database/url", "db_url"),
+        ("/app/database/credentials", "db_creds"),
+        ("/secrets/api/key1", "api_key_1"),
+        ("/secrets/api/key2", "api_key_2"),
+        ("/secrets/oauth/client_id", "oauth_client"),
+        ("/secrets/oauth/client_secret", "oauth_secret"),
+        ("/temp/cache/item1", "cache_item_1"),
+        ("/temp/cache/item2", "cache_item_2"),
+        ("/temp/sessions/user1", "session_1"),
     ];
 
     // Store all test data
-    for (key, value) in &test_data {
-        storage.put(StorageEntry {
-            key: key.to_string(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+    for (path, value) in &test_data {
+        storage
+            .store(&VaultEntry::new(
+                path.to_string(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await?;
     }
 
-    // Test list functionality if available
-    if let Ok(all_keys) = storage.list("").await {
-        assert!(!all_keys.is_empty(), "Should have keys");
-        assert_eq!(all_keys.len(), test_data.len(), "Should list all keys");
+    // Test list functionality
+    let params = QueryParams::new();
+    let all_entries = storage.list(&params).await?;
+    assert!(!all_entries.is_empty(), "Should have entries");
+    assert_eq!(
+        all_entries.len(),
+        test_data.len(),
+        "Should list all entries"
+    );
 
-        // Test prefix listing
-        if let Ok(app_keys) = storage.list("app").await {
-            let expected_app_keys = test_data.iter()
-                .filter(|(k, _)| k.starts_with("app"))
-                .count();
-            assert_eq!(app_keys.len(), expected_app_keys, "Should list app keys");
-        }
+    // Test prefix listing
+    let app_params = QueryParams::new().with_path_prefix("/app".to_string());
+    let app_entries = storage.list(&app_params).await?;
+    let expected_app_entries = test_data
+        .iter()
+        .filter(|(p, _)| p.starts_with("/app"))
+        .count();
+    assert_eq!(
+        app_entries.len(),
+        expected_app_entries,
+        "Should list app entries"
+    );
 
-        if let Ok(secret_keys) = storage.list("secrets").await {
-            let expected_secret_keys = test_data.iter()
-                .filter(|(k, _)| k.starts_with("secrets"))
-                .count();
-            assert_eq!(secret_keys.len(), expected_secret_keys, "Should list secret keys");
-        }
-    } else {
-        println!("Storage doesn't support listing - testing individual access");
-
-        // Test that all keys can be retrieved individually
-        for (key, expected_value) in &test_data {
-            let entry = storage.get(key).await?;
-            assert!(entry.is_some(), "Should have entry for {}", key);
-            assert_eq!(entry.unwrap().value, expected_value.as_bytes(), "Should retrieve {}", key);
-        }
+    // Test that all paths can be retrieved individually
+    for (path, expected_value) in &test_data {
+        let entry = storage.get_by_path(path).await?;
+        assert!(entry.is_some(), "Should have entry for {}", path);
+        assert_eq!(
+            entry.unwrap().encrypted_data,
+            expected_value.as_bytes(),
+            "Should retrieve {}",
+            path
+        );
     }
 
     Ok(())
@@ -363,71 +422,95 @@ async fn test_storage_performance_characteristics() -> Result<()> {
     // Sequential writes
     let write_start = std::time::Instant::now();
     for i in 0..num_operations {
-        let key = format!("perf_key_{}", i);
+        let path = format!("/perf/key/{}", i);
         let value = format!("perf_value_{}", i);
-        storage.put(StorageEntry {
-            key: key.clone(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+        storage
+            .store(&VaultEntry::new(
+                path.clone(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await?;
     }
     let write_duration = write_start.elapsed();
-    println!("{} sequential writes took: {:?}", num_operations, write_duration);
+    println!(
+        "{} sequential writes took: {:?}",
+        num_operations, write_duration
+    );
 
     // Sequential reads
     let read_start = std::time::Instant::now();
     for i in 0..num_operations {
-        let key = format!("perf_key_{}", i);
-        let entry = storage.get(&key).await?;
+        let path = format!("/perf/key/{}", i);
+        let entry = storage.get_by_path(&path).await?;
         assert!(entry.is_some(), "Should have entry");
     }
     let read_duration = read_start.elapsed();
-    println!("{} sequential reads took: {:?}", num_operations, read_duration);
+    println!(
+        "{} sequential reads took: {:?}",
+        num_operations, read_duration
+    );
 
     // Random access pattern
     let random_start = std::time::Instant::now();
-    for i in (0..num_operations).step_by(7) {  // Access every 7th item
-        let key = format!("perf_key_{}", i % num_operations);
-        let entry = storage.get(&key).await?;
+    for i in (0..num_operations).step_by(7) {
+        // Access every 7th item
+        let path = format!("/perf/key/{}", i % num_operations);
+        let entry = storage.get_by_path(&path).await?;
         assert!(entry.is_some(), "Should have entry");
     }
     let random_duration = random_start.elapsed();
-    println!("{} random reads took: {:?}", num_operations / 7, random_duration);
+    println!(
+        "{} random reads took: {:?}",
+        num_operations / 7,
+        random_duration
+    );
 
     // Mixed operations
     let mixed_start = std::time::Instant::now();
     for i in 0..num_operations / 4 {
-        let key = format!("mixed_key_{}", i);
+        let path = format!("/mixed/key/{}", i);
         let value = format!("mixed_value_{}", i);
 
         // Write
-        storage.put(StorageEntry {
-            key: key.clone(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+        let entry = VaultEntry::new(
+            path.clone(),
+            value.as_bytes().to_vec(),
+            json!({}),
+            SecurityLevel::Internal,
+            "test_owner".to_string(),
+        );
+        storage.store(&entry).await?;
 
         // Read
-        let entry = storage.get(&key).await?;
-        assert!(entry.is_some(), "Should have entry");
+        let retrieved = storage.get_by_path(&path).await?;
+        assert!(retrieved.is_some(), "Should have entry");
 
         // Update
         let new_value = format!("updated_{}", value);
-        storage.put(StorageEntry {
-            key: key.clone(),
-            value: new_value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+        let mut updated_entry = entry.clone();
+        updated_entry.encrypted_data = new_value.as_bytes().to_vec();
+        updated_entry.version += 1;
+        updated_entry.updated_at = chrono::Utc::now();
+        storage.update(&updated_entry).await?;
 
         // Read again
-        let updated_entry = storage.get(&key).await?;
-        assert!(updated_entry.is_some(), "Should have entry");
+        let updated_retrieved = storage.get_by_path(&path).await?;
+        assert!(updated_retrieved.is_some(), "Should have entry");
     }
     let mixed_duration = mixed_start.elapsed();
-    println!("{} mixed operations took: {:?}", num_operations, mixed_duration);
+    println!(
+        "{} mixed operations took: {:?}",
+        num_operations, mixed_duration
+    );
 
     // Performance expectations (adjust based on system)
-    assert!(write_duration.as_millis() < 5000, "Writes should be reasonably fast");
+    assert!(
+        write_duration.as_millis() < 5000,
+        "Writes should be reasonably fast"
+    );
     assert!(read_duration.as_millis() < 2000, "Reads should be fast");
 
     Ok(())
@@ -440,65 +523,82 @@ async fn test_storage_stress_test() -> Result<()> {
     let operations_per_worker = 100;
 
     // Spawn multiple workers doing concurrent operations
-    let worker_handles: Vec<_> = (0..num_workers).map(|worker_id| {
-        let storage_clone = Arc::clone(&storage);
-        tokio::spawn(async move {
-            let mut operations_completed = 0;
+    let worker_handles: Vec<_> = (0..num_workers)
+        .map(|worker_id| {
+            let storage_clone = Arc::clone(&storage);
+            tokio::spawn(async move {
+                let mut operations_completed = 0;
 
-            for i in 0..operations_per_worker {
-                let key = format!("stress_{}_{}", worker_id, i);
-                let value = format!("stress_value_{}_{}", worker_id, i);
+                for i in 0..operations_per_worker {
+                    let path = format!("/stress/{}/{}", worker_id, i);
+                    let value = format!("stress_value_{}_{}", worker_id, i);
 
-                // Store
-                match storage_clone.put(StorageEntry {
-                    key: key.clone(),
-                    value: value.as_bytes().to_vec(),
-                    metadata: std::collections::HashMap::new(),
-                }).await {
-                    Ok(_) => operations_completed += 1,
-                    Err(e) => {
-                        println!("Worker {} failed store operation {}: {:?}", worker_id, i, e);
-                        continue;
-                    }
-                }
-
-                // Read back
-                match storage_clone.get(&key).await {
-                    Ok(entry) => {
-                        if let Some(entry) = entry {
-                            if entry.value != value.as_bytes() {
-                                println!("Worker {} data mismatch at operation {}", worker_id, i);
-                            }
-                        } else {
-                            println!("Worker {} entry not found at operation {}", worker_id, i);
+                    // Store
+                    match storage_clone
+                        .store(&VaultEntry::new(
+                            path.clone(),
+                            value.as_bytes().to_vec(),
+                            json!({}),
+                            SecurityLevel::Internal,
+                            "test_owner".to_string(),
+                        ))
+                        .await
+                    {
+                        Ok(_) => operations_completed += 1,
+                        Err(e) => {
+                            println!("Worker {} failed store operation {}: {:?}", worker_id, i, e);
+                            continue;
                         }
                     }
-                    Err(e) => {
-                        println!("Worker {} failed read operation {}: {:?}", worker_id, i, e);
-                        continue;
+
+                    // Read back
+                    match storage_clone.get_by_path(&path).await {
+                        Ok(entry) => {
+                            if let Some(entry) = entry {
+                                if entry.encrypted_data != value.as_bytes() {
+                                    println!(
+                                        "Worker {} data mismatch at operation {}",
+                                        worker_id, i
+                                    );
+                                }
+                            } else {
+                                println!("Worker {} entry not found at operation {}", worker_id, i);
+                            }
+                        }
+                        Err(e) => {
+                            println!("Worker {} failed read operation {}: {:?}", worker_id, i, e);
+                            continue;
+                        }
+                    }
+
+                    // Occasionally delete and recreate
+                    if i % 10 == 0 {
+                        let _ = storage_clone.delete_by_path(&path).await;
+                        let _ = storage_clone
+                            .store(&VaultEntry::new(
+                                path.clone(),
+                                value.as_bytes().to_vec(),
+                                json!({}),
+                                SecurityLevel::Internal,
+                                "test_owner".to_string(),
+                            ))
+                            .await;
+                    }
+
+                    // Add some variability
+                    if i % 20 == 0 {
+                        sleep(Duration::from_millis(1)).await;
                     }
                 }
 
-                // Occasionally delete and recreate
-                if i % 10 == 0 {
-                    let _ = storage_clone.delete(&key).await;
-                    let _ = storage_clone.put(StorageEntry {
-                        key: key.clone(),
-                        value: value.as_bytes().to_vec(),
-                        metadata: std::collections::HashMap::new(),
-                    }).await;
-                }
-
-                // Add some variability
-                if i % 20 == 0 {
-                    sleep(Duration::from_millis(1)).await;
-                }
-            }
-
-            println!("Worker {} completed {} operations", worker_id, operations_completed);
-            operations_completed
+                println!(
+                    "Worker {} completed {} operations",
+                    worker_id, operations_completed
+                );
+                operations_completed
+            })
         })
-    }).collect();
+        .collect();
 
     // Wait for all workers to complete
     let mut total_operations = 0;
@@ -507,34 +607,50 @@ async fn test_storage_stress_test() -> Result<()> {
         total_operations += completed;
     }
 
-    println!("Stress test completed: {} total operations", total_operations);
+    println!(
+        "Stress test completed: {} total operations",
+        total_operations
+    );
 
     // Verify some of the data is still accessible
     for worker_id in 0..num_workers {
-        for i in 0..10 {  // Check first 10 items from each worker
-            let key = format!("stress_{}_{}", worker_id, i);
+        for i in 0..10 {
+            // Check first 10 items from each worker
+            let path = format!("/stress/{}/{}", worker_id, i);
             let expected_value = format!("stress_value_{}_{}", worker_id, i);
 
-            match storage.get(&key).await {
+            match storage.get_by_path(&path).await {
                 Ok(entry) => {
                     if let Some(entry) = entry {
-                        assert_eq!(entry.value, expected_value.as_bytes(),
-                                  "Stress test data integrity check failed for {}", key);
+                        assert_eq!(
+                            entry.encrypted_data,
+                            expected_value.as_bytes(),
+                            "Stress test data integrity check failed for {}",
+                            path
+                        );
                     } else {
-                        // It's possible some keys were deleted during the stress test
-                        println!("Key {} not found (possibly deleted during stress test)", key);
+                        // It's possible some paths were deleted during the stress test
+                        println!(
+                            "Path {} not found (possibly deleted during stress test)",
+                            path
+                        );
                     }
                 }
                 Err(_) => {
-                    // It's possible some keys were deleted during the stress test
-                    println!("Key {} not found (possibly deleted during stress test)", key);
+                    // It's possible some paths were deleted during the stress test
+                    println!(
+                        "Path {} not found (possibly deleted during stress test)",
+                        path
+                    );
                 }
             }
         }
     }
 
-    assert!(total_operations > num_workers * operations_per_worker / 2,
-           "Should complete at least half of all operations");
+    assert!(
+        total_operations > num_workers * operations_per_worker / 2,
+        "Should complete at least half of all operations"
+    );
 
     Ok(())
 }
@@ -545,64 +661,82 @@ async fn test_storage_cleanup_and_recovery() -> Result<()> {
 
     // Fill storage with data
     for i in 0..100 {
-        let key = format!("cleanup_key_{}", i);
+        let path = format!("/cleanup/key/{}", i);
         let value = format!("cleanup_value_{}", i);
-        storage.put(StorageEntry {
-            key: key.clone(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+        storage
+            .store(&VaultEntry::new(
+                path.clone(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await?;
     }
 
     // Verify all data is there
     for i in 0..100 {
-        let key = format!("cleanup_key_{}", i);
-        let exists = storage.get(&key).await?.is_some();
-        assert!(exists, "Key {} should exist before cleanup", key);
+        let path = format!("/cleanup/key/{}", i);
+        let exists = storage.exists(&path).await?;
+        assert!(exists, "Path {} should exist before cleanup", path);
     }
 
     // Delete every other key
     for i in (0..100).step_by(2) {
-        let key = format!("cleanup_key_{}", i);
-        storage.delete(&key).await?;
+        let path = format!("/cleanup/key/{}", i);
+        storage.delete_by_path(&path).await?;
     }
 
     // Verify deletion pattern
     for i in 0..100 {
-        let key = format!("cleanup_key_{}", i);
-        let exists = storage.get(&key).await?.is_some();
+        let path = format!("/cleanup/key/{}", i);
+        let exists = storage.exists(&path).await?;
         if i % 2 == 0 {
-            assert!(!exists, "Even key {} should be deleted", key);
+            assert!(!exists, "Even path {} should be deleted", path);
         } else {
-            assert!(exists, "Odd key {} should still exist", key);
+            assert!(exists, "Odd path {} should still exist", path);
         }
     }
 
     // Test recovery by recreating deleted keys
     for i in (0..100).step_by(2) {
-        let key = format!("cleanup_key_{}", i);
+        let path = format!("/cleanup/key/{}", i);
         let value = format!("recovered_value_{}", i);
-        storage.put(StorageEntry {
-            key: key.clone(),
-            value: value.as_bytes().to_vec(),
-            metadata: std::collections::HashMap::new(),
-        }).await?;
+        storage
+            .store(&VaultEntry::new(
+                path.clone(),
+                value.as_bytes().to_vec(),
+                json!({}),
+                SecurityLevel::Internal,
+                "test_owner".to_string(),
+            ))
+            .await?;
     }
 
-    // Verify all keys exist again
+    // Verify all paths exist again
     for i in 0..100 {
-        let key = format!("cleanup_key_{}", i);
-        let exists = storage.get(&key).await?.is_some();
-        assert!(exists, "Key {} should exist after recovery", key);
+        let path = format!("/cleanup/key/{}", i);
+        let exists = storage.exists(&path).await?;
+        assert!(exists, "Path {} should exist after recovery", path);
 
-        let entry = storage.get(&key).await?;
-        let retrieved = entry.unwrap().value;
+        let entry = storage.get_by_path(&path).await?;
+        let retrieved = entry.unwrap().encrypted_data;
         if i % 2 == 0 {
             let expected = format!("recovered_value_{}", i);
-            assert_eq!(retrieved, expected.as_bytes(), "Even key {} should have recovered value", key);
+            assert_eq!(
+                retrieved,
+                expected.as_bytes(),
+                "Even path {} should have recovered value",
+                path
+            );
         } else {
             let expected = format!("cleanup_value_{}", i);
-            assert_eq!(retrieved, expected.as_bytes(), "Odd key {} should have original value", key);
+            assert_eq!(
+                retrieved,
+                expected.as_bytes(),
+                "Odd path {} should have original value",
+                path
+            );
         }
     }
 

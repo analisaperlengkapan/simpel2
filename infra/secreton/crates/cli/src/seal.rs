@@ -9,7 +9,7 @@
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
+use comfy_table::{Cell, Color, ContentArrangement, Table, presets::UTF8_FULL};
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 
@@ -137,7 +137,11 @@ async fn init_vault(
 ) -> Result<()> {
     // Validate parameters
     if threshold > shares {
-        anyhow::bail!("Threshold ({}) cannot be greater than shares ({})", threshold, shares);
+        anyhow::bail!(
+            "Threshold ({}) cannot be greater than shares ({})",
+            threshold,
+            shares
+        );
     }
     if threshold < 1 {
         anyhow::bail!("Threshold must be at least 1");
@@ -182,7 +186,10 @@ async fn init_vault(
     println!("✅ Vault initialized successfully!");
     println!();
     println!("⚠️  IMPORTANT: Save these unseal keys securely!");
-    println!("   You will need {} of {} keys to unseal the vault.", threshold, shares);
+    println!(
+        "   You will need {} of {} keys to unseal the vault.",
+        threshold, shares
+    );
     println!();
 
     let mut table = Table::new();
@@ -298,8 +305,7 @@ async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> R
         print!("Enter unseal key: ");
         io::stdout().flush()?;
 
-        let key = rpassword::read_password()
-            .context("Failed to read unseal key")?;
+        let key = rpassword::read_password().context("Failed to read unseal key")?;
 
         if key.trim().is_empty() {
             anyhow::bail!("Unseal key cannot be empty");
@@ -338,10 +344,15 @@ async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> R
         println!();
         println!("   The vault is now operational.");
     } else {
-        println!("🔓 Unseal progress: {}/{}", status.progress, status.threshold);
+        println!(
+            "🔓 Unseal progress: {}/{}",
+            status.progress, status.threshold
+        );
         println!();
-        println!("   {} more key(s) required to unseal the vault.",
-                 status.threshold - status.progress);
+        println!(
+            "   {} more key(s) required to unseal the vault.",
+            status.threshold - status.progress
+        );
     }
 
     Ok(())
@@ -392,13 +403,19 @@ async fn seal_status(config: &CliConfig) -> Result<()> {
         .load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic);
 
-    table.add_row(vec!["Initialized", if status.initialized { "Yes" } else { "No" }]);
+    table.add_row(vec![
+        "Initialized",
+        if status.initialized { "Yes" } else { "No" },
+    ]);
     table.add_row(vec!["Seal Type", &status.seal_type]);
     table.add_row(vec!["Total Shares", &status.total_shares.to_string()]);
     table.add_row(vec!["Threshold", &status.threshold.to_string()]);
 
     if status.state == "unsealing" {
-        table.add_row(vec!["Progress", &format!("{}/{}", status.progress, status.threshold)]);
+        table.add_row(vec![
+            "Progress",
+            &format!("{}/{}", status.progress, status.threshold),
+        ]);
         table.add_row(vec![
             "Remaining",
             &(status.threshold - status.progress).to_string(),
@@ -426,7 +443,11 @@ async fn execute_rekey_command(cmd: RekeyCommand, config: &CliConfig) -> Result<
 async fn rekey_init(config: &CliConfig, shares: usize, threshold: usize) -> Result<()> {
     // Validate parameters
     if threshold > shares {
-        anyhow::bail!("Threshold ({}) cannot be greater than shares ({})", threshold, shares);
+        anyhow::bail!(
+            "Threshold ({}) cannot be greater than shares ({})",
+            threshold,
+            shares
+        );
     }
     if threshold < 1 {
         anyhow::bail!("Threshold must be at least 1");
@@ -486,8 +507,7 @@ async fn rekey_update(config: &CliConfig, key: Option<String>) -> Result<()> {
         print!("Enter unseal key: ");
         io::stdout().flush()?;
 
-        let key = rpassword::read_password()
-            .context("Failed to read unseal key")?;
+        let key = rpassword::read_password().context("Failed to read unseal key")?;
 
         if key.trim().is_empty() {
             anyhow::bail!("Unseal key cannot be empty");
@@ -533,7 +553,10 @@ async fn rekey_update(config: &CliConfig, key: Option<String>) -> Result<()> {
     } else {
         println!("🔄 Rekey progress: {}/{}", rekey.progress, rekey.required);
         println!();
-        println!("   {} more key(s) required.", rekey.required - rekey.progress);
+        println!(
+            "   {} more key(s) required.",
+            rekey.required - rekey.progress
+        );
     }
 
     Ok(())
@@ -599,8 +622,14 @@ async fn rekey_status(config: &CliConfig) -> Result<()> {
     table.add_row(vec!["Nonce", &rekey.nonce]);
     table.add_row(vec!["New Shares", &rekey.new_shares.to_string()]);
     table.add_row(vec!["New Threshold", &rekey.new_threshold.to_string()]);
-    table.add_row(vec!["Progress", &format!("{}/{}", rekey.progress, rekey.required)]);
-    table.add_row(vec!["Remaining", &(rekey.required - rekey.progress).to_string()]);
+    table.add_row(vec![
+        "Progress",
+        &format!("{}/{}", rekey.progress, rekey.required),
+    ]);
+    table.add_row(vec![
+        "Remaining",
+        &(rekey.required - rekey.progress).to_string(),
+    ]);
 
     println!("{}", table);
 

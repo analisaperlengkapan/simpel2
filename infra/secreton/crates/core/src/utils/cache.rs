@@ -112,7 +112,8 @@ where
         self.access_order.push(key.clone());
 
         // Insert the entry
-        self.data.insert(key, CacheEntry::new(value, ttl, sensitivity_level));
+        self.data
+            .insert(key, CacheEntry::new(value, ttl, sensitivity_level));
     }
 
     /// Get a value from cache
@@ -268,54 +269,60 @@ where
         }
     }
 
-/// Insertth TTL and sensitivity level
-    pub fn insert(&self, key: K, value: V, ttl: Duration, sensitivity_level: SensitivityLevel) -> Result<()> {
-        let mut cache = self.cache
-            .write()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
+    /// Insertth TTL and sensitivity level
+    pub fn insert(
+        &self,
+        key: K,
+        value: V,
+        ttl: Duration,
+        sensitivity_level: SensitivityLevel,
+    ) -> Result<()> {
+        let mut cache = self.cache.write().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache write lock"))
+        })?;
         cache.insert(key, value, ttl, sensitivity_level);
         Ok(())
     }
 
     /// Get a value from cache
     pub fn get(&self, key: &K) -> Result<Option<V>> {
-        let mut cache = self.cache
-            .write()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
+        let mut cache = self.cache.write().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache write lock"))
+        })?;
         Ok(cache.get(key))
     }
 
     /// Remove a key from cache
     pub fn remove(&self, key: &K) -> Result<Option<V>> {
-        let mut cache = self.cache
-            .write()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
+        let mut cache = self.cache.write().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache write lock"))
+        })?;
         Ok(cache.remove(key))
     }
 
     /// Clear all entries
     pub fn clear(&self) -> Result<()> {
-        let mut cache = self.cache
-            .write()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
+        let mut cache = self.cache.write().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache write lock"))
+        })?;
         cache.clear();
         Ok(())
     }
 
     /// Evict entries based on sensitivity and load
     pub fn evict_by_sensitivity(&self, load_factor: f64) -> Result<()> {
-        let mut cache = self.cache
-            .write()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache write lock")))?;
+        let mut cache = self.cache.write().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache write lock"))
+        })?;
         cache.evict_by_sensitivity(load_factor);
         Ok(())
     }
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<SecretCacheStats> {
-        let cache = self.cache
-            .read()
-            .map_err(|_| SecretonError::from(CoreError::internal("Failed to acquire cache read lock")))?;
+        let cache = self.cache.read().map_err(|_| {
+            SecretonError::from(CoreError::internal("Failed to acquire cache read lock"))
+        })?;
         Ok(cache.stats())
     }
 }
@@ -346,7 +353,13 @@ where
     }
 
     /// Insert a value with TTL and sensitivity level
-    pub async fn insert(&self, key: K, value: V, ttl: Duration, sensitivity_level: SensitivityLevel) {
+    pub async fn insert(
+        &self,
+        key: K,
+        value: V,
+        ttl: Duration,
+        sensitivity_level: SensitivityLevel,
+    ) {
         let mut cache = self.cache.write().await;
         cache.insert(key, value, ttl, sensitivity_level);
     }
@@ -462,7 +475,9 @@ impl SecretCacheManager {
     pub async fn evict_sensitive(&self, load_factor: f64) {
         self.secret_cache.evict_by_sensitivity(load_factor).await;
         self.token_cache.evict_by_sensitivity(load_factor).await;
-        self.permission_cache.evict_by_sensitivity(load_factor).await;
+        self.permission_cache
+            .evict_by_sensitivity(load_factor)
+            .await;
         self.key_cache.evict_by_sensitivity(load_factor).await;
     }
 
@@ -505,16 +520,36 @@ mod tests {
     fn test_secret_cache_basic_operations() {
         let mut cache = SecretLruCache::new(3);
 
-        cache.insert("key1", vec![1, 2, 3], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("key2", vec![4, 5, 6], Duration::from_secs(60), SensitivityLevel::Medium);
-        cache.insert("key3", vec![7, 8, 9], Duration::from_secs(60), SensitivityLevel::High);
+        cache.insert(
+            "key1",
+            vec![1, 2, 3],
+            Duration::from_secs(60),
+            SensitivityLevel::Low,
+        );
+        cache.insert(
+            "key2",
+            vec![4, 5, 6],
+            Duration::from_secs(60),
+            SensitivityLevel::Medium,
+        );
+        cache.insert(
+            "key3",
+            vec![7, 8, 9],
+            Duration::from_secs(60),
+            SensitivityLevel::High,
+        );
 
         assert_eq!(cache.get(&"key1"), Some(vec![1, 2, 3]));
         assert_eq!(cache.get(&"key2"), Some(vec![4, 5, 6]));
         assert_eq!(cache.get(&"key3"), Some(vec![7, 8, 9]));
 
         // Insert one more to trigger LRU eviction
-        cache.insert("key4", vec![10, 11, 12], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert(
+            "key4",
+            vec![10, 11, 12],
+            Duration::from_secs(60),
+            SensitivityLevel::Low,
+        );
 
         // key1 should be evicted (least recently used)
         assert_eq!(cache.get(&"key1"), None);
@@ -525,10 +560,30 @@ mod tests {
     fn test_sensitivity_eviction() {
         let mut cache = SecretLruCache::new(5);
 
-        cache.insert("low", vec![1], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("medium", vec![2], Duration::from_secs(60), SensitivityLevel::Medium);
-        cache.insert("high", vec![3], Duration::from_secs(60), SensitivityLevel::High);
-        cache.insert("critical", vec![4], Duration::from_secs(60), SensitivityLevel::Critical);
+        cache.insert(
+            "low",
+            vec![1],
+            Duration::from_secs(60),
+            SensitivityLevel::Low,
+        );
+        cache.insert(
+            "medium",
+            vec![2],
+            Duration::from_secs(60),
+            SensitivityLevel::Medium,
+        );
+        cache.insert(
+            "high",
+            vec![3],
+            Duration::from_secs(60),
+            SensitivityLevel::High,
+        );
+        cache.insert(
+            "critical",
+            vec![4],
+            Duration::from_secs(60),
+            SensitivityLevel::Critical,
+        );
 
         // High load should evict high and critical sensitivity items
         cache.evict_by_sensitivity(0.8);
@@ -543,8 +598,18 @@ mod tests {
     fn test_cache_stats() {
         let mut cache = SecretLruCache::new(3);
 
-        cache.insert("key1", vec![1], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("key2", vec![2], Duration::from_secs(60), SensitivityLevel::High);
+        cache.insert(
+            "key1",
+            vec![1],
+            Duration::from_secs(60),
+            SensitivityLevel::Low,
+        );
+        cache.insert(
+            "key2",
+            vec![2],
+            Duration::from_secs(60),
+            SensitivityLevel::High,
+        );
 
         cache.get(&"key1"); // hit
         cache.get(&"key3"); // miss
@@ -561,8 +626,22 @@ mod tests {
     async fn test_async_secret_cache() {
         let cache = AsyncSecretCache::new(3);
 
-        cache.insert("key1".to_string(), vec![1, 2, 3], Duration::from_secs(60), SensitivityLevel::Medium).await;
-        cache.insert("key2".to_string(), vec![4, 5, 6], Duration::from_secs(60), SensitivityLevel::High).await;
+        cache
+            .insert(
+                "key1".to_string(),
+                vec![1, 2, 3],
+                Duration::from_secs(60),
+                SensitivityLevel::Medium,
+            )
+            .await;
+        cache
+            .insert(
+                "key2".to_string(),
+                vec![4, 5, 6],
+                Duration::from_secs(60),
+                SensitivityLevel::High,
+            )
+            .await;
 
         assert_eq!(cache.get(&"key1".to_string()).await, Some(vec![1, 2, 3]));
         assert_eq!(cache.get(&"key2".to_string()).await, Some(vec![4, 5, 6]));
@@ -573,11 +652,33 @@ mod tests {
     async fn test_secret_cache_manager() {
         let manager = SecretCacheManager::new();
 
-        manager.secret_cache().insert("secret1".to_string(), vec![1, 2, 3], Duration::from_secs(60), SensitivityLevel::Medium).await;
-        manager.token_cache().insert("token1".to_string(), true, Duration::from_secs(60), SensitivityLevel::Low).await;
+        manager
+            .secret_cache()
+            .insert(
+                "secret1".to_string(),
+                vec![1, 2, 3],
+                Duration::from_secs(60),
+                SensitivityLevel::Medium,
+            )
+            .await;
+        manager
+            .token_cache()
+            .insert(
+                "token1".to_string(),
+                true,
+                Duration::from_secs(60),
+                SensitivityLevel::Low,
+            )
+            .await;
 
-        assert_eq!(manager.secret_cache().get(&"secret1".to_string()).await, Some(vec![1, 2, 3]));
-        assert_eq!(manager.token_cache().get(&"token1".to_string()).await, Some(true));
+        assert_eq!(
+            manager.secret_cache().get(&"secret1".to_string()).await,
+            Some(vec![1, 2, 3])
+        );
+        assert_eq!(
+            manager.token_cache().get(&"token1".to_string()).await,
+            Some(true)
+        );
 
         let stats = manager.get_stats().await;
         assert_eq!(stats.secret_cache.size, 1);

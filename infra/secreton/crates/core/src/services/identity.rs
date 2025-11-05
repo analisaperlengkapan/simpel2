@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 use tracing::instrument;
+use uuid::Uuid;
 
 /// Error types for identity
 #[derive(Debug, thiserror::Error)]
@@ -224,7 +224,8 @@ impl IdentityService {
     /// Get entity
     pub async fn get_entity(&self, id: &str) -> Result<Entity, IdentityError> {
         let entities = self.entities.read().await;
-        entities.get(id)
+        entities
+            .get(id)
             .cloned()
             .ok_or_else(|| IdentityError::EntityNotFound(id.to_string()))
     }
@@ -252,11 +253,13 @@ impl IdentityService {
         let mut alias_index = self.alias_index.write().await;
 
         // Remove entity
-        entities.remove(id)
+        entities
+            .remove(id)
             .ok_or_else(|| IdentityError::EntityNotFound(id.to_string()))?;
 
         // Remove associated aliases
-        let alias_ids: Vec<String> = aliases.values()
+        let alias_ids: Vec<String> = aliases
+            .values()
             .filter(|a| a.entity_id == id)
             .map(|a| a.id.clone())
             .collect();
@@ -317,7 +320,8 @@ impl IdentityService {
     /// Get alias
     pub async fn get_alias(&self, id: &str) -> Result<Alias, IdentityError> {
         let aliases = self.aliases.read().await;
-        aliases.get(id)
+        aliases
+            .get(id)
             .cloned()
             .ok_or_else(|| IdentityError::AliasNotFound(id.to_string()))
     }
@@ -332,14 +336,16 @@ impl IdentityService {
 
         let alias_id = {
             let alias_index = self.alias_index.read().await;
-            alias_index.get(&key)
+            alias_index
+                .get(&key)
                 .ok_or_else(|| IdentityError::AliasNotFound(key.clone()))?
                 .clone()
         };
 
         let entity_id = {
             let aliases = self.aliases.read().await;
-            let alias = aliases.get(&alias_id)
+            let alias = aliases
+                .get(&alias_id)
                 .ok_or_else(|| IdentityError::AliasNotFound(alias_id.clone()))?;
             alias.entity_id.clone()
         };
@@ -353,22 +359,20 @@ impl IdentityService {
         to_entity_id = %to_id,
         operation = "merge_entities"
     ))]
-    pub async fn merge_entities(
-        &self,
-        from_id: &str,
-        to_id: &str,
-    ) -> Result<(), IdentityError> {
+    pub async fn merge_entities(&self, from_id: &str, to_id: &str) -> Result<(), IdentityError> {
         if from_id == to_id {
             return Err(IdentityError::SelfMerge);
         }
 
         let mut entities = self.entities.write().await;
 
-        let from_entity = entities.get(from_id)
+        let from_entity = entities
+            .get(from_id)
             .ok_or_else(|| IdentityError::EntityNotFound(from_id.to_string()))?
             .clone();
 
-        let to_entity = entities.get_mut(to_id)
+        let to_entity = entities
+            .get_mut(to_id)
             .ok_or_else(|| IdentityError::EntityNotFound(to_id.to_string()))?;
 
         // Merge policies
@@ -416,7 +420,8 @@ impl IdentityService {
     /// Get group
     pub async fn get_group(&self, id: &str) -> Result<Group, IdentityError> {
         let groups = self.groups.read().await;
-        groups.get(id)
+        groups
+            .get(id)
             .cloned()
             .ok_or_else(|| IdentityError::EntityNotFound(id.to_string()))
     }
@@ -456,11 +461,14 @@ mod tests {
 
         let entity = service.create_entity("user1".to_string()).await;
 
-        let alias = service.create_alias(
-            entity.id.clone(),
-            "userpass".to_string(),
-            "john".to_string(),
-        ).await.unwrap();
+        let alias = service
+            .create_alias(
+                entity.id.clone(),
+                "userpass".to_string(),
+                "john".to_string(),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(alias.entity_id, entity.id);
         assert_eq!(alias.mount_accessor, "userpass");
@@ -473,13 +481,19 @@ mod tests {
 
         let entity = service.create_entity("user1".to_string()).await;
 
-        service.create_alias(
-            entity.id.clone(),
-            "userpass".to_string(),
-            "john".to_string(),
-        ).await.unwrap();
+        service
+            .create_alias(
+                entity.id.clone(),
+                "userpass".to_string(),
+                "john".to_string(),
+            )
+            .await
+            .unwrap();
 
-        let found = service.lookup_entity_by_alias("userpass", "john").await.unwrap();
+        let found = service
+            .lookup_entity_by_alias("userpass", "john")
+            .await
+            .unwrap();
         assert_eq!(found.id, entity.id);
     }
 
@@ -489,13 +503,22 @@ mod tests {
 
         let mut entity1 = service.create_entity("user1".to_string()).await;
         entity1.add_policy("policy1".to_string());
-        service.update_entity(&entity1.id, entity1.clone()).await.unwrap();
+        service
+            .update_entity(&entity1.id, entity1.clone())
+            .await
+            .unwrap();
 
         let mut entity2 = service.create_entity("user2".to_string()).await;
         entity2.add_policy("policy2".to_string());
-        service.update_entity(&entity2.id, entity2.clone()).await.unwrap();
+        service
+            .update_entity(&entity2.id, entity2.clone())
+            .await
+            .unwrap();
 
-        service.merge_entities(&entity1.id, &entity2.id).await.unwrap();
+        service
+            .merge_entities(&entity1.id, &entity2.id)
+            .await
+            .unwrap();
 
         let merged = service.get_entity(&entity2.id).await.unwrap();
         assert!(merged.policies.contains(&"policy1".to_string()));

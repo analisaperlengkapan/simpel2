@@ -1,8 +1,8 @@
 //! Integration tests for policy check middleware
 
-use secreton_api::middleware::{policy_check_middleware, RequestContext};
-use secreton_core::services::policy::{PolicySet, Capability};
+use secreton_api::middleware::{RequestContext, policy_check_middleware};
 use secreton_core::models::PolicyRule;
+use secreton_core::services::policy::{Capability, PolicySet};
 use std::sync::{Arc, RwLock};
 
 #[tokio::test]
@@ -21,14 +21,12 @@ async fn test_policy_middleware_allows_matching_policy() {
 
     // Test that the policy allows access
     let policy_set_read = policy_set.read();
-    let allowed = policy_set_read.evaluate(
-        "user123",
-        "secret/database/password",
-        "read",
-        None,
-    );
+    let allowed = policy_set_read.evaluate("user123", "secret/database/password", "read", None);
 
-    assert!(allowed, "Policy should allow read access to secret/database/password");
+    assert!(
+        allowed,
+        "Policy should allow read access to secret/database/password"
+    );
 }
 
 #[tokio::test]
@@ -47,14 +45,12 @@ async fn test_policy_middleware_denies_non_matching_policy() {
 
     // Test that the policy denies access to other paths
     let policy_set_read = policy_set.read();
-    let allowed = policy_set_read.evaluate(
-        "user123",
-        "secret/private/password",
-        "read",
-        None,
-    );
+    let allowed = policy_set_read.evaluate("user123", "secret/private/password", "read", None);
 
-    assert!(!allowed, "Policy should deny read access to secret/private/password");
+    assert!(
+        !allowed,
+        "Policy should deny read access to secret/private/password"
+    );
 }
 
 #[tokio::test]
@@ -85,22 +81,18 @@ async fn test_policy_middleware_deny_overrides_allow() {
     let policy_set_read = policy_set.read();
 
     // Should allow access to non-protected secrets
-    let allowed = policy_set_read.evaluate(
-        "user123",
-        "secret/database/password",
-        "read",
-        None,
+    let allowed = policy_set_read.evaluate("user123", "secret/database/password", "read", None);
+    assert!(
+        allowed,
+        "Policy should allow read access to secret/database/password"
     );
-    assert!(allowed, "Policy should allow read access to secret/database/password");
 
     // Should deny access to protected secrets
-    let denied = policy_set_read.evaluate(
-        "user123",
-        "secret/protected/admin",
-        "read",
-        None,
+    let denied = policy_set_read.evaluate("user123", "secret/protected/admin", "read", None);
+    assert!(
+        !denied,
+        "Policy should deny read access to secret/protected/admin"
     );
-    assert!(!denied, "Policy should deny read access to secret/protected/admin");
 }
 
 #[tokio::test]
@@ -119,21 +111,11 @@ async fn test_policy_middleware_caching() {
 
     // First evaluation (cache miss)
     let policy_set_read = policy_set.read();
-    let allowed1 = policy_set_read.evaluate(
-        "user123",
-        "secret/database/password",
-        "read",
-        None,
-    );
+    let allowed1 = policy_set_read.evaluate("user123", "secret/database/password", "read", None);
     assert!(allowed1);
 
     // Second evaluation (cache hit)
-    let allowed2 = policy_set_read.evaluate(
-        "user123",
-        "secret/database/password",
-        "read",
-        None,
-    );
+    let allowed2 = policy_set_read.evaluate("user123", "secret/database/password", "read", None);
     assert!(allowed2);
 
     // Check cache stats

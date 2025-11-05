@@ -3,7 +3,7 @@
 //! Provides mTLS support for gRPC server with client certificate verification
 
 use std::path::PathBuf;
-use tracing::{info, error};
+use tracing::{error, info};
 
 /// TLS configuration for gRPC server
 #[derive(Debug, Clone)]
@@ -57,10 +57,15 @@ impl GrpcTlsConfig {
         info!("Loading gRPC TLS configuration");
 
         // Load server certificate and key
-        let cert = tokio::fs::read(&self.cert_path).await
-            .map_err(|e| format!("Failed to read certificate from {:?}: {}", self.cert_path, e))?;
+        let cert = tokio::fs::read(&self.cert_path).await.map_err(|e| {
+            format!(
+                "Failed to read certificate from {:?}: {}",
+                self.cert_path, e
+            )
+        })?;
 
-        let key = tokio::fs::read(&self.key_path).await
+        let key = tokio::fs::read(&self.key_path)
+            .await
             .map_err(|e| format!("Failed to read private key from {:?}: {}", self.key_path, e))?;
 
         info!("Loaded server certificate and key");
@@ -70,8 +75,12 @@ impl GrpcTlsConfig {
             if let Some(ca_cert_path) = &self.ca_cert_path {
                 info!("Loading CA certificate for client authentication");
 
-                let ca = tokio::fs::read(ca_cert_path).await
-                    .map_err(|e| format!("Failed to read CA certificate from {:?}: {}", ca_cert_path, e))?;
+                let ca = tokio::fs::read(ca_cert_path).await.map_err(|e| {
+                    format!(
+                        "Failed to read CA certificate from {:?}: {}",
+                        ca_cert_path, e
+                    )
+                })?;
 
                 info!("Client certificate authentication enabled");
                 Some(ca)
@@ -84,11 +93,7 @@ impl GrpcTlsConfig {
         };
 
         info!("gRPC TLS configuration loaded successfully");
-        Ok(TlsIdentity {
-            cert,
-            key,
-            ca_cert,
-        })
+        Ok(TlsIdentity { cert, key, ca_cert })
     }
 
     /// Validate TLS configuration

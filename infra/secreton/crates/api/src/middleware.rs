@@ -4,11 +4,11 @@
 //! and other middleware functionality.
 
 use axum::{
+    Json,
     extract::{Request, State},
     http::{HeaderMap, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
-    Json,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -18,8 +18,8 @@ use tracing::{debug, info, warn};
 use uuid::Uuid;
 use x509_parser::prelude::*;
 
-use crate::auth::{extract_bearer_token, AuthError, AuthService};
 use crate::ApiState;
+use crate::auth::{AuthError, AuthService, extract_bearer_token};
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
@@ -49,8 +49,9 @@ impl CertificateCache {
     }
 
     pub fn insert(&self, cert_der: String, cert: X509Certificate<'static>) {
-        let mut cache = self.cache.lock();
-        cache.insert(cert_der, (cert, Instant::now()));
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.insert(cert_der, (cert, Instant::now()));
+        }
     }
 }
 
@@ -59,13 +60,14 @@ static CERT_CACHE: Mutex<Option<Arc<CertificateCache>>> = Mutex::new(None);
 
 /// Initialize certificate cache
 pub fn init_certificate_cache(ttl_seconds: u64) {
-    let mut cache = CERT_CACHE.lock();
-    *cache = Some(Arc::new(CertificateCache::new(ttl_seconds)));
+    if let Ok(mut cache) = CERT_CACHE.lock() {
+        *cache = Some(Arc::new(CertificateCache::new(ttl_seconds)));
+    }
 }
 
 /// Get certificate cache instance
 fn get_cert_cache() -> Option<Arc<CertificateCache>> {
-    CERT_CACHE.lock().as_ref().cloned()
+    CERT_CACHE.lock().ok()?.as_ref().cloned()
 }
 
 /// Certificate validation result
@@ -350,8 +352,9 @@ static RATE_LIMITER: Mutex<Option<RateLimitState>> = Mutex::new(None);
 
 /// Initialize rate limiting
 pub fn init_rate_limiting(max_requests_per_minute: u32) {
-    let mut limiter = RATE_LIMITER.lock();
-    *limiter = Some(RateLimitState::new(max_requests_per_minute));
+    if let Ok(mut limiter) = RATE_LIMITER.lock() {
+        *limiter = Some(RateLimitState::new(max_requests_per_minute));
+    }
 }
 
 /// Request ID middleware - adds unique ID to each request
@@ -361,7 +364,7 @@ pub async fn request_id(mut request: Request, next: Next) -> Response {
     // Add request ID to headers for downstream processing
     request
         .headers_mut()
-        .insert("x-request-id", request_id.parse());
+        .insert("x-request-id", request_id.parse().unwrap());
 
     debug!("Processing request: {}", request_id);
 
@@ -371,7 +374,7 @@ pub async fn request_id(mut request: Request, next: Next) -> Response {
     let mut response = response;
     response
         .headers_mut()
-        .insert("x-request-id", request_id.parse());
+        .insert("x-request-id", request_id.parse().unwrap());
 
     response
 }
@@ -461,18 +464,19 @@ pub async fn rate_limit(
 
     // Check rate limit
     {
-        let mut limiter_guard = RATE_LIMITER.lock();
-        if let Some(ref mut limiter) = *limiter_guard {
-            if !limiter.check_rate_limit(client_ip) {
-                warn!("Rate limit exceeded for client: {}", client_ip);
-                return Err((
-                    StatusCode::TOO_MANY_REQUESTS,
-                    Json(serde_json::json!({
-                        "error": "Rate limit exceeded",
-                        "status": 429,
-                        "retry_after": 60
-                    })),
-                ));
+        if let Ok(mut limiter_guard) = RATE_LIMITER.lock() {
+            if let Some(ref mut limiter) = *limiter_guard {
+                if !limiter.check_rate_limit(client_ip) {
+                    warn!("Rate limit exceeded for client: {}", client_ip);
+                    return Err((
+                        StatusCode::TOO_MANY_REQUESTS,
+                        Json(serde_json::json!({
+                            "error": "Rate limit exceeded",
+                            "status": 429,
+                            "retry_after": 60
+                        })),
+                    ));
+                }
             }
         }
     } // Guard is dropped here
@@ -521,22 +525,22 @@ pub async fn security_headers(request: Request, next: Next) -> Response {
     // Add security headers
     let headers = response.headers_mut();
 
-    headers.insert("X-Content-Type-Options", "nosniff".parse());
-    headers.insert("X-Frame-Options", "DENY".parse());
-    headers.insert("X-XSS-Protection", "1; mode=block".parse());
+    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
+    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
+    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
     headers.insert(
         "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains".parse(),
+        "max-age=31536000; includeSubDomains".parse().unwrap(),
     );
     headers.insert(
         "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse(),
+        "strict-origin-when-cross-origin".parse().unwrap(),
     );
     headers.insert(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
             .parse()
-            ,
+            .unwrap(),
     );
 
     response
@@ -628,7 +632,7 @@ pub async fn cors_preflight(request: Request, next: Next) -> Response {
             )
             .header("Access-Control-Max-Age", "86400")
             .body(axum::body::Body::empty())
-            ;
+            .unwrap();
     }
 
     next.run(request).await
@@ -660,7 +664,8 @@ pub async fn seal_check_middleware(
         || path == "/v1/sys/unseal"
         || path == "/api/v1/sys/unseal"
         || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init" {
+        || path == "/api/v1/sys/init"
+    {
         return next.run(request).await;
     }
 
@@ -683,7 +688,10 @@ pub async fn seal_check_middleware(
         ).into_response();
     }
 
-    tracing::debug!("Seal check middleware: allowing request to {} (vault is unsealed)", path);
+    tracing::debug!(
+        "Seal check middleware: allowing request to {} (vault is unsealed)",
+        path
+    );
 
     next.run(request).await
 }
@@ -698,7 +706,7 @@ pub async fn namespace_access_middleware(
     State(_state): State<ApiState>,
     request: Request,
     next: Next,
-) -> Result<Response, impl IntoResponse> {
+) -> Result<Response, Response> {
     let path = request.uri().path();
 
     // Skip namespace validation for system endpoints
@@ -706,7 +714,8 @@ pub async fn namespace_access_middleware(
         || path.starts_with("/version")
         || path.starts_with("/metrics")
         || path.starts_with("/v1/sys/")
-        || path.starts_with("/api/v1/sys/") {
+        || path.starts_with("/api/v1/sys/")
+    {
         return Ok(next.run(request).await);
     }
 
@@ -785,8 +794,7 @@ fn extract_namespace_from_path(path: &str) -> Option<String> {
 fn extract_jwt_claims_from_token(
     claims: &crate::auth::Claims,
 ) -> Option<secreton_core::namespace::JwtClaims> {
-    use secreton_core::namespace::{AdminLevel, JwtClaims};
-    use std::collections::HashMap;
+    use secreton_core::namespace::JwtClaims;
 
     // Determine admin level from roles or metadata
     let admin_level = determine_admin_level(&claims.roles, &claims.metadata);
@@ -804,8 +812,8 @@ fn extract_jwt_claims_from_token(
         admin_level,
         roles: claims.roles.clone(),
         permissions: claims.permissions.clone(),
-        exp: claims.exp,
-        iat: claims.iat,
+        exp: claims.exp as i64,
+        iat: claims.iat as i64,
         iss: claims.iss.clone(),
         metadata: claims.metadata.clone(),
     })
@@ -875,7 +883,9 @@ fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String>
 
     // Default: derive from roles (role-based policies)
     // Each role can have an associated policy
-    claims.roles.iter()
+    claims
+        .roles
+        .iter()
         .map(|role| format!("{}-policy", role.to_lowercase()))
         .collect()
 }
@@ -903,7 +913,8 @@ pub async fn policy_check_middleware(
         || path == "/v1/sys/unseal"
         || path == "/api/v1/sys/unseal"
         || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init" {
+        || path == "/api/v1/sys/init"
+    {
         return Ok(next.run(request).await);
     }
 
@@ -920,16 +931,21 @@ pub async fn policy_check_middleware(
         let policy_context = build_policy_context(ctx, &request);
 
         // Get policy service from state
-        let policy_set = state.services.policy.read();
+        let policy_set = match state.services.policy.read() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::error!("Failed to acquire policy read lock: {}", e);
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Policy service unavailable",
+                )
+                    .into_response());
+            }
+        };
 
         // Evaluate policy
         let start_time = Instant::now();
-        let allowed = policy_set.evaluate(
-            user_id,
-            path,
-            &action,
-            Some(&policy_context),
-        );
+        let allowed = policy_set.evaluate(user_id, path, &action, Some(&policy_context));
         let evaluation_time = start_time.elapsed();
 
         // Record metrics
@@ -942,14 +958,8 @@ pub async fn policy_check_middleware(
             );
 
             // Log to audit with policy decision
-            log_policy_decision_to_audit(
-                &state,
-                ctx,
-                path,
-                &action,
-                false,
-                &ctx.policy_names,
-            ).await;
+            log_policy_decision_to_audit(&state, ctx, path, &action, false, &ctx.policy_names)
+                .await;
 
             return Err((
                 StatusCode::FORBIDDEN,
@@ -960,7 +970,8 @@ pub async fn policy_check_middleware(
                     "user": user_id,
                     "policies_evaluated": ctx.policy_names,
                 })),
-            ));
+            )
+                .into_response());
         }
 
         debug!(
@@ -969,19 +980,15 @@ pub async fn policy_check_middleware(
         );
 
         // Log successful policy evaluation to audit
-        log_policy_decision_to_audit(
-            &state,
-            ctx,
-            path,
-            &action,
-            true,
-            &ctx.policy_names,
-        ).await;
+        log_policy_decision_to_audit(&state, ctx, path, &action, true, &ctx.policy_names).await;
 
         Ok(next.run(request).await)
     } else {
         // No authentication context - deny by default
-        warn!("Policy check failed: no authentication context for path={}", path);
+        warn!(
+            "Policy check failed: no authentication context for path={}",
+            path
+        );
 
         return Err((
             StatusCode::UNAUTHORIZED,
@@ -989,7 +996,8 @@ pub async fn policy_check_middleware(
                 "error": "Authentication required",
                 "path": path,
             })),
-        ));
+        )
+            .into_response());
     }
 }
 
@@ -1006,10 +1014,7 @@ fn map_method_to_action(method: &axum::http::Method) -> String {
 }
 
 /// Build policy evaluation context from request
-fn build_policy_context(
-    ctx: &RequestContext,
-    request: &Request,
-) -> serde_json::Value {
+fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::Value {
     use serde_json::json;
 
     let client_ip = request
@@ -1063,7 +1068,14 @@ async fn log_policy_decision_to_audit(
     let mut metadata = HashMap::new();
     metadata.insert("path".to_string(), path.to_string());
     metadata.insert("action".to_string(), action.to_string());
-    metadata.insert("decision".to_string(), if allowed { "allow".to_string() } else { "deny".to_string() });
+    metadata.insert(
+        "decision".to_string(),
+        if allowed {
+            "allow".to_string()
+        } else {
+            "deny".to_string()
+        },
+    );
     metadata.insert("policy_names".to_string(), policy_names.join(","));
     metadata.insert("request_id".to_string(), ctx.request_id.clone());
 
@@ -1074,10 +1086,14 @@ async fn log_policy_decision_to_audit(
         actor: ctx.user_id.clone(),
         resource_type: "policy".to_string(),
         resource_id: path.to_string(),
-        status: if allowed { AuditStatus::Success } else { AuditStatus::Denied },
-        ip: None, // TODO: Extract from request
+        status: if allowed {
+            AuditStatus::Success
+        } else {
+            AuditStatus::Denied
+        },
+        ip: None,         // TODO: Extract from request
         user_agent: None, // TODO: Extract from request
-        namespace: None, // TODO: Extract namespace from path
+        namespace: None,  // TODO: Extract namespace from path
         metadata,
     };
 

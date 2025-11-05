@@ -43,7 +43,10 @@ impl PrivateKey {
         Ok(PrivateKey {
             key_type: "RSA".to_string(),
             key_bits,
-            pem_data: format!("-----BEGIN RSA PRIVATE KEY-----\n[RSA-{} placeholder key data]\n-----END RSA PRIVATE KEY-----", key_bits),
+            pem_data: format!(
+                "-----BEGIN RSA PRIVATE KEY-----\n[RSA-{} placeholder key data]\n-----END RSA PRIVATE KEY-----",
+                key_bits
+            ),
         })
     }
 
@@ -52,7 +55,10 @@ impl PrivateKey {
         Ok(PrivateKey {
             key_type: "EC".to_string(),
             key_bits,
-            pem_data: format!("-----BEGIN EC PRIVATE KEY-----\n[EC-{} placeholder key data]\n-----END EC PRIVATE KEY-----", key_bits),
+            pem_data: format!(
+                "-----BEGIN EC PRIVATE KEY-----\n[EC-{} placeholder key data]\n-----END EC PRIVATE KEY-----",
+                key_bits
+            ),
         })
     }
 

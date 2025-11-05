@@ -5,22 +5,17 @@
 //! isolation, authorization, audit logging, and monitoring.
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::Json,
-    routing::{delete, get, post},
     Router,
+    extract::{Path, Query, State},
+    response::Json,
+    routing::{get, post},
 };
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 
-use crate::{
-    handlers::AppState,
-    models::{PaginationQuery, PaginatedResponse},
-    ApiResponse, ApiResult, ApiError,
-};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, models::PaginatedResponse};
 
 use secreton_core::services::lease::{EnhancedLease, LeaseError};
 
@@ -79,18 +74,29 @@ pub async fn renew_lease(
 
     // Validate lease_id
     if request.lease_id.is_empty() {
-        return Err(ApiError::BadRequest { message: "Lease ID cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Lease ID cannot be empty".to_string(),
+        });
     }
 
     // Get lease to check ownership
-    let lease = state.lease_manager
+    let lease = state
+        .lease_manager
         .lookup_lease(&request.lease_id)
         .await
         .map_err(|e| match e {
-            LeaseError::LeaseNotFound(id) => ApiError::NotFound { resource: format!("Lease not found: {}", id) },
-            LeaseError::LeaseExpired => ApiError::BadRequest { message: "Lease has expired".to_string() },
-            LeaseError::LeaseRevoked => ApiError::BadRequest { message: "Lease has been revoked".to_string() },
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to lookup lease: {}", e)),
+            LeaseError::LeaseNotFound(id) => ApiError::NotFound {
+                resource: format!("Lease not found: {}", id),
+            },
+            LeaseError::LeaseExpired => ApiError::BadRequest {
+                message: "Lease has expired".to_string(),
+            },
+            LeaseError::LeaseRevoked => ApiError::BadRequest {
+                message: "Lease has been revoked".to_string(),
+            },
+            _ => ApiError::Internal {
+                message: format!("Failed to lookup lease: {}", e),
+            },
         })?;
 
     // Authorization check: user can only renew their own leases unless admin
@@ -110,22 +116,30 @@ pub async fn renew_lease(
     // Validate increment
     if increment <= 0 {
         return Err(ApiError::BadRequest {
-            message: "Increment must be positive".to_string()
+            message: "Increment must be positive".to_string(),
         });
     }
 
     // Renew the lease
-    let renewed_lease = state.lease_manager
+    let renewed_lease = state
+        .lease_manager
         .renew_lease(&request.lease_id, increment)
         .await
         .map_err(|e| match e {
             LeaseError::RenewalNotAllowed => ApiError::BadRequest {
-                message: "Lease renewal not allowed (max renewals reached or not renewable)".to_string()
+                message: "Lease renewal not allowed (max renewals reached or not renewable)"
+                    .to_string(),
             },
-            LeaseError::LeaseExpired => ApiError::BadRequest { message: "Lease has expired".to_string() },
-            LeaseError::LeaseRevoked => ApiError::BadRequest { message: "Lease has been revoked".to_string() },
+            LeaseError::LeaseExpired => ApiError::BadRequest {
+                message: "Lease has expired".to_string(),
+            },
+            LeaseError::LeaseRevoked => ApiError::BadRequest {
+                message: "Lease has been revoked".to_string(),
+            },
             LeaseError::InvalidTtl(msg) => ApiError::BadRequest { message: msg },
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to renew lease: {}", e)),
+            _ => ApiError::Internal {
+                message: format!("Failed to renew lease: {}", e),
+            },
         })?;
 
     // Log audit event
@@ -176,16 +190,23 @@ pub async fn revoke_lease(
 
     // Validate lease_id
     if request.lease_id.is_empty() {
-        return Err(ApiError::BadRequest { message: "Lease ID cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Lease ID cannot be empty".to_string(),
+        });
     }
 
     // Get lease to check ownership
-    let lease = state.lease_manager
+    let lease = state
+        .lease_manager
         .lookup_lease(&request.lease_id)
         .await
         .map_err(|e| match e {
-            LeaseError::LeaseNotFound(id) => ApiError::NotFound { resource: format!("Lease not found: {}", id) },
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to lookup lease: {}", e)),
+            LeaseError::LeaseNotFound(id) => ApiError::NotFound {
+                resource: format!("Lease not found: {}", id),
+            },
+            _ => ApiError::Internal {
+                message: format!("Failed to lookup lease: {}", e),
+            },
         })?;
 
     // Authorization check
@@ -200,10 +221,13 @@ pub async fn revoke_lease(
     }
 
     // Revoke the lease (cascades to children)
-    let revoked_ids = state.lease_manager
+    let revoked_ids = state
+        .lease_manager
         .revoke_lease(&request.lease_id)
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to revoke lease: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to revoke lease: {}", e),
+        })?;
 
     // Log audit event
     // TODO: Fix audit logging
@@ -248,7 +272,9 @@ pub async fn revoke_lease_prefix(
 
     // Validate prefix
     if request.prefix.is_empty() {
-        return Err(ApiError::BadRequest { message: "Prefix cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Prefix cannot be empty".to_string(),
+        });
     }
 
     // Authorization check: only admin can revoke by prefix
@@ -258,7 +284,8 @@ pub async fn revoke_lease_prefix(
     }
 
     // List all leases matching the prefix
-    let matching_leases = state.lease_manager
+    let matching_leases = state
+        .lease_manager
         .list_leases(
             None,
             Some(namespace.to_string()),
@@ -268,7 +295,9 @@ pub async fn revoke_lease_prefix(
             None,
         )
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to list leases: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list leases: {}", e),
+        })?;
 
     // Filter leases by prefix
     let leases_to_revoke: Vec<_> = matching_leases
@@ -394,16 +423,23 @@ pub async fn lookup_lease(
 
     // Validate lease_id
     if lease_id.is_empty() {
-        return Err(ApiError::BadRequest { message: "Lease ID cannot be empty".to_string() });
+        return Err(ApiError::BadRequest {
+            message: "Lease ID cannot be empty".to_string(),
+        });
     }
 
     // Lookup the lease
-    let lease = state.lease_manager
+    let lease = state
+        .lease_manager
         .lookup_lease(&lease_id)
         .await
         .map_err(|e| match e {
-            LeaseError::LeaseNotFound(id) => ApiError::NotFound { resource: format!("Lease not found: {}", id) },
-            _ => ApiError::Internal(anyhow::anyhow!("Failed to lookup lease: {}", e)),
+            LeaseError::LeaseNotFound(id) => ApiError::NotFound {
+                resource: format!("Lease not found: {}", id),
+            },
+            _ => ApiError::Internal {
+                message: format!("Failed to lookup lease: {}", e),
+            },
         })?;
 
     // Authorization check
@@ -449,7 +485,9 @@ pub struct ListLeasesQuery {
     pub offset: i64,
 }
 
-fn default_limit() -> i64 { 50 }
+fn default_limit() -> i64 {
+    50
+}
 
 /// List leases with filtering and pagination
 pub async fn list_leases(
@@ -477,18 +515,19 @@ pub async fn list_leases(
     // Validate pagination parameters
     if query.limit <= 0 || query.limit > 1000 {
         return Err(ApiError::BadRequest {
-            message: "Limit must be between 1 and 1000".to_string()
+            message: "Limit must be between 1 and 1000".to_string(),
         });
     }
 
     if query.offset < 0 {
         return Err(ApiError::BadRequest {
-            message: "Offset must be non-negative".to_string()
+            message: "Offset must be non-negative".to_string(),
         });
     }
 
     // List leases with filters
-    let leases = state.lease_manager
+    let leases = state
+        .lease_manager
         .list_leases(
             filter_user,
             filter_namespace,
@@ -498,27 +537,22 @@ pub async fn list_leases(
             Some(query.offset),
         )
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to list leases: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list leases: {}", e),
+        })?;
 
     // Get total count (for pagination)
     // TODO: Implement count query in LeaseManager
     let total = leases.len() as u64;
 
     // Convert to response format
-    let items: Vec<LookupLeaseResponse> = leases
-        .into_iter()
-        .map(LookupLeaseResponse::from)
-        .collect();
+    let items: Vec<LookupLeaseResponse> =
+        leases.into_iter().map(LookupLeaseResponse::from).collect();
 
     // Log audit event
     // TODO: Fix audit logging
 
-    let response = PaginatedResponse::new(
-        items,
-        total,
-        query.limit as u32,
-        query.offset as u32,
-    );
+    let response = PaginatedResponse::new(items, total, query.limit as u32, query.offset as u32);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -559,10 +593,13 @@ pub async fn get_lease_stats(
     let _user = "system"; // Placeholder
 
     // Get stats from lease manager
-    let stats = state.lease_manager
+    let stats = state
+        .lease_manager
         .get_stats()
         .await
-        .map_err(|e| ApiError::Internal(anyhow::anyhow!("Failed to get lease stats: {}", e)))?;
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to get lease stats: {}", e),
+        })?;
 
     // TODO: Implement breakdown by resource type and namespace
     let by_resource_type = HashMap::new();

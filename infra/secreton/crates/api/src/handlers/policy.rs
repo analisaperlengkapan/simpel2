@@ -12,27 +12,25 @@
 //! - POST /v1/sys/policies/{name}/test - Test policy evaluation
 
 use axum::{
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::Json,
-    routing::{delete, get, post, put},
     Router,
+    extract::{Path, Query, State},
+    response::Json,
+    routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
-use tracing::{debug, error, info, warn};
+use tracing::info;
 
 use secreton_core::{
     error::CoreError,
-    models::{ControlGroup, PolicyRule},
+    models::PolicyRule,
     services::policy::{Capability, PolicySet},
 };
 
 use crate::{
+    ApiError, ApiResponse, ApiResult,
     handlers::AppState,
     models::{PaginatedResponse, PaginationQuery},
-    ApiResponse, ApiResult,
 };
 
 /// Create policy routes
@@ -173,44 +171,56 @@ fn is_admin(state: &AppState) -> Result<bool, CoreError> {
 /// Validate policy rules
 fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
     if rules.is_empty() {
-        return Err(CoreError::Validation { message: "Invalid input".to_string() });
+        return Err(CoreError::Validation {
+            message: "Invalid input".to_string(),
+        });
     }
 
     for (idx, rule) in rules.iter().enumerate() {
         // Validate effect
         if rule.effect != "allow" && rule.effect != "deny" {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         // Validate path pattern
         if rule.path.is_empty() {
             return Err(CoreError::Validation {
-                message: format!("Rule {}: Path cannot be empty", idx)
+                message: format!("Rule {}: Path cannot be empty", idx),
             });
         }
 
         // Validate path pattern syntax
         if rule.path.contains("**") && !rule.path.ends_with("**") {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         // Validate action
         if rule.action.is_empty() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         // Validate capability if not wildcard
         if rule.action != "*" && Capability::from_str(&rule.action).is_none() {
             // Check if it's a valid custom action (alphanumeric with underscores)
             if !rule.action.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return Err(CoreError::Validation { message: "Invalid input".to_string() });
+                return Err(CoreError::Validation {
+                    message: "Invalid input".to_string(),
+                });
             }
         }
 
         // Validate control group if present
         if let Some(cg) = &rule.control_group {
             if cg.required_approvals == 0 {
-                return Err(CoreError::Validation { message: "Invalid input".to_string() });
+                return Err(CoreError::Validation {
+                    message: "Invalid input".to_string(),
+                });
             }
         }
 
@@ -226,20 +236,26 @@ fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
 /// Validate policy condition
 fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreError> {
     if !condition.is_object() {
-        return Err(CoreError::Validation { message: "Invalid input".to_string() });
+        return Err(CoreError::Validation {
+            message: "Invalid input".to_string(),
+        });
     }
 
     // Validate time_range if present
     if let Some(time_range) = condition.get("time_range") {
         if !time_range.is_object() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         // Validate start and end are valid RFC3339 timestamps
         if let Some(start) = time_range.get("start") {
             if let Some(start_str) = start.as_str() {
                 if chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
-                    return Err(CoreError::Validation { message: "Invalid input".to_string() });
+                    return Err(CoreError::Validation {
+                        message: "Invalid input".to_string(),
+                    });
                 }
             }
         }
@@ -247,7 +263,9 @@ fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreErro
         if let Some(end) = time_range.get("end") {
             if let Some(end_str) = end.as_str() {
                 if chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
-                    return Err(CoreError::Validation { message: "Invalid input".to_string() });
+                    return Err(CoreError::Validation {
+                        message: "Invalid input".to_string(),
+                    });
                 }
             }
         }
@@ -256,27 +274,37 @@ fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreErro
     // Validate allowed_ips if present
     if let Some(allowed_ips) = condition.get("allowed_ips") {
         if !allowed_ips.is_array() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
     }
 
     // Validate expression if present
     if let Some(expr) = condition.get("expression") {
         if !expr.is_object() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         // Validate required fields
         if expr.get("field").is_none() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         if expr.get("op").is_none() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
 
         if expr.get("value").is_none() {
-            return Err(CoreError::Validation { message: "Invalid input".to_string() });
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
         }
     }
 
@@ -290,7 +318,10 @@ async fn check_circular_dependencies(
     depends_on_id: i64,
 ) -> Result<bool, CoreError> {
     // Check if depends_on_id depends on policy_id (direct or indirect)
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool.get().await.map_err(|e| CoreError::Internal {
+        message: format!("Database connection error: {}", e),
+        source: None,
+    })?;
 
     // Recursive CTE to find all dependencies
     let query = r#"
@@ -311,7 +342,10 @@ async fn check_circular_dependencies(
     let row = client
         .query_one(query, &[&depends_on_id, &policy_id])
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| CoreError::Internal {
+            message: format!("Database query error: {}", e),
+            source: None,
+        })?;
 
     Ok(row.get(0))
 }
@@ -326,23 +360,32 @@ pub async fn list_policies(
     State(state): State<AppState>,
     Query(query): Query<ListPoliciesQuery>,
 ) -> ApiResult<Json<PaginatedResponse<PolicyResponse>>> {
-    info!("Listing policies with filters: namespace={:?}, is_active={:?}, search={:?}",
-          query.namespace, query.is_active, query.search);
+    info!(
+        "Listing policies with filters: namespace={:?}, is_active={:?}, search={:?}",
+        query.namespace, query.is_active, query.search
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "list_policies".to_string(),
-        });
+        }));
     }
 
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database connection error: {}", e)))?;
 
     // Build query with filters
     let mut where_clauses = vec![];
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![];
     let mut param_idx = 1;
+
+    // Storage for owned values that need to outlive the param references
+    let is_active_storage: Option<bool>;
+    let search_pattern_storage: Option<String>;
 
     if let Some(ref namespace) = query.namespace {
         where_clauses.push(format!("namespace = ${}", param_idx));
@@ -352,15 +395,27 @@ pub async fn list_policies(
 
     if let Some(is_active) = query.is_active {
         where_clauses.push(format!("is_active = ${}", param_idx));
-        params.push(&is_active);
+        is_active_storage = Some(is_active);
+        if let Some(ref val) = is_active_storage {
+            params.push(val);
+        }
         param_idx += 1;
+    } else {
+        is_active_storage = None;
     }
 
     if let Some(ref search) = query.search {
-        where_clauses.push(format!("(name ILIKE ${} OR description ILIKE ${})", param_idx, param_idx));
-        let search_pattern = format!("%{}%", search);
-        params.push(&search_pattern);
+        where_clauses.push(format!(
+            "(name ILIKE ${} OR description ILIKE ${})",
+            param_idx, param_idx
+        ));
+        search_pattern_storage = Some(format!("%{}%", search));
+        if let Some(ref pattern) = search_pattern_storage {
+            params.push(pattern);
+        }
         param_idx += 1;
+    } else {
+        search_pattern_storage = None;
     }
 
     let where_clause = if where_clauses.is_empty() {
@@ -371,9 +426,14 @@ pub async fn list_policies(
 
     // Count total
     let count_query = format!("SELECT COUNT(*) FROM policies {}", where_clause);
-    let count_row = client.query_one(&count_query, &params).await.map_err(|e| {
-        CoreError::Internal(anyhow::anyhow!("Internal error: {}", e))
-    })?;
+    let count_row =
+        client
+            .query_one(&count_query, &params)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Internal error: {}", e),
+                source: None,
+            })?;
     let total: i64 = count_row.get(0);
 
     // Get paginated results
@@ -391,9 +451,13 @@ pub async fn list_policies(
     params.push(&limit);
     params.push(&offset);
 
-    let rows = client.query(&select_query, &params).await.map_err(|e| {
-        CoreError::Internal(anyhow::anyhow!("Internal error: {}", e))
-    })?;
+    let rows = client
+        .query(&select_query, &params)
+        .await
+        .map_err(|e| CoreError::Internal {
+            message: format!("Internal error: {}", e),
+            source: None,
+        })?;
 
     let mut policies = vec![];
     for row in rows {
@@ -422,12 +486,12 @@ pub async fn list_policies(
 
     info!("Found {} policies (total: {})", policies.len(), total);
 
-    Ok(Json(PaginatedResponse {
-        data: policies,
-        total: total as u64,
-        limit: limit as u64,
-        offset: offset as u64,
-    }))
+    Ok(Json(PaginatedResponse::new(
+        policies,
+        total as u64,
+        limit as u32,
+        offset as u32,
+    )))
 }
 
 /// Get policy statistics
@@ -442,7 +506,10 @@ async fn get_policy_stats(
             &[&policy_id],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| CoreError::Internal {
+            message: format!("Database query error: {}", e),
+            source: None,
+        })?;
 
     if let Some(row) = row {
         Ok(PolicyStats {
@@ -472,18 +539,27 @@ pub async fn create_policy(
     Path(name): Path<String>,
     Json(req): Json<CreatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    info!("Creating policy: name={}, namespace={}", name, req.namespace);
+    info!(
+        "Creating policy: name={}, namespace={}",
+        name, req.namespace
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "create_policy".to_string(),
-        });
+        }));
     }
 
     // Validate policy name
-    if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-        return Err(CoreError::Validation { message: "Invalid input".to_string() });
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(ApiError::Core(CoreError::Validation {
+            message: "Invalid input".to_string(),
+        }));
     }
 
     // Validate rules
@@ -491,7 +567,10 @@ pub async fn create_policy(
 
     let user = extract_user(&state)?;
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Check if policy already exists
     let existing = client
@@ -500,15 +579,17 @@ pub async fn create_policy(
             &[&name, &req.namespace],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     if existing.is_some() {
-        return Err(CoreError::AlreadyExists {
-            resource: "policy".to_string()});
+        return Err(ApiError::Core(CoreError::AlreadyExists {
+            resource: "policy".to_string(),
+        }));
     }
 
     // Serialize rules to JSON
-    let rules_json = serde_json::to_value(&req.rules).map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let rules_json = serde_json::to_value(&req.rules)
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Insert policy
     let row = client
@@ -519,7 +600,7 @@ pub async fn create_policy(
             &[&name, &req.namespace, &req.description, &rules_json, &user],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let policy_id: i64 = row.get(0);
 
@@ -530,7 +611,7 @@ pub async fn create_policy(
             &[&policy_id],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Create version history
     client
@@ -540,7 +621,7 @@ pub async fn create_policy(
             &[&policy_id, &rules_json, &req.description, &user],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let rules: Vec<PolicyRule> = serde_json::from_value(row.get(4)).unwrap_or_default();
 
@@ -567,16 +648,15 @@ pub async fn create_policy(
     };
 
     // Audit log
-    info!("Policy created: id={}, name={}, namespace={}", policy_id, name, req.namespace);
+    info!(
+        "Policy created: id={}, name={}, namespace={}",
+        policy_id, name, req.namespace
+    );
 
     // Invalidate policy cache
     // TODO: Implement cache invalidation
 
-    Ok(Json(ApiResponse {
-        data: Some(policy),
-        error: None,
-        metadata: None,
-    }))
+    Ok(Json(ApiResponse::success(policy)))
 }
 
 /// Get a policy by name
@@ -589,13 +669,16 @@ pub async fn get_policy(
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "get_policy".to_string(),
-        });
+        }));
     }
 
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Get policy
     let row = client
@@ -605,11 +688,11 @@ pub async fn get_policy(
             &[&name],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string()
-        })?;
+        resource: "policy".to_string(),
+    })?;
 
     let policy_id: i64 = row.get(0);
     let rules_json: serde_json::Value = row.get(4);
@@ -633,11 +716,7 @@ pub async fn get_policy(
         stats,
     };
 
-    Ok(Json(ApiResponse {
-        data: Some(policy),
-        error: None,
-        metadata: None,
-    }))
+    Ok(Json(ApiResponse::success(policy)))
 }
 
 /// Update a policy
@@ -651,9 +730,9 @@ pub async fn update_policy(
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "update_policy".to_string(),
-        });
+        }));
     }
 
     // Validate rules if provided
@@ -663,7 +742,10 @@ pub async fn update_policy(
 
     let user = extract_user(&state)?;
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Get existing policy
     let existing = client
@@ -672,11 +754,11 @@ pub async fn update_policy(
             &[&name],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let existing = existing.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string()
-        })?;
+        resource: "policy".to_string(),
+    })?;
 
     let policy_id: i64 = existing.get(0);
     let current_version: i32 = existing.get(1);
@@ -687,26 +769,39 @@ pub async fn update_policy(
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![];
     let mut param_idx = 1;
 
+    // Storage for owned values that need to outlive the param references
+    let is_active_storage: Option<bool>;
+
     if let Some(ref description) = req.description {
         updates.push(format!("description = ${}", param_idx));
         params.push(description);
         param_idx += 1;
     }
 
-    let rules_json = if let Some(ref rules) = req.rules {
-        let json = serde_json::to_value(rules).map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    // Store rules JSON in a variable that lives long enough
+    let rules_json: Option<serde_json::Value>;
+    if let Some(ref rules) = req.rules {
+        let json = serde_json::to_value(rules)
+            .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
         updates.push(format!("rules = ${}", param_idx));
-        params.push(&json);
+        rules_json = Some(json);
+        if let Some(ref json_ref) = rules_json {
+            params.push(json_ref);
+        }
         param_idx += 1;
-        Some(json)
     } else {
-        None
-    };
+        rules_json = None;
+    }
 
     if let Some(is_active) = req.is_active {
         updates.push(format!("is_active = ${}", param_idx));
-        params.push(&is_active);
+        is_active_storage = Some(is_active);
+        if let Some(ref val) = is_active_storage {
+            params.push(val);
+        }
         param_idx += 1;
+    } else {
+        is_active_storage = None;
     }
 
     if !updates.is_empty() {
@@ -727,9 +822,13 @@ pub async fn update_policy(
 
         params.push(&name);
 
-        let row = client.query_one(&update_query, &params).await.map_err(|e| {
-            CoreError::Internal(anyhow::anyhow!("Internal error: {}", e))
-        })?;
+        let row = client
+            .query_one(&update_query, &params)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Internal error: {}", e),
+                source: None,
+            })?;
 
         // Create version history if rules changed
         if let Some(rules_json) = rules_json {
@@ -740,7 +839,7 @@ pub async fn update_policy(
                     &[&policy_id, &new_version, &rules_json, &req.description, &user],
                 )
                 .await
-                .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+                .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
         }
 
         let rules: Vec<PolicyRule> = serde_json::from_value(row.get(4)).unwrap_or_default();
@@ -762,18 +861,19 @@ pub async fn update_policy(
         };
 
         // Audit log
-        info!("Policy updated: id={}, name={}, version={}", policy_id, name, new_version);
+        info!(
+            "Policy updated: id={}, name={}, version={}",
+            policy_id, name, new_version
+        );
 
         // Invalidate policy cache
         // TODO: Implement cache invalidation
 
-        Ok(Json(ApiResponse {
-            data: Some(policy),
-            error: None,
-            metadata: None,
-        }))
+        Ok(Json(ApiResponse::success(policy)))
     } else {
-        Err(CoreError::Validation { message: "Invalid input".to_string() })
+        Err(ApiError::Core(CoreError::Validation {
+            message: "Invalid input".to_string(),
+        }))
     }
 }
 
@@ -787,23 +887,26 @@ pub async fn delete_policy(
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "delete_policy".to_string(),
-        });
+        }));
     }
 
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Get policy ID
     let row = client
         .query_opt("SELECT id FROM policies WHERE name = $1", &[&name])
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string()
-        })?;
+        resource: "policy".to_string(),
+    })?;
 
     let policy_id: i64 = row.get(0);
 
@@ -816,22 +919,25 @@ pub async fn delete_policy(
             &[&policy_id],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     if !deps.is_empty() {
         let dependent_policies: Vec<String> = deps.iter().map(|row| row.get(0)).collect();
-        return Err(CoreError::Validation { message: "Cannot delete policy".to_string() });
+        return Err(ApiError::Core(CoreError::Validation {
+            message: "Cannot delete policy".to_string(),
+        }));
     }
 
     // Delete policy (cascade will delete stats, versions, and dependencies)
     let deleted = client
         .execute("DELETE FROM policies WHERE id = $1", &[&policy_id])
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     if deleted == 0 {
-        return Err(CoreError::NotFound {
-            resource: "policy".to_string()});
+        return Err(ApiError::Core(CoreError::NotFound {
+            resource: "policy".to_string(),
+        }));
     }
 
     // Audit log
@@ -840,11 +946,7 @@ pub async fn delete_policy(
     // Invalidate policy cache
     // TODO: Implement cache invalidation
 
-    Ok(Json(ApiResponse {
-        data: Some(()),
-        error: None,
-        metadata: None,
-    }))
+    Ok(Json(ApiResponse::success(())))
 }
 
 /// Test policy evaluation
@@ -854,18 +956,23 @@ pub async fn test_policy(
     Path(name): Path<String>,
     Json(req): Json<TestPolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<TestPolicyResponse>>> {
-    info!("Testing policy: name={}, user={}, path={}, action={}",
-          name, req.user, req.path, req.action);
+    info!(
+        "Testing policy: name={}, user={}, path={}, action={}",
+        name, req.user, req.path, req.action
+    );
 
     // Check admin permission
     if !is_admin(&state)? {
-        return Err(CoreError::IamPermissionDenied {
+        return Err(ApiError::Core(CoreError::IamPermissionDenied {
             operation: "test_policy".to_string(),
-        });
+        }));
     }
 
     let pool = &state.pool;
-    let client = pool.get().await.map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     // Get policy
     let row = client
@@ -874,11 +981,11 @@ pub async fn test_policy(
             &[&name],
         )
         .await
-        .map_err(|e| CoreError::Internal(anyhow::anyhow!("Internal error: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
     let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string()
-        })?;
+        resource: "policy".to_string(),
+    })?;
 
     let rules_json: serde_json::Value = row.get(0);
     let rules: Vec<PolicyRule> = serde_json::from_value(rules_json).unwrap_or_default();
@@ -896,7 +1003,13 @@ pub async fn test_policy(
         // Create a single-rule policy set to test matching
         let test_policy = PolicySet::new(vec![rule.clone()]);
         if test_policy.evaluate(&req.user, &req.path, &req.action, req.context.as_ref()) {
-            matched_rules.push(format!("Rule {}: {} {} on {}", idx + 1, rule.effect, rule.action, rule.path));
+            matched_rules.push(format!(
+                "Rule {}: {} {} on {}",
+                idx + 1,
+                rule.effect,
+                rule.action,
+                rule.path
+            ));
         }
     }
 
@@ -906,8 +1019,12 @@ pub async fn test_policy(
         evaluation_time_ms: duration.as_secs_f64() * 1000.0,
     };
 
-    info!("Policy test result: allowed={}, matched_rules={}, time={}ms",
-          allowed, response.matched_rules.len(), response.evaluation_time_ms);
+    info!(
+        "Policy test result: allowed={}, matched_rules={}, time={}ms",
+        allowed,
+        response.matched_rules.len(),
+        response.evaluation_time_ms
+    );
 
     Ok(Json(ApiResponse::success(response)))
 }

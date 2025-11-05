@@ -8,11 +8,11 @@
 //! - Rekey operation (changing threshold and share count)
 //! - Persistence (restart after unseal, master key reloaded)
 
+use chrono::Utc;
 use secreton_core::services::seal::{
     InMemoryVaultStateStorage, SealConfig, SealError, SealService, SealState,
 };
 use std::sync::Arc;
-use chrono::Utc;
 
 /// Test initialization with 3-of-5 configuration
 #[tokio::test]
@@ -33,7 +33,10 @@ async fn test_initialize_3_of_5_configuration() {
     assert_eq!(shares.len(), 5, "Should generate 5 shares");
 
     // Verify vault is unsealed after initialization
-    assert!(service.is_unsealed().await, "Vault should be unsealed after initialization");
+    assert!(
+        service.is_unsealed().await,
+        "Vault should be unsealed after initialization"
+    );
 
     // Verify status
     let status = service.status().await;
@@ -62,7 +65,10 @@ async fn test_initialize_5_of_7_configuration() {
     assert_eq!(shares.len(), 7, "Should generate 7 shares");
 
     // Verify vault is unsealed after initialization
-    assert!(service.is_unsealed().await, "Vault should be unsealed after initialization");
+    assert!(
+        service.is_unsealed().await,
+        "Vault should be unsealed after initialization"
+    );
 
     // Verify status
     let status = service.status().await;
@@ -150,12 +156,18 @@ async fn test_unseal_with_more_than_threshold_shares() {
             assert!(result.is_ok(), "Share {} should be accepted", i + 1);
         } else {
             // 4th share should fail with AlreadyUnsealed since vault is already unsealed after 3rd share
-            assert!(result.is_err(), "4th share should fail with AlreadyUnsealed");
+            assert!(
+                result.is_err(),
+                "4th share should fail with AlreadyUnsealed"
+            );
         }
     }
 
     // Verify vault is unsealed
-    assert!(service.is_unsealed().await, "Vault should be unsealed with more than threshold shares");
+    assert!(
+        service.is_unsealed().await,
+        "Vault should be unsealed with more than threshold shares"
+    );
 
     // Verify master key is recovered correctly
     let recovered_master_key = service.get_master_key().await.unwrap();
@@ -250,7 +262,10 @@ async fn test_unseal_with_invalid_share() {
     }
 
     // Vault should still be sealed
-    assert!(service.is_sealed().await, "Vault should remain sealed after invalid share");
+    assert!(
+        service.is_sealed().await,
+        "Vault should remain sealed after invalid share"
+    );
 }
 
 /// Test unseal with tampered share (modified bytes)
@@ -285,7 +300,10 @@ async fn test_unseal_with_tampered_share() {
     assert!(result.is_err(), "Should reject tampered share");
 
     // Vault should still be sealed
-    assert!(service.is_sealed().await, "Vault should remain sealed after tampered share");
+    assert!(
+        service.is_sealed().await,
+        "Vault should remain sealed after tampered share"
+    );
 }
 
 /// Test unseal with wrong share from different vault
@@ -314,14 +332,14 @@ async fn test_unseal_with_wrong_share_from_different_vault() {
         let result = service1.unseal_with_share(&share_bytes).await;
 
         // Should fail with share verification error
-        assert!(
-            result.is_err(),
-            "Should reject shares from different vault"
-        );
+        assert!(result.is_err(), "Should reject shares from different vault");
     }
 
     // First vault should still be sealed
-    assert!(service1.is_sealed().await, "Vault should remain sealed with wrong shares");
+    assert!(
+        service1.is_sealed().await,
+        "Vault should remain sealed with wrong shares"
+    );
 }
 
 /// Test seal operation clears master key from memory
@@ -350,7 +368,10 @@ async fn test_seal_clears_master_key_from_memory() {
 
     // Verify master key is not available after sealing
     let result = service.get_master_key().await;
-    assert!(result.is_err(), "Master key should not be available after sealing");
+    assert!(
+        result.is_err(),
+        "Master key should not be available after sealing"
+    );
 
     match result.unwrap_err() {
         SealError::VaultSealed => {
@@ -427,7 +448,10 @@ async fn test_rekey_changes_threshold_and_share_count() {
 
     // Verify rekey operation is complete
     let rekey_progress = service.rekey_progress().await;
-    assert!(rekey_progress.is_none(), "Rekey operation should be complete");
+    assert!(
+        rekey_progress.is_none(),
+        "Rekey operation should be complete"
+    );
 }
 
 /// Test rekey operation progress tracking
@@ -538,7 +562,10 @@ async fn test_persistence_restart_after_unseal() {
     assert!(loaded, "Should successfully load state from storage");
 
     // Verify vault is sealed after restart
-    assert!(service2.is_sealed().await, "Vault should be sealed after restart");
+    assert!(
+        service2.is_sealed().await,
+        "Vault should be sealed after restart"
+    );
 
     // Unseal with shares
     for share in shares.iter().take(3) {
@@ -547,7 +574,10 @@ async fn test_persistence_restart_after_unseal() {
     }
 
     // Verify vault is unsealed
-    assert!(service2.is_unsealed().await, "Vault should be unsealed after providing shares");
+    assert!(
+        service2.is_unsealed().await,
+        "Vault should be unsealed after providing shares"
+    );
 
     // Verify master key is recovered correctly
     let recovered_master_key = service2.get_master_key().await.unwrap();
@@ -659,7 +689,10 @@ async fn test_insufficient_shares_keeps_vault_sealed() {
     }
 
     // Vault should still be sealed (in unsealing state)
-    assert!(service.is_sealed().await, "Vault should remain sealed with insufficient shares");
+    assert!(
+        service.is_sealed().await,
+        "Vault should remain sealed with insufficient shares"
+    );
 
     // Check status shows progress
     let status = service.status().await;

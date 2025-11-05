@@ -558,11 +558,15 @@ impl PostQuantumKeyManager {
         // Get the hybrid key
         let hybrid_key = {
             let mut keys = self.hybrid_keys.write().await;
-            let entry = keys.get_mut(key_id)
-                .ok_or_else(|| CryptoError::InvalidKey(format!("Hybrid key not found: {}", key_id)))?;
+            let entry = keys.get_mut(key_id).ok_or_else(|| {
+                CryptoError::InvalidKey(format!("Hybrid key not found: {}", key_id))
+            })?;
 
             if entry.status != KeyStatus::Active {
-                return Err(CryptoError::InvalidKey(format!("Key is not active: {}", key_id)));
+                return Err(CryptoError::InvalidKey(format!(
+                    "Key is not active: {}",
+                    key_id
+                )));
             }
 
             // Update usage
@@ -574,10 +578,8 @@ impl PostQuantumKeyManager {
 
         // Perform X25519 key exchange
         let x25519_start = Instant::now();
-        let x25519_shared_secret = self.x25519_key_exchange(
-            &hybrid_key.x25519_keypair.private_key,
-            peer_x25519_public,
-        )?;
+        let x25519_shared_secret =
+            self.x25519_key_exchange(&hybrid_key.x25519_keypair.private_key, peer_x25519_public)?;
         let x25519_time = x25519_start.elapsed();
 
         // Perform ML-KEM encapsulation
@@ -592,10 +594,8 @@ impl PostQuantumKeyManager {
 
         // Combine secrets using HKDF
         let hkdf_start = Instant::now();
-        let combined_shared_secret = self.combine_shared_secrets(
-            &x25519_shared_secret,
-            &mlkem_shared_secret,
-        )?;
+        let combined_shared_secret =
+            self.combine_shared_secrets(&x25519_shared_secret, &mlkem_shared_secret)?;
         let hkdf_time = hkdf_start.elapsed();
 
         let total_time = start.elapsed();
@@ -639,11 +639,15 @@ impl PostQuantumKeyManager {
         // Get the archive key
         let archive_key = {
             let mut keys = self.archive_keys.write().await;
-            let entry = keys.get_mut(key_id)
-                .ok_or_else(|| CryptoError::InvalidKey(format!("Archive key not found: {}", key_id)))?;
+            let entry = keys.get_mut(key_id).ok_or_else(|| {
+                CryptoError::InvalidKey(format!("Archive key not found: {}", key_id))
+            })?;
 
             if entry.status != KeyStatus::Active {
-                return Err(CryptoError::InvalidKey(format!("Archive key is not active: {}", key_id)));
+                return Err(CryptoError::InvalidKey(format!(
+                    "Archive key is not active: {}",
+                    key_id
+                )));
             }
 
             // Update usage
@@ -658,14 +662,12 @@ impl PostQuantumKeyManager {
 
         // Encrypt the data with the symmetric key
         let crypto_engine = crate::encryption::CryptoEngine::new();
-        let encrypted_data_result = crypto_engine.encrypt(
-            crate::AlgorithmId::Aes256Gcm,
-            data,
-            &symmetric_key,
-        )?;
+        let encrypted_data_result =
+            crypto_engine.encrypt(crate::AlgorithmId::Aes256Gcm, data, &symmetric_key)?;
 
         // Encapsulate the symmetric key using ML-KEM
-        let (_encapsulated_symmetric_key, encapsulated_key) = archive_key.mlkem_keypair.encapsulate()?;
+        let (_encapsulated_symmetric_key, encapsulated_key) =
+            archive_key.mlkem_keypair.encapsulate()?;
 
         // Create integrity signature using ML-DSA
         let integrity_data = [data, &encapsulated_key].concat();
@@ -714,16 +716,22 @@ impl PostQuantumKeyManager {
         // Get the ML-DSA key
         let mldsa_key = {
             let mut keys = self.mldsa_keys.write().await;
-            let entry = keys.get_mut(key_id)
-                .ok_or_else(|| CryptoError::InvalidKey(format!("ML-DSA key not found: {}", key_id)))?;
+            let entry = keys.get_mut(key_id).ok_or_else(|| {
+                CryptoError::InvalidKey(format!("ML-DSA key not found: {}", key_id))
+            })?;
 
             if entry.status != KeyStatus::Active {
-                return Err(CryptoError::InvalidKey(format!("Key is not active: {}", key_id)));
+                return Err(CryptoError::InvalidKey(format!(
+                    "Key is not active: {}",
+                    key_id
+                )));
             }
 
             // Check if key is for authentication
             if !matches!(entry.purpose, KeyPurpose::AuthenticationSigning) {
-                return Err(CryptoError::InvalidKey("Key is not for authentication signing".to_string()));
+                return Err(CryptoError::InvalidKey(
+                    "Key is not for authentication signing".to_string(),
+                ));
             }
 
             // Update usage
@@ -824,7 +832,7 @@ impl PostQuantumKeyManager {
         private_key[31] |= 64;
 
         // Generate public key using curve25519-dalek
-        use curve25519_dalek::{scalar::Scalar, constants::X25519_BASEPOINT};
+        use curve25519_dalek::{constants::X25519_BASEPOINT, scalar::Scalar};
         let scalar = Scalar::from_bytes_mod_order(private_key);
         let public_key_point = scalar * X25519_BASEPOINT;
         let public_key = public_key_point.to_bytes();
@@ -880,25 +888,29 @@ impl PostQuantumKeyManager {
 
         // Count active ML-KEM keys
         let mlkem_keys = self.mlkem_keys.read().await;
-        count += mlkem_keys.values()
+        count += mlkem_keys
+            .values()
             .filter(|k| k.status == KeyStatus::Active)
             .count() as u64;
 
         // Count active ML-DSA keys
         let mldsa_keys = self.mldsa_keys.read().await;
-        count += mldsa_keys.values()
+        count += mldsa_keys
+            .values()
             .filter(|k| k.status == KeyStatus::Active)
             .count() as u64;
 
         // Count active hybrid keys
         let hybrid_keys = self.hybrid_keys.read().await;
-        count += hybrid_keys.values()
+        count += hybrid_keys
+            .values()
             .filter(|k| k.status == KeyStatus::Active)
             .count() as u64;
 
         // Count active archive keys
         let archive_keys = self.archive_keys.read().await;
-        count += archive_keys.values()
+        count += archive_keys
+            .values()
             .filter(|k| k.status == KeyStatus::Active)
             .count() as u64;
 
@@ -911,19 +923,22 @@ impl PostQuantumKeyManager {
 
         // Count expired ML-KEM keys
         let mlkem_keys = self.mlkem_keys.read().await;
-        count += mlkem_keys.values()
+        count += mlkem_keys
+            .values()
             .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
         // Count expired ML-DSA keys
         let mldsa_keys = self.mldsa_keys.read().await;
-        count += mldsa_keys.values()
+        count += mldsa_keys
+            .values()
             .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
         // Count expired hybrid keys
         let hybrid_keys = self.hybrid_keys.read().await;
-        count += hybrid_keys.values()
+        count += hybrid_keys
+            .values()
             .filter(|k| k.expires_at.is_some_and(|exp| exp < now))
             .count() as u64;
 
@@ -949,8 +964,6 @@ impl PostQuantumKeyManager {
         // Placeholder for archive key rotation logic
         Ok(Vec::new())
     }
-
-
 
     async fn update_generation_metrics(&self, duration: std::time::Duration, success: bool) {
         let mut metrics = self.metrics.write().await;
@@ -1006,8 +1019,8 @@ impl PostQuantumKeyManager {
 
         metrics.archive_operations.count += 1;
         metrics.archive_operations.total_time_ms += duration_ms;
-        metrics.archive_operations.avg_time_ms =
-            metrics.archive_operations.total_time_ms as f64 / metrics.archive_operations.count as f64;
+        metrics.archive_operations.avg_time_ms = metrics.archive_operations.total_time_ms as f64
+            / metrics.archive_operations.count as f64;
 
         if success {
             metrics.archive_operations.success_count += 1;
@@ -1033,13 +1046,15 @@ mod tests {
     async fn test_mlkem_key_generation() {
         let manager = PostQuantumKeyManager::new();
 
-        let key_id = manager.generate_mlkem_key(
-            "test-mlkem-key".to_string(),
-            MLKemVariant::MLKem768,
-            KeyPurpose::SecretEncryption,
-            Some(chrono::Utc::now() + chrono::Duration::days(30)),
-            HashMap::new(),
-        ).await;
+        let key_id = manager
+            .generate_mlkem_key(
+                "test-mlkem-key".to_string(),
+                MLKemVariant::MLKem768,
+                KeyPurpose::SecretEncryption,
+                Some(chrono::Utc::now() + chrono::Duration::days(30)),
+                HashMap::new(),
+            )
+            .await;
 
         assert!(key_id.is_ok());
 
@@ -1051,13 +1066,15 @@ mod tests {
     async fn test_mldsa_key_generation() {
         let manager = PostQuantumKeyManager::new();
 
-        let key_id = manager.generate_mldsa_key(
-            "test-mldsa-key".to_string(),
-            MLDsaVariant::MLDsa65,
-            KeyPurpose::AuthenticationSigning,
-            Some(chrono::Utc::now() + chrono::Duration::days(30)),
-            HashMap::new(),
-        ).await;
+        let key_id = manager
+            .generate_mldsa_key(
+                "test-mldsa-key".to_string(),
+                MLDsaVariant::MLDsa65,
+                KeyPurpose::AuthenticationSigning,
+                Some(chrono::Utc::now() + chrono::Duration::days(30)),
+                HashMap::new(),
+            )
+            .await;
 
         assert!(key_id.is_ok());
 
@@ -1069,13 +1086,15 @@ mod tests {
     async fn test_hybrid_key_generation() {
         let manager = PostQuantumKeyManager::new();
 
-        let key_id = manager.generate_hybrid_key(
-            "test-hybrid-key".to_string(),
-            MLKemVariant::MLKem768,
-            KeyPurpose::KeyExchange,
-            Some(chrono::Utc::now() + chrono::Duration::days(30)),
-            HashMap::new(),
-        ).await;
+        let key_id = manager
+            .generate_hybrid_key(
+                "test-hybrid-key".to_string(),
+                MLKemVariant::MLKem768,
+                KeyPurpose::KeyExchange,
+                Some(chrono::Utc::now() + chrono::Duration::days(30)),
+                HashMap::new(),
+            )
+            .await;
 
         assert!(key_id.is_ok());
 
@@ -1087,14 +1106,16 @@ mod tests {
     async fn test_archive_key_generation() {
         let manager = PostQuantumKeyManager::new();
 
-        let key_id = manager.generate_archive_key(
-            "test-archive-key".to_string(),
-            MLKemVariant::MLKem1024,
-            MLDsaVariant::MLDsa87,
-            ArchivePurpose::LegalCompliance,
-            chrono::Duration::days(2555), // 7 years
-            HashMap::new(),
-        ).await;
+        let key_id = manager
+            .generate_archive_key(
+                "test-archive-key".to_string(),
+                MLKemVariant::MLKem1024,
+                MLDsaVariant::MLDsa87,
+                ArchivePurpose::LegalCompliance,
+                chrono::Duration::days(2555), // 7 years
+                HashMap::new(),
+            )
+            .await;
 
         assert!(key_id.is_ok());
 
@@ -1107,13 +1128,16 @@ mod tests {
         let manager = PostQuantumKeyManager::new();
 
         // Generate ML-DSA key for authentication
-        let key_id = manager.generate_mldsa_key(
-            "auth-key".to_string(),
-            MLDsaVariant::MLDsa65,
-            KeyPurpose::AuthenticationSigning,
-            None,
-            HashMap::new(),
-        ).await.unwrap();
+        let key_id = manager
+            .generate_mldsa_key(
+                "auth-key".to_string(),
+                MLDsaVariant::MLDsa65,
+                KeyPurpose::AuthenticationSigning,
+                None,
+                HashMap::new(),
+            )
+            .await
+            .unwrap();
 
         // Sign a token
         let token_data = b"authentication-token-data";

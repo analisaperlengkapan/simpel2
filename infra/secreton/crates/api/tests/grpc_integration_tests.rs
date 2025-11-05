@@ -2,15 +2,13 @@
 //!
 //! Tests all gRPC RPC methods, error scenarios, mTLS authentication, and concurrent requests
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use secreton_api::grpc::{
-    SecretonGrpcService,
+    SecretonGrpcService, common::v1::*, secreton::v1::secreton_service_server::SecretonService,
     secreton::v1::*,
-    secreton::v1::secreton_service_server::SecretonService,
-    common::v1::*,
 };
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::{MemoryBackend, StorageBackend};
@@ -45,7 +43,11 @@ async fn test_store_secret_success() {
 
     let response = service.store_secret(request).await;
 
-    assert!(response.is_ok(), "Failed to store secret: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to store secret: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(!response.id.is_empty());
@@ -84,7 +86,11 @@ async fn test_get_secret_success() {
 
     let response = service.get_secret(request).await;
 
-    assert!(response.is_ok(), "Failed to get secret: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to get secret: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(!response.id.is_empty());
@@ -116,7 +122,11 @@ async fn test_delete_secret_success() {
 
     let response = service.delete_secret(request).await;
 
-    assert!(response.is_ok(), "Failed to delete secret: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to delete secret: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(response.success);
@@ -134,7 +144,11 @@ async fn test_list_secrets_with_prefix() {
 
     let response = service.list_secrets(request).await;
 
-    assert!(response.is_ok(), "Failed to list secrets: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to list secrets: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert_eq!(response.total, 0); // Empty initially
@@ -171,7 +185,11 @@ async fn test_create_key_aes256_gcm() {
 
     let response = service.create_key(request).await;
 
-    assert!(response.is_ok(), "Failed to create key: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to create key: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert_eq!(response.name, "test-aes-key");
@@ -243,7 +261,11 @@ async fn test_encrypt_decrypt_roundtrip() {
     });
 
     let encrypt_resp = service.encrypt(encrypt_req).await;
-    assert!(encrypt_resp.is_ok(), "Encryption failed: {:?}", encrypt_resp.err());
+    assert!(
+        encrypt_resp.is_ok(),
+        "Encryption failed: {:?}",
+        encrypt_resp.err()
+    );
 
     let ciphertext = encrypt_resp.into_inner().ciphertext;
 
@@ -255,7 +277,11 @@ async fn test_encrypt_decrypt_roundtrip() {
     });
 
     let decrypt_resp = service.decrypt(decrypt_req).await;
-    assert!(decrypt_resp.is_ok(), "Decryption failed: {:?}", decrypt_resp.err());
+    assert!(
+        decrypt_resp.is_ok(),
+        "Decryption failed: {:?}",
+        decrypt_resp.err()
+    );
 
     let decrypted = decrypt_resp.into_inner().plaintext;
     assert_eq!(plaintext, decrypted.as_slice());
@@ -382,7 +408,11 @@ async fn test_sign_verify_ed25519() {
     });
 
     let verify_resp = service.verify(verify_req).await;
-    assert!(verify_resp.is_ok(), "Verification failed: {:?}", verify_resp.err());
+    assert!(
+        verify_resp.is_ok(),
+        "Verification failed: {:?}",
+        verify_resp.err()
+    );
 
     let valid = verify_resp.into_inner().valid;
     assert!(valid, "Signature should be valid");
@@ -432,7 +462,11 @@ async fn test_rotate_key() {
     });
 
     let rotate_resp = service.rotate_key(rotate_req).await;
-    assert!(rotate_resp.is_ok(), "Key rotation failed: {:?}", rotate_resp.err());
+    assert!(
+        rotate_resp.is_ok(),
+        "Key rotation failed: {:?}",
+        rotate_resp.err()
+    );
 
     let response = rotate_resp.into_inner();
     assert!(response.new_version >= 2);
@@ -464,7 +498,11 @@ async fn test_get_cluster_status() {
 
     let response = service.get_cluster_status(request).await;
 
-    assert!(response.is_ok(), "Failed to get cluster status: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to get cluster status: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(response.node_id > 0);
@@ -493,13 +531,15 @@ async fn test_add_node() {
 async fn test_remove_node() {
     let service = create_test_service();
 
-    let request = Request::new(RemoveNodeRequest {
-        node_id: 2,
-    });
+    let request = Request::new(RemoveNodeRequest { node_id: 2 });
 
     let response = service.remove_node(request).await;
 
-    assert!(response.is_ok(), "Failed to remove node: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to remove node: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(response.success);
@@ -519,7 +559,11 @@ async fn test_health_check() {
 
     let response = service.health_check(request).await;
 
-    assert!(response.is_ok(), "Health check failed: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Health check failed: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(response.info.is_some());
@@ -538,7 +582,11 @@ async fn test_get_metrics() {
 
     let response = service.get_metrics(request).await;
 
-    assert!(response.is_ok(), "Failed to get metrics: {:?}", response.err());
+    assert!(
+        response.is_ok(),
+        "Failed to get metrics: {:?}",
+        response.err()
+    );
 
     let response = response.into_inner();
     assert!(response.total_secrets >= 0);
