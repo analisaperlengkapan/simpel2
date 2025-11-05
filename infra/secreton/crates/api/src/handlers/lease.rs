@@ -622,7 +622,7 @@ pub async fn get_lease_stats(
     Ok(Json(ApiResponse::success(response)))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

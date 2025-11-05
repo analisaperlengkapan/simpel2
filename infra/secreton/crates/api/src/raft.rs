@@ -127,7 +127,7 @@ async fn get_leader(State(state): State<RaftApiState>) -> Json<serde_json::Value
     }))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

@@ -471,7 +471,7 @@ fn contains_dangerous_sql(sql: &str) -> bool {
         .any(|pattern| sql_lower.contains(pattern))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

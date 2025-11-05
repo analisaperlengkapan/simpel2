@@ -341,6 +341,7 @@ impl Drop for HsmBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::HsmProvider;
     use std::path::PathBuf;
 
     fn create_test_config() -> HsmConfig {

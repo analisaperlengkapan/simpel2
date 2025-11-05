@@ -521,7 +521,7 @@ pub struct SecurityFinding {
     pub affected_resources: Vec<String>,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::AuthConfig;

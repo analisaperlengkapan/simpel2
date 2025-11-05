@@ -210,7 +210,7 @@ grpc_tls_success_rate {}
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

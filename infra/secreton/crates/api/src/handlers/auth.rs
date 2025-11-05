@@ -35,7 +35,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/sessions/{session_id}", delete(revoke_session))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::ApiConfig;

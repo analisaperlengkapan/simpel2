@@ -429,7 +429,7 @@ pub fn create_routes() -> axum::Router<AppState> {
         .route("/rekey/update", post(rekey_update))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

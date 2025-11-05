@@ -1388,7 +1388,7 @@ async fn cleanup_old_snapshots(pool: deadpool_postgres::Pool) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

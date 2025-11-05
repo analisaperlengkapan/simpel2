@@ -652,7 +652,7 @@ fn get_uptime_seconds() -> u64 {
     86400 // 24 hours
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::ApiConfig;

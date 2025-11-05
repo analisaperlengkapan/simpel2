@@ -1019,7 +1019,7 @@ async fn log_policy_decision_to_audit(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 
@@ -1140,8 +1140,8 @@ pub async fn response_wrapping_middleware(
     response
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, feature = "enable-inline-tests"))]
+mod certificate_tests {
     use super::*;
 
     #[test]

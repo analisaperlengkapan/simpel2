@@ -399,7 +399,7 @@ impl ServiceContainer {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

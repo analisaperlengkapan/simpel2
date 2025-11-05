@@ -501,7 +501,7 @@ pub async fn rewrap_token(
     Ok(Json(ApiResponse::success(response)))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

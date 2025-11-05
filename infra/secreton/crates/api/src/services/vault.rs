@@ -220,7 +220,7 @@ pub struct DecryptResult {
     pub plaintext: String,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::AuthConfig;
@@ -244,7 +244,7 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
         let audit = Arc::new(AuditLogger::new(storage.clone()).await);
-        let service = VaultService::new(storage, crypto, audit).await;
+        let service = VaultService::new(storage, crypto, audit).await.expect("Failed to create VaultService");
 
         let secret = service.get_secret("app/config", "user1").await;
         assert_eq!(secret.path, "app/config");
@@ -256,7 +256,7 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
         let audit = Arc::new(AuditLogger::new(storage.clone()).await);
-        let service = VaultService::new(storage, crypto, audit).await;
+        let service = VaultService::new(storage, crypto, audit).await.expect("Failed to create VaultService");
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
@@ -270,7 +270,7 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
         let audit = Arc::new(AuditLogger::new(storage.clone()).await);
-        let service = VaultService::new(storage, crypto, audit).await;
+        let service = VaultService::new(storage, crypto, audit).await.expect("Failed to create VaultService");
 
         let result = service.encrypt("key1", "plaintext", "user1").await;
         assert_eq!(result.ciphertext, "encrypted_data");

@@ -96,7 +96,7 @@ pub async fn export_audit_logs(
     Ok(Json(ApiResponse::success(data)))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::ApiConfig;

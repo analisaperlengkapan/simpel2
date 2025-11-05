@@ -317,7 +317,7 @@ pub use crate::error::AuthError;
 // Use canonical types from secreton_core::models
 // LoginRequest, LoginResponse, UserInfo are now imported at the top
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
 

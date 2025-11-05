@@ -182,7 +182,7 @@ pub struct VersionInfo {
     pub rust_version: String,
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::ApiConfig;

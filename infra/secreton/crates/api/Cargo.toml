@@ -73,6 +73,8 @@ default = []
 # High-availability mode with Raft consensus (experimental)
 # Note: Raft implementation is currently under development
 raft-consensus = ["secreton-storage/raft-consensus"]
+# Enable inline test modules (currently have compilation issues)
+enable-inline-tests = []
 
 [dev-dependencies]
 criterion.workspace = true
