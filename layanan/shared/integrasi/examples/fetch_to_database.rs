@@ -32,7 +32,7 @@
 /// # Hanya MySIMKARI
 /// FETCH_MODE=mysimkari cargo run --example fetch_to_database
 /// ```
-use simpelv2_integrasi::{
+use layanan_integrasi::{
     fetch_all_data, fetch_all_satker, fetch_mysimkari, fetch_satker_complete, storage_from_env,
     Config, MonsaktiClient, KL_KEJAKSAAN,
 };
@@ -58,8 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Validasi database jika diperlukan
     if matches!(
         storage,
-        simpelv2_integrasi::StorageStrategy::Database
-            | simpelv2_integrasi::StorageStrategy::Both { .. }
+        layanan_integrasi::StorageStrategy::Database
+            | layanan_integrasi::StorageStrategy::Both { .. }
     ) {
         if config.db_config.is_none() {
             eprintln!("ERROR: DATABASE_URL tidak dikonfigurasi!");

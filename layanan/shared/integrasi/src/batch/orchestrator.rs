@@ -5,9 +5,42 @@ use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::adm;
 use crate::storage::StorageStrategy;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-/// Get list of all satker untuk KL tertentu
+/// Get list of all satker untuk KL tertentu dari DATABASE (lebih efisien)
+/// Menggunakan connection string langsung untuk menghindari masalah private field
+pub async fn get_satker_list_from_db() -> Result<Vec<String>, MonsaktiError> {
+    use tokio_postgres::NoTls;
+
+    info!("📊 Fetching satker list from database (adm_ref_admin)...");
+
+    // Get database URL from environment
+    let db_url = std::env::var("DATABASE_URL")
+        .map_err(|_| MonsaktiError::ConfigError("DATABASE_URL not found in environment".to_string()))?;
+
+    // Create connection
+    let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await?;
+
+    // Spawn connection handler
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            error!("Database connection error: {}", e);
+        }
+    });
+
+    let query = "SELECT DISTINCT kdsatker FROM integrasi.adm_ref_admin WHERE kdsatker IS NOT NULL AND kdsatker != '' AND kdsatker != '000000' ORDER BY kdsatker";
+
+    let rows = client.query(query, &[]).await?;
+
+    let satker_list: Vec<String> = rows.iter()
+        .filter_map(|row| row.try_get::<_, String>(0).ok())
+        .collect();
+
+    info!("✅ Found {} satker(s) from database", satker_list.len());
+    Ok(satker_list)
+}
+
+/// Get list of all satker untuk KL tertentu dari API (legacy method)
 pub async fn get_satker_list(
     client: &mut MonsaktiClient,
     kode_kl: &str,
@@ -41,17 +74,47 @@ pub async fn fetch_satker_complete(
     kode_kl: &str,
     kdsatker: &str,
 ) -> Result<(), MonsaktiError> {
+    fetch_satker_with_modules(client, storage, kode_kl, kdsatker, None).await
+}
+
+/// Fetch data satker dengan filter modul tertentu (None = all modules)
+pub async fn fetch_satker_with_modules(
+    client: &mut MonsaktiClient,
+    storage: &StorageStrategy,
+    kode_kl: &str,
+    kdsatker: &str,
+    module_filter: Option<&str>,
+) -> Result<(), MonsaktiError> {
     info!("[{}] Processing satker...", kdsatker);
 
+    let should_fetch =
+        |module: &str| -> bool { module_filter.is_none() || module_filter == Some(module) };
+
     // Fetch semua modul secara sequential untuk menghindari rate limiting
-    let _ = fetch_adm(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_ang(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_ben(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_pem(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_kom(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_ast(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_per(client, storage, kode_kl, kdsatker).await;
-    let _ = fetch_glp(client, storage, kode_kl, kdsatker).await;
+    if should_fetch("adm") {
+        let _ = fetch_adm(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("ang") || should_fetch("saldo-anggaran") {
+        let _ = fetch_ang(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("ben") || should_fetch("realisasi-belanja") {
+        let _ = fetch_ben(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("pem") || should_fetch("transaksi") {
+        let _ = fetch_pem(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("kom") || should_fetch("kontrak-pengadaan") || should_fetch("data-supplier") {
+        let _ = fetch_kom(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("ast") || should_fetch("aset-tetap") {
+        let _ = fetch_ast(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("per") || should_fetch("persediaan") {
+        let _ = fetch_per(client, storage, kode_kl, kdsatker).await;
+    }
+    if should_fetch("glp") {
+        let _ = fetch_glp(client, storage, kode_kl, kdsatker).await;
+    }
 
     info!("[{}] ✓ Completed", kdsatker);
     Ok(())
@@ -63,42 +126,157 @@ pub async fn fetch_all_satker(
     storage: &StorageStrategy,
     kode_kl: &str,
 ) -> Result<(), MonsaktiError> {
-    let satker_list = get_satker_list(client, kode_kl).await?;
+    fetch_all_satker_with_modules(client, storage, kode_kl, None).await
+}
+
+/// Fetch semua satker dengan filter modul tertentu - menggunakan DATABASE untuk list satker
+pub async fn fetch_all_satker_with_modules_from_db(
+    client: &mut MonsaktiClient,
+    storage: &StorageStrategy,
+    kode_kl: &str,
+    module_filter: Option<&str>,
+) -> Result<(), MonsaktiError> {
+    // Get satker list from database (lebih efisien dan tidak perlu API call)
+    let satker_list = get_satker_list_from_db().await?;
+
+    let module_info = module_filter
+        .map(|m| format!(" (module: {})", m))
+        .unwrap_or_default();
 
     info!(
-        "Processing {} satker(s) for KL{}...",
+        "🚀 Processing {} satker(s) for KL{}{} (from database)...",
         satker_list.len(),
-        kode_kl
+        kode_kl,
+        module_info
+    );
+
+    let mut success_count = 0;
+    let mut failed_count = 0;
+    let mut empty_count = 0;
+
+    for (idx, kdsatker) in satker_list.iter().enumerate() {
+        info!(
+            "📍 [{}/{}] Processing satker: {}{}",
+            idx + 1,
+            satker_list.len(),
+            kdsatker,
+            module_info
+        );
+
+        match fetch_satker_with_modules(client, storage, kode_kl, kdsatker, module_filter).await {
+            Ok(_) => {
+                success_count += 1;
+                info!("✅ [{}] Satker {} completed", idx + 1, kdsatker);
+            }
+            Err(e) => {
+                failed_count += 1;
+                error!("❌ [{}] Satker {} failed: {}", idx + 1, kdsatker, e);
+            }
+        }
+
+        // Rate limiting - DISABLED untuk kecepatan maksimal
+        // if idx < satker_list.len() - 1 {
+        //     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        // }
+    }
+
+    info!(
+        "🎯 Batch processing completed for KL{}{}: ✅ {} success, ❌ {} failed, ⚠️  {} empty",
+        kode_kl, module_info, success_count, failed_count, empty_count
+    );
+
+    Ok(())
+}
+
+/// Fetch semua satker dengan filter modul tertentu (legacy - menggunakan API untuk list)
+pub async fn fetch_all_satker_with_modules(
+    client: &mut MonsaktiClient,
+    storage: &StorageStrategy,
+    kode_kl: &str,
+    module_filter: Option<&str>,
+) -> Result<(), MonsaktiError> {
+    let satker_list = get_satker_list(client, kode_kl).await?;
+
+    let module_info = module_filter
+        .map(|m| format!(" (module: {})", m))
+        .unwrap_or_default();
+
+    info!(
+        "Processing {} satker(s) for KL{}{}...",
+        satker_list.len(),
+        kode_kl,
+        module_info
     );
 
     for (idx, kdsatker) in satker_list.iter().enumerate() {
         info!(
-            "Processing satker {}/{}: {}",
+            "Processing satker {}/{}: {}{}",
             idx + 1,
             satker_list.len(),
-            kdsatker
+            kdsatker,
+            module_info
         );
 
-        match fetch_satker_complete(client, storage, kode_kl, kdsatker).await {
+        match fetch_satker_with_modules(client, storage, kode_kl, kdsatker, module_filter).await {
             Ok(_) => info!("✓ Satker {} completed", kdsatker),
             Err(e) => error!("✗ Satker {} failed: {}", kdsatker, e),
         }
 
-        // Rate limiting
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        // Rate limiting - DISABLED untuk kecepatan maksimal
+        // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     }
 
-    info!("✓ All satker processing completed for KL{}", kode_kl);
+    info!(
+        "✓ All satker processing completed for KL{}{}",
+        kode_kl, module_info
+    );
     Ok(())
 }
 
-/// Fetch semua data (MySIMKARI + MonSAKTI) untuk KL tertentu
+/// Fetch semua data MonSAKTI (global refs + all satker) untuk KL tertentu
+/// TIDAK termasuk MySIMKARI - gunakan fetch_all_data_with_mysimkari untuk itu
 pub async fn fetch_all_data(
     client: &mut MonsaktiClient,
     storage: &StorageStrategy,
     kode_kl: &str,
 ) -> Result<(), MonsaktiError> {
-    info!("=== Starting complete data fetch for KL{} ===", kode_kl);
+    info!(
+        "=== Starting complete MonSAKTI data fetch for KL{} ===",
+        kode_kl
+    );
+
+    // Step 1: Global references
+    info!("Step 1/2: Fetching global reference data...");
+    match fetch_global_references(client, storage, kode_kl).await {
+        Ok(_) => info!("✓ Global references completed"),
+        Err(e) => error!("✗ Global references failed: {}", e),
+    }
+
+    // Step 2: MonSAKTI data untuk semua satker
+    info!("Step 2/2: Fetching MonSAKTI data for all satker...");
+    match fetch_all_satker(client, storage, kode_kl).await {
+        Ok(_) => info!("✓ MonSAKTI data completed"),
+        Err(e) => error!("✗ MonSAKTI data failed: {}", e),
+    }
+
+    info!(
+        "=== Complete MonSAKTI data fetch finished for KL{} ===",
+        kode_kl
+    );
+    Ok(())
+}
+
+/// Fetch semua data (MySIMKARI + MonSAKTI) untuk KL tertentu
+/// Gunakan ini untuk mode --source all
+pub async fn fetch_all_data_with_mysimkari(
+    client: &mut MonsaktiClient,
+    storage: &StorageStrategy,
+    kode_kl: &str,
+) -> Result<(), MonsaktiError> {
+    info!(
+        "=== Starting complete data fetch (MySIMKARI + MonSAKTI) for KL{} ===",
+        kode_kl
+    );
 
     // Step 1: Global references
     info!("Step 1/3: Fetching global reference data...");

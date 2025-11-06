@@ -292,7 +292,7 @@ mod integration_tests {
                 println!("❌ MFA setup failed: {:?}", e);
                 // This might be expected if secreton is not running
                 match e {
-                    AuthencError::InternalError { .. } 
+                    AuthencError::InternalError { .. }
                     | AuthencError::SecretonCommunicationError { .. }
                     | AuthencError::SecretonUnavailable => {
                         println!(
@@ -586,7 +586,7 @@ mod integration_tests {
                 println!("❌ MFA statistics retrieval failed: {:?}", e);
                 // This is expected if the database schema is not fully set up
                 match e {
-                    AuthencError::DatabaseError { .. } 
+                    AuthencError::DatabaseError { .. }
                     | AuthencError::InternalError { .. } => {
                         println!(
                             "ℹ️  This is expected if the full database schema is not set up for integration tests "
@@ -624,7 +624,7 @@ mod integration_tests {
         // Test with invalid secreton URL to simulate connection failure
         let invalid_secreton_client = Arc::new(
             SecretonClient::new(
-                "http://invalid-secreton-url:9999".to_string(), 
+                "http://invalid-secreton-url:9999".to_string(),
                 "test-token".to_string()
             )
         );
@@ -641,7 +641,7 @@ mod integration_tests {
             timeout(Duration::from_secs(5), mfa_service.setup_mfa(test_user.id)).await;
 
         match setup_result {
-            Ok(Err(AuthencError::InternalError { .. })) 
+            Ok(Err(AuthencError::InternalError { .. }))
             | Ok(Err(AuthencError::SecretonCommunicationError { .. }))
             | Ok(Err(AuthencError::SecretonUnavailable)) => {
                 println!("✅ MFA setup correctly failed with secreton unavailable");
@@ -665,7 +665,7 @@ mod integration_tests {
         .await;
 
         match recovery_result {
-            Ok(Err(AuthencError::InternalError { .. })) 
+            Ok(Err(AuthencError::InternalError { .. }))
             | Ok(Err(AuthencError::SecretonCommunicationError { .. }))
             | Ok(Err(AuthencError::SecretonUnavailable)) => {
                 println!("✅ Recovery code generation correctly failed with secreton unavailable");

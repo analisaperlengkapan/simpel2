@@ -1,24 +1,88 @@
 use crate::error::MonsaktiError;
 use serde_json::Value;
 use tokio_postgres::Client;
-use tracing::{info, warn};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
-/// Helper untuk konversi JSON value ke PostgreSQL parameter
-pub fn json_to_sql_param(value: &Value) -> Box<dyn tokio_postgres::types::ToSql + Sync + Send> {
+/// Helper untuk konversi JSON value ke PostgreSQL parameter - SIMPLIFIED for TEXT columns
+pub fn json_to_sql_param(
+    value: &Value,
+    column_name: &str,
+) -> Box<dyn tokio_postgres::types::ToSql + Sync + Send> {
     match value {
-        Value::String(s) => Box::new(s.clone()),
-        Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Box::new(i)
-            } else if let Some(f) = n.as_f64() {
-                Box::new(f)
-            } else {
-                Box::new(n.to_string())
+        Value::String(s) => {
+            // Special handling for api_id column - convert to i64
+            if column_name == "api_id" {
+                if let Ok(num) = s.parse::<i64>() {
+                    return Box::new(Some(num));
+                }
+                // If parse fails, return NULL - SKIP THIS COLUMN!
+                return Box::new(None::<i64>);
             }
+
+            // Try to parse as UUID for id/parent_id/satker_id columns only
+            if column_name == "id" || column_name.ends_with("_id") {
+                if let Ok(uuid) = Uuid::parse_str(s) {
+                    return Box::new(uuid);
+                }
+            }
+
+            // Everything else is TEXT - keep as string
+            Box::new(s.clone())
         }
-        Value::Bool(b) => Box::new(*b),
-        Value::Null => Box::new(Option::<String>::None),
-        _ => Box::new(value.to_string()),
+        Value::Number(n) => {
+            // Special handling for api_id - store as i64
+            if column_name == "api_id" {
+                if let Some(num) = n.as_i64() {
+                    return Box::new(Some(num));
+                }
+                // Return NULL for api_id if not i64
+                return Box::new(None::<i64>);
+            }
+
+            // For all other numbers, convert to string
+            // PostgreSQL TEXT columns accept strings, and NUMERIC can cast from string
+            // This avoids complex type matching logic
+            Box::new(n.to_string())
+        }
+        Value::Bool(b) => {
+            // Convert bool to string for TEXT columns
+            Box::new(if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            })
+        }
+        Value::Null => {
+            // For api_id column, return NULL as Option<i64>
+            if column_name == "api_id" {
+                return Box::new(None::<i64>);
+            }
+            // For other columns, return NULL as Option<String>
+            Box::new(None::<String>)
+        }
+        Value::Array(arr) => {
+            // For JSONB columns, pass the value as serde_json::Value directly
+            if column_name == "raw_data"
+                || column_name.ends_with("_json")
+                || column_name.ends_with("_data")
+            {
+                return Box::new(value.clone());
+            }
+            // Otherwise convert to JSON string for TEXT columns
+            Box::new(serde_json::to_string(arr).unwrap_or_else(|_| "[]".to_string()))
+        }
+        Value::Object(_) => {
+            // For JSONB columns, pass the value as serde_json::Value directly
+            if column_name == "raw_data"
+                || column_name.ends_with("_json")
+                || column_name.ends_with("_data")
+            {
+                return Box::new(value.clone());
+            }
+            // Otherwise convert to JSON string for TEXT columns
+            Box::new(serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string()))
+        }
     }
 }
 
@@ -28,36 +92,98 @@ pub async fn bulk_insert_postgres(
     table_name: &str,
     data: &[Value],
 ) -> Result<usize, MonsaktiError> {
+    info!(
+        "🔧 [BULK INSERT] Starting bulk_insert_postgres for table: {}, records: {}",
+        table_name,
+        data.len()
+    );
+
     if data.is_empty() {
+        info!("⚠️  [BULK INSERT] Data is empty, returning 0");
         return Ok(0);
     }
 
     // Validasi nama tabel untuk mencegah SQL injection
     if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        error!("❌ [BULK INSERT] Invalid table name: {}", table_name);
         return Err(MonsaktiError::ConfigError(format!(
             "Nama tabel tidak valid: {}",
             table_name
         )));
     }
 
-    let first_obj = data[0]
-        .as_object()
-        .ok_or_else(|| MonsaktiError::ApiError("Format data tidak valid".to_string()))?;
+    let first_obj = data[0].as_object().ok_or_else(|| {
+        error!("❌ [BULK INSERT] First data item is not an object");
+        MonsaktiError::ApiError("Format data tidak valid".to_string())
+    })?;
+
+    info!(
+        "📋 [BULK INSERT] First object keys: {:?}",
+        first_obj.keys().collect::<Vec<_>>()
+    );
 
     // Konversi key ke lowercase untuk konsistensi dengan PostgreSQL
-    let columns: Vec<String> = first_obj.keys().map(|k| k.to_lowercase()).collect();
+    // Check if ANY object in the data has a non-null 'id' field
+    let has_valid_id = data.iter().any(|item| {
+        if let Some(obj) = item.as_object() {
+            if let Some(id_val) = obj.get("id").or_else(|| obj.get("ID")) {
+                return !id_val.is_null();
+            }
+        }
+        false
+    });
+
+    // Determine if this is a SIMAN table (has different schema)
+    let is_siman_table = table_name.starts_with("siman_");
+
+    // Rename 'id' ke 'api_id' jika ada (untuk menyimpan ID dari API eksternal)
+    // KECUALI untuk tabel SIMAN yang tidak punya kolom api_id
+    let columns: Vec<String> = first_obj
+        .keys()
+        .filter_map(|k| {
+            let lower = k.to_lowercase();
+
+            // Skip internal SIMAN API fields that aren't in database schema
+            if is_siman_table && (lower == "id" || lower == "tgl_tarik") {
+                return None;
+            }
+
+            if lower == "id" {
+                // Only include api_id if at least one object has non-null id
+                if has_valid_id {
+                    Some("api_id".to_string()) // Rename id -> api_id
+                } else {
+                    None // Skip if all ids are null
+                }
+            } else {
+                Some(lower)
+            }
+        })
+        .collect();
 
     if columns.is_empty() {
+        error!("❌ [BULK INSERT] No columns to insert");
         return Err(MonsaktiError::ApiError(
             "Tidak ada kolom untuk diinsert".to_string(),
         ));
     }
 
+    info!("📝 [BULK INSERT] Columns to insert: {:?}", columns);
+
     let mut count = 0;
     let mut failed = 0;
 
     // Batch insert untuk performa lebih baik (100 rows per batch)
-    for chunk in data.chunks(100) {
+    info!(
+        "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
+        data.len()
+    );
+    for (chunk_idx, chunk) in data.chunks(100).enumerate() {
+        info!(
+            "📦 [BULK INSERT] Processing chunk {}, {} records",
+            chunk_idx + 1,
+            chunk.len()
+        );
         for item in chunk {
             if let Some(obj) = item.as_object() {
                 // Build query dengan placeholders
@@ -74,11 +200,14 @@ pub async fn bulk_insert_postgres(
                 let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
                     Vec::new();
                 for col in &columns {
+                    // Handle mapping: api_id in DB comes from id in JSON
+                    let json_key = if col == "api_id" { "id" } else { col.as_str() };
+
                     let value = obj
-                        .get(col)
-                        .or_else(|| obj.get(&col.to_uppercase()))
+                        .get(json_key)
+                        .or_else(|| obj.get(&json_key.to_uppercase()))
                         .unwrap_or(&Value::Null);
-                    params.push(json_to_sql_param(value));
+                    params.push(json_to_sql_param(value, col));
                 }
 
                 // Convert to references for execute
@@ -91,10 +220,40 @@ pub async fn bulk_insert_postgres(
                     Ok(rows) => {
                         if rows > 0 {
                             count += rows as usize;
+                            debug!("✅ [BULK INSERT] Inserted {} row(s)", rows);
+                        } else {
+                            debug!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
                         }
                     }
                     Err(e) => {
-                        warn!("Gagal insert row ke {}: {}", table_name, e);
+                        // Log more details for debugging
+                        error!(
+                            "❌ [BULK INSERT] Insert error for table {}: {:?} | Columns: {:?}",
+                            table_name, e, columns
+                        );
+                        error!("❌ [BULK INSERT] Failed query: {}", query);
+
+                        // Print the actual data values to debug type issues
+                        for (i, col) in columns.iter().enumerate() {
+                            let value = obj
+                                .get(col)
+                                .or_else(|| obj.get(&col.to_uppercase()))
+                                .unwrap_or(&Value::Null);
+                            let type_str = if value.is_string() {
+                                "string"
+                            } else if value.is_number() {
+                                "number"
+                            } else if value.is_boolean() {
+                                "bool"
+                            } else if value.is_null() {
+                                "null"
+                            } else if value.is_array() {
+                                "array"
+                            } else {
+                                "object"
+                            };
+                            error!("  Column[{}] {}: {:?} (type: {})", i, col, value, type_str);
+                        }
                         failed += 1;
                     }
                 }
@@ -103,8 +262,16 @@ pub async fn bulk_insert_postgres(
     }
 
     if failed > 0 {
-        warn!("{} baris gagal diinsert ke tabel {}", failed, table_name);
+        warn!(
+            "⚠️  [BULK INSERT] {} baris gagal diinsert ke tabel {}",
+            failed, table_name
+        );
     }
+
+    info!(
+        "✅ [BULK INSERT] Completed: {} rows inserted, {} failed for table {}",
+        count, failed, table_name
+    );
 
     Ok(count)
 }
@@ -119,21 +286,35 @@ pub async fn save_to_database(
     // Mapping endpoint ke nama tabel
     let table_name = format!("{}_{}", module.to_lowercase(), endpoint.to_lowercase());
 
+    info!(
+        "💾 [DB] save_to_database called: module={}, endpoint={}, table={}",
+        module, endpoint, table_name
+    );
+
     if let Some(array) = data.as_array() {
+        info!("📦 [DB] Data is array with {} elements", array.len());
+
         if array.is_empty() {
-            warn!("Tidak ada data untuk diinsert ke tabel {}", table_name);
+            warn!(
+                "⚠️  [DB] Tidak ada data untuk diinsert ke tabel {}",
+                table_name
+            );
             return Ok(0);
         }
 
+        info!(
+            "🔄 [DB] Calling bulk_insert_postgres for {} records...",
+            array.len()
+        );
         let insert_count = bulk_insert_postgres(db, &table_name, array).await?;
         info!(
-            "{} baris berhasil diinsert ke tabel {}",
+            "✅ [DB] {} baris berhasil diinsert ke tabel {}",
             insert_count, table_name
         );
         Ok(insert_count)
     } else {
         warn!(
-            "Data bukan array, tidak dapat diinsert ke tabel {}",
+            "❌ [DB] Data bukan array, tidak dapat diinsert ke tabel {}",
             table_name
         );
         Ok(0)

@@ -1,27 +1,35 @@
 # SIMPelv2 - Layanan Integrasi
 
-Layanan integrasi untuk external APIs dalam ekosistem SIMPelv2. Menangani integrasi dengan MonSAKTI (Sistem Aplikasi Keuangan Tingkat Instansi) Kementerian Keuangan RI, MySIMKARI, dan API eksternal lainnya.
+Layanan integrasi untuk external APIs dalam ekosistem SIMPelv2. Menangani integrasi dengan:
+
+- **MonSAKTI** - Sistem Aplikasi Keuangan Tingkat Instansi (Kementerian Keuangan RI)
+- **MySIMKARI** - Sistem Informasi Kepegawaian Kejaksaan RI
+- **SIMAN v2.0** - Sistem Informasi Manajemen Aset Negara (Kementerian Keuangan RI)
 
 ## 🆕 What's New - Peningkatan Terbaru
 
 ### ✨ Auto Token Reset & Retry
+
 - **Otomatis detect token expired** dan reset menggunakan endpoint khusus
 - **Auto-retry** setelah token direset
 - **Optimized untuk KL006** (Kejaksaan RI)
 - Tidak perlu manual reset token lagi!
 
 ### 💾 Direct Database Storage
+
 - **Langsung simpan ke PostgreSQL** tanpa file intermediary
 - **Batch insert** dengan performa tinggi (100 rows per batch)
 - **Error recovery** - lanjut ke endpoint berikutnya jika ada yang gagal
 - Tidak perlu import manual lagi!
 
 ### 📚 Dokumentasi Lengkap
+
 - **[QUICK_START.md](QUICK_START.md)** - Setup dalam 5 menit
 - **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Detail teknis peningkatan
 - **[dokumentasi_monsakti.md](dokumentasi_monsakti.md)** - Referensi API lengkap
 
 **Quick Start:**
+
 ```bash
 # Setup database dan token
 cp .env.example .env
@@ -36,7 +44,11 @@ cargo run --example fetch_to_database
 
 ## 📋 Deskripsi
 
-Library ini menyediakan interface yang mudah digunakan untuk berinteraksi dengan API MonSAKTI v1.4, mendukung semua modul yang tersedia:
+Library ini menyediakan interface yang mudah digunakan untuk berinteraksi dengan multiple government APIs:
+
+### MonSAKTI v1.4
+
+Mendukung semua modul:
 
 - **ADM** - Administrasi
 - **ANG** - Penganggaran
@@ -47,15 +59,48 @@ Library ini menyediakan interface yang mudah digunakan untuk berinteraksi dengan
 - **PER** - Persediaan
 - **GLP** - Pelaporan
 
+### MySIMKARI
+
+- Data satker
+- Data pegawai per satker
+
+### SIMAN v2.0 (NEW!)
+
+15 kategori aset Barang Milik Negara (BMN):
+
+- Tanah, Gedung & Bangunan, Rumah
+- Angkutan Bermotor, Alat Besar, Alat Persenjataan
+- Peralatan TIK & Non-TIK
+- Instalasi & Jaringan, Jalan & Jembatan
+- Dan lainnya...
+
 ## ✨ Fitur
+
+### MonSAKTI
 
 - ✅ Implementasi lengkap 43 endpoint API MonSAKTI
 - ✅ **Auto token reset & retry** ketika token expired
 - ✅ **Direct database storage** tanpa file intermediary
-- ✅ Token management otomatis (auto-refresh dari response)
+- ✅ **Optimized untuk KL006** (Kejaksaan RI)
+
+### SIMAN v2.0 (NEW!)
+
+- ✅ **OAuth2 authentication** dengan SSO Kemenkeu
+- ✅ **Auto token refresh** sebelum expired
+- ✅ **15 kategori aset BMN** lengkap
+- ✅ **Auto pagination** untuk dataset besar
+- ✅ Convenience functions untuk setiap kategori
+
+### MySIMKARI
+
+- ✅ Integrasi data kepegawaian
+- ✅ Sinkronisasi satker dan pegawai
+
+### General Features
+
+- ✅ Token management otomatis
 - ✅ Parallel & sequential processing untuk batch operations
 - ✅ Export ke JSON, CSV, dan PostgreSQL
-- ✅ **Optimized untuk KL006** (Kejaksaan RI)
 - ✅ Type-safe dengan Rust
 - ✅ Async/await dengan Tokio
 - ✅ Logging dengan tracing
@@ -79,11 +124,13 @@ cargo build --release
 ### Konfigurasi
 
 1. Copy file `.env.example` ke `.env`:
+
 ```bash
 cp .env.example .env
 ```
 
 2. Edit `.env` dengan kredensial Anda:
+
 ```env
 MONSAKTI_BASE_URL=https://monsakti.kemenkeu.go.id/sitp-monsakti-omspan/webservice
 
@@ -130,6 +177,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## 📚 Dokumentasi API
+
+### 🆕 SIMAN API v2.0 - Barang Milik Negara
+
+```rust
+use layanan_integrasi::{Config, MonsaktiClient};
+use layanan_integrasi::siman::{SimanAssetCategory, get_row_count, get_aset_by_category};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::from_env()?;
+    let mut client = MonsaktiClient::new(config).await?;
+
+    // Get total count
+    let count = get_row_count(&mut client, SimanAssetCategory::Tanah).await?;
+    println!("Total Tanah: {}", count);
+
+    // Fetch data with pagination
+    let data = get_aset_by_category(
+        &mut client,
+        SimanAssetCategory::Tanah,
+        1,    // start ID
+        100   // end ID
+    ).await?;
+
+    println!("Retrieved {} records", data.len());
+    Ok(())
+}
+```
+
+**Available Categories:**
+
+- `AlatBesar`, `AngkutanBermotor`, `AlatPersenjataan`
+- `TakBerwujud`, `BangunanAir`, `GedungBangunan`
+- `InstalasiJaringan`, `JalandanJembatan`, `NonTIK`
+- `Rumah`, `Tanah`, `TetapLainnya`
+- `KDP`, `KhususTIK`, `TetapRenovasi`
+
+**Convenience Functions:**
+
+```rust
+use layanan_integrasi::siman::{
+    get_aset_tanah,
+    get_aset_angkutan_bermotor,
+    get_aset_gedung_bangunan,
+    fetch_all_aset_paginated,  // Auto pagination!
+};
+
+// Direct category access
+let tanah = get_aset_tanah(&mut client, 1, 100).await?;
+
+// Fetch all with auto pagination
+let all_gedung = fetch_all_aset_paginated(
+    &mut client,
+    SimanAssetCategory::GedungBangunan,
+    1000  // chunk size
+).await?;
+```
+
+📖 **Full documentation:** [dokumentasi_siman.md](dokumentasi_siman.md)
+💡 **Example code:** [examples/siman_example.rs](examples/siman_example.rs)
 
 ### Modul Administrasi (ADM)
 
@@ -499,6 +606,7 @@ This project is licensed under the MIT License.
 ## 📞 Support
 
 Untuk pertanyaan terkait API MonSAKTI, silakan hubungi:
+
 - Email: sitp.perbendaharaan@kemenkeu.go.id
 - Website: hai.kemenkeu.go.id
 

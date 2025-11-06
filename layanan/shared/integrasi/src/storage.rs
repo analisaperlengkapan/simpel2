@@ -19,6 +19,7 @@ pub enum StorageStrategy {
 
 impl StorageStrategy {
     /// Simpan data sesuai strategy yang dipilih
+    /// Returns the number of records successfully saved to database
     pub async fn save(
         &self,
         client: &MonsaktiClient,
@@ -26,28 +27,29 @@ impl StorageStrategy {
         endpoint: &str,
         data: &Value,
         context: &str, // e.g., "satker_123456" or "global"
-    ) -> Result<(), MonsaktiError> {
-        match self {
+    ) -> Result<usize, MonsaktiError> {
+        let count = match self {
             StorageStrategy::JsonFile { base_dir } => {
                 let filename = format!("{}/{}/{}.json", base_dir, context, endpoint);
                 client.save_to_json(data, filename).await?;
+                // File save doesn't have row count, return data array length
+                data.as_array().map(|a| a.len()).unwrap_or(0)
             }
             StorageStrategy::CsvFile { base_dir } => {
                 let filename = format!("{}/{}/{}.csv", base_dir, context, endpoint);
                 client.save_to_csv(data, filename).await?;
+                data.as_array().map(|a| a.len()).unwrap_or(0)
             }
-            StorageStrategy::Database => {
-                client.save_to_database(module, endpoint, data).await?;
-            }
+            StorageStrategy::Database => client.save_to_database(module, endpoint, data).await?,
             StorageStrategy::Both { base_dir } => {
                 // Save to file first
                 let filename = format!("{}/{}/{}.json", base_dir, context, endpoint);
                 client.save_to_json(data, filename).await?;
-                // Then to database
-                client.save_to_database(module, endpoint, data).await?;
+                // Then to database (get actual insert count)
+                client.save_to_database(module, endpoint, data).await?
             }
-        }
-        Ok(())
+        };
+        Ok(count)
     }
 
     /// Simpan data dengan nama tabel eksplisit (untuk database)

@@ -12,14 +12,24 @@ pub struct ApiCallLog {
     pub kode_kl: Option<String>,
     pub kdsatker: Option<String>,
     pub full_url: String,
+    // Request details (optional - for advanced auditing)
+    pub request_method: Option<String>,
+    pub request_headers: Option<Value>,
+    pub request_params: Option<Value>,
+    // Response information
     pub response_status: Option<i32>,
     pub response_time_ms: Option<i32>,
+    pub response_size_bytes: Option<i32>,
     pub record_count: Option<i32>,
+    // Result
     pub success: bool,
     pub error_message: Option<String>,
     pub retry_count: i32,
+    // Token information
+    pub token_used: Option<String>,
     pub token_refreshed: bool,
     pub new_token_received: bool,
+    // Metadata
     pub storage_strategy: Option<String>,
     pub data_saved: bool,
 }
@@ -33,12 +43,17 @@ impl ApiCallLog {
             kode_kl: None,
             kdsatker: None,
             full_url: url.to_string(),
+            request_method: None,
+            request_headers: None,
+            request_params: None,
             response_status: None,
             response_time_ms: None,
+            response_size_bytes: None,
             record_count: None,
             success: false,
             error_message: None,
             retry_count: 0,
+            token_used: None,
             token_refreshed: false,
             new_token_received: false,
             storage_strategy: None,
@@ -51,12 +66,13 @@ impl ApiCallLog {
         let query = r#"
             INSERT INTO api_call_log (
                 module, endpoint, kode_kl, kdsatker, full_url,
-                response_status, response_time_ms, record_count,
+                request_method, request_headers, request_params,
+                response_status, response_time_ms, response_size_bytes, record_count,
                 success, error_message, retry_count,
-                token_refreshed, new_token_received,
+                token_used, token_refreshed, new_token_received,
                 storage_strategy, data_saved,
                 started_at, completed_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         "#;
 
@@ -69,12 +85,17 @@ impl ApiCallLog {
                     &self.kode_kl,
                     &self.kdsatker,
                     &self.full_url,
+                    &self.request_method,
+                    &self.request_headers,
+                    &self.request_params,
                     &self.response_status,
                     &self.response_time_ms,
+                    &self.response_size_bytes,
                     &self.record_count,
                     &self.success,
                     &self.error_message,
                     &self.retry_count,
+                    &self.token_used,
                     &self.token_refreshed,
                     &self.new_token_received,
                     &self.storage_strategy,
@@ -215,6 +236,7 @@ pub struct DataSyncLog {
     pub endpoint: String,
     pub records_fetched: i32,
     pub records_inserted: i32,
+    pub records_updated: i32,
     pub records_failed: i32,
     pub kode_kl: Option<String>,
     pub kdsatker: Option<String>,
@@ -231,6 +253,7 @@ impl DataSyncLog {
             endpoint: endpoint.to_string(),
             records_fetched: 0,
             records_inserted: 0,
+            records_updated: 0,
             records_failed: 0,
             kode_kl: None,
             kdsatker: None,
@@ -249,10 +272,10 @@ impl DataSyncLog {
         let query = r#"
             INSERT INTO data_sync_log (
                 table_name, module, endpoint,
-                records_fetched, records_inserted, records_failed,
+                records_fetched, records_inserted, records_updated, records_failed,
                 kode_kl, kdsatker, batch_id, api_call_id,
                 success, error_message
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING id
         "#;
 
@@ -265,6 +288,7 @@ impl DataSyncLog {
                     &self.endpoint,
                     &self.records_fetched,
                     &self.records_inserted,
+                    &self.records_updated,
                     &self.records_failed,
                     &self.kode_kl,
                     &self.kdsatker,

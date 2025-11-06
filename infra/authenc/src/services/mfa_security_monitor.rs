@@ -731,7 +731,7 @@ impl MfaSecurityMonitor {
     /// Check for anomalies in MFA usage patterns for a specific user
     pub async fn check_for_anomalies(&self, user_id: Uuid) -> Result<Vec<String>, AuthencError> {
         let mut anomalies = Vec::new();
-        
+
         // Check for excessive failed attempts across all IPs for this user
         let ip_tracking = self.ip_tracking.read().await;
         let user_related_ips: Vec<_> = ip_tracking
@@ -756,7 +756,7 @@ impl MfaSecurityMonitor {
     /// Analyze event correlations for security patterns
     pub async fn analyze_event_correlation(&self, user_id: Uuid) -> Result<HashMap<String, u32>, AuthencError> {
         let mut correlations = HashMap::new();
-        
+
         let ip_tracking = self.ip_tracking.read().await;
         let user_related_ips: Vec<_> = ip_tracking
             .values()
@@ -785,7 +785,7 @@ impl MfaSecurityMonitor {
     /// Analyze threats and provide automated response suggestions
     pub async fn analyze_and_respond_to_threats(&self, user_id: Uuid) -> Result<HashMap<String, String>, AuthencError> {
         let mut response = HashMap::new();
-        
+
         let anomalies = self.check_for_anomalies(user_id).await?;
         let correlations = self.analyze_event_correlation(user_id).await?;
 
@@ -828,7 +828,7 @@ impl MfaSecurityMonitor {
     /// Collect comprehensive security metrics for reporting
     pub async fn collect_security_metrics(&self) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
         use serde_json::json;
-        
+
         let mut metrics = HashMap::new();
         let ip_tracking = self.ip_tracking.read().await;
 
@@ -844,7 +844,7 @@ impl MfaSecurityMonitor {
 
         // Calculate overall success rate
         if total_failed_attempts + total_successful_attempts > 0 {
-            let success_rate = (total_successful_attempts as f64 * 100.0) 
+            let success_rate = (total_successful_attempts as f64 * 100.0)
                 / (total_failed_attempts + total_successful_attempts) as f64;
             metrics.insert("overall_success_rate_percent".to_string(), json!(success_rate));
         }

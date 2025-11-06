@@ -12,8 +12,10 @@ pub async fn persedia_trx(
     kdskel: &str,
     kdbrg: &str,
 ) -> Result<serde_json::Value, MonsaktiError> {
+    use tracing::info;
+
     let kl_formatted = format!("KL{}", kode_kl);
-    let mut vars = vec![kl_formatted, kdsatker.to_string()];
+    let mut vars = vec![kl_formatted.clone(), kdsatker.to_string()];
 
     if !kdgol.is_empty() {
         vars.push(kdgol.to_string());
@@ -31,8 +33,21 @@ pub async fn persedia_trx(
         }
     }
 
+    let endpoint = format!("/API/PER/persediaTrx/{}", vars.join("/"));
+    info!("🌐 [PER API] Calling endpoint: {}", endpoint);
+
     let response = client.fetch("PER", "persediaTrx", vars).await?;
-    response
-        .data
-        .ok_or_else(|| MonsaktiError::ApiError("No data".to_string()))
+
+    match &response.data {
+        Some(data) => {
+            if let Some(arr) = data.as_array() {
+                info!("📥 [PER API] Response received: {} records", arr.len());
+            }
+            Ok(data.clone())
+        }
+        None => {
+            info!("⚠️  [PER API] Response has no data field");
+            Err(MonsaktiError::ApiError("No data".to_string()))
+        }
+    }
 }

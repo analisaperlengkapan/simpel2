@@ -263,7 +263,7 @@ mod integration_test_runner {
                     let start_time = std::time::Instant::now();
                     let test_result = simulate_test_execution(scenario, 0.9).await; // 90% success rate
                     let duration = start_time.elapsed();
-                    
+
                     let is_failed = test_result == TestResult::Failed;
                     results.test_details.push(TestDetail {
                         category: category.to_string(),

@@ -9,7 +9,7 @@
 //! - secreton_core::policy (use services::policy instead)
 //! - secreton_core::monitoring (not implemented)
 //! - num_bigint crate (not in dependencies)
-//! 
+//!
 //! TODO: Rewrite tests to use current module structure and implement missing features
 
 // DISABLED: Multiple missing dependencies and outdated API

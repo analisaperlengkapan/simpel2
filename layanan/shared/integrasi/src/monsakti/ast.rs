@@ -16,16 +16,21 @@ pub async fn aset_trx(
     let mut vars = vec![
         kl_formatted,
         kdsatker.to_string(),
-        kdgol.to_string(),
-        kdbid.to_string(),
     ];
 
-    if !kdkel.is_empty() {
-        vars.push(kdkel.to_string());
-        if !kdskel.is_empty() {
-            vars.push(kdskel.to_string());
-            if !kdbrg.is_empty() {
-                vars.push(kdbrg.to_string());
+    // Hanya tambahkan parameter jika tidak kosong
+    if !kdgol.is_empty() {
+        vars.push(kdgol.to_string());
+        if !kdbid.is_empty() {
+            vars.push(kdbid.to_string());
+            if !kdkel.is_empty() {
+                vars.push(kdkel.to_string());
+                if !kdskel.is_empty() {
+                    vars.push(kdskel.to_string());
+                    if !kdbrg.is_empty() {
+                        vars.push(kdbrg.to_string());
+                    }
+                }
             }
         }
     }
