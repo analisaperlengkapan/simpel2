@@ -262,45 +262,136 @@ curl http://127.0.0.1:8200/v1/secret/data/myapp
 | `SECRETON_PORT` | `8200` | Server port |
 | `RUST_LOG` | `info` | Log level |
 
-### Storage Options
+### Storage Backend Selection (HashiCorp Vault-Compatible)
 
-Secreton supports multiple storage backends with automatic encryption and caching:
+Secreton follows HashiCorp Vault's storage architecture principles:
 
-**Core Backends**:
-- **Memory Backend** (default): Fast in-memory storage for development and testing
-- **File Backend**: Simple file-based storage for single-node deployments
-- **PostgreSQL Backend** (optional): Production-ready persistent storage with `postgres` feature
-- **Redis Backend** (optional): High-performance caching with `redis-backend` feature
-- **Raft Consensus** (optional): Distributed consensus for high availability with `raft-consensus` feature
+#### 🏆 Recommended Backends for Production HA
 
-**Storage Wrappers**:
-- **EncryptedStorage**: Automatic encryption/decryption wrapper
-- **CachedStorage**: In-memory caching with TTL support
+1. **Consul** (Recommended - like HashiCorp Vault)
+   - ✅ High availability with automatic leader election
+   - ✅ Service discovery and health checks
+   - ✅ No database required
+   - ✅ Battle-tested in production environments
 
-Enable features in `Cargo.toml`:
+2. **Raft** (Built-in - like HashiCorp Vault Integrated Storage)
+   - ✅ No external dependencies
+   - ✅ Built-in distributed consensus
+   - ✅ Easy cluster setup
+   - ✅ Perfect for Kubernetes deployments
+
+#### ☁️ Cloud-Native Backends
+
+3. **S3** (AWS, MinIO, Wasabi, DigitalOcean Spaces)
+   - ✅ Unlimited scalability
+   - ✅ 99.999999999% durability
+   - ✅ Server-side encryption
+   - ✅ Cross-region replication
+
+4. **Azure Blob Storage** (Coming Soon)
+5. **Google Cloud Storage** (Coming Soon)
+
+#### 🔧 Development & Single-Node Backends
+
+6. **File** (Default - No Dependencies)
+   - ✅ Zero external dependencies
+   - ✅ Simple local development
+   - ✅ Edge/IoT deployments
+   - ⚠️ Not for HA clusters
+
+7. **Memory** (Testing Only)
+   - ✅ Fastest performance
+   - ⚠️ Ephemeral (data lost on restart)
+
+#### ⚠️ Legacy Backend (Not Recommended)
+
+8. **PostgreSQL** (Optional)
+   - ⚠️ Requires database maintenance
+   - ⚠️ Not recommended for HA (use Consul or Raft instead)
+   - ⚠️ Available for legacy compatibility only
+
+### Configuration Examples
+
+#### Using File Backend (Default - No Setup Required)
 ```toml
-# Single backend
-secreton-storage = { path = "crates/storage", features = ["postgres"] }
-
-# Distributed cluster with Raft
-secreton-storage = { path = "crates/storage", features = ["raft-consensus"] }
+[storage]
+backend = "file"
+path = "/var/lib/secreton/data"
+sync_writes = true
+permissions = "0600"
 ```
 
-**Usage Example**:
+#### Using Consul (Recommended for HA)
+```toml
+[storage]
+backend = "consul"
+address = "127.0.0.1:8500"
+path = "secreton/"
+scheme = "https"
+token = "${CONSUL_TOKEN}"
+```
+
+#### Using Raft (Built-in HA)
+```toml
+[storage]
+backend = "raft"
+node_id = 1
+peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
+```
+
+#### Using S3
+```toml
+[storage]
+backend = "s3"
+bucket = "my-secreton-vault"
+region = "us-east-1"
+access_key = "${AWS_ACCESS_KEY_ID}"
+secret_key = "${AWS_SECRET_ACCESS_KEY}"
+sse_kms_key_id = "arn:aws:kms:us-east-1:..."
+```
+
+### Feature Flags
+
+Enable backends via Cargo features:
+
+```toml
+# File backend only (default - zero dependencies)
+secreton-storage = { path = "crates/storage" }
+
+# Add Consul support
+secreton-storage = { path = "crates/storage", features = ["consul"] }
+
+# Add Raft consensus
+secreton-storage = { path = "crates/storage", features = ["raft-consensus"] }
+
+# Add S3 support
+secreton-storage = { path = "crates/storage", features = ["s3"] }
+
+# All HA backends
+secreton-storage = { path = "crates/storage", features = ["ha-backends"] }
+
+# All backends (including cloud)
+secreton-storage = { path = "crates/storage", features = ["all-backends"] }
+```
+
+### Programmatic Usage
+
 ```rust
-use secreton_storage::{StorageFactory, EncryptedStorage, CachedStorage};
+use secreton_storage::StorageFactory;
 
-// Create base backend
-let backend = StorageFactory::create_postgres(connection_string, None).await?;
+// File backend (default, no external dependencies)
+let storage = StorageFactory::create_file("/var/lib/secreton/data").await?;
 
-// Wrap with encryption
-let encrypted = Arc::new(EncryptedStorage::new(backend, "vault-key".to_string()));
+// Consul backend (HA, like HashiCorp Vault)
+let storage = StorageFactory::create_consul("127.0.0.1:8500", "secreton/").await?;
 
-// Wrap with caching (300 second TTL)
-let cached = Arc::new(CachedStorage::new(encrypted, 300));
-
-// Use cached + encrypted storage
-cached.store(&entry).await?;
+// S3 backend (cloud-native)
+let storage = StorageFactory::create_s3(
+    "my-vault-bucket",
+    "us-east-1",
+    &access_key,
+    &secret_key
+).await?;
 ```
 
 ### Distributed Deployment with Raft

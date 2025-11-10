@@ -1,10 +1,10 @@
 # Production configuration for Secreton Secret Management Service
-# This file overrides default.toml for production environment
+# This file follows HashiCorp Vault best practices
 # ========================================================================
 # CRITICAL SECURITY REQUIREMENTS:
 # 1. All secrets MUST be provided via environment variables
 # 2. Never commit actual credentials to version control
-# 3. Use PostgreSQL for production (NOT SQLite)
+# 3. Use Consul or Raft for HA (NOT PostgreSQL)
 # 4. Enable TLS for all connections
 # 5. Configure proper backup and disaster recovery
 # ========================================================================
@@ -15,17 +15,68 @@ port = 8200
 workers = 4
 timeout_seconds = 30
 
-[database]
-# CRITICAL: Replace with actual production PostgreSQL credentials via env vars
-# Required format: postgresql://user:password@host:port/database
-# Use DATABASE_URL environment variable
-host = "postgres"
-port = 5432
-database = "secreton"
-max_connections = 50
-connection_timeout = 30
-# Enable SSL for database connections in production
-ssl_mode = "require"
+# ========================================================================
+# STORAGE BACKEND CONFIGURATION (Choose ONE)
+# ========================================================================
+# Recommended for production: Consul (HA) or Raft (built-in HA)
+# NOT recommended: PostgreSQL (legacy support only)
+# ========================================================================
+
+[storage]
+# Option 1: File Backend (Default - Single Node)
+# Best for: Development, single-node deployments, edge/IoT
+# HA Support: No
+backend = "file"
+path = "/var/lib/secreton/data"
+sync_writes = true
+permissions = "0600"
+
+# Option 2: Consul Backend (RECOMMENDED FOR HA)
+# Best for: Production HA clusters, service discovery
+# HA Support: Yes (automatic leader election)
+# Uncomment to use:
+# backend = "consul"
+# address = "127.0.0.1:8500"
+# path = "secreton/"
+# scheme = "https"
+# token = "${CONSUL_TOKEN}"  # Set via environment variable
+# tls_skip_verify = false
+
+# Option 3: Raft Integrated Storage (RECOMMENDED FOR HA)
+# Best for: Production HA without external dependencies
+# HA Support: Yes (built-in consensus)
+# Uncomment to use:
+# backend = "raft"
+# node_id = 1
+# peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
+# election_timeout_ms = 1000
+# heartbeat_interval_ms = 300
+
+# Option 4: S3 Backend (RECOMMENDED FOR CLOUD)
+# Best for: Cloud-native deployments, unlimited scale
+# HA Support: Coordination via external mechanism (e.g., DynamoDB)
+# Uncomment to use:
+# backend = "s3"
+# bucket = "my-secreton-vault"
+# region = "us-east-1"
+# access_key = "${AWS_ACCESS_KEY_ID}"
+# secret_key = "${AWS_SECRET_ACCESS_KEY}"
+# prefix = "secreton/"
+# sse_kms_key_id = "${AWS_KMS_KEY_ARN}"
+
+# Option 5: PostgreSQL Backend (LEGACY - NOT RECOMMENDED)
+# Only use for legacy migration - plan to move to Consul/Raft
+# HA Support: Requires complex DB clustering setup
+# Uncomment to use:
+# backend = "postgres"
+# host = "postgres"
+# port = 5432
+# database = "secreton"
+# username = "${DB_USER}"
+# password = "${DB_PASSWORD}"
+# max_connections = 50
+# connection_timeout = 30
+# ssl_mode = "require"
 
 [auth]
 # JWT configuration - all secrets from environment variables

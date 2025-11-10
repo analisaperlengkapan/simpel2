@@ -172,10 +172,19 @@ pub mod prelude;
 pub mod raft;
 
 // Re-export essential backends
-pub use backends::PostgresBackend;
+pub use backends::{FileBackend, FileConfig};
 pub use cache::{CacheBackend, CacheStats, CachedStorage, InMemoryCache};
 pub use encrypted_storage::EncryptedStorage;
 pub use memory::MemoryBackend;
+
+#[cfg(feature = "consul")]
+pub use backends::{ConsulBackend, ConsulConfig};
+
+#[cfg(feature = "s3")]
+pub use backends::{S3Backend, S3Config};
+
+#[cfg(feature = "postgres")]
+pub use backends::PostgresBackend;
 
 // Re-export OpenRaft components
 #[cfg(feature = "raft-consensus")]
@@ -561,7 +570,35 @@ impl StorageError {
     }
 }
 
-/// Storage backend trait for different implementations
+/// Simple key-value storage backend trait (HashiCorp Vault-style)
+/// 
+/// This is the core trait for physical storage backends. All data is pre-encrypted
+/// before being passed to the backend (untrusted storage principle).
+#[async_trait]
+pub trait KvBackend: Send + Sync {
+    /// Get a value by key
+    async fn get(&self, key: &str) -> StorageResult<Option<Vec<u8>>>;
+    
+    /// Put a value by key
+    async fn put(&self, key: &str, value: &[u8]) -> StorageResult<()>;
+    
+    /// Delete a value by key
+    async fn delete(&self, key: &str) -> StorageResult<()>;
+    
+    /// List keys with a prefix
+    async fn list(&self, prefix: &str) -> StorageResult<Vec<String>>;
+    
+    /// Check if key exists
+    async fn exists(&self, key: &str) -> StorageResult<bool>;
+    
+    /// Get backend metrics
+    async fn metrics(&self) -> StorageResult<BackendMetrics>;
+}
+
+/// High-level storage backend trait for VaultEntry operations
+/// 
+/// This trait provides structured access to vault entries with metadata,
+/// versioning, and advanced querying capabilities.
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
     /// Store a vault entry
@@ -607,6 +644,16 @@ pub trait StorageBackend: Send + Sync {
     ///
     /// This allows accessing backend-specific functionality like Raft cluster operations.
     fn as_any(&self) -> &dyn std::any::Any;
+}
+
+/// Backend metrics for monitoring
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BackendMetrics {
+    pub reads: u64,
+    pub writes: u64,
+    pub deletes: u64,
+    pub bytes_read: u64,
+    pub bytes_written: u64,
 }
 
 /// Transaction interface for atomic operations
