@@ -28,6 +28,7 @@ NEW APPROACH (HashiCorp Vault-Compatible):
 ### 2. New Storage Backends Implemented
 
 #### File Backend (`backends/file.rs`)
+
 - ✅ Zero external dependencies
 - ✅ Filesystem-based storage with proper permissions
 - ✅ Suitable for development, single-node, edge/IoT
@@ -35,6 +36,7 @@ NEW APPROACH (HashiCorp Vault-Compatible):
 - ✅ Atomic operations with fsync support
 
 #### Consul Backend (`backends/consul.rs`)
+
 - ✅ HashiCorp Consul integration
 - ✅ HTTP API client with ACL token support
 - ✅ Health checks and session management
@@ -43,6 +45,7 @@ NEW APPROACH (HashiCorp Vault-Compatible):
 - ⚠️ Requires `consul` feature flag
 
 #### S3 Backend (`backends/s3.rs`)
+
 - ✅ AWS S3 and S3-compatible storage (MinIO, Wasabi)
 - ✅ Server-side encryption (SSE-S3, SSE-KMS)
 - ✅ Configurable endpoints for S3-compatible services
@@ -52,6 +55,7 @@ NEW APPROACH (HashiCorp Vault-Compatible):
 ### 3. Feature Flags Reorganization
 
 **New Feature Structure:**
+
 ```toml
 [features]
 default = ["file"]  # Changed from ["postgres"]
@@ -74,6 +78,7 @@ cloud-backends = ["s3"]
 #### Production Config (`config/production.toml`)
 
 **Before:**
+
 ```toml
 [database]
 host = "postgres"
@@ -82,6 +87,7 @@ database = "secreton"
 ```
 
 **After:**
+
 ```toml
 [storage]
 # Option 1: File (Default)
@@ -107,6 +113,7 @@ path = "/var/lib/secreton/data"
 ### 5. Documentation Updates
 
 #### Main README (`README.md`)
+
 - ✅ Added "Storage Backend Selection" section
 - ✅ Clear recommendations for each backend type
 - ✅ Configuration examples for all backends
@@ -114,6 +121,7 @@ path = "/var/lib/secreton/data"
 - ✅ Programmatic usage examples
 
 #### Vault Comparison (`VAULT_COMPARISON.md`)
+
 - ✅ Comprehensive 200+ line comparison document
 - ✅ Storage backend philosophy explanation
 - ✅ Performance benchmarks
@@ -140,6 +148,7 @@ pub trait KvBackend: Send + Sync {
 ```
 
 **Key Principles:**
+
 - All data is encrypted before reaching the backend
 - Backend only sees opaque byte blobs
 - No SQL, no complex transactions
@@ -167,6 +176,7 @@ infra/secreton/crates/storage/src/
 ## Breaking Changes
 
 ### 1. Default Feature Change
+
 ```toml
 # Before
 secreton-storage = { path = "crates/storage" }  # Used postgres
@@ -176,6 +186,7 @@ secreton-storage = { path = "crates/storage" }  # Uses file
 ```
 
 ### 2. Configuration Format
+
 Old `[database]` section replaced with `[storage]` section. See migration guide below.
 
 ## Migration Guide
@@ -229,12 +240,14 @@ peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
 ## Testing Status
 
 ### Compilation Status
+
 - ✅ File backend compiles
 - ✅ Consul backend compiles (with feature flag)
 - ✅ S3 backend compiles (placeholder implementation)
 - ⚠️ Factory needs adapter between `KvBackend` and `StorageBackend` traits
 
 ### Test Coverage
+
 - ✅ File backend has unit tests
 - ✅ Consul backend has integration tests (requires Consul instance)
 - ⚠️ S3 backend tests require AWS credentials
@@ -242,7 +255,9 @@ peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
 ## Known Limitations & TODO
 
 ### 1. S3 Backend Placeholder
+
 Current S3 implementation is a skeleton. For production:
+
 ```toml
 # Add to workspace dependencies
 aws-config = "1.0"
@@ -250,26 +265,30 @@ aws-sdk-s3 = "1.0"
 ```
 
 ### 2. Azure/GCS Backends
+
 Not yet implemented. Planned additions:
+
 - Azure Blob Storage backend
 - Google Cloud Storage backend
 
 ### 3. Factory Adapter
+
 Need to create adapter that wraps `KvBackend` implementations and makes them compatible with the existing `StorageBackend` trait for backward compatibility.
 
 ### 4. Data Migration Tool
+
 Should implement `secreton-cli storage migrate` command to move data between backends.
 
 ## Performance Characteristics
 
-| Backend | Get Latency | Put Latency | Throughput | HA Support | Dependencies |
-|---------|-------------|-------------|------------|------------|--------------|
-| Memory | 10μs | 15μs | 100k ops/s | ❌ | None |
-| File | 100μs | 500μs | 10k ops/s | ❌ | None |
-| Consul | 2ms | 3ms | 5k ops/s | ✅ | Consul cluster |
-| Raft | 1ms | 5ms | 8k ops/s | ✅ | None (built-in) |
-| S3 | 20ms | 50ms | 1k ops/s | ⚠️ | S3 bucket |
-| PostgreSQL | 5ms | 10ms | 3k ops/s | ⚠️ | PostgreSQL DB |
+| Backend    | Get Latency | Put Latency | Throughput | HA Support | Dependencies    |
+| ---------- | ----------- | ----------- | ---------- | ---------- | --------------- |
+| Memory     | 10μs        | 15μs        | 100k ops/s | ❌         | None            |
+| File       | 100μs       | 500μs       | 10k ops/s  | ❌         | None            |
+| Consul     | 2ms         | 3ms         | 5k ops/s   | ✅         | Consul cluster  |
+| Raft       | 1ms         | 5ms         | 8k ops/s   | ✅         | None (built-in) |
+| S3         | 20ms        | 50ms        | 1k ops/s   | ⚠️         | S3 bucket       |
+| PostgreSQL | 5ms         | 10ms        | 3k ops/s   | ⚠️         | PostgreSQL DB   |
 
 ## Security Improvements
 
@@ -282,18 +301,19 @@ Should implement `secreton-cli storage migrate` command to move data between bac
 
 ### For New Deployments
 
-| Scenario | Recommended Backend | Reason |
-|----------|-------------------|--------|
-| Development | File | Zero setup, fast iteration |
-| Production HA (with Consul) | Consul | Service discovery + proven at scale |
-| Production HA (simple) | Raft | No external dependencies |
-| Cloud-native | S3 | Unlimited scale, managed service |
-| Edge/IoT | File | Works offline, minimal resources |
-| Legacy migration | PostgreSQL → Consul/Raft | Migration path available |
+| Scenario                    | Recommended Backend      | Reason                              |
+| --------------------------- | ------------------------ | ----------------------------------- |
+| Development                 | File                     | Zero setup, fast iteration          |
+| Production HA (with Consul) | Consul                   | Service discovery + proven at scale |
+| Production HA (simple)      | Raft                     | No external dependencies            |
+| Cloud-native                | S3                       | Unlimited scale, managed service    |
+| Edge/IoT                    | File                     | Works offline, minimal resources    |
+| Legacy migration            | PostgreSQL → Consul/Raft | Migration path available            |
 
 ### For Existing Deployments
 
 **If currently using PostgreSQL:**
+
 1. ✅ Continue using PostgreSQL during migration (still supported)
 2. ⚠️ Plan migration to Consul or Raft for better HA
 3. 📝 Use provided migration tools when available
@@ -301,14 +321,14 @@ Should implement `secreton-cli storage migrate` command to move data between bac
 
 ## Compliance with HashiCorp Vault Principles
 
-| Principle | Secreton Implementation | Status |
-|-----------|------------------------|--------|
-| Storage is untrusted | ✅ Data encrypted before storage | Complete |
-| No complex queries | ✅ Simple KV operations only | Complete |
-| HA through distributed systems | ✅ Consul and Raft support | Complete |
-| Separation of concerns | ✅ Storage ≠ Database | Complete |
-| Recommended backends | ✅ Consul, Raft, S3 | Complete |
-| PostgreSQL not for HA | ✅ Marked as legacy | Complete |
+| Principle                      | Secreton Implementation          | Status   |
+| ------------------------------ | -------------------------------- | -------- |
+| Storage is untrusted           | ✅ Data encrypted before storage | Complete |
+| No complex queries             | ✅ Simple KV operations only     | Complete |
+| HA through distributed systems | ✅ Consul and Raft support       | Complete |
+| Separation of concerns         | ✅ Storage ≠ Database            | Complete |
+| Recommended backends           | ✅ Consul, Raft, S3              | Complete |
+| PostgreSQL not for HA          | ✅ Marked as legacy              | Complete |
 
 ## Next Steps
 
