@@ -3,13 +3,115 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use once_cell::sync::Lazy;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::env;
 
 /// Ed25519 keypair for JWT signing - replaces vulnerable RSA
+///
+/// Production: Loads from ED25519_PRIVATE_KEY_BASE64 environment variable
+/// Development: Generates ephemeral key with warning
 pub static ED25519_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
-    // In production, load from secure storage or environment
-    // For demo purposes, generate a new key each time
+    // Try to load from environment variable (production)
+    if let Ok(key_base64) = env::var("ED25519_PRIVATE_KEY_BASE64") {
+        match load_key_from_base64(&key_base64) {
+            Ok(key) => {
+                tracing::info!("✅ Ed25519 signing key loaded from ED25519_PRIVATE_KEY_BASE64");
+                return key;
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to load Ed25519 key from environment: {}", e);
+                tracing::error!(
+                    "⚠️  Falling back to ephemeral key generation - THIS WILL BREAK PRODUCTION!"
+                );
+            }
+        }
+    }
+
+    // Try to load from file path (alternative production method)
+    if let Ok(key_path) = env::var("ED25519_PRIVATE_KEY_PATH") {
+        match load_key_from_file(&key_path) {
+            Ok(key) => {
+                tracing::info!("✅ Ed25519 signing key loaded from file: {}", key_path);
+                return key;
+            }
+            Err(e) => {
+                tracing::error!(
+                    "❌ Failed to load Ed25519 key from file {}: {}",
+                    key_path,
+                    e
+                );
+                tracing::error!(
+                    "⚠️  Falling back to ephemeral key generation - THIS WILL BREAK PRODUCTION!"
+                );
+            }
+        }
+    }
+
+    // Fallback: Generate ephemeral key (ONLY for development/testing)
+    tracing::warn!("⚠️  ED25519_PRIVATE_KEY_BASE64 or ED25519_PRIVATE_KEY_PATH not set");
+    tracing::warn!("⚠️  Generating EPHEMERAL Ed25519 signing key");
+    tracing::warn!("⚠️  ALL JWT TOKENS WILL BE INVALIDATED ON RESTART");
+    tracing::warn!("⚠️  THIS IS NOT SUITABLE FOR PRODUCTION!");
+
     SigningKey::generate(&mut OsRng)
 });
+
+/// Load Ed25519 signing key from base64-encoded bytes
+fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
+    let key_bytes = base64ct::Base64::decode_vec(key_base64)
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
+
+    if key_bytes.len() != 32 {
+        return Err(format!(
+            "Invalid key length: expected 32 bytes, got {}",
+            key_bytes.len()
+        ));
+    }
+
+    let key_array: [u8; 32] = key_bytes
+        .try_into()
+        .map_err(|_| "Failed to convert to 32-byte array".to_string())?;
+
+    Ok(SigningKey::from_bytes(&key_array))
+}
+
+/// Load Ed25519 signing key from file
+fn load_key_from_file(path: &str) -> Result<SigningKey, String> {
+    let key_bytes = std::fs::read(path).map_err(|e| format!("Failed to read key file: {}", e))?;
+
+    // Try base64 decode first (if file contains base64 string)
+    if let Ok(key_str) = String::from_utf8(key_bytes.clone()) {
+        if let Ok(decoded) = base64ct::Base64::decode_vec(key_str.trim()) {
+            if decoded.len() == 32 {
+                let key_array: [u8; 32] = decoded
+                    .try_into()
+                    .map_err(|_| "Failed to convert to 32-byte array".to_string())?;
+                return Ok(SigningKey::from_bytes(&key_array));
+            }
+        }
+    }
+
+    // Otherwise treat as raw bytes
+    if key_bytes.len() != 32 {
+        return Err(format!(
+            "Invalid key length: expected 32 bytes, got {}",
+            key_bytes.len()
+        ));
+    }
+
+    let key_array: [u8; 32] = key_bytes
+        .try_into()
+        .map_err(|_| "Failed to convert to 32-byte array".to_string())?;
+
+    Ok(SigningKey::from_bytes(&key_array))
+}
+
+/// Generate a new Ed25519 keypair and return base64-encoded private key
+/// This is a utility function for initial key generation
+pub fn generate_new_keypair() -> (SigningKey, String) {
+    let signing_key = SigningKey::generate(&mut OsRng);
+    let private_key_base64 = base64ct::Base64::encode_string(signing_key.as_bytes());
+    (signing_key, private_key_base64)
+}
 
 /// JSON Web Key Set containing Ed25519 public keys
 #[derive(Debug, Serialize, Deserialize)]

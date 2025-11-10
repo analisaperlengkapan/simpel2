@@ -43,12 +43,14 @@ Authenc implements a modern, scalable microservices architecture:
 ## 🚀 Implemented Protocols & Standards
 
 ### Authentication Protocols
+
 - **OAuth 2.0**: Full RFC 6749 implementation with PKCE, introspection, revocation
 - **OIDC**: OpenID Connect with Ed25519-signed JWT tokens (timing-attack resistant)
 - **SAML 2.0**: Complete Service Provider implementation with metadata exchange
 - **WebAuthn/FIDO2**: Passwordless authentication with hardware security keys
 
 ### Security Standards
+
 - **FIPS 140-3**: Cryptographic module validation ready
 - **Zero Trust**: Continuous authentication and risk assessment
 - **GDPR Compliance**: User consent management and data protection
@@ -57,6 +59,7 @@ Authenc implements a modern, scalable microservices architecture:
 ## 📚 API Endpoints
 
 ### Core Authentication
+
 ```http
 POST   /oauth2/authorize           # OAuth2 authorization endpoint
 POST   /oauth2/token              # Token endpoint (all grant types)
@@ -67,6 +70,7 @@ GET    /oauth2/jwks              # JWK Set endpoint
 ```
 
 ### OpenID Connect (OIDC)
+
 ```http
 GET    /.well-known/openid_configuration  # OIDC discovery
 GET    /oidc/jwks                        # OIDC JWK Set
@@ -75,6 +79,7 @@ GET    /oidc/userinfo                    # OIDC user info
 ```
 
 ### Identity Federation
+
 ```http
 GET    /api/v1/auth/federated/*     # Federated authentication routes
 GET    /api/v1/auth/broker/*        # Identity broker endpoints
@@ -82,6 +87,7 @@ POST   /api/v1/auth/social/*        # Social login integration
 ```
 
 ### User Management
+
 ```http
 GET    /api/v1/auth/users           # List users
 POST   /api/v1/auth/users           # Create user
@@ -91,6 +97,7 @@ DELETE /api/v1/auth/users/{id}      # Delete user
 ```
 
 ### Role & Permission Management
+
 ```http
 GET    /api/v1/auth/roles           # List roles
 POST   /api/v1/auth/roles           # Create role
@@ -99,6 +106,7 @@ POST   /api/v1/auth/permissions     # Create permission
 ```
 
 ### Organization Management
+
 ```http
 GET    /api/v1/organizations        # List organizations
 POST   /api/v1/organizations        # Create organization
@@ -107,6 +115,7 @@ PUT    /api/v1/organizations/{id}   # Update organization
 ```
 
 ### Multi-Factor Authentication
+
 ```http
 POST   /api/v1/auth/users/{id}/totp          # Enable TOTP
 POST   /api/v1/auth/users/{id}/totp/verify   # Verify TOTP
@@ -115,6 +124,7 @@ POST   /api/v1/auth/webauthn/authenticate    # WebAuthn authentication
 ```
 
 ### Audit & Monitoring
+
 ```http
 GET    /health                      # Health check
 GET    /ready                       # Readiness check
@@ -126,30 +136,36 @@ GET    /api/v1/auth/audit/logs      # Audit log entries
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | Required | PostgreSQL connection string |
-| `AUTHENC_PORT` | `8080` | Server port |
-| `AUTHENC_HOST` | `0.0.0.0` | Server bind address |
-| `JWT_SECRET` | Required | JWT signing secret |
-| `LOG_LEVEL` | `info` | Logging level (trace, debug, info, warn, error) |
-| `TLS_ENABLE` | `false` | Enable TLS/HTTPS |
-| `TLS_CERT_FILE` | - | Path to TLS certificate |
-| `TLS_KEY_FILE` | - | Path to TLS private key |
-| `MTLS_ENABLE` | `false` | Enable mutual TLS |
-| `REDIS_URL` | - | Redis connection for caching |
-| `SECRETON_ENDPOINT` | - | Secreton vault endpoint |
+| Variable                        | Default                   | Description                                     |
+| ------------------------------- | ------------------------- | ----------------------------------------------- |
+| `DATABASE_URL`                  | Required                  | PostgreSQL connection string                    |
+| `ED25519_PRIVATE_KEY_BASE64`    | **REQUIRED (Production)** | **Ed25519 signing key (base64-encoded)**        |
+| `ECDSA_P256_PRIVATE_KEY_BASE64` | Optional                  | Alternative: ECDSA P-256 signing key            |
+| `ECDSA_P384_PRIVATE_KEY_BASE64` | Optional                  | Alternative: ECDSA P-384 signing key            |
+| `ECDSA_P521_PRIVATE_KEY_BASE64` | Optional                  | Alternative: ECDSA P-521 signing key            |
+| `AUTHENC_PORT`                  | `8080`                    | Server port                                     |
+| `AUTHENC_HOST`                  | `0.0.0.0`                 | Server bind address                             |
+| `JWT_SECRET`                    | Required                  | JWT signing secret (legacy compatibility)       |
+| `LOG_LEVEL`                     | `info`                    | Logging level (trace, debug, info, warn, error) |
+| `TLS_ENABLE`                    | `false`                   | Enable TLS/HTTPS                                |
+| `TLS_CERT_FILE`                 | -                         | Path to TLS certificate                         |
+| `TLS_KEY_FILE`                  | -                         | Path to TLS private key                         |
+| `MTLS_ENABLE`                   | `false`                   | Enable mutual TLS                               |
+| `REDIS_URL`                     | -                         | Redis connection for caching                    |
+| `SECRETON_ENDPOINT`             | -                         | Secreton vault endpoint                         |
+
+⚠️ **CRITICAL FOR PRODUCTION**: You MUST set a persistent signing key (`ED25519_PRIVATE_KEY_BASE64` or equivalent) to prevent JWT tokens from being invalidated on every restart. See [`docs/SIGNING_KEY_SETUP.md`](docs/SIGNING_KEY_SETUP.md) for detailed instructions.
 
 ### Feature Flags
 
-| Feature | Description |
-|---------|-------------|
-| `axum` | Axum web framework integration |
-| `auth` | JWT and password authentication |
-| `oidc` | OpenID Connect provider |
-| `db` | PostgreSQL database integration |
-| `metrics` | Prometheus metrics collection |
-| `admin_console` | Web-based admin interface |
+| Feature         | Description                     |
+| --------------- | ------------------------------- |
+| `axum`          | Axum web framework integration  |
+| `auth`          | JWT and password authentication |
+| `oidc`          | OpenID Connect provider         |
+| `db`            | PostgreSQL database integration |
+| `metrics`       | Prometheus metrics collection   |
+| `admin_console` | Web-based admin interface       |
 
 ## 🔧 Installation & Setup
 
@@ -191,24 +207,28 @@ docker-compose up -d
 ## 🔒 Security Features
 
 ### Cryptography
+
 - **Ed25519 Signatures**: Timing-attack resistant JWT signing
 - **AES-GCM Encryption**: Enterprise-grade symmetric encryption
 - **Hardware Security**: TPM integration for key protection
 - **Certificate Validation**: Native mTLS client certificate validation
 
 ### Access Control
+
 - **RBAC**: Role-based access control with hierarchical permissions
 - **ABAC**: Attribute-based access control for fine-grained policies
 - **Resource Protection**: UMA 2.0 resource server implementation
 - **Policy Enforcement**: Client policy framework for OAuth2/OIDC
 
 ### Threat Protection
+
 - **Brute Force Protection**: Automatic lockout mechanisms
 - **Anomaly Detection**: Behavioral analysis and threat detection
 - **Rate Limiting**: Distributed rate limiting with Redis
 - **Input Validation**: Comprehensive sanitization and validation
 
 ### Compliance
+
 - **GDPR Ready**: User consent management and data protection
 - **Audit Logging**: Comprehensive audit trails with PostgreSQL persistence
 - **Security Monitoring**: Real-time threat detection and alerting
@@ -217,17 +237,20 @@ docker-compose up -d
 ## 🚀 Performance & Scalability
 
 ### Architecture Optimizations
+
 - **Async-First Design**: Non-blocking I/O operations throughout
 - **Connection Pooling**: Efficient database and Redis connection management
 - **Zero-Copy Operations**: Memory-efficient data processing
 - **Streaming Support**: Large data handling without memory exhaustion
 
 ### Caching Strategy
+
 - **Redis Integration**: Session storage and performance caching
 - **Database Query Optimization**: Prepared statements and connection reuse
 - **Response Caching**: HTTP-level caching with proper cache headers
 
 ### Monitoring & Observability
+
 - **Health Checks**: `/health`, `/ready`, `/live` endpoints
 - **Metrics Collection**: Prometheus-compatible metrics
 - **Structured Logging**: JSON logging with tracing

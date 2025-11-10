@@ -40,13 +40,130 @@ pub struct AuthConfig {
     pub admin_roles: Vec<String>,
 }
 
+impl AuthConfig {
+    /// Create new AuthConfig with validation
+    ///
+    /// # Security
+    /// - JWT secret MUST be at least 32 characters (256 bits)
+    /// - Issuer and audience MUST be non-empty
+    /// - JWT expiration should be reasonable (1-168 hours)
+    pub fn new(
+        jwt_secret: String,
+        jwt_expiration_hours: i64,
+        issuer: String,
+        audience: String,
+        require_auth: bool,
+        admin_roles: Vec<String>,
+    ) -> Result<Self, AuthError> {
+        // SECURITY: Validate JWT secret length (minimum 256 bits = 32 bytes)
+        if jwt_secret.len() < 32 {
+            return Err(AuthError::Configuration(
+                format!(
+                    "JWT secret must be at least 32 characters (256 bits). Current length: {} characters. \
+                     Use a cryptographically random string generated with: openssl rand -base64 32",
+                    jwt_secret.len()
+                )
+            ));
+        }
+
+        // Validate issuer and audience are not empty
+        if issuer.is_empty() {
+            return Err(AuthError::Configuration(
+                "JWT issuer cannot be empty".to_string(),
+            ));
+        }
+
+        if audience.is_empty() {
+            return Err(AuthError::Configuration(
+                "JWT audience cannot be empty".to_string(),
+            ));
+        }
+
+        // Validate expiration is reasonable (between 1 hour and 1 week)
+        if jwt_expiration_hours < 1 || jwt_expiration_hours > 168 {
+            return Err(AuthError::Configuration(format!(
+                "JWT expiration hours must be between 1 and 168 (1 week). Got: {}",
+                jwt_expiration_hours
+            )));
+        }
+
+        Ok(Self {
+            jwt_secret,
+            jwt_expiration_hours,
+            issuer,
+            audience,
+            require_auth,
+            admin_roles,
+        })
+    }
+
+    /// Load from environment variables with validation
+    ///
+    /// # Required Environment Variables
+    /// - `SECRETON_JWT_SECRET`: JWT signing secret (minimum 32 characters)
+    ///
+    /// # Optional Environment Variables
+    /// - `SECRETON_JWT_EXPIRATION_HOURS`: Token expiration (default: 24)
+    /// - `SECRETON_JWT_ISSUER`: JWT issuer (default: "secreton-vault")
+    /// - `SECRETON_JWT_AUDIENCE`: JWT audience (default: "secreton-api")
+    /// - `SECRETON_REQUIRE_AUTH`: Enable authentication (default: true)
+    pub fn from_env() -> Result<Self, AuthError> {
+        let jwt_secret = std::env::var("SECRETON_JWT_SECRET").map_err(|_| {
+            AuthError::Configuration(
+                "SECRETON_JWT_SECRET environment variable is required. \
+                     Generate a secure secret with: openssl rand -base64 32"
+                    .to_string(),
+            )
+        })?;
+
+        let jwt_expiration_hours = std::env::var("SECRETON_JWT_EXPIRATION_HOURS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(24);
+
+        let issuer =
+            std::env::var("SECRETON_JWT_ISSUER").unwrap_or_else(|_| "secreton-vault".to_string());
+
+        let audience =
+            std::env::var("SECRETON_JWT_AUDIENCE").unwrap_or_else(|_| "secreton-api".to_string());
+
+        let require_auth = std::env::var("SECRETON_REQUIRE_AUTH")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(true);
+
+        let admin_roles = std::env::var("SECRETON_ADMIN_ROLES")
+            .ok()
+            .map(|s| s.split(',').map(|r| r.trim().to_string()).collect())
+            .unwrap_or_else(|| vec!["admin".to_string(), "vault-admin".to_string()]);
+
+        Self::new(
+            jwt_secret,
+            jwt_expiration_hours,
+            issuer,
+            audience,
+            require_auth,
+            admin_roles,
+        )
+    }
+}
+
 impl Default for AuthConfig {
+    /// Default configuration - ONLY for testing
+    ///
+    /// # Security Warning
+    /// DO NOT use default configuration in production!
+    /// Always load from environment variables using `AuthConfig::from_env()`
     fn default() -> Self {
+        warn!("⚠️  Using default AuthConfig - NOT SUITABLE FOR PRODUCTION!");
+        warn!("   Load configuration from environment with AuthConfig::from_env()");
+
         Self {
-            jwt_secret: "your-super-secret-key".to_string(),
+            // Weak secret - only for testing
+            jwt_secret: "test-secret-minimum-32-characters-long-for-security".to_string(),
             jwt_expiration_hours: 24,
-            issuer: "secreton-vault".to_string(),
-            audience: "secreton-api".to_string(),
+            issuer: "secreton-vault-test".to_string(),
+            audience: "secreton-api-test".to_string(),
             require_auth: true,
             admin_roles: vec!["admin".to_string(), "vault-admin".to_string()],
         }

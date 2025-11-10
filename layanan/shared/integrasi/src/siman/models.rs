@@ -141,11 +141,11 @@ impl SimanAssetCategory {
             Self::JalandanJembatan => "SIMAN2_M_ASET_JALAN_DAN_JEMBATAN", // Ada "_DAN_"
             Self::NonTIK => "SIMAN2_M_ASET_NON_TIK",
             Self::Rumah => "SIMAN2_M_ASET_RUMAH",
-            Self::Tanah => "SIMAN2_M_ASET_TANAH", // FIXED: Tanpa prefix ASET_ ganda
-            Self::TetapLainnya => "SIMAN2_M_ASET_TETAP_LAINNYA", // FIXED: Tanpa prefix ASET_ ganda
+            Self::Tanah => "SIMAN2_M_ASET_TANAH",
+            Self::TetapLainnya => "SIMAN2_M_ASET_ASET_TETAP_LAINNYA", // FIXED: Dengan prefix ASET_ ganda
             Self::KDP => "SIMAN2_M_ASET_KDP",
             Self::KhususTIK => "SIMAN2_M_ASET_KHUSUS_TIK",
-            Self::TetapRenovasi => "SIMAN2_M_ASET_TETAP_RENOVASI", // FIXED: Tanpa prefix ASET_ ganda
+            Self::TetapRenovasi => "SIMAN2_M_ASET_ASET_TETAP_RENOVASI", // FIXED: Dengan prefix ASET_ ganda
         }
     }
 

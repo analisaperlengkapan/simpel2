@@ -37,7 +37,15 @@ impl CertificateCache {
     }
 
     pub fn get(&self, cert_der: &str) -> Option<X509Certificate<'static>> {
-        let mut cache = self.cache.lock().expect("Failed to lock cache");
+        // Handle lock poisoning gracefully
+        let mut cache = match self.cache.lock() {
+            Ok(cache) => cache,
+            Err(poisoned) => {
+                warn!("Certificate cache lock was poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+
         if let Some((cert, timestamp)) = cache.get(cert_der) {
             if timestamp.elapsed() < self.ttl {
                 return Some(cert.clone());

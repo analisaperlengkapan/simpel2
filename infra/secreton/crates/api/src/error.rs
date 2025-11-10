@@ -75,6 +75,10 @@ pub enum AuthError {
     #[error("Permission denied")]
     PermissionDenied,
 
+    /// Configuration error (invalid settings, missing required config)
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
     /// Storage layer error
     #[error("Storage error: {0}")]
     Storage(#[from] secreton_storage::StorageError),
@@ -104,6 +108,7 @@ impl IntoResponse for AuthError {
             Self::UserNotFound => StatusCode::NOT_FOUND,
             Self::UserAlreadyExists => StatusCode::CONFLICT,
             Self::PermissionDenied => StatusCode::FORBIDDEN,
+            Self::Configuration(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Storage(_) | Self::Crypto(_) | Self::Internal(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -143,6 +148,7 @@ impl AuthError {
             Self::MfaRequired => "MFA_REQUIRED",
             Self::InvalidMfaCode => "INVALID_MFA_CODE",
             Self::PermissionDenied => "PERMISSION_DENIED",
+            Self::Configuration(_) => "CONFIGURATION_ERROR",
             Self::Storage(_) => "STORAGE_ERROR",
             Self::Crypto(_) => "CRYPTO_ERROR",
             Self::Internal(_) => "INTERNAL_ERROR",
@@ -247,7 +253,8 @@ impl ApiError {
                 crate::error::AuthError::UserNotFound => StatusCode::NOT_FOUND,
                 crate::error::AuthError::UserAlreadyExists => StatusCode::CONFLICT,
                 crate::error::AuthError::PermissionDenied => StatusCode::FORBIDDEN,
-                crate::error::AuthError::Storage(_)
+                crate::error::AuthError::Configuration(_)
+                | crate::error::AuthError::Storage(_)
                 | crate::error::AuthError::Crypto(_)
                 | crate::error::AuthError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
             },

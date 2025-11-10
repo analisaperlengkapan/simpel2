@@ -693,24 +693,23 @@ impl MfaSecurityMonitor {
     ) -> Result<(), AuthencError> {
         let mut ip_tracking = self.ip_tracking.write().await;
         let tracking = ip_tracking.entry(ip_address.to_string()).or_insert_with(|| IpTrackingInfo {
-            ip: ip_address.to_string(),
             failed_attempts: 0,
-            successful_attempts: 0,
             mfa_setups: 0,
             last_activity: Instant::now(),
             first_seen: Instant::now(),
-            user_ids: vec![],
+            user_agents: vec![],
+            targeted_users: vec![],
         });
 
         tracking.last_activity = Instant::now();
-        if !tracking.user_ids.contains(&user_id) {
-            tracking.user_ids.push(user_id);
+        if !tracking.targeted_users.contains(&user_id) {
+            tracking.targeted_users.push(user_id);
         }
 
-        if event_type.contains("success") {
-            tracking.successful_attempts += 1;
-        } else if event_type.contains("failure") || event_type.contains("fail") {
+        if event_type.contains("failure") || event_type.contains("fail") {
             tracking.failed_attempts += 1;
+        } else if event_type.contains("setup") {
+            tracking.mfa_setups += 1;
         }
 
         info!("Recorded MFA event: {} for user {} from IP {}", event_type, user_id, ip_address);
@@ -736,7 +735,7 @@ impl MfaSecurityMonitor {
         let ip_tracking = self.ip_tracking.read().await;
         let user_related_ips: Vec<_> = ip_tracking
             .values()
-            .filter(|info| info.user_ids.contains(&user_id))
+            .filter(|info| info.targeted_users.contains(&user_id))
             .collect();
 
         let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
@@ -760,24 +759,16 @@ impl MfaSecurityMonitor {
         let ip_tracking = self.ip_tracking.read().await;
         let user_related_ips: Vec<_> = ip_tracking
             .values()
-            .filter(|info| info.user_ids.contains(&user_id))
+            .filter(|info| info.targeted_users.contains(&user_id))
             .collect();
 
         let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
-        let total_successful = user_related_ips.iter().map(|info| info.successful_attempts).sum::<u32>();
         let total_setups = user_related_ips.iter().map(|info| info.mfa_setups).sum::<u32>();
         let unique_ips = user_related_ips.len() as u32;
 
         correlations.insert("total_failed_attempts".to_string(), total_failed);
-        correlations.insert("total_successful_attempts".to_string(), total_successful);
         correlations.insert("total_mfa_setups".to_string(), total_setups);
         correlations.insert("unique_ip_count".to_string(), unique_ips);
-
-        // Calculate success rate
-        if total_failed + total_successful > 0 {
-            let success_rate = (total_successful * 100) / (total_failed + total_successful);
-            correlations.insert("success_rate_percent".to_string(), success_rate);
-        }
 
         Ok(correlations)
     }
@@ -834,26 +825,17 @@ impl MfaSecurityMonitor {
 
         let total_tracked_ips = ip_tracking.len();
         let total_failed_attempts: u32 = ip_tracking.values().map(|info| info.failed_attempts).sum();
-        let total_successful_attempts: u32 = ip_tracking.values().map(|info| info.successful_attempts).sum();
         let total_mfa_setups: u32 = ip_tracking.values().map(|info| info.mfa_setups).sum();
 
         metrics.insert("total_tracked_ips".to_string(), json!(total_tracked_ips));
         metrics.insert("total_failed_attempts".to_string(), json!(total_failed_attempts));
-        metrics.insert("total_successful_attempts".to_string(), json!(total_successful_attempts));
         metrics.insert("total_mfa_setups".to_string(), json!(total_mfa_setups));
-
-        // Calculate overall success rate
-        if total_failed_attempts + total_successful_attempts > 0 {
-            let success_rate = (total_successful_attempts as f64 * 100.0)
-                / (total_failed_attempts + total_successful_attempts) as f64;
-            metrics.insert("overall_success_rate_percent".to_string(), json!(success_rate));
-        }
 
         // Identify high-risk IPs
         let high_risk_ips: Vec<String> = ip_tracking
-            .values()
-            .filter(|info| info.failed_attempts > self.config.max_failed_attempts_per_ip / 2)
-            .map(|info| info.ip.clone())
+            .iter()
+            .filter(|(_, info)| info.failed_attempts > self.config.max_failed_attempts_per_ip / 2)
+            .map(|(ip, _)| ip.clone())
             .collect();
         metrics.insert("high_risk_ip_count".to_string(), json!(high_risk_ips.len()));
         metrics.insert("high_risk_ips".to_string(), json!(high_risk_ips));

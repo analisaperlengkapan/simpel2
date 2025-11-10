@@ -1,20 +1,58 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use once_cell::sync::Lazy;
 use p256::{
-    PublicKey, SecretKey,
-    ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer, signature::Verifier},
+    ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey},
     elliptic_curve::sec1::ToEncodedPoint,
     pkcs8::{EncodePrivateKey, EncodePublicKey},
+    PublicKey, SecretKey,
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::env;
 
 /// ECDSA P-256 keypair for JWT signing - secure alternative to RSA
+///
+/// Production: Loads from ECDSA_P256_PRIVATE_KEY_BASE64 environment variable
+/// Development: Generates ephemeral key with warning
 pub static ECDSA_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
-    // In production, load from secure storage or environment
-    // For demo purposes, generate a new key each time
+    // Try to load from environment variable (production)
+    if let Ok(key_base64) = env::var("ECDSA_P256_PRIVATE_KEY_BASE64") {
+        match load_key_from_base64(&key_base64) {
+            Ok(key) => {
+                tracing::info!(
+                    "✅ ECDSA P-256 signing key loaded from ECDSA_P256_PRIVATE_KEY_BASE64"
+                );
+                return key;
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to load ECDSA P-256 key: {}", e);
+                tracing::error!("⚠️  Falling back to ephemeral key generation");
+            }
+        }
+    }
+
+    // Fallback: Generate ephemeral key (ONLY for development/testing)
+    tracing::warn!("⚠️  ECDSA_P256_PRIVATE_KEY_BASE64 not set - generating ephemeral key");
+    tracing::warn!("⚠️  NOT SUITABLE FOR PRODUCTION!");
+
     SigningKey::random(&mut OsRng)
 });
+
+/// Load ECDSA P-256 signing key from base64-encoded bytes
+fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
+    let key_bytes = base64ct::Base64::decode_vec(key_base64)
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
+
+    SigningKey::from_slice(&key_bytes).map_err(|e| format!("Invalid ECDSA P-256 key: {}", e))
+}
+
+/// Generate a new ECDSA P-256 keypair and return base64-encoded private key
+pub fn generate_new_p256_keypair() -> (SigningKey, String) {
+    let signing_key = SigningKey::random(&mut OsRng);
+    let private_key_bytes = signing_key.to_bytes();
+    let private_key_base64 = base64ct::Base64::encode_string(&private_key_bytes);
+    (signing_key, private_key_base64)
+}
 
 /// JSON Web Key Set containing ECDSA public keys
 #[derive(Debug, Serialize, Deserialize)]

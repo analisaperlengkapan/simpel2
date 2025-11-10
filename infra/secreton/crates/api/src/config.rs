@@ -787,7 +787,10 @@ impl Default for DatabaseConfig {
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
-            bind_address: "127.0.0.1:8080".parse().unwrap(),
+            // Safe: hardcoded localhost address is always valid
+            bind_address: "127.0.0.1:8080"
+                .parse()
+                .expect("hardcoded localhost address is valid"),
             timeout: Duration::from_secs(30),
             max_body_size: 16 * 1024 * 1024, // 16MB
             keep_alive: Duration::from_secs(75),
@@ -801,7 +804,10 @@ impl Default for GrpcConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            bind_address: "127.0.0.1:9090".parse().unwrap(),
+            // Safe: hardcoded localhost address is always valid
+            bind_address: "127.0.0.1:9090"
+                .parse()
+                .expect("hardcoded localhost address is valid"),
             timeout: Duration::from_secs(30),
             max_message_size: 4 * 1024 * 1024, // 4MB
             reflection: false,

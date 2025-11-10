@@ -29,6 +29,10 @@ path = "src/lib.rs"
 name = "authenc"
 path = "src/main.rs"
 
+[[bin]]
+name = "generate-signing-keys"
+path = "src/bin/generate-signing-keys.rs"
+
 [features]
 # Framework features
 default = [
@@ -95,6 +99,9 @@ futures-util = "0.3.31"
 tokio-util = { version = "0.7.13", features = ["full"] }
 async-trait = "0.1.85"
 pin-project = "1.1.8"
+
+# CLI tools
+clap = { version = "4.5", features = ["derive"] }
 
 # HTTP and web frameworks
 http = "1.3.1"

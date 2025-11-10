@@ -1,6 +1,16 @@
 # Production configuration for Authenc IAM Service
 # This file overrides default.toml for production environment
-# Secrets MUST be provided via environment variables (DATABASE_URL, JWT_SECRET)
+#
+# CRITICAL: Set persistent signing keys via environment variables
+# See docs/SIGNING_KEY_SETUP.md for detailed instructions
+#
+# Required environment variables:
+# - DATABASE_URL: PostgreSQL connection string
+# - JWT_SECRET: JWT signing secret (for legacy compatibility)
+# - ED25519_PRIVATE_KEY_BASE64: Ed25519 signing key (REQUIRED for production)
+#   OR ECDSA_P256_PRIVATE_KEY_BASE64, ECDSA_P384_PRIVATE_KEY_BASE64, ECDSA_P521_PRIVATE_KEY_BASE64
+#
+# Generate keys using: cargo run --bin generate-signing-keys
 
 [server]
 host = "0.0.0.0"
