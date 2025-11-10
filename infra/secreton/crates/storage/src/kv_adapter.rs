@@ -132,21 +132,23 @@ impl<B: KvBackend + Send + Sync> StorageBackend for KvBackendAdapter<B> {
 
     /// Health check
     async fn health_check(&self) -> StorageResult<HealthStatus> {
-        let kv_health = self.inner.health_check().await;
-        Ok(HealthStatus {
-            status: kv_health.status,
-            message: kv_health.message,
-            last_check: chrono::Utc::now(),
-        })
+        self.inner.health_check().await
     }
 
     /// Get stats
     async fn get_stats(&self) -> StorageResult<StorageStats> {
-        let metrics = self.inner.metrics().await;
+        let metrics = self.inner.metrics().await?;
         Ok(StorageStats {
+            backend_type: "KV Backend Adapter".to_string(),
             total_entries: 0, // Unknown without scanning
             total_size_bytes: metrics.bytes_written,
-            fragmentation_ratio: 0.0,
+            average_entry_size: 0.0,
+            entries_by_security_level: std::collections::HashMap::new(),
+            entries_created_today: 0,
+            entries_updated_today: 0,
+            expired_entries: 0,
+            last_backup: None,
+            metadata: serde_json::json!({}),
         })
     }
 

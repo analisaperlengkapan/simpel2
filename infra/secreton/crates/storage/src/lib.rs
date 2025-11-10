@@ -595,6 +595,9 @@ pub trait KvBackend: Send + Sync {
 
     /// Get backend metrics
     async fn metrics(&self) -> StorageResult<BackendMetrics>;
+
+    /// Perform health check on the backend
+    async fn health_check(&self) -> StorageResult<HealthStatus>;
 }
 
 /// High-level storage backend trait for VaultEntry operations

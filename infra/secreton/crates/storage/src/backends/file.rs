@@ -284,6 +284,30 @@ impl KvBackend for FileBackend {
     async fn metrics(&self) -> StorageResult<BackendMetrics> {
         Ok(self.metrics.read().await.clone())
     }
+
+    async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
+        use std::time::Instant;
+        
+        let start = Instant::now();
+        
+        // Check if base directory exists and is writable
+        let is_healthy = self.config.path.exists() 
+            && self.config.path.is_dir()
+            && self.config.path.metadata().map(|m| !m.permissions().readonly()).unwrap_or(false);
+        
+        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+        
+        Ok(crate::HealthStatus {
+            is_healthy,
+            response_time_ms,
+            connections_active: 0, // File backend doesn't use connections
+            connections_idle: 0,
+            last_error: if is_healthy { None } else { 
+                Some("Base directory not accessible".to_string()) 
+            },
+            uptime_seconds: 0, // Not tracked for file backend
+        })
+    }
 }
 
 #[cfg(test)]

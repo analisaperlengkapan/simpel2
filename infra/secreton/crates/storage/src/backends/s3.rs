@@ -232,6 +232,18 @@ impl KvBackend for S3Backend {
     async fn metrics(&self) -> StorageResult<BackendMetrics> {
         Ok(self.metrics.read().await.clone())
     }
+
+    async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
+        // S3 backend is placeholder - return unhealthy with clear message
+        Ok(crate::HealthStatus {
+            is_healthy: false,
+            response_time_ms: 0.0,
+            connections_active: 0,
+            connections_idle: 0,
+            last_error: Some("S3 backend not implemented - requires aws-sdk-s3 dependency".to_string()),
+            uptime_seconds: 0,
+        })
+    }
 }
 
 #[cfg(test)]

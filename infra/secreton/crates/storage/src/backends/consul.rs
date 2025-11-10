@@ -373,6 +373,32 @@ impl KvBackend for ConsulBackend {
     async fn metrics(&self) -> StorageResult<BackendMetrics> {
         Ok(self.metrics.read().await.clone())
     }
+
+    async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
+        use std::time::Instant;
+        
+        let start = Instant::now();
+        
+        // Check Consul health endpoint
+        let health_url = format!("{}/v1/agent/self", self.config.address);
+        let is_healthy = match self.client.get(&health_url).send().await {
+            Ok(resp) => resp.status().is_success(),
+            Err(_) => false,
+        };
+        
+        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+        
+        Ok(crate::HealthStatus {
+            is_healthy,
+            response_time_ms,
+            connections_active: 1, // HTTP connection pool
+            connections_idle: 0,
+            last_error: if is_healthy { None } else { 
+                Some("Consul agent not reachable".to_string()) 
+            },
+            uptime_seconds: 0, // Not tracked
+        })
+    }
 }
 
 #[cfg(test)]
