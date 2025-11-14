@@ -508,6 +508,7 @@ pub mod middleware {
     ) -> Result<Json<PARResponse>, StatusCode> {
         // In a real implementation, you'd validate the client here
         // For this example, we'll create a mock client
+        let now = chrono::Utc::now();
         let mock_client = crate::models::oauth2::OAuth2Client {
             id: uuid::Uuid::new_v4(),
             client_id: payload.client_id.clone(),
@@ -522,9 +523,41 @@ pub mod middleware {
             owner_id: None,
             realm_id: None,
             enabled: true,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: now,
+            updated_at: now,
             deleted_at: None,
+
+            // RFC 7591 metadata - using minimal defaults for mock client
+            logo_uri: None,
+            client_uri: None,
+            policy_uri: None,
+            tos_uri: None,
+            jwks_uri: None,
+            jwks: None,
+            sector_identifier_uri: None,
+            subject_type: Some("public".to_string()),
+            id_token_signed_response_alg: Some("RS256".to_string()),
+            id_token_encrypted_response_alg: None,
+            id_token_encrypted_response_enc: None,
+            userinfo_signed_response_alg: None,
+            userinfo_encrypted_response_alg: None,
+            userinfo_encrypted_response_enc: None,
+            request_object_signing_alg: None,
+            request_object_encryption_alg: None,
+            request_object_encryption_enc: None,
+            token_endpoint_auth_signing_alg: None,
+            default_max_age: None,
+            require_auth_time: None,
+            default_acr_values: None,
+            initiate_login_uri: None,
+            request_uris: None,
+            application_type: Some("web".to_string()),
+            contacts: None,
+            client_id_issued_at: Some(now),
+            client_secret_expires_at: None,
+            software_id: None,
+            software_version: None,
+            registration_access_token_hash: None,
         };
 
         let par_request = PARRequest {
@@ -569,6 +602,7 @@ mod tests {
         let storage = InMemoryPARStorage::new();
         let manager = PARManager::new(storage, 600); // 10 minutes
 
+        let now = chrono::Utc::now();
         let mock_client = crate::models::oauth2::OAuth2Client {
             id: uuid::Uuid::new_v4(),
             client_id: "test-client".to_string(),
@@ -583,9 +617,40 @@ mod tests {
             owner_id: None,
             realm_id: None,
             enabled: true,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: now,
+            updated_at: now,
             deleted_at: None,
+
+            logo_uri: None,
+            client_uri: None,
+            policy_uri: None,
+            tos_uri: None,
+            jwks_uri: None,
+            jwks: None,
+            sector_identifier_uri: None,
+            subject_type: Some("public".to_string()),
+            id_token_signed_response_alg: Some("RS256".to_string()),
+            id_token_encrypted_response_alg: None,
+            id_token_encrypted_response_enc: None,
+            userinfo_signed_response_alg: None,
+            userinfo_encrypted_response_alg: None,
+            userinfo_encrypted_response_enc: None,
+            request_object_signing_alg: None,
+            request_object_encryption_alg: None,
+            request_object_encryption_enc: None,
+            token_endpoint_auth_signing_alg: None,
+            default_max_age: None,
+            require_auth_time: None,
+            default_acr_values: None,
+            initiate_login_uri: None,
+            request_uris: None,
+            application_type: Some("web".to_string()),
+            contacts: None,
+            client_id_issued_at: Some(now),
+            client_secret_expires_at: None,
+            software_id: None,
+            software_version: None,
+            registration_access_token_hash: None,
         };
 
         let par_request = PARRequest {
@@ -631,6 +696,7 @@ mod tests {
         let storage = InMemoryPARStorage::new();
         let manager = PARManager::new(storage, 600);
 
+        let now = chrono::Utc::now();
         let mock_client = crate::models::oauth2::OAuth2Client {
             id: uuid::Uuid::new_v4(),
             client_id: "test-client".to_string(),
@@ -645,9 +711,40 @@ mod tests {
             owner_id: None,
             realm_id: None,
             enabled: true,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: now,
+            updated_at: now,
             deleted_at: None,
+
+            logo_uri: None,
+            client_uri: None,
+            policy_uri: None,
+            tos_uri: None,
+            jwks_uri: None,
+            jwks: None,
+            sector_identifier_uri: None,
+            subject_type: Some("public".to_string()),
+            id_token_signed_response_alg: Some("RS256".to_string()),
+            id_token_encrypted_response_alg: None,
+            id_token_encrypted_response_enc: None,
+            userinfo_signed_response_alg: None,
+            userinfo_encrypted_response_alg: None,
+            userinfo_encrypted_response_enc: None,
+            request_object_signing_alg: None,
+            request_object_encryption_alg: None,
+            request_object_encryption_enc: None,
+            token_endpoint_auth_signing_alg: None,
+            default_max_age: None,
+            require_auth_time: None,
+            default_acr_values: None,
+            initiate_login_uri: None,
+            request_uris: None,
+            application_type: Some("web".to_string()),
+            contacts: None,
+            client_id_issued_at: Some(now),
+            client_secret_expires_at: None,
+            software_id: None,
+            software_version: None,
+            registration_access_token_hash: None,
         };
 
         let par_request = PARRequest {

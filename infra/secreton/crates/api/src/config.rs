@@ -1216,9 +1216,10 @@ impl ApiConfig {
                     self.database.password = password.to_string();
                 }
                 if let Some(mut segments) = url.path_segments()
-                    && let Some(db) = segments.next() {
-                        self.database.database = db.trim_start_matches('/').to_string();
-                    }
+                    && let Some(db) = segments.next()
+                {
+                    self.database.database = db.trim_start_matches('/').to_string();
+                }
             }
         }
 
@@ -1229,14 +1230,16 @@ impl ApiConfig {
 
         // TLS configuration
         if let Ok(cert_path) = std::env::var("TLS_CERT_PATH")
-            && let Some(ref mut tls) = self.tls {
-                tls.cert_file = PathBuf::from(cert_path);
-            }
+            && let Some(ref mut tls) = self.tls
+        {
+            tls.cert_file = PathBuf::from(cert_path);
+        }
 
         if let Ok(key_path) = std::env::var("TLS_KEY_PATH")
-            && let Some(ref mut tls) = self.tls {
-                tls.key_file = PathBuf::from(key_path);
-            }
+            && let Some(ref mut tls) = self.tls
+        {
+            tls.key_file = PathBuf::from(key_path);
+        }
 
         // Log level
         if let Ok(level) = std::env::var("LOG_LEVEL") {

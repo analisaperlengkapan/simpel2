@@ -5,13 +5,14 @@
 //! error handling, and common data structures.
 
 #![allow(async_fn_in_trait)]
-#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-pub mod api;
+// Re-export shared types from secreton-types
+pub use secreton_types::{Metadata, ResourceId, SecurityLevel, Tags};
+
 pub mod audit;
 pub mod auth;
 pub mod config;
@@ -33,15 +34,6 @@ pub mod utils;
 pub mod engines {
     pub use crate::services::secrets::enhanced::*;
 }
-
-// DEPRECATED: Legacy Warp-based API exports
-// Requires 'legacy-warp-api' feature (disabled by default)
-#[cfg(feature = "legacy-warp-api")]
-#[deprecated(
-    since = "1.1.0",
-    note = "Legacy Warp-based API. Use `secreton-api` crate for production API functionality."
-)]
-pub use api::{start_security_server, SecurityAPI};
 
 pub use audit::{AuditLog, AuditLogger, AuditStatus};
 pub use auth::{
@@ -66,240 +58,16 @@ pub use models::user::{Token, User};
 // #[cfg(test)]
 // mod integration_tests;
 
-/// Security classification levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
-pub enum SecurityLevel {
-    /// Public information - no security controls required
-    Public = 0,
-
-    /// Internal use - basic access controls
-    #[default]
-    Internal = 1,
-
-    /// Confidential - restricted access
-    Confidential = 2,
-
-    /// Secret - highly restricted access
-    Secret = 3,
-
-    /// Top Secret - maximum security controls
-    TopSecret = 4,
-}
-
-impl SecurityLevel {
-    /// Get security level name
-    pub fn name(&self) -> &'static str {
-        match self {
-            SecurityLevel::Public => "Public",
-            SecurityLevel::Internal => "Internal",
-            SecurityLevel::Confidential => "Confidential",
-            SecurityLevel::Secret => "Secret",
-            SecurityLevel::TopSecret => "Top Secret",
-        }
-    }
-
-    /// Get security level from string
-    pub fn parse(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "public" => Some(SecurityLevel::Public),
-            "internal" => Some(SecurityLevel::Internal),
-            "confidential" => Some(SecurityLevel::Confidential),
-            "secret" => Some(SecurityLevel::Secret),
-            "topsecret" | "top_secret" | "top-secret" => Some(SecurityLevel::TopSecret),
-            _ => None,
-        }
-    }
-
-    /// Check if current level can access target level
-    pub fn can_access(&self, target: SecurityLevel) -> bool {
-        *self >= target
-    }
-}
-
-impl FromStr for SecurityLevel {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "public" => Ok(SecurityLevel::Public),
-            "internal" => Ok(SecurityLevel::Internal),
-            "confidential" => Ok(SecurityLevel::Confidential),
-            "secret" => Ok(SecurityLevel::Secret),
-            "topsecret" | "top_secret" | "top-secret" => Ok(SecurityLevel::TopSecret),
-            _ => Err(format!("Unknown security level: {}", s)),
-        }
-    }
-}
+// SecurityLevel is now re-exported from secreton-types
 
 /// Result type for core operations
 pub type CoreResult<T> = Result<T, error::CoreError>;
 
-/// Metadata structure for extensible data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Metadata {
-    pub fields: HashMap<String, serde_json::Value>,
-}
+// Metadata is now re-exported from secreton-types
 
-impl Metadata {
-    /// Create new empty metadata
-    pub fn new() -> Self {
-        Self {
-            fields: HashMap::new(),
-        }
-    }
+// Tags is now re-exported from secreton-types
 
-    /// Set a metadata field
-    pub fn set<K, V>(&mut self, key: K, value: V)
-    where
-        K: Into<String>,
-        V: Into<serde_json::Value>,
-    {
-        self.fields.insert(key.into(), value.into());
-    }
-
-    /// Get a metadata field
-    pub fn get(&self, key: &str) -> Option<&serde_json::Value> {
-        self.fields.get(key)
-    }
-
-    /// Get a typed metadata field
-    pub fn get_typed<T>(&self, key: &str) -> Option<T>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        self.fields
-            .get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-    }
-
-    /// Check if metadata contains key
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.fields.contains_key(key)
-    }
-
-    /// Remove a metadata field
-    pub fn remove(&mut self, key: &str) -> Option<serde_json::Value> {
-        self.fields.remove(key)
-    }
-
-    /// Get all field names
-    pub fn keys(&self) -> impl Iterator<Item = &String> {
-        self.fields.keys()
-    }
-
-    /// Check if metadata is empty
-    pub fn is_empty(&self) -> bool {
-        self.fields.is_empty()
-    }
-
-    /// Get number of fields
-    pub fn len(&self) -> usize {
-        self.fields.len()
-    }
-}
-
-impl Default for Metadata {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Tag system for organizing resources
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tags {
-    pub tags: Vec<String>,
-}
-
-impl Tags {
-    /// Create new empty tags
-    pub fn new() -> Self {
-        Self { tags: Vec::new() }
-    }
-
-    /// Create tags from vector
-    pub fn from_vec(tags: Vec<String>) -> Self {
-        Self { tags }
-    }
-
-    /// Add a tag
-    pub fn add<S: Into<String>>(&mut self, tag: S) {
-        let tag = tag.into();
-        if !self.tags.contains(&tag) {
-            self.tags.push(tag);
-        }
-    }
-
-    /// Remove a tag
-    pub fn remove(&mut self, tag: &str) {
-        self.tags.retain(|t| t != tag);
-    }
-
-    /// Check if contains tag
-    pub fn contains(&self, tag: &str) -> bool {
-        self.tags.contains(&tag.to_string())
-    }
-
-    /// Get all tags
-    pub fn as_slice(&self) -> &[String] {
-        &self.tags
-    }
-
-    /// Check if empty
-    pub fn is_empty(&self) -> bool {
-        self.tags.is_empty()
-    }
-
-    /// Get tag count
-    pub fn len(&self) -> usize {
-        self.tags.len()
-    }
-}
-
-impl Default for Tags {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl From<Vec<String>> for Tags {
-    fn from(tags: Vec<String>) -> Self {
-        Self::from_vec(tags)
-    }
-}
-
-impl IntoIterator for Tags {
-    type Item = String;
-    type IntoIter = std::vec::IntoIter<String>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.tags.into_iter()
-    }
-}
-
-/// Resource identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ResourceId {
-    pub namespace: String,
-    pub id: String,
-}
-
-impl ResourceId {
-    /// Create new resource ID
-    pub fn new(namespace: String, id: String) -> Self {
-        Self { namespace, id }
-    }
-
-    /// Get the full resource path
-    pub fn full_path(&self) -> String {
-        format!("{}/{}", self.namespace, self.id)
-    }
-}
-
-impl std::fmt::Display for ResourceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}", self.namespace, self.id)
-    }
-}
+// ResourceId is now re-exported from secreton-types
 
 #[cfg(test)]
 mod tests {

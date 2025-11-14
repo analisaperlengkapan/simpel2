@@ -5,7 +5,7 @@
 use super::error::CaptchaError;
 use crate::models::user::SecurityContext;
 use crate::secreton_client::secreton_client::SecretonClient;
-use crate::secreton_client::{SecretonClientTrait, SecretonError};
+use crate::secreton_client::SecretonClientTrait;
 use crate::secreton_client::SecretonError as VaultError;
 use async_trait::async_trait;
 use base64;

@@ -55,7 +55,10 @@ impl SecretonAgent {
         let template_rendering = self.start_template_rendering(shutdown_rx.resubscribe());
 
         // Start health server if configured
-        let health_server = self.config.health_port.map(|port| self.start_health_server(port, shutdown_rx.resubscribe()));
+        let health_server = self
+            .config
+            .health_port
+            .map(|port| self.start_health_server(port, shutdown_rx.resubscribe()));
 
         // Wait for shutdown
         tokio::select! {

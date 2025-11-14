@@ -17,9 +17,7 @@ use secreton_storage::StorageBackend;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use secreton_storage::{
-    EncryptionMetadata, SecurityLevel, VaultEntry,
-};
+use secreton_storage::{EncryptionMetadata, SecurityLevel, VaultEntry};
 
 #[tokio::test]
 #[cfg(feature = "cockroachdb-backend")]

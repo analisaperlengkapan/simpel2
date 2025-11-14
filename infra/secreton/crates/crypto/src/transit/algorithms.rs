@@ -177,7 +177,7 @@ pub fn derive_key(
             Ok(key)
         }
         KdfAlgorithm::Scrypt => {
-            use scrypt::{scrypt, Params};
+            use scrypt::{Params, scrypt};
             let params = Params::new(
                 14, // log_n (2^14 = 16384)
                 8,  // r
@@ -249,83 +249,8 @@ impl SecureRandom for rand::rngs::ThreadRng {
     }
 }
 
-/// Algorithm registry for dynamic algorithm selection
-/// Note: FUTURE FEATURE - Reserved for dynamic algorithm registry implementation
-#[derive(Debug, Default)]
-#[allow(dead_code)]
-pub struct AlgorithmRegistry {
-    supported_ciphers: Vec<String>,
-    supported_hashes: Vec<HashAlgorithm>,
-    supported_kdfs: Vec<KdfAlgorithm>,
-    supported_signatures: Vec<SignatureAlgorithm>,
-}
-
-impl AlgorithmRegistry {
-    /// Create new algorithm registry with default supported algorithms
-    pub fn new() -> Self {
-        Self {
-            supported_ciphers: vec![
-                "xchacha20-poly1305".to_string(),
-                "chacha20-poly1305".to_string(),
-                "aes-256-gcm".to_string(),
-            ],
-            supported_hashes: vec![
-                HashAlgorithm::Blake3,
-                HashAlgorithm::Sha3_512,
-                HashAlgorithm::Sha3_384,
-                HashAlgorithm::Sha3_256,
-                HashAlgorithm::Sha512,
-                HashAlgorithm::Sha384,
-                HashAlgorithm::Sha256,
-            ],
-            supported_kdfs: vec![
-                KdfAlgorithm::Argon2id,
-                KdfAlgorithm::Scrypt,
-                KdfAlgorithm::Pbkdf2Sha512,
-                KdfAlgorithm::Pbkdf2Sha256,
-                KdfAlgorithm::HkdfSha256,
-                KdfAlgorithm::HkdfSha512,
-            ],
-            supported_signatures: vec![
-                SignatureAlgorithm::Ed25519,
-                SignatureAlgorithm::EcdsaP256,
-                SignatureAlgorithm::EcdsaSecp256k1,
-            ],
-        }
-    }
-
-    /// Check if cipher is supported
-    pub fn supports_cipher(&self, cipher: &str) -> bool {
-        self.supported_ciphers.contains(&cipher.to_lowercase())
-    }
-
-    /// Check if hash algorithm is supported
-    pub fn supports_hash(&self, hash: HashAlgorithm) -> bool {
-        self.supported_hashes.contains(&hash)
-    }
-
-    /// Check if KDF algorithm is supported
-    pub fn supports_kdf(&self, kdf: KdfAlgorithm) -> bool {
-        self.supported_kdfs.contains(&kdf)
-    }
-
-    /// Get all supported algorithms
-    pub fn supported_algorithms(&self) -> AlgorithmSupport {
-        AlgorithmSupport {
-            ciphers: self.supported_ciphers.clone(),
-            hashes: self.supported_hashes.clone(),
-            kdfs: self.supported_kdfs.clone(),
-        }
-    }
-}
-
-/// Supported algorithms information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AlgorithmSupport {
-    pub ciphers: Vec<String>,
-    pub hashes: Vec<HashAlgorithm>,
-    pub kdfs: Vec<KdfAlgorithm>,
-}
+// Note: AlgorithmRegistry removed - was unused future feature
+// If dynamic algorithm selection is needed in the future, implement it when required
 
 /// Cryptographic parameters for algorithms
 #[derive(Debug, Clone, Serialize, Deserialize)]

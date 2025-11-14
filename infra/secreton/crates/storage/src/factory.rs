@@ -129,9 +129,7 @@ impl StorageFactory {
             StorageBackendType::Memory => Ok(Arc::new(MemoryBackend::new())),
 
             StorageBackendType::File => {
-                let file_config = config
-                    .file_config
-                    .unwrap_or_default();
+                let file_config = config.file_config.unwrap_or_default();
                 let backend = FileBackend::new(file_config).await?;
                 let adapter = crate::KvBackendAdapter::new(backend);
                 Ok(Arc::new(adapter))
@@ -139,11 +137,12 @@ impl StorageFactory {
 
             #[cfg(feature = "consul")]
             StorageBackendType::Consul => {
-                let consul_config = config
-                    .consul_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "Consul backend configuration required".to_string(),
-                    })?;
+                let consul_config =
+                    config
+                        .consul_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "Consul backend configuration required".to_string(),
+                        })?;
                 let backend = ConsulBackend::new(consul_config).await?;
                 let adapter = crate::KvBackendAdapter::new(backend);
                 Ok(Arc::new(adapter))
@@ -151,11 +150,12 @@ impl StorageFactory {
 
             #[cfg(feature = "s3")]
             StorageBackendType::S3 => {
-                let s3_config = config
-                    .s3_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "S3 backend configuration required".to_string(),
-                    })?;
+                let s3_config =
+                    config
+                        .s3_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "S3 backend configuration required".to_string(),
+                        })?;
                 let backend = S3Backend::new(s3_config).await?;
                 let adapter = crate::KvBackendAdapter::new(backend);
                 Ok(Arc::new(adapter))
@@ -163,21 +163,21 @@ impl StorageFactory {
 
             #[cfg(feature = "postgres")]
             StorageBackendType::Postgres => {
-                let postgres_config = config
-                    .postgres_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "PostgreSQL backend configuration required".to_string(),
-                    })?;
+                let postgres_config =
+                    config
+                        .postgres_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "PostgreSQL backend configuration required".to_string(),
+                        })?;
                 let backend = PostgresBackend::new(&postgres_config.connection_string).await?;
                 Ok(Arc::new(backend))
             }
 
             #[cfg(feature = "raft-consensus")]
-            StorageBackendType::Raft => {
-                Err(StorageError::ConfigurationError {
-                    message: "Raft backend requires RaftCluster - use RaftCluster::new() directly".to_string(),
-                })
-            }
+            StorageBackendType::Raft => Err(StorageError::ConfigurationError {
+                message: "Raft backend requires RaftCluster - use RaftCluster::new() directly"
+                    .to_string(),
+            }),
         }
     }
 
@@ -187,7 +187,9 @@ impl StorageFactory {
         Arc::new(MemoryBackend::new())
     }
 
-    pub async fn create_file(path: impl Into<std::path::PathBuf>) -> StorageResult<Arc<dyn StorageBackend>> {
+    pub async fn create_file(
+        path: impl Into<std::path::PathBuf>,
+    ) -> StorageResult<Arc<dyn StorageBackend>> {
         let config = FileConfig {
             path: path.into(),
             ..Default::default()
@@ -198,7 +200,10 @@ impl StorageFactory {
     }
 
     #[cfg(feature = "consul")]
-    pub async fn create_consul(address: &str, path: &str) -> StorageResult<Arc<dyn StorageBackend>> {
+    pub async fn create_consul(
+        address: &str,
+        path: &str,
+    ) -> StorageResult<Arc<dyn StorageBackend>> {
         let config = ConsulConfig {
             address: address.to_string(),
             path: path.to_string(),

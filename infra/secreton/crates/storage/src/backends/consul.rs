@@ -123,20 +123,25 @@ pub struct ConsulBackend {
 impl ConsulBackend {
     /// Create a new Consul storage backend
     pub async fn new(config: ConsulConfig) -> StorageResult<Self> {
-        let mut client_builder = Client::builder()
-            .timeout(std::time::Duration::from_secs(config.timeout_secs));
+        let mut client_builder =
+            Client::builder().timeout(std::time::Duration::from_secs(config.timeout_secs));
 
         if config.tls_skip_verify {
             warn!("TLS certificate verification is disabled - not recommended for production");
             client_builder = client_builder.danger_accept_invalid_certs(true);
         }
 
-        let client = client_builder.build().map_err(|e| StorageError::ConnectionError {
-            backend: "consul".to_string(),
-            message: format!("Failed to create HTTP client: {}", e),
-        })?;
+        let client = client_builder
+            .build()
+            .map_err(|e| StorageError::ConnectionError {
+                backend: "consul".to_string(),
+                message: format!("Failed to create HTTP client: {}", e),
+            })?;
 
-        let base_url = format!("{}://{}/v1/kv/{}", config.scheme, config.address, config.path);
+        let base_url = format!(
+            "{}://{}/v1/kv/{}",
+            config.scheme, config.address, config.path
+        );
 
         let backend = Self {
             config: config.clone(),
@@ -159,17 +164,17 @@ impl ConsulBackend {
 
     /// Perform health check on Consul cluster
     async fn health_check(&self) -> StorageResult<()> {
-        let health_url = format!("{}://{}/v1/health/service/consul",
-            self.config.scheme, self.config.address);
+        let health_url = format!(
+            "{}://{}/v1/health/service/consul",
+            self.config.scheme, self.config.address
+        );
 
-        let response = self.client
-            .get(&health_url)
-            .send()
-            .await
-            .map_err(|e| StorageError::ConnectionError {
+        let response = self.client.get(&health_url).send().await.map_err(|e| {
+            StorageError::ConnectionError {
                 backend: "consul".to_string(),
                 message: format!("Health check failed: {}", e),
-            })?;
+            }
+        })?;
 
         if response.status().is_success() {
             debug!("Consul health check passed");
@@ -184,8 +189,10 @@ impl ConsulBackend {
 
     /// Create Consul session for distributed locking
     async fn create_session(&self) -> StorageResult<String> {
-        let session_url = format!("{}://{}/v1/session/create",
-            self.config.scheme, self.config.address);
+        let session_url = format!(
+            "{}://{}/v1/session/create",
+            self.config.scheme, self.config.address
+        );
 
         let session_payload = serde_json::json!({
             "Name": "secreton-lock",
@@ -198,10 +205,13 @@ impl ConsulBackend {
             request = request.header("X-Consul-Token", token);
         }
 
-        let response = request.send().await.map_err(|e| StorageError::BackendError {
-            backend: "consul".to_string(),
-            message: format!("Failed to create session: {}", e),
-        })?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| StorageError::BackendError {
+                backend: "consul".to_string(),
+                message: format!("Failed to create session: {}", e),
+            })?;
 
         #[derive(Deserialize)]
         struct SessionResponse {
@@ -209,11 +219,13 @@ impl ConsulBackend {
             id: String,
         }
 
-        let session: SessionResponse = response.json().await.map_err(|e| {
-            StorageError::SerializationError {
-                message: format!("Failed to parse session response: {}", e),
-            }
-        })?;
+        let session: SessionResponse =
+            response
+                .json()
+                .await
+                .map_err(|e| StorageError::SerializationError {
+                    message: format!("Failed to parse session response: {}", e),
+                })?;
 
         Ok(session.id)
     }
@@ -229,20 +241,23 @@ impl KvBackend for ConsulBackend {
             request = request.header("X-Consul-Token", token);
         }
 
-        let response = request.send().await.map_err(|e| {
-            StorageError::ConnectionError {
+        let response = request
+            .send()
+            .await
+            .map_err(|e| StorageError::ConnectionError {
                 backend: "consul".to_string(),
                 message: format!("GET request failed: {}", e),
-            }
-        })?;
+            })?;
 
         match response.status() {
             StatusCode::OK => {
-                let entries: Vec<ConsulKvEntry> = response.json().await.map_err(|e| {
-                    StorageError::SerializationError {
-                        message: format!("Failed to parse response: {}", e),
-                    }
-                })?;
+                let entries: Vec<ConsulKvEntry> =
+                    response
+                        .json()
+                        .await
+                        .map_err(|e| StorageError::SerializationError {
+                            message: format!("Failed to parse response: {}", e),
+                        })?;
 
                 if let Some(entry) = entries.first() {
                     if let Some(ref value_b64) = entry.value {
@@ -280,12 +295,13 @@ impl KvBackend for ConsulBackend {
             request = request.header("X-Consul-Token", token);
         }
 
-        let response = request.send().await.map_err(|e| {
-            StorageError::ConnectionError {
+        let response = request
+            .send()
+            .await
+            .map_err(|e| StorageError::ConnectionError {
                 backend: "consul".to_string(),
                 message: format!("PUT request failed: {}", e),
-            }
-        })?;
+            })?;
 
         if response.status().is_success() {
             let mut metrics = self.metrics.write().await;
@@ -308,12 +324,13 @@ impl KvBackend for ConsulBackend {
             request = request.header("X-Consul-Token", token);
         }
 
-        let response = request.send().await.map_err(|e| {
-            StorageError::ConnectionError {
+        let response = request
+            .send()
+            .await
+            .map_err(|e| StorageError::ConnectionError {
                 backend: "consul".to_string(),
                 message: format!("DELETE request failed: {}", e),
-            }
-        })?;
+            })?;
 
         if response.status().is_success() {
             let mut metrics = self.metrics.write().await;
@@ -335,20 +352,23 @@ impl KvBackend for ConsulBackend {
             request = request.header("X-Consul-Token", token);
         }
 
-        let response = request.send().await.map_err(|e| {
-            StorageError::ConnectionError {
+        let response = request
+            .send()
+            .await
+            .map_err(|e| StorageError::ConnectionError {
                 backend: "consul".to_string(),
                 message: format!("LIST request failed: {}", e),
-            }
-        })?;
+            })?;
 
         match response.status() {
             StatusCode::OK => {
-                let keys: Vec<String> = response.json().await.map_err(|e| {
-                    StorageError::SerializationError {
-                        message: format!("Failed to parse keys: {}", e),
-                    }
-                })?;
+                let keys: Vec<String> =
+                    response
+                        .json()
+                        .await
+                        .map_err(|e| StorageError::SerializationError {
+                            message: format!("Failed to parse keys: {}", e),
+                        })?;
 
                 // Strip prefix from keys
                 let stripped_keys: Vec<String> = keys
@@ -376,25 +396,27 @@ impl KvBackend for ConsulBackend {
 
     async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
         use std::time::Instant;
-        
+
         let start = Instant::now();
-        
+
         // Check Consul health endpoint
         let health_url = format!("{}/v1/agent/self", self.config.address);
         let is_healthy = match self.client.get(&health_url).send().await {
             Ok(resp) => resp.status().is_success(),
             Err(_) => false,
         };
-        
+
         let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
-        
+
         Ok(crate::HealthStatus {
             is_healthy,
             response_time_ms,
             connections_active: 1, // HTTP connection pool
             connections_idle: 0,
-            last_error: if is_healthy { None } else { 
-                Some("Consul agent not reachable".to_string()) 
+            last_error: if is_healthy {
+                None
+            } else {
+                Some("Consul agent not reachable".to_string())
             },
             uptime_seconds: 0, // Not tracked
         })

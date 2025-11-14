@@ -33,9 +33,7 @@ tower.workspace = true
 tower-http.workspace = true
 axum-server.workspace = true
 
-# gRPC server
-tonic.workspace = true
-prost.workspace = true
+# TLS (still needed for HTTPS)
 tokio-rustls.workspace = true
 rustls.workspace = true
 rustls-pemfile.workspace = true
@@ -70,6 +68,7 @@ secreton-core.workspace = true
 secreton-storage.workspace = true
 secreton-crypto.workspace = true
 secreton-hsm.workspace = true
+secreton-grpc.workspace = true
 
 [features]
 default = []

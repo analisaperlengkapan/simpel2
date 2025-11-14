@@ -146,7 +146,6 @@ impl K8sRole {
         }
 
         // Check service account name
-        
 
         self.bound_service_account_names.is_empty()
             || self

@@ -1,19 +1,19 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::database::Database;
 use crate::error::{AuthencError, Result};
+use crate::models::OidcClient;
 use crate::models::client_registration::{
     ClientRegistrationRequest, ClientRegistrationResponse, ClientUpdateRequest, SoftwareStatement,
 };
-use crate::models::oidc_client::OidcClient;
-use crate::services::oidc_client_store::OidcClientStore;
 
-/// Service for handling OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
+/// LEGACY: Service for handling OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
+/// This trait is deprecated. Use client_registration_v2::ClientRegistrationService instead.
 #[async_trait]
-pub trait ClientRegistrationService: Send + Sync {
+pub trait LegacyClientRegistrationService: Send + Sync {
     /// Register a new OAuth 2.0 client dynamically
     async fn register_client(
         &self,
@@ -52,24 +52,18 @@ pub trait ClientRegistrationService: Send + Sync {
 
 /// Default implementation of Client Registration Service
 pub struct DefaultClientRegistrationService {
-    client_store: Arc<OidcClientStore>,
-    registration_tokens: Arc<RwLock<HashMap<String, String>>>, // client_id -> registration_access_token
-    enable_dynamic_registration: bool,
-    require_software_statement: bool,
+    db: Arc<Database>,
+    realm_id: Option<Uuid>,
+    registration_endpoint_base: String,
 }
 
 impl DefaultClientRegistrationService {
     /// Create a new client registration service
-    pub fn new(
-        client_store: Arc<OidcClientStore>,
-        enable_dynamic_registration: bool,
-        require_software_statement: bool,
-    ) -> Self {
+    pub fn new(db: Arc<Database>, realm_id: Option<Uuid>, registration_endpoint_base: String) -> Self {
         Self {
-            client_store,
-            registration_tokens: Arc::new(RwLock::new(HashMap::new())),
-            enable_dynamic_registration,
-            require_software_statement,
+            db,
+            realm_id,
+            registration_endpoint_base,
         }
     }
 
@@ -234,8 +228,17 @@ impl DefaultClientRegistrationService {
     }
 }
 
+/*
+// LEGACY IMPLEMENTATION COMMENTED OUT - MISSING REQUIRED STRUCT FIELDS
+// Use client_registration_v2::ProductionClientRegistrationService instead
+// This implementation references fields that don't exist in DefaultClientRegistrationService:
+// - enable_dynamic_registration
+// - require_software_statement
+// - client_store
+// - registration_tokens
+
 #[async_trait]
-impl ClientRegistrationService for DefaultClientRegistrationService {
+impl LegacyClientRegistrationService for DefaultClientRegistrationService {
     async fn register_client(
         &self,
         request: ClientRegistrationRequest,
@@ -413,3 +416,4 @@ impl ClientRegistrationService for DefaultClientRegistrationService {
         Ok(true)
     }
 }
+*/

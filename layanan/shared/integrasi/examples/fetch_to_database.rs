@@ -33,10 +33,10 @@
 /// FETCH_MODE=mysimkari cargo run --example fetch_to_database
 /// ```
 use layanan_integrasi::{
-    fetch_all_data, fetch_all_satker, fetch_mysimkari, fetch_satker_complete, storage_from_env,
-    Config, MonsaktiClient, KL_KEJAKSAAN,
+    Config, KL_KEJAKSAAN, MonsaktiClient, fetch_all_data, fetch_all_satker, fetch_mysimkari,
+    fetch_satker_complete, storage_from_env,
 };
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber;
 
 #[tokio::main]

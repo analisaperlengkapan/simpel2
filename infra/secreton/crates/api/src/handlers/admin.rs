@@ -334,44 +334,48 @@ pub struct SecurityIncident {
 }
 
 /// User management endpoints
+/// TODO: Implement using StorageBackend trait instead of direct database access
 pub async fn list_users(
     State(_state): State<AppState>,
-    Query(query): Query<ListQuery>,
+    Query(_query): Query<ListQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<UserResponse>>>> {
-    // TODO: Implement user listing
-    let users = vec![UserResponse {
-        id: uuid::Uuid::new_v4().to_string(),
-        username: "admin".to_string(),
-        email: "admin@example.com".to_string(),
-        full_name: Some("System Administrator".to_string()),
-        enabled: true,
-        roles: vec!["admin".to_string()],
-        permissions: vec!["*".to_string()],
-        last_login: Some(chrono::Utc::now()),
-        created_at: chrono::Utc::now() - chrono::Duration::days(30),
-        updated_at: chrono::Utc::now(),
-        metadata: HashMap::new(),
-    }];
-
-    Ok(Json(ApiResponse::success(users)))
+    // Placeholder implementation - needs to be refactored to use StorageBackend
+    Ok(Json(ApiResponse::success(vec![])))
 }
 
 pub async fn create_user(
     State(_state): State<AppState>,
     Json(request): Json<CreateUserRequest>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
-    // TODO: Implement user creation
+    // Validate input
+    if request.username.is_empty() {
+        return Err(ApiError::bad_request("Username is required"));
+    }
+    if request.email.is_empty() {
+        return Err(ApiError::bad_request("Email is required"));
+    }
+    if !request.email.contains('@') {
+        return Err(ApiError::bad_request("Invalid email format"));
+    }
+
+    // TODO: Implement using StorageBackend trait instead of direct database access
+    // Placeholder implementation
+    let user_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now();
+    let enabled = request.enabled.unwrap_or(true);
+    let permissions = calculate_permissions_from_roles(&request.roles);
+
     let user = UserResponse {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: user_id,
         username: request.username,
         email: request.email,
         full_name: request.full_name,
-        enabled: request.enabled.unwrap_or(true),
+        enabled,
         roles: request.roles,
-        permissions: vec![], // Calculate from roles
+        permissions,
         last_login: None,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: now,
+        updated_at: now,
         metadata: request.metadata.unwrap_or_default(),
     };
 
@@ -595,6 +599,45 @@ pub async fn compact_database(
     });
 
     Ok(Json(ApiResponse::success(data)))
+}
+
+/// Calculate permissions from roles
+fn calculate_permissions_from_roles(roles: &[String]) -> Vec<String> {
+    let mut permissions = Vec::new();
+
+    for role in roles {
+        match role.as_str() {
+            "admin" | "root" => {
+                permissions.push("*".to_string());
+                return permissions; // Admin has all permissions
+            }
+            "operator" => {
+                permissions.extend_from_slice(&[
+                    "secrets:read".to_string(),
+                    "secrets:write".to_string(),
+                    "leases:read".to_string(),
+                    "leases:renew".to_string(),
+                ]);
+            }
+            "auditor" => {
+                permissions
+                    .extend_from_slice(&["audit:read".to_string(), "metrics:read".to_string()]);
+            }
+            "developer" => {
+                permissions.extend_from_slice(&[
+                    "secrets:read".to_string(),
+                    "transit:encrypt".to_string(),
+                    "transit:decrypt".to_string(),
+                ]);
+            }
+            _ => {}
+        }
+    }
+
+    // Remove duplicates
+    permissions.sort();
+    permissions.dedup();
+    permissions
 }
 
 // Stub handlers for missing functions

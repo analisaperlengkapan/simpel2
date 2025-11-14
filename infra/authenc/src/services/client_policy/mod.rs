@@ -12,11 +12,17 @@
 //! - Secure redirect URI validation
 //! - Token rotation policies
 
+pub mod enforcer;
+pub mod store;
+
 use crate::error::AuthencError;
 use crate::models::oauth2::OAuth2Client;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+pub use enforcer::ClientPolicyEnforcer;
+pub use store::ClientPolicyStore;
 
 /// Client Policy Context
 #[derive(Debug, Clone)]
@@ -1371,27 +1377,62 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    #[tokio::test]
-    async fn test_pkce_enforcement() {
-        let manager = ClientPolicyManager::default();
-        let client = OAuth2Client {
+    fn make_test_client(redirect_uris: Vec<String>) -> OAuth2Client {
+        let now = Utc::now();
+        OAuth2Client {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),
             client_secret_hash: "hashed_secret".to_string(),
             client_name: "Test Client".to_string(),
             client_type: "confidential".to_string(),
-            redirect_uris: vec!["https://example.com/callback".to_string()],
+            redirect_uris,
+            scopes: vec!["openid".to_string()],
             grant_types: vec!["authorization_code".to_string()],
             response_types: vec!["code".to_string()],
-            scopes: vec!["openid".to_string()],
             token_endpoint_auth_method: "client_secret_basic".to_string(),
             owner_id: None,
             realm_id: None,
             enabled: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: now,
+            updated_at: now,
             deleted_at: None,
-        };
+            logo_uri: None,
+            client_uri: None,
+            policy_uri: None,
+            tos_uri: None,
+            jwks_uri: None,
+            jwks: None,
+            sector_identifier_uri: None,
+            subject_type: None,
+            id_token_signed_response_alg: None,
+            id_token_encrypted_response_alg: None,
+            id_token_encrypted_response_enc: None,
+            userinfo_signed_response_alg: None,
+            userinfo_encrypted_response_alg: None,
+            userinfo_encrypted_response_enc: None,
+            request_object_signing_alg: None,
+            request_object_encryption_alg: None,
+            request_object_encryption_enc: None,
+            token_endpoint_auth_signing_alg: None,
+            default_max_age: None,
+            require_auth_time: None,
+            default_acr_values: None,
+            initiate_login_uri: None,
+            request_uris: None,
+            application_type: None,
+            contacts: None,
+            client_id_issued_at: None,
+            client_secret_expires_at: None,
+            software_id: None,
+            software_version: None,
+            registration_access_token_hash: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pkce_enforcement() {
+        let manager = ClientPolicyManager::default();
+        let client = make_test_client(vec!["https://example.com/callback".to_string()]);
 
         let context = ClientPolicyContext {
             client,
@@ -1413,24 +1454,7 @@ mod tests {
     #[tokio::test]
     async fn test_secure_redirect_uri_enforcement() {
         let manager = ClientPolicyManager::default();
-        let client = OAuth2Client {
-            id: Uuid::new_v4(),
-            client_id: "test-client".to_string(),
-            client_secret_hash: "hashed_secret".to_string(),
-            client_name: "Test Client".to_string(),
-            client_type: "confidential".to_string(),
-            redirect_uris: vec!["http://example.com/callback".to_string()], // HTTP not HTTPS
-            grant_types: vec!["authorization_code".to_string()],
-            response_types: vec!["code".to_string()],
-            scopes: vec!["openid".to_string()],
-            token_endpoint_auth_method: "client_secret_basic".to_string(),
-            owner_id: None,
-            realm_id: None,
-            enabled: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            deleted_at: None,
-        };
+        let client = make_test_client(vec!["http://example.com/callback".to_string()]);
 
         let context = ClientPolicyContext {
             client,
@@ -1455,24 +1479,7 @@ mod tests {
     #[tokio::test]
     async fn test_implicit_grant_rejection() {
         let manager = ClientPolicyManager::default();
-        let client = OAuth2Client {
-            id: Uuid::new_v4(),
-            client_id: "test-client".to_string(),
-            client_secret_hash: "hashed_secret".to_string(),
-            client_name: "Test Client".to_string(),
-            client_type: "confidential".to_string(),
-            redirect_uris: vec!["https://example.com/callback".to_string()],
-            grant_types: vec!["authorization_code".to_string()],
-            response_types: vec!["code".to_string()],
-            scopes: vec!["openid".to_string()],
-            token_endpoint_auth_method: "client_secret_basic".to_string(),
-            owner_id: None,
-            realm_id: None,
-            enabled: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            deleted_at: None,
-        };
+        let client = make_test_client(vec!["https://example.com/callback".to_string()]);
 
         let context = ClientPolicyContext {
             client,

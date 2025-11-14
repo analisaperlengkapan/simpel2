@@ -102,8 +102,8 @@
 //! - RFC 8439 (ChaCha20-Poly1305)
 //! - RFC 8032 (Ed25519)
 
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -112,6 +112,7 @@ pub use zeroize;
 
 pub mod encryption;
 pub mod error;
+pub mod fpe;
 pub mod hashing;
 pub mod hybrid;
 pub mod key_derivation;
@@ -126,6 +127,7 @@ pub mod transit;
 pub use encryption::{
     Aes256GcmCipher, ChaCha20Poly1305Cipher, CryptoEngine, EncryptedData, SymmetricCipher,
 };
+pub use fpe::{FpeAlphabet, FpeEngine, FpeError, FpeKey};
 pub use hybrid::{
     CryptoMode, HybridCrypto, HybridEncryptedData, HybridEncryptionMetadata, HybridPublicKeys,
     HybridSignatureData, MigrationPhase, MigrationStrategy, PerformancePriority,
@@ -136,7 +138,7 @@ pub use hybrid::{
 pub type EncryptionService = CryptoEngine;
 pub use error::*;
 pub use key_derivation::{
-    derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch, DerivedKey, KdfParams,
+    DerivedKey, KdfParams, derive_key, derive_key_argon2id, derive_key_pbkdf2, presets, stretch,
 };
 pub use kv_engine::*;
 pub use pq_key_management::{
@@ -150,17 +152,6 @@ pub use storage_integration::{
     CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata, KeyInfo,
 };
 pub use transit::{
-    algorithms,
-    batch,
-    // Functions from algorithms
-    constant_time_eq,
-    derive_key as transit_derive_key,
-    generate_random,
-    generate_salt,
-    hash_data,
-    keys,
-    operations,
-    policies,
     AuditLogger,
     CreateKeyRequest,
     CreateKeyResponse,
@@ -189,6 +180,17 @@ pub use transit::{
     TransitOperations,
     VerifyRequest,
     VerifyResponse,
+    algorithms,
+    batch,
+    // Functions from algorithms
+    constant_time_eq,
+    derive_key as transit_derive_key,
+    generate_random,
+    generate_salt,
+    hash_data,
+    keys,
+    operations,
+    policies,
 };
 
 /// Supported cryptographic algorithms

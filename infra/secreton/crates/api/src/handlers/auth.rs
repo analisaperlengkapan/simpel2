@@ -436,13 +436,14 @@ pub async fn setup_mfa(
                 })?;
 
             // Get recovery codes (from MfaConfig)
-            let mfa_config = state
-                .mfa
-                .get_config(user_id)
-                .await
-                .ok_or_else(|| ApiError::Internal {
-                    message: "Failed to retrieve MFA configuration".to_string(),
-                })?;
+            let mfa_config =
+                state
+                    .mfa
+                    .get_config(user_id)
+                    .await
+                    .ok_or_else(|| ApiError::Internal {
+                        message: "Failed to retrieve MFA configuration".to_string(),
+                    })?;
 
             MfaSetupResponse {
                 method: "totp".to_string(),
@@ -460,7 +461,9 @@ pub async fn setup_mfa(
                 });
             }
             // TODO: Implement email MFA setup
-            return Err(ApiError::NotImplemented("Email MFA not yet implemented".to_string()));
+            return Err(ApiError::NotImplemented(
+                "Email MFA not yet implemented".to_string(),
+            ));
         }
         "sms" => {
             if request.phone_number.is_none() {
@@ -471,11 +474,15 @@ pub async fn setup_mfa(
                 });
             }
             // TODO: Implement SMS MFA setup
-            return Err(ApiError::NotImplemented("SMS MFA not yet implemented".to_string()));
+            return Err(ApiError::NotImplemented(
+                "SMS MFA not yet implemented".to_string(),
+            ));
         }
         "webauthn" => {
             // TODO: Implement WebAuthn MFA setup
-            return Err(ApiError::NotImplemented("WebAuthn MFA not yet implemented".to_string()));
+            return Err(ApiError::NotImplemented(
+                "WebAuthn MFA not yet implemented".to_string(),
+            ));
         }
         _ => {
             return Err(ApiError::Validation {

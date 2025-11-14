@@ -512,7 +512,9 @@ impl WrappingService {
             .map_err(|e| WrappingError::DecryptionFailed(format!("Key init failed: {}", e)))?;
 
         if nonce_bytes.len() != 12 {
-            return Err(WrappingError::DecryptionFailed("Invalid nonce size".to_string()));
+            return Err(WrappingError::DecryptionFailed(
+                "Invalid nonce size".to_string(),
+            ));
         }
         let mut nonce_arr = [0u8; 12];
         nonce_arr.copy_from_slice(&nonce_bytes);

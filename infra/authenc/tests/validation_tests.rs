@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 
 use authenc::spi::ProviderFactory;
 use authenc::spi::validation::{
@@ -327,7 +325,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_validation_provider_factory() {
-        let mut factory = DefaultValidationProviderFactory::new();
+        let factory = DefaultValidationProviderFactory::new();
 
         // Test factory creation
         let config = authenc::spi::ProviderConfig::default();

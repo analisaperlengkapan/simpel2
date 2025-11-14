@@ -67,16 +67,14 @@ impl Pkcs11Provider {
 
     /// Login to HSM with PIN
     pub async fn login(&self) -> HsmResult<()> {
-        let pin = self
+        let _pin = self
             .config
             .pin
             .as_ref()
             .ok_or_else(|| HsmError::AuthenticationFailed("PIN not configured".to_string()))?;
 
         let mut session_lock = self.session.write().await;
-        let session = session_lock
-            .as_mut()
-            .ok_or(HsmError::NotInitialized)?;
+        let session = session_lock.as_mut().ok_or(HsmError::NotInitialized)?;
 
         if session.logged_in {
             debug!("Already logged in to HSM");
@@ -97,12 +95,13 @@ impl Pkcs11Provider {
     pub async fn logout(&self) -> HsmResult<()> {
         let mut session_lock = self.session.write().await;
         if let Some(session) = session_lock.as_mut()
-            && session.logged_in {
-                debug!("Logging out from HSM");
-                // In a real implementation, this would call C_Logout
-                session.logged_in = false;
-                info!("Successfully logged out from HSM");
-            }
+            && session.logged_in
+        {
+            debug!("Logging out from HSM");
+            // In a real implementation, this would call C_Logout
+            session.logged_in = false;
+            info!("Successfully logged out from HSM");
+        }
         Ok(())
     }
 
@@ -112,7 +111,7 @@ impl Pkcs11Provider {
         key_id: &str,
         algorithm: &str,
         key_size: u32,
-        usage: &[String],
+        _usage: &[String],
     ) -> HsmResult<()> {
         self.ensure_logged_in().await?;
 
@@ -268,9 +267,7 @@ impl Pkcs11Provider {
     /// Ensure we're logged in to HSM
     async fn ensure_logged_in(&self) -> HsmResult<()> {
         let session_lock = self.session.read().await;
-        let session = session_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let session = session_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         if !session.logged_in {
             drop(session_lock);

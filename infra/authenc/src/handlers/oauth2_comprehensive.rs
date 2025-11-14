@@ -306,7 +306,10 @@ pub fn verify_code_challenge(
 }
 
 /// Generate Ed25519 JWT for access tokens
-pub fn generate_access_token(claims: &AccessTokenClaims) -> String {
+pub fn generate_access_token(
+    claims: &AccessTokenClaims,
+    additional_claims: Option<&HashMap<String, serde_json::Value>>,
+) -> String {
     let header = Ed25519JwtHeader {
         alg: "EdDSA".to_string(),
         typ: "JWT".to_string(),
@@ -319,7 +322,17 @@ pub fn generate_access_token(claims: &AccessTokenClaims) -> String {
         // 2. String serialization to JSON cannot fail for well-formed structs
         // 3. If serialization fails, it indicates a critical bug that should be caught in testing
         let header_json = serde_json::to_string(&header).unwrap();
-        let claims_json = serde_json::to_string(&claims).unwrap();
+
+        // Merge base claims with additional claims from protocol mappers
+        let mut claims_map = serde_json::to_value(&claims)
+            .and_then(|v| serde_json::from_value::<HashMap<String, serde_json::Value>>(v))
+            .unwrap();
+
+        if let Some(additional) = additional_claims {
+            claims_map.extend(additional.clone());
+        }
+
+        let claims_json = serde_json::to_string(&claims_map).unwrap();
 
         let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
         let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
@@ -340,6 +353,7 @@ pub fn generate_id_token(
     name: Option<&str>,
     role: Option<&str>,
     nonce: Option<&str>,
+    additional_claims: Option<&HashMap<String, serde_json::Value>>,
 ) -> String {
     let now = Utc::now().timestamp();
 
@@ -377,7 +391,17 @@ pub fn generate_id_token(
         // 2. String serialization to JSON cannot fail for well-formed structs
         // 3. If serialization fails, it indicates a critical bug that should be caught in testing
         let header_json = serde_json::to_string(&header).unwrap();
-        let claims_json = serde_json::to_string(&claims).unwrap();
+
+        // Merge base claims with additional claims from protocol mappers
+        let mut claims_map = serde_json::to_value(&claims)
+            .and_then(|v| serde_json::from_value::<HashMap<String, serde_json::Value>>(v))
+            .unwrap();
+
+        if let Some(additional) = additional_claims {
+            claims_map.extend(additional.clone());
+        }
+
+        let claims_json = serde_json::to_string(&claims_map).unwrap();
 
         let header_b64 = Base64UrlUnpadded::encode_string(header_json.as_bytes());
         let payload_b64 = Base64UrlUnpadded::encode_string(claims_json.as_bytes());
@@ -388,6 +412,51 @@ pub fn generate_id_token(
 
         format!("{}.{}", signing_input, signature_b64)
     })
+}
+
+/// Apply protocol mappers to generate additional claims
+///
+/// This function fetches effective mappers for a client and applies them to user data
+/// to generate additional JWT claims. This is called during token generation.
+///
+/// # Arguments
+/// * `database` - Database connection for fetching mappers
+/// * `protocol_mapper_service` - Service for evaluating mappers
+/// * `client_id_uuid` - Client UUID for fetching mappers
+/// * `client_id_str` - Client ID string for mapper evaluation
+/// * `user` - User entity with roles, attributes, etc.
+/// * `scopes` - Requested OAuth2 scopes
+/// * `protocol` - Protocol name (e.g., "openid-connect")
+/// * `token_type` - Type of token (AccessToken, IdToken, UserInfo)
+///
+/// # Returns
+/// * `Ok(HashMap)` - Additional claims to merge into token
+/// * `Err(AuthencError)` - If mapper evaluation fails
+#[allow(dead_code)]
+pub async fn apply_protocol_mappers(
+    database: &crate::database::Database,
+    protocol_mapper_service: &crate::services::protocol_mapper_service::ProtocolMapperService,
+    client_id_uuid: Uuid,
+    client_id_str: &str,
+    user: &crate::models::user::User,
+    scopes: &[String],
+    protocol: &str,
+    token_type: crate::services::protocol_mapper_service::TokenType,
+) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
+    // Fetch effective mappers (client-level + scope-level)
+    let mappers = crate::database::operations::protocol_mappers_ops::get_effective_mappers_for_client(
+        database,
+        client_id_uuid,
+        scopes,
+    )
+    .await?;
+
+    // Apply all mappers to generate additional claims
+    let additional_claims = protocol_mapper_service
+        .apply_mappers(&mappers, user, client_id_str, protocol, token_type)
+        .await?;
+
+    Ok(additional_claims)
 }
 
 /// Validate client credentials
@@ -711,7 +780,7 @@ async fn handle_authorization_code_grant(
         groups: Some(vec!["users".to_string()]),
     };
 
-    let access_token = generate_access_token(&access_token_claims);
+    let access_token = generate_access_token(&access_token_claims, None);
 
     // Store access token
     {
@@ -743,6 +812,7 @@ async fn handle_authorization_code_grant(
         Some("Demo User"),
         Some("user"),
         code_entry.nonce.as_deref(),
+        None,
     );
 
     let response = OAuth2TokenResponse {
@@ -791,7 +861,7 @@ async fn handle_client_credentials_grant(
         groups: Some(vec!["clients".to_string()]),
     };
 
-    let access_token = generate_access_token(&access_token_claims);
+    let access_token = generate_access_token(&access_token_claims, None);
 
     // Store access token
     {
@@ -857,7 +927,7 @@ async fn handle_password_grant(
         groups: Some(vec!["users".to_string()]),
     };
 
-    let access_token = generate_access_token(&access_token_claims);
+    let access_token = generate_access_token(&access_token_claims, None);
 
     // Store access token
     {
@@ -888,6 +958,7 @@ async fn handle_password_grant(
         Some("user@example.com"),
         Some("Demo User"),
         Some("user"),
+        None,
         None,
     );
 
@@ -977,7 +1048,7 @@ async fn handle_refresh_token_grant(
         groups: Some(vec!["users".to_string()]),
     };
 
-    let access_token = generate_access_token(&access_token_claims);
+    let access_token = generate_access_token(&access_token_claims, None);
 
     // Store access token
     {
@@ -1010,6 +1081,7 @@ async fn handle_refresh_token_grant(
         Some("user@example.com"),
         Some("Demo User"),
         Some("user"),
+        None,
         None,
     );
 

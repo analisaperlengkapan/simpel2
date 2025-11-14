@@ -736,8 +736,8 @@ impl SecureStorage {
         let derived_key = Self::derive_key(master_key, &salt_bytes)?;
 
         // Create the cipher with the derived key
-        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&derived_key);
-        let cipher = Aes256Gcm::new(&key_ref);
+        let key_ref = Key::<Aes256Gcm>::from_slice(&derived_key);
+        let cipher = Aes256Gcm::new(key_ref);
 
         // Create the storage instance with the provided or default config
         let key_config = key_config.unwrap_or_default();
@@ -821,8 +821,8 @@ impl SecureStorage {
             .map_err(|e| anyhow!("Invalid key format: {}", e))?;
 
         // Decrypt the data directly with the derived key
-        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&key);
-        let cipher = Aes256Gcm::new(&key_ref);
+        let key_ref = Key::<Aes256Gcm>::from_slice(&key);
+        let cipher = Aes256Gcm::new(key_ref);
         cipher
             .decrypt(&nonce, ciphertext)
             .map_err(|e| anyhow!("Decryption failed: {}", e))
@@ -910,9 +910,10 @@ impl SecureStorage {
             .iter()
             .filter_map(|(id, key)| {
                 if let Some(expires_at) = key.expires_at
-                    && expires_at <= now {
-                        return Some(id.clone());
-                    }
+                    && expires_at <= now
+                {
+                    return Some(id.clone());
+                }
                 None
             })
             .collect();
@@ -983,8 +984,8 @@ impl SecureStorage {
             &BASE64.decode(&current_key_entry.key)?,
             &BASE64.decode(&current_key_entry.salt)?,
         )?;
-        let key_ref = Key::<Aes256Gcm>::clone_from_slice(&key);
-        self.current_cipher = Aes256Gcm::new(&key_ref);
+        let key_ref = Key::<Aes256Gcm>::from_slice(&key);
+        self.current_cipher = Aes256Gcm::new(key_ref);
 
         Ok(())
     }

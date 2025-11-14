@@ -37,7 +37,7 @@ impl<B: KvBackend> KvBackendAdapter<B> {
 }
 
 #[async_trait]
-impl<B: KvBackend + Send + Sync> StorageBackend for KvBackendAdapter<B> {
+impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B> {
     /// Store a vault entry (serialized as JSON)
     async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
         let key = &entry.path;
@@ -45,7 +45,7 @@ impl<B: KvBackend + Send + Sync> StorageBackend for KvBackendAdapter<B> {
             source: Some(Box::new(e)),
             message: "Failed to serialize VaultEntry".to_string(),
         })?;
-        self.inner.put(key, bytes).await
+        self.inner.put(key, &bytes).await
     }
 
     /// Retrieve by ID (search all entries - inefficient for KV)
@@ -63,11 +63,12 @@ impl<B: KvBackend + Send + Sync> StorageBackend for KvBackendAdapter<B> {
         let data = self.inner.get(path).await?;
         match data {
             Some(bytes) => {
-                let entry = serde_json::from_slice::<VaultEntry>(&bytes)
-                    .map_err(|e| StorageError::SerializationError {
+                let entry = serde_json::from_slice::<VaultEntry>(&bytes).map_err(|e| {
+                    StorageError::SerializationError {
                         source: Some(Box::new(e)),
                         message: "Failed to deserialize VaultEntry".to_string(),
-                    })?;
+                    }
+                })?;
                 Ok(Some(entry))
             }
             None => Ok(None),
@@ -99,16 +100,16 @@ impl<B: KvBackend + Send + Sync> StorageBackend for KvBackendAdapter<B> {
 
     /// List entries (basic prefix listing)
     async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
-        let prefix = params.path.as_deref().unwrap_or("");
+        let prefix = params.path_prefix.as_deref().unwrap_or("");
         let keys = self.inner.list(prefix).await?;
-        
+
         let mut entries = Vec::new();
         for key in keys {
             if let Some(entry) = self.get_by_path(&key).await? {
                 entries.push(entry);
             }
         }
-        
+
         Ok(entries)
     }
 
@@ -184,7 +185,10 @@ mod tests {
         let adapter = KvBackendAdapter::new(file_backend);
 
         // Test put/get
-        adapter.put("test_key", b"test_value".to_vec()).await.unwrap();
+        adapter
+            .put("test_key", b"test_value".to_vec())
+            .await
+            .unwrap();
         let result = adapter.get("test_key").await.unwrap();
         assert_eq!(result, Some(b"test_value".to_vec()));
 

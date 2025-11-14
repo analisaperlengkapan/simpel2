@@ -1,12 +1,11 @@
 use crate::database::Database;
 use crate::error::AuthencError;
+use crate::handlers::jit_admin_service::JitAdminService;
 use crate::models::user::JITUserProvisioningRequest;
-use crate::services::admin::AdminService;
 use crate::services::federation::jit_provisioning::{
     DefaultJITProvisioningService, JITProvisioningService,
 };
 use crate::services::saml::{SamlIdentityProvider, SamlService, SamlServiceProvider};
-use async_trait::async_trait;
 use axum::{
     Router,
     extract::{Query, State},
@@ -14,192 +13,6 @@ use axum::{
     routing::{get, post},
 };
 use std::sync::Arc;
-
-/// Mock Admin Service for SAML JIT provisioning
-struct MockAdminService {
-    db: Arc<Database>,
-}
-
-#[allow(unsafe_code)]
-unsafe impl Send for MockAdminService {}
-#[allow(unsafe_code)]
-unsafe impl Sync for MockAdminService {}
-
-impl MockAdminService {
-    fn new(db: Arc<Database>) -> Self {
-        Self { db }
-    }
-}
-
-#[async_trait]
-impl AdminService for MockAdminService {
-    async fn get_system_stats(&self) -> Result<crate::services::admin::SystemStats, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_users(
-        &self,
-        _realm_id: &uuid::Uuid,
-        _page: u32,
-        _limit: u32,
-    ) -> Result<crate::services::admin::UserListResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn create_user(
-        &self,
-        request: crate::services::admin::CreateUserRequest,
-    ) -> Result<crate::services::admin::UserResponse, String> {
-        // Use the database operations to create user
-        use crate::database::operations::users;
-        use crate::models::user::CreateUserRequest as DbCreateUserRequest;
-
-        let db_request = DbCreateUserRequest {
-            username: request.username,
-            email: request.email,
-            satker_code: "default".to_string(), // TODO: Add satker_code to request
-            password: request.password,
-            first_name: request.first_name,
-            last_name: request.last_name,
-            nip: None,     // TODO: Add nip to request
-            nama: None,    // TODO: Add nama to request
-            jabatan: None, // TODO: Add jabatan to request
-            phone_number: request.phone_number,
-            attributes: request.attributes,
-            realm_id: Some(request.realm_id),
-            organization_id: None,
-            roles: None,
-            secreton_access_policy: None,
-        };
-
-        match users::create_user(&self.db, &db_request).await {
-            Ok(user) => Ok(crate::services::admin::UserResponse {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                email_verified: user.email_verified,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                enabled: user.enabled,
-                realm_id: user.realm_id.unwrap_or_default(),
-                roles: vec![],  // TODO: Get roles from database
-                groups: vec![], // TODO: Get groups from database
-                created_at: user.created_at,
-                last_login: user.last_login_at,
-                login_attempts: user.failed_login_attempts as u32,
-                locked_until: user.account_locked_until,
-            }),
-            Err(e) => Err(format!("Failed to create user: {}", e)),
-        }
-    }
-
-    async fn update_user(
-        &self,
-        _user_id: &uuid::Uuid,
-        _request: crate::services::admin::UpdateUserRequest,
-    ) -> Result<crate::services::admin::UserResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn delete_user(&self, _user_id: &uuid::Uuid) -> Result<(), String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_roles(
-        &self,
-        _realm_id: &uuid::Uuid,
-    ) -> Result<Vec<crate::services::admin::RoleResponse>, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn create_role(
-        &self,
-        _request: crate::services::admin::CreateRoleRequest,
-    ) -> Result<crate::services::admin::RoleResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_sessions(
-        &self,
-        _user_id: Option<uuid::Uuid>,
-        _page: u32,
-        _limit: u32,
-    ) -> Result<crate::services::admin::SessionListResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn terminate_session(&self, _session_id: &str) -> Result<(), String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_audit_logs(
-        &self,
-        _filter: crate::services::admin::AuditLogFilter,
-    ) -> Result<crate::services::admin::AuditLogResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_policies(
-        &self,
-        _realm_id: &uuid::Uuid,
-    ) -> Result<Vec<crate::services::admin::PolicyResponse>, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn create_policy(
-        &self,
-        _request: crate::services::admin::CreatePolicyRequest,
-    ) -> Result<crate::services::admin::PolicyResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_zero_trust_dashboard(
-        &self,
-        _realm_id: &uuid::Uuid,
-    ) -> Result<crate::services::admin::ZeroTrustDashboard, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_identity_providers(
-        &self,
-        _realm_id: &uuid::Uuid,
-    ) -> Result<Vec<crate::services::admin::IdentityProviderResponse>, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn create_identity_provider(
-        &self,
-        _request: crate::services::admin::CreateIdentityProviderRequest,
-    ) -> Result<crate::services::admin::IdentityProviderResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn update_identity_provider(
-        &self,
-        _provider_id: &uuid::Uuid,
-        _request: crate::services::admin::UpdateIdentityProviderRequest,
-    ) -> Result<crate::services::admin::IdentityProviderResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn delete_identity_provider(&self, _provider_id: &uuid::Uuid) -> Result<(), String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn get_identity_provider(
-        &self,
-        _provider_id: &uuid::Uuid,
-    ) -> Result<crate::services::admin::IdentityProviderResponse, String> {
-        Err("Not implemented".to_string())
-    }
-
-    async fn test_identity_provider(
-        &self,
-        _provider_id: &uuid::Uuid,
-    ) -> Result<crate::services::admin::TestIdentityProviderResponse, String> {
-        Err("Not implemented".to_string())
-    }
-}
 
 /// Create SAML routes
 pub fn create_saml_routes() -> Router<Arc<Database>> {
@@ -335,7 +148,7 @@ pub async fn saml_acs(
     {
         Ok(user_info) => {
             // Create JIT provisioning service
-            let admin_service = Arc::new(MockAdminService::new(db.clone()));
+            let admin_service = Arc::new(JitAdminService::new(db.clone()));
             let jit_service = Arc::new(DefaultJITProvisioningService::new(
                 db.clone(),
                 admin_service,

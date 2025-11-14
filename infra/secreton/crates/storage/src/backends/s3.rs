@@ -128,7 +128,10 @@ impl S3Backend {
         // Verify bucket exists and is accessible
         backend.verify_bucket().await?;
 
-        info!("S3 storage backend initialized for bucket: {}", config.bucket);
+        info!(
+            "S3 storage backend initialized for bucket: {}",
+            config.bucket
+        );
         Ok(backend)
     }
 
@@ -240,7 +243,9 @@ impl KvBackend for S3Backend {
             response_time_ms: 0.0,
             connections_active: 0,
             connections_idle: 0,
-            last_error: Some("S3 backend not implemented - requires aws-sdk-s3 dependency".to_string()),
+            last_error: Some(
+                "S3 backend not implemented - requires aws-sdk-s3 dependency".to_string(),
+            ),
             uptime_seconds: 0,
         })
     }

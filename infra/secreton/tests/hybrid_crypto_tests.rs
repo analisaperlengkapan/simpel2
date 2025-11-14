@@ -11,8 +11,8 @@
 //! All tests use actual cryptographic implementations - no mocks.
 
 use secreton_crypto::{
-    CryptoMode, HybridCrypto, HybridEncryptedData, HybridSignatureData, MigrationPhase,
-    MigrationStrategy, PerformancePriority, SecurityRequirements,
+    CryptoMode, HybridCrypto, HybridSignatureData, MigrationPhase, MigrationStrategy,
+    PerformancePriority, SecurityRequirements,
 };
 
 #[test]

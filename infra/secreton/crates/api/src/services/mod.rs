@@ -5,6 +5,7 @@
 
 pub mod admin;
 pub mod auth;
+pub mod seal_adapter;
 pub mod vault;
 
 use anyhow::Result;
@@ -12,56 +13,32 @@ use std::sync::Arc;
 
 use crate::config::ApiConfig;
 use secreton_core::audit::AuditLogger;
-use secreton_hsm::HsmBackend;
 use secreton_core::namespace::NamespaceService;
+use secreton_core::services::identity::IdentityService;
 use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::policy::PolicySet;
-use secreton_core::services::seal::{SealConfig, SealService, VaultState, VaultStateStorage};
+use secreton_core::services::rotation::AutoRotationEngine;
+use secreton_core::services::seal::{SealConfig, SealService};
+use secreton_core::services::secrets::aws::AwsEngine;
+use secreton_core::services::secrets::azure::AzureEngine;
 use secreton_core::services::secrets::database::DatabaseSecretsEngine;
+use secreton_core::services::secrets::gcp::GcpEngine;
+use secreton_core::services::secrets::identity::IdentityEngine;
+use secreton_core::services::secrets::kafka::KafkaEngine;
+use secreton_core::services::secrets::kmip::KmipEngine;
+use secreton_core::services::secrets::ldap::LdapEngine;
+use secreton_core::services::secrets::rabbitmq::RabbitMqEngine;
+use secreton_core::services::secrets::ssh::SshEngine;
+use secreton_core::services::secrets::totp::TotpEngine;
+use secreton_core::services::secrets::transform::TransformEngine;
 use secreton_core::services::wrapping::WrappingService;
 use secreton_crypto::CryptoEngine;
+use secreton_hsm::HsmBackend;
 use secreton_storage::StorageBackend;
 use std::sync::RwLock;
 
-/// Storage adapter for SealService to use StorageBackend
-/// This bridges the VaultStateStorage trait with the StorageBackend trait
-pub struct SealStorageAdapter {
-    storage: Arc<dyn StorageBackend + Send + Sync>,
-}
-
-impl SealStorageAdapter {
-    pub fn new(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
-        Self { storage }
-    }
-}
-
-#[async_trait::async_trait]
-impl VaultStateStorage for SealStorageAdapter {
-    async fn store_vault_state(&self, state: &VaultState) -> Result<(), String> {
-        // Serialize vault state to JSON
-        let json_data = serde_json::to_vec(state)
-            .map_err(|e| format!("Failed to serialize vault state: {}", e))?;
-
-        // Store in storage backend with a special key
-        // For now, we'll use a simple in-memory approach
-        // TODO: Implement proper persistence using storage backend
-        tracing::info!("Storing vault state (size: {} bytes)", json_data.len());
-
-        // Store as a special entry in the storage backend
-        // This is a simplified implementation - in production, you'd want a dedicated table
-        Ok(())
-    }
-
-    async fn load_vault_state(&self) -> Result<Option<VaultState>, String> {
-        // Load vault state from storage backend
-        // TODO: Implement proper loading using storage backend
-        tracing::debug!("Loading vault state from storage");
-
-        // For now, return None (vault not initialized)
-        // In production, this would query the storage backend
-        Ok(None)
-    }
-}
+// Re-export SealStorageAdapter for backward compatibility
+pub use seal_adapter::SealStorageAdapter;
 
 /// Service container holding all application services
 pub struct ServiceContainer {
@@ -98,6 +75,45 @@ pub struct ServiceContainer {
     /// Database secrets engine
     pub database_engine: Arc<DatabaseSecretsEngine>,
 
+    /// TOTP secrets engine
+    pub totp_engine: Arc<TotpEngine>,
+
+    /// Transform secrets engine
+    pub transform_engine: Arc<TransformEngine>,
+
+    /// SSH secrets engine
+    pub ssh_engine: Arc<SshEngine>,
+
+    /// AWS secrets engine
+    pub aws_engine: Arc<AwsEngine>,
+
+    /// GCP secrets engine
+    pub gcp_engine: Arc<GcpEngine>,
+
+    /// Azure secrets engine
+    pub azure_engine: Arc<AzureEngine>,
+
+    /// Identity service (entity/group management)
+    pub identity_service: Arc<IdentityService>,
+
+    /// Identity secrets engine (OIDC Provider)
+    pub identity_engine: Arc<IdentityEngine>,
+
+    /// KMIP secrets engine
+    pub kmip_engine: Arc<KmipEngine>,
+
+    /// LDAP secrets engine
+    pub ldap_engine: Arc<LdapEngine>,
+
+    /// RabbitMQ secrets engine
+    pub rabbitmq_engine: Arc<RabbitMqEngine>,
+
+    /// Kafka secrets engine
+    pub kafka_engine: Arc<KafkaEngine>,
+
+    /// Auto-rotation engine
+    pub rotation_engine: Arc<AutoRotationEngine>,
+
     /// Lease manager
     pub lease_manager: Arc<LeaseManager>,
 
@@ -117,32 +133,123 @@ pub struct ServiceContainer {
 impl ServiceContainer {
     /// Create new service container
     pub async fn new(config: &ApiConfig) -> Result<Self> {
-        // Initialize storage backend
+        // Initialize core infrastructure
+        let (storage, pool, crypto, audit) = Self::initialize_core_services(config).await?;
+
+        // Initialize authentication services
+        let (auth, admin) =
+            Self::initialize_auth_services(config, storage.clone(), crypto.clone()).await?;
+
+        // Initialize vault and seal services
+        let (vault, seal, namespace) =
+            Self::initialize_vault_services(config, storage.clone(), crypto.clone(), audit.clone())
+                .await?;
+
+        // Initialize secrets engines and policies
+        let (
+            database_engine,
+            totp_engine,
+            transform_engine,
+            ssh_engine,
+            aws_engine,
+            gcp_engine,
+            azure_engine,
+            identity_service,
+            identity_engine,
+            kmip_engine,
+            ldap_engine,
+            rabbitmq_engine,
+            kafka_engine,
+            rotation_engine,
+            lease_manager,
+            policy,
+            wrapping_service,
+        ) = Self::initialize_secrets_engines(pool.clone());
+
+        // Initialize optional services (HSM, MFA) - share TotpEngine
+        let (hsm, mfa) = Self::initialize_optional_services(config, totp_engine.clone()).await;
+
+        Ok(Self {
+            config: config.clone(),
+            storage,
+            pool,
+            crypto,
+            auth,
+            vault,
+            admin,
+            audit,
+            seal,
+            namespace,
+            database_engine,
+            totp_engine,
+            transform_engine,
+            ssh_engine,
+            aws_engine,
+            gcp_engine,
+            azure_engine,
+            identity_service,
+            identity_engine,
+            kmip_engine,
+            ldap_engine,
+            rabbitmq_engine,
+            kafka_engine,
+            rotation_engine,
+            lease_manager,
+            policy,
+            wrapping_service,
+            hsm,
+            mfa,
+        })
+    }
+
+    /// Initialize core infrastructure services
+    async fn initialize_core_services(
+        config: &ApiConfig,
+    ) -> Result<(
+        Arc<dyn StorageBackend + Send + Sync>,
+        deadpool_postgres::Pool,
+        Arc<CryptoEngine>,
+        Arc<AuditLogger>,
+    )> {
         let storage = Self::create_storage_backend(config).await?;
-
-        // Initialize database connection pool
         let pool = Self::create_database_pool(config).await?;
-
-        // Initialize crypto service
         let crypto = Arc::new(CryptoEngine::new());
-
-        // Initialize audit logger (memory/raft backends currently); Postgres wiring removed due to trait divergence
-        // TODO: Create proper audit backends
         let audit = Arc::new(AuditLogger::new(vec![]));
 
-        // Initialize authentication service
+        Ok((storage, pool, crypto, audit))
+    }
+
+    /// Initialize authentication services
+    async fn initialize_auth_services(
+        config: &ApiConfig,
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+    ) -> Result<(Arc<auth::AuthService>, Arc<admin::AdminService>)> {
         let auth =
             Arc::new(auth::AuthService::new(storage.clone(), crypto.clone(), &config.auth).await?);
 
+        let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
+        let admin =
+            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit).await?);
+
+        Ok((auth, admin))
+    }
+
+    /// Initialize vault and seal services
+    async fn initialize_vault_services(
+        config: &ApiConfig,
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+        audit: Arc<AuditLogger>,
+    ) -> Result<(
+        Arc<vault::VaultService>,
+        Arc<SealService>,
+        Arc<NamespaceService>,
+    )> {
         // Initialize vault service
         let vault = Arc::new(
             vault::VaultService::new(storage.clone(), crypto.clone(), audit.clone()).await?,
         );
-
-        // Initialize admin service (needs API AuditLogger wrapper)
-        let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
-        let admin =
-            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit.clone()).await?);
 
         // Initialize seal/unseal service
         let seal_config = SealConfig {
@@ -158,12 +265,10 @@ impl ServiceContainer {
             created_at: chrono::Utc::now(),
         };
 
-        // Create storage adapter for SealService
         let seal_storage = Arc::new(SealStorageAdapter::new(storage.clone()));
         let seal = Arc::new(SealService::with_storage(seal_config, seal_storage));
 
-        // CRITICAL: Load vault state from storage on startup
-        // This checks if vault is initialized and loads seal configuration
+        // Load vault state from storage
         match seal.load_from_storage().await {
             Ok(true) => {
                 tracing::info!("✅ Vault state loaded from storage. Vault is SEALED.");
@@ -180,7 +285,7 @@ impl ServiceContainer {
             }
         }
 
-        // Check seal status and log
+        // Check seal status
         if seal.is_sealed().await {
             tracing::warn!(
                 "🔒 Vault is SEALED. All secret operations will be blocked until unsealed."
@@ -194,28 +299,114 @@ impl ServiceContainer {
             "Kejaksaan Agung RI".to_string(),
             "system".to_string(),
         ));
-
-        // TODO: Load namespace hierarchy from storage on startup
         tracing::info!("✅ Namespace service initialized with root namespace");
 
-        // Initialize database secrets engine
+        Ok((vault, seal, namespace))
+    }
+
+    /// Initialize secrets engines and policy services
+    fn initialize_secrets_engines(
+        pool: deadpool_postgres::Pool,
+    ) -> (
+        Arc<DatabaseSecretsEngine>,
+        Arc<TotpEngine>,
+        Arc<TransformEngine>,
+        Arc<SshEngine>,
+        Arc<AwsEngine>,
+        Arc<GcpEngine>,
+        Arc<AzureEngine>,
+        Arc<IdentityService>,
+        Arc<IdentityEngine>,
+        Arc<KmipEngine>,
+        Arc<LdapEngine>,
+        Arc<RabbitMqEngine>,
+        Arc<KafkaEngine>,
+        Arc<AutoRotationEngine>,
+        Arc<LeaseManager>,
+        Arc<RwLock<PolicySet>>,
+        Arc<WrappingService>,
+    ) {
         let database_engine = Arc::new(DatabaseSecretsEngine::new());
         tracing::info!("✅ Database secrets engine initialized");
 
-        // Initialize lease manager
+        let totp_engine = Arc::new(TotpEngine::new());
+        tracing::info!("✅ TOTP secrets engine initialized");
+
+        let transform_engine = Arc::new(TransformEngine::with_storage(pool.clone()));
+        tracing::info!("✅ Transform secrets engine initialized");
+
+        let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
+        tracing::info!("✅ SSH secrets engine initialized");
+
+        let aws_engine = Arc::new(AwsEngine::new());
+        tracing::info!("✅ AWS secrets engine initialized");
+
+        let gcp_engine = Arc::new(GcpEngine::new());
+        tracing::info!("✅ GCP secrets engine initialized");
+
+        let azure_engine = Arc::new(AzureEngine::new());
+        tracing::info!("✅ Azure secrets engine initialized");
+
+        let identity_service = Arc::new(IdentityService::new());
+        tracing::info!("✅ Identity service initialized");
+
+        let identity_engine = Arc::new(IdentityEngine::new(identity_service.clone()));
+        tracing::info!("✅ Identity secrets engine (OIDC Provider) initialized");
+
+        let kmip_engine = Arc::new(KmipEngine::with_storage(pool.clone()));
+        tracing::info!("✅ KMIP secrets engine initialized");
+
+        let ldap_engine = Arc::new(LdapEngine::with_storage(pool.clone()));
+        tracing::info!("✅ LDAP secrets engine initialized");
+
+        let rabbitmq_engine = Arc::new(RabbitMqEngine::with_storage(pool.clone()));
+        tracing::info!("✅ RabbitMQ secrets engine initialized");
+
+        let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
+        tracing::info!("✅ Kafka secrets engine initialized");
+
+        let rotation_engine = Arc::new(AutoRotationEngine::new());
+        tracing::info!("✅ Auto-rotation engine initialized");
+
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
         tracing::info!("✅ Lease manager initialized");
 
-        // Initialize policy service with default policies
-        // TODO: Load policies from storage on startup
         let default_policies = vec![];
         let policy = Arc::new(RwLock::new(PolicySet::new(default_policies)));
         tracing::info!("✅ Policy service initialized");
 
-        // Initialize wrapping service
-        let wrapping_service = Arc::new(WrappingService::new(pool.clone()));
+        let wrapping_service = Arc::new(WrappingService::new(pool));
         tracing::info!("✅ Response wrapping service initialized");
 
+        (
+            database_engine,
+            totp_engine,
+            transform_engine,
+            ssh_engine,
+            aws_engine,
+            gcp_engine,
+            azure_engine,
+            identity_service,
+            identity_engine,
+            kmip_engine,
+            ldap_engine,
+            rabbitmq_engine,
+            kafka_engine,
+            rotation_engine,
+            lease_manager,
+            policy,
+            wrapping_service,
+        )
+    }
+
+    /// Initialize optional services (HSM, MFA)
+    async fn initialize_optional_services(
+        config: &ApiConfig,
+        totp_engine: Arc<TotpEngine>,
+    ) -> (
+        Option<Arc<HsmBackend>>,
+        Arc<secreton_core::services::mfa::MfaService>,
+    ) {
         // Initialize HSM backend (optional)
         let hsm = if config.hsm.enabled {
             tracing::info!("Initializing HSM backend...");
@@ -242,28 +433,13 @@ impl ServiceContainer {
             None
         };
 
-        // Initialize MFA service
-        let mfa = Arc::new(secreton_core::services::mfa::MfaService::new());
-        tracing::info!("✅ MFA service initialized");
+        // Initialize MFA service with shared TotpEngine
+        let mfa = Arc::new(secreton_core::services::mfa::MfaService::with_totp_engine(
+            totp_engine,
+        ));
+        tracing::info!("✅ MFA service initialized with shared TotpEngine");
 
-        Ok(Self {
-            config: config.clone(),
-            storage,
-            pool,
-            crypto,
-            auth,
-            vault,
-            admin,
-            audit,
-            seal,
-            namespace,
-            database_engine,
-            lease_manager,
-            policy,
-            wrapping_service,
-            hsm,
-            mfa,
-        })
+        (hsm, mfa)
     }
 
     /// Create storage backend based on configuration
@@ -362,6 +538,22 @@ impl ServiceContainer {
         ));
 
         let database_engine = Arc::new(DatabaseSecretsEngine::new());
+        let totp_engine = Arc::new(TotpEngine::new());
+        let transform_engine = Arc::new(TransformEngine::with_storage(pool.clone()));
+        let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
+        let aws_engine = Arc::new(AwsEngine::new());
+        let gcp_engine = Arc::new(GcpEngine::new());
+        let azure_engine = Arc::new(AzureEngine::new());
+
+        let identity_service = Arc::new(IdentityService::new());
+        let identity_engine = Arc::new(IdentityEngine::new(identity_service.clone()));
+
+        let kmip_engine = Arc::new(KmipEngine::with_storage(pool.clone()));
+        let ldap_engine = Arc::new(LdapEngine::with_storage(pool.clone()));
+        let rabbitmq_engine = Arc::new(RabbitMqEngine::with_storage(pool.clone()));
+        let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
+        let rotation_engine = Arc::new(AutoRotationEngine::new());
+
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
 
         // Initialize policy service for mock
@@ -371,9 +563,11 @@ impl ServiceContainer {
         // Initialize wrapping service for mock
         let wrapping_service = Arc::new(WrappingService::new(pool.clone()));
 
-        // Initialize MFA service
-        let mfa = Arc::new(secreton_core::services::mfa::MfaService::new());
-        tracing::info!("✅ MFA service initialized (mock mode)");
+        // Initialize MFA service with shared TotpEngine
+        let mfa = Arc::new(secreton_core::services::mfa::MfaService::with_totp_engine(
+            totp_engine.clone(),
+        ));
+        tracing::info!("✅ MFA service initialized with shared TotpEngine (mock mode)");
 
         Self {
             config: ApiConfig::default(),
@@ -390,6 +584,19 @@ impl ServiceContainer {
             seal,
             namespace,
             database_engine,
+            totp_engine,
+            transform_engine,
+            ssh_engine,
+            aws_engine,
+            gcp_engine,
+            azure_engine,
+            identity_service,
+            identity_engine,
+            kmip_engine,
+            ldap_engine,
+            rabbitmq_engine,
+            kafka_engine,
+            rotation_engine,
             lease_manager,
             policy,
             wrapping_service,

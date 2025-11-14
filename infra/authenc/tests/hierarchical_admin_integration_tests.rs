@@ -25,6 +25,7 @@ use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for hierarchical admin operations
 #[cfg(test)]
+#[cfg(feature = "secreton_integration")]
 mod hierarchical_admin_tests {
     use super::*;
 

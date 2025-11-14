@@ -1125,5 +1125,7 @@ criterion_main!(benches);
 // Dummy main function when benchmarks are disabled
 #[cfg(not(feature = "performance-benchmarks"))]
 fn main() {
-    println!("Performance benchmarks are disabled. Enable with: cargo bench --features performance-benchmarks");
+    println!(
+        "Performance benchmarks are disabled. Enable with: cargo bench --features performance-benchmarks"
+    );
 }

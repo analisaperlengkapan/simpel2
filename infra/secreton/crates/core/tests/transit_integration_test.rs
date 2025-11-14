@@ -8,9 +8,7 @@
 #![cfg(feature = "transit-legacy-tests")]
 
 use base64::{Engine as _, engine::general_purpose};
-use secreton_core::services::secrets::transit::{
-    TransitEngine, CipherType, EncryptedData,
-};
+use secreton_core::services::secrets::transit::{CipherType, EncryptedData, TransitEngine};
 
 // For integration tests, create test storage inline
 async fn create_test_storage() -> std::sync::Arc<dyn secreton_core::storage::StorageEngine> {

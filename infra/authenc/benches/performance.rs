@@ -2,7 +2,8 @@
 //!
 //! This module contains comprehensive performance benchmarks for authenc functionality,
 //! focusing on the enhanced features for SIMKARI super app integration with secreton.
-
+//!
+#![cfg(feature = "secreton_integration")]
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use serde_json::json;
 use std::time::Duration;

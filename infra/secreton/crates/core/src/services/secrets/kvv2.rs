@@ -269,9 +269,10 @@ impl Kvv2Engine {
 
         for version_num in versions {
             if let Some(version) = secret.versions.get_mut(&version_num)
-                && !version.destroyed {
-                    version.undelete();
-                }
+                && !version.destroyed
+            {
+                version.undelete();
+            }
         }
 
         Ok(())

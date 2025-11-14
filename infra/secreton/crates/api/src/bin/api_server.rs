@@ -8,7 +8,8 @@ use secreton_api::grpc::server::SecretonGrpcService;
 use secreton_api::grpc::tls::GrpcTlsConfig;
 use secreton_api::services::ServiceContainer;
 use secreton_api::{
-    ApiState, KVApiState, KVEngine, TransitApiState, config::ApiConfig, create_api_router,
+    ApiState, KVApiState, KVEngine, PkiApiState, TransitApiState, config::ApiConfig,
+    create_api_router,
 };
 use secreton_crypto::transit::TransitEngine;
 
@@ -58,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             engine: Arc::clone(&transit_engine),
         },
         kv: KVApiState { engine: kv_engine },
+        pki: PkiApiState::default(),
         services: Arc::clone(&services),
     };
 

@@ -19,7 +19,7 @@ use uuid::Uuid;
 use x509_parser::prelude::*;
 
 use crate::ApiState;
-use crate::auth::{AuthError, AuthService, extract_bearer_token};
+use crate::auth::{AuthError, extract_bearer_token};
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
@@ -97,9 +97,7 @@ pub fn validate_client_certificate(
 ) -> CertificateValidation {
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
-        Ok((_, cert)) => {
-            validate_cached_certificate(&cert, allowed_subjects)
-        }
+        Ok((_, cert)) => validate_cached_certificate(&cert, allowed_subjects),
         Err(e) => {
             warn!("Failed to parse client certificate: {}", e);
             CertificateValidation {
@@ -133,7 +131,8 @@ fn validate_cached_certificate(
     let time_valid = true;
 
     // Check if subject is in allowed list
-    let subject_valid = allowed_subjects.is_empty() || allowed_subjects.iter().any(|s| subject.contains(s));
+    let subject_valid =
+        allowed_subjects.is_empty() || allowed_subjects.iter().any(|s| subject.contains(s));
 
     let valid = time_valid && subject_valid;
 
@@ -180,48 +179,46 @@ pub async fn mtls_auth_middleware(
     // TODO: Re-enable mTLS when TransitApiState has config field
     // Check if mTLS is configured and required
     if let Some(mtls_config) = None::<&crate::config::MtlsConfig>
-        && mtls_config.required {
-            // Extract client certificate from TLS connection
-            if let Some(client_cert_der) = extract_client_certificate_from_tls(&request) {
-                let start_time = std::time::Instant::now();
+        && mtls_config.required
+    {
+        // Extract client certificate from TLS connection
+        if let Some(client_cert_der) = extract_client_certificate_from_tls(&request) {
+            let start_time = std::time::Instant::now();
 
-                // Validate certificate
-                let validation = validate_client_certificate(
-                    &client_cert_der,
-                    None,
-                    &mtls_config.allowed_subjects,
+            // Validate certificate
+            let validation =
+                validate_client_certificate(&client_cert_der, None, &mtls_config.allowed_subjects);
+
+            let validation_time = start_time.elapsed().as_millis() as u64;
+
+            if validation.valid {
+                info!(
+                    "mTLS authentication successful for subject: {:?} (validation: {}ms)",
+                    validation.subject, validation_time
                 );
 
-                let validation_time = start_time.elapsed().as_millis() as u64;
+                // Record successful authentication metrics
+                // TODO: Re-enable when tls_optimization is updated
+                // record_tls_handshake(true, false, validation_time);
 
-                if validation.valid {
-                    info!(
-                        "mTLS authentication successful for subject: {:?} (validation: {}ms)",
-                        validation.subject, validation_time
-                    );
+                // Add certificate info to request extensions
+                request.extensions_mut().insert(validation);
 
-                    // Record successful authentication metrics
-                    // TODO: Re-enable when tls_optimization is updated
-                    // record_tls_handshake(true, false, validation_time);
-
-                    // Add certificate info to request extensions
-                    request.extensions_mut().insert(validation);
-
-                    return Ok(next.run(request).await);
-                } else {
-                    warn!(
-                        "mTLS authentication failed for subject: {:?} (validation: {}ms)",
-                        validation.subject, validation_time
-                    );
-                    // record_tls_handshake(false, false, validation_time);
-                    return Err(AuthError::InvalidCredentials);
-                }
+                return Ok(next.run(request).await);
             } else {
-                warn!("mTLS required but no client certificate provided");
-                // record_tls_handshake(false, false, 0);
-                return Err(AuthError::MissingCredentials);
+                warn!(
+                    "mTLS authentication failed for subject: {:?} (validation: {}ms)",
+                    validation.subject, validation_time
+                );
+                // record_tls_handshake(false, false, validation_time);
+                return Err(AuthError::InvalidCredentials);
             }
+        } else {
+            warn!("mTLS required but no client certificate provided");
+            // record_tls_handshake(false, false, 0);
+            return Err(AuthError::MissingCredentials);
         }
+    }
 
     // mTLS not required or not configured, proceed with regular authentication
     Ok(next.run(request).await)
@@ -339,8 +336,8 @@ pub async fn auth_middleware(
     let token = extract_bearer_token(auth_header).ok_or(AuthError::InvalidAuthHeader)?;
 
     // Create auth service (in real implementation, this would be injected)
-    let auth_config = crate::auth::AuthConfig::default();
-    let auth_service = AuthService::new(auth_config);
+    let auth_config = crate::auth::JwtAuthConfig::default();
+    let auth_service = crate::auth::JwtService::new(auth_config);
 
     // Validate token
     let token_data = auth_service.validate_token(&token)?;
@@ -396,17 +393,18 @@ pub async fn rate_limit(
     {
         if let Ok(mut limiter_guard) = RATE_LIMITER.lock()
             && let Some(ref mut limiter) = *limiter_guard
-                && !limiter.check_rate_limit(client_ip) {
-                    warn!("Rate limit exceeded for client: {}", client_ip);
-                    return Err((
-                        StatusCode::TOO_MANY_REQUESTS,
-                        Json(serde_json::json!({
-                            "error": "Rate limit exceeded",
-                            "status": 429,
-                            "retry_after": 60
-                        })),
-                    ));
-                }
+            && !limiter.check_rate_limit(client_ip)
+        {
+            warn!("Rate limit exceeded for client: {}", client_ip);
+            return Err((
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": "Rate limit exceeded",
+                    "status": 429,
+                    "retry_after": 60
+                })),
+            ));
+        }
     } // Guard is dropped here
 
     Ok(next.run(request).await)
@@ -484,17 +482,18 @@ pub async fn request_size_limit(
     // Check content-length header
     if let Some(content_length) = request.headers().get("content-length")
         && let Ok(length_str) = content_length.to_str()
-            && let Ok(length) = length_str.parse::<usize>()
-                && length > MAX_REQUEST_SIZE {
-                    return Err((
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        Json(serde_json::json!({
-                            "error": "Request too large",
-                            "max_size": MAX_REQUEST_SIZE,
-                            "actual_size": length
-                        })),
-                    ));
-                }
+        && let Ok(length) = length_str.parse::<usize>()
+        && length > MAX_REQUEST_SIZE
+    {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(serde_json::json!({
+                "error": "Request too large",
+                "max_size": MAX_REQUEST_SIZE,
+                "actual_size": length
+            })),
+        ));
+    }
 
     Ok(next.run(request).await)
 }

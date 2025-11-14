@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::services::auth::AuthService;
 use crate::audit::AuditLogger;
+use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
 use secreton_storage::StorageBackend;
 
@@ -114,7 +114,7 @@ impl AdminService {
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
-            cache_hit_rate: 0.0, // TODO: Implement cache hit rate tracking
+            cache_hit_rate: 0.0,      // TODO: Implement cache hit rate tracking
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
         })
     }
@@ -149,7 +149,10 @@ impl AdminService {
                 metadata.insert("version".to_string(), "1.0.0".to_string());
                 metadata.insert("type".to_string(), "full".to_string());
                 metadata.insert("backend".to_string(), storage_stats.backend_type);
-                metadata.insert("entries_count".to_string(), storage_stats.total_entries.to_string());
+                metadata.insert(
+                    "entries_count".to_string(),
+                    storage_stats.total_entries.to_string(),
+                );
                 metadata
             },
         })
@@ -183,7 +186,8 @@ impl AdminService {
 
         let duration = start_time.elapsed();
         Err(AdminError::NotPermitted(
-            "Backup restoration not yet implemented - persistent backup storage required".to_string()
+            "Backup restoration not yet implemented - persistent backup storage required"
+                .to_string(),
         ))
     }
 
@@ -309,13 +313,15 @@ impl AdminService {
             .filter(|event| {
                 // Filter by time range
                 if let Some(start) = start_time
-                    && event.timestamp < start {
-                        return false;
-                    }
+                    && event.timestamp < start
+                {
+                    return false;
+                }
                 if let Some(end) = end_time
-                    && event.timestamp > end {
-                        return false;
-                    }
+                    && event.timestamp > end
+                {
+                    return false;
+                }
                 // Filter by action
                 if let Some(action_filter) = action {
                     let event_action = format!("{:?}", event.event_type);
@@ -332,7 +338,10 @@ impl AdminService {
                 action: format!("{:?}", event.event_type),
                 resource: event.realm.clone().unwrap_or_else(|| "unknown".to_string()),
                 resource_id: event.secret_key.clone(),
-                ip_address: event.client_ip.clone().unwrap_or_else(|| "0.0.0.0".to_string()),
+                ip_address: event
+                    .client_ip
+                    .clone()
+                    .unwrap_or_else(|| "0.0.0.0".to_string()),
                 user_agent: "unknown".to_string(), // AuditEvent doesn't have user_agent field
                 success: event.success,
                 details: event.error.map(|e| {
@@ -355,17 +364,20 @@ impl AdminService {
         end_time: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<String, AdminError> {
         // Get audit logs with time filtering
-        let logs = self.get_audit_logs(start_time, end_time, None, None, Some(10000)).await?;
+        let logs = self
+            .get_audit_logs(start_time, end_time, None, None, Some(10000))
+            .await?;
 
         // Export based on format
         match format.to_lowercase().as_str() {
-            "json" => {
-                serde_json::to_string_pretty(&logs)
-                    .map_err(|e| AdminError::Internal(anyhow::anyhow!("JSON serialization failed: {}", e)))
-            }
+            "json" => serde_json::to_string_pretty(&logs).map_err(|e| {
+                AdminError::Internal(anyhow::anyhow!("JSON serialization failed: {}", e))
+            }),
             "csv" => {
                 // Simple CSV export
-                let mut csv = String::from("ID,Timestamp,User ID,Action,Resource,Resource ID,IP Address,User Agent,Success\n");
+                let mut csv = String::from(
+                    "ID,Timestamp,User ID,Action,Resource,Resource ID,IP Address,User Agent,Success\n",
+                );
                 for log in logs {
                     csv.push_str(&format!(
                         "{},{},{},{},{},{},{},{},{}\n",
@@ -385,7 +397,7 @@ impl AdminService {
             _ => Err(AdminError::InvalidConfig(format!(
                 "Unsupported export format: {}. Supported formats: json, csv",
                 format
-            )))
+            ))),
         }
     }
 
@@ -411,7 +423,9 @@ impl AdminService {
         // Check 2: Storage backend health
         match self.storage.health_check().await {
             Ok(health) if !health.is_healthy => {
-                let error_msg = health.last_error.unwrap_or_else(|| "Unknown error".to_string());
+                let error_msg = health
+                    .last_error
+                    .unwrap_or_else(|| "Unknown error".to_string());
                 findings.push(SecurityFinding {
                     severity: "critical".to_string(),
                     category: "storage".to_string(),
@@ -427,7 +441,8 @@ impl AdminService {
                     category: "storage".to_string(),
                     title: "Storage backend unreachable".to_string(),
                     description: format!("Failed to perform health check: {}", e),
-                    recommendation: "Verify storage backend connectivity and configuration".to_string(),
+                    recommendation: "Verify storage backend connectivity and configuration"
+                        .to_string(),
                     affected_resources: vec!["storage_backend".to_string()],
                 });
             }
@@ -524,8 +539,8 @@ pub struct SecurityFinding {
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
-    use crate::config::AuthConfig;
     use crate::audit::AuditLogger;
+    use crate::config::AuthConfig;
     use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 

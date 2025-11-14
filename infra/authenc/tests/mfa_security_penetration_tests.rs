@@ -519,16 +519,16 @@ mod penetration_tests {
 
         println!("=== Input Validation Security Testing ===");
 
-        let malicious_inputs = vec![
-            ("", "Empty code"),
-            ("a", "Non-numeric code"),
-            ("123", "Short code"),
-            ("1234567890", "Long code"),
-            ("../../../etc/passwd", "Path traversal"),
-            ("<script>alert('xss')</script>", "XSS attempt"),
-            ("'; DROP TABLE users; --", "SQL injection"),
-            ("\\x00\\x01\\x02", "Binary data"),
-            ("🔥💯🚀", "Unicode/emoji"),
+        let malicious_inputs: Vec<(String, &str)> = vec![
+            ("".to_string(), "Empty code"),
+            ("a".to_string(), "Non-numeric code"),
+            ("123".to_string(), "Short code"),
+            ("1234567890".to_string(), "Long code"),
+            ("../../../etc/passwd".to_string(), "Path traversal"),
+            ("<script>alert('xss')</script>".to_string(), "XSS attempt"),
+            ("'; DROP TABLE users; --".to_string(), "SQL injection"),
+            ("\\x00\\x01\\x02".to_string(), "Binary data"),
+            ("🔥💯🚀".to_string(), "Unicode/emoji"),
             ("A".repeat(10000), "Buffer overflow attempt"),
         ];
 

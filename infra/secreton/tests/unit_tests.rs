@@ -1,6 +1,6 @@
 //! Unit tests for Secreton Enterprise Vault core components
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;

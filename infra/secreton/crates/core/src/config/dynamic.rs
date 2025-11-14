@@ -40,8 +40,7 @@ impl Default for LoadMetrics {
 }
 
 /// Security threat levels for adaptive security posture
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ThreatLevel {
     /// Normal operations - standard security measures
     #[default]
@@ -54,10 +53,8 @@ pub enum ThreatLevel {
     Critical,
 }
 
-
 /// Cryptographic modes for post-quantum transition
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CryptoMode {
     /// Classical cryptography (AES-256-GCM, Ed25519)
     #[default]
@@ -68,10 +65,8 @@ pub enum CryptoMode {
     PostQuantum,
 }
 
-
 /// Performance profiles for different operational modes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PerformanceProfile {
     /// Optimized for low latency secret retrieval
     LowLatency,
@@ -83,7 +78,6 @@ pub enum PerformanceProfile {
     /// Maximum security, performance secondary
     MaxSecurity,
 }
-
 
 /// Cache configuration with adaptive TTL for secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -356,7 +350,7 @@ impl DynamicConfig {
     }
 
     /// Get optimal batch size based on current configuration
-    pub fn get_optimal_batch_size(&self, operation_type: &str) -> usize {
+    pub fn get_optimal_batch_size(&self, _operation_type: &str) -> usize {
         let base_size = self.storage.batch_size as usize;
 
         match self.performance_profile {
@@ -493,15 +487,13 @@ impl PerformanceProfiler {
             *count += 1;
         }
 
-        if is_error
-            && let Ok(mut count) = self.error_count.write() {
-                *count += 1;
-            }
+        if is_error && let Ok(mut count) = self.error_count.write() {
+            *count += 1;
+        }
 
-        if is_storage_op
-            && let Ok(mut count) = self.storage_operations.write() {
-                *count += 1;
-            }
+        if is_storage_op && let Ok(mut count) = self.storage_operations.write() {
+            *count += 1;
+        }
 
         if let Ok(mut times) = self.operation_times.write() {
             times.push(operation_time_ms);
@@ -612,13 +604,10 @@ impl PerformanceProfiler {
             Some((total, idle))
         };
 
-        if let (Some((total1, idle1)), Some((total2, idle2))) = (
-            read_cpu_stats(),
-            {
-                thread::sleep(Duration::from_millis(100));
-                read_cpu_stats()
-            },
-        ) {
+        if let (Some((total1, idle1)), Some((total2, idle2))) = (read_cpu_stats(), {
+            thread::sleep(Duration::from_millis(100));
+            read_cpu_stats()
+        }) {
             let total_diff = total2.saturating_sub(total1) as f64;
             let idle_diff = idle2.saturating_sub(idle1) as f64;
 

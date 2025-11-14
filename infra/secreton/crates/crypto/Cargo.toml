@@ -70,6 +70,9 @@ async-trait.workspace = true
 # Compression
 flate2.workspace = true
 
+# Format-Preserving Encryption
+fpe.workspace = true
+
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true

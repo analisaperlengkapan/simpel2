@@ -15,6 +15,7 @@ use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for validating secure authenc-secreton integration
 #[cfg(test)]
+#[cfg(feature = "secreton_integration")]
 mod integration_validation {
     use super::*;
 

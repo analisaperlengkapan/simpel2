@@ -49,6 +49,12 @@ pub use captcha::create_captcha_routes;
 /// Client management API handlers for OAuth2/OIDC clients
 pub mod client;
 pub use client::create_client_routes;
+/// Client scope management API handlers for OAuth2/OIDC scope definitions and consent
+pub mod client_scopes;
+pub use client_scopes::routes as create_client_scope_routes;
+/// Service account management API handlers for machine-to-machine authentication
+pub mod service_account;
+pub use service_account::create_service_account_routes;
 /// Event querying API handlers for audit logs
 pub mod events;
 pub use events::create_event_routes;

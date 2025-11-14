@@ -96,11 +96,9 @@ impl FileBackend {
         {
             use std::os::unix::fs::PermissionsExt;
             let perms = fs::Permissions::from_mode(config.dir_permissions);
-            fs::set_permissions(&config.path, perms).map_err(|e| {
-                StorageError::BackendError {
-                    backend: "file".to_string(),
-                    message: format!("Failed to set directory permissions: {}", e),
-                }
+            fs::set_permissions(&config.path, perms).map_err(|e| StorageError::BackendError {
+                backend: "file".to_string(),
+                message: format!("Failed to set directory permissions: {}", e),
             })?;
         }
 
@@ -150,10 +148,11 @@ impl FileBackend {
                 message: format!("Failed to open file for writing: {}", e),
             })?;
 
-        file.write_all(data).map_err(|e| StorageError::BackendError {
-            backend: "file".to_string(),
-            message: format!("Failed to write data: {}", e),
-        })?;
+        file.write_all(data)
+            .map_err(|e| StorageError::BackendError {
+                backend: "file".to_string(),
+                message: format!("Failed to write data: {}", e),
+            })?;
 
         if self.config.sync_writes {
             file.sync_all().map_err(|e| StorageError::BackendError {
@@ -191,12 +190,11 @@ impl KvBackend for FileBackend {
         })?;
 
         let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).map_err(|e| {
-            StorageError::BackendError {
+        file.read_to_end(&mut buffer)
+            .map_err(|e| StorageError::BackendError {
                 backend: "file".to_string(),
                 message: format!("Failed to read file: {}", e),
-            }
-        })?;
+            })?;
 
         let mut metrics = self.metrics.write().await;
         metrics.reads += 1;
@@ -242,11 +240,7 @@ impl KvBackend for FileBackend {
             return Ok(keys);
         }
 
-        fn visit_dirs(
-            dir: &Path,
-            base: &Path,
-            keys: &mut Vec<String>,
-        ) -> std::io::Result<()> {
+        fn visit_dirs(dir: &Path, base: &Path, keys: &mut Vec<String>) -> std::io::Result<()> {
             if dir.is_dir() {
                 for entry in fs::read_dir(dir)? {
                     let entry = entry?;
@@ -266,11 +260,9 @@ impl KvBackend for FileBackend {
             Ok(())
         }
 
-        visit_dirs(&prefix_path, base_path, &mut keys).map_err(|e| {
-            StorageError::BackendError {
-                backend: "file".to_string(),
-                message: format!("Failed to list directory: {}", e),
-            }
+        visit_dirs(&prefix_path, base_path, &mut keys).map_err(|e| StorageError::BackendError {
+            backend: "file".to_string(),
+            message: format!("Failed to list directory: {}", e),
         })?;
 
         Ok(keys)
@@ -287,23 +279,30 @@ impl KvBackend for FileBackend {
 
     async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
         use std::time::Instant;
-        
+
         let start = Instant::now();
-        
+
         // Check if base directory exists and is writable
-        let is_healthy = self.config.path.exists() 
+        let is_healthy = self.config.path.exists()
             && self.config.path.is_dir()
-            && self.config.path.metadata().map(|m| !m.permissions().readonly()).unwrap_or(false);
-        
+            && self
+                .config
+                .path
+                .metadata()
+                .map(|m| !m.permissions().readonly())
+                .unwrap_or(false);
+
         let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
-        
+
         Ok(crate::HealthStatus {
             is_healthy,
             response_time_ms,
             connections_active: 0, // File backend doesn't use connections
             connections_idle: 0,
-            last_error: if is_healthy { None } else { 
-                Some("Base directory not accessible".to_string()) 
+            last_error: if is_healthy {
+                None
+            } else {
+                Some("Base directory not accessible".to_string())
             },
             uptime_seconds: 0, // Not tracked for file backend
         })

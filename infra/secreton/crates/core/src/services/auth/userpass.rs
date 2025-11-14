@@ -149,9 +149,10 @@ impl UserPassUser {
         }
 
         if let Some(expires_at) = self.password_expires_at
-            && Utc::now() > expires_at {
-                return Err(UserPassError::PasswordExpired);
-            }
+            && Utc::now() > expires_at
+        {
+            return Err(UserPassError::PasswordExpired);
+        }
 
         Ok(())
     }

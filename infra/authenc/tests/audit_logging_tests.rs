@@ -4,7 +4,7 @@
 use axum::{
     Router,
     extract::{Json, State},
-    http::{StatusCode, header::HeaderMap},
+    http::StatusCode,
     routing::{get, post},
 };
 use axum_test::TestServer;

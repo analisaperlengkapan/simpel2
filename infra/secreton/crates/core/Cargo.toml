@@ -41,6 +41,27 @@ x509-parser.workspace = true
 aes-gcm.workspace = true
 sha2.workspace = true
 zeroize.workspace = true
+hmac.workspace = true
+
+# TOTP/OTP support
+totp-lite.workspace = true
+data-encoding.workspace = true
+
+# SSH key generation and certificate signing
+ssh-key.workspace = true
+ssh-encoding.workspace = true
+
+# AWS SDK for secrets engine
+aws-config.workspace = true
+aws-sdk-iam.workspace = true
+aws-sdk-sts.workspace = true
+aws-types.workspace = true
+aws-credential-types.workspace = true
+
+# PKI dependencies
+rcgen.workspace = true
+pem.workspace = true
+der-parser.workspace = true
 
 # Utilities
 config.workspace = true
@@ -59,6 +80,7 @@ ipnetwork.workspace = true
 url.workspace = true
 
 # Internal crates
+secreton-types.workspace = true
 secreton-crypto.workspace = true
 secreton-storage.workspace = true
 

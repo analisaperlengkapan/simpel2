@@ -18,13 +18,20 @@ async fn test_government_security_levels() -> Result<()> {
         SecurityLevel::TopSecret,    // SANGAT RAHASIA - Top Secret
     ];
 
-    assert_eq!(classifications.len(), 5, "Must support all 5 government security levels");
+    assert_eq!(
+        classifications.len(),
+        5,
+        "Must support all 5 government security levels"
+    );
 
     // Verify each level can be serialized/deserialized
     for level in classifications {
         let serialized = serde_json::to_string(&level)?;
         let deserialized: SecurityLevel = serde_json::from_str(&serialized)?;
-        assert_eq!(level, deserialized, "Security level must round-trip correctly");
+        assert_eq!(
+            level, deserialized,
+            "Security level must round-trip correctly"
+        );
     }
 
     Ok(())

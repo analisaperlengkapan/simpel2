@@ -5,9 +5,7 @@
 
 use crate::audit::{AuditLog, AuditLogger, AuditStatus};
 use crate::error::CoreError;
-use crate::namespace::{
-    JwtClaims, NamespaceAccessControl, NamespaceHierarchy, NamespacePath,
-};
+use crate::namespace::{JwtClaims, NamespaceAccessControl, NamespaceHierarchy, NamespacePath};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -80,23 +78,24 @@ impl NamespaceValidator {
 
         // Check if namespace quota is exceeded
         if let Some(namespace) = namespace_path.get_namespace(&self.hierarchy)
-            && namespace.is_quota_exceeded() {
-                self.log_audit(
-                    claims,
-                    "write",
-                    path,
-                    &namespace_path.namespace_id,
-                    AuditStatus::Denied,
-                    client_ip,
-                    Some("Namespace quota exceeded".to_string()),
-                )
-                .await;
+            && namespace.is_quota_exceeded()
+        {
+            self.log_audit(
+                claims,
+                "write",
+                path,
+                &namespace_path.namespace_id,
+                AuditStatus::Denied,
+                client_ip,
+                Some("Namespace quota exceeded".to_string()),
+            )
+            .await;
 
-                return Err(CoreError::quota_exceeded(format!(
-                    "Namespace {} has exceeded its quota",
-                    namespace_path.namespace_id
-                )));
-            }
+            return Err(CoreError::quota_exceeded(format!(
+                "Namespace {} has exceeded its quota",
+                namespace_path.namespace_id
+            )));
+        }
 
         Ok(namespace_path)
     }

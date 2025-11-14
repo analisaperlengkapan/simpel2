@@ -400,9 +400,10 @@ impl LeaseManager {
 
         // Check max renewals
         if let Some(max_renewals) = lease.max_renewals
-            && lease.renew_count >= max_renewals {
-                return Err(LeaseError::RenewalNotAllowed);
-            }
+            && lease.renew_count >= max_renewals
+        {
+            return Err(LeaseError::RenewalNotAllowed);
+        }
 
         // Validate increment
         if increment <= 0 {
@@ -509,9 +510,9 @@ impl LeaseManager {
                 revoked_ids.push(lease_id.to_string());
 
                 // Execute revoke callback if specified
-                if let Some(callback) = &lease.revoke_callback {
-                    tracing::info!("Executing revoke callback: {}", callback);
-                    // TODO: Implement callback execution mechanism
+                if let Some(callback_url) = &lease.revoke_callback {
+                    tracing::info!("Executing revoke callback: {}", callback_url);
+                    self.execute_revoke_callback(callback_url, &lease).await;
                 }
 
                 // Remove from cache
@@ -937,8 +938,8 @@ impl LeaseManager {
                 lease.id, lease.user, minutes_remaining, lease.resource
             );
 
-            // TODO: Implement actual notification mechanism (webhook, email, etc.)
-            // For now, we just log the notification
+            // Send notification through configured channels
+            self.send_expiry_notification(&lease).await;
 
             notified_count += 1;
         }
@@ -977,6 +978,103 @@ impl LeaseManager {
             unique_users: row.try_get::<_, i64>(4).unwrap_or(0) as usize,
             unique_namespaces: row.try_get::<_, i64>(5).unwrap_or(0) as usize,
         })
+    }
+
+    /// Execute revoke callback via HTTP webhook
+    async fn execute_revoke_callback(&self, callback_url: &str, lease: &EnhancedLease) {
+        let payload = serde_json::json!({
+            "event": "lease_revoked",
+            "lease_id": lease.id,
+            "user_id": lease.user,
+            "resource": lease.resource,
+            "resource_type": lease.resource_type,
+            "namespace": lease.namespace,
+            "revoked_at": Utc::now().to_rfc3339(),
+        });
+
+        match reqwest::Client::new()
+            .post(callback_url)
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+        {
+            Ok(response) => {
+                if response.status().is_success() {
+                    info!(
+                        "Revoke callback executed successfully for lease {}",
+                        lease.id
+                    );
+                } else {
+                    warn!(
+                        "Revoke callback returned non-success status {} for lease {}",
+                        response.status(),
+                        lease.id
+                    );
+                }
+            }
+            Err(e) => {
+                error!(
+                    "Failed to execute revoke callback for lease {}: {}",
+                    lease.id, e
+                );
+            }
+        }
+    }
+
+    /// Send expiry notification for a lease
+    async fn send_expiry_notification(&self, lease: &EnhancedLease) {
+        let time_until_expiry = lease.expired_at - Utc::now();
+        let minutes_remaining = time_until_expiry.num_minutes();
+
+        // If there's a callback URL in metadata, use it for notifications
+        if let Some(notification_url) = lease.metadata.get("notification_url") {
+            let payload = serde_json::json!({
+                "event": "lease_expiring_soon",
+                "lease_id": lease.id,
+                "user_id": lease.user,
+                "resource": lease.resource,
+                "resource_type": lease.resource_type,
+                "namespace": lease.namespace,
+                "expires_at": lease.expired_at.to_rfc3339(),
+                "minutes_remaining": minutes_remaining,
+            });
+
+            match reqwest::Client::new()
+                .post(notification_url)
+                .json(&payload)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        info!(
+                            "Expiry notification sent successfully for lease {}",
+                            lease.id
+                        );
+                    } else {
+                        warn!(
+                            "Expiry notification returned non-success status {} for lease {}",
+                            response.status(),
+                            lease.id
+                        );
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to send expiry notification for lease {}: {}",
+                        lease.id, e
+                    );
+                }
+            }
+        } else {
+            // Log-based notification if no webhook configured
+            debug!(
+                "Lease {} expiring in {} minutes - no notification webhook configured",
+                lease.id, minutes_remaining
+            );
+        }
     }
 }
 

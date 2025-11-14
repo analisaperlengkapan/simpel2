@@ -13,6 +13,8 @@ pub mod brute_force_protector;
 pub mod client_policy;
 /// OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
 pub mod client_registration;
+/// Production-ready Dynamic Client Registration with database backing
+pub mod client_registration_v2;
 /// Service managers for coordinating complex operations
 pub mod managers;
 /// Pushed Authorization Requests (PAR) implementation
@@ -21,11 +23,15 @@ pub mod par;
 pub mod password_policy;
 /// Comprehensive security testing framework - Enterprise-grade implementation
 pub mod security_testing;
+/// Software statement JWT validator for DCR
+pub mod software_statement_validator;
 
 // Storage abstraction layer
 // pub mod storage;
 
 // Storage services
+/// Client scope service for OAuth2/OIDC scope management with consent
+pub mod client_scope_service;
 /// Group data storage and management
 pub mod group_store;
 /// JWT validation service with caching support
@@ -36,16 +42,22 @@ pub mod oidc_client_store;
 pub mod oidc_code_store;
 /// Permission ticket storage and management
 pub mod permission_ticket_store;
+/// Protocol mapper service for claim transformation and token generation
+pub mod protocol_mapper_service;
 /// Resource server storage and management
 pub mod resource_server_store;
 /// Resource data storage and management
 pub mod resource_store;
 /// Scope storage and management
 pub mod scope_store;
+/// Service account storage and management for machine-to-machine authentication
+pub mod service_account_store;
 /// Session storage and management
 pub mod session_store;
 /// Token management and validation (OAuth2/OIDC tokens)
 pub mod token;
+/// OAuth 2.0 Token Exchange (RFC 8693) implementation
+pub mod token_exchange;
 /// TOTP secret storage and management
 pub mod totp_store;
 
@@ -143,14 +155,22 @@ pub mod pg_event_store;
 pub mod broker;
 /// Federation protocol implementations
 pub mod federation;
+/// Federation manager for user federation orchestration
+pub mod federation_manager;
 /// Federation provider integrations
 pub mod federation_provider;
+/// User synchronization service for LDAP/AD sync
+pub mod user_sync_service;
 
 // Authorization services
 /// Authorization policy engine and enforcement
 pub mod authorization;
 /// Satker-aware authorization with hierarchy support
 pub mod satker_authorization;
+/// UMA 2.0 (User-Managed Access) fine-grained authorization
+pub mod uma;
+/// UMA 2.0 policy store for database operations
+pub mod uma_policy_store;
 
 // Zero Trust services
 /// Zero Trust security model implementation
@@ -167,7 +187,7 @@ pub mod admin;
 pub mod delegated_admin;
 
 // WebAuthn services
-/// WebAuthn/FIDO2 authentication services
+/// WebAuthn/FIDO2 authentication services with full attestation support
 pub mod webauthn;
 
 // Organization services
@@ -221,7 +241,9 @@ pub mod vault;
 pub use anomaly_detector::AnomalyDetector;
 pub use auth_flow::AuthenticationManager;
 pub use brute_force_protector::BruteForceProtector;
-pub use client_registration::{ClientRegistrationService, DefaultClientRegistrationService};
+pub use client_registration::{DefaultClientRegistrationService, LegacyClientRegistrationService};
+// New DCR trait and implementation
+pub use client_registration_v2::{ClientRegistrationService, ProductionClientRegistrationService};
 pub use group_store::GroupStore;
 pub use session_store::SessionStore;
 pub use totp_store::TotpStore;

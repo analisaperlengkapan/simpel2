@@ -5,7 +5,7 @@ use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::adm;
 use crate::storage::StorageStrategy;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Get list of all satker untuk KL tertentu dari DATABASE (lebih efisien)
 /// Menggunakan connection string langsung untuk menghindari masalah private field
@@ -15,8 +15,9 @@ pub async fn get_satker_list_from_db() -> Result<Vec<String>, MonsaktiError> {
     info!("📊 Fetching satker list from database (adm_ref_admin)...");
 
     // Get database URL from environment
-    let db_url = std::env::var("DATABASE_URL")
-        .map_err(|_| MonsaktiError::ConfigError("DATABASE_URL not found in environment".to_string()))?;
+    let db_url = std::env::var("DATABASE_URL").map_err(|_| {
+        MonsaktiError::ConfigError("DATABASE_URL not found in environment".to_string())
+    })?;
 
     // Create connection
     let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await?;
@@ -32,7 +33,8 @@ pub async fn get_satker_list_from_db() -> Result<Vec<String>, MonsaktiError> {
 
     let rows = client.query(query, &[]).await?;
 
-    let satker_list: Vec<String> = rows.iter()
+    let satker_list: Vec<String> = rows
+        .iter()
         .filter_map(|row| row.try_get::<_, String>(0).ok())
         .collect();
 
@@ -152,7 +154,7 @@ pub async fn fetch_all_satker_with_modules_from_db(
 
     let mut success_count = 0;
     let mut failed_count = 0;
-    let mut empty_count = 0;
+    let empty_count = 0;
 
     for (idx, kdsatker) in satker_list.iter().enumerate() {
         info!(

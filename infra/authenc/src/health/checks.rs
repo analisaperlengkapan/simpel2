@@ -11,7 +11,7 @@ use std::time::Instant;
 use tracing::{debug, error, warn};
 
 use crate::database::Database;
-use crate::health::types::{DependencyHealth, HealthStatus};
+use crate::health::types::DependencyHealth;
 
 /// Database health checker
 pub struct DatabaseHealthCheck {
@@ -217,6 +217,7 @@ impl HealthChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::health::types::HealthStatus;
 
     #[test]
     fn test_redis_check_creation() {

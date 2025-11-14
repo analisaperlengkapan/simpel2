@@ -122,9 +122,10 @@ impl CubbyholeEngine {
 
         // Verify ownership before deleting
         if let Some(entry) = entries.get(&key)
-            && entry.token_id != token_id {
-                return Err(CubbyholeError::Unauthorized);
-            }
+            && entry.token_id != token_id
+        {
+            return Err(CubbyholeError::Unauthorized);
+        }
 
         entries
             .remove(&key)

@@ -2,11 +2,11 @@
 //! Tests the new integration test components
 
 use chrono::Utc;
+use secreton_core::SecurityLevel;
 use secreton_core::auth::{AuthencAuthProvider, PqSignature};
 use secreton_core::models::secret::{
     AccessControl, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
-use secreton_core::SecurityLevel;
 use secreton_crypto::{CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements};
 
 #[test]

@@ -131,10 +131,11 @@ impl MetricsRegistry {
         let mut metrics = self.metrics.write().await;
 
         if let Some(metric) = metrics.get_mut(name)
-            && let MetricValue::Counter(ref mut value) = metric.value {
-                *value += delta;
-                metric.updated_at = Utc::now();
-            }
+            && let MetricValue::Counter(ref mut value) = metric.value
+        {
+            *value += delta;
+            metric.updated_at = Utc::now();
+        }
     }
 
     /// Set gauge value
@@ -147,10 +148,11 @@ impl MetricsRegistry {
         let mut metrics = self.metrics.write().await;
 
         if let Some(metric) = metrics.get_mut(name)
-            && let MetricValue::Gauge(ref mut current) = metric.value {
-                *current = value;
-                metric.updated_at = Utc::now();
-            }
+            && let MetricValue::Gauge(ref mut current) = metric.value
+        {
+            *current = value;
+            metric.updated_at = Utc::now();
+        }
     }
 
     /// Increment gauge
@@ -158,10 +160,11 @@ impl MetricsRegistry {
         let mut metrics = self.metrics.write().await;
 
         if let Some(metric) = metrics.get_mut(name)
-            && let MetricValue::Gauge(ref mut value) = metric.value {
-                *value += delta;
-                metric.updated_at = Utc::now();
-            }
+            && let MetricValue::Gauge(ref mut value) = metric.value
+        {
+            *value += delta;
+            metric.updated_at = Utc::now();
+        }
     }
 
     /// Decrement gauge
@@ -169,10 +172,11 @@ impl MetricsRegistry {
         let mut metrics = self.metrics.write().await;
 
         if let Some(metric) = metrics.get_mut(name)
-            && let MetricValue::Gauge(ref mut value) = metric.value {
-                *value -= delta;
-                metric.updated_at = Utc::now();
-            }
+            && let MetricValue::Gauge(ref mut value) = metric.value
+        {
+            *value -= delta;
+            metric.updated_at = Utc::now();
+        }
     }
 
     /// Record histogram observation
@@ -180,15 +184,16 @@ impl MetricsRegistry {
         let mut metrics = self.metrics.write().await;
 
         if let Some(metric) = metrics.get_mut(name)
-            && let MetricValue::Histogram(ref mut values) = metric.value {
-                values.push(value);
-                metric.updated_at = Utc::now();
+            && let MetricValue::Histogram(ref mut values) = metric.value
+        {
+            values.push(value);
+            metric.updated_at = Utc::now();
 
-                // Keep only last 1000 observations
-                if values.len() > 1000 {
-                    values.drain(0..values.len() - 1000);
-                }
+            // Keep only last 1000 observations
+            if values.len() > 1000 {
+                values.drain(0..values.len() - 1000);
             }
+        }
     }
 
     /// Get metric

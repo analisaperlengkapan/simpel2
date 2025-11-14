@@ -9,12 +9,14 @@ pub mod audit;
 pub mod auth;
 pub mod config;
 pub mod error;
-pub mod grpc;
+pub mod extractors;
 pub mod handlers;
+pub mod helpers;
 pub mod kv;
 pub mod metrics;
 pub mod middleware;
 pub mod models;
+pub mod pki;
 pub mod prelude;
 pub mod response;
 // TODO: Re-enable after OpenRaft migration is complete
@@ -22,9 +24,14 @@ pub mod response;
 pub mod services;
 pub mod transit;
 
+// Re-export gRPC from separate crate
+pub use secreton_grpc as grpc;
+
+pub use auth::JwtService;
 pub use error::{ApiError, ApiResult};
 pub use kv::{KVApiState, KVEngine, create_kv_router};
 pub use models::PaginatedResponse;
+pub use pki::{PkiApiState, create_pki_router};
 pub use response::{
     ApiResponse, DependencyStatus, ErrorDetails, HealthCheckDependencies, HealthCheckResponse,
     ResponseMetadata,
@@ -36,6 +43,7 @@ pub use transit::{TransitApiState, create_transit_router};
 pub struct ApiState {
     pub transit: TransitApiState,
     pub kv: KVApiState,
+    pub pki: PkiApiState,
     pub services: std::sync::Arc<crate::services::ServiceContainer>,
 }
 
@@ -88,6 +96,7 @@ pub fn create_api_router(state: ApiState) -> Router {
         .route("/metrics/tls", get(get_tls_metrics))
         .nest("/v1/transit", create_transit_router(state.transit))
         .nest("/v1/secret", create_kv_router(state.kv))
+        .nest("/v1/pki", create_pki_router(state.pki))
 }
 
 #[derive(Serialize, Deserialize)]

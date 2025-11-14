@@ -103,7 +103,9 @@ async fn test_webauthn_registration_challenge_generation() {
         database,
         "authenc.example.com".to_string(),
         "Authenc".to_string(),
-    );
+        "https://authenc.example.com".to_string(),
+    )
+    .unwrap();
 
     // Test registration challenge generation
     let request = WebAuthnRegistrationRequest {
@@ -264,7 +266,7 @@ async fn test_webauthn_authentication_challenge_generation() {
     let insert_credential_sql = format!(
         r#"
         INSERT INTO {} (
-            id, user_id, credential_id, public_key, public_key_algorithm, 
+            id, user_id, credential_id, public_key, public_key_algorithm,
             signature_counter, credential_type, enabled
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     "#,
@@ -295,7 +297,9 @@ async fn test_webauthn_authentication_challenge_generation() {
         database,
         "authenc.example.com".to_string(),
         "Authenc".to_string(),
-    );
+        "https://authenc.example.com".to_string(),
+    )
+    .unwrap();
 
     // Test authentication challenge generation
     let request = WebAuthnAuthenticationRequest {
@@ -344,7 +348,9 @@ async fn test_webauthn_credential_registration() {
         database,
         "authenc.example.com".to_string(),
         "Authenc".to_string(),
-    );
+        "https://authenc.example.com".to_string(),
+    )
+    .unwrap();
 
     // First, generate a registration challenge
     let challenge_request = WebAuthnRegistrationRequest {
@@ -622,17 +628,21 @@ async fn test_webauthn_service_initialization() {
     let database = Arc::new(Database::new(&database_config).await.unwrap());
 
     // Test service initialization with different relying party configurations
-    let service1 = WebAuthnService::new(
+    let _service1 = WebAuthnService::new(
         Arc::clone(&database),
         "example.com".to_string(),
         "Example App".to_string(),
-    );
+        "https://example.com".to_string(),
+    )
+    .unwrap();
 
-    let service2 = WebAuthnService::new(
+    let _service2 = WebAuthnService::new(
         Arc::clone(&database),
         "auth.example.com".to_string(),
         "Auth Service".to_string(),
-    );
+        "https://auth.example.com".to_string(),
+    )
+    .unwrap();
 
     // Services should be properly initialized
     // Since fields are private, we just verify service creation succeeded

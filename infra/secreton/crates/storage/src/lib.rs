@@ -160,6 +160,9 @@ use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
+// Re-export SecurityLevel from secreton-types
+pub use secreton_types::SecurityLevel;
+
 pub mod backends;
 pub mod cache;
 pub mod encrypted_storage;
@@ -215,20 +218,7 @@ pub struct EncryptionMetadata {
     pub kdf_params: Option<HashMap<String, String>>,
 }
 
-/// Security classification levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum SecurityLevel {
-    /// Public information - no security controls required
-    Public = 0,
-    /// Internal use - basic access controls
-    Internal = 1,
-    /// Confidential - restricted access
-    Confidential = 2,
-    /// Secret - highly restricted access
-    Secret = 3,
-    /// Top Secret - maximum security controls
-    TopSecret = 4,
-}
+// SecurityLevel is now re-exported from secreton-types (see line 164)
 
 /// Vault entry for storing secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
