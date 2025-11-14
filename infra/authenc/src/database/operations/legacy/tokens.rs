@@ -1,9 +1,3 @@
-/// Store a user event in the database
-/// Store an admin event in the database
-/// Query events based on the provided query parameters
-/// Query admin events based on the provided query parameters
-/// Clear old events based on retention policy
-/// Clear old admin events based on retention policy
 /// Token management database operations
 use crate::database::Database;
 use crate::error::Result;
