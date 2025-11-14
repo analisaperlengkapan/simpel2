@@ -1,6 +1,3 @@
-/// Database operations for Dynamic Client Registration (RFC 7591/7592)
-/// Note: This module has been moved to operations/client_registration_ops.rs
-/// The re-export is now handled in operations/mod.rs
 /// Database operations for organizations
 use crate::{
 
