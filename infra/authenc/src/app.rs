@@ -633,18 +633,21 @@ impl AppState {
             uma_policy_store: Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(database.clone())),
             uma_delegation_policy_store: Arc::new(crate::services::uma_policy_store::UmaDelegationPolicyStore::new(database.clone())),
             uma_policy_engine: Arc::new(crate::services::uma::PolicyEngine::new(database.clone(), resource_store.clone())),
+            // Create JWT keys once and share them
+            let jwt_encoding_key = Arc::new(jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()));
+            let jwt_decoding_key = Arc::new(jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()));
+
             uma_rpt_service: Arc::new(crate::services::uma::RptService::new(
                 "authenc".to_string(), // issuer
-                // In production, load signing keys from Secreton
-                jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()),
-                jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                jwt_encoding_key.clone(),
+                jwt_decoding_key.clone(),
             ).with_lifetime(3600)), // token lifetime: 1 hour
             uma_permission_endpoint: {
                 let uma_policy_store = Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(database.clone()));
                 let uma_rpt_service = Arc::new(crate::services::uma::RptService::new(
                     "authenc".to_string(),
-                    jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()),
-                    jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                    jwt_encoding_key.clone(),
+                    jwt_decoding_key.clone(),
                 ).with_lifetime(3600));
                 let uma_policy_engine = Arc::new(crate::services::uma::PolicyEngine::new(database.clone(), resource_store.clone()));
 
