@@ -344,16 +344,31 @@ pub async fn fetch_ast(
             if let Some(arr) = data.as_array() {
                 let count = arr.len();
 
-                info!("📊 [AST] Received {} records for satker {}", count, kdsatker);
+                info!(
+                    "📊 [AST] Received {} records for satker {}",
+                    count, kdsatker
+                );
 
                 if count > 0 {
-                    info!("💾 [AST] Attempting to save {} records to database...", count);
-                    match storage.save(client, "ast", "aset_trx", &data, &context).await {
+                    info!(
+                        "💾 [AST] Attempting to save {} records to database...",
+                        count
+                    );
+                    match storage
+                        .save(client, "ast", "aset_trx", &data, &context)
+                        .await
+                    {
                         Ok(_) => {
-                            info!("✅ [AST] Successfully saved {} records for satker {}", count, kdsatker);
+                            info!(
+                                "✅ [AST] Successfully saved {} records for satker {}",
+                                count, kdsatker
+                            );
                         }
                         Err(e) => {
-                            error!("❌ [AST] Failed to save records for satker {}: {}", kdsatker, e);
+                            error!(
+                                "❌ [AST] Failed to save records for satker {}: {}",
+                                kdsatker, e
+                            );
                         }
                     }
                 } else {
@@ -364,13 +379,15 @@ pub async fn fetch_ast(
             }
         }
         Err(e) => {
-            error!("❌ [AST] Failed to fetch aset_trx for satker {}: {}", kdsatker, e);
+            error!(
+                "❌ [AST] Failed to fetch aset_trx for satker {}: {}",
+                kdsatker, e
+            );
         }
     }
 
     Ok(())
 }
-
 
 pub async fn fetch_per(
     client: &mut MonsaktiClient,

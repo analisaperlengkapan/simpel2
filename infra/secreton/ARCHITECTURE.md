@@ -2,7 +2,7 @@
 
 ## Overview
 
-Secreton is a modular, security-focused secrets management system designed for Indonesian government use (Kejaksaan RI). The codebase is organized into 6 specialized crates following hexagonal architecture principles.
+Secreton is a modular, security-focused secrets management system designed for Indonesian government use (Kejaksaan RI). The codebase is organized into 8 specialized crates following hexagonal architecture principles.
 
 **Total codebase**: ~87,000 lines of Rust code
 **Architecture**: Layered with clear separation of concerns
@@ -10,7 +10,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 
 ## Crate Structure
 
-### 1. secreton-core (40,135 lines)
+### 1. secreton-core (~40,000 lines)
 
 **Purpose**: Core business logic, domain models, and services
 
@@ -34,11 +34,11 @@ Secreton is a modular, security-focused secrets management system designed for I
 
 - Contains business logic, not HTTP/transport concerns
 - Services implement trait-based interfaces for extensibility
-- Large files (policy.rs, seal.rs, lease.rs) are candidates for extraction into separate crates if needed
+- Deprecated `api` module removed in v1.1.0 for cleaner separation
 
-### 2. secreton-api (27,659 lines)
+### 2. secreton-api (~22,000 lines)
 
-**Purpose**: HTTP and gRPC API layer
+**Purpose**: HTTP REST API layer
 
 **Key modules**:
 
@@ -48,23 +48,39 @@ Secreton is a modular, security-focused secrets management system designed for I
   - `policy.rs`: Policy management
   - `dynamic.rs`: Dynamic secrets
   - `lease.rs`, `seal.rs`, `wrapping.rs`, etc.
-- `grpc/`: gRPC server implementation
-  - `server.rs`: gRPC service (1,866 lines)
-  - `generated/`: Protocol buffer generated code (3,753 lines)
 - `services/`: API service wrappers
   - `admin.rs`, `auth.rs`, `vault.rs`: Thin wrappers around core services
+- `auth.rs`: JWT authentication service (`JwtAuthConfig`)
 - `middleware.rs`: Authentication, rate limiting, audit (1,159 lines)
-- `config.rs`: API server configuration (1,451 lines)
+- `config.rs`: Comprehensive API configuration (1,451 lines)
 
-**Dependencies**: secreton-core, secreton-crypto, secreton-storage, tonic (gRPC)
+**Dependencies**: secreton-core, secreton-crypto, secreton-storage
 
 **Architecture notes**:
 
 - HTTP handlers are thin - delegate to core services
-- gRPC and REST coexist in same crate (could be split if needed)
 - API models (DTOs) are separate from domain models in core
+- `JwtAuthConfig` renamed from `AuthConfig` to avoid confusion with comprehensive `config::AuthConfig`
 
-### 3. secreton-crypto (11,598 lines)
+### 3. secreton-grpc (~6,000 lines)
+
+**Purpose**: gRPC API layer (extracted from secreton-api)
+
+**Key modules**:
+
+- `server.rs`: gRPC service implementation (1,944 lines)
+- `generated/`: Protocol buffer generated code (3,753 lines)
+- `tls.rs`: mTLS configuration and support
+
+**Dependencies**: secreton-core, secreton-crypto, secreton-storage, tonic
+
+**Architecture notes**:
+
+- Extracted from API crate for better modularity
+- Reduces compilation time for REST-only deployments
+- Full mTLS support for secure communication
+
+### 4. secreton-crypto (11,598 lines)
 
 **Purpose**: Cryptographic operations and key management
 
@@ -84,7 +100,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 - Supports both classical (AES-256, ChaCha20) and post-quantum (ML-KEM)
 - No business logic - pure cryptographic functions
 
-### 4. secreton-storage (4,332 lines)
+### 5. secreton-storage (4,332 lines)
 
 **Purpose**: Storage backend abstraction
 
@@ -103,7 +119,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 - VaultEntry is the primary storage model
 - Handles connection pooling and query building
 
-### 5. secreton-cli (2,689 lines)
+### 6. secreton-cli (2,689 lines)
 
 **Purpose**: Command-line interface
 
@@ -119,7 +135,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 - Separate from API server
 - Used for administration and operations
 
-### 6. secreton-agent (759 lines)
+### 7. secreton-agent (759 lines)
 
 **Purpose**: Distributed agent for consensus and replication
 

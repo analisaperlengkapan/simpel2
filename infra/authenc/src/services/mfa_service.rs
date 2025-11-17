@@ -5,9 +5,9 @@
 
 use crate::error::{AuthencError, Result};
 use crate::models::user::User;
+use crate::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
 use crate::services::cache::{Cache, MfaCache};
 use crate::spi::credential::otp::OtpCredentialProvider;
-use crate::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

@@ -28,7 +28,6 @@ pub enum SortOrder {
     Desc,
 }
 
-
 fn default_limit() -> u32 {
     50
 }

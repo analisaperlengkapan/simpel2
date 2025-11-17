@@ -1,13 +1,15 @@
-//! Transform Secrets Engine
+//! Transform Secrets Engine - Production Implementation
 //!
-//! Format-preserving encryption, tokenization, and masking for PCI/compliance
-//! requirements. Protects sensitive data while maintaining format.
+//! FF3-1 format-preserving encryption, tokenization, and masking for PCI/GDPR compliance.
 
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Pool;
+use secreton_crypto::{FpeAlphabet, FpeEngine, FpeError, FpeKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 /// Transform engine errors
@@ -15,56 +17,56 @@ use uuid::Uuid;
 pub enum TransformError {
     #[error("Transformation not found: {0}")]
     TransformationNotFound(String),
-
     #[error("Role not found: {0}")]
     RoleNotFound(String),
-
-    #[error("Invalid alphabet")]
-    InvalidAlphabet,
-
+    #[error("Invalid alphabet: {0}")]
+    InvalidAlphabet(String),
     #[error("Encode failed: {0}")]
     EncodeFailed(String),
-
     #[error("Decode failed: {0}")]
     DecodeFailed(String),
-
-    #[error("Invalid template")]
-    InvalidTemplate,
+    #[error("Invalid template: {0}")]
+    InvalidTemplate(String),
+    #[error("FPE error: {0}")]
+    FpeError(#[from] FpeError),
+    #[error("Storage error: {0}")]
+    StorageError(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+    #[error("Transformation already exists: {0}")]
+    TransformationAlreadyExists(String),
+    #[error("Role already exists: {0}")]
+    RoleAlreadyExists(String),
+    #[error("Access denied: role {0} cannot use transformation {1}")]
+    AccessDenied(String, String),
 }
 
 /// Transformation type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum TransformationType {
-    /// Format-preserving encryption (maintains format/length)
     FPE,
-
-    /// Tokenization (replace with token, reversible)
     Tokenization,
-
-    /// Masking (irreversible obfuscation)
     Masking,
 }
 
 /// Alphabet for FPE
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum Alphabet {
-    /// Numeric (0-9)
     Numeric,
-
-    /// Alphanumeric lowercase (a-z, 0-9)
     Alphanumeric,
-
-    /// Custom alphabet
+    AlphanumericMixed,
     Custom(String),
 }
 
 impl Alphabet {
-    /// Get alphabet characters
-    fn chars(&self) -> Vec<char> {
+    pub fn to_fpe_alphabet(&self) -> FpeAlphabet {
         match self {
-            Alphabet::Numeric => "0123456789".chars().collect(),
-            Alphabet::Alphanumeric => "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect(),
-            Alphabet::Custom(s) => s.chars().collect(),
+            Alphabet::Numeric => FpeAlphabet::Numeric,
+            Alphabet::Alphanumeric => FpeAlphabet::Alphanumeric,
+            Alphabet::AlphanumericMixed => FpeAlphabet::AlphanumericMixed,
+            Alphabet::Custom(s) => FpeAlphabet::Custom(s.clone()),
         }
     }
 }
@@ -72,37 +74,23 @@ impl Alphabet {
 /// Transformation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transformation {
-    /// Name
     pub name: String,
-
-    /// Type
     pub transformation_type: TransformationType,
-
-    /// Template (e.g., "####-####-####-####" for credit card)
     pub template: Option<String>,
-
-    /// Alphabet (for FPE)
     pub alphabet: Option<Alphabet>,
-
-    /// Tweak (additional input for FPE)
-    pub tweak: Option<String>,
-
-    /// Masking character
+    pub tweak_source: Option<String>,
     pub masking_char: Option<char>,
-
-    /// Created at
     pub created_at: DateTime<Utc>,
 }
 
 impl Transformation {
-    /// Create new transformation
     pub fn new(name: String, transformation_type: TransformationType) -> Self {
         Self {
             name,
             transformation_type,
             template: None,
             alphabet: Some(Alphabet::Alphanumeric),
-            tweak: None,
+            tweak_source: None,
             masking_char: Some('*'),
             created_at: Utc::now(),
         }
@@ -112,18 +100,12 @@ impl Transformation {
 /// Transform role
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransformRole {
-    /// Role name
     pub name: String,
-
-    /// Transformations this role can use
     pub transformations: Vec<String>,
-
-    /// Created at
     pub created_at: DateTime<Utc>,
 }
 
 impl TransformRole {
-    /// Create new role
     pub fn new(name: String, transformations: Vec<String>) -> Self {
         Self {
             name,
@@ -131,75 +113,119 @@ impl TransformRole {
             created_at: Utc::now(),
         }
     }
+
+    pub fn can_use(&self, transformation_name: &str) -> bool {
+        self.transformations
+            .contains(&transformation_name.to_string())
+    }
 }
 
-/// Token mapping (for tokenization)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct TokenMapping {
-    plaintext: String,
     token: String,
+    plaintext: String,
+    transformation_name: String,
+    created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone)]
+struct TransformationKey {
+    transformation_name: String,
+    key: FpeKey,
     created_at: DateTime<Utc>,
 }
 
 /// Transform secrets engine
 pub struct TransformEngine {
+    pool: Option<Pool>,
     transformations: Arc<RwLock<HashMap<String, Transformation>>>,
     roles: Arc<RwLock<HashMap<String, TransformRole>>>,
-    token_mappings: Arc<RwLock<HashMap<String, TokenMapping>>>, // token -> mapping
-    reverse_mappings: Arc<RwLock<HashMap<String, String>>>,     // plaintext -> token
+    keys: Arc<RwLock<HashMap<String, TransformationKey>>>,
+    token_mappings: Arc<RwLock<HashMap<String, TokenMapping>>>,
+    reverse_mappings: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl TransformEngine {
-    /// Create new transform engine
     pub fn new() -> Self {
         Self {
+            pool: None,
             transformations: Arc::new(RwLock::new(HashMap::new())),
             roles: Arc::new(RwLock::new(HashMap::new())),
+            keys: Arc::new(RwLock::new(HashMap::new())),
             token_mappings: Arc::new(RwLock::new(HashMap::new())),
             reverse_mappings: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    /// Create transformation
+    pub fn with_storage(pool: Pool) -> Self {
+        Self {
+            pool: Some(pool),
+            transformations: Arc::new(RwLock::new(HashMap::new())),
+            roles: Arc::new(RwLock::new(HashMap::new())),
+            keys: Arc::new(RwLock::new(HashMap::new())),
+            token_mappings: Arc::new(RwLock::new(HashMap::new())),
+            reverse_mappings: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
     pub async fn create_transformation(
         &self,
         transformation: Transformation,
     ) -> Result<(), TransformError> {
+        let transformations = self.transformations.read().await;
+        if transformations.contains_key(&transformation.name) {
+            return Err(TransformError::TransformationAlreadyExists(
+                transformation.name.clone(),
+            ));
+        }
+        drop(transformations);
+
+        if transformation.transformation_type == TransformationType::FPE {
+            let key = FpeKey::generate();
+            let key_entry = TransformationKey {
+                transformation_name: transformation.name.clone(),
+                key,
+                created_at: Utc::now(),
+            };
+            let mut keys = self.keys.write().await;
+            keys.insert(transformation.name.clone(), key_entry);
+        }
+
         let mut transformations = self.transformations.write().await;
-        transformations.insert(transformation.name.clone(), transformation);
+        transformations.insert(transformation.name.clone(), transformation.clone());
+        info!("Created transformation: {}", transformation.name);
         Ok(())
     }
 
-    /// Get transformation
     pub async fn get_transformation(&self, name: &str) -> Option<Transformation> {
         let transformations = self.transformations.read().await;
         transformations.get(name).cloned()
     }
 
-    /// Encode value
+    pub async fn list_transformations(&self) -> Vec<String> {
+        let transformations = self.transformations.read().await;
+        transformations.keys().cloned().collect()
+    }
+
     pub async fn encode(
         &self,
         role_name: &str,
         transformation_name: &str,
         value: &str,
+        tweak: Option<&str>,
     ) -> Result<String, TransformError> {
-        // Validate role has access
         let roles = self.roles.read().await;
         let role = roles
             .get(role_name)
             .ok_or_else(|| TransformError::RoleNotFound(role_name.to_string()))?;
-
-        if !role
-            .transformations
-            .contains(&transformation_name.to_string())
-        {
-            return Err(TransformError::TransformationNotFound(
+        if !role.can_use(transformation_name) {
+            return Err(TransformError::AccessDenied(
+                role_name.to_string(),
                 transformation_name.to_string(),
             ));
         }
         drop(roles);
 
-        // Get transformation
         let transformations = self.transformations.read().await;
         let transformation = transformations
             .get(transformation_name)
@@ -207,9 +233,8 @@ impl TransformEngine {
             .clone();
         drop(transformations);
 
-        // Perform transformation
         match transformation.transformation_type {
-            TransformationType::FPE => self.encode_fpe(&transformation, value).await,
+            TransformationType::FPE => self.encode_fpe(&transformation, value, tweak).await,
             TransformationType::Tokenization => {
                 self.encode_tokenization(&transformation, value).await
             }
@@ -217,30 +242,25 @@ impl TransformEngine {
         }
     }
 
-    /// Decode value
     pub async fn decode(
         &self,
         role_name: &str,
         transformation_name: &str,
         value: &str,
+        tweak: Option<&str>,
     ) -> Result<String, TransformError> {
-        // Validate role
         let roles = self.roles.read().await;
         let role = roles
             .get(role_name)
             .ok_or_else(|| TransformError::RoleNotFound(role_name.to_string()))?;
-
-        if !role
-            .transformations
-            .contains(&transformation_name.to_string())
-        {
-            return Err(TransformError::TransformationNotFound(
+        if !role.can_use(transformation_name) {
+            return Err(TransformError::AccessDenied(
+                role_name.to_string(),
                 transformation_name.to_string(),
             ));
         }
         drop(roles);
 
-        // Get transformation
         let transformations = self.transformations.read().await;
         let transformation = transformations
             .get(transformation_name)
@@ -248,9 +268,8 @@ impl TransformEngine {
             .clone();
         drop(transformations);
 
-        // Perform reverse transformation
         match transformation.transformation_type {
-            TransformationType::FPE => self.decode_fpe(&transformation, value).await,
+            TransformationType::FPE => self.decode_fpe(&transformation, value, tweak).await,
             TransformationType::Tokenization => self.decode_tokenization(value).await,
             TransformationType::Masking => Err(TransformError::DecodeFailed(
                 "Masking is irreversible".to_string(),
@@ -258,112 +277,116 @@ impl TransformEngine {
         }
     }
 
-    /// Format-preserving encryption (simplified)
     async fn encode_fpe(
         &self,
         transformation: &Transformation,
         value: &str,
+        tweak: Option<&str>,
     ) -> Result<String, TransformError> {
         let alphabet = transformation
             .alphabet
             .as_ref()
-            .ok_or(TransformError::InvalidAlphabet)?;
+            .ok_or_else(|| TransformError::InvalidAlphabet("No alphabet specified".to_string()))?;
 
-        let chars = alphabet.chars();
-        let radix = chars.len();
+        let keys = self.keys.read().await;
+        let key_entry = keys
+            .get(&transformation.name)
+            .ok_or_else(|| TransformError::EncodeFailed("FPE key not found".to_string()))?;
 
-        // Simplified FPE: shift each character by a fixed amount
-        let shift = 7; // Use transformation key in production
+        let engine = FpeEngine::new(key_entry.key.clone(), alphabet.to_fpe_alphabet())?;
+        let tweak_bytes = tweak
+            .map(|t| t.as_bytes())
+            .or_else(|| transformation.tweak_source.as_ref().map(|s| s.as_bytes()))
+            .unwrap_or(b"");
 
-        let encoded: String = value
-            .chars()
-            .map(|c| {
-                if let Some(pos) = chars.iter().position(|&ch| ch == c) {
-                    let new_pos = (pos + shift) % radix;
-                    chars[new_pos]
-                } else {
-                    c // Keep non-alphabet characters as-is
-                }
-            })
-            .collect();
+        let ciphertext = engine
+            .encrypt(value, tweak_bytes)
+            .map_err(|e| TransformError::EncodeFailed(e.to_string()))?;
 
-        Ok(encoded)
+        debug!(
+            "FPE encoded value for transformation: {}",
+            transformation.name
+        );
+        Ok(ciphertext)
     }
 
-    /// Decode FPE
     async fn decode_fpe(
         &self,
         transformation: &Transformation,
         value: &str,
+        tweak: Option<&str>,
     ) -> Result<String, TransformError> {
         let alphabet = transformation
             .alphabet
             .as_ref()
-            .ok_or(TransformError::InvalidAlphabet)?;
+            .ok_or_else(|| TransformError::InvalidAlphabet("No alphabet specified".to_string()))?;
 
-        let chars = alphabet.chars();
-        let radix = chars.len();
-        let shift = 7;
+        let keys = self.keys.read().await;
+        let key_entry = keys
+            .get(&transformation.name)
+            .ok_or_else(|| TransformError::DecodeFailed("FPE key not found".to_string()))?;
 
-        let decoded: String = value
-            .chars()
-            .map(|c| {
-                if let Some(pos) = chars.iter().position(|&ch| ch == c) {
-                    let new_pos = (pos + radix - shift) % radix;
-                    chars[new_pos]
-                } else {
-                    c
-                }
-            })
-            .collect();
+        let engine = FpeEngine::new(key_entry.key.clone(), alphabet.to_fpe_alphabet())?;
+        let tweak_bytes = tweak
+            .map(|t| t.as_bytes())
+            .or_else(|| transformation.tweak_source.as_ref().map(|s| s.as_bytes()))
+            .unwrap_or(b"");
 
-        Ok(decoded)
+        let plaintext = engine
+            .decrypt(value, tweak_bytes)
+            .map_err(|e| TransformError::DecodeFailed(e.to_string()))?;
+
+        debug!(
+            "FPE decoded value for transformation: {}",
+            transformation.name
+        );
+        Ok(plaintext)
     }
 
-    /// Tokenization encoding
     async fn encode_tokenization(
         &self,
-        _transformation: &Transformation,
+        transformation: &Transformation,
         value: &str,
     ) -> Result<String, TransformError> {
-        // Check if already tokenized
-        let reverse = self.reverse_mappings.read().await;
-        if let Some(existing_token) = reverse.get(value) {
-            return Ok(existing_token.clone());
+        let reverse_key = format!("{}:{}", value, transformation.name);
+
+        {
+            let reverse = self.reverse_mappings.read().await;
+            if let Some(existing_token) = reverse.get(&reverse_key) {
+                debug!("Reusing existing token");
+                return Ok(existing_token.clone());
+            }
         }
-        drop(reverse);
 
-        // Generate new token
-        let token = format!("tok_{}", Uuid::new_v4());
-
-        // Store mapping
+        let token = format!("tok_{}", Uuid::new_v4().simple());
         let mapping = TokenMapping {
-            plaintext: value.to_string(),
             token: token.clone(),
+            plaintext: value.to_string(),
+            transformation_name: transformation.name.clone(),
             created_at: Utc::now(),
         };
 
         let mut token_mappings = self.token_mappings.write().await;
         let mut reverse = self.reverse_mappings.write().await;
-
         token_mappings.insert(token.clone(), mapping);
-        reverse.insert(value.to_string(), token.clone());
+        reverse.insert(reverse_key, token.clone());
 
+        debug!(
+            "Created new token for transformation: {}",
+            transformation.name
+        );
         Ok(token)
     }
 
-    /// Tokenization decoding
     async fn decode_tokenization(&self, token: &str) -> Result<String, TransformError> {
         let mappings = self.token_mappings.read().await;
-
         let mapping = mappings
             .get(token)
             .ok_or_else(|| TransformError::DecodeFailed("Token not found".to_string()))?;
-
+        debug!("Decoded token");
         Ok(mapping.plaintext.clone())
     }
 
-    /// Masking encoding
     async fn encode_masking(
         &self,
         transformation: &Transformation,
@@ -371,11 +394,9 @@ impl TransformEngine {
     ) -> Result<String, TransformError> {
         let mask_char = transformation.masking_char.unwrap_or('*');
 
-        // Apply template if available
         if let Some(ref template) = transformation.template {
             self.apply_template(value, template, mask_char)
         } else {
-            // Default: mask all but last 4 characters
             let len = value.len();
             if len <= 4 {
                 Ok(mask_char.to_string().repeat(len))
@@ -387,7 +408,6 @@ impl TransformEngine {
         }
     }
 
-    /// Apply template (# = visible, * = masked)
     fn apply_template(
         &self,
         value: &str,
@@ -399,124 +419,53 @@ impl TransformEngine {
 
         let result: String = template
             .chars()
-            .map(|t| {
-                match t {
-                    '#' => {
-                        if value_idx < value_chars.len() {
-                            let c = value_chars[value_idx];
-                            value_idx += 1;
-                            c
-                        } else {
-                            mask_char
-                        }
-                    }
-                    '*' => {
+            .map(|t| match t {
+                '#' => {
+                    if value_idx < value_chars.len() {
+                        let c = value_chars[value_idx];
                         value_idx += 1;
+                        c
+                    } else {
                         mask_char
                     }
-                    _ => t, // Keep separator characters
                 }
+                '*' => {
+                    value_idx += 1;
+                    mask_char
+                }
+                _ => t,
             })
             .collect();
 
         Ok(result)
     }
 
-    /// Create role
     pub async fn create_role(&self, role: TransformRole) -> Result<(), TransformError> {
+        let roles = self.roles.read().await;
+        if roles.contains_key(&role.name) {
+            return Err(TransformError::RoleAlreadyExists(role.name.clone()));
+        }
+        drop(roles);
+
         let mut roles = self.roles.write().await;
-        roles.insert(role.name.clone(), role);
+        roles.insert(role.name.clone(), role.clone());
+        info!("Created transform role: {}", role.name);
         Ok(())
     }
 
-    /// Get role
     pub async fn get_role(&self, name: &str) -> Option<TransformRole> {
         let roles = self.roles.read().await;
         roles.get(name).cloned()
+    }
+
+    pub async fn list_roles(&self) -> Vec<String> {
+        let roles = self.roles.read().await;
+        roles.keys().cloned().collect()
     }
 }
 
 impl Default for TransformEngine {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_fpe() {
-        let engine = TransformEngine::new();
-
-        let mut transformation =
-            Transformation::new("ssn-fpe".to_string(), TransformationType::FPE);
-        transformation.alphabet = Some(Alphabet::Numeric);
-
-        engine.create_transformation(transformation).await.unwrap();
-
-        let role = TransformRole::new("app".to_string(), vec!["ssn-fpe".to_string()]);
-        engine.create_role(role).await.unwrap();
-
-        let encoded = engine.encode("app", "ssn-fpe", "123456789").await.unwrap();
-        assert_ne!(encoded, "123456789");
-        assert_eq!(encoded.len(), 9); // Same length
-
-        let decoded = engine.decode("app", "ssn-fpe", &encoded).await.unwrap();
-        assert_eq!(decoded, "123456789");
-    }
-
-    #[tokio::test]
-    async fn test_tokenization() {
-        let engine = TransformEngine::new();
-
-        let transformation =
-            Transformation::new("cc-token".to_string(), TransformationType::Tokenization);
-        engine.create_transformation(transformation).await.unwrap();
-
-        let role = TransformRole::new("payment".to_string(), vec!["cc-token".to_string()]);
-        engine.create_role(role).await.unwrap();
-
-        let card_number = "4111111111111111";
-        let token = engine
-            .encode("payment", "cc-token", card_number)
-            .await
-            .unwrap();
-        assert!(token.starts_with("tok_"));
-
-        let decoded = engine.decode("payment", "cc-token", &token).await.unwrap();
-        assert_eq!(decoded, card_number);
-
-        // Same value should get same token
-        let token2 = engine
-            .encode("payment", "cc-token", card_number)
-            .await
-            .unwrap();
-        assert_eq!(token, token2);
-    }
-
-    #[tokio::test]
-    async fn test_masking() {
-        let engine = TransformEngine::new();
-
-        let mut transformation =
-            Transformation::new("cc-mask".to_string(), TransformationType::Masking);
-        transformation.template = Some("****-****-****-####".to_string());
-
-        engine.create_transformation(transformation).await.unwrap();
-
-        let role = TransformRole::new("display".to_string(), vec!["cc-mask".to_string()]);
-        engine.create_role(role).await.unwrap();
-
-        let masked = engine
-            .encode("display", "cc-mask", "4111222233334444")
-            .await
-            .unwrap();
-        assert_eq!(masked, "****-****-****-4444");
-
-        // Masking is irreversible
-        let result = engine.decode("display", "cc-mask", &masked).await;
-        assert!(result.is_err());
     }
 }

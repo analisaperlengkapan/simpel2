@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use authenc::spi::Spi;
+
     use authenc::spi::theme::*;
 
     #[test]

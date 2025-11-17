@@ -203,8 +203,8 @@ impl EnhancedSecretEngine {
         };
 
         // Convert Secret to VaultEntry for storage
-        let encrypted_data = serde_json::to_vec(&secret.data)
-            .map_err(|e| CoreError::Serialization(e))?;
+        let encrypted_data =
+            serde_json::to_vec(&secret.data).map_err(|e| CoreError::Serialization(e))?;
 
         let encryption_metadata = serde_json::json!({
             "algorithm": format!("{:?}", secret.data.encryption_algorithm),
@@ -560,7 +560,7 @@ impl EnhancedSecretEngine {
     fn create_audit_event(
         &self,
         operation: &str,
-        context: &SecurityContext,
+        _context: &SecurityContext,
     ) -> crate::models::secret::AuditEvent {
         crate::models::secret::AuditEvent {
             event_id: uuid::Uuid::new_v4(),

@@ -1,15 +1,10 @@
 use anyhow::Result;
-use secreton_core::{
-    error::CoreError,
-    storage::{
-        InMemoryStorage, ListOptions, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
-    },
+use secreton_core::storage::{
+    InMemoryStorage, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
 };
 use serde_json::json;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
-use uuid::Uuid;
 
 // Helper function to create a test VaultEntry
 fn create_test_entry(path: &str, data: &[u8]) -> VaultEntry {

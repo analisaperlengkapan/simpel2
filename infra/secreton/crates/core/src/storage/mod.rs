@@ -14,7 +14,6 @@ pub use secreton_storage::{
     InMemoryCache,
     ListOptions,
     MemoryBackend,
-    PostgresBackend,
     QueryParams,
     SecurityLevel,
     StorageBackend,
@@ -24,6 +23,10 @@ pub use secreton_storage::{
     StorageTransaction,
     VaultEntry,
 };
+
+// Conditional re-exports based on features
+#[cfg(feature = "postgres")]
+pub use secreton_storage::PostgresBackend;
 
 // Application-specific storage modules
 pub mod mfa;

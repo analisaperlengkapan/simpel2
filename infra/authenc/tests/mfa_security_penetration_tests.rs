@@ -8,16 +8,14 @@ use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
     response::Json as AxumJson,
-    routing::{get, post},
+    routing::post,
 };
 use axum_test::TestServer;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use uuid::Uuid;
 
-use authenc::error::AuthencError;
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
 /// Test state for penetration testing
@@ -33,6 +31,17 @@ impl PenetrationTestState {
             otp_provider: OtpCredentialProvider::new(),
             failed_attempts: std::sync::Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             rate_limits: std::sync::Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+impl Clone for PenetrationTestState {
+    fn clone(&self) -> Self {
+        Self {
+            // OtpCredentialProvider is stateless, create a new instance for each clone
+            otp_provider: OtpCredentialProvider::new(),
+            failed_attempts: std::sync::Arc::clone(&self.failed_attempts),
+            rate_limits: std::sync::Arc::clone(&self.rate_limits),
         }
     }
 }
@@ -71,7 +80,7 @@ async fn mock_mfa_verify(
 
     // Check failed attempts (account lockout)
     {
-        let mut failed_attempts = state.failed_attempts.lock().await;
+        let failed_attempts = state.failed_attempts.lock().await;
         let attempts = failed_attempts.get(user_id).unwrap_or(&0);
 
         if *attempts >= 10 {
@@ -237,13 +246,13 @@ mod penetration_tests {
                 .await;
 
             match response.status_code() {
-                429 => {
+                StatusCode::TOO_MANY_REQUESTS => {
                     if !rate_limited {
                         println!("✅ Rate limiting activated at attempt {}", i);
                         rate_limited = true;
                     }
                 }
-                423 => {
+                StatusCode::LOCKED => {
                     if !account_locked {
                         println!("✅ Account lockout triggered at attempt {}", i);
                         account_locked = true;
@@ -418,8 +427,8 @@ mod penetration_tests {
 
                     match status_code.as_u16() {
                         200 => {} // Successful response (expected to be failure)
-                        400..=499 => successful_blocks += 1,
                         429 => rate_limited += 1,
+                        400..=499 => successful_blocks += 1,
                         500..=599 => server_errors += 1,
                         _ => {}
                     }
@@ -519,16 +528,16 @@ mod penetration_tests {
 
         println!("=== Input Validation Security Testing ===");
 
-        let malicious_inputs = vec![
-            ("", "Empty code"),
-            ("a", "Non-numeric code"),
-            ("123", "Short code"),
-            ("1234567890", "Long code"),
-            ("../../../etc/passwd", "Path traversal"),
-            ("<script>alert('xss')</script>", "XSS attempt"),
-            ("'; DROP TABLE users; --", "SQL injection"),
-            ("\\x00\\x01\\x02", "Binary data"),
-            ("🔥💯🚀", "Unicode/emoji"),
+        let malicious_inputs: Vec<(String, &str)> = vec![
+            ("".to_string(), "Empty code"),
+            ("a".to_string(), "Non-numeric code"),
+            ("123".to_string(), "Short code"),
+            ("1234567890".to_string(), "Long code"),
+            ("../../../etc/passwd".to_string(), "Path traversal"),
+            ("<script>alert('xss')</script>".to_string(), "XSS attempt"),
+            ("'; DROP TABLE users; --".to_string(), "SQL injection"),
+            ("\\x00\\x01\\x02".to_string(), "Binary data"),
+            ("🔥💯🚀".to_string(), "Unicode/emoji"),
             ("A".repeat(10000), "Buffer overflow attempt"),
         ];
 
@@ -605,6 +614,7 @@ mod penetration_tests {
 #[cfg(test)]
 mod performance_tests {
     use super::*;
+    use futures::future::join_all;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
 

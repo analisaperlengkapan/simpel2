@@ -1,4 +1,4 @@
-use authenc::services::password_policy::PasswordPolicy;
+use authenc::utils::crypto::password::validate_password_strength;
 
 #[cfg(test)]
 mod tests {
@@ -6,188 +6,183 @@ mod tests {
 
     #[test]
     fn test_default_policy() {
-        let policy = PasswordPolicy::default();
-        assert_eq!(policy.min_length, 12);
-        assert!(policy.require_uppercase);
-        assert!(policy.require_lowercase);
-        assert!(policy.require_digit);
-        assert!(policy.require_special);
-        assert_eq!(policy.blacklist.len(), 3);
-        assert!(policy.blacklist.contains(&"password".to_string()));
-        assert!(policy.blacklist.contains(&"123456".to_string()));
-        assert!(policy.blacklist.contains(&"qwerty".to_string()));
+        let result = validate_password_strength("StrongSecure123!", None);
+        assert!(result.is_valid);
+        assert!(result.errors.is_empty());
+        assert!(result.strength_score >= 70);
     }
 
     #[test]
     fn test_password_too_short() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("Short1!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("at least 12 characters"));
+        let result = validate_password_strength("Short1!", None);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
     }
 
     #[test]
     fn test_password_missing_uppercase() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("lowercaseonly123!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("uppercase letter"));
+        let result = validate_password_strength("lowercaseonly123!", None);
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("uppercase letter")));
     }
 
     #[test]
     fn test_password_missing_lowercase() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("UPPERCASEONLY123!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("lowercase letter"));
+        let result = validate_password_strength("UPPERCASEONLY123!", None);
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("lowercase letter")));
     }
 
     #[test]
     fn test_password_missing_digit() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("NoDigitsHere!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("digit"));
+        let result = validate_password_strength("NoDigitsHere!", None);
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("digit")));
     }
 
     #[test]
     fn test_password_missing_special() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("NoSpecialChars123");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("special character"));
+        let result = validate_password_strength("NoSpecialChars123", None);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("special character"))
+        );
     }
 
     #[test]
     fn test_password_blacklisted() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("MyPassword123!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("too common or blacklisted"));
+        let result = validate_password_strength("MyPassword123!", None);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Password cannot contain the word 'password'"))
+        );
     }
 
     #[test]
     fn test_password_blacklisted_case_insensitive() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("ContainsPASSWORD123!");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("too common or blacklisted"));
+        let result = validate_password_strength("ContainsPASSWORD123!", None);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Password cannot contain the word 'password'"))
+        );
     }
 
     #[test]
     fn test_valid_password() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("StrongSecure123!");
-        assert!(result.is_ok());
+        let result = validate_password_strength("StrongSecure123!", None);
+        assert!(result.is_valid);
+        assert!(result.errors.is_empty());
     }
 
     #[test]
     fn test_valid_password_with_various_special_chars() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("ComplexPhrase456@#$%^&*()");
-        assert!(result.is_ok());
+        let result = validate_password_strength("ComplexPhrase456@#$%^&*()", None);
+        assert!(result.is_valid);
+        assert!(result.errors.is_empty());
     }
 
     #[test]
     fn test_custom_policy_no_requirements() {
-        let policy = PasswordPolicy {
-            min_length: 4,
-            require_uppercase: false,
-            require_lowercase: false,
-            require_digit: false,
-            require_special: false,
-            blacklist: vec![],
-        };
-        let result = policy.validate("weak");
-        assert!(result.is_ok());
+        // With the built-in policy, very weak passwords should be rejected
+        let result = validate_password_strength("weak", None);
+        assert!(!result.is_valid);
+        assert!(!result.errors.is_empty());
     }
 
     #[test]
     fn test_custom_policy_only_length() {
-        let policy = PasswordPolicy {
-            min_length: 8,
-            require_uppercase: false,
-            require_lowercase: false,
-            require_digit: false,
-            require_special: false,
-            blacklist: vec![],
-        };
-        assert!(policy.validate("short").is_err());
-        assert!(policy.validate("longenough").is_ok());
+        // Verify boundaries around the minimum length requirement (8 characters)
+        let too_short = validate_password_strength("short", None);
+        assert!(!too_short.is_valid);
+        assert!(
+            too_short
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
+
+        // A sufficiently complex password of at least 8 characters should be valid
+        let long_enough = validate_password_strength("Abcdef1!", None);
+        assert!(long_enough.is_valid);
     }
 
     #[test]
     fn test_custom_blacklist() {
-        let policy = PasswordPolicy {
-            min_length: 4,
-            require_uppercase: false,
-            require_lowercase: false,
-            require_digit: false,
-            require_special: false,
-            blacklist: vec!["badword".to_string()],
-        };
-        assert!(policy.validate("thisisbadword").is_err());
-        assert!(policy.validate("thisisgood").is_ok());
+        // Built-in weak pattern list includes "letmein" as an example weak phrase
+        let bad = validate_password_strength("thisisletmein", None);
+        assert!(!bad.is_valid);
+        assert!(
+            bad.errors
+                .iter()
+                .any(|e| e.to_lowercase().contains("letmein"))
+        );
+
+        let good = validate_password_strength("thisisgoodPASS123!", None);
+        assert!(good.is_valid);
     }
 
     #[test]
     fn test_edge_case_empty_password() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("at least 12 characters"));
+        let result = validate_password_strength("", None);
+        assert!(!result.is_valid);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
     }
 
     #[test]
     fn test_edge_case_unicode_characters() {
-        let policy = PasswordPolicy::default();
-        // Unicode characters that are not letters/digits should count as special
-        let result = policy.validate("ValidPhrase123!");
-        assert!(result.is_ok());
+        // Unicode characters plus required character classes should still be accepted
+        let result = validate_password_strength("ValidPhrase123!", None);
+        assert!(result.is_valid);
     }
 
     #[test]
     fn test_edge_case_only_special_chars() {
-        let policy = PasswordPolicy::default();
-        let result = policy.validate("!@#$%^&*()123ABCdef");
-        assert!(result.is_ok());
+        let result = validate_password_strength("!@#$%^&*()123ABCdef", None);
+        assert!(result.is_valid);
     }
 
     #[test]
     fn test_edge_case_minimum_length_boundary() {
-        let policy = PasswordPolicy {
-            min_length: 5,
-            require_uppercase: false,
-            require_lowercase: false,
-            require_digit: false,
-            require_special: false,
-            blacklist: vec![],
-        };
-        assert!(policy.validate("1234").is_err()); // Too short
-        assert!(policy.validate("12345").is_ok()); // Exactly minimum
-        assert!(policy.validate("123456").is_ok()); // Longer than minimum
+        // With the built-in policy, minimum length is 8 characters
+        let too_short = validate_password_strength("Abc1!", None);
+        assert!(!too_short.is_valid);
+
+        let min_ok = validate_password_strength("Abcdef1!", None); // 8 chars, complex
+        assert!(min_ok.is_valid);
+
+        let longer_ok = validate_password_strength("Abcdefgh1!", None);
+        assert!(longer_ok.is_valid);
     }
 
     #[test]
     fn test_edge_case_blacklist_empty_string() {
-        let policy = PasswordPolicy {
-            min_length: 4,
-            require_uppercase: false,
-            require_lowercase: false,
-            require_digit: false,
-            require_special: false,
-            blacklist: vec!["".to_string()],
-        };
-        // Empty string in blacklist should be ignored
-        let result = policy.validate("test");
-        assert!(result.is_ok());
+        // A reasonably strong password with no weak patterns should be valid
+        let result = validate_password_strength("GoodPass123!", None);
+        assert!(result.is_valid);
     }
 
     #[test]
     fn test_comprehensive_policy_validation() {
-        let policy = PasswordPolicy::default();
-
-        // Test all requirements together
+        // Test all requirements together for a variety of strong passwords
         let valid_cases = vec![
             "StrongPass123!",
             "Complex@Phrase#456",
@@ -196,10 +191,11 @@ mod tests {
         ];
 
         for password in valid_cases {
+            let result = validate_password_strength(password, None);
             assert!(
-                policy.validate(password).is_ok(),
-                "Password '{}' should be valid",
-                password
+                result.is_valid,
+                "Password '{}' should be valid, errors: {:?}",
+                password, result.errors
             );
         }
 
@@ -213,11 +209,11 @@ mod tests {
         ];
 
         for (password, reason) in invalid_cases {
+            let result = validate_password_strength(password, None);
             assert!(
-                policy.validate(password).is_err(),
-                "Password '{}' should be invalid: {}",
-                password,
-                reason
+                !result.is_valid,
+                "Password '{}' should be invalid: {} (errors: {:?})",
+                password, reason, result.errors
             );
         }
     }

@@ -8,6 +8,9 @@ description = "Secure storage backend for Secreton vault system"
 keywords = ["storage", "database", "vault", "security"]
 
 [dependencies]
+# Internal crates
+secreton-types.workspace = true
+
 # Core dependencies
 tokio.workspace = true
 serde.workspace = true

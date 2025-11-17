@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use authenc::axum_app::AxumApp;
 
     #[test]
     fn test_axum_app_module_exists() {

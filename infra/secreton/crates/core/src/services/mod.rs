@@ -61,6 +61,7 @@ pub mod mfa;
 pub mod policy;
 pub mod rate_limit;
 pub mod rbac;
+pub mod rotation;
 pub mod seal;
 pub mod token;
 pub mod wrapping;

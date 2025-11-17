@@ -1,8 +1,12 @@
 // Core data models
 /// Audit logging and compliance models
 pub mod audit;
+/// Client policy and profile models for security enforcement
+pub mod client_policy;
 /// OAuth 2.0 Dynamic Client Registration models (RFC 7591/7592)
 pub mod client_registration;
+/// Client scope models for OAuth2/OIDC scope management
+pub mod client_scope;
 /// User consent management models for GDPR compliance
 pub mod consent;
 /// Device management and trust models
@@ -19,6 +23,8 @@ pub mod organization;
 pub mod permission;
 /// Permission ticket models
 pub mod permission_ticket;
+/// Protocol mapper models for claim transformation
+pub mod protocol_mapper;
 /// Security realm and domain models
 pub mod realm;
 /// Resource management models
@@ -33,6 +39,8 @@ pub mod saml;
 pub mod satker;
 /// Scope models for resource permissions
 pub mod scope;
+/// Service account models for machine-to-machine authentication
+pub mod service_account;
 /// Social account linking models
 pub mod social_account;
 /// User account and profile models
@@ -61,6 +69,7 @@ pub mod oidc_client;
 // Re-exports for convenience
 pub use audit::*;
 pub use client_registration::*;
+pub use client_scope::*;
 pub use consent::*;
 pub use device::*;
 pub use group::*;
@@ -68,6 +77,7 @@ pub use oauth2::*;
 pub use organization::*;
 pub use permission::Permission;
 pub use permission_ticket::*;
+pub use protocol_mapper::*;
 pub use realm::Realm;
 pub use resource::*;
 pub use resource_server::*;
@@ -75,6 +85,7 @@ pub use role::Role;
 pub use saml::*;
 pub use satker::*;
 pub use scope::*;
+pub use service_account::*;
 pub use social_account::*;
 pub use user::User;
 pub use webauthn::*;

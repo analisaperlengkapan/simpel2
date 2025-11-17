@@ -142,9 +142,10 @@ impl SecretId {
 
     pub fn consume_use(&mut self) {
         if let Some(ref mut uses) = self.num_uses
-            && *uses > 0 {
-                *uses -= 1;
-            }
+            && *uses > 0
+        {
+            *uses -= 1;
+        }
         self.last_used_at = Some(Utc::now());
     }
 
@@ -259,9 +260,10 @@ impl AppRoleAuth {
             }
 
             if let Some(ip) = client_ip
-                && !secret.check_cidr(ip) {
-                    return Err(AppRoleError::CidrMismatch);
-                }
+                && !secret.check_cidr(ip)
+            {
+                return Err(AppRoleError::CidrMismatch);
+            }
 
             secret.consume_use();
             secret_ids.insert(secret_id.to_string(), secret.clone());

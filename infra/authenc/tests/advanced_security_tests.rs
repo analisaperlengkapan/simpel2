@@ -7,10 +7,9 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
     response::Json as JsonResponse,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use axum_test::TestServer;
-use chrono::Utc;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -42,6 +42,7 @@ impl OidcClientStore {
         use crate::models::OAuth2Client;
 
         // Convert OidcClient to OAuth2Client
+        let now = Utc::now();
         let oauth_client = OAuth2Client {
             id: Uuid::new_v4(), // Generate new ID
             client_id: client.client_id.clone(),
@@ -56,9 +57,41 @@ impl OidcClientStore {
             owner_id: None, // No owner specified
             realm_id: None, // Default realm
             enabled: client.enabled,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: now,
+            updated_at: now,
             deleted_at: None,
+
+            // RFC 7591 metadata - OIDC store uses minimal metadata
+            logo_uri: None,
+            client_uri: None,
+            policy_uri: None,
+            tos_uri: None,
+            jwks_uri: None,
+            jwks: None,
+            sector_identifier_uri: None,
+            subject_type: Some("public".to_string()),
+            id_token_signed_response_alg: Some("RS256".to_string()),
+            id_token_encrypted_response_alg: None,
+            id_token_encrypted_response_enc: None,
+            userinfo_signed_response_alg: None,
+            userinfo_encrypted_response_alg: None,
+            userinfo_encrypted_response_enc: None,
+            request_object_signing_alg: None,
+            request_object_encryption_alg: None,
+            request_object_encryption_enc: None,
+            token_endpoint_auth_signing_alg: None,
+            default_max_age: None,
+            require_auth_time: None,
+            default_acr_values: None,
+            initiate_login_uri: None,
+            request_uris: None,
+            application_type: Some("web".to_string()),
+            contacts: None,
+            client_id_issued_at: Some(now),
+            client_secret_expires_at: None,
+            software_id: None,
+            software_version: None,
+            registration_access_token_hash: None,
         };
 
         oauth2::create_client(&self.db, &oauth_client).await?;

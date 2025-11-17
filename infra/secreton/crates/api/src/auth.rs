@@ -6,7 +6,7 @@
 use axum::http::HeaderValue;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
+    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
 };
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -29,9 +29,13 @@ pub struct Claims {
     pub metadata: std::collections::HashMap<String, String>, // Additional metadata
 }
 
-/// Authentication configuration
+/// JWT Authentication configuration
+///
+/// This is a simplified runtime configuration for JWT operations.
+/// For comprehensive API authentication configuration including OAuth2, mTLS, and MFA,
+/// see `crate::config::AuthConfig`.
 #[derive(Debug, Clone)]
-pub struct AuthConfig {
+pub struct JwtAuthConfig {
     pub jwt_secret: String,
     pub jwt_expiration_hours: i64,
     pub issuer: String,
@@ -40,8 +44,8 @@ pub struct AuthConfig {
     pub admin_roles: Vec<String>,
 }
 
-impl AuthConfig {
-    /// Create new AuthConfig with validation
+impl JwtAuthConfig {
+    /// Create new JwtAuthConfig with validation
     ///
     /// # Security
     /// - JWT secret MUST be at least 32 characters (256 bits)
@@ -57,13 +61,11 @@ impl AuthConfig {
     ) -> Result<Self, AuthError> {
         // SECURITY: Validate JWT secret length (minimum 256 bits = 32 bytes)
         if jwt_secret.len() < 32 {
-            return Err(AuthError::Configuration(
-                format!(
-                    "JWT secret must be at least 32 characters (256 bits). Current length: {} characters. \
+            return Err(AuthError::Configuration(format!(
+                "JWT secret must be at least 32 characters (256 bits). Current length: {} characters. \
                      Use a cryptographically random string generated with: openssl rand -base64 32",
-                    jwt_secret.len()
-                )
-            ));
+                jwt_secret.len()
+            )));
         }
 
         // Validate issuer and audience are not empty
@@ -148,15 +150,15 @@ impl AuthConfig {
     }
 }
 
-impl Default for AuthConfig {
+impl Default for JwtAuthConfig {
     /// Default configuration - ONLY for testing
     ///
     /// # Security Warning
     /// DO NOT use default configuration in production!
-    /// Always load from environment variables using `AuthConfig::from_env()`
+    /// Always load from environment variables using `JwtAuthConfig::from_env()`
     fn default() -> Self {
-        warn!("⚠️  Using default AuthConfig - NOT SUITABLE FOR PRODUCTION!");
-        warn!("   Load configuration from environment with AuthConfig::from_env()");
+        warn!("⚠️  Using default JwtAuthConfig - NOT SUITABLE FOR PRODUCTION!");
+        warn!("   Load configuration from environment with JwtAuthConfig::from_env()");
 
         Self {
             // Weak secret - only for testing
@@ -254,16 +256,19 @@ impl Permission {
     }
 }
 
-/// Authentication service
+/// JWT token service for generation and validation
+///
+/// This service focuses solely on JWT operations. For full authentication
+/// with user management, sessions, and roles, see `crate::services::auth::AuthService`.
 #[derive(Clone)]
-pub struct AuthService {
-    config: AuthConfig,
+pub struct JwtService {
+    config: JwtAuthConfig,
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
 }
 
-impl AuthService {
-    pub fn new(config: AuthConfig) -> Self {
+impl JwtService {
+    pub fn new(config: JwtAuthConfig) -> Self {
         let encoding_key = EncodingKey::from_secret(config.jwt_secret.as_bytes());
         let decoding_key = DecodingKey::from_secret(config.jwt_secret.as_bytes());
 
@@ -440,17 +445,17 @@ mod tests {
 
     #[test]
     fn test_token_generation_and_validation() {
-        let config = AuthConfig::default();
-        let auth_service = AuthService::new(config);
+        let config = JwtAuthConfig::default();
+        let jwt_service = JwtService::new(config);
 
-        let token = auth_service.generate_token(
+        let token = jwt_service.generate_token(
             "user123",
             "Test User",
             "test@example.com",
             vec!["crypto-user".to_string()],
         );
 
-        let token_data = auth_service
+        let token_data = jwt_service
             .validate_token(&token)
             .expect("Token validation should succeed");
 
@@ -462,8 +467,8 @@ mod tests {
 
     #[test]
     fn test_permission_checking() {
-        let config = AuthConfig::default();
-        let auth_service = AuthService::new(config);
+        let config = JwtAuthConfig::default();
+        let jwt_service = JwtService::new(config);
 
         let claims = Claims {
             sub: "user123".to_string(),
@@ -481,15 +486,15 @@ mod tests {
             jti: Uuid::new_v4().to_string(),
         };
 
-        assert!(auth_service.check_permission(&claims, Permission::Encrypt));
-        assert!(auth_service.check_permission(&claims, Permission::Decrypt));
-        assert!(!auth_service.check_permission(&claims, Permission::DeleteKey));
+        assert!(jwt_service.check_permission(&claims, Permission::Encrypt));
+        assert!(jwt_service.check_permission(&claims, Permission::Decrypt));
+        assert!(!jwt_service.check_permission(&claims, Permission::DeleteKey));
     }
 
     #[test]
     fn test_admin_role_grants_all_permissions() {
-        let config = AuthConfig::default();
-        let auth_service = AuthService::new(config);
+        let config = JwtAuthConfig::default();
+        let jwt_service = JwtService::new(config);
 
         let claims = Claims {
             sub: "admin-user".to_string(),
@@ -504,16 +509,16 @@ mod tests {
             jti: Uuid::new_v4().to_string(),
         };
 
-        assert!(auth_service.check_permission(&claims, Permission::ManageUsers));
-        assert!(auth_service.check_permission(&claims, Permission::AccessAuditLogs));
+        assert!(jwt_service.check_permission(&claims, Permission::ManageUsers));
+        assert!(jwt_service.check_permission(&claims, Permission::AccessAuditLogs));
     }
 
     #[test]
     fn test_generate_token_includes_role_permissions() {
-        let config = AuthConfig::default();
-        let auth_service = AuthService::new(config);
+        let config = JwtAuthConfig::default();
+        let jwt_service = JwtService::new(config);
 
-        let token = auth_service
+        let token = jwt_service
             .generate_token(
                 "vault-admin",
                 "Vault Admin",
@@ -522,7 +527,7 @@ mod tests {
             )
             .expect("token generation");
 
-        let data = auth_service
+        let data = jwt_service
             .validate_token(&token)
             .expect("token validation");
         let permissions = data.claims.permissions;

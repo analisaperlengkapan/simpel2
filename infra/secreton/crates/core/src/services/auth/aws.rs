@@ -286,7 +286,7 @@ impl AwsAuth {
         self.verify_iam_signature(&request).await?;
 
         // Extract principal ARN from request
-        let principal_arn = self.extract_principal_arn(&request)?;
+        let principal_arn = self.extract_principal_arn(&request).await?;
 
         // Verify principal ARN is bound
         if !binding.bound_iam_principal_arns.is_empty()
@@ -294,11 +294,11 @@ impl AwsAuth {
                 .bound_iam_principal_arns
                 .iter()
                 .any(|arn| principal_arn.contains(arn))
-            {
-                return Err(AwsError::InvalidCredentials(
-                    "Principal ARN not authorized".to_string(),
-                ));
-            }
+        {
+            return Err(AwsError::InvalidCredentials(
+                "Principal ARN not authorized".to_string(),
+            ));
+        }
 
         // Build user info
         let mut metadata = HashMap::new();
@@ -343,22 +343,23 @@ impl AwsAuth {
 
         // Verify account ID
         if !binding.bound_account_ids.is_empty()
-            && !binding.bound_account_ids.contains(&identity.account_id) {
-                return Err(AwsError::Ec2VerificationFailed(
-                    "Account ID not authorized".to_string(),
-                ));
-            }
+            && !binding.bound_account_ids.contains(&identity.account_id)
+        {
+            return Err(AwsError::Ec2VerificationFailed(
+                "Account ID not authorized".to_string(),
+            ));
+        }
 
         // Verify instance ID
         if !binding.bound_ec2_instance_ids.is_empty()
             && !binding
                 .bound_ec2_instance_ids
                 .contains(&identity.instance_id)
-            {
-                return Err(AwsError::Ec2VerificationFailed(
-                    "Instance ID not authorized".to_string(),
-                ));
-            }
+        {
+            return Err(AwsError::Ec2VerificationFailed(
+                "Instance ID not authorized".to_string(),
+            ));
+        }
 
         // Store nonce to prevent replay
         if let Some(nonce) = request.nonce {
@@ -414,7 +415,7 @@ impl AwsAuth {
     /// FUTURE FEATURE: In production, this should parse ARN from STS GetCallerIdentity response
     /// Currently returns placeholder ARN for development/testing
     /// TODO: Integrate with AWS STS API for real principal ARN extraction
-    fn extract_principal_arn(&self, request: &AwsIamRequest) -> Result<String, AwsError> {
+    async fn extract_principal_arn(&self, _request: &AwsIamRequest) -> Result<String, AwsError> {
         // In production, would parse from STS response
         // For now, extract from URL or use placeholder
         Ok("arn:aws:iam::123456789012:user/example".to_string())

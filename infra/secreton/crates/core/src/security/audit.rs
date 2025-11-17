@@ -543,9 +543,7 @@ impl AdvancedAuditSystem {
         Ok(event_id)
     }
 
-    /// Create and sign an audit entry
-    /// Note: FUTURE FEATURE - Digital signature verification for audit integrity
-    #[allow(dead_code)]
+    /// Create and sign an audit entry for digital signature verification and audit integrity
     async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
         // Get next sequence number
         let sequence_number = {

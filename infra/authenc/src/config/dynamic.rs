@@ -72,6 +72,17 @@ impl Default for CryptoMode {
     }
 }
 
+impl std::fmt::Display for CryptoMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            CryptoMode::Classical => "Classical",
+            CryptoMode::Hybrid => "Hybrid",
+            CryptoMode::PostQuantum => "PostQuantum",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 /// Performance profiles for different operational modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PerformanceProfile {

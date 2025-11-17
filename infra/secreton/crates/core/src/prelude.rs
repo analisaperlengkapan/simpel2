@@ -147,8 +147,8 @@
 //! - `crate::services` - Business logic services
 
 // Re-export error types
-pub use crate::error::CoreError;
 pub use crate::CoreResult;
+pub use crate::error::CoreError;
 
 // Re-export common types
 pub use crate::{Metadata, ResourceId, SecurityLevel, Tags};

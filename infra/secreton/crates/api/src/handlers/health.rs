@@ -247,15 +247,21 @@ async fn check_database_health(state: &AppState) -> HealthCheck {
                     );
                     details.insert(
                         "available_connections".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from(pool_status.available as i64)),
+                        serde_json::Value::Number(serde_json::Number::from(
+                            pool_status.available as i64,
+                        )),
                     );
                     details.insert(
                         "total_connections".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from(pool_status.size as i64)),
+                        serde_json::Value::Number(serde_json::Number::from(
+                            pool_status.size as i64,
+                        )),
                     );
                     details.insert(
                         "max_connections".to_string(),
-                        serde_json::Value::Number(serde_json::Number::from(pool_status.max_size as i64)),
+                        serde_json::Value::Number(serde_json::Number::from(
+                            pool_status.max_size as i64,
+                        )),
                     );
                     details.insert(
                         "query_test".to_string(),
@@ -271,7 +277,11 @@ async fn check_database_health(state: &AppState) -> HealthCheck {
                         serde_json::Value::String(format!("Query failed: {}", e)),
                     );
 
-                    ("unhealthy".to_string(), Some(format!("Database query failed: {}", e)), Some(details))
+                    (
+                        "unhealthy".to_string(),
+                        Some(format!("Database query failed: {}", e)),
+                        Some(details),
+                    )
                 }
             }
         }
@@ -286,7 +296,11 @@ async fn check_database_health(state: &AppState) -> HealthCheck {
                 serde_json::Value::Number(serde_json::Number::from(pool_status.available as i64)),
             );
 
-            ("unhealthy".to_string(), Some(format!("Database connection failed: {}", e)), Some(details))
+            (
+                "unhealthy".to_string(),
+                Some(format!("Database connection failed: {}", e)),
+                Some(details),
+            )
         }
     };
 
@@ -353,66 +367,78 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
     let test_data = b"health_check_test_data";
     let test_key = b"test_key_32_bytes_for_health_01";
 
-    let (status, message, mut details_map) = match state.crypto.encrypt(
-        secreton_crypto::AlgorithmId::Aes256Gcm,
-        test_data,
-        test_key,
-    ) {
-        Ok(ciphertext) => {
-            // Test decryption
-            match state.crypto.decrypt(&ciphertext, test_key) {
-                Ok(decrypted) if decrypted == test_data => {
-                    // Encryption and decryption successful
-                    let mut details_map = HashMap::new();
-                    details_map.insert(
-                        "encryption_test".to_string(),
-                        serde_json::Value::String("passed".to_string()),
-                    );
-                    details_map.insert(
-                        "decryption_test".to_string(),
-                        serde_json::Value::String("passed".to_string()),
-                    );
-                    details_map.insert(
-                        "key_store".to_string(),
-                        serde_json::Value::String("accessible".to_string()),
-                    );
-                    details_map.insert(
-                        "entropy_available".to_string(),
-                        serde_json::Value::Bool(true),
-                    );
+    let (status, message, mut details_map) =
+        match state
+            .crypto
+            .encrypt(secreton_crypto::AlgorithmId::Aes256Gcm, test_data, test_key)
+        {
+            Ok(ciphertext) => {
+                // Test decryption
+                match state.crypto.decrypt(&ciphertext, test_key) {
+                    Ok(decrypted) if decrypted == test_data => {
+                        // Encryption and decryption successful
+                        let mut details_map = HashMap::new();
+                        details_map.insert(
+                            "encryption_test".to_string(),
+                            serde_json::Value::String("passed".to_string()),
+                        );
+                        details_map.insert(
+                            "decryption_test".to_string(),
+                            serde_json::Value::String("passed".to_string()),
+                        );
+                        details_map.insert(
+                            "key_store".to_string(),
+                            serde_json::Value::String("accessible".to_string()),
+                        );
+                        details_map.insert(
+                            "entropy_available".to_string(),
+                            serde_json::Value::Bool(true),
+                        );
 
-                    ("healthy".to_string(), None, details_map)
-                }
-                Ok(_) => {
-                    let mut details_map = HashMap::new();
-                    details_map.insert(
-                        "error".to_string(),
-                        serde_json::Value::String("Decrypted data does not match".to_string()),
-                    );
+                        ("healthy".to_string(), None, details_map)
+                    }
+                    Ok(_) => {
+                        let mut details_map = HashMap::new();
+                        details_map.insert(
+                            "error".to_string(),
+                            serde_json::Value::String("Decrypted data does not match".to_string()),
+                        );
 
-                    ("unhealthy".to_string(), Some("Crypto integrity check failed".to_string()), details_map)
-                }
-                Err(e) => {
-                    let mut details_map = HashMap::new();
-                    details_map.insert(
-                        "error".to_string(),
-                        serde_json::Value::String(format!("Decryption failed: {}", e)),
-                    );
+                        (
+                            "unhealthy".to_string(),
+                            Some("Crypto integrity check failed".to_string()),
+                            details_map,
+                        )
+                    }
+                    Err(e) => {
+                        let mut details_map = HashMap::new();
+                        details_map.insert(
+                            "error".to_string(),
+                            serde_json::Value::String(format!("Decryption failed: {}", e)),
+                        );
 
-                    ("unhealthy".to_string(), Some(format!("Decryption failed: {}", e)), details_map)
+                        (
+                            "unhealthy".to_string(),
+                            Some(format!("Decryption failed: {}", e)),
+                            details_map,
+                        )
+                    }
                 }
             }
-        }
-        Err(e) => {
-            let mut details_map = HashMap::new();
-            details_map.insert(
-                "error".to_string(),
-                serde_json::Value::String(format!("Encryption failed: {}", e)),
-            );
+            Err(e) => {
+                let mut details_map = HashMap::new();
+                details_map.insert(
+                    "error".to_string(),
+                    serde_json::Value::String(format!("Encryption failed: {}", e)),
+                );
 
-            ("unhealthy".to_string(), Some(format!("Encryption failed: {}", e)), details_map)
-        }
-    };
+                (
+                    "unhealthy".to_string(),
+                    Some(format!("Encryption failed: {}", e)),
+                    details_map,
+                )
+            }
+        };
 
     // Check HSM status if available
     if let Some(ref hsm) = state.hsm {
@@ -499,7 +525,10 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
             if health_status.is_healthy {
                 ("healthy".to_string(), None, Some(details))
             } else {
-                let msg = health_status.last_error.clone().unwrap_or_else(|| "Storage unhealthy".to_string());
+                let msg = health_status
+                    .last_error
+                    .clone()
+                    .unwrap_or_else(|| "Storage unhealthy".to_string());
                 ("unhealthy".to_string(), Some(msg), Some(details))
             }
         }
@@ -510,7 +539,11 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
                 serde_json::Value::String(format!("Health check failed: {}", e)),
             );
 
-            ("unhealthy".to_string(), Some(format!("Storage health check error: {}", e)), Some(details))
+            (
+                "unhealthy".to_string(),
+                Some(format!("Storage health check error: {}", e)),
+                Some(details),
+            )
         }
     };
 
@@ -647,9 +680,10 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 
 /// Get system uptime in seconds
 fn get_uptime_seconds() -> u64 {
-    // TODO: Implement actual uptime calculation
-    // For now, return a placeholder
-    86400 // 24 hours
+    use std::sync::OnceLock;
+    static START_TIME: OnceLock<std::time::Instant> = OnceLock::new();
+    let start = START_TIME.get_or_init(|| std::time::Instant::now());
+    start.elapsed().as_secs()
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]

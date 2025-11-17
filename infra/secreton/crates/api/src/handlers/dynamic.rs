@@ -33,7 +33,10 @@ pub fn create_routes() -> Router<AppState> {
             post(configure_database_connection),
         )
         .route("/database/config/{name}", get(get_database_connection))
-        .route("/database/config/{name}", delete(delete_database_connection))
+        .route(
+            "/database/config/{name}",
+            delete(delete_database_connection),
+        )
 }
 
 /// Request to generate database credentials

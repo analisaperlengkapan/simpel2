@@ -13,7 +13,7 @@ pub use security_tests::*;
 mod test_utils {
     use crate::services::captcha::ChallengeType;
     use crate::services::captcha::types::*;
-    use std::time::{Duration, SystemTime};
+    use std::time::Duration;
 
     /// Create a test challenge for testing purposes
     pub fn create_test_challenge(

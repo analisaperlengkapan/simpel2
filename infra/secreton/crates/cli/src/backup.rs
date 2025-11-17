@@ -293,18 +293,21 @@ async fn create_backup(
     for (idx, path_value) in secret_paths.iter().enumerate() {
         if let Some(path) = path_value.as_str() {
             if let Some(ref base) = base_manifest
-                && incremental && !should_include_in_incremental(path, base).await {
-                    continue;
-                }
+                && incremental
+                && !should_include_in_incremental(path, base).await
+            {
+                continue;
+            }
 
             let secret_url = format!("{}/v1/secret/data/{}", config.server_url, path);
             let secret_response = client.get(&secret_url).send().await;
 
             if let Ok(response) = secret_response
                 && response.status().is_success()
-                    && let Ok(secret_data) = response.json::<serde_json::Value>().await {
-                        secrets.push(convert_to_backup_entry(path, &secret_data));
-                    }
+                && let Ok(secret_data) = response.json::<serde_json::Value>().await
+            {
+                secrets.push(convert_to_backup_entry(path, &secret_data));
+            }
 
             if (idx + 1) % 10 == 0 {
                 println!("Progress: {}/{}", idx + 1, secret_paths.len());
@@ -322,12 +325,13 @@ async fn create_backup(
 
         if let Ok(response) = audit_response
             && response.status().is_success()
-                && let Ok(audit_data) = response.json::<serde_json::Value>().await
-                    && let Some(logs) = audit_data.get("logs").and_then(|l| l.as_array()) {
-                        for log in logs {
-                            audit_logs.push(convert_to_audit_backup(log));
-                        }
-                    }
+            && let Ok(audit_data) = response.json::<serde_json::Value>().await
+            && let Some(logs) = audit_data.get("logs").and_then(|l| l.as_array())
+        {
+            for log in logs {
+                audit_logs.push(convert_to_audit_backup(log));
+            }
+        }
 
         println!("Fetched {} audit log(s)", audit_logs.len());
     }
@@ -522,9 +526,10 @@ async fn list_backups(directory: &str, detailed: bool) -> Result<()> {
         let path = entry.path();
         if path.is_file()
             && let Some(ext) = path.extension()
-                && (ext == "backup" || ext == "bak") {
-                    backup_files.push(path);
-                }
+            && (ext == "backup" || ext == "bak")
+        {
+            backup_files.push(path);
+        }
     }
 
     if backup_files.is_empty() {
@@ -854,10 +859,11 @@ async fn restore_backup(
     match verify_response {
         Ok(response) if response.status().is_success() => {
             if let Ok(secrets_list) = response.json::<serde_json::Value>().await
-                && let Some(keys) = secrets_list.get("keys").and_then(|k| k.as_array()) {
-                    println!("  ✓ Vault is accessible");
-                    println!("  ✓ Total secrets in vault: {}", keys.len());
-                }
+                && let Some(keys) = secrets_list.get("keys").and_then(|k| k.as_array())
+            {
+                println!("  ✓ Vault is accessible");
+                println!("  ✓ Total secrets in vault: {}", keys.len());
+            }
         }
         _ => {
             println!("  ⚠ Warning: Could not verify vault status");

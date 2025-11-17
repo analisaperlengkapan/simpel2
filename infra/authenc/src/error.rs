@@ -12,6 +12,9 @@ pub type Result<T> = std::result::Result<T, AuthencError>;
 /// Legacy alias for backward compatibility
 pub type AuthenceResult<T> = Result<T>; // backward compat
 
+/// Backwards-compatibility alias for older optimized error type name
+pub type OptimizedAuthencError = AuthencError;
+
 /// Comprehensive error types for the Authence application
 #[derive(Error, Debug)]
 pub enum AuthencError {
@@ -58,6 +61,10 @@ pub enum AuthencError {
         /// The custom error message describing the forbidden operation
         message: String,
     },
+
+    /// UMA 2.0 authorization error with structured response
+    #[error("UMA error: {0}")]
+    Uma(crate::services::uma::UmaError),
 
     // Validation errors
     /// Input validation failed with custom message
@@ -910,6 +917,7 @@ impl AuthencError {
             AuthencError::RecoveryCodeAlreadyUsed => "RECOVERY_CODE_ALREADY_USED",
             AuthencError::MfaRateLimitExceeded => "MFA_RATE_LIMIT_EXCEEDED",
             AuthencError::MfaAccountLocked => "MFA_ACCOUNT_LOCKED",
+            AuthencError::Uma(_) => "UMA_ERROR",
         }
     }
 }
@@ -917,6 +925,19 @@ impl AuthencError {
 impl IntoResponse for AuthencError {
     fn into_response(self) -> Response {
         let status = self.status_code();
+
+        // Handle UMA errors specially - they have their own format
+        if let AuthencError::Uma(ref uma_error) = self {
+            let response_body = json!({
+                "error": uma_error.error,
+                "error_description": uma_error.error_description,
+                "status": uma_error.status,
+                "ticket": uma_error.ticket,
+                "required_claims": uma_error.required_claims,
+                "redirect_uri": uma_error.redirect_uri,
+            });
+            return (status, Json(response_body)).into_response();
+        }
 
         // For internal errors, don't expose sensitive information
         let error_message = match &self {
@@ -987,6 +1008,10 @@ impl AuthencError {
             | AuthencError::InsufficientAdminPrivileges { .. }
             | AuthencError::RoleScopeViolation { .. }
             | AuthencError::MfaAccountLocked => StatusCode::FORBIDDEN,
+
+            // UMA errors - map based on status field
+            AuthencError::Uma(uma_error) => StatusCode::from_u16(uma_error.status.unwrap_or(403))
+                .unwrap_or(StatusCode::FORBIDDEN),
 
             // 404 Not Found
             AuthencError::UserNotFound

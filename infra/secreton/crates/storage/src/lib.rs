@@ -160,10 +160,14 @@ use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
+// Re-export SecurityLevel from secreton-types
+pub use secreton_types::SecurityLevel;
+
 pub mod backends;
 pub mod cache;
 pub mod encrypted_storage;
 pub mod factory;
+pub mod kv_adapter;
 pub mod memory;
 pub mod prelude;
 
@@ -175,6 +179,7 @@ pub mod raft;
 pub use backends::{FileBackend, FileConfig};
 pub use cache::{CacheBackend, CacheStats, CachedStorage, InMemoryCache};
 pub use encrypted_storage::EncryptedStorage;
+pub use kv_adapter::KvBackendAdapter;
 pub use memory::MemoryBackend;
 
 #[cfg(feature = "consul")]
@@ -213,20 +218,7 @@ pub struct EncryptionMetadata {
     pub kdf_params: Option<HashMap<String, String>>,
 }
 
-/// Security classification levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum SecurityLevel {
-    /// Public information - no security controls required
-    Public = 0,
-    /// Internal use - basic access controls
-    Internal = 1,
-    /// Confidential - restricted access
-    Confidential = 2,
-    /// Secret - highly restricted access
-    Secret = 3,
-    /// Top Secret - maximum security controls
-    TopSecret = 4,
-}
+// SecurityLevel is now re-exported from secreton-types (see line 164)
 
 /// Vault entry for storing secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -571,32 +563,35 @@ impl StorageError {
 }
 
 /// Simple key-value storage backend trait (HashiCorp Vault-style)
-/// 
+///
 /// This is the core trait for physical storage backends. All data is pre-encrypted
 /// before being passed to the backend (untrusted storage principle).
 #[async_trait]
 pub trait KvBackend: Send + Sync {
     /// Get a value by key
     async fn get(&self, key: &str) -> StorageResult<Option<Vec<u8>>>;
-    
+
     /// Put a value by key
     async fn put(&self, key: &str, value: &[u8]) -> StorageResult<()>;
-    
+
     /// Delete a value by key
     async fn delete(&self, key: &str) -> StorageResult<()>;
-    
+
     /// List keys with a prefix
     async fn list(&self, prefix: &str) -> StorageResult<Vec<String>>;
-    
+
     /// Check if key exists
     async fn exists(&self, key: &str) -> StorageResult<bool>;
-    
+
     /// Get backend metrics
     async fn metrics(&self) -> StorageResult<BackendMetrics>;
+
+    /// Perform health check on the backend
+    async fn health_check(&self) -> StorageResult<HealthStatus>;
 }
 
 /// High-level storage backend trait for VaultEntry operations
-/// 
+///
 /// This trait provides structured access to vault entries with metadata,
 /// versioning, and advanced querying capabilities.
 #[async_trait]

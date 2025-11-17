@@ -68,7 +68,7 @@ pub async fn get_access_token(db: &Database, token_hash: &str) -> Result<Option<
         WHERE token_hash = $1
     ";
 
-    let rows = db.query(query, &[&token_hash]).await?;
+    let rows = db.query_raw(query, &[&token_hash]).await?;
 
     if rows.is_empty() {
         return Ok(None);
@@ -103,7 +103,7 @@ pub async fn get_token_by_refresh(
         WHERE refresh_token_hash = $1
     ";
 
-    let rows = db.query(query, &[&refresh_token_hash]).await?;
+    let rows = db.query_raw(query, &[&refresh_token_hash]).await?;
 
     if rows.is_empty() {
         return Ok(None);
@@ -186,7 +186,7 @@ pub async fn get_user_active_tokens(db: &Database, user_id: Uuid) -> Result<Vec<
         ORDER BY created_at DESC
     ";
 
-    let rows = db.query(query, &[&user_id]).await?;
+    let rows = db.query_raw(query, &[&user_id]).await?;
 
     let mut tokens = Vec::new();
     for row in rows {
@@ -232,7 +232,7 @@ pub async fn get_token_statistics(db: &Database) -> Result<TokenStatistics> {
         FROM oauth2_access_tokens
     ";
 
-    let rows = db.query(query, &[]).await?;
+    let rows = db.query_raw(query, &[]).await?;
     if rows.is_empty() {
         return Ok(TokenStatistics {
             active_tokens: 0,

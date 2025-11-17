@@ -1,5 +1,4 @@
 use authenc::AppConfig;
-use std::env;
 
 #[test]
 fn default_config_sane() {

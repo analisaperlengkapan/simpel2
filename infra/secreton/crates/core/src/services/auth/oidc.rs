@@ -211,11 +211,12 @@ impl OidcRole {
 
         // Check subject
         if let Some(ref bound_sub) = self.bound_subject
-            && &claims.sub != bound_sub {
-                return Err(OidcError::ClaimsValidationFailed(
-                    "Subject mismatch".to_string(),
-                ));
-            }
+            && &claims.sub != bound_sub
+        {
+            return Err(OidcError::ClaimsValidationFailed(
+                "Subject mismatch".to_string(),
+            ));
+        }
 
         // Check bound claims
         for (key, expected_values) in &self.bound_claims {

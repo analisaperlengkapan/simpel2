@@ -11,9 +11,40 @@
 mod post_quantum_crypto_tests {
     use authenc::config::dynamic::CryptoMode;
     use chrono::{DateTime, Duration, Utc};
-    use serde_json::json;
+    use serde::{Deserialize, Serialize};
+
     use std::collections::HashMap;
-    use uuid::Uuid;
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct SecurityRequirements {
+        security_level: u32,
+        quantum_resistant: bool,
+        performance_priority: PerformancePriority,
+        compliance_requirements: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+    enum PerformancePriority {
+        High,
+        Medium,
+        Low,
+    }
+
+    #[derive(Debug, Clone)]
+    struct MigrationStrategy {
+        current_phase: MigrationPhase,
+        target_date: Option<DateTime<Utc>>,
+        rollback_enabled: bool,
+        rollout_percentage: u8,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum MigrationPhase {
+        ClassicalOnly,
+        HybridDeployment,
+        PostQuantumPreferred,
+        PostQuantumOnly,
+    }
 
     #[test]
     fn test_crypto_mode_selection() {
@@ -148,7 +179,7 @@ mod post_quantum_crypto_tests {
             security_requirements: SecurityRequirements {
                 security_level: 128,
                 quantum_resistant: true,
-                forman: PerformancePriority::Medium,
+                performance_priority: PerformancePriority::Medium,
                 compliance_requirements: vec!["NIST_PQC".to_string()],
             },
             migration_strategy: MigrationStrategy {
@@ -159,7 +190,7 @@ mod post_quantum_crypto_tests {
             },
             performance_config: PerformanceConfig {
                 cache_size: 1000,
-                operation_timeout: Duration::from_secs(30),
+                operation_timeout: Duration::seconds(30),
                 batch_size: 100,
                 enable_hardware_acceleration: true,
             },
@@ -211,8 +242,8 @@ mod post_quantum_crypto_tests {
     async fn test_hybrid_signature_operations() {
         // Mock hybrid signature test
         let message = b"Test message for SIMKARI authentication";
-        let user_id = "user_123";
-        let satker_code = "KEJATI_DKI_JAKPUS";
+        let _user_id = "user_123";
+        let _satker_code = "KEJATI_DKI_JAKPUS";
 
         // Test classical signature
         let classical_signature = create_mock_signature(message, CryptoMode::Classical);
@@ -343,7 +374,7 @@ mod post_quantum_crypto_tests {
         // Hybrid should typically be slower than classical but faster than pure PQ for some operations
         let classical_avg = performance_metrics.get_average_duration("classical_sign");
         let hybrid_avg = performance_metrics.get_average_duration("hybrid_sign");
-        let pq_avg = performance_metrics.get_average_duration("pq_sign");
+        let _pq_avg = performance_metrics.get_average_duration("pq_sign");
 
         // These are general expectations, actual performance may vary
         assert!(classical_avg <= hybrid_avg);
@@ -385,7 +416,7 @@ mod post_quantum_crypto_tests {
 
     fn verify_mock_signature(message: &[u8], signature: &[u8], mode: CryptoMode) -> bool {
         // Mock signature verification
-        let expected_suffix = match mode {
+        let expected_suffix: &[u8] = match mode {
             CryptoMode::Classical => b"_classical_sig",
             CryptoMode::Hybrid => b"_hybrid_sig",
             CryptoMode::PostQuantum => b"_pq_sig",

@@ -1,9 +1,9 @@
 //! Error handling for the Secreton API.
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 
 use std::collections::HashMap;

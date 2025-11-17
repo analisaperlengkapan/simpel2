@@ -84,7 +84,6 @@ impl VaultProvider for FileVaultProvider {
 }
 
 /// Java KeyStore-based vault provider
-#[allow(dead_code)]
 pub struct KeyStoreVaultProvider {
     /// Path to the Java KeyStore file
     keystore_path: String,
@@ -222,19 +221,6 @@ impl VaultProvider for KeyStoreVaultProvider {
 
 // Note: HashiCorp Vault and Azure Key Vault providers have been removed
 // This project uses Secreton (internal secret management system) only
-
-/// Azure Key Vault provider (deprecated - removed)
-/// Note: Use Secreton instead
-#[deprecated(note = "Use Secreton service instead")]
-#[allow(dead_code)]
-pub struct AzureKeyVaultProvider;
-
-impl AzureKeyVaultProvider {
-    #[deprecated]
-    pub fn new(_vault_url: String, _client_id: String, _client_secret: String) -> Self {
-        panic!("AzureKeyVaultProvider is deprecated. Use Secreton service instead.");
-    }
-}
 
 // Legacy vault service struct for backward compatibility
 /// Main secreton service
@@ -416,5 +402,4 @@ mod tests {
             "myapp:master:db_password"
         );
     }
-
 }

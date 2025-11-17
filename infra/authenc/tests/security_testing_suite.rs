@@ -7,8 +7,8 @@
 //
 // Requirements: 8.1 (Testing and Quality Assurance)
 
-use authenc::middleware::adaptive_rate_limit::AdaptiveRateLimiter;
-use authenc::utils::crypto::jwt::{Claims, generate_jwt, verify_jwt};
+use authenc::middleware::adaptive_rate_limit::{AdaptiveRateLimitConfig, AdaptiveRateLimiter};
+use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
 use axum::{
     Router,
     extract::{Json, Query, State},
@@ -21,7 +21,6 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
 // ============================================================================
@@ -37,10 +36,11 @@ struct SecurityTestState {
 
 impl SecurityTestState {
     fn new() -> Self {
+        let config = AdaptiveRateLimitConfig::default();
         Self {
             users: Arc::new(Mutex::new(HashMap::new())),
             admin_actions: Arc::new(Mutex::new(Vec::new())),
-            rate_limiter: Arc::new(AdaptiveRateLimiter::new()),
+            rate_limiter: Arc::new(AdaptiveRateLimiter::new(config)),
         }
     }
 }
@@ -111,16 +111,13 @@ async fn rate_limited_action(
         .and_then(|h| h.to_str().ok())
         .unwrap_or("127.0.0.1");
 
-    let key = format!("test_endpoint:{}", ip);
-
-    // Check rate limit
-    if state.rate_limiter.check_rate_limit(&key).await {
-        Ok(JsonResponse(json!({
+    // Check rate limit using the adaptive rate limiter
+    match state.rate_limiter.check_rate_limit("/api/action", ip) {
+        Ok(()) => Ok(JsonResponse(json!({
             "success": true,
             "message": "Action performed"
-        })))
-    } else {
-        Err(StatusCode::TOO_MANY_REQUESTS)
+        }))),
+        Err(_) => Err(StatusCode::TOO_MANY_REQUESTS),
     }
 }
 

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 #[derive(Debug, Clone)]
 pub struct PasswordPolicy {
     pub min_length: usize,

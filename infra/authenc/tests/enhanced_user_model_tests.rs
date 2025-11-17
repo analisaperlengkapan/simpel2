@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod enhanced_user_model_tests {
     use authenc::models::user::*;
-    use chrono::{DateTime, Duration, Utc};
+    use chrono::{Duration, Timelike, Utc};
     use serde_json::json;
     use uuid::Uuid;
 
@@ -223,6 +223,9 @@ mod enhanced_user_model_tests {
             password_hash: Some("hashed_password".to_string()),
             totp_secret: None,
             totp_backup_codes: None,
+            mfa_enabled: false,
+            mfa_setup_at: None,
+            mfa_last_used: None,
             webauthn_enabled: false,
             account_locked: false,
             account_locked_until: None,

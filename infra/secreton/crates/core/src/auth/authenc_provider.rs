@@ -150,9 +150,10 @@ impl TokenCache {
     pub async fn get(&self, token: &str) -> Option<TokenValidation> {
         let cache = self.cache.read().await;
         if let Some(entry) = cache.get(token)
-            && !entry.is_expired() {
-                return Some(entry.validation.clone());
-            }
+            && !entry.is_expired()
+        {
+            return Some(entry.validation.clone());
+        }
         None
     }
 

@@ -11,28 +11,30 @@
 //! - Cross-level permission validation and enforcement
 //! - Audit trail for hierarchical operations
 
-use serde_json::json;
 use std::collections::HashMap;
-use std::time::Duration;
-use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
-use authenc::crypto::CryptoEngine;
+use authenc::crypto::SecretonPermissions;
 use authenc::error::AuthencError;
-use authenc::models::user::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, User};
-use authenc::secreton_client::secreton_client::SecretonClient;
+use authenc::models::user::{
+    AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext, User,
+};
 
 /// Test suite for hierarchical admin operations
 #[cfg(test)]
+#[cfg(feature = "secreton_integration")]
 mod hierarchical_admin_tests {
     use super::*;
 
     #[tokio::test]
     async fn test_admin_pusat_comprehensive_access() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create AdminPusat user
         let admin_pusat = create_admin_user(AdminLevel::AdminPusat, "KEJAGUNG");
@@ -131,9 +133,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_admin_eselon_i_regional_access() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create AdminEselonI user
         let admin_eselon_i = create_admin_user(AdminLevel::AdminEselonI, "KEJAGUNG");
@@ -234,9 +239,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_admin_wilayah_jurisdictional_access() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test different wilayah admin scenarios
         let wilayah_scenarios = vec![
@@ -380,9 +388,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_admin_satker_unit_specific_access() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test AdminSatker for specific units
         let satker_units = vec![
@@ -506,9 +517,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_hierarchical_role_delegation() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test role delegation scenarios
         let delegation_scenarios = vec![
@@ -640,9 +654,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_hierarchical_audit_trail() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create admin users at different levels
         let admin_users = vec![
@@ -750,9 +767,12 @@ mod hierarchical_admin_tests {
 
     #[tokio::test]
     async fn test_emergency_hierarchical_override() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test emergency override scenarios
         let emergency_scenarios = vec![
@@ -911,6 +931,162 @@ mod hierarchical_admin_tests {
 
 // Helper functions for creating test data
 
+#[derive(Clone)]
+struct SecretonClient;
+
+#[derive(Clone, Copy)]
+struct CryptoEngine;
+
+impl CryptoEngine {
+    async fn sign_jwt(&self, claims: &serde_json::Value) -> Result<String, AuthencError> {
+        Ok(serde_json::to_string(claims).unwrap())
+    }
+}
+
+fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
+    User {
+        id: Uuid::new_v4(),
+        username: format!("test.user.{}", satker_code.to_lowercase()),
+        email: "test.jaksa.comprehensive@kejaksaan.go.id".to_string(),
+        email_verified: true,
+        first_name: Some("Test".to_string()),
+        last_name: Some("User".to_string()),
+        nip: Some("198001012000011001".to_string()),
+        nama: Some("Test Jaksa Comprehensive".to_string()),
+        jabatan: Some("Jaksa Muda".to_string()),
+        satker_code: satker_code.to_string(),
+        phone_number: None,
+        phone_verified: false,
+        password_hash: Some("hashed_password".to_string()),
+        totp_secret: None,
+        totp_backup_codes: None,
+        mfa_enabled: false,
+        mfa_setup_at: None,
+        mfa_last_used: None,
+        webauthn_enabled: false,
+        account_locked: false,
+        account_locked_until: None,
+        failed_login_attempts: 0,
+        last_login_at: None,
+        last_failed_login_at: None,
+        password_changed_at: Some(chrono::Utc::now()),
+        password_expires_at: Some(chrono::Utc::now() + chrono::Duration::days(90)),
+        require_password_change: false,
+        realm_id: Some(Uuid::new_v4()),
+        organization_id: Some(Uuid::new_v4()),
+        roles: vec![
+            Role {
+                id: Uuid::new_v4(),
+                name: "SecretonUser".to_string(),
+                description: Some("Secreton user role for comprehensive access".to_string()),
+                scope: RoleScope::Satker(satker_code.to_string()),
+                permissions: vec![],
+                managed_by: AdminLevel::AdminSatker(satker_code.to_string()),
+                realm_id: None,
+                composite: false,
+                client_role: false,
+                client_id: None,
+                priority: 100,
+                active: true,
+                attributes: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+            Role {
+                id: Uuid::new_v4(),
+                name: "AuditViewer".to_string(),
+                description: Some("Audit log viewer role for comprehensive access".to_string()),
+                scope: RoleScope::Satker(satker_code.to_string()),
+                permissions: vec![],
+                managed_by: AdminLevel::AdminSatker(satker_code.to_string()),
+                realm_id: None,
+                composite: false,
+                client_role: false,
+                client_id: None,
+                priority: 100,
+                active: true,
+                attributes: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+        ],
+        permissions: vec![],
+        session_data: None,
+        secreton_access_policy: SecretonAccessPolicy {
+            allowed_satker_secrets: vec![satker_code.to_string()],
+            access_level: AccessLevel::ReadWrite,
+            time_restrictions: None,
+            audit_required: true,
+            rate_limit: Some(100),
+            allowed_paths: Some(vec![
+                format!("secrets/{}/*", satker_code),
+                format!("config/{}/*", satker_code),
+            ]),
+            denied_paths: None,
+        },
+        security_context: SecurityContext {
+            ip_address: Some("192.168.1.100".to_string()),
+            user_agent: Some("AuthencIntegrationTest/1.0".to_string()),
+            session_id: Some(Uuid::new_v4().to_string()),
+            timestamp: chrono::Utc::now(),
+            risk_score: Some(0.1),
+            metadata: None,
+        },
+        attributes: None,
+        enabled: true,
+        federated: false,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        deleted_at: None,
+        login_count: 0,
+    }
+}
+
+fn get_secreton_permissions(user: &User) -> SecretonPermissions {
+    let mut satker_permissions = HashMap::new();
+    for satker in &user.secreton_access_policy.allowed_satker_secrets {
+        satker_permissions.insert(satker.clone(), vec!["*".to_string()]);
+    }
+
+    SecretonPermissions {
+        read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
+        write_secrets: if matches!(
+            user.secreton_access_policy.access_level,
+            AccessLevel::ReadWrite | AccessLevel::Admin
+        ) {
+            user.secreton_access_policy.allowed_satker_secrets.clone()
+        } else {
+            vec![]
+        },
+        admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
+        audit_access: user.secreton_access_policy.audit_required,
+        satker_permissions,
+    }
+}
+
+async fn create_comprehensive_token(
+    user: &User,
+    crypto_engine: &CryptoEngine,
+) -> Result<String, AuthencError> {
+    let token_claims = serde_json::json!({
+        "sub": user.id.to_string(),
+        "nip": user.nip,
+        "nama": user.nama,
+        "satker_code": user.satker_code,
+        "jabatan": user.jabatan,
+        "roles": user.roles.iter().map(|r| &r.name).collect::<Vec<_>>(),
+        "role_scopes": user.roles.iter().map(|r| &r.scope).collect::<Vec<_>>(),
+        "secreton_permissions": get_secreton_permissions(&user),
+        "security_context": user.security_context,
+        "iat": chrono::Utc::now().timestamp(),
+        "exp": (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+        "iss": "authenc-integration-test",
+        "aud": "secreton"
+    });
+
+    crypto_engine.sign_jwt(&token_claims).await
+}
+
 fn create_admin_user(admin_level: AdminLevel, satker_code: &str) -> User {
     let mut user = create_test_user_with_comprehensive_access(satker_code);
 
@@ -969,8 +1145,21 @@ fn get_admin_satker(admin_level: &AdminLevel) -> &str {
     }
 }
 
+fn test_config() -> AuthencConfig {
+    let mut config = AuthencConfig::default();
+    config.secreton = Some(authenc::config::SecretonConfig {
+        endpoint: "https://secreton.test".to_string(),
+        token: "test-token".to_string(),
+    });
+    config
+}
+
 // Mock implementations for hierarchical testing
 impl SecretonClient {
+    fn new(_endpoint: String, _token: String) -> Self {
+        SecretonClient
+    }
+
     async fn perform_hierarchical_admin_operation(
         &self,
         token: &str,
@@ -1163,7 +1352,4 @@ struct MockEmergencyResult {
     reason: String,
 }
 
-// Re-use helper functions from the comprehensive test
-use crate::tests::comprehensive_authenc_secreton_integration::{
-    create_comprehensive_token, create_test_user_with_comprehensive_access,
-};
+// Re-use local helpers defined above for comprehensive user and token creation

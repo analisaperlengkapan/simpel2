@@ -7,8 +7,8 @@
 //! - Password expiration policy (configurable, default: 90 days)
 
 use authenc::utils::crypto::password::{
-    PasswordStrengthResult, calculate_password_expiration, check_password_expiration,
-    check_password_history, hash_password, validate_password_strength, verify_password,
+    calculate_password_expiration, check_password_expiration, check_password_history,
+    hash_password, validate_password_strength, verify_password,
 };
 use chrono::{Duration, Utc};
 
@@ -276,7 +276,10 @@ fn test_password_expiration_calculation() {
 
     // Test with 0 days (never expires)
     let expires_at = calculate_password_expiration(changed_at, 0);
-    assert!(exs_none(), "Password with 0 days should never expire");
+    assert!(
+        expires_at.is_none(),
+        "Password with 0 days should never expire"
+    );
 }
 
 #[test]

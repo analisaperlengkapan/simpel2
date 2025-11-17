@@ -314,19 +314,21 @@ where
         let cache_key = Self::cache_key_for_id(id);
 
         if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await
-            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
-                return Ok(Some(entry));
-            }
+            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data)
+        {
+            return Ok(Some(entry));
+        }
 
         let entry = self.storage.get_by_id(id).await?;
 
         if let Some(ref entry) = entry
-            && let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self
-                    .cache
-                    .set(&cache_key, serialized, Some(self.default_ttl))
-                    .await;
-            }
+            && let Ok(serialized) = serde_json::to_vec(entry)
+        {
+            let _ = self
+                .cache
+                .set(&cache_key, serialized, Some(self.default_ttl))
+                .await;
+        }
 
         Ok(entry)
     }
@@ -335,19 +337,21 @@ where
         let cache_key = Self::cache_key_for_path(path);
 
         if let Ok(Some(cached_data)) = self.cache.get(&cache_key).await
-            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data) {
-                return Ok(Some(entry));
-            }
+            && let Ok(entry) = serde_json::from_slice::<VaultEntry>(&cached_data)
+        {
+            return Ok(Some(entry));
+        }
 
         let entry = self.storage.get_by_path(path).await?;
 
         if let Some(ref entry) = entry
-            && let Ok(serialized) = serde_json::to_vec(entry) {
-                let _ = self
-                    .cache
-                    .set(&cache_key, serialized, Some(self.default_ttl))
-                    .await;
-            }
+            && let Ok(serialized) = serde_json::to_vec(entry)
+        {
+            let _ = self
+                .cache
+                .set(&cache_key, serialized, Some(self.default_ttl))
+                .await;
+        }
 
         Ok(entry)
     }

@@ -24,7 +24,7 @@ pub struct Ed25519JwtHeader {
     pub kid: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// OIDC ID token claims for Ed25519 JWTs
 ///
 /// Standard OIDC claims included in ID tokens.

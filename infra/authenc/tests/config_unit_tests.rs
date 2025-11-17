@@ -77,14 +77,13 @@ mod tests {
         let config = ServerConfig {
             host: "127.0.0.1".to_string(),
             port: 8080,
+            grpc_port: 50051,
+            grpc_enabled: true,
             workers: Some(8),
             keep_alive: 60,
             client_timeout: 20,
             client_disconnect_timeout: 2,
             max_connections: 200,
-        min_connections: 1,
-        idle_timeout: 600,
-        max_lifetime: 1800,
             public_prefix: "/api".to_string(),
             admin_prefix: "/management".to_string(),
             internal_prefix: "/system".to_string(),
@@ -121,9 +120,9 @@ mod tests {
             password: "password".to_string(),
             database: "authenc".to_string(),
             max_connections: 10,
-        min_connections: 1,
-        idle_timeout: 600,
-        max_lifetime: 1800,
+            min_connections: 1,
+            idle_timeout: 600,
+            max_lifetime: 1800,
             connection_timeout: 30,
             audit_log_url: Some("postgres://audit:pass@localhost:5432/audit".to_string()),
             connection_timeout_seconds: 30,
@@ -458,6 +457,7 @@ mod tests {
             cleanup_interval_hours: 12,
             archive_before_delete: true,
             archive_directory: Some("/var/log/archive".to_string()),
+            cold_storage: None,
         };
 
         let serialized = serde_json::to_string(&config).unwrap();

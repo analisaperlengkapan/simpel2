@@ -436,7 +436,11 @@ impl AuthencService for AuthencGrpcService {
         let create_request = crate::models::user::CreateUserRequest {
             username: req.username.clone(),
             email: req.email.clone(),
-            satker_code: req.metadata.get("satker_code").cloned().unwrap_or_else(|| "DEFAULT".to_string()),
+            satker_code: req
+                .metadata
+                .get("satker_code")
+                .cloned()
+                .unwrap_or_else(|| "DEFAULT".to_string()),
             password,
             first_name: req.full_name.clone(),
             last_name: None,
@@ -1405,9 +1409,9 @@ impl AuthencService for AuthencGrpcService {
                 } else {
                     req.scopes.join(" ")
                 };
-                let redirect_uri = req.redirect_uri.unwrap_or_else(|| {
-                    "https://simpel.kejaksaan.go.id/auth/callback".to_string()
-                });
+                let redirect_uri = req
+                    .redirect_uri
+                    .unwrap_or_else(|| "https://simpel.kejaksaan.go.id/auth/callback".to_string());
                 format!(
                     "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
                     "YOUR_GOOGLE_CLIENT_ID", // Should come from config
@@ -1422,9 +1426,9 @@ impl AuthencService for AuthencGrpcService {
                 } else {
                     req.scopes.join(" ")
                 };
-                let redirect_uri = req.redirect_uri.unwrap_or_else(|| {
-                    "https://simpel.kejaksaan.go.id/auth/callback".to_string()
-                });
+                let redirect_uri = req
+                    .redirect_uri
+                    .unwrap_or_else(|| "https://simpel.kejaksaan.go.id/auth/callback".to_string());
                 format!(
                     "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope={}&state={}",
                     "YOUR_GITHUB_CLIENT_ID", // Should come from config
@@ -1444,7 +1448,7 @@ impl AuthencService for AuthencGrpcService {
                 return Err(Status::invalid_argument(format!(
                     "Unsupported provider: {}",
                     req.provider
-                )))
+                )));
             }
         };
 
@@ -1512,7 +1516,7 @@ impl AuthencService for AuthencGrpcService {
                 return Err(Status::invalid_argument(format!(
                     "Unsupported provider: {}",
                     req.provider
-                )))
+                )));
             }
         };
 
@@ -1624,12 +1628,12 @@ impl AuthencService for AuthencGrpcService {
         };
 
         // Convert timestamps
-        let start_time = req.start_time.map(|ts| {
-            chrono::DateTime::from_timestamp(ts, 0).unwrap_or_else(chrono::Utc::now)
-        });
-        let end_time = req.end_time.map(|ts| {
-            chrono::DateTime::from_timestamp(ts, 0).unwrap_or_else(chrono::Utc::now)
-        });
+        let start_time = req
+            .start_time
+            .map(|ts| chrono::DateTime::from_timestamp(ts, 0).unwrap_or_else(chrono::Utc::now));
+        let end_time = req
+            .end_time
+            .map(|ts| chrono::DateTime::from_timestamp(ts, 0).unwrap_or_else(chrono::Utc::now));
 
         // Get audit logs from database
         let audit_events = crate::database::operations::audit::get_audit_logs(
@@ -1657,7 +1661,9 @@ impl AuthencService for AuthencGrpcService {
             .map(|event| {
                 let mut metadata = std::collections::HashMap::new();
                 if let Some(details) = event.details {
-                    if let Ok(map) = serde_json::from_value::<std::collections::HashMap<String, String>>(details) {
+                    if let Ok(map) =
+                        serde_json::from_value::<std::collections::HashMap<String, String>>(details)
+                    {
                         metadata = map;
                     }
                 }
@@ -1691,8 +1697,8 @@ impl AuthencService for AuthencGrpcService {
 
         let start_time = chrono::DateTime::from_timestamp(req.start_time, 0)
             .unwrap_or_else(|| chrono::Utc::now() - chrono::Duration::days(30));
-        let end_time = chrono::DateTime::from_timestamp(req.end_time, 0)
-            .unwrap_or_else(chrono::Utc::now);
+        let end_time =
+            chrono::DateTime::from_timestamp(req.end_time, 0).unwrap_or_else(chrono::Utc::now);
 
         // Get audit logs for the period
         let audit_events = crate::database::operations::audit::get_audit_logs(
@@ -1743,8 +1749,7 @@ impl AuthencService for AuthencGrpcService {
         auth_metrics.insert(
             "success_rate".to_string(),
             if total_authentications > 0 {
-                ((total_authentications - failed_authentications) * 100)
-                    / total_authentications
+                ((total_authentications - failed_authentications) * 100) / total_authentications
             } else {
                 0
             },

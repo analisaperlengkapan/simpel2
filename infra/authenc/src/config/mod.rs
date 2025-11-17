@@ -486,6 +486,41 @@ pub struct AppConfig {
 
     /// Key rotation configuration for automatic key rotation
     pub key_rotation: Option<crate::services::key_rotation::KeyRotationConfig>,
+
+    /// Federation configuration for user federation
+    pub federation: Option<FederationConfig>,
+}
+
+/// Backwards-compatibility alias for older tests and integrations
+pub type AuthencConfig = AppConfig;
+
+/// Federation configuration for LDAP/AD and social login
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FederationConfig {
+    /// Enable user synchronization
+    #[serde(default)]
+    pub sync_enabled: bool,
+
+    /// Sync interval in minutes (default: 60)
+    pub sync_interval_minutes: Option<u64>,
+
+    /// Batch size for sync operations (default: 100)
+    #[serde(default = "default_sync_batch_size")]
+    pub batch_size: usize,
+}
+
+impl Default for FederationConfig {
+    fn default() -> Self {
+        Self {
+            sync_enabled: false,
+            sync_interval_minutes: Some(60),
+            batch_size: default_sync_batch_size(),
+        }
+    }
+}
+
+fn default_sync_batch_size() -> usize {
+    100
 }
 
 /// Server configuration options
@@ -1192,6 +1227,7 @@ impl Default for AppConfig {
             spi: SpiConfig::default(),
             clustering: ClusterConfig::default(),
             key_rotation: None,
+            federation: None,
         }
     }
 }

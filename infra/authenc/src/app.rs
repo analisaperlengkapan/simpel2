@@ -49,8 +49,15 @@ pub struct AppState {
         Arc<crate::services::permission_ticket_store::PermissionTicketStore>,
     /// Scope management store
     pub scope_store: Arc<crate::services::scope_store::ScopeStore>,
+    /// Client scope service for OAuth2/OIDC scope management with consent
+    pub client_scope_service: Arc<crate::services::client_scope_service::ClientScopeService>,
+    /// Protocol mapper service for claim transformation and token generation
+    pub protocol_mapper_service:
+        Arc<crate::services::protocol_mapper_service::ProtocolMapperService>,
     /// OIDC client store for OAuth2/OIDC client management
     pub oidc_client_store: Arc<crate::services::oidc_client_store::OidcClientStore>,
+    /// Service account store for machine-to-machine authentication
+    pub service_account_store: Arc<crate::services::service_account_store::ServiceAccountStore>,
     /// Social account store for social login account linking
     pub social_account_store:
         Arc<crate::services::stores::social_account_store::SocialAccountStore>,
@@ -84,6 +91,25 @@ pub struct AppState {
     pub mfa_cache: Option<Arc<crate::services::cache::MfaCache>>,
     /// Key rotation service for automatic key rotation
     pub key_rotation_service: Option<Arc<crate::services::key_rotation::KeyRotationService>>,
+    /// Federation manager for user federation orchestration
+    pub federation_manager: Arc<crate::services::federation_manager::FederationManager>,
+    /// User synchronization service for LDAP/AD sync
+    pub user_sync_service: Arc<crate::services::user_sync_service::UserSyncService>,
+    /// UMA 2.0 policy store for policy database operations
+    pub uma_policy_store: Arc<crate::services::uma_policy_store::UmaPolicyStore>,
+    /// UMA 2.0 delegation policy store
+    pub uma_delegation_policy_store:
+        Arc<crate::services::uma_policy_store::UmaDelegationPolicyStore>,
+    /// UMA 2.0 policy engine for fine-grained authorization
+    pub uma_policy_engine: Arc<crate::services::uma::PolicyEngine>,
+    /// UMA 2.0 RPT service for token issuance
+    pub uma_rpt_service: Arc<crate::services::uma::RptService>,
+    /// UMA 2.0 permission endpoint for permission ticket and RPT issuance
+    pub uma_permission_endpoint: Arc<crate::services::uma::PermissionEndpoint>,
+    /// UMA 2.0 claims gathering service
+    pub uma_claims_gathering: Arc<tokio::sync::Mutex<crate::services::uma::ClaimsGatheringService>>,
+    /// UMA 2.0 resource owner authorization service
+    pub uma_resource_owner_auth: Arc<crate::services::uma::ResourceOwnerAuthService>,
 }
 
 impl AppState {
@@ -99,6 +125,15 @@ impl AppState {
                     AuthencError::database(format!("Failed to initialize database: {}", e))
                 })?,
         );
+
+        // Initialize UMA 2.0 tables
+        crate::services::uma::init::init_uma_tables(&database)
+            .await
+            .inspect_err(|e| {
+                tracing::warn!("Failed to initialize UMA tables (may already exist): {}", e);
+                // Don't fail startup if tables already exist
+            })
+            .ok();
 
         // Initialize audit log store
         let audit_log_store = Arc::new(
@@ -157,8 +192,21 @@ impl AppState {
         let scope_store = Arc::new(crate::services::scope_store::ScopeStore::new(
             database.clone(),
         ));
+        let client_scope_service = Arc::new(
+            crate::services::client_scope_service::ClientScopeService::new(database.clone()),
+        );
+        let protocol_mapper_service = Arc::new(
+            crate::services::protocol_mapper_service::ProtocolMapperService::new(database.clone()),
+        );
         let oidc_client_store = Arc::new(
             crate::services::oidc_client_store::OidcClientStore::with_database(database.clone()),
+        );
+
+        // Initialize service account store for machine-to-machine authentication
+        let service_account_store = Arc::new(
+            crate::services::service_account_store::ServiceAccountStore::with_database(
+                database.clone(),
+            ),
         );
 
         // Initialize social account store
@@ -515,6 +563,39 @@ impl AppState {
             None
         };
 
+        // Initialize federation manager for user federation
+        let federation_manager = Arc::new(
+            crate::services::federation_manager::FederationManager::new(database.clone()),
+        );
+
+        // Initialize federation manager (load providers from database)
+        if let Err(e) = federation_manager.initialize().await {
+            tracing::warn!("Failed to initialize federation manager: {}", e);
+        } else {
+            tracing::info!("Federation manager initialized successfully");
+        }
+
+        // Initialize user sync service for LDAP/AD synchronization
+        let user_sync_service = Arc::new(crate::services::user_sync_service::UserSyncService::new(
+            database.clone(),
+            federation_manager.clone(),
+        ));
+
+        // Start sync scheduler if configured
+        if let Some(sync_interval) = config
+            .federation
+            .as_ref()
+            .and_then(|f| f.sync_interval_minutes)
+        {
+            user_sync_service.start_scheduler(sync_interval).await;
+            tracing::info!(
+                "User sync scheduler started with interval: {} minutes",
+                sync_interval
+            );
+        } else {
+            tracing::info!("User sync scheduler not configured");
+        }
+
         Ok(Self {
             config,
             database,
@@ -531,11 +612,14 @@ impl AppState {
             realm_service,
             role_store,
             permission_store,
-            resource_store,
+            resource_store: resource_store.clone(),
             resource_server_store,
-            permission_ticket_store,
+            permission_ticket_store: permission_ticket_store.clone(),
             scope_store,
+            client_scope_service,
+            protocol_mapper_service,
             oidc_client_store,
+            service_account_store,
             social_account_store,
             broker_registry,
             oid4vc_service,
@@ -552,6 +636,67 @@ impl AppState {
             redis_cache,
             mfa_cache,
             key_rotation_service,
+            federation_manager,
+            user_sync_service: user_sync_service.clone(),
+            uma_policy_store: Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(
+                database.clone(),
+            )),
+            uma_delegation_policy_store: Arc::new(
+                crate::services::uma_policy_store::UmaDelegationPolicyStore::new(database.clone()),
+            ),
+            uma_policy_engine: Arc::new(crate::services::uma::PolicyEngine::new(
+                database.clone(),
+                resource_store.clone(),
+            )),
+            uma_rpt_service: Arc::new(
+                crate::services::uma::RptService::new(
+                    "authenc".to_string(), // issuer
+                    // In production, load signing keys from Secreton
+                    jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                    jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                )
+                .with_lifetime(3600),
+            ), // token lifetime: 1 hour
+            uma_permission_endpoint: {
+                let uma_policy_store = Arc::new(
+                    crate::services::uma_policy_store::UmaPolicyStore::new(database.clone()),
+                );
+                let uma_rpt_service = Arc::new(
+                    crate::services::uma::RptService::new(
+                        "authenc".to_string(),
+                        jsonwebtoken::EncodingKey::from_secret(
+                            config.security.jwt_secret.as_bytes(),
+                        ),
+                        jsonwebtoken::DecodingKey::from_secret(
+                            config.security.jwt_secret.as_bytes(),
+                        ),
+                    )
+                    .with_lifetime(3600),
+                );
+                let uma_policy_engine = Arc::new(crate::services::uma::PolicyEngine::new(
+                    database.clone(),
+                    resource_store.clone(),
+                ));
+
+                Arc::new(crate::services::uma::PermissionEndpoint::new(
+                    database.clone(),
+                    resource_store.clone(),
+                    permission_ticket_store.clone(),
+                    uma_policy_engine,
+                    uma_rpt_service,
+                    uma_policy_store,
+                    3600, // ticket lifetime: 1 hour
+                ))
+            },
+            uma_claims_gathering: Arc::new(tokio::sync::Mutex::new(
+                crate::services::uma::ClaimsGatheringService::new(
+                    format!("https://{}:{}", config.server.host, config.server.port), // base_url
+                ),
+            )),
+            uma_resource_owner_auth: Arc::new(crate::services::uma::ResourceOwnerAuthService::new(
+                resource_store.clone(),
+                permission_ticket_store.clone(),
+            )),
         })
     }
 

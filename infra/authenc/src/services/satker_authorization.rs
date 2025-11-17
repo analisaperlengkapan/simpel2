@@ -377,7 +377,7 @@ pub struct SatkerHierarchyInfo {
 mod tests {
     use super::*;
     use crate::models::satker::{Satker, SatkerType};
-    use crate::models::user::{Permission, Role, RoleScope, User};
+    use crate::models::user::{Role, RoleScope, User};
     use chrono::Utc;
     use uuid::Uuid;
 

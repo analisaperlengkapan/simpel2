@@ -8,7 +8,6 @@ use base32;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Test vectors from RFC 6238 Appendix B
 const RFC6238_SECRET: &str = "12345678901234567890";

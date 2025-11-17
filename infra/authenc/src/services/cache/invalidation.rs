@@ -497,7 +497,7 @@ impl CacheWarmingService {
 mod tests {
     use super::*;
     use crate::config::RedisConfig;
-    use crate::services::cache::{MultiLayerCache, MultiLayerCacheConfig, RedisCache};
+    use crate::services::cache::{MultiLayerCache, RedisCache};
 
     async fn create_test_cache() -> Arc<MultiLayerCache> {
         let redis_config = RedisConfig {

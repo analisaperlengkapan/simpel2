@@ -333,8 +333,6 @@ pub async fn fetch_all_assets_with_pagination(
     storage: &crate::StorageStrategy,
     category: SimanAssetCategory,
 ) -> Result<(usize, usize), MonsaktiError> {
-    use crate::db::bulk_insert_postgres;
-
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count

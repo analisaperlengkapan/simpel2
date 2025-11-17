@@ -260,21 +260,23 @@ impl Secret {
                 .access_control
                 .required_satker
                 .contains(&user_satker.to_string())
-            {
-                return false;
-            }
+        {
+            return false;
+        }
 
         // Check NIP whitelist/blacklist
         if let Some(nip) = user_nip {
             if let Some(blacklist) = &self.access_control.nip_blacklist
-                && blacklist.contains(&nip.to_string()) {
-                    return false;
-                }
+                && blacklist.contains(&nip.to_string())
+            {
+                return false;
+            }
 
             if let Some(whitelist) = &self.access_control.nip_whitelist
-                && !whitelist.contains(&nip.to_string()) {
-                    return false;
-                }
+                && !whitelist.contains(&nip.to_string())
+            {
+                return false;
+            }
         }
 
         // Check role requirements
@@ -291,17 +293,19 @@ impl Secret {
         }
 
         // Check admin level requirements
-        if let Some(required_admin_level) = &self.access_control.admin_level_required
-            && admin_level.is_none() {
-                return false;
-            }
-            // In production, implement proper admin level hierarchy checking
+        if let Some(_required_admin_level) = &self.access_control.admin_level_required
+            && admin_level.is_none()
+        {
+            return false;
+        }
+        // In production, implement proper admin level hierarchy checking
 
         // Check time-based access
         if let Some(time_access) = &self.access_control.time_based_access
-            && !self.check_time_based_access(time_access) {
-                return false;
-            }
+            && !self.check_time_based_access(time_access)
+        {
+            return false;
+        }
 
         true
     }
@@ -312,14 +316,16 @@ impl Secret {
 
         // Check validity period
         if let Some(valid_from) = time_access.valid_from
-            && now < valid_from {
-                return false;
-            }
+            && now < valid_from
+        {
+            return false;
+        }
 
         if let Some(valid_until) = time_access.valid_until
-            && now > valid_until {
-                return false;
-            }
+            && now > valid_until
+        {
+            return false;
+        }
 
         // Check allowed hours and days
         // In production, implement proper timezone handling
@@ -327,14 +333,16 @@ impl Secret {
         let weekday = now.weekday().num_days_from_sunday() as u8;
 
         if let Some(allowed_hours) = &time_access.allowed_hours
-            && !allowed_hours.contains(&hour) {
-                return false;
-            }
+            && !allowed_hours.contains(&hour)
+        {
+            return false;
+        }
 
         if let Some(allowed_days) = &time_access.allowed_days
-            && !allowed_days.contains(&weekday) {
-                return false;
-            }
+            && !allowed_days.contains(&weekday)
+        {
+            return false;
+        }
 
         true
     }

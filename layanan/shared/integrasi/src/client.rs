@@ -159,9 +159,16 @@ impl MonsaktiClient {
 
                                         // Save token baru ke database
                                         if let Some(db) = &self.db_client {
-                                            match self.save_token_to_db(db, module, token_str).await {
-                                                Ok(_) => info!("✓ Token dari response disimpan ke database (modul: {})", module),
-                                                Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
+                                            match self.save_token_to_db(db, module, token_str).await
+                                            {
+                                                Ok(_) => info!(
+                                                    "✓ Token dari response disimpan ke database (modul: {})",
+                                                    module
+                                                ),
+                                                Err(e) => warn!(
+                                                    "⚠ Gagal simpan token dari response ke database: {:?}",
+                                                    e
+                                                ),
                                             }
                                         }
                                     }
@@ -290,7 +297,10 @@ impl MonsaktiClient {
                 // Save token baru ke database
                 if let Some(db) = &self.db_client {
                     match self.save_token_to_db(db, module, new_token).await {
-                        Ok(_) => info!("✓ Token dari response disimpan ke database (modul: {})", module),
+                        Ok(_) => info!(
+                            "✓ Token dari response disimpan ke database (modul: {})",
+                            module
+                        ),
                         Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
                     }
                 }

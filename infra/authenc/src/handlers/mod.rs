@@ -45,6 +45,8 @@ pub mod oidc_keys;
 // Advanced Services Handlers
 /// Administrative API endpoints for system management
 pub mod admin;
+/// Client policy management API endpoints
+pub mod client_policy;
 /// Prometheus metrics endpoint for monitoring
 pub mod metrics;
 // Temporarily disabled API module due to Actix-web migration issues
@@ -56,34 +58,47 @@ pub mod api; // Uncommented - contains Axum handlers
 pub mod broker;
 /// OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
 pub mod client_registration;
+/// Admin API for Dynamic Client Registration
+pub mod dcr_admin;
 /// Device management handlers
 pub mod device;
 /// Federated authentication handlers with JIT provisioning
 pub mod federated_auth;
+/// Federated login integration for LDAP/AD and social authentication
+pub mod federated_login;
+/// Federation admin API handlers for identity provider management
+pub mod federation_admin;
+/// Shared JIT Admin Service for federated auth and SAML
+pub mod jit_admin_service;
 /// SPI-based federation handlers for LDAP and social providers
 pub mod spi_federation;
 /// SPI management handlers for enterprise features
 pub mod spi_management;
 // pub mod oauth2_comprehensive; // Commented out - already declared above
 // pub mod organization;
+/// OpenID for Verifiable Credentials (OID4VC) handlers
+pub mod oid4vc;
 /// SAML authentication handlers
 pub mod saml;
 /// Satker (organizational unit) hierarchy handlers
 pub mod satker;
 /// Social login handlers
 pub mod social;
-// pub mod webauthn;
-/// OpenID for Verifiable Credentials (OID4VC) handlers
-pub mod oid4vc;
 /// Single Sign-On (SSO) handlers and endpoints
 pub mod sso;
+/// OAuth 2.0 Token Exchange (RFC 8693) HTTP handler
+pub mod token_exchange;
+/// UMA 2.0 (User-Managed Access) fine-grained authorization handlers
+pub mod uma;
+/// WebAuthn/FIDO2 passwordless authentication handlers
+pub mod webauthn;
 /// Zero Trust security model handlers and endpoints
 pub mod zero_trust;
 
 /// Create the main application router with all routes
 pub fn create_router(state: Arc<AppState>) -> Router {
-    // For backward compatibility, extract database from state
-    // TODO: Gradually migrate handlers to use AppState directly
+    // For backward compatibility, extract database from state where needed
+    // TODO: Gradually migrate handlers to use AppState directly everywhere
     let db_state = state.database.clone();
 
     // Create OAuth2 stores
@@ -170,6 +185,15 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .merge(oauth2_test_router)
         // Merge OAuth2 router (with auth for token/userinfo endpoints)
         .merge(oauth2_router)
+        // OAuth 2.0 Token Exchange endpoint (RFC 8693)
+        .route(
+            "/oauth2/token/exchange",
+            post(token_exchange::token_exchange_endpoint),
+        )
+        .route(
+            "/.well-known/oauth-token-exchange",
+            get(token_exchange::token_exchange_metadata),
+        )
         // Test consent routes (without auth)
         .merge(consent_ui::create_test_consent_routes().with_state(state.clone()))
         // Consent UI routes (with auth)
@@ -188,6 +212,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/oauth2",
             client_registration::create_client_registration_routes().with_state(state.clone()),
         )
+        // DCR Admin API
+        .nest(
+            "/api/v1/admin/dcr",
+            dcr_admin::create_dcr_admin_routes().with_state(state.clone()),
+        )
         // Advanced Services API routes
         // Social login routes
         .nest(
@@ -199,19 +228,25 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         //     "/api/v1/auth/authorization",
         //     authorization::create_authorization_routes(),
         // )
-        .nest(
-            "/api/v1/auth/zero-trust",
-            zero_trust::create_zero_trust_routes(),
-        )
-        // Temporarily disabled broker routes due to Axum migration
-        .nest(
-            "/api/v1/auth/broker",
-            broker::create_identity_broker_routes(),
-        )
-        // Federated authentication routes with JIT provisioning
+        // Temporarily disabled Zero Trust routes during AppState migration
+        // .nest(
+        //     "/api/v1/auth/zero-trust",
+        //     zero_trust::create_zero_trust_routes(),
+        // )
+        // Temporarily disabled broker routes during AppState migration
+        // .nest(
+        //     "/api/v1/auth/broker",
+        //     broker::create_identity_broker_routes(),
+        // )
+        // Temporarily disabled federated-auth routes during AppState migration
+        // .nest(
+        //     "/api/v1/auth/federated",
+        //     federated_auth::create_federated_auth_routes(),
+        // )
+        // Federated login routes for LDAP/AD and social authentication
         .nest(
             "/api/v1/auth/federated",
-            federated_auth::create_federated_auth_routes(),
+            federated_login::create_federated_login_routes().with_state(state.clone()),
         )
         // SSO (Single Sign-On) routes
         .merge(sso::create_sso_router().with_state(state.clone()))
@@ -220,12 +255,18 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/api/v1/auth/federation",
             spi_federation::create_federation_routes().with_state(state.clone()),
         )
+        // Federation admin routes for identity provider management
+        .nest(
+            "/api/v1/admin/federation",
+            federation_admin::create_federation_admin_routes().with_state(state.clone()),
+        )
         // SPI management routes for enterprise features
         .nest(
             "/api/v1/admin/spi",
             spi_management::create_spi_management_routes().with_state(state.clone()),
         )
-        .nest("/api/v1/admin", admin::create_admin_routes())
+        // Temporarily disabled admin routes during AppState migration
+        // .nest("/api/v1/admin", admin::create_admin_routes())
         // MFA administration routes
         .nest(
             "/api/v1/admin/mfa",
@@ -296,6 +337,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .nest(
             "/api/v1/auth",
+            api::service_account::create_service_account_routes().with_state(state.clone()),
+        )
+        .nest(
+            "/api/v1/auth",
             api::audit::create_audit_routes().with_state(state.audit_log_store.clone()),
         )
         .nest(
@@ -305,6 +350,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest(
             "/api/v1/auth",
             api::auth_flow::create_auth_flow_routes().with_state(state.clone()),
+        )
+        // WebAuthn/FIDO2 passwordless authentication routes
+        .nest(
+            "/api/v1/auth/webauthn",
+            webauthn::create_webauthn_routes().with_state(state.clone()),
         )
         .nest(
             "/api/v1",
@@ -387,6 +437,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             oid4vc::create_oid4vc_router().with_state(state.clone()),
         )
         .nest("/vp", oid4vc::create_vp_router().with_state(state.clone()))
+        // UMA 2.0 (User-Managed Access) fine-grained authorization
+        .merge(uma::create_uma_routes().with_state(state.clone()))
         // JWKS endpoint at standard location
         .nest(
             "/.well-known",
@@ -406,22 +458,16 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         );
     }
 
-    router.with_state(db_state)
+    router.with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::app::AppState;
-    use crate::config::AppConfig;
+
     use axum::response::IntoResponse;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
+
     use http_body_util::BodyExt;
     use serde_json::Value;
-    use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_health_endpoint() {

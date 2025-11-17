@@ -154,7 +154,11 @@ fn extract_namespace_from_path(path: &str) -> Option<String> {
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
 
     // Pattern 1: /v1/sys/namespaces/{ns}/...
-    if segments.len() >= 4 && segments[0] == "v1" && segments[1] == "sys" && segments[2] == "namespaces" {
+    if segments.len() >= 4
+        && segments[0] == "v1"
+        && segments[1] == "sys"
+        && segments[2] == "namespaces"
+    {
         return Some(segments[3].to_string());
     }
 
@@ -202,11 +206,10 @@ pub async fn audit_middleware(
         metadata.insert("duration_ms".into(), duration.as_millis().to_string());
 
         // Try to extract error details
-        if !success
-            && let Some(body) = response.body().size_hint().exact() {
-                // If we can get the body size, we could log it
-                metadata.insert("response_size".into(), body.to_string());
-            }
+        if !success && let Some(body) = response.body().size_hint().exact() {
+            // If we can get the body size, we could log it
+            metadata.insert("response_size".into(), body.to_string());
+        }
 
         // Log the request
         let namespace = extract_namespace_from_path(&path);

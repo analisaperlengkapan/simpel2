@@ -177,8 +177,13 @@ async fn process_monsakti(
             info!("Mode: SATKER (all satker for KL{})", args.kode_kl);
             if module_filter.is_some() {
                 // Gunakan fungsi baru yang ambil satker list dari database (lebih efisien)
-                fetch_all_satker_with_modules_from_db(client, storage, &args.kode_kl, module_filter)
-                    .await?;
+                fetch_all_satker_with_modules_from_db(
+                    client,
+                    storage,
+                    &args.kode_kl,
+                    module_filter,
+                )
+                .await?;
             } else {
                 fetch_all_satker(client, storage, &args.kode_kl).await?;
             }

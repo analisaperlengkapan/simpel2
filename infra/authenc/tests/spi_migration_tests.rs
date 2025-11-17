@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use authenc::spi::migration::*;
-    use authenc::spi::{Provider, ProviderConfig, ProviderFactory, Spi};
+    use authenc::spi::{ProviderFactory, Spi};
     use chrono::Utc;
 
     #[test]

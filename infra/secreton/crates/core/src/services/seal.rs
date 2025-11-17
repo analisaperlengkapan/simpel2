@@ -430,7 +430,9 @@ impl SealService {
 
         // Decrypt master key
         if metadata.nonce.len() != 12 {
-            return Err(SealError::DecryptionFailed("Invalid nonce size".to_string()));
+            return Err(SealError::DecryptionFailed(
+                "Invalid nonce size".to_string(),
+            ));
         }
         let mut nonce_arr = [0u8; 12];
         nonce_arr.copy_from_slice(&metadata.nonce);

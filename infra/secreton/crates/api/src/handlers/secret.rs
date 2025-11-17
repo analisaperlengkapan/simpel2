@@ -16,7 +16,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{
+    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
+    helpers::create_audit_log,
+};
 use secreton_core::audit::AuditLog;
 
 /// Create secret management operation routes
@@ -233,8 +236,7 @@ pub struct CreateKeyRequest {
     pub exportable: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct KeyMetadata {
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -414,36 +416,32 @@ pub async fn get_secret(
 pub async fn create_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
-    // RBAC check (placeholder user)
-    // TODO: Implement secret creation
+    // Create secret using vault service
+    let secret_data = state
+        .vault
+        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to create secret: {}", e),
+        })?;
+
     let secret = SecretResponse {
-        path: path.clone(),
-        data: request.data,
+        path: secret_data.path,
+        data: secret_data.data,
         metadata: request.metadata.unwrap_or_default(),
-        version: 1,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        version: secret_data.version,
+        created_at: secret_data.created_at,
+        updated_at: secret_data.updated_at,
         expires_at: request
             .ttl
             .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
     };
 
-    // Audit: SecretCreation
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "secret_created".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "secret".to_string(),
-        resource_id: path.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("secret_created", &user.username, "secret", &path);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(secret)))
@@ -452,36 +450,32 @@ pub async fn create_secret(
 pub async fn update_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
-    // RBAC check (placeholder user)
-    // TODO: Implement secret update
+    // Update secret using vault service
+    let secret_data = state
+        .vault
+        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to update secret: {}", e),
+        })?;
+
     let secret = SecretResponse {
-        path: path.clone(),
-        data: request.data,
+        path: secret_data.path,
+        data: secret_data.data,
         metadata: request.metadata.unwrap_or_default(),
-        version: 2,
-        created_at: chrono::Utc::now() - chrono::Duration::hours(1),
-        updated_at: chrono::Utc::now(),
+        version: secret_data.version,
+        created_at: secret_data.created_at,
+        updated_at: secret_data.updated_at,
         expires_at: request
             .ttl
             .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
     };
 
-    // Audit: SecretVersionChange
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "secret_updated".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "secret".to_string(),
-        resource_id: path.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("secret_updated", &user.username, "secret", &path);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(secret)))
@@ -490,28 +484,24 @@ pub async fn update_secret(
 pub async fn delete_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // RBAC check (placeholder user)
-    // TODO: Implement secret deletion
+    // Delete secret using vault service
+    state
+        .vault
+        .delete_secret(&path, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete secret: {}", e),
+        })?;
+
     let data = serde_json::json!({
         "message": "Secret deleted successfully",
         "path": path
     });
 
-    // Audit: SecretDeletion
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "secret_deleted".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "secret".to_string(),
-        resource_id: path.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("secret_deleted", &user.username, "secret", &path);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(data)))
@@ -520,21 +510,28 @@ pub async fn delete_secret(
 pub async fn list_secrets(
     State(state): State<AppState>,
     Query(query): Query<ListQuery>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<SecretListItem>>>> {
-    // RBAC check could be resource-specific; allow listing with generic check
-    // TODO: Implement secret listing
-    let secrets = vec![SecretListItem {
-        path: "app/database".to_string(),
-        metadata: SecretMetadata {
-            description: Some("Database credentials".to_string()),
-            tags: vec!["database".to_string()],
-            owner: Some("admin".to_string()),
-            classification: Some("sensitive".to_string()),
-        },
-        version: 3,
-        created_at: chrono::Utc::now() - chrono::Duration::days(7),
-        updated_at: chrono::Utc::now() - chrono::Duration::hours(2),
-    }];
+    // List secrets using vault service
+    let paths = state
+        .vault
+        .list_secrets(query.filter.as_deref(), &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list secrets: {}", e),
+        })?;
+
+    // Convert paths to SecretListItem
+    let secrets: Vec<SecretListItem> = paths
+        .into_iter()
+        .map(|path| SecretListItem {
+            path,
+            metadata: SecretMetadata::default(),
+            version: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        })
+        .collect();
 
     Ok(Json(ApiResponse::success(secrets)))
 }
@@ -542,38 +539,34 @@ pub async fn list_secrets(
 /// Key operations
 pub async fn create_key(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<CreateKeyRequest>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // RBAC check
-    // TODO: Implement key creation
+    // Create key using vault service
+    let key_info = state
+        .vault
+        .create_key(&request.name, &request.key_type, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to create key: {}", e),
+        })?;
+
     let key = KeyResponse {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: request.name,
-        key_type: request.key_type,
+        id: key_info.id.clone(),
+        name: key_info.name,
+        key_type: key_info.key_type,
         algorithm: request.algorithm,
         size: request.size.unwrap_or(256),
         usage: request.usage,
         metadata: request.metadata.unwrap_or_default(),
-        version: 1,
-        created_at: chrono::Utc::now(),
+        version: key_info.version,
+        created_at: key_info.created_at,
         status: "active".to_string(),
         public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
     };
 
-    // Audit: KeyGeneration
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "key_generated".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "key".to_string(),
-        resource_id: key.id.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("key_generated", &user.username, "key", &key.id);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(key)))
@@ -582,19 +575,27 @@ pub async fn create_key(
 pub async fn get_key(
     State(state): State<AppState>,
     Path(key_id): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // RBAC check
-    // TODO: Implement key retrieval
+    // Get key using vault service
+    let key_info = state
+        .vault
+        .get_key(&key_id, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::NotFound {
+            resource: format!("Key '{}'", key_id),
+        })?;
+
     let key = KeyResponse {
-        id: key_id,
-        name: "example-key".to_string(),
-        key_type: "Ed25519".to_string(), // Changed from RSA to Ed25519 for security
-        algorithm: "Ed25519".to_string(), // Changed from RS256 to Ed25519
-        size: 256,                       // Ed25519 key size
+        id: key_info.id,
+        name: key_info.name,
+        key_type: key_info.key_type.clone(),
+        algorithm: key_info.key_type,
+        size: 256,
         usage: vec!["sign".to_string(), "verify".to_string()],
         metadata: KeyMetadata::default(),
-        version: 1,
-        created_at: chrono::Utc::now(),
+        version: key_info.version,
+        created_at: key_info.created_at,
         status: "active".to_string(),
         public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
     };
@@ -605,21 +606,33 @@ pub async fn get_key(
 pub async fn list_keys(
     State(state): State<AppState>,
     Query(query): Query<ListQuery>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
-    // TODO: Implement key listing
-    let keys = vec![KeyResponse {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: "signing-key".to_string(),
-        key_type: "Ed25519".to_string(), // Changed from RSA to Ed25519
-        algorithm: "Ed25519".to_string(), // Changed from RS256 to Ed25519
-        size: 256,                       // Ed25519 key size
-        usage: vec!["sign".to_string()],
-        metadata: KeyMetadata::default(),
-        version: 1,
-        created_at: chrono::Utc::now(),
-        status: "active".to_string(),
-        public_key: None,
-    }];
+    // List keys using vault service
+    let key_infos = state
+        .vault
+        .list_keys(&user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list keys: {}", e),
+        })?;
+
+    let keys: Vec<KeyResponse> = key_infos
+        .into_iter()
+        .map(|key_info| KeyResponse {
+            id: key_info.id,
+            name: key_info.name,
+            key_type: key_info.key_type.clone(),
+            algorithm: key_info.key_type,
+            size: 256,
+            usage: vec!["sign".to_string()],
+            metadata: KeyMetadata::default(),
+            version: key_info.version,
+            created_at: key_info.created_at,
+            status: "active".to_string(),
+            public_key: None,
+        })
+        .collect();
 
     Ok(Json(ApiResponse::success(keys)))
 }
@@ -627,37 +640,33 @@ pub async fn list_keys(
 pub async fn rotate_key(
     State(state): State<AppState>,
     Path(key_id): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // RBAC check
-    // TODO: Implement key rotation
+    // Rotate key using vault service
+    let key_info = state
+        .vault
+        .rotate_key(&key_id, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to rotate key: {}", e),
+        })?;
+
     let key = KeyResponse {
-        id: key_id,
-        name: "example-key".to_string(),
-        key_type: "Ed25519".to_string(), // Changed from RSA to Ed25519
-        algorithm: "Ed25519".to_string(), // Changed from RS256 to Ed25519
-        size: 256,                       // Ed25519 key size
+        id: key_info.id.clone(),
+        name: key_info.name,
+        key_type: key_info.key_type.clone(),
+        algorithm: key_info.key_type,
+        size: 256,
         usage: vec!["sign".to_string(), "verify".to_string()],
         metadata: KeyMetadata::default(),
-        version: 2, // Incremented version
-        created_at: chrono::Utc::now(),
+        version: key_info.version,
+        created_at: key_info.created_at,
         status: "active".to_string(),
         public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
     };
 
-    // Audit: KeyRotation
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "key_rotated".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "key".to_string(),
-        resource_id: key.id.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("key_rotated", &user.username, "key", &key.id);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(key)))
@@ -666,30 +675,26 @@ pub async fn rotate_key(
 /// Cryptographic operations
 pub async fn encrypt_data(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<EncryptRequest>,
 ) -> ApiResult<Json<ApiResponse<EncryptResponse>>> {
-    // RBAC check
-    // TODO: Implement encryption
+    // Encrypt using vault service
+    let result = state
+        .vault
+        .encrypt(&request.key_id, &request.plaintext, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Encryption failed: {}", e),
+        })?;
+
     let response = EncryptResponse {
-        ciphertext: "encrypted_data_base64".to_string(),
-        key_version: 1,
-        algorithm: request.algorithm.unwrap_or("AES-GCM".to_string()),
+        ciphertext: result.ciphertext,
+        key_version: result.key_version,
+        algorithm: request.algorithm.unwrap_or("AES-256-GCM".to_string()),
     };
 
-    // Audit: EncryptionOperation
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "data_encrypted".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "crypto".to_string(),
-        resource_id: request.key_id.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("data_encrypted", &user.username, "crypto", &request.key_id);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
@@ -697,69 +702,102 @@ pub async fn encrypt_data(
 
 pub async fn decrypt_data(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<DecryptRequest>,
 ) -> ApiResult<Json<ApiResponse<DecryptResponse>>> {
-    // RBAC check
-    // TODO: Implement decryption
+    // Decrypt using vault service
+    let result = state
+        .vault
+        .decrypt(&request.key_id, &request.ciphertext, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Decryption failed: {}", e),
+        })?;
+
     let response = DecryptResponse {
-        plaintext: "decrypted_data".to_string(),
+        plaintext: result.plaintext,
         key_version: 1,
     };
 
-    // Audit: DecryptionOperation
-    let audit_entry = secreton_core::audit::AuditLog {
-        id: uuid::Uuid::new_v4(),
-        timestamp: chrono::Utc::now(),
-        action: "data_decrypted".to_string(),
-        actor: Some("unknown".to_string()),
-        resource_type: "crypto".to_string(),
-        resource_id: request.key_id.clone(),
-        status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
-        user_agent: None,
-        namespace: None,
-        metadata: std::collections::HashMap::new(),
-    };
+    // Audit log
+    let audit_entry = create_audit_log("data_decrypted", &user.username, "crypto", &request.key_id);
     let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn sign_data(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<SignRequest>,
 ) -> ApiResult<Json<ApiResponse<SignResponse>>> {
-    // TODO: Implement signing
+    // Sign using vault service
+    let result = state
+        .vault
+        .sign(
+            &request.key_id,
+            &request.data,
+            request.algorithm.as_deref(),
+            &user.id.to_string(),
+        )
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Signing failed: {}", e),
+        })?;
+
     let response = SignResponse {
-        signature: "signature_base64".to_string(),
-        key_version: 1,
-        algorithm: request.algorithm.unwrap_or("RS256".to_string()),
+        signature: result.signature,
+        key_version: result.key_version,
+        algorithm: result.algorithm,
     };
 
     Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn verify_signature(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<VerifyRequest>,
 ) -> ApiResult<Json<ApiResponse<VerifyResponse>>> {
-    // TODO: Implement signature verification
+    // Verify using vault service
+    let result = state
+        .vault
+        .verify(
+            &request.key_id,
+            &request.data,
+            &request.signature,
+            &user.id.to_string(),
+        )
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Verification failed: {}", e),
+        })?;
+
     let response = VerifyResponse {
-        valid: true,
-        key_version: 1,
+        valid: result.valid,
+        key_version: result.key_version,
     };
 
     Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn hash_data(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<HashRequest>,
 ) -> ApiResult<Json<ApiResponse<HashResponse>>> {
-    // TODO: Implement hashing
+    // Hash using vault service
+    let result = state
+        .vault
+        .hash(&request.data, &request.algorithm, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Hashing failed: {}", e),
+        })?;
+
     let response = HashResponse {
-        hash: "hash_hex".to_string(),
-        algorithm: request.algorithm,
+        hash: result.hash,
+        algorithm: result.algorithm,
     };
 
     Ok(Json(ApiResponse::success(response)))
@@ -777,7 +815,6 @@ impl Default for SecretMetadata {
     }
 }
 
-
 // Key management handlers
 pub async fn update_key(
     State(state): State<AppState>,
@@ -791,26 +828,60 @@ pub async fn update_key(
     // For now, return the current key info
     // TODO: Implement metadata updates in key store
     Err(ApiError::BadRequest {
-        message: "Key updates not supported. Use key rotation to change key material.".to_string()
+        message: "Key updates not supported. Use key rotation to change key material.".to_string(),
     })
 }
 
 pub async fn delete_key(
     State(state): State<AppState>,
     Path(key_id): Path<String>,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Json<ApiResponse<()>>> {
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
     // Key deletion should be done carefully with audit trail
-    tracing::info!(key_id = %key_id, "Key deletion requested");
+    tracing::info!(key_id = %key_id, user_id = %user.id, "Key deletion requested");
 
-    // TODO: Implement key deletion with proper safeguards:
-    // 1. Check if key is in use
-    // 2. Archive before deletion
-    // 3. Audit trail
-    // 4. Cascade to associated data
+    // Delete key using vault service (includes safeguards)
+    state
+        .vault
+        .delete_key(&key_id, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to delete key: {}", e),
+        })?;
 
-    Err(ApiError::BadRequest {
-        message: "Key deletion not yet implemented. Consider key deactivation instead for safety.".to_string()
-    })
+    // Audit: KeyDeletion
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "key_deleted".to_string(),
+        actor: Some(user.username.clone()),
+        resource_type: "key".to_string(),
+        resource_id: key_id.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: std::collections::HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(())))
 }
 
 pub async fn list_key_versions(
@@ -844,7 +915,9 @@ pub async fn get_policy(
 ) -> ApiResult<Json<ApiResponse<String>>> {
     // TODO: Implement policy storage/retrieval system
     tracing::warn!(policy_name = %name, "Policy get requested but policy storage not yet implemented");
-    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
+    Err(ApiError::NotFound {
+        resource: format!("Policy '{}'", name),
+    })
 }
 
 pub async fn create_policy(
@@ -854,7 +927,9 @@ pub async fn create_policy(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // TODO: Implement policy storage system with validation
     tracing::warn!(policy_name = %name, "Policy create requested but policy storage not yet implemented");
-    Err(ApiError::NotImplemented("Policy storage not yet implemented".to_string()))
+    Err(ApiError::NotImplemented(
+        "Policy storage not yet implemented".to_string(),
+    ))
 }
 
 pub async fn update_policy(
@@ -864,7 +939,9 @@ pub async fn update_policy(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // TODO: Implement policy storage system
     tracing::warn!(policy_name = %name, "Policy update requested but policy storage not yet implemented");
-    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
+    Err(ApiError::NotFound {
+        resource: format!("Policy '{}'", name),
+    })
 }
 
 pub async fn delete_policy(
@@ -873,19 +950,21 @@ pub async fn delete_policy(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // TODO: Implement policy storage system
     tracing::warn!(policy_name = %name, "Policy delete requested but policy storage not yet implemented");
-    Err(ApiError::NotFound { resource: format!("Policy '{}'", name) })
+    Err(ApiError::NotFound {
+        resource: format!("Policy '{}'", name),
+    })
 }
 
 // Backup management handlers - delegate to admin service
-pub async fn create_backup(
-    State(state): State<AppState>
-) -> ApiResult<Json<ApiResponse<String>>> {
+pub async fn create_backup(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<String>>> {
     match state.admin.create_backup().await {
         Ok(backup_info) => {
             tracing::info!(backup_id = %backup_info.id, "Backup created");
             Ok(Json(ApiResponse::success(backup_info.id)))
         }
-        Err(e) => Err(ApiError::Internal { message: format!("Backup creation failed: {}", e) })
+        Err(e) => Err(ApiError::Internal {
+            message: format!("Backup creation failed: {}", e),
+        }),
     }
 }
 
@@ -897,7 +976,9 @@ pub async fn list_backups(
             let backup_ids: Vec<String> = backups.into_iter().map(|b| b.id).collect();
             Ok(Json(ApiResponse::success(backup_ids)))
         }
-        Err(e) => Err(ApiError::Internal { message: format!("Failed to list backups: {}", e) })
+        Err(e) => Err(ApiError::Internal {
+            message: format!("Failed to list backups: {}", e),
+        }),
     }
 }
 
@@ -909,14 +990,20 @@ pub async fn get_backup(
     match state.admin.list_backups().await {
         Ok(backups) => {
             if let Some(backup) = backups.into_iter().find(|b| b.id == backup_id) {
-                let backup_json = serde_json::to_string_pretty(&backup)
-                    .map_err(|e| ApiError::Internal { message: format!("Failed to serialize backup: {}", e) })?;
+                let backup_json =
+                    serde_json::to_string_pretty(&backup).map_err(|e| ApiError::Internal {
+                        message: format!("Failed to serialize backup: {}", e),
+                    })?;
                 Ok(Json(ApiResponse::success(backup_json)))
             } else {
-                Err(ApiError::NotFound { resource: format!("Backup '{}'", backup_id) })
+                Err(ApiError::NotFound {
+                    resource: format!("Backup '{}'", backup_id),
+                })
             }
         }
-        Err(e) => Err(ApiError::Internal { message: format!("Failed to get backup: {}", e) })
+        Err(e) => Err(ApiError::Internal {
+            message: format!("Failed to get backup: {}", e),
+        }),
     }
 }
 
@@ -929,7 +1016,9 @@ pub async fn restore_backup(
             tracing::info!(backup_id = %backup_id, "Backup restored");
             Ok(Json(ApiResponse::success(())))
         }
-        Err(e) => Err(ApiError::Internal { message: format!("Backup restoration failed: {}", e) })
+        Err(e) => Err(ApiError::Internal {
+            message: format!("Backup restoration failed: {}", e),
+        }),
     }
 }
 
@@ -940,6 +1029,6 @@ pub async fn delete_backup(
     // Backup deletion requires persistent storage implementation
     tracing::warn!(backup_id = %backup_id, "Backup deletion requested but not implemented");
     Err(ApiError::BadRequest {
-        message: "Backup deletion not yet implemented - persistent storage required".to_string()
+        message: "Backup deletion not yet implemented - persistent storage required".to_string(),
     })
 }

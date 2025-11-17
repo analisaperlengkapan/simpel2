@@ -11,8 +11,7 @@
 mod satker_hierarchy_tests {
     use authenc::models::user::*;
     use chrono::{DateTime, Duration, Utc};
-    use serde_json::json;
-    use std::collections::HashMap;
+
     use uuid::Uuid;
 
     #[test]
@@ -94,7 +93,8 @@ mod satker_hierarchy_tests {
         for (satker_code, expected_wilayah) in test_cases {
             let actual_wilayah = extract_wilayah_from_satker(satker_code);
             assert_eq!(
-                actual_wilayah, expected_wilayah,
+                actual_wilayah.as_deref(),
+                expected_wilayah,
                 "Wilayah extraction failed for {}",
                 satker_code
             );
@@ -353,9 +353,11 @@ mod satker_hierarchy_tests {
         // Validate satker context in audit
         assert_eq!(audit_event.satker_code, Some(satker_code));
         assert_eq!(audit_event.nip, Some(nip));
-        assert!(audit_event
-            .compliance_flags
-            .contains(&"KEJAKSAAN_AUDIT".to_string()));
+        assert!(
+            audit_event
+                .compliance_flags
+                .contains(&"KEJAKSAAN_AUDIT".to_string())
+        );
 
         // Test audit event filtering by satker
         let audit_events = vec![

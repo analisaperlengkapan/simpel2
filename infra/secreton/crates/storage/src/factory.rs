@@ -4,12 +4,12 @@
 //! Follows HashiCorp Vault patterns for backend selection and configuration.
 
 use crate::{
-    MemoryBackend, StorageBackend, StorageError, StorageResult,
-    backends::{
-        PostgresBackend,
-        FileBackend, FileConfig,
-    },
+    MemoryBackend, StorageBackend, StorageResult,
+    backends::{FileBackend, FileConfig},
 };
+
+#[cfg(feature = "postgres")]
+use crate::backends::PostgresBackend;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -20,9 +20,9 @@ use crate::backends::{ConsulBackend, ConsulConfig};
 use crate::backends::{S3Backend, S3Config};
 
 /// Storage backend type enumeration
-/// 
+///
 /// # Recommendations (HashiCorp Vault-style)
-/// 
+///
 /// - **Production HA**: `Consul` or `Raft` (no database required!)
 /// - **Cloud**: `S3` for AWS, Azure Blob, or GCS
 /// - **Development**: `File` or `Memory`
@@ -32,22 +32,22 @@ use crate::backends::{S3Backend, S3Config};
 pub enum StorageBackendType {
     /// In-memory storage (ephemeral, testing only)
     Memory,
-    
+
     /// File system storage (local, single-node)
     File,
-    
+
     /// Consul distributed KV store (HA, recommended)
     #[cfg(feature = "consul")]
     Consul,
-    
+
     /// OpenRaft consensus (HA, built-in)
     #[cfg(feature = "raft-consensus")]
     Raft,
-    
+
     /// AWS S3 and S3-compatible storage (cloud-native)
     #[cfg(feature = "s3")]
     S3,
-    
+
     /// PostgreSQL relational database (optional, not for HA)
     #[cfg(feature = "postgres")]
     Postgres,
@@ -86,13 +86,13 @@ impl Default for StorageFactoryConfig {
             // Default to file-based storage (no external dependencies)
             backend_type: StorageBackendType::File,
             file_config: Some(FileConfig::default()),
-            
+
             #[cfg(feature = "consul")]
             consul_config: None,
-            
+
             #[cfg(feature = "s3")]
             s3_config: None,
-            
+
             #[cfg(feature = "postgres")]
             postgres_config: None,
         }
@@ -100,20 +100,20 @@ impl Default for StorageFactoryConfig {
 }
 
 /// Storage factory for creating backend instances
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,no_run
 /// use secreton_storage::{StorageFactory, StorageBackendType, StorageFactoryConfig};
-/// 
+///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create file-based storage (default, no external dependencies)
 /// let backend = StorageFactory::create_file("/var/lib/secreton/data").await?;
-/// 
+///
 /// // Create Consul storage (HA, like HashiCorp Vault)
 /// #[cfg(feature = "consul")]
 /// let backend = StorageFactory::create_consul("127.0.0.1:8500", "secreton/").await?;
-/// 
+///
 /// // Create from config
 /// let config = StorageFactoryConfig::default(); // Uses file backend
 /// let backend = StorageFactory::create(config).await?;
@@ -129,52 +129,55 @@ impl StorageFactory {
             StorageBackendType::Memory => Ok(Arc::new(MemoryBackend::new())),
 
             StorageBackendType::File => {
-                let file_config = config
-                    .file_config
-                    .unwrap_or_default();
+                let file_config = config.file_config.unwrap_or_default();
                 let backend = FileBackend::new(file_config).await?;
-                Ok(Arc::new(backend))
+                let adapter = crate::KvBackendAdapter::new(backend);
+                Ok(Arc::new(adapter))
             }
 
             #[cfg(feature = "consul")]
             StorageBackendType::Consul => {
-                let consul_config = config
-                    .consul_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "Consul backend configuration required".to_string(),
-                    })?;
+                let consul_config =
+                    config
+                        .consul_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "Consul backend configuration required".to_string(),
+                        })?;
                 let backend = ConsulBackend::new(consul_config).await?;
-                Ok(Arc::new(backend))
+                let adapter = crate::KvBackendAdapter::new(backend);
+                Ok(Arc::new(adapter))
             }
 
             #[cfg(feature = "s3")]
             StorageBackendType::S3 => {
-                let s3_config = config
-                    .s3_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "S3 backend configuration required".to_string(),
-                    })?;
+                let s3_config =
+                    config
+                        .s3_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "S3 backend configuration required".to_string(),
+                        })?;
                 let backend = S3Backend::new(s3_config).await?;
-                Ok(Arc::new(backend))
+                let adapter = crate::KvBackendAdapter::new(backend);
+                Ok(Arc::new(adapter))
             }
 
             #[cfg(feature = "postgres")]
             StorageBackendType::Postgres => {
-                let postgres_config = config
-                    .postgres_config
-                    .ok_or_else(|| StorageError::ConfigurationError {
-                        message: "PostgreSQL backend configuration required".to_string(),
-                    })?;
+                let postgres_config =
+                    config
+                        .postgres_config
+                        .ok_or_else(|| StorageError::ConfigurationError {
+                            message: "PostgreSQL backend configuration required".to_string(),
+                        })?;
                 let backend = PostgresBackend::new(&postgres_config.connection_string).await?;
                 Ok(Arc::new(backend))
             }
 
             #[cfg(feature = "raft-consensus")]
-            StorageBackendType::Raft => {
-                Err(StorageError::ConfigurationError {
-                    message: "Raft backend requires RaftCluster - use RaftCluster::new() directly".to_string(),
-                })
-            }
+            StorageBackendType::Raft => Err(StorageError::ConfigurationError {
+                message: "Raft backend requires RaftCluster - use RaftCluster::new() directly"
+                    .to_string(),
+            }),
         }
     }
 
@@ -184,24 +187,31 @@ impl StorageFactory {
         Arc::new(MemoryBackend::new())
     }
 
-    pub async fn create_file(path: impl Into<std::path::PathBuf>) -> StorageResult<Arc<dyn StorageBackend>> {
+    pub async fn create_file(
+        path: impl Into<std::path::PathBuf>,
+    ) -> StorageResult<Arc<dyn StorageBackend>> {
         let config = FileConfig {
             path: path.into(),
             ..Default::default()
         };
         let backend = FileBackend::new(config).await?;
-        Ok(Arc::new(backend))
+        let adapter = crate::KvBackendAdapter::new(backend);
+        Ok(Arc::new(adapter))
     }
 
     #[cfg(feature = "consul")]
-    pub async fn create_consul(address: &str, path: &str) -> StorageResult<Arc<dyn StorageBackend>> {
+    pub async fn create_consul(
+        address: &str,
+        path: &str,
+    ) -> StorageResult<Arc<dyn StorageBackend>> {
         let config = ConsulConfig {
             address: address.to_string(),
             path: path.to_string(),
             ..Default::default()
         };
         let backend = ConsulBackend::new(config).await?;
-        Ok(Arc::new(backend))
+        let adapter = crate::KvBackendAdapter::new(backend);
+        Ok(Arc::new(adapter))
     }
 
     #[cfg(feature = "s3")]
@@ -219,7 +229,8 @@ impl StorageFactory {
             ..Default::default()
         };
         let backend = S3Backend::new(config).await?;
-        Ok(Arc::new(backend))
+        let adapter = crate::KvBackendAdapter::new(backend);
+        Ok(Arc::new(adapter))
     }
 
     #[cfg(feature = "postgres")]

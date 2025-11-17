@@ -1,0 +1,65 @@
+[package]
+name = "secreton-grpc"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+raft-consensus = ["secreton-storage/raft-consensus"]
+enable-inline-tests = []
+
+[dependencies]
+# Core dependencies
+secreton-core = { workspace = true }
+secreton-crypto = { workspace = true }
+secreton-storage = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# gRPC
+tonic = { workspace = true }
+prost = { workspace = true }
+
+# TLS
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Metrics (optional, for production monitoring)
+metrics = { workspace = true, optional = true }
+
+# Compression (for snapshots)
+flate2 = { workspace = true, optional = true }
+sha2 = { workspace = true }
+
+# Database (for mock pool in gRPC service)
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }
+chrono = { workspace = true }
+rustc_version = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -71,13 +71,25 @@
 
 pub mod admin;
 pub mod auth;
+pub mod aws;
+pub mod azure;
 pub mod dynamic;
+pub mod gcp;
 pub mod health;
+pub mod identity;
+pub mod kafka;
+pub mod kmip;
+pub mod ldap;
 pub mod lease;
 pub mod namespace;
 pub mod policy;
+pub mod rabbitmq;
+pub mod rotation;
 pub mod seal;
 pub mod secret;
+pub mod ssh;
+pub mod totp;
+pub mod transform;
 pub mod wrapping;
 
 #[cfg(feature = "raft-consensus")]
@@ -108,7 +120,19 @@ pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Rou
         .merge(namespace::create_routes())
         .merge(lease::create_routes())
         .merge(policy::create_routes())
-        .merge(wrapping::create_routes());
+        .merge(wrapping::create_routes())
+        .merge(totp::create_routes())
+        .merge(transform::create_routes())
+        .merge(ssh::create_routes())
+        .merge(aws::create_routes())
+        .merge(gcp::create_routes())
+        .merge(azure::create_routes())
+        .merge(identity::create_routes())
+        .merge(rotation::create_routes())
+        .merge(kmip::create_routes())
+        .merge(ldap::create_routes())
+        .merge(rabbitmq::create_routes())
+        .merge(kafka::create_routes());
 
     // Add raft routes if feature is enabled
     #[cfg(feature = "raft-consensus")]

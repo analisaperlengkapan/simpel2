@@ -5,7 +5,6 @@
 //! integration validation.
 
 use std::collections::HashMap;
-use std::process::Command;
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -268,7 +267,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if is_failed {
                             Some(format!("Authentication failed for {}", scenario))
                         } else {
@@ -301,7 +300,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Secret retrieval failed for {}", scenario))
                         } else {
@@ -334,7 +333,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Fallback test failed for {}", scenario))
                         } else {
@@ -362,7 +361,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Test failed for {}", scenario))
                         } else {
@@ -406,7 +405,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Token validation failed for {}", scenario))
                         } else {
@@ -439,7 +438,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Isolation test failed for {}", scenario))
                         } else {
@@ -467,7 +466,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: category.to_string(),
                         test_name: scenario.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Test failed for {}", scenario))
                         } else {
@@ -511,7 +510,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: scenario.to_string(),
                         test_name: test.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Bidirectional communication failed for {}", test))
                         } else {
@@ -544,7 +543,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: scenario.to_string(),
                         test_name: test.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Secret lifecycle test failed for {}", test))
                         } else {
@@ -572,7 +571,7 @@ mod integration_test_runner {
                     results.test_details.push(TestDetail {
                         category: scenario.to_string(),
                         test_name: test.to_string(),
-                        result: test_result,
+                        result: test_result.clone(),
                         error_message: if test_result == TestResult::Failed {
                             Some(format!("Cross-system test failed for {}", test))
                         } else {

@@ -7,7 +7,7 @@ use gloo_timers::future::TimeoutFuture;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_test::*;
-use web_sys::{CanvasRenderingContext2d, Element, HtmlCanvasElement, HtmlElement};
+use web_sys::{Element, HtmlCanvasElement, HtmlElement};
 
 wasm_bindgen_test_configure!(run_in_browser);
 

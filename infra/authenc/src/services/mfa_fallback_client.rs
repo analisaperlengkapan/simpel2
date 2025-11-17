@@ -6,10 +6,10 @@
 
 use crate::error::{AuthencError, Result};
 use crate::models::user::SecurityContext;
-use crate::services::mfa_local_storage::{DegradedMode, MfaLocalStorage};
-use crate::services::mfa_service::MfaClient;
 use crate::secreton_client::VaultError;
 use crate::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
+use crate::services::mfa_local_storage::{DegradedMode, MfaLocalStorage};
+use crate::services::mfa_service::MfaClient;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -425,7 +425,7 @@ impl MfaFallbackClient {
 mod tests {
     use super::*;
     use crate::crypto::aes_gcm::AesGcmService;
-    use std::path::PathBuf;
+
     use tempfile::tempdir;
 
     #[tokio::test]

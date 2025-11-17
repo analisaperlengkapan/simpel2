@@ -171,9 +171,7 @@ impl HsmBackend {
         usage: Vec<String>,
     ) -> HsmResult<HsmKeyMetadata> {
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         // Check if key already exists
         let metadata_lock = self.key_metadata.read().await;
@@ -208,9 +206,7 @@ impl HsmBackend {
     /// Sign data using HSM key
     pub async fn hsm_sign(&self, key_id: &str, data: &[u8], algorithm: &str) -> HsmResult<Vec<u8>> {
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -229,9 +225,7 @@ impl HsmBackend {
     /// Encrypt data using HSM key
     pub async fn hsm_encrypt(&self, key_id: &str, plaintext: &[u8]) -> HsmResult<Vec<u8>> {
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -250,9 +244,7 @@ impl HsmBackend {
     /// Decrypt data using HSM key
     pub async fn hsm_decrypt(&self, key_id: &str, ciphertext: &[u8]) -> HsmResult<Vec<u8>> {
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let metadata_lock = self.key_metadata.read().await;
@@ -280,9 +272,7 @@ impl HsmBackend {
     /// Delete HSM key
     pub async fn delete_hsm_key(&self, key_id: &str) -> HsmResult<()> {
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         // Verify key exists
         let mut metadata_lock = self.key_metadata.write().await;
@@ -307,9 +297,7 @@ impl HsmBackend {
         }
 
         let provider_lock = self.provider.read().await;
-        let provider = provider_lock
-            .as_ref()
-            .ok_or(HsmError::NotInitialized)?;
+        let provider = provider_lock.as_ref().ok_or(HsmError::NotInitialized)?;
 
         provider.health_check().await
     }

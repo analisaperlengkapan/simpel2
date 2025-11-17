@@ -13,10 +13,7 @@ pub async fn aset_trx(
     kdbrg: &str,
 ) -> Result<serde_json::Value, MonsaktiError> {
     let kl_formatted = format!("KL{}", kode_kl);
-    let mut vars = vec![
-        kl_formatted,
-        kdsatker.to_string(),
-    ];
+    let mut vars = vec![kl_formatted, kdsatker.to_string()];
 
     // Hanya tambahkan parameter jika tidak kosong
     if !kdgol.is_empty() {

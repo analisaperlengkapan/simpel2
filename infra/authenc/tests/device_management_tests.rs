@@ -1,9 +1,7 @@
 use authenc::config::DatabaseConfig;
 use authenc::database::Database;
 use authenc::services::device::*;
-use chrono::Utc;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// Helper function to setup test data
@@ -129,7 +127,7 @@ async fn test_device_trust_evaluation() {
             return;
         }
     };
-    let mut device_service = DeviceService::new(database.clone());
+    let device_service = DeviceService::new(database.clone());
 
     // Setup test data
     let (_realm_id, user_id) = setup_test_data(&database).await.unwrap();

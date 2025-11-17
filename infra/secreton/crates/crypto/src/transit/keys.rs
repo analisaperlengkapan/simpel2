@@ -117,9 +117,7 @@ pub struct TransitKey {
 }
 
 /// Individual key version with cryptographic material
-/// Note: Used in TransitKey.versions HashMap, but compiler doesn't detect it
 #[derive(Debug)]
-#[allow(dead_code)]
 struct KeyVersion {
     /// Version number
     version: u32,
@@ -145,8 +143,6 @@ enum KeyMaterial {
     /// Ed25519 private key
     Ed25519(Box<Ed25519SigningKey>),
     /// X25519 private key (stored as bytes since EphemeralSecret can't be stored)
-    /// Note: Used in generate_x25519_key() at line 642, but compiler doesn't detect it
-    #[allow(dead_code)]
     X25519(Box<[u8; 32]>),
 }
 

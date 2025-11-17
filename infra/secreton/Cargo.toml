@@ -3,6 +3,7 @@
 
 [workspace]
 members = [
+    "crates/types",
     "crates/core",
     "crates/crypto",
     "crates/storage",
@@ -10,10 +11,11 @@ members = [
     "crates/agent",
     "crates/cli",
     "crates/hsm",
+    "crates/grpc",
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "0.1.0"
 edition = "2024"
 authors = ["Cipherce Security Team <security@cipherce.io>"]
 license = "Apache-2.0"
@@ -82,7 +84,7 @@ toml = "0.9.8"
 bincode = "2.0.1"
 
 # HTTP and networking
-axum = { version = "0.8.6", features = ["macros", "json", "tracing"] }
+axum = { version = "0.7.9", features = ["macros", "json", "tracing"] }
 hyper = { version = "1.7.0", features = ["full"] }
 tower = { version = "0.5.2", features = ["util", "timeout", "limit"] }
 tower-http = { version = "0.6.6", features = [
@@ -91,6 +93,7 @@ tower-http = { version = "0.6.6", features = [
     "compression-full",
     "timeout",
 ] }
+axum-server = { version = "0.7.2", features = ["tls-rustls"] }
 
 # Database - PostgreSQL
 tokio-postgres = { version = "0.7.15", features = [
@@ -126,13 +129,18 @@ sha3 = "0.10.8"
 digest = "0.10"
 signature = "2.2"
 elliptic-curve = "0.13"
-generic-array = "1.3.5"
+generic-array = "1.3"
 subtle = "2.6"
 
 # Additional crypto
 aes = "0.8.4"
 scrypt = "0.11"
 cbc = "0.1"
+
+# PKI - Certificate generation and management
+rcgen = "0.13"
+pem = "3.0"
+der-parser = "9.0"
 
 # API documentation
 aide = { version = "0.15.1", features = ["axum", "macros"] }
@@ -145,7 +153,6 @@ reqwest = { version = "0.12", features = ["json"] }
 
 # Web frameworks (for compatibility)
 warp = "0.4.2"
-axum-server = { version = "0.7", features = ["tls-rustls"] }
 
 # gRPC
 tonic = { version = "0.12", features = ["tls", "tls-roots"] }
@@ -158,7 +165,25 @@ metrics-exporter-prometheus = "0.15"
 
 # Authentication
 jsonwebtoken = "9.2"
-x509-parser = "0.18.0"
+x509-parser = "0.16"
+
+# TOTP/OTP support
+totp-lite = "2.0"
+data-encoding = "2.6"
+
+# Format-Preserving Encryption (FPE) - FF3-1 for Transform engine
+fpe = "0.6"
+
+# SSH key generation and certificate signing
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }
+ssh-encoding = "0.2"
+
+# AWS SDK for secrets engine
+aws-config = "1.5"
+aws-sdk-iam = "1.45"
+aws-sdk-sts = "1.45"
+aws-types = "1.3"
+aws-credential-types = "1.2"
 
 # Post-Quantum Cryptography
 pqcrypto-mldsa = "0.1.2"
@@ -187,11 +212,13 @@ pretty_assertions = "1.4.1"
 rustc_version = "0.4"
 
 # Inter-crate dependencies
+secreton-types = { path = "crates/types" }
 secreton-core = { path = "crates/core" }
 secreton-crypto = { path = "crates/crypto" }
 secreton-storage = { path = "crates/storage" }
 secreton-api = { path = "crates/api" }
 secreton-hsm = { path = "crates/hsm" }
+secreton-grpc = { path = "crates/grpc" }
 
 [package]
 name = "secreton"

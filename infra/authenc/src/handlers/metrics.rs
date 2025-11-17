@@ -3,30 +3,15 @@
 //! Exposes database connection pool metrics and other system metrics
 //! in Prometheus format for monitoring and alerting.
 
+use crate::app::AppState;
 use crate::database::Database;
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use std::sync::Arc;
 
-/// Prometheus metrics endpoint
-///
-/// Exposes connection pool metrics in Prometheus format:
-/// - authenc_db_pool_size - Current pool size
-/// - authenc_db_pool_max_size - Maximum pool size
-/// - authenc_db_pool_available - Available connections
-/// - authenc_db_pool_waiting - Waiting requests
-/// - authenc_db_pool_utilization - Pool utilization percentage
-/// - authenc_db_connections_acquired_total - Total connections acquired
-/// - authenc_db_connections_failures_total - Total acquisition failures
-/// - authenc_db_connections_created_total - Total connections created
-/// - authenc_db_connections_reused_total - Total connection reuses
-/// - authenc_db_connection_reuse_rate - Connection reuse rate percentage
-/// - authenc_db_acquisition_time_avg_microseconds - Average acquisition time
-/// - authenc_db_wait_time_avg_microseconds - Average wait time
-/// - authenc_db_health_checks_total - Total health checks performed
-/// - authenc_db_health_check_success_rate - Health check success rate percentage
-pub async fn metrics(State(database): State<Arc<Database>>) -> impl IntoResponse {
-    let stats = database.pool_stats();
-    let health = database.pool_health();
+/// Render Prometheus metrics for a specific database instance
+async fn metrics_for_database(db: Arc<Database>) -> (StatusCode, String) {
+    let stats = db.pool_stats();
+    let health = db.pool_health();
 
     let mut output = String::new();
 
@@ -142,10 +127,31 @@ pub async fn metrics(State(database): State<Arc<Database>>) -> impl IntoResponse
     (StatusCode::OK, output)
 }
 
+/// Prometheus metrics endpoint
+///
+/// Exposes connection pool metrics in Prometheus format:
+/// - authenc_db_pool_size - Current pool size
+/// - authenc_db_pool_max_size - Maximum pool size
+/// - authenc_db_pool_available - Available connections
+/// - authenc_db_pool_waiting - Waiting requests
+/// - authenc_db_pool_utilization - Pool utilization percentage
+/// - authenc_db_connections_acquired_total - Total connections acquired
+/// - authenc_db_connections_failures_total - Total acquisition failures
+/// - authenc_db_connections_created_total - Total connections created
+/// - authenc_db_connections_reused_total - Total connection reuses
+/// - authenc_db_connection_reuse_rate - Connection reuse rate percentage
+/// - authenc_db_acquisition_time_avg_microseconds - Average acquisition time
+/// - authenc_db_wait_time_avg_microseconds - Average wait time
+/// - authenc_db_health_checks_total - Total health checks performed
+/// - authenc_db_health_check_success_rate - Health check success rate percentage
+pub async fn metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    metrics_for_database(state.database.clone()).await
+}
+
 /// Enhanced health check endpoint with pool metrics
-pub async fn health_with_metrics(State(database): State<Arc<Database>>) -> impl IntoResponse {
-    let health = database.pool_health();
-    let stats = database.pool_stats();
+pub async fn health_with_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let health = state.database.pool_health();
+    let stats = state.database.pool_stats();
 
     let status = if health.is_healthy() {
         StatusCode::OK
@@ -185,7 +191,7 @@ mod tests {
     async fn test_metrics_endpoint() {
         let db = Arc::new(Database::mock().await);
 
-        let response = metrics(State(db)).await;
+        let response = metrics_for_database(db).await;
         let response = response.into_response();
 
         assert_eq!(response.status(), StatusCode::OK);

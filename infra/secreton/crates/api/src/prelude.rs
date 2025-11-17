@@ -14,6 +14,9 @@ pub use crate::transit::{TransitApiState, create_transit_router};
 // Re-export KV API
 pub use crate::kv::{KVApiState, KVEngine, create_kv_router};
 
+// Re-export PKI API
+pub use crate::pki::{PkiApiState, create_pki_router};
+
 // TODO: Re-enable after OpenRaft migration
 // pub use crate::raft::{create_raft_router, RaftApiState};
 

@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use layanan_integrasi::{
     client::MonsaktiClient,
     config::Config,
-    siman::{endpoints, SimanAssetCategory},
+    siman::{SimanAssetCategory, endpoints},
 };
 use tokio_postgres::Client;
 use tracing::{error, info, warn};

@@ -44,18 +44,21 @@ Secreton implements a modular, memory-safe architecture:
 ## 🚀 Implemented Features
 
 ### Transit Engine (Encryption Service)
+
 - **Multiple Algorithms**: AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305
 - **Asymmetric Crypto**: Ed25519, ECDSA-P256, ECDSA-Secp256k1, X25519
 - **Key Management**: Secure key generation and lifecycle management
 - **Base64 Encoding**: Automatic encoding/decoding for API compatibility
 
 ### KV Secrets Engine (Secret Storage)
+
 - **Versioned Storage**: Automatic versioning with rollback capabilities
 - **Metadata Tracking**: Creation/update timestamps and version history
 - **Path-based Access**: Hierarchical secret organization
 - **Audit Logging**: Comprehensive operation logging
 
 ### HTTP API
+
 - **Health Monitoring**: `/health`, `/version` endpoints
 - **Transit Operations**: `/v1/transit/*` - encryption/decryption operations
 - **Secret Management**: `/v1/secret/*` - key-value secret operations
@@ -66,11 +69,13 @@ Secreton implements a modular, memory-safe architecture:
 ### System Endpoints
 
 #### Health Check
+
 ```http
 GET /health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -80,11 +85,13 @@ GET /health
 ```
 
 #### Version Information
+
 ```http
 GET /version
 ```
 
 **Response:**
+
 ```json
 {
   "version": "1.0.0",
@@ -96,11 +103,13 @@ GET /version
 ### Transit Engine API
 
 #### List Encryption Keys
+
 ```http
 GET /v1/transit/keys
 ```
 
 **Response:**
+
 ```json
 {
   "keys": ["my-app-key", "database-key"]
@@ -108,6 +117,7 @@ GET /v1/transit/keys
 ```
 
 #### Create Encryption Key
+
 ```http
 POST /v1/transit/keys/{key-name}
 Content-Type: application/json
@@ -118,6 +128,7 @@ Content-Type: application/json
 ```
 
 **Supported Key Types:**
+
 - `aes256-gcm` (default)
 - `chacha20-poly1305`
 - `xchacha20-poly1305`
@@ -127,6 +138,7 @@ Content-Type: application/json
 - `x25519`
 
 #### Encrypt Data
+
 ```http
 POST /v1/transit/encrypt/{key-name}
 Content-Type: application/json
@@ -137,6 +149,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "ciphertext": "vault:v1:randomnonce:encrypteddata"
@@ -144,6 +157,7 @@ Content-Type: application/json
 ```
 
 #### Decrypt Data
+
 ```http
 POST /v1/transit/decrypt/{key-name}
 Content-Type: application/json
@@ -154,6 +168,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "plaintext": "SGVsbG8gV29ybGQ="
@@ -163,6 +178,7 @@ Content-Type: application/json
 ### KV Secrets Engine API
 
 #### Store Secret
+
 ```http
 POST /v1/secret/data/{path}
 Content-Type: application/json
@@ -176,6 +192,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "version": 1,
@@ -184,11 +201,13 @@ Content-Type: application/json
 ```
 
 #### Retrieve Secret
+
 ```http
 GET /v1/secret/data/{path}
 ```
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -256,11 +275,11 @@ curl http://127.0.0.1:8200/v1/secret/data/myapp
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable        | Default     | Description         |
+| --------------- | ----------- | ------------------- |
 | `SECRETON_HOST` | `127.0.0.1` | Server bind address |
-| `SECRETON_PORT` | `8200` | Server port |
-| `RUST_LOG` | `info` | Log level |
+| `SECRETON_PORT` | `8200`      | Server port         |
+| `RUST_LOG`      | `info`      | Log level           |
 
 ### Storage Backend Selection (HashiCorp Vault-Compatible)
 
@@ -269,6 +288,7 @@ Secreton follows HashiCorp Vault's storage architecture principles:
 #### 🏆 Recommended Backends for Production HA
 
 1. **Consul** (Recommended - like HashiCorp Vault)
+
    - ✅ High availability with automatic leader election
    - ✅ Service discovery and health checks
    - ✅ No database required
@@ -283,6 +303,7 @@ Secreton follows HashiCorp Vault's storage architecture principles:
 #### ☁️ Cloud-Native Backends
 
 3. **S3** (AWS, MinIO, Wasabi, DigitalOcean Spaces)
+
    - ✅ Unlimited scalability
    - ✅ 99.999999999% durability
    - ✅ Server-side encryption
@@ -294,6 +315,7 @@ Secreton follows HashiCorp Vault's storage architecture principles:
 #### 🔧 Development & Single-Node Backends
 
 6. **File** (Default - No Dependencies)
+
    - ✅ Zero external dependencies
    - ✅ Simple local development
    - ✅ Edge/IoT deployments
@@ -313,6 +335,7 @@ Secreton follows HashiCorp Vault's storage architecture principles:
 ### Configuration Examples
 
 #### Using File Backend (Default - No Setup Required)
+
 ```toml
 [storage]
 backend = "file"
@@ -322,6 +345,7 @@ permissions = "0600"
 ```
 
 #### Using Consul (Recommended for HA)
+
 ```toml
 [storage]
 backend = "consul"
@@ -332,6 +356,7 @@ token = "${CONSUL_TOKEN}"
 ```
 
 #### Using Raft (Built-in HA)
+
 ```toml
 [storage]
 backend = "raft"
@@ -340,6 +365,7 @@ peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
 ```
 
 #### Using S3
+
 ```toml
 [storage]
 backend = "s3"
@@ -397,6 +423,7 @@ let storage = StorageFactory::create_s3(
 ### Distributed Deployment with Raft
 
 Secreton supports distributed deployment using Raft consensus algorithm for:
+
 - **High Availability**: Automatic leader election and failover
 - **Strong Consistency**: All writes go through leader with replication
 - **Fault Tolerance**: Cluster continues operating with majority of nodes
@@ -436,6 +463,7 @@ curl http://127.0.0.1:8200/v1/raft/leader
 ## 🔒 Security Features
 
 ### Cryptographic Algorithms
+
 - **Symmetric Encryption**: AES-256-GCM, ChaCha20-Poly1305, XChaCha20-Poly1305
 - **Asymmetric Cryptography**: Ed25519, ECDSA-P256, ECDSA-Secp256k1, X25519
 - **Post-Quantum**: ML-DSA (Dilithium), ML-KEM (Kyber), Falcon
@@ -444,7 +472,9 @@ curl http://127.0.0.1:8200/v1/raft/leader
 - **Secret Sharing**: Shamir's Secret Sharing for distributed key management
 
 ### Crypto-Storage Integration
+
 Secreton provides seamless integration between cryptographic operations and storage:
+
 - **Automatic Encryption**: Data encrypted before storage with versioned keys
 - **Key Rotation**: Transparent key rotation without data migration
 - **Re-encryption**: Automatic re-encryption with new key versions

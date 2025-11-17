@@ -489,7 +489,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_spi_manager() {
-        let mut manager = SpiManager::new();
+        let manager = SpiManager::new();
 
         // Test registry access
         let registry = manager.registry();

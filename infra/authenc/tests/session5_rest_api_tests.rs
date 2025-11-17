@@ -3,9 +3,8 @@
 //! Integration tests for Event Listener, Protocol Mapper, and Authenticator APIs
 //! Tests all 22 REST endpoints created in Session 5
 
-use authenc::{app::ApplicationBuilder, config::AppConfig, database::Database};
-use serde_json::{Value as JsonValue, json};
-use std::sync::Arc;
+use authenc::{config::AppConfig, database::Database};
+use serde_json::json;
 use uuid::Uuid;
 
 mod common;

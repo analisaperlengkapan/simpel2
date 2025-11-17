@@ -16,6 +16,7 @@ pub use crate::{
 pub use crate::{StorageBackend, StorageTransaction};
 
 // Re-export backends
+#[cfg(feature = "postgres")]
 pub use crate::backends::PostgresBackend;
 pub use crate::memory::MemoryBackend;
 

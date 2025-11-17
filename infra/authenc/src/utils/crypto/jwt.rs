@@ -348,6 +348,117 @@ pub fn verify_refresh_token(token: &str) -> Result<Claims, String> {
     verify_jwt(token)
 }
 
+/// Extended JWT claims with additional OAuth2/OIDC fields
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExtendedClaims {
+    /// Issuer (iss)
+    pub iss: String,
+    /// Subject (sub) - user identifier
+    pub sub: String,
+    /// Audience (aud) - client identifier
+    pub aud: String,
+    /// Expiration time (exp)
+    pub exp: usize,
+    /// Issued at (iat)
+    pub iat: Option<usize>,
+    /// Not before (nbf)
+    pub nbf: Option<usize>,
+    /// JWT ID (jti)
+    pub jti: Option<String>,
+    /// Scope
+    pub scope: Option<String>,
+    /// Client ID
+    pub client_id: Option<String>,
+    /// Additional claims
+    #[serde(flatten)]
+    pub additional: std::collections::HashMap<String, serde_json::Value>,
+}
+
+/// Verify JWT with extended validation and return extended claims
+///
+/// This function performs comprehensive JWT validation including:
+/// - Signature verification using Ed25519
+/// - Expiration checking
+/// - Claims extraction with all standard and custom fields
+///
+/// # Arguments
+/// * `token` - The JWT token string to verify
+///
+/// # Returns
+/// * `Ok(ExtendedClaims)` - Validated claims with all fields
+/// * `Err(crate::error::Result)` - Validation error
+///
+/// # Usage
+/// Used by token exchange and advanced OAuth2 flows that need access to
+/// all token claims (not just sub/exp).
+pub fn verify_jwt_with_validation(token: &str) -> crate::error::Result<ExtendedClaims> {
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() != 3 {
+        return Err(crate::error::AuthencError::validation("Invalid JWT format"));
+    }
+
+    let header_b64 = parts[0];
+    let payload_b64 = parts[1];
+    let signature_b64 = parts[2];
+
+    // Decode signature
+    let signature_bytes = Base64UrlUnpadded::decode_vec(signature_b64).map_err(|e| {
+        crate::error::AuthencError::validation(format!("Invalid signature encoding: {}", e))
+    })?;
+    let signature = Signature::from_slice(&signature_bytes)
+        .map_err(|e| crate::error::AuthencError::validation(format!("Invalid signature: {}", e)))?;
+
+    // Create message for verification
+    let message = format!("{}.{}", header_b64, payload_b64);
+
+    // Verify signature with Ed25519
+    let verifying_key = ED25519_KEYPAIR.verifying_key();
+    verifying_key
+        .verify(message.as_bytes(), &signature)
+        .map_err(|e| {
+            crate::error::AuthencError::unauthorized(format!(
+                "Signature verification failed: {}",
+                e
+            ))
+        })?;
+
+    // Decode payload
+    let payload_json =
+        String::from_utf8(Base64UrlUnpadded::decode_vec(payload_b64).map_err(|e| {
+            crate::error::AuthencError::validation(format!("Invalid payload encoding: {}", e))
+        })?)
+        .map_err(|e| {
+            crate::error::AuthencError::validation(format!("Invalid payload UTF-8: {}", e))
+        })?;
+
+    let claims: ExtendedClaims = serde_json::from_str(&payload_json).map_err(|e| {
+        crate::error::AuthencError::validation(format!("Invalid claims JSON: {}", e))
+    })?;
+
+    // Check expiration
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+
+    if claims.exp < now {
+        return Err(crate::error::AuthencError::unauthorized(
+            "Token has expired",
+        ));
+    }
+
+    // Check not before if present
+    if let Some(nbf) = claims.nbf {
+        if nbf > now {
+            return Err(crate::error::AuthencError::unauthorized(
+                "Token not yet valid",
+            ));
+        }
+    }
+
+    Ok(claims)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{generate_jwt, verify_jwt};

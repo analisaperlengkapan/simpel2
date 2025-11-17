@@ -1,7 +1,12 @@
-//! TOTP/MFA System
+//! MFA Service
 //!
-//! Time-based One-Time Password and Multi-Factor Authentication support
-//! for enhanced security across all authentication methods.
+//! Multi-Factor Authentication service for user authentication flow.
+//! Delegates TOTP operations to TotpEngine for proper RFC 6238 compliance.
+//!
+//! # Separation of Concerns
+//!
+//! - **MfaService**: User MFA configuration, recovery codes, authentication flow
+//! - **TotpEngine**: TOTP key storage, code generation/validation (RFC 6238 compliant)
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,6 +14,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::instrument;
+
+use crate::services::secrets::totp::{TotpEngine, TotpKeyCreateRequest, TotpValidationRequest};
 
 /// Error types for MFA
 #[derive(Debug, thiserror::Error)]
@@ -54,11 +61,14 @@ pub enum MfaMethodType {
     Email,
 }
 
-/// TOTP configuration
+/// TOTP setup response (returned from TotpEngine)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TotpConfig {
+pub struct TotpSetupResponse {
     /// Secret key (base32 encoded)
     pub secret: String,
+
+    /// QR code URL for authenticator apps
+    pub qr_code_url: String,
 
     /// Issuer name
     pub issuer: String,
@@ -66,89 +76,8 @@ pub struct TotpConfig {
     /// Account name
     pub account_name: String,
 
-    /// Period in seconds (typically 30)
-    pub period: u32,
-
-    /// Number of digits (6 or 8)
-    pub digits: u8,
-
-    /// Algorithm (SHA1, SHA256, SHA512)
-    pub algorithm: String,
-
-    /// QR code URL
-    pub qr_code_url: String,
-}
-
-impl TotpConfig {
-    /// Generate TOTP configuration
-    pub fn new(issuer: String, account_name: String) -> Self {
-        let secret = Self::generate_secret();
-        let qr_code_url = Self::generate_qr_url(&issuer, &account_name, &secret);
-
-        Self {
-            secret: secret.clone(),
-            issuer,
-            account_name,
-            period: 30,
-            digits: 6,
-            algorithm: "SHA1".to_string(),
-            qr_code_url,
-        }
-    }
-
-    /// Generate random secret
-    fn generate_secret() -> String {
-        use rand::Rng;
-        const BASE32_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        let mut rng = rand::thread_rng();
-
-        (0..32)
-            .map(|_| {
-                let idx = rng.gen_range(0..BASE32_CHARS.len());
-                BASE32_CHARS[idx] as char
-            })
-            .collect()
-    }
-
-    /// Generate QR code URL for authenticator apps
-    fn generate_qr_url(issuer: &str, account: &str, secret: &str) -> String {
-        format!(
-            "otpauth://totp/{}:{}?secret={}&issuer={}&algorithm=SHA1&digits=6&period=30",
-            urlencoding::encode(issuer),
-            urlencoding::encode(account),
-            secret,
-            urlencoding::encode(issuer)
-        )
-    }
-
-    /// Verify TOTP code
-    pub fn verify(&self, code: &str, timestamp: DateTime<Utc>) -> bool {
-        // Calculate time counter
-        let counter = timestamp.timestamp() as u64 / self.period as u64;
-
-        // Check current window and adjacent windows (for clock skew)
-        for window in [counter - 1, counter, counter + 1] {
-            if self.generate_code(window) == code {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Generate TOTP code for given counter
-    fn generate_code(&self, counter: u64) -> String {
-        // Simplified TOTP generation (production would use proper HMAC-SHA1)
-        let hash = (counter ^ 0x123456789ABCDEF).to_string();
-        let code = hash
-            .chars()
-            .filter(|c| c.is_numeric())
-            .take(self.digits as usize)
-            .collect::<String>();
-
-        // Pad with zeros if needed
-        format!("{:0>width$}", code, width = self.digits as usize)
-    }
+    /// Recovery codes
+    pub recovery_codes: Vec<String>,
 }
 
 /// MFA configuration for a user
@@ -160,8 +89,8 @@ pub struct MfaConfig {
     /// Enabled methods
     pub enabled_methods: Vec<MfaMethodType>,
 
-    /// TOTP configuration
-    pub totp: Option<TotpConfig>,
+    /// TOTP key name (references TotpEngine key)
+    pub totp_key_name: Option<String>,
 
     /// Recovery codes
     pub recovery_codes: Vec<String>,
@@ -185,7 +114,7 @@ impl MfaConfig {
         Self {
             user_id,
             enabled_methods: Vec::new(),
-            totp: None,
+            totp_key_name: None,
             recovery_codes: Self::generate_recovery_codes(),
             used_recovery_codes: Vec::new(),
             created_at: Utc::now(),
@@ -212,17 +141,10 @@ impl MfaConfig {
     }
 }
 
-/// TOTP verification history entry
-#[derive(Debug, Clone)]
-struct TotpHistory {
-    code: String,
-    timestamp: DateTime<Utc>,
-}
-
-/// MFA service
+/// MFA service with TotpEngine integration
 pub struct MfaService {
     configs: Arc<RwLock<HashMap<String, MfaConfig>>>,
-    totp_history: Arc<RwLock<HashMap<String, Vec<TotpHistory>>>>,
+    totp_engine: Arc<TotpEngine>,
 }
 
 impl MfaService {
@@ -230,11 +152,19 @@ impl MfaService {
     pub fn new() -> Self {
         Self {
             configs: Arc::new(RwLock::new(HashMap::new())),
-            totp_history: Arc::new(RwLock::new(HashMap::new())),
+            totp_engine: Arc::new(TotpEngine::new()),
         }
     }
 
-    /// Enable TOTP for user
+    /// Create MFA service with existing TotpEngine
+    pub fn with_totp_engine(totp_engine: Arc<TotpEngine>) -> Self {
+        Self {
+            configs: Arc::new(RwLock::new(HashMap::new())),
+            totp_engine,
+        }
+    }
+
+    /// Enable TOTP for user (delegates to TotpEngine)
     #[instrument(skip(self), fields(
         user_id = %user_id,
         issuer = %issuer,
@@ -246,80 +176,95 @@ impl MfaService {
         user_id: &str,
         issuer: String,
         account_name: String,
-    ) -> Result<TotpConfig, MfaError> {
+    ) -> Result<TotpSetupResponse, MfaError> {
         let mut configs = self.configs.write().await;
 
         let config = configs
             .entry(user_id.to_string())
             .or_insert_with(|| MfaConfig::new(user_id.to_string()));
 
-        if config.totp.is_some() {
+        if config.totp_key_name.is_some() {
             return Err(MfaError::AlreadyConfigured("TOTP".to_string()));
         }
 
-        let totp_config = TotpConfig::new(issuer, account_name);
-        config.totp = Some(totp_config.clone());
+        // Create TOTP key in TotpEngine
+        let key_name = format!("user:{}", user_id);
+        let request = TotpKeyCreateRequest {
+            name: key_name.clone(),
+            issuer: issuer.clone(),
+            account_name: account_name.clone(),
+            algorithm: None, // Use default SHA1
+            digits: None,    // Use default 6
+            period: None,    // Use default 30
+            skew: None,      // Use default 1
+        };
+
+        let totp_response = self
+            .totp_engine
+            .create_key(request)
+            .await
+            .map_err(|e| MfaError::InvalidSecret)?;
+
+        // Update MFA config
+        config.totp_key_name = Some(key_name);
         config.enabled_methods.push(MfaMethodType::TOTP);
 
-        Ok(totp_config)
+        Ok(TotpSetupResponse {
+            secret: totp_response.secret,
+            qr_code_url: totp_response.qr_code_url,
+            issuer: totp_response.issuer,
+            account_name: totp_response.account_name,
+            recovery_codes: config.recovery_codes.clone(),
+        })
     }
 
-    /// Verify TOTP code
+    /// Verify TOTP code (delegates to TotpEngine)
     #[instrument(skip(self, code), fields(
         user_id = %user_id,
         operation = "verify_totp"
     ))]
     pub async fn verify_totp(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
-        let totp = {
+        let key_name = {
             let configs = self.configs.read().await;
             let config = configs
                 .get(user_id)
                 .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
             config
-                .totp
+                .totp_key_name
                 .as_ref()
                 .ok_or_else(|| MfaError::NotConfigured("TOTP".to_string()))?
                 .clone()
         };
 
-        // Check if code was already used (replay prevention)
-        let history = self.totp_history.read().await;
-        if let Some(entries) = history.get(user_id) {
-            let now = Utc::now();
-            let recent_window = now - Duration::seconds(60);
+        // Delegate to TotpEngine for validation
+        let request = TotpValidationRequest {
+            key_name,
+            code: code.to_string(),
+            skew: None,
+        };
 
-            for entry in entries {
-                if entry.timestamp > recent_window && entry.code == code {
-                    return Err(MfaError::TotpReused);
+        let response = self
+            .totp_engine
+            .validate_code(request)
+            .await
+            .map_err(|e| match e {
+                crate::services::secrets::totp::TotpError::CodeReused => MfaError::TotpReused,
+                crate::services::secrets::totp::TotpError::KeyNotFound(_) => {
+                    MfaError::NotConfigured(user_id.to_string())
                 }
+                _ => MfaError::InvalidTotp,
+            })?;
+
+        // Update last used if valid
+        if response.valid {
+            let mut configs = self.configs.write().await;
+            if let Some(config) = configs.get_mut(user_id) {
+                config.last_used_at = Some(Utc::now());
             }
         }
-        drop(history);
 
-        // Verify code
-        let now = Utc::now();
-        if !totp.verify(code, now) {
-            return Ok(false);
-        }
-
-        // Record successful verification
-        let mut history = self.totp_history.write().await;
-        history
-            .entry(user_id.to_string())
-            .or_insert_with(Vec::new)
-            .push(TotpHistory {
-                code: code.to_string(),
-                timestamp: now,
-            });
-
-        // Update last used
-        let mut configs = self.configs.write().await;
-        if let Some(config) = configs.get_mut(user_id) {
-            config.last_used_at = Some(now);
-        }
-
-        Ok(true)
+        Ok(response.valid)
     }
 
     /// Verify recovery code
@@ -356,12 +301,26 @@ impl MfaService {
         operation = "disable_totp"
     ))]
     pub async fn disable_totp(&self, user_id: &str) -> Result<(), MfaError> {
+        let key_name = {
+            let configs = self.configs.read().await;
+            let config = configs
+                .get(user_id)
+                .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+            config.totp_key_name.clone()
+        };
+
+        // Delete TOTP key from TotpEngine if exists
+        if let Some(key_name) = key_name {
+            let _ = self.totp_engine.delete_key(&key_name).await;
+        }
+
+        // Update MFA config
         let mut configs = self.configs.write().await;
         let config = configs
             .get_mut(user_id)
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
-        config.totp = None;
+        config.totp_key_name = None;
         config.enabled_methods.retain(|m| *m != MfaMethodType::TOTP);
 
         Ok(())
@@ -399,20 +358,9 @@ impl MfaService {
         Ok(config.recovery_codes.clone())
     }
 
-    /// Cleanup old TOTP history
+    /// Cleanup old TOTP history (delegates to TotpEngine)
     pub async fn cleanup_history(&self, max_age_seconds: i64) -> usize {
-        let mut history = self.totp_history.write().await;
-        let now = Utc::now();
-        let cutoff = now - Duration::seconds(max_age_seconds);
-        let mut count = 0;
-
-        for entries in history.values_mut() {
-            let old_len = entries.len();
-            entries.retain(|entry| entry.timestamp > cutoff);
-            count += old_len - entries.len();
-        }
-
-        count
+        self.totp_engine.cleanup_history(max_age_seconds).await
     }
 }
 
@@ -426,21 +374,11 @@ impl Default for MfaService {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_totp_config_generation() {
-        let config = TotpConfig::new("Secreton".to_string(), "user@example.com".to_string());
-
-        assert_eq!(config.issuer, "Secreton");
-        assert_eq!(config.period, 30);
-        assert_eq!(config.digits, 6);
-        assert!(config.qr_code_url.contains("otpauth://totp/"));
-    }
-
     #[tokio::test]
     async fn test_enable_totp() {
         let service = MfaService::new();
 
-        let config = service
+        let response = service
             .enable_totp(
                 "user1",
                 "Secreton".to_string(),
@@ -449,7 +387,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(!config.secret.is_empty());
+        assert!(!response.secret.is_empty());
+        assert!(!response.qr_code_url.is_empty());
+        assert_eq!(response.recovery_codes.len(), 10);
         assert!(service.is_configured("user1").await);
     }
 

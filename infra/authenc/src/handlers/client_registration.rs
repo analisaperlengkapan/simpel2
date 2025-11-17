@@ -6,6 +6,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::app::AppState;
 use crate::error::AuthencError;
@@ -13,9 +14,36 @@ use crate::models::client_registration::{
     ClientRegistrationError, ClientRegistrationRequest, ClientRegistrationResponse,
     ClientUpdateRequest,
 };
-use crate::services::client_registration::{
-    ClientRegistrationService, DefaultClientRegistrationService,
-};
+// Use v2 trait which supports initial_access_token parameter
+use crate::services::client_registration_v2::ClientRegistrationService;
+
+/// Extract realm_id from request headers or context
+/// In production, this should be extracted from JWT token claims or URL path
+fn extract_realm_id(headers: &HeaderMap) -> Option<Uuid> {
+    headers
+        .get("x-realm-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok())
+}
+
+/// Extract initial access token from Authorization header
+fn extract_initial_access_token(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("authorization")
+        .and_then(|auth| auth.to_str().ok())
+        .and_then(|auth| {
+            if auth.starts_with("Bearer ") {
+                Some(auth[7..].to_string())
+            } else {
+                None
+            }
+        })
+}
+
+/// Extract registration access token from Authorization header
+fn extract_registration_token(headers: &HeaderMap) -> Option<String> {
+    extract_initial_access_token(headers)
+}
 
 /// Create client registration routes (RFC 7591/7592)
 pub fn create_client_registration_routes() -> Router<Arc<AppState>> {
@@ -36,18 +64,42 @@ async fn register_client(
     (StatusCode, Json<ClientRegistrationError>),
 > {
     // Create client registration service
-    let registration_service = DefaultClientRegistrationService::new(
-        state.oidc_client_store.clone(),
-        true,  // enable_dynamic_registration
-        false, // require_software_statement
+    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+
+    let realm_id = extract_realm_id(&headers);
+    let registration_service = ProductionClientRegistrationService::new(
+        state.database.clone(),
+        realm_id,
+        "/api/v1/oauth2/register".to_string(),
     );
 
-    // Check for software statement in Authorization header
-    let software_statement = None; // TODO: Parse from Authorization header if present
+    let initial_access_token = extract_initial_access_token(&headers);
+
+    // Parse software statement from request if present
+    let software_statement =
+        if let Some(sw_stmt_jwt) = request.additional_metadata.get("software_statement") {
+            let mut claims = std::collections::HashMap::new();
+            claims.insert("software_statement".to_string(), sw_stmt_jwt.clone());
+            Some(crate::models::client_registration::SoftwareStatement {
+                software_id: request
+                    .additional_metadata
+                    .get("software_id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                software_version: request
+                    .additional_metadata
+                    .get("software_version")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                client_metadata: claims,
+            })
+        } else {
+            None
+        };
 
     // Register client
     match registration_service
-        .register_client(request, software_statement)
+        .register_client(request, software_statement, initial_access_token)
         .await
     {
         Ok(response) => Ok((StatusCode::CREATED, Json(response))),
@@ -60,6 +112,10 @@ async fn register_client(
                 AuthencError::ConfigurationError { message } => ClientRegistrationError {
                     error: "invalid_request".to_string(),
                     error_description: Some(message),
+                },
+                AuthencError::AuthenticationFailed => ClientRegistrationError {
+                    error: "invalid_token".to_string(),
+                    error_description: Some("Invalid initial access token".to_string()),
                 },
                 _ => ClientRegistrationError {
                     error: "invalid_request".to_string(),
@@ -94,10 +150,13 @@ async fn get_client_configuration(
     };
 
     // Create client registration service
-    let registration_service = DefaultClientRegistrationService::new(
-        state.oidc_client_store.clone(),
-        true,  // enable_dynamic_registration
-        false, // require_software_statement
+    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+
+    let realm_id = extract_realm_id(&headers);
+    let registration_service = ProductionClientRegistrationService::new(
+        state.database.clone(),
+        realm_id,
+        "/api/v1/oauth2/register".to_string(),
     );
 
     // Get client configuration
@@ -150,10 +209,13 @@ async fn update_client_configuration(
     };
 
     // Create client registration service
-    let registration_service = DefaultClientRegistrationService::new(
-        state.oidc_client_store.clone(),
-        true,  // enable_dynamic_registration
-        false, // require_software_statement
+    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+
+    let realm_id = extract_realm_id(&headers);
+    let registration_service = ProductionClientRegistrationService::new(
+        state.database.clone(),
+        realm_id,
+        "/api/v1/oauth2/register".to_string(),
     );
 
     // Update client configuration
@@ -209,10 +271,13 @@ async fn delete_client_registration(
     };
 
     // Create client registration service
-    let registration_service = DefaultClientRegistrationService::new(
-        state.oidc_client_store.clone(),
-        true,  // enable_dynamic_registration
-        false, // require_software_statement
+    use crate::services::client_registration_v2::ProductionClientRegistrationService;
+
+    let realm_id = extract_realm_id(&headers);
+    let registration_service = ProductionClientRegistrationService::new(
+        state.database.clone(),
+        realm_id,
+        "/api/v1/oauth2/register".to_string(),
     );
 
     // Delete client registration
@@ -239,18 +304,4 @@ async fn delete_client_registration(
             Err((StatusCode::BAD_REQUEST, Json(error_response)))
         }
     }
-}
-
-/// Extract registration access token from Authorization header
-fn extract_registration_token(headers: &HeaderMap) -> Option<String> {
-    headers
-        .get("authorization")
-        .and_then(|auth| auth.to_str().ok())
-        .and_then(|auth| {
-            if auth.starts_with("Bearer ") {
-                Some(auth[7..].to_string())
-            } else {
-                None
-            }
-        })
 }

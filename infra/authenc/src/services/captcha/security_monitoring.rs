@@ -546,7 +546,6 @@ pub fn create_captcha_security_monitoring_layer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr};
 
     #[tokio::test]
     async fn test_security_monitoring_state_creation() {

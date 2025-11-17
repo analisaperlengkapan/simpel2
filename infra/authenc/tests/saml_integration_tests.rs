@@ -3,10 +3,9 @@
 // Feature #6 Phase 4 Task 4
 
 use authenc::config::DatabaseConfig;
-use authenc::crypto::xmldsig::*;
 use authenc::database::Database;
 use authenc::services::federation::{
-    AuthRequest, AuthResponse, IdentityProvider, IdentityProviderConfig, IdentityProviderType,
+    AuthRequest, IdentityProvider, IdentityProviderConfig, IdentityProviderType,
     saml::SamlIdentityProvider,
 };
 use base64::Engine;

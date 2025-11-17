@@ -329,6 +329,8 @@ pub async fn oidc_token(
         email.as_deref(),
         name.as_deref(),
         None,
+        None,
+        None,
     );
     let _ = audit_log_store
         .add_log(&AuditLog {

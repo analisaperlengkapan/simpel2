@@ -1,7 +1,6 @@
 use authenc::config::DatabaseConfig;
 use authenc::database::Database;
 use authenc::services::device::*;
-use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -80,7 +79,7 @@ async fn test_device_trust_evaluation() {
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
-    let mut device_service = DeviceService::new(database);
+    let device_service = DeviceService::new(database);
 
     // Create a test device
     let user_id = Uuid::new_v4();

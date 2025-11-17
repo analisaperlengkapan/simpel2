@@ -6,7 +6,6 @@
 #[cfg(test)]
 mod jwks_tests {
     use authenc::crypto::ed25519_keys::Ed25519Jwk;
-    use serde_json::Value;
 
     #[test]
     fn test_jwks_response_structure() {

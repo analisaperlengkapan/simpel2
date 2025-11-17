@@ -23,20 +23,5 @@ fn main() {
         .unwrap_or_else(|_| "unknown".to_string());
     println!("cargo:rustc-env=RUST_VERSION={}", rust_version);
 
-    // Generate gRPC code from proto files
-    tonic_build::configure()
-        .build_server(true)
-        .build_client(false)
-        .compile_protos(
-            &[
-                "../../../proto/secreton.proto",
-                "../../../proto/common.proto",
-            ],
-            &["../../../proto"],
-        )
-        .expect("Failed to compile proto files");
-
-    // Tell cargo to rerun if proto files change
-    println!("cargo:rerun-if-changed=../../../proto/secreton.proto");
-    println!("cargo:rerun-if-changed=../../../proto/common.proto");
+    // Note: gRPC proto compilation moved to secreton-grpc crate
 }

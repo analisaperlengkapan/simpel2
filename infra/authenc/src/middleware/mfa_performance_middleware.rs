@@ -293,7 +293,6 @@ mod tests {
         body::Body,
         http::{Method, Request, StatusCode},
         middleware,
-        response::Response,
         routing::get,
     };
     use std::sync::Arc;
