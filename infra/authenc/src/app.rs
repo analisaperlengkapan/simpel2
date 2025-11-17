@@ -127,10 +127,9 @@ impl AppState {
         // Initialize UMA 2.0 tables
         crate::services::uma::init::init_uma_tables(&database)
             .await
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::warn!("Failed to initialize UMA tables (may already exist): {}", e);
                 // Don't fail startup if tables already exist
-                e
             })
             .ok();
 
