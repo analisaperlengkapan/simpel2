@@ -124,9 +124,8 @@ impl ResourceOwnerAuthService {
         let mut requests = Vec::new();
 
         // Parse realm_id to UUID for comparison with resource.realm_id
-        let realm_uuid = Uuid::parse_str(realm_id).map_err(|_| {
-            AuthencError::validation("Invalid realm ID format")
-        })?;
+        let realm_uuid = Uuid::parse_str(realm_id)
+            .map_err(|_| AuthencError::validation("Invalid realm ID format"))?;
 
         // Get ungranted permission tickets for these resources
         for resource in resources {
@@ -164,16 +163,17 @@ impl ResourceOwnerAuthService {
         decision: AuthorizationDecision,
         reason: Option<String>,
     ) -> Result<ResourceOwnerAuthorizationResponse> {
-        let ticket_uuid = Uuid::parse_str(ticket_id).map_err(|_| {
-            AuthencError::validation("Invalid ticket ID format")
-        })?;
+        let ticket_uuid = Uuid::parse_str(ticket_id)
+            .map_err(|_| AuthencError::validation("Invalid ticket ID format"))?;
 
         // Get ticket
         let ticket = self
             .ticket_store
             .get_ticket(ticket_uuid)
             .await?
-            .ok_or_else(|| AuthencError::resource_not_found("Permission ticket not found".to_string()))?;
+            .ok_or_else(|| {
+                AuthencError::resource_not_found("Permission ticket not found".to_string())
+            })?;
 
         // Verify owner
         if ticket.owner != owner_id {
@@ -215,19 +215,18 @@ impl ResourceOwnerAuthService {
     ) -> Result<DelegationPolicy> {
         // Verify resource ownership if resource_id specified
         if let Some(ref res_id) = resource_id {
-            let resource_uuid = Uuid::parse_str(res_id).map_err(|_| {
-                AuthencError::validation("Invalid resource ID format")
-            })?;
+            let resource_uuid = Uuid::parse_str(res_id)
+                .map_err(|_| AuthencError::validation("Invalid resource ID format"))?;
             let resource = self
                 .resource_store
                 .get_resource(resource_uuid)
                 .await?
-                .ok_or_else(|| AuthencError::resource_not_found("Resource not found".to_string()))?;
+                .ok_or_else(|| {
+                    AuthencError::resource_not_found("Resource not found".to_string())
+                })?;
 
             if resource.owner != owner_id {
-                return Err(AuthencError::forbidden(
-                    "You do not own this resource",
-                ));
+                return Err(AuthencError::forbidden("You do not own this resource"));
             }
         }
 
@@ -279,9 +278,7 @@ impl ResourceOwnerAuthService {
         }
 
         // Check scopes
-        let all_scopes_allowed = scopes
-            .iter()
-            .all(|scope| policy.scopes.contains(scope));
+        let all_scopes_allowed = scopes.iter().all(|scope| policy.scopes.contains(scope));
 
         if !all_scopes_allowed {
             return Ok(false);

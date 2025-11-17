@@ -1,6 +1,5 @@
 /// Database operations for user consent management
 use crate::{
-
     database::Database,
     error::{AuthencError, Result},
     models::{ConsentGrantRequest, UserConsent},
@@ -76,11 +75,7 @@ pub async fn revoke_consent(db: &Database, user_id: Uuid, client_id: &str) -> Re
     Ok(())
 }
 
-pub async fn revoke_consent_by_id(
-    db: &Database,
-    user_id: Uuid,
-    consent_id: Uuid,
-) -> Result<()> {
+pub async fn revoke_consent_by_id(db: &Database, user_id: Uuid, consent_id: Uuid) -> Result<()> {
     let query = "DELETE FROM user_consents WHERE id = $1 AND user_id = $2";
 
     let rows_affected = db.execute(query, &[&consent_id, &user_id]).await?;

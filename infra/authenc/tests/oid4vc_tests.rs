@@ -1,17 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use authenc::services::oid4vc::{
         AuthorizationDetails, BatchCredentialRequest, CredentialAuthorizationRequest,
-        CredentialFormat, CredentialRequest, CredentialResponse, CredentialSubject,
-        CredentialTokenRequest, CredentialTokenResponse, DeferredCredentialRequest,
-        EnhancedOid4VcManager, Issuer, LegacyOid4VcManager, Oid4VcService, Proof,
-        VerifiableCredential, VerifiablePresentation,
+        CredentialFormat, CredentialRequest, CredentialSubject, CredentialTokenRequest,
+        DeferredCredentialRequest, EnhancedOid4VcManager, Issuer, LegacyOid4VcManager,
+        Oid4VcService, Proof, VerifiableCredential, VerifiablePresentation,
     };
     use rand;
     use std::collections::HashMap;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
 
     #[tokio::test]
     async fn test_enhanced_oid4vc_manager_creation() {

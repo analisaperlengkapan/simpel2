@@ -14,11 +14,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use webauthn_rs::{Webauthn, WebauthnBuilder};
 use webauthn_rs::prelude::{
-    CreationChallengeResponse, Passkey, PublicKeyCredential, RegisterPublicKeyCredential,
-    RequestChallengeResponse, CredentialID, PasskeyRegistration, PasskeyAuthentication, Url,
+    CreationChallengeResponse, CredentialID, Passkey, PasskeyAuthentication, PasskeyRegistration,
+    PublicKeyCredential, RegisterPublicKeyCredential, RequestChallengeResponse, Url,
 };
+use webauthn_rs::{Webauthn, WebauthnBuilder};
 
 /// WebAuthn service for FIDO2 authentication with full attestation support
 pub struct WebAuthnService {
@@ -60,9 +60,8 @@ impl WebAuthnService {
         rp_origin: String,
     ) -> Result<Self> {
         // WebauthnBuilder expects a Url for the relying party origin
-        let rp_origin_url = Url::parse(&rp_origin).map_err(|e| {
-            AuthencError::internal(&format!("Invalid WebAuthn RP origin: {}", e))
-        })?;
+        let rp_origin_url = Url::parse(&rp_origin)
+            .map_err(|e| AuthencError::internal(&format!("Invalid WebAuthn RP origin: {}", e)))?;
 
         let webauthn = WebauthnBuilder::new(&rp_id, &rp_origin_url)
             .map_err(|e| {
@@ -371,8 +370,15 @@ impl WebAuthnService {
             authenticator_data: None,
             user_handle: None,
             credential_type: "public-key".to_string(),
-            transports: Some(vec!["usb".to_string(), "nfc".to_string(), "ble".to_string()]),
-            aaguid: attestation_data.aaguid.as_ref().map(|s| s.as_bytes().to_vec()),
+            transports: Some(vec![
+                "usb".to_string(),
+                "nfc".to_string(),
+                "ble".to_string(),
+            ]),
+            aaguid: attestation_data
+                .aaguid
+                .as_ref()
+                .map(|s| s.as_bytes().to_vec()),
             attestation_format: Some(format!("{:?}", attestation_data.format)),
             created_at: Utc::now(),
             last_used_at: None,
@@ -409,7 +415,6 @@ impl WebAuthnService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_webauthn_service_creation() {

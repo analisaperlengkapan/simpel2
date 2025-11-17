@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
     use authenc::spi::hostname::*;
-    use authenc::spi::{Provider, ProviderConfig, ProviderFactory, Spi};
-    use std::any::Any;
+    use authenc::spi::{Provider, ProviderFactory, Spi};
 
     #[test]
     fn test_hostname_spi() {

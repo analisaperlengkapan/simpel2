@@ -3,19 +3,16 @@
 //! This module contains comprehensive unit tests for the MFA service wrapper,
 //! testing integration with existing OtpCredentialProvider and error handling.
 
-use chrono::{DateTime, Utc};
-use std::collections::{HashMap, HashSet};
+use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use authenc::error::{AuthencError, Result};
 use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
-use authenc::services::mfa_service::{
-    MfaClient, MfaService, MfaSetupResponse, MfaStatistics, MfaStatus,
-};
+use authenc::services::mfa_service::{MfaClient, MfaService};
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
-use authenc::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse, SecretonClient};
+use authenc::secreton_client::secreton_client::{MfaSetupData, MfaStatusResponse};
 
 /// Create a test database pool (mock for testing)
 fn create_test_db_pool() -> deadpool_postgres::Pool {

@@ -52,7 +52,8 @@ pub struct AppState {
     /// Client scope service for OAuth2/OIDC scope management with consent
     pub client_scope_service: Arc<crate::services::client_scope_service::ClientScopeService>,
     /// Protocol mapper service for claim transformation and token generation
-    pub protocol_mapper_service: Arc<crate::services::protocol_mapper_service::ProtocolMapperService>,
+    pub protocol_mapper_service:
+        Arc<crate::services::protocol_mapper_service::ProtocolMapperService>,
     /// OIDC client store for OAuth2/OIDC client management
     pub oidc_client_store: Arc<crate::services::oidc_client_store::OidcClientStore>,
     /// Service account store for machine-to-machine authentication
@@ -97,7 +98,8 @@ pub struct AppState {
     /// UMA 2.0 policy store for policy database operations
     pub uma_policy_store: Arc<crate::services::uma_policy_store::UmaPolicyStore>,
     /// UMA 2.0 delegation policy store
-    pub uma_delegation_policy_store: Arc<crate::services::uma_policy_store::UmaDelegationPolicyStore>,
+    pub uma_delegation_policy_store:
+        Arc<crate::services::uma_policy_store::UmaDelegationPolicyStore>,
     /// UMA 2.0 policy engine for fine-grained authorization
     pub uma_policy_engine: Arc<crate::services::uma::PolicyEngine>,
     /// UMA 2.0 RPT service for token issuance
@@ -580,9 +582,16 @@ impl AppState {
         ));
 
         // Start sync scheduler if configured
-        if let Some(sync_interval) = config.federation.as_ref().and_then(|f| f.sync_interval_minutes) {
+        if let Some(sync_interval) = config
+            .federation
+            .as_ref()
+            .and_then(|f| f.sync_interval_minutes)
+        {
             user_sync_service.start_scheduler(sync_interval).await;
-            tracing::info!("User sync scheduler started with interval: {} minutes", sync_interval);
+            tracing::info!(
+                "User sync scheduler started with interval: {} minutes",
+                sync_interval
+            );
         } else {
             tracing::info!("User sync scheduler not configured");
         }
@@ -629,26 +638,45 @@ impl AppState {
             key_rotation_service,
             federation_manager,
             user_sync_service: user_sync_service.clone(),
-            uma_policy_store: Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(database.clone())),
-            uma_delegation_policy_store: Arc::new(crate::services::uma_policy_store::UmaDelegationPolicyStore::new(database.clone())),
-            uma_policy_engine: Arc::new(crate::services::uma::PolicyEngine::new(database.clone(), resource_store.clone())),
-            // Create JWT keys once and share them
-            let jwt_encoding_key = Arc::new(jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()));
-            let jwt_decoding_key = Arc::new(jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()));
-
-            uma_rpt_service: Arc::new(crate::services::uma::RptService::new(
-                "authenc".to_string(), // issuer
-                jwt_encoding_key.clone(),
-                jwt_decoding_key.clone(),
-            ).with_lifetime(3600)), // token lifetime: 1 hour
+            uma_policy_store: Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(
+                database.clone(),
+            )),
+            uma_delegation_policy_store: Arc::new(
+                crate::services::uma_policy_store::UmaDelegationPolicyStore::new(database.clone()),
+            ),
+            uma_policy_engine: Arc::new(crate::services::uma::PolicyEngine::new(
+                database.clone(),
+                resource_store.clone(),
+            )),
+            uma_rpt_service: Arc::new(
+                crate::services::uma::RptService::new(
+                    "authenc".to_string(), // issuer
+                    // In production, load signing keys from Secreton
+                    jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                    jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                )
+                .with_lifetime(3600),
+            ), // token lifetime: 1 hour
             uma_permission_endpoint: {
-                let uma_policy_store = Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(database.clone()));
-                let uma_rpt_service = Arc::new(crate::services::uma::RptService::new(
-                    "authenc".to_string(),
-                    jwt_encoding_key.clone(),
-                    jwt_decoding_key.clone(),
-                ).with_lifetime(3600));
-                let uma_policy_engine = Arc::new(crate::services::uma::PolicyEngine::new(database.clone(), resource_store.clone()));
+                let uma_policy_store = Arc::new(
+                    crate::services::uma_policy_store::UmaPolicyStore::new(database.clone()),
+                );
+                let uma_rpt_service = Arc::new(
+                    crate::services::uma::RptService::new(
+                        "authenc".to_string(),
+                        jsonwebtoken::EncodingKey::from_secret(
+                            config.security.jwt_secret.as_bytes(),
+                        ),
+                        jsonwebtoken::DecodingKey::from_secret(
+                            config.security.jwt_secret.as_bytes(),
+                        ),
+                    )
+                    .with_lifetime(3600),
+                );
+                let uma_policy_engine = Arc::new(crate::services::uma::PolicyEngine::new(
+                    database.clone(),
+                    resource_store.clone(),
+                ));
 
                 Arc::new(crate::services::uma::PermissionEndpoint::new(
                     database.clone(),
@@ -662,15 +690,13 @@ impl AppState {
             },
             uma_claims_gathering: Arc::new(tokio::sync::Mutex::new(
                 crate::services::uma::ClaimsGatheringService::new(
-                    format!("https://{}:{}", config.server.host, config.server.port) // base_url
-                )
+                    format!("https://{}:{}", config.server.host, config.server.port), // base_url
+                ),
             )),
-            uma_resource_owner_auth: Arc::new(
-                crate::services::uma::ResourceOwnerAuthService::new(
-                    resource_store.clone(),
-                    permission_ticket_store.clone(),
-                )
-            ),
+            uma_resource_owner_auth: Arc::new(crate::services::uma::ResourceOwnerAuthService::new(
+                resource_store.clone(),
+                permission_ticket_store.clone(),
+            )),
         })
     }
 

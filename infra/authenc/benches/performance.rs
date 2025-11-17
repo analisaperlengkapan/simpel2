@@ -3,11 +3,6 @@
 //! This module contains comprehensive performance benchmarks for authenc functionality,
 //! focusing on the enhanced features for SIMKARI super app integration with secreton.
 //!
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use serde_json::json;
-use std::time::Duration;
-use tokio::runtime::Runtime;
-use uuid::Uuid;
 
 #[cfg(feature = "secreton_integration")]
 use authenc::config::AuthencConfig;

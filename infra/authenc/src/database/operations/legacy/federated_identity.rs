@@ -72,10 +72,7 @@ pub async fn unlink_federated_identity(
     Ok(rows_affected > 0)
 }
 
-pub async fn get_user_federated_identities(
-    db: &Database,
-    user_id: Uuid,
-) -> Result<Vec<JsonValue>> {
+pub async fn get_user_federated_identities(db: &Database, user_id: Uuid) -> Result<Vec<JsonValue>> {
     let query = r#"
         SELECT
             id, identity_provider_alias, federated_user_id, federated_username,

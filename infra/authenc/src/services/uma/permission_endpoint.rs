@@ -4,10 +4,10 @@
 //! Implements the UMA 2.0 authorization flow.
 
 use super::policy_engine::{
-    PolicyEngine, PolicyEvaluationContext, SubjectContext, ResourceContext,
-    EnvironmentContext, PolicyDecision,
+    EnvironmentContext, PolicyDecision, PolicyEngine, PolicyEvaluationContext, ResourceContext,
+    SubjectContext,
 };
-use super::rpt::{Permission as RptPermission, RptService, Rpt};
+use super::rpt::{Permission as RptPermission, Rpt, RptService};
 use super::{UmaAuthorizationRequest, UmaAuthorizationResponse, UmaError, UmaPermissionRequest};
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
@@ -71,24 +71,26 @@ impl PermissionEndpoint {
         requests: Vec<UmaPermissionRequest>,
     ) -> Result<String> {
         // Parse realm and resource server IDs to UUIDs for comparison and ticket creation
-        let realm_uuid = Uuid::parse_str(realm_id).map_err(|_| {
-            AuthencError::validation("Invalid realm ID format")
-        })?;
+        let realm_uuid = Uuid::parse_str(realm_id)
+            .map_err(|_| AuthencError::validation("Invalid realm ID format"))?;
 
-        let resource_server_uuid = Uuid::parse_str(resource_server_id).map_err(|_| {
-            AuthencError::validation("Invalid resource server ID format")
-        })?;
+        let resource_server_uuid = Uuid::parse_str(resource_server_id)
+            .map_err(|_| AuthencError::validation("Invalid resource server ID format"))?;
 
         // Validate that all requested resources exist and belong to this resource server
         for req in &requests {
-            let resource_uuid = Uuid::parse_str(&req.resource_id).map_err(|_| {
-                AuthencError::validation("Invalid resource ID format")
-            })?;
+            let resource_uuid = Uuid::parse_str(&req.resource_id)
+                .map_err(|_| AuthencError::validation("Invalid resource ID format"))?;
             let resource = self
                 .resource_store
                 .get_resource(resource_uuid)
                 .await?
-                .ok_or_else(|| AuthencError::resource_not_found(format!("Resource {} not found", req.resource_id)))?;
+                .ok_or_else(|| {
+                    AuthencError::resource_not_found(format!(
+                        "Resource {} not found",
+                        req.resource_id
+                    ))
+                })?;
 
             // Verify resource belongs to this resource server
             if resource.resource_server_id != resource_server_uuid {
@@ -127,9 +129,8 @@ impl PermissionEndpoint {
         for req in &requests {
             for scope in &req.resource_scopes {
                 let ticket = PermissionTicket::new(
-                    Uuid::parse_str(&req.resource_id).map_err(|_| {
-                        AuthencError::validation("Invalid resource ID format")
-                    })?,
+                    Uuid::parse_str(&req.resource_id)
+                        .map_err(|_| AuthencError::validation("Invalid resource ID format"))?,
                     Uuid::new_v4(), // scope_id - would need to look this up in production
                     "resource_owner".to_string(), // Would be actual resource owner
                     "requesting_party".to_string(), // Would be actual requesting party
@@ -158,7 +159,9 @@ impl PermissionEndpoint {
         environment: EnvironmentContext,
     ) -> Result<UmaAuthorizationResponse> {
         // Validate permission ticket
-        let ticket = self.validate_permission_ticket(&request.ticket, realm_id).await?;
+        let ticket = self
+            .validate_permission_ticket(&request.ticket, realm_id)
+            .await?;
 
         // Get resources from ticket
         let resources = self.get_resources_from_ticket(&ticket).await?;
@@ -182,7 +185,10 @@ impl PermissionEndpoint {
             let policies = self.load_policies_for_resource(&resource.id).await?;
 
             // Evaluate policies
-            let result = self.policy_engine.evaluate_policies(&context, &policies).await?;
+            let result = self
+                .policy_engine
+                .evaluate_policies(&context, &policies)
+                .await?;
 
             match result.decision {
                 PolicyDecision::Permit => {
@@ -239,7 +245,8 @@ impl PermissionEndpoint {
             let existing = Rpt::from_token(existing_rpt.clone(), claims);
 
             // Upgrade RPT with new permissions
-            self.rpt_service.upgrade_rpt(&existing, granted_permissions)?
+            self.rpt_service
+                .upgrade_rpt(&existing, granted_permissions)?
         } else {
             // Create new RPT
             self.rpt_service.create_rpt(
@@ -289,11 +296,7 @@ impl PermissionEndpoint {
         let mut resources = Vec::new();
 
         for ticket in tickets {
-            if let Some(resource) = self
-                .resource_store
-                .get_resource(ticket.resource_id)
-                .await?
-            {
+            if let Some(resource) = self.resource_store.get_resource(ticket.resource_id).await? {
                 resources.push(resource);
             }
         }
@@ -343,9 +346,14 @@ impl PermissionEndpoint {
     }
 
     /// Load policies for resource
-    async fn load_policies_for_resource(&self, resource_id: &Uuid) -> Result<Vec<super::policy_engine::UmaPolicy>> {
+    async fn load_policies_for_resource(
+        &self,
+        resource_id: &Uuid,
+    ) -> Result<Vec<super::policy_engine::UmaPolicy>> {
         // Load policies from database using UmaPolicyStore
-        self.uma_policy_store.get_policies_for_resource(resource_id).await
+        self.uma_policy_store
+            .get_policies_for_resource(resource_id)
+            .await
     }
 }
 
@@ -412,14 +420,21 @@ impl AuthorizationContextBuilder {
         self
     }
 
-    pub fn build(self) -> Result<(String, String, HashMap<String, serde_json::Value>, EnvironmentContext)> {
-        let subject_id = self.subject_id.ok_or_else(|| {
-            AuthencError::missing_field("subject_id")
-        })?;
+    pub fn build(
+        self,
+    ) -> Result<(
+        String,
+        String,
+        HashMap<String, serde_json::Value>,
+        EnvironmentContext,
+    )> {
+        let subject_id = self
+            .subject_id
+            .ok_or_else(|| AuthencError::missing_field("subject_id"))?;
 
-        let client_id = self.client_id.ok_or_else(|| {
-            AuthencError::missing_field("client_id")
-        })?;
+        let client_id = self
+            .client_id
+            .ok_or_else(|| AuthencError::missing_field("client_id"))?;
 
         let environment = EnvironmentContext {
             ip_address: self.ip_address,
@@ -464,7 +479,10 @@ mod tests {
         assert_eq!(environment.ip_address, Some("192.168.1.1".to_string()));
         assert!(environment.mfa_completed);
         assert_eq!(environment.trust_score, Some(0.95));
-        assert_eq!(attributes.get("department"), Some(&serde_json::json!("engineering")));
+        assert_eq!(
+            attributes.get("department"),
+            Some(&serde_json::json!("engineering"))
+        );
     }
 
     #[test]

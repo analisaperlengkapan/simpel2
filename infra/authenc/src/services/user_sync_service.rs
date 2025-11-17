@@ -82,7 +82,10 @@ impl UserSyncService {
 
     /// Start periodic sync scheduler
     pub async fn start_scheduler(&self, interval_minutes: u64) {
-        info!("Starting user sync scheduler with interval: {} minutes", interval_minutes);
+        info!(
+            "Starting user sync scheduler with interval: {} minutes",
+            interval_minutes
+        );
 
         let db = self.db.clone();
         let federation_manager = self.federation_manager.clone();
@@ -149,7 +152,10 @@ impl UserSyncService {
 
         for realm_id in realms {
             // Get all identity providers for this realm
-            let providers = self.federation_manager.list_identity_providers(realm_id).await?;
+            let providers = self
+                .federation_manager
+                .list_identity_providers(realm_id)
+                .await?;
 
             for provider_config in providers {
                 // Only sync LDAP/AD providers
@@ -176,7 +182,10 @@ impl UserSyncService {
                     continue;
                 }
 
-                info!("Syncing provider: {} (realm: {})", provider_config.alias, realm_id);
+                info!(
+                    "Syncing provider: {} (realm: {})",
+                    provider_config.alias, realm_id
+                );
 
                 match self.sync_provider(&provider_config.alias, realm_id).await {
                     Ok(result) => {
@@ -200,14 +209,20 @@ impl UserSyncService {
             }
         }
 
-        info!("Sync for all providers completed. Total results: {}", results.len());
+        info!(
+            "Sync for all providers completed. Total results: {}",
+            results.len()
+        );
         Ok(results)
     }
 
     /// Sync users from a specific provider
     pub async fn sync_provider(&self, provider_alias: &str, realm_id: Uuid) -> Result<SyncResult> {
         let start_time = std::time::Instant::now();
-        info!("Starting sync for provider: {} in realm: {}", provider_alias, realm_id);
+        info!(
+            "Starting sync for provider: {} in realm: {}",
+            provider_alias, realm_id
+        );
 
         let mut users_added = 0;
         let mut users_updated = 0;
@@ -273,7 +288,12 @@ impl UserSyncService {
     }
 
     /// Sync a single user from LDAP
-    async fn sync_user(&self, ldap_user: &User, provider_alias: &str, realm_id: Uuid) -> Result<bool> {
+    async fn sync_user(
+        &self,
+        ldap_user: &User,
+        provider_alias: &str,
+        realm_id: Uuid,
+    ) -> Result<bool> {
         let client = self.db.get_connection().await?;
 
         // Check if user already exists via identity link
@@ -324,7 +344,9 @@ impl UserSyncService {
                     ],
                 )
                 .await
-                .map_err(|e| AuthencError::database(format!("Failed to update identity link: {}", e)))?;
+                .map_err(|e| {
+                    AuthencError::database(format!("Failed to update identity link: {}", e))
+                })?;
 
             Ok(false) // Not new
         } else {
@@ -369,14 +391,20 @@ impl UserSyncService {
                     ],
                 )
                 .await
-                .map_err(|e| AuthencError::database(format!("Failed to create identity link: {}", e)))?;
+                .map_err(|e| {
+                    AuthencError::database(format!("Failed to create identity link: {}", e))
+                })?;
 
             Ok(true) // New user
         }
     }
 
     /// Get provider configuration
-    async fn get_provider_config(&self, provider_alias: &str, realm_id: Uuid) -> Result<serde_json::Value> {
+    async fn get_provider_config(
+        &self,
+        provider_alias: &str,
+        realm_id: Uuid,
+    ) -> Result<serde_json::Value> {
         let client = self.db.get_connection().await?;
 
         let row = client

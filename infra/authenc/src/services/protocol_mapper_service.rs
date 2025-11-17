@@ -1,9 +1,9 @@
-use crate::database::operations::protocol_mappers_ops;
 use crate::database::Database;
+use crate::database::operations::protocol_mappers_ops;
 use crate::error::{AuthencError, Result};
 use crate::models::protocol_mapper::{
-    CreateProtocolMapperRequest, ProtocolMapper, ProtocolMapperConfiguration,
-    ProtocolMapperType, UpdateProtocolMapperRequest,
+    CreateProtocolMapperRequest, ProtocolMapper, ProtocolMapperConfiguration, ProtocolMapperType,
+    UpdateProtocolMapperRequest,
 };
 use crate::models::user::User;
 use std::collections::HashMap;
@@ -177,9 +177,7 @@ impl ProtocolMapperService {
             ProtocolMapperType::UserProperty => self.evaluate_user_property_mapper(mapper, user),
             ProtocolMapperType::UserAttribute => self.evaluate_user_attribute_mapper(mapper, user),
             ProtocolMapperType::UserRole => self.evaluate_user_role_mapper(mapper, user),
-            ProtocolMapperType::UserRealmRole => {
-                self.evaluate_user_realm_role_mapper(mapper, user)
-            }
+            ProtocolMapperType::UserRealmRole => self.evaluate_user_realm_role_mapper(mapper, user),
             ProtocolMapperType::UserClientRole => {
                 self.evaluate_user_client_role_mapper(mapper, user)
             }
@@ -268,12 +266,7 @@ impl ProtocolMapperService {
 
         if !roles.is_empty() {
             let role_value = if mapper.config.multivalued.unwrap_or(true) {
-                serde_json::Value::Array(
-                    roles
-                        .into_iter()
-                        .map(serde_json::Value::String)
-                        .collect(),
-                )
+                serde_json::Value::Array(roles.into_iter().map(serde_json::Value::String).collect())
             } else {
                 serde_json::Value::String(roles.join(","))
             };
@@ -376,9 +369,8 @@ impl ProtocolMapperService {
                         .and_then(|n| serde_json::Number::from_f64(n as f64))
                         .unwrap_or(serde_json::Number::from(0)),
                 ),
-                Some("JSON") => serde_json::from_str(claim_value).unwrap_or_else(|_| {
-                    serde_json::Value::String(claim_value.clone())
-                }),
+                Some("JSON") => serde_json::from_str(claim_value)
+                    .unwrap_or_else(|_| serde_json::Value::String(claim_value.clone())),
                 _ => serde_json::Value::String(claim_value.clone()),
             };
 

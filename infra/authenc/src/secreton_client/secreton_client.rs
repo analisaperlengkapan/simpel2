@@ -335,7 +335,10 @@ impl SecretonClient {
     }
 
     /// Execute a request with circuit breaker and retry logic
-    async fn execute_with_circuit_breaker<F, Fut, T>(&self, operation: F) -> Result<T, SecretonError>
+    async fn execute_with_circuit_breaker<F, Fut, T>(
+        &self,
+        operation: F,
+    ) -> Result<T, SecretonError>
     where
         F: Fn() -> Fut + Send,
         Fut: std::future::Future<Output = Result<T, SecretonError>> + Send,
@@ -447,7 +450,10 @@ impl SecretonClient {
                     .map_err(|e| SecretonError::Unavailable(format!("Network error: {}", e)))?;
 
                 if resp.status() == 404 {
-                    return Err(SecretonError::NotFound(format!("Secret not found: {}", key)));
+                    return Err(SecretonError::NotFound(format!(
+                        "Secret not found: {}",
+                        key
+                    )));
                 } else if resp.status() == 401 {
                     return Err(SecretonError::AuthenticationFailed(
                         "Invalid token".to_string(),
@@ -470,7 +476,9 @@ impl SecretonClient {
                 secret_resp
                     .data
                     .and_then(|data| data.values().next().cloned())
-                    .ok_or_else(|| SecretonError::NotFound(format!("Secret data not found: {}", key)))
+                    .ok_or_else(|| {
+                        SecretonError::NotFound(format!("Secret data not found: {}", key))
+                    })
             }
         };
 

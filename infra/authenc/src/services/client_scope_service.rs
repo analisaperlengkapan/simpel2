@@ -1,5 +1,7 @@
-use crate::database::operations::{client_scopes, client_scope_assignments, user_consent_scopes, scope_validation};
 use crate::database::Database;
+use crate::database::operations::{
+    client_scope_assignments, client_scopes, scope_validation, user_consent_scopes,
+};
 use crate::error::{AuthencError, Result};
 use crate::models::client_scope::*;
 use std::sync::Arc;
@@ -206,10 +208,8 @@ impl ClientScopeService {
 
                 // Check consent if user is present
                 if let Some(user_id) = user_id {
-                    let scope_names: Vec<String> = scopes
-                        .split_whitespace()
-                        .map(|s| s.to_string())
-                        .collect();
+                    let scope_names: Vec<String> =
+                        scopes.split_whitespace().map(|s| s.to_string()).collect();
 
                     let consent_check = user_consent_scopes::check_consent(
                         &self.db,
@@ -307,20 +307,14 @@ impl ClientScopeService {
     ) -> Result<u64> {
         let scope_ids = if let Some(names) = scope_names {
             // Get scope IDs for the specified names
-            let scopes =
-                client_scopes::get_scopes_by_names(&self.db, Uuid::nil(), names).await?;
+            let scopes = client_scopes::get_scopes_by_names(&self.db, Uuid::nil(), names).await?;
             Some(scopes.iter().map(|s| s.id).collect::<Vec<Uuid>>())
         } else {
             None
         };
 
-        user_consent_scopes::revoke_consent(
-            &self.db,
-            user_id,
-            client_id,
-            scope_ids.as_deref(),
-        )
-        .await
+        user_consent_scopes::revoke_consent(&self.db, user_id, client_id, scope_ids.as_deref())
+            .await
     }
 
     /// Get all consented scopes for a user and client
@@ -504,7 +498,6 @@ impl ClientScopeService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // Test helpers would go here
     // Note: Actual tests require database setup and are typically in integration tests

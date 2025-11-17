@@ -5,7 +5,6 @@
 /// - Listing initial access tokens
 /// - Revoking initial access tokens
 /// - Viewing registration policies
-
 use axum::{
     Router,
     extract::{Path, Query, State},
@@ -27,18 +26,42 @@ pub fn create_dcr_admin_routes() -> Router<Arc<AppState>> {
         // Initial Access Token Management
         .route("/initial-access-tokens", post(create_initial_access_token))
         .route("/initial-access-tokens", get(list_initial_access_tokens))
-        .route("/initial-access-tokens/:id", delete(revoke_initial_access_token))
+        .route(
+            "/initial-access-tokens/:id",
+            delete(revoke_initial_access_token),
+        )
         // Policy Management
         .route("/policies/:realm_id", get(get_registration_policy))
         .route("/policies/:realm_id", post(create_registration_policy))
-        .route("/policies/:realm_id/:policy_id", put(update_registration_policy))
-        .route("/policies/:realm_id/:policy_id", delete(delete_registration_policy))
+        .route(
+            "/policies/:realm_id/:policy_id",
+            put(update_registration_policy),
+        )
+        .route(
+            "/policies/:realm_id/:policy_id",
+            delete(delete_registration_policy),
+        )
         // Software Statement Issuer Management
-        .route("/software-statement-issuers", post(create_software_statement_issuer))
-        .route("/software-statement-issuers", get(list_software_statement_issuers))
-        .route("/software-statement-issuers/:id", get(get_software_statement_issuer))
-        .route("/software-statement-issuers/:id", put(update_software_statement_issuer))
-        .route("/software-statement-issuers/:id", delete(delete_software_statement_issuer))
+        .route(
+            "/software-statement-issuers",
+            post(create_software_statement_issuer),
+        )
+        .route(
+            "/software-statement-issuers",
+            get(list_software_statement_issuers),
+        )
+        .route(
+            "/software-statement-issuers/:id",
+            get(get_software_statement_issuer),
+        )
+        .route(
+            "/software-statement-issuers/:id",
+            put(update_software_statement_issuer),
+        )
+        .route(
+            "/software-statement-issuers/:id",
+            delete(delete_software_statement_issuer),
+        )
 }
 
 #[derive(Debug, Deserialize)]
@@ -108,11 +131,10 @@ async fn create_initial_access_token(
         .collect();
 
     // Hash token for storage
-    let token_hash = bcrypt::hash(&token, bcrypt::DEFAULT_COST).map_err(|e| {
-        AuthencError::InternalError {
+    let token_hash =
+        bcrypt::hash(&token, bcrypt::DEFAULT_COST).map_err(|e| AuthencError::InternalError {
             message: format!("Failed to hash token: {}", e),
-        }
-    })?;
+        })?;
 
     // Store in database
     let iat = db_ops::create_initial_access_token(
@@ -474,12 +496,13 @@ async fn get_software_statement_issuer(
     // For now, list all and filter
     let issuers = db_ops::list_software_statement_issuers(&state.database, None).await?;
 
-    let issuer = issuers
-        .into_iter()
-        .find(|i| i.id == id)
-        .ok_or_else(|| AuthencError::ResourceNotFound {
-            resource: format!("software statement issuer {}", id),
-        })?;
+    let issuer =
+        issuers
+            .into_iter()
+            .find(|i| i.id == id)
+            .ok_or_else(|| AuthencError::ResourceNotFound {
+                resource: format!("software statement issuer {}", id),
+            })?;
 
     Ok(Json(SoftwareStatementIssuerResponse {
         id: issuer.id,

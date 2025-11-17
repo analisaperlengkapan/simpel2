@@ -11,11 +11,10 @@ use crate::services::token_exchange::{
     TokenExchangeRequest, TokenExchangeResponse, TokenExchangeService,
 };
 use axum::{
-    debug_handler,
+    Form, debug_handler,
     extract::State,
     http::{HeaderMap, StatusCode},
     response::Json,
-    Form,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -191,7 +190,8 @@ fn extract_client_credentials(headers: &HeaderMap) -> Result<String> {
             .ok_or_else(|| AuthencError::validation("Invalid Basic auth format"))?;
 
         use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD.decode(encoded)
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
             .map_err(|_| AuthencError::validation("Invalid base64 encoding in Authorization"))?;
 
         let credentials = String::from_utf8(decoded)
@@ -249,10 +249,7 @@ fn create_token_exchange_service(state: &Arc<AppState>) -> Result<TokenExchangeS
     use crate::services::token_exchange::TokenExchangeConfig;
 
     // Create JWT validator with cache
-    let cache: Option<Arc<dyn Cache>> = state
-        .redis_cache
-        .clone()
-        .map(|c| c as Arc<dyn Cache>);
+    let cache: Option<Arc<dyn Cache>> = state.redis_cache.clone().map(|c| c as Arc<dyn Cache>);
     let jwt_validator = Arc::new(JwtValidator::new(cache));
 
     // Use existing audit log store from state
@@ -296,9 +293,7 @@ fn create_token_exchange_service(state: &Arc<AppState>) -> Result<TokenExchangeS
 #[debug_handler]
 pub async fn token_exchange_metadata() -> Json<TokenExchangeMetadata> {
     Json(TokenExchangeMetadata {
-        grant_types_supported: vec![
-            "urn:ietf:params:oauth:grant-type:token-exchange".to_string(),
-        ],
+        grant_types_supported: vec!["urn:ietf:params:oauth:grant-type:token-exchange".to_string()],
         token_endpoint: "http://localhost:8080/v1/oauth2/token/exchange".to_string(),
         subject_token_types_supported: vec![
             "urn:ietf:params:oauth:token-type:access_token".to_string(),

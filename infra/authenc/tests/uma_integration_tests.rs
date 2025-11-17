@@ -7,10 +7,7 @@
 //! - Claims gathering
 //! - Resource owner authorization
 
-use axum::{
-    Router,
-    http::StatusCode,
-};
+use axum::{Router, http::StatusCode};
 use axum_test::TestServer;
 use serde_json::json;
 
@@ -18,54 +15,58 @@ use serde_json::json;
 #[tokio::test]
 async fn test_uma_discovery() {
     // Create a minimal router for testing discovery endpoint
-    let router = Router::new()
-        .route("/.well-known/uma2-configuration",
-            axum::routing::get(|| async {
-                axum::Json(json!({
-                    "issuer": "https://auth.example.com",
-                    "permission_endpoint": "https://auth.example.com/uma/permission",
-                    "authorization_endpoint": "https://auth.example.com/uma/authorize",
-                    "introspection_endpoint": "https://auth.example.com/uma/introspect",
-                    "resource_registration_endpoint": "https://auth.example.com/uma/resource",
-                    "token_endpoint": "https://auth.example.com/oauth/token",
-                    "jwks_uri": "https://auth.example.com/.well-known/jwks.json",
-                    "grant_types_supported": ["urn:ietf:params:oauth:grant-type:uma-ticket"],
-                    "response_types_supported": ["token"],
-                    "token_endpoint_auth_methods_supported": [
-                        "client_secret_basic",
-                        "client_secret_post",
-                        "private_key_jwt"
-                    ],
-                    "uma_profiles_supported": []
-                }))
-            })
-        );
+    let router = Router::new().route(
+        "/.well-known/uma2-configuration",
+        axum::routing::get(|| async {
+            axum::Json(json!({
+                "issuer": "https://auth.example.com",
+                "permission_endpoint": "https://auth.example.com/uma/permission",
+                "authorization_endpoint": "https://auth.example.com/uma/authorize",
+                "introspection_endpoint": "https://auth.example.com/uma/introspect",
+                "resource_registration_endpoint": "https://auth.example.com/uma/resource",
+                "token_endpoint": "https://auth.example.com/oauth/token",
+                "jwks_uri": "https://auth.example.com/.well-known/jwks.json",
+                "grant_types_supported": ["urn:ietf:params:oauth:grant-type:uma-ticket"],
+                "response_types_supported": ["token"],
+                "token_endpoint_auth_methods_supported": [
+                    "client_secret_basic",
+                    "client_secret_post",
+                    "private_key_jwt"
+                ],
+                "uma_profiles_supported": []
+            }))
+        }),
+    );
 
     let server = TestServer::new(router).unwrap();
 
     // Test UMA 2.0 configuration discovery
-    let response = server
-        .get("/.well-known/uma2-configuration")
-        .await;
+    let response = server.get("/.well-known/uma2-configuration").await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
 
     let config: serde_json::Value = response.json();
     assert_eq!(config["issuer"], "https://auth.example.com");
-    assert_eq!(config["permission_endpoint"], "https://auth.example.com/uma/permission");
-    assert_eq!(config["authorization_endpoint"], "https://auth.example.com/uma/authorize");
+    assert_eq!(
+        config["permission_endpoint"],
+        "https://auth.example.com/uma/permission"
+    );
+    assert_eq!(
+        config["authorization_endpoint"],
+        "https://auth.example.com/uma/authorize"
+    );
 }
 
 /// Test permission ticket request without authentication (should fail)
 #[tokio::test]
 async fn test_permission_ticket_requires_auth() {
-    let router = Router::new()
-        .route("/uma/permission",
-            axum::routing::post(|| async {
-                // This handler should never be reached without auth
-                axum::Json(json!({"ticket": "test"}))
-            })
-        );
+    let router = Router::new().route(
+        "/uma/permission",
+        axum::routing::post(|| async {
+            // This handler should never be reached without auth
+            axum::Json(json!({"ticket": "test"}))
+        }),
+    );
 
     let server = TestServer::new(router).unwrap();
 
@@ -82,7 +83,9 @@ async fn test_permission_ticket_requires_auth() {
 
     // In a real scenario, this would return 401 due to AuthBearer middleware
     // For this simple test, we just verify the route exists
-    assert!(response.status_code().is_success() || response.status_code() == StatusCode::UNAUTHORIZED);
+    assert!(
+        response.status_code().is_success() || response.status_code() == StatusCode::UNAUTHORIZED
+    );
 }
 
 /// Test UMA configuration structure
@@ -361,7 +364,6 @@ fn test_uma_error_responses() {
 
 #[cfg(test)]
 mod unit_tests {
-    
 
     #[test]
     fn test_module_compiles() {

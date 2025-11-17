@@ -76,17 +76,26 @@ async fn register_client(
     let initial_access_token = extract_initial_access_token(&headers);
 
     // Parse software statement from request if present
-    let software_statement = if let Some(sw_stmt_jwt) = request.additional_metadata.get("software_statement") {
-        let mut claims = std::collections::HashMap::new();
-        claims.insert("software_statement".to_string(), sw_stmt_jwt.clone());
-        Some(crate::models::client_registration::SoftwareStatement {
-            software_id: request.additional_metadata.get("software_id").and_then(|v| v.as_str()).map(String::from),
-            software_version: request.additional_metadata.get("software_version").and_then(|v| v.as_str()).map(String::from),
-            client_metadata: claims,
-        })
-    } else {
-        None
-    };
+    let software_statement =
+        if let Some(sw_stmt_jwt) = request.additional_metadata.get("software_statement") {
+            let mut claims = std::collections::HashMap::new();
+            claims.insert("software_statement".to_string(), sw_stmt_jwt.clone());
+            Some(crate::models::client_registration::SoftwareStatement {
+                software_id: request
+                    .additional_metadata
+                    .get("software_id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                software_version: request
+                    .additional_metadata
+                    .get("software_version")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                client_metadata: claims,
+            })
+        } else {
+            None
+        };
 
     // Register client
     match registration_service

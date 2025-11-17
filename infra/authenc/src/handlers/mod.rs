@@ -64,36 +64,36 @@ pub mod dcr_admin;
 pub mod device;
 /// Federated authentication handlers with JIT provisioning
 pub mod federated_auth;
+/// Federated login integration for LDAP/AD and social authentication
+pub mod federated_login;
+/// Federation admin API handlers for identity provider management
+pub mod federation_admin;
 /// Shared JIT Admin Service for federated auth and SAML
 pub mod jit_admin_service;
 /// SPI-based federation handlers for LDAP and social providers
 pub mod spi_federation;
 /// SPI management handlers for enterprise features
 pub mod spi_management;
-/// Federation admin API handlers for identity provider management
-pub mod federation_admin;
-/// Federated login integration for LDAP/AD and social authentication
-pub mod federated_login;
 // pub mod oauth2_comprehensive; // Commented out - already declared above
 // pub mod organization;
+/// OpenID for Verifiable Credentials (OID4VC) handlers
+pub mod oid4vc;
 /// SAML authentication handlers
 pub mod saml;
 /// Satker (organizational unit) hierarchy handlers
 pub mod satker;
 /// Social login handlers
 pub mod social;
-/// WebAuthn/FIDO2 passwordless authentication handlers
-pub mod webauthn;
-/// OpenID for Verifiable Credentials (OID4VC) handlers
-pub mod oid4vc;
 /// Single Sign-On (SSO) handlers and endpoints
 pub mod sso;
 /// OAuth 2.0 Token Exchange (RFC 8693) HTTP handler
 pub mod token_exchange;
-/// Zero Trust security model handlers and endpoints
-pub mod zero_trust;
 /// UMA 2.0 (User-Managed Access) fine-grained authorization handlers
 pub mod uma;
+/// WebAuthn/FIDO2 passwordless authentication handlers
+pub mod webauthn;
+/// Zero Trust security model handlers and endpoints
+pub mod zero_trust;
 
 /// Create the main application router with all routes
 pub fn create_router(state: Arc<AppState>) -> Router {
@@ -463,17 +463,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::app::AppState;
-    use crate::config::AppConfig;
+
     use axum::response::IntoResponse;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
+
     use http_body_util::BodyExt;
     use serde_json::Value;
-    use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_health_endpoint() {

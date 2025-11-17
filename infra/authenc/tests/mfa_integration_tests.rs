@@ -3,20 +3,18 @@
 //! This module contains comprehensive integration tests for MFA functionality,
 //! testing the complete flow between authenc and secreton services.
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
 
-use authenc::app::AppState;
-use authenc::config::AppConfig;
 use authenc::error::{AuthencError, Result};
 use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
-use authenc::services::mfa_service::{MfaService, MfaSetupResponse, MfaStatus};
-use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 use authenc::secreton_client::secreton_client::SecretonClient;
+use authenc::services::mfa_service::MfaService;
+use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
 /// Integration test utilities
 mod test_utils {
@@ -51,8 +49,8 @@ mod test_utils {
     pub async fn create_integration_secreton_client() -> Arc<SecretonClient> {
         let base_url = std::env::var("TEST_SECRETON_URL")
             .unwrap_or_else(|_| "http://localhost:8200".to_string());
-        let token = std::env::var("TEST_SECRETON_TOKEN")
-            .unwrap_or_else(|_| "test-token".to_string());
+        let token =
+            std::env::var("TEST_SECRETON_TOKEN").unwrap_or_else(|_| "test-token".to_string());
 
         let client = SecretonClient::new(base_url, token);
 
@@ -586,8 +584,7 @@ mod integration_tests {
                 println!("❌ MFA statistics retrieval failed: {:?}", e);
                 // This is expected if the database schema is not fully set up
                 match e {
-                    AuthencError::DatabaseError { .. }
-                    | AuthencError::InternalError { .. } => {
+                    AuthencError::DatabaseError { .. } | AuthencError::InternalError { .. } => {
                         println!(
                             "ℹ️  This is expected if the full database schema is not set up for integration tests "
                         );
@@ -622,12 +619,10 @@ mod integration_tests {
         let db_pool = create_integration_db_pool().await;
 
         // Test with invalid secreton URL to simulate connection failure
-        let invalid_secreton_client = Arc::new(
-            SecretonClient::new(
-                "http://invalid-secreton-url:9999".to_string(),
-                "test-token".to_string()
-            )
-        );
+        let invalid_secreton_client = Arc::new(SecretonClient::new(
+            "http://invalid-secreton-url:9999".to_string(),
+            "test-token".to_string(),
+        ));
 
         let mfa_service = MfaService::new(invalid_secreton_client, db_pool.clone());
         let test_user = create_integration_test_user();

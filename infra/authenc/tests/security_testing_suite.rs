@@ -7,8 +7,8 @@
 //
 // Requirements: 8.1 (Testing and Quality Assurance)
 
-use authenc::middleware::adaptive_rate_limit::{AdaptiveRateLimiter, AdaptiveRateLimitConfig};
-use authenc::utils::crypto::jwt::{Claims, generate_jwt, verify_jwt};
+use authenc::middleware::adaptive_rate_limit::{AdaptiveRateLimitConfig, AdaptiveRateLimiter};
+use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
 use axum::{
     Router,
     extract::{Json, Query, State},
@@ -21,7 +21,6 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
 // ============================================================================
@@ -113,10 +112,7 @@ async fn rate_limited_action(
         .unwrap_or("127.0.0.1");
 
     // Check rate limit using the adaptive rate limiter
-    match state
-        .rate_limiter
-        .check_rate_limit("/api/action", ip)
-    {
+    match state.rate_limiter.check_rate_limit("/api/action", ip) {
         Ok(()) => Ok(JsonResponse(json!({
             "success": true,
             "message": "Action performed"

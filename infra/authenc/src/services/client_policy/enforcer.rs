@@ -7,8 +7,8 @@ use crate::error::Result;
 use crate::models::client_policy::ClientPolicyModel;
 use crate::models::oauth2::OAuth2Client;
 use crate::services::client_policy::{
-    store::ClientPolicyStore, ClientPolicy, ClientPolicyCondition, ClientPolicyContext,
-    ClientPolicyExecutor, ClientPolicyManager, ClientProfile,
+    ClientPolicy, ClientPolicyCondition, ClientPolicyContext, ClientPolicyExecutor,
+    ClientPolicyManager, ClientProfile, store::ClientPolicyStore,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -96,17 +96,11 @@ impl ClientPolicyEnforcer {
         // Evaluate policies
         match temp_manager.evaluate_policies(context).await {
             Ok(_) => {
-                info!(
-                    "All policies passed for client {}",
-                    client.client_id
-                );
+                info!("All policies passed for client {}", client.client_id);
                 Ok(())
             }
             Err(e) => {
-                warn!(
-                    "Policy violation for client {}: {}",
-                    client.client_id, e
-                );
+                warn!("Policy violation for client {}: {}", client.client_id, e);
                 Err(e)
             }
         }
@@ -215,7 +209,9 @@ impl ClientPolicyEnforcer {
         // Register executors
         manager.register_executor(Box::new(PkceEnforcerExecutor { enforce_pkce: true }));
 
-        manager.register_executor(Box::new(DPoPBindEnforcerExecutor { enforce_dpop: false }));
+        manager.register_executor(Box::new(DPoPBindEnforcerExecutor {
+            enforce_dpop: false,
+        }));
 
         manager.register_executor(Box::new(SecureRedirectUrisEnforcerExecutor {
             enforce_https: true,
@@ -233,7 +229,11 @@ impl ClientPolicyEnforcer {
 
         manager.register_executor(Box::new(SecureSigningAlgorithmExecutor {
             enforce_secure_algorithm: false,
-            allowed_algorithms: vec!["EdDSA".to_string(), "ES256".to_string(), "RS256".to_string()],
+            allowed_algorithms: vec![
+                "EdDSA".to_string(),
+                "ES256".to_string(),
+                "RS256".to_string(),
+            ],
         }));
 
         manager.register_executor(Box::new(
@@ -247,7 +247,10 @@ impl ClientPolicyEnforcer {
 
         // Check if any policy has PKCE enforcer
         for policy in policies {
-            if policy.executors.contains(&"pkce-enforcer-executor".to_string()) {
+            if policy
+                .executors
+                .contains(&"pkce-enforcer-executor".to_string())
+            {
                 if let Some(config) = policy.executor_config.get("pkce-enforcer-executor") {
                     if let Some(enforce) = config.get("enforce_pkce") {
                         if enforce.as_bool() == Some(true) {
@@ -311,7 +314,10 @@ impl ClientPolicyEnforcer {
 
         // Check for grant type restrictions
         for policy in policies {
-            if policy.conditions.contains(&"grant-type-condition".to_string()) {
+            if policy
+                .conditions
+                .contains(&"grant-type-condition".to_string())
+            {
                 if let Some(config) = policy.condition_config.get("grant-type-condition") {
                     if let Some(allowed) = config.get("allowed_grant_types") {
                         if let Some(grant_types) = allowed.as_array() {
@@ -336,7 +342,6 @@ impl ClientPolicyEnforcer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     #[ignore] // Requires database

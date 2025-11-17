@@ -8,8 +8,8 @@ use authenc::models::events::{
     AdminEvent, AuthDetails, Event, EventType, OperationType, ResourceType,
 };
 use authenc::services::cache::{
-    Cache, CacheInvalidationService, EventConsumerConfig, EventDrivenCacheInvalidator, MultiLayerCache,
-    RedisCache,
+    Cache, CacheInvalidationService, EventConsumerConfig, EventDrivenCacheInvalidator,
+    MultiLayerCache, RedisCache,
 };
 use authenc::services::event_publisher::{EventPublisher, EventPublisherConfig, PublishableEvent};
 use std::sync::Arc;

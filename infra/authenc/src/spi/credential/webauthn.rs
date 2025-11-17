@@ -10,15 +10,12 @@ use crate::error::{AuthencError as Error, Result};
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
-use webauthn_rs::{Webauthn, WebauthnBuilder};
 use webauthn_rs::prelude::{
-    AuthenticatorAttachment, RegisterPublicKeyCredential,
-    AuthenticationResult, CredentialID, Passkey, Url,
-    PasskeyRegistration, PasskeyAuthentication,
+    AuthenticationResult, AuthenticatorAttachment, CredentialID, Passkey, PasskeyAuthentication,
+    PasskeyRegistration, RegisterPublicKeyCredential, Url,
 };
-use webauthn_rs_proto::{
-    AttestationConveyancePreference, UserVerificationPolicy,
-};
+use webauthn_rs::{Webauthn, WebauthnBuilder};
+use webauthn_rs_proto::{AttestationConveyancePreference, UserVerificationPolicy};
 
 /// WebAuthn credential type identifier
 pub const WEBAUTHN_CREDENTIAL_TYPE: &str = "webauthn";
@@ -227,12 +224,14 @@ impl WebAuthnCredentialProvider {
         user_name: &str,
         user_display_name: &str,
         existing_credentials: Vec<CredentialID>,
-    ) -> Result<(webauthn_rs::prelude::CreationChallengeResponse, PasskeyRegistration)> {
+    ) -> Result<(
+        webauthn_rs::prelude::CreationChallengeResponse,
+        PasskeyRegistration,
+    )> {
         use webauthn_rs::prelude::Uuid;
 
         // Convert user_id to UUID bytes
-        let user_uuid = Uuid::parse_str(user_id)
-            .unwrap_or_else(|_| Uuid::new_v4());
+        let user_uuid = Uuid::parse_str(user_id).unwrap_or_else(|_| Uuid::new_v4());
         let user_id_bytes = user_uuid.as_bytes().to_vec();
 
         // Determine authenticator attachment
@@ -307,7 +306,9 @@ impl WebAuthnCredentialProvider {
         let passkey = self
             .webauthn
             .finish_passkey_registration(&registration_response, registration_state)
-            .map_err(|e| Error::unauthorized(&format!("Registration verification failed: {}", e)))?;
+            .map_err(|e| {
+                Error::unauthorized(&format!("Registration verification failed: {}", e))
+            })?;
 
         // Extract attestation data
         let attestation_data = self.extract_attestation_data(&registration_response, &passkey)?;
@@ -576,7 +577,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = provider.create_registration_options("user123", "testuser", "Test User", vec![]);
+        let result =
+            provider.create_registration_options("user123", "testuser", "Test User", vec![]);
 
         assert!(result.is_ok());
         if let Ok((challenge_response, _state)) = result {

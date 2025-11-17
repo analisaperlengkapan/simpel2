@@ -3,18 +3,15 @@
 
 use axum::{
     Router,
-    body::Body,
-    extract::{Json, Path, Query, State},
-    http::{HeaderMap, Method, Request, StatusCode, header},
-    middleware,
+    extract::{Json, Query, State},
+    http::{HeaderMap, StatusCode},
     response::Json as AxumJson,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use axum_test::TestServer;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
 // Security test state

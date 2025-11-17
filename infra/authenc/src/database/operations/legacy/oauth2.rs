@@ -1,6 +1,5 @@
 /// Database operations for OAuth2
 use crate::{
-
     database::Database,
     error::Result,
     models::{OAuth2AccessToken, OAuth2AuthorizationCode, OAuth2Client},
@@ -70,10 +69,7 @@ pub async fn get_client_by_id(db: &Database, client_id: &str) -> Result<Option<O
     Ok(Some(row.try_into()?))
 }
 
-pub async fn store_authorization_code(
-    db: &Database,
-    code: &OAuth2AuthorizationCode,
-) -> Result<()> {
+pub async fn store_authorization_code(db: &Database, code: &OAuth2AuthorizationCode) -> Result<()> {
     let code_id = Uuid::new_v4();
     let now = Utc::now();
 

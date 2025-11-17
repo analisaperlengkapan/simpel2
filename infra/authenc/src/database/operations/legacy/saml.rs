@@ -1,6 +1,5 @@
 /// Database operations for SAML
 use crate::{
-
     database::Database,
     error::Result,
     models::{SamlServiceProvider, SamlSession},

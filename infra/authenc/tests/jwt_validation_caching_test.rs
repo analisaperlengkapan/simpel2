@@ -7,9 +7,9 @@
 //! - Cache hit ratio: > 80%
 
 use authenc::config::RedisConfig;
+use authenc::services::JwtValidator;
+use authenc::services::cache::Cache;
 use authenc::services::cache::redis_cache::RedisCache;
-use authenc::services::cache::{Cache, CacheConfig};
-use authenc::services::{JwtValidator, JwtValidationResult};
 use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

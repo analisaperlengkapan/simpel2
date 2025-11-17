@@ -2,14 +2,13 @@
 
 use crate::services::captcha::{
     enhanced_service::EnhancedCaptchaService,
-    fallback::{FallbackConfig, FallbackState},
+    fallback::FallbackConfig,
     retry::RetryConfig,
     service::{CaptchaService, CaptchaServiceTrait},
     types::*,
 };
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::sleep;
 
 /// Mock Secreton client for testing
 pub struct MockSecretonClient {

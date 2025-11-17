@@ -444,12 +444,13 @@ pub async fn apply_protocol_mappers(
     token_type: crate::services::protocol_mapper_service::TokenType,
 ) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
     // Fetch effective mappers (client-level + scope-level)
-    let mappers = crate::database::operations::protocol_mappers_ops::get_effective_mappers_for_client(
-        database,
-        client_id_uuid,
-        scopes,
-    )
-    .await?;
+    let mappers =
+        crate::database::operations::protocol_mappers_ops::get_effective_mappers_for_client(
+            database,
+            client_id_uuid,
+            scopes,
+        )
+        .await?;
 
     // Apply all mappers to generate additional claims
     let additional_claims = protocol_mapper_service

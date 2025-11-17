@@ -327,14 +327,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        Router,
-        body::Body,
-        extract::ConnectInfo,
-        http::{Request, StatusCode},
-        routing::get,
-    };
-    use tower::{Service, ServiceExt};
 
     #[tokio::test]
     async fn test_rate_limiting() {

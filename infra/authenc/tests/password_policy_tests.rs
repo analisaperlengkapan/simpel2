@@ -16,10 +16,12 @@ mod tests {
     fn test_password_too_short() {
         let result = validate_password_strength("Short1!", None);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("at least 8 characters")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
     }
 
     #[test]
@@ -47,30 +49,36 @@ mod tests {
     fn test_password_missing_special() {
         let result = validate_password_strength("NoSpecialChars123", None);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("special character")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("special character"))
+        );
     }
 
     #[test]
     fn test_password_blacklisted() {
         let result = validate_password_strength("MyPassword123!", None);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("Password cannot contain the word 'password'")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Password cannot contain the word 'password'"))
+        );
     }
 
     #[test]
     fn test_password_blacklisted_case_insensitive() {
         let result = validate_password_strength("ContainsPASSWORD123!", None);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("Password cannot contain the word 'password'")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Password cannot contain the word 'password'"))
+        );
     }
 
     #[test]
@@ -100,10 +108,12 @@ mod tests {
         // Verify boundaries around the minimum length requirement (8 characters)
         let too_short = validate_password_strength("short", None);
         assert!(!too_short.is_valid);
-        assert!(too_short
-            .errors
-            .iter()
-            .any(|e| e.contains("at least 8 characters")));
+        assert!(
+            too_short
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
 
         // A sufficiently complex password of at least 8 characters should be valid
         let long_enough = validate_password_strength("Abcdef1!", None);
@@ -115,10 +125,11 @@ mod tests {
         // Built-in weak pattern list includes "letmein" as an example weak phrase
         let bad = validate_password_strength("thisisletmein", None);
         assert!(!bad.is_valid);
-        assert!(bad
-            .errors
-            .iter()
-            .any(|e| e.to_lowercase().contains("letmein")));
+        assert!(
+            bad.errors
+                .iter()
+                .any(|e| e.to_lowercase().contains("letmein"))
+        );
 
         let good = validate_password_strength("thisisgoodPASS123!", None);
         assert!(good.is_valid);
@@ -128,10 +139,12 @@ mod tests {
     fn test_edge_case_empty_password() {
         let result = validate_password_strength("", None);
         assert!(!result.is_valid);
-        assert!(result
-            .errors
-            .iter()
-            .any(|e| e.contains("at least 8 characters")));
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("at least 8 characters"))
+        );
     }
 
     #[test]

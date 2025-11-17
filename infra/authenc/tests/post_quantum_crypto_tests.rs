@@ -12,9 +12,8 @@ mod post_quantum_crypto_tests {
     use authenc::config::dynamic::CryptoMode;
     use chrono::{DateTime, Duration, Utc};
     use serde::{Deserialize, Serialize};
-    use serde_json::json;
+
     use std::collections::HashMap;
-    use uuid::Uuid;
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     struct SecurityRequirements {

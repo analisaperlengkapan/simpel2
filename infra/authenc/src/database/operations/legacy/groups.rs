@@ -1,6 +1,5 @@
 /// Database operations for group management
 use crate::{
-
     database::Database,
     error::{AuthencError, Result},
     models::Group,
@@ -335,11 +334,7 @@ pub async fn add_user_to_group(
     Ok(())
 }
 
-pub async fn remove_user_from_group(
-    db: &Database,
-    user_id: Uuid,
-    group_id: Uuid,
-) -> Result<()> {
+pub async fn remove_user_from_group(db: &Database, user_id: Uuid, group_id: Uuid) -> Result<()> {
     let query = "DELETE FROM user_groups WHERE user_id = $1 AND group_id = $2";
 
     let rows_affected = db

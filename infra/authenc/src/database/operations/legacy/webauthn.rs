@@ -84,10 +84,7 @@ pub async fn get_credential_by_id(
     })
 }
 
-pub async fn get_user_credentials(
-    db: &Database,
-    user_id: Uuid,
-) -> Result<Vec<WebauthnCredential>> {
+pub async fn get_user_credentials(db: &Database, user_id: Uuid) -> Result<Vec<WebauthnCredential>> {
     let query = r#"
         SELECT
             id, user_id, credential_id, public_key, public_key_algorithm,

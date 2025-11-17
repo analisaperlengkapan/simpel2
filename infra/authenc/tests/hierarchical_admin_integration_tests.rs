@@ -11,18 +11,15 @@
 //! - Cross-level permission validation and enforcement
 //! - Audit trail for hierarchical operations
 
-use serde_json::json;
 use std::collections::HashMap;
-use std::time::Duration;
-use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
+use authenc::crypto::SecretonPermissions;
 use authenc::error::AuthencError;
 use authenc::models::user::{
     AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext, User,
 };
-use authenc::crypto::SecretonPermissions;
 
 /// Test suite for hierarchical admin operations
 #[cfg(test)]
@@ -941,10 +938,7 @@ struct SecretonClient;
 struct CryptoEngine;
 
 impl CryptoEngine {
-    async fn sign_jwt(
-        &self,
-        claims: &serde_json::Value,
-    ) -> Result<String, AuthencError> {
+    async fn sign_jwt(&self, claims: &serde_json::Value) -> Result<String, AuthencError> {
         Ok(serde_json::to_string(claims).unwrap())
     }
 }

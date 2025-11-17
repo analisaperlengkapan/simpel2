@@ -3,7 +3,7 @@
 
 use axum::{
     Router,
-    extract::{Json, Path, Query, State},
+    extract::{Json, Path, Query},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::get,

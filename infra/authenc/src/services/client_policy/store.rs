@@ -189,9 +189,7 @@ impl ClientPolicyStore {
         }
 
         if updates.is_empty() {
-            return Err(AuthencError::validation(
-                "No fields to update".to_string(),
-            ));
+            return Err(AuthencError::validation("No fields to update".to_string()));
         }
 
         let sql = format!(
@@ -199,13 +197,10 @@ impl ClientPolicyStore {
             updates.join(", ")
         );
 
-        let row = client
-            .query_one(&sql, &params)
-            .await
-            .map_err(|e| {
-                error!("Failed to update client policy: {}", e);
-                AuthencError::database(format!("Failed to update policy: {}", e))
-            })?;
+        let row = client.query_one(&sql, &params).await.map_err(|e| {
+            error!("Failed to update client policy: {}", e);
+            AuthencError::database(format!("Failed to update policy: {}", e))
+        })?;
 
         let policy = ClientPolicyModel::try_from(row)?;
         info!("Updated client policy: {} ({})", policy.name, policy.id);
@@ -220,10 +215,7 @@ impl ClientPolicyStore {
         })?;
 
         let deleted = client
-            .execute(
-                "DELETE FROM client_policies WHERE id = $1",
-                &[&policy_id],
-            )
+            .execute("DELETE FROM client_policies WHERE id = $1", &[&policy_id])
             .await
             .map_err(|e| {
                 error!("Failed to delete client policy: {}", e);
@@ -381,11 +373,7 @@ impl ClientPolicyStore {
             profiles.push(ClientProfileModel::try_from(row)?);
         }
 
-        debug!(
-            "Listed {} profiles for realm {}",
-            profiles.len(),
-            realm_id
-        );
+        debug!("Listed {} profiles for realm {}", profiles.len(), realm_id);
         Ok(profiles)
     }
 
@@ -440,9 +428,7 @@ impl ClientPolicyStore {
         }
 
         if updates.is_empty() {
-            return Err(AuthencError::validation(
-                "No fields to update".to_string(),
-            ));
+            return Err(AuthencError::validation("No fields to update".to_string()));
         }
 
         let sql = format!(
@@ -450,19 +436,13 @@ impl ClientPolicyStore {
             updates.join(", ")
         );
 
-        let row = client
-            .query_one(&sql, &params)
-            .await
-            .map_err(|e| {
-                error!("Failed to update client profile: {}", e);
-                AuthencError::database(format!("Failed to update profile: {}", e))
-            })?;
+        let row = client.query_one(&sql, &params).await.map_err(|e| {
+            error!("Failed to update client profile: {}", e);
+            AuthencError::database(format!("Failed to update profile: {}", e))
+        })?;
 
         let profile = ClientProfileModel::try_from(row)?;
-        info!(
-            "Updated client profile: {} ({})",
-            profile.name, profile.id
-        );
+        info!("Updated client profile: {} ({})", profile.name, profile.id);
         Ok(profile)
     }
 
@@ -495,9 +475,7 @@ impl ClientPolicyStore {
             })?;
 
         if deleted == 0 {
-            return Err(AuthencError::not_found(
-                "Profile not found or is built-in",
-            ));
+            return Err(AuthencError::not_found("Profile not found or is built-in"));
         }
 
         info!("Deleted client profile: {}", profile_id);
@@ -555,10 +533,7 @@ impl ClientPolicyStore {
             })?;
 
         let assignment = ClientPolicyAssignment::try_from(row)?;
-        info!(
-            "Assigned policy {} to client {}",
-            policy_id, client_id
-        );
+        info!("Assigned policy {} to client {}", policy_id, client_id);
         Ok(assignment)
     }
 
@@ -609,10 +584,7 @@ impl ClientPolicyStore {
             })?;
 
         let assignment = ClientPolicyAssignment::try_from(row)?;
-        info!(
-            "Assigned profile {} to client {}",
-            profile_id, client_id
-        );
+        info!("Assigned profile {} to client {}", profile_id, client_id);
         Ok(assignment)
     }
 
@@ -699,10 +671,7 @@ impl ClientPolicyStore {
             return Err(AuthencError::not_found("Assignment not found"));
         }
 
-        info!(
-            "Removed policy assignment from client {}",
-            client_id
-        );
+        info!("Removed policy assignment from client {}", client_id);
         Ok(())
     }
 
@@ -738,7 +707,6 @@ impl ClientPolicyStore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // Note: These tests require a running PostgreSQL database with the schema
     // For unit tests, consider using a mock or an in-memory database

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn test_axum_app_module_exists() {

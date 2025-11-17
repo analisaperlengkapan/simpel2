@@ -76,10 +76,7 @@ pub async fn create_user_session(
     }))
 }
 
-pub async fn get_session_by_token(
-    db: &Database,
-    token: &str,
-) -> Result<Option<serde_json::Value>> {
+pub async fn get_session_by_token(db: &Database, token: &str) -> Result<Option<serde_json::Value>> {
     let token_hash = hash_token(token);
 
     let query = r#"
@@ -230,11 +227,7 @@ pub async fn rotate_refresh_token(
     Ok(true)
 }
 
-pub async fn revoke_session(
-    db: &Database,
-    session_id: Uuid,
-    reason: Option<&str>,
-) -> Result<()> {
+pub async fn revoke_session(db: &Database, session_id: Uuid, reason: Option<&str>) -> Result<()> {
     let query = r#"
         UPDATE user_sessions
         SET revoked = TRUE,
@@ -328,10 +321,7 @@ pub async fn create_offline_token(
     }))
 }
 
-pub async fn get_offline_token(
-    db: &Database,
-    token: &str,
-) -> Result<Option<serde_json::Value>> {
+pub async fn get_offline_token(db: &Database, token: &str) -> Result<Option<serde_json::Value>> {
     let token_hash = hash_token(token);
 
     let query = r#"

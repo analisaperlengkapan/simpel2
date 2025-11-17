@@ -10,28 +10,28 @@
 //! - Claims gathering
 //! - Resource owner authorization
 
-pub mod rpt;
+pub mod claims_gathering;
+pub mod init;
 pub mod permission_endpoint;
 pub mod policy_engine;
-pub mod claims_gathering;
 pub mod resource_owner_auth;
-pub mod init;
+pub mod rpt;
 
 // Re-exports for convenience
-pub use rpt::{Rpt, RptClaims, RptService, Permission as RptPermission};
-pub use permission_endpoint::{PermissionEndpoint, AuthorizationContextBuilder};
-pub use policy_engine::{
-    PolicyEngine, PolicyEvaluationContext, PolicyEvaluationResult, UmaPolicy,
-    PolicyType, PolicyDecision, SubjectContext, ResourceContext, EnvironmentContext,
-};
 pub use claims_gathering::{
-    ClaimsGatheringService, ClaimsGatheringFlow, ClaimsGatheringRequest,
-    ClaimsGatheringResponse, SubmittedClaims, ClaimsSubmissionResult,
+    ClaimsGatheringFlow, ClaimsGatheringRequest, ClaimsGatheringResponse, ClaimsGatheringService,
+    ClaimsSubmissionResult, SubmittedClaims,
+};
+pub use permission_endpoint::{AuthorizationContextBuilder, PermissionEndpoint};
+pub use policy_engine::{
+    EnvironmentContext, PolicyDecision, PolicyEngine, PolicyEvaluationContext,
+    PolicyEvaluationResult, PolicyType, ResourceContext, SubjectContext, UmaPolicy,
 };
 pub use resource_owner_auth::{
-    ResourceOwnerAuthService, ResourceOwnerAuthorizationRequest,
-    ResourceOwnerAuthorizationResponse, AuthorizationDecision, DelegationPolicy,
+    AuthorizationDecision, DelegationPolicy, ResourceOwnerAuthService,
+    ResourceOwnerAuthorizationRequest, ResourceOwnerAuthorizationResponse,
 };
+pub use rpt::{Permission as RptPermission, Rpt, RptClaims, RptService};
 
 use crate::error::Result;
 use async_trait::async_trait;

@@ -154,11 +154,7 @@ pub async fn get_scopes_by_realm(
         .collect::<Result<Vec<Scope>>>()
 }
 
-pub async fn update_scope(
-    db: &Database,
-    id: Uuid,
-    request: UpdateScopeRequest,
-) -> Result<Scope> {
+pub async fn update_scope(db: &Database, id: Uuid, request: UpdateScopeRequest) -> Result<Scope> {
     let now = Utc::now();
 
     let query = r#"

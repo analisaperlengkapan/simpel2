@@ -109,7 +109,7 @@ async fn test_saml_authentication() {
     // In production, this would be a real SAML assertion
     let saml_response = create_test_saml_response();
 
-    let mut request = AuthRequest {
+    let request = AuthRequest {
         username: None,
         password: None,
         saml_assertion: Some(saml_response),
@@ -245,7 +245,7 @@ async fn test_oidc_authentication() {
     };
 
     if let Ok(provider) = OidcIdentityProvider::new(config).await {
-        let mut request = AuthRequest {
+        let request = AuthRequest {
             username: None,
             password: None,
             saml_assertion: None,

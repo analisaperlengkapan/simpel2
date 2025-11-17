@@ -7,11 +7,11 @@ use crate::models::{
 };
 use crate::services::events::AdminEventBuilder;
 use axum::{
+    Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -225,10 +225,7 @@ pub async fn create_service_account(
         user_agent: None,
     };
 
-    let resource_path = format!(
-        "/realms/{}/service-accounts/{}",
-        realm, service_account.id
-    );
+    let resource_path = format!("/realms/{}/service-accounts/{}", realm, service_account.id);
     let representation = serde_json::to_string(&service_account).unwrap_or_default();
 
     let admin_event = AdminEventBuilder::new(
@@ -473,8 +470,7 @@ pub async fn regenerate_secret(
     };
 
     // Regenerate secret
-    let (client_id, new_secret) = match state.service_account_store.regenerate_secret(sa_id).await
-    {
+    let (client_id, new_secret) = match state.service_account_store.regenerate_secret(sa_id).await {
         Ok(result) => result,
         Err(e) => {
             error!("Failed to regenerate service account secret: {}", e);
@@ -515,10 +511,7 @@ pub async fn regenerate_secret(
         .fire_admin_event(admin_event, true)
         .await
     {
-        error!(
-            "Failed to fire admin event for secret regeneration: {}",
-            e
-        );
+        error!("Failed to fire admin event for secret regeneration: {}", e);
     }
 
     Ok(Json(RegenerateSecretResponse {
@@ -662,7 +655,11 @@ pub async fn revoke_role(
     };
 
     // Revoke role
-    match state.service_account_store.revoke_role(sa_id, role_id).await {
+    match state
+        .service_account_store
+        .revoke_role(sa_id, role_id)
+        .await
+    {
         Ok(_) => {
             // Fire admin event
             let auth_details = crate::models::events::AuthDetails {

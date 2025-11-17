@@ -418,7 +418,6 @@ pub struct CacheManagerStats {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use tokio::time::sleep;
 
     #[test]
     fn test_lru_cache_basic_operations() {

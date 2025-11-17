@@ -2,12 +2,7 @@ use crate::app::AppState;
 use crate::error::{AuthencError, Result};
 use crate::services::webauthn::WebAuthnService;
 use crate::spi::credential::webauthn::AttestationPreference;
-use axum::{
-    extract::State,
-    response::Json,
-    routing::post,
-    Router,
-};
+use axum::{Router, extract::State, response::Json, routing::post};
 use std::sync::Arc;
 use webauthn_rs_proto::{PublicKeyCredential, RegisterPublicKeyCredential};
 
@@ -29,8 +24,8 @@ pub async fn register_challenge(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let rp_origin =
+        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     // Determine attestation preference from request or config
     let attestation_pref = AttestationPreference::None; // Can be configured per request
@@ -70,8 +65,8 @@ pub async fn register_verify(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let rp_origin =
+        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let attestation_pref = AttestationPreference::None;
 
@@ -83,7 +78,9 @@ pub async fn register_verify(
         attestation_pref,
     )?;
 
-    webauthn_service.verify_registration(username, response).await
+    webauthn_service
+        .verify_registration(username, response)
+        .await
 }
 
 /// WebAuthn authentication challenge handler
@@ -94,11 +91,10 @@ pub async fn authenticate_challenge(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let rp_origin =
+        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
-    let webauthn_service =
-        WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
+    let webauthn_service = WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
 
     webauthn_service
         .generate_authentication_challenge(request)
@@ -127,11 +123,10 @@ pub async fn authenticate_verify(
     let rp_id = std::env::var("WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
     let rp_name =
         std::env::var("WEBAUTHN_RP_NAME").unwrap_or_else(|_| "SIMPelv2 Authenc".to_string());
-    let rp_origin = std::env::var("WEBAUTHN_RP_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let rp_origin =
+        std::env::var("WEBAUTHN_RP_ORIGIN").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
-    let webauthn_service =
-        WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
+    let webauthn_service = WebAuthnService::new(state.database.clone(), rp_id, rp_name, rp_origin)?;
 
     webauthn_service
         .verify_authentication(username, response)

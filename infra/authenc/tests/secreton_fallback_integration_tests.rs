@@ -10,7 +10,6 @@ use uuid::Uuid;
 use authenc::config::AuthencConfig;
 use authenc::error::OptimizedAuthencError;
 use authenc::models::User;
-use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for secreton fallback scenarios from authenc perspective
 #[cfg(test)]

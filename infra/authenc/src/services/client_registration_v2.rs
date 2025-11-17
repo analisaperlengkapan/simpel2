@@ -9,21 +9,20 @@
 /// - Software statement JWT validation
 /// - Policy-based registration control
 /// - Comprehensive audit logging
-
 use async_trait::async_trait;
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::database::operations::client_registration as db_ops;
 use crate::database::Database;
+use crate::database::operations::client_registration as db_ops;
 use crate::error::{AuthencError, Result};
+use crate::models::OAuth2Client;
 use crate::models::client_registration::{
     ClientRegistrationRequest, ClientRegistrationResponse, ClientUpdateRequest, SoftwareStatement,
 };
-use crate::models::OAuth2Client;
 
 /// Service for handling OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
 #[async_trait]
@@ -64,12 +63,17 @@ pub struct ProductionClientRegistrationService {
     db: Arc<Database>,
     realm_id: Option<Uuid>,
     registration_endpoint_base: String,
-    software_statement_validator: Option<Arc<dyn crate::services::software_statement_validator::SoftwareStatementValidator>>,
+    software_statement_validator:
+        Option<Arc<dyn crate::services::software_statement_validator::SoftwareStatementValidator>>,
 }
 
 impl ProductionClientRegistrationService {
     /// Create a new client registration service
-    pub fn new(db: Arc<Database>, realm_id: Option<Uuid>, registration_endpoint_base: String) -> Self {
+    pub fn new(
+        db: Arc<Database>,
+        realm_id: Option<Uuid>,
+        registration_endpoint_base: String,
+    ) -> Self {
         Self {
             db: db.clone(),
             realm_id,
@@ -136,7 +140,11 @@ impl ProductionClientRegistrationService {
     }
 
     /// Validate URI (HTTPS enforcement, no open redirects)
-    fn validate_uri(&self, uri: &str, policy: &crate::models::ClientRegistrationPolicy) -> Result<()> {
+    fn validate_uri(
+        &self,
+        uri: &str,
+        policy: &crate::models::ClientRegistrationPolicy,
+    ) -> Result<()> {
         // Parse URI
         let parsed = url::Url::parse(uri).map_err(|e| AuthencError::ValidationError {
             message: format!("Invalid URI: {}", e),
@@ -304,21 +312,26 @@ impl ProductionClientRegistrationService {
         let client_id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
 
-        let scopes = request.additional_metadata
+        let scopes = request
+            .additional_metadata
             .get("scope")
             .and_then(|v| v.as_str())
             .map(|s| s.split_whitespace().map(String::from).collect())
             .or_else(|| policy.default_scopes.clone())
             .unwrap_or_else(|| vec!["openid".to_string(), "profile".to_string()]);
 
-        let client_secret_expires_at = policy.client_secret_expires_in
+        let client_secret_expires_at = policy
+            .client_secret_expires_in
             .map(|seconds| now + chrono::Duration::seconds(seconds as i64));
 
         OAuth2Client {
             id: Uuid::new_v4(),
             client_id: client_id.clone(),
             client_secret_hash: client_secret_hash.to_string(),
-            client_name: request.client_name.clone().unwrap_or_else(|| "Dynamic Client".to_string()),
+            client_name: request
+                .client_name
+                .clone()
+                .unwrap_or_else(|| "Dynamic Client".to_string()),
             client_type: if request.token_endpoint_auth_method.as_deref() == Some("none") {
                 "public".to_string()
             } else {
@@ -326,9 +339,18 @@ impl ProductionClientRegistrationService {
             },
             redirect_uris: request.redirect_uris.clone(),
             scopes,
-            grant_types: request.grant_types.clone().unwrap_or_else(|| vec!["authorization_code".to_string()]),
-            response_types: request.response_types.clone().unwrap_or_else(|| vec!["code".to_string()]),
-            token_endpoint_auth_method: request.token_endpoint_auth_method.clone().unwrap_or_else(|| "client_secret_basic".to_string()),
+            grant_types: request
+                .grant_types
+                .clone()
+                .unwrap_or_else(|| vec!["authorization_code".to_string()]),
+            response_types: request
+                .response_types
+                .clone()
+                .unwrap_or_else(|| vec!["code".to_string()]),
+            token_endpoint_auth_method: request
+                .token_endpoint_auth_method
+                .clone()
+                .unwrap_or_else(|| "client_secret_basic".to_string()),
             owner_id: None,
             realm_id: self.realm_id,
             enabled: true,
@@ -344,8 +366,14 @@ impl ProductionClientRegistrationService {
             jwks_uri: request.jwks_uri.clone(),
             jwks: request.jwks.clone(),
             sector_identifier_uri: request.sector_identifier_uri.clone(),
-            subject_type: request.subject_type.clone().or_else(|| Some("public".to_string())),
-            id_token_signed_response_alg: request.id_token_signed_response_alg.clone().or_else(|| Some("EdDSA".to_string())),
+            subject_type: request
+                .subject_type
+                .clone()
+                .or_else(|| Some("public".to_string())),
+            id_token_signed_response_alg: request
+                .id_token_signed_response_alg
+                .clone()
+                .or_else(|| Some("EdDSA".to_string())),
             id_token_encrypted_response_alg: request.id_token_encrypted_response_alg.clone(),
             id_token_encrypted_response_enc: request.id_token_encrypted_response_enc.clone(),
             userinfo_signed_response_alg: request.userinfo_signed_response_alg.clone(),
@@ -360,12 +388,23 @@ impl ProductionClientRegistrationService {
             default_acr_values: request.default_acr_values.clone(),
             initiate_login_uri: request.initiate_login_uri.clone(),
             request_uris: request.request_uris.clone(),
-            application_type: request.application_type.clone().or_else(|| Some("web".to_string())),
+            application_type: request
+                .application_type
+                .clone()
+                .or_else(|| Some("web".to_string())),
             contacts: request.contacts.clone(),
             client_id_issued_at: Some(now),
             client_secret_expires_at,
-            software_id: request.additional_metadata.get("software_id").and_then(|v| v.as_str()).map(String::from),
-            software_version: request.additional_metadata.get("software_version").and_then(|v| v.as_str()).map(String::from),
+            software_id: request
+                .additional_metadata
+                .get("software_id")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            software_version: request
+                .additional_metadata
+                .get("software_version")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             registration_access_token_hash: None, // Will be set after token generation
         }
     }
@@ -413,7 +452,10 @@ impl ProductionClientRegistrationService {
             initiate_login_uri: client.initiate_login_uri.clone(),
             request_uris: client.request_uris.clone(),
             registration_access_token: Some(registration_access_token.to_string()),
-            registration_client_uri: Some(format!("{}/{}", self.registration_endpoint_base, client.client_id)),
+            registration_client_uri: Some(format!(
+                "{}/{}",
+                self.registration_endpoint_base, client.client_id
+            )),
             additional_metadata: HashMap::new(),
         }
     }
@@ -428,9 +470,11 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         initial_access_token: Option<String>,
     ) -> Result<ClientRegistrationResponse> {
         // Get registration policy
-        let realm_id = self.realm_id.ok_or_else(|| AuthencError::ConfigurationError {
-            message: "Realm ID required for registration".to_string(),
-        })?;
+        let realm_id = self
+            .realm_id
+            .ok_or_else(|| AuthencError::ConfigurationError {
+                message: "Realm ID required for registration".to_string(),
+            })?;
 
         let policy = db_ops::get_or_create_default_policy(&self.db, realm_id).await?;
 
@@ -441,7 +485,9 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
             })?;
 
             // Extract JWT from software statement
-            if let Some(software_statement_jwt) = stmt.client_metadata.get("software_statement")
+            if let Some(software_statement_jwt) = stmt
+                .client_metadata
+                .get("software_statement")
                 .and_then(|v| v.as_str())
             {
                 if let Some(validator) = &self.software_statement_validator {
@@ -475,7 +521,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         let client_secret_hash = self.hash_token(&client_secret)?;
 
         // Create client
-        let mut client = self.request_to_client(&request, &client_secret, &client_secret_hash, &policy);
+        let mut client =
+            self.request_to_client(&request, &client_secret, &client_secret_hash, &policy);
 
         // Generate registration access token
         let registration_token = self.generate_registration_token();
@@ -493,7 +540,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
             &registration_token_hash,
             self.realm_id,
             expires_in,
-        ).await?;
+        )
+        .await?;
 
         // Audit log
         db_ops::log_registration_audit(
@@ -510,7 +558,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
             None,
             None,
             Some(serde_json::json!({"method": "dynamic_registration"})),
-        ).await?;
+        )
+        .await?;
 
         // Return response
         Ok(self.client_to_response(&stored_client, Some(&client_secret), &registration_token))
@@ -650,7 +699,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         }
 
         // Save updated client
-        let updated_client = db_ops::update_client_with_metadata(&self.db, client_id, &client).await?;
+        let updated_client =
+            db_ops::update_client_with_metadata(&self.db, client_id, &client).await?;
 
         // Audit log
         db_ops::log_registration_audit(
@@ -667,7 +717,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
             None,
             None,
             Some(serde_json::json!({"method": "update"})),
-        ).await?;
+        )
+        .await?;
 
         // Return response
         Ok(self.client_to_response(&updated_client, None, registration_access_token))
@@ -685,7 +736,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         }
 
         // Delete client
-        let deleted = crate::database::operations::oauth2::delete_client(&self.db, client_id).await?;
+        let deleted =
+            crate::database::operations::oauth2::delete_client(&self.db, client_id).await?;
         if !deleted {
             return Err(AuthencError::ResourceNotFound {
                 resource: format!("client {}", client_id),
@@ -710,7 +762,8 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
             None,
             None,
             Some(serde_json::json!({"method": "delete"})),
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }

@@ -125,17 +125,18 @@ impl ServiceAccountStore {
         }
 
         // Create service account
-        let service_account = crate::database::operations::service_accounts::create_service_account(
-            &self.db,
-            realm_id,
-            name,
-            description,
-            &client_id,
-            &secret_hash,
-            enabled,
-            role_list,
-        )
-        .await?;
+        let service_account =
+            crate::database::operations::service_accounts::create_service_account(
+                &self.db,
+                realm_id,
+                name,
+                description,
+                &client_id,
+                &secret_hash,
+                enabled,
+                role_list,
+            )
+            .await?;
 
         info!(
             "Created service account: {} (client_id: {})",
@@ -157,8 +158,7 @@ impl ServiceAccountStore {
     /// Get service account by client ID
     pub async fn get_by_client_id(&self, client_id: &str) -> Result<Option<ServiceAccount>> {
         crate::database::operations::service_accounts::get_service_account_by_client_id(
-            &self.db,
-            client_id,
+            &self.db, client_id,
         )
         .await
     }
@@ -213,15 +213,14 @@ impl ServiceAccountStore {
         }
 
         // Update service account basic info
-        let updated =
-            crate::database::operations::service_accounts::update_service_account(
-                &self.db,
-                service_account_id,
-                name,
-                description,
-                enabled,
-            )
-            .await?;
+        let updated = crate::database::operations::service_accounts::update_service_account(
+            &self.db,
+            service_account_id,
+            name,
+            description,
+            enabled,
+        )
+        .await?;
 
         // Update roles if provided
         if let Some(new_roles) = roles {
@@ -286,10 +285,7 @@ impl ServiceAccountStore {
     /// - New secret is bcrypt-hashed before storage
     /// - Regeneration is audit logged
     /// - Plaintext secret is only returned once
-    pub async fn regenerate_secret(
-        &self,
-        service_account_id: Uuid,
-    ) -> Result<(String, String)> {
+    pub async fn regenerate_secret(&self, service_account_id: Uuid) -> Result<(String, String)> {
         // Get current service account
         let service_account = self
             .get(service_account_id)
@@ -383,8 +379,8 @@ impl ServiceAccountStore {
         }
 
         // Verify client secret using bcrypt
-        let valid = bcrypt::verify(client_secret, &service_account.client_secret_hash)
-            .map_err(|e| {
+        let valid =
+            bcrypt::verify(client_secret, &service_account.client_secret_hash).map_err(|e| {
                 error!("Failed to verify client secret: {}", e);
                 AuthencError::internal("Failed to verify credentials")
             })?;
@@ -528,7 +524,15 @@ mod tests {
         assert_ne!(secret1, secret2);
 
         // Should only contain valid characters
-        assert!(secret1.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
-        assert!(secret2.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
+        assert!(
+            secret1
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        );
+        assert!(
+            secret2
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        );
     }
 }

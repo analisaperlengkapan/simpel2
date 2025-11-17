@@ -8,9 +8,9 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
+use authenc::crypto::SecretonPermissions;
 use authenc::error::AuthencError;
 use authenc::models::user::User;
-use authenc::crypto::SecretonPermissions;
 use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for validating secure authenc-secreton integration
@@ -22,7 +22,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_token_based_secreton_authentication() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create a test user with secreton permissions
         let user = create_test_user_with_secreton_access();
@@ -64,7 +67,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_secret_access_with_authenc_token() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create user with specific secret access permissions
         let user = create_test_user_with_secret_access("SATKER_001");
@@ -101,13 +107,14 @@ mod integration_validation {
     #[tokio::test]
     async fn test_cross_satker_access_prevention() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create user from SATKER_001
         let user_satker_001 = create_test_user_with_secret_access("SATKER_001");
-        let token = create_token_for_user(&user_satker_001)
-            .await
-            .unwrap();
+        let token = create_token_for_user(&user_satker_001).await.unwrap();
 
         // Attempt to access SATKER_002 secrets (should be denied)
         let cross_satker_secret = "secrets/SATKER_002/sensitive_config";
@@ -134,7 +141,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_token_expiration_handling() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Create expired token
         let user = create_test_user_with_secreton_access();
@@ -176,7 +186,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_malformed_token_handling() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test various malformed tokens
         let malformed_tokens = vec![
@@ -224,7 +237,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_circuit_breaker_pattern() {
         let config = test_config_with_unreliable_secreton();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Simulate multiple failed requests to trigger circuit breaker
         let user = create_test_user_with_secreton_access();
@@ -285,7 +301,10 @@ mod integration_validation {
     #[tokio::test]
     async fn test_secure_communication_headers() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test that secure headers are properly set
         let request_headers = get_default_headers(&secreton_client);
@@ -320,7 +339,10 @@ mod resilience_validation {
     #[tokio::test]
     async fn test_network_timeout_handling() {
         let config = test_config_with_slow_secreton();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         let token = "test-token";
 
@@ -341,14 +363,17 @@ mod resilience_validation {
                 println!("Operation timed out as expected");
             }
             Ok(Ok(_)) => panic!("Should not succeed with slow secreton config"),
-            _ => println!("Unexpected result for network timeout test (acceptable in mock)") ,
+            _ => println!("Unexpected result for network timeout test (acceptable in mock)"),
         }
     }
 
     #[tokio::test]
     async fn test_connection_pool_management() {
         let config = test_config();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         // Test multiple concurrent requests to verify connection pooling
         let mut handles = vec![];
@@ -385,7 +410,10 @@ mod resilience_validation {
                 }
                 Ok(Err(_)) => println!("Request {} timed out (acceptable in test)", i),
                 Err(e) => panic!("Request {} panicked: {:?}", i, e),
-                _ => println!("Request {} had unexpected result (treated as acceptable)", i),
+                _ => println!(
+                    "Request {} had unexpected result (treated as acceptable)",
+                    i
+                ),
             }
         }
 
@@ -398,7 +426,10 @@ mod resilience_validation {
     #[tokio::test]
     async fn test_retry_mechanism() {
         let config = test_config_with_intermittent_secreton();
-        let secreton_client = SecretonClient::new(config.secreton.as_ref().unwrap().endpoint.clone(), config.secreton.as_ref().unwrap().token.clone());
+        let secreton_client = SecretonClient::new(
+            config.secreton.as_ref().unwrap().endpoint.clone(),
+            config.secreton.as_ref().unwrap().token.clone(),
+        );
 
         let user = create_test_user_with_secreton_access();
         let token = "test-token";
@@ -522,32 +553,20 @@ fn get_secreton_permissions(user: &User) -> SecretonPermissions {
     let mut satker_permissions = std::collections::HashMap::new();
     satker_permissions.insert(
         user.satker_code.clone(),
-        user
-            .secreton_access_policy
-            .allowed_satker_secrets
-            .clone(),
+        user.secreton_access_policy.allowed_satker_secrets.clone(),
     );
 
     SecretonPermissions {
-        read_secrets: user
-            .secreton_access_policy
-            .allowed_satker_secrets
-            .clone(),
+        read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
         write_secrets: if matches!(
             user.secreton_access_policy.access_level,
             AccessLevel::ReadWrite | AccessLevel::Admin
         ) {
-            user
-                .secreton_access_policy
-                .allowed_satker_secrets
-                .clone()
+            user.secreton_access_policy.allowed_satker_secrets.clone()
         } else {
             vec![]
         },
-        admin_operations: matches!(
-            user.secreton_access_policy.access_level,
-            AccessLevel::Admin
-        ),
+        admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
         audit_access: user.secreton_access_policy.audit_required,
         satker_permissions,
     }

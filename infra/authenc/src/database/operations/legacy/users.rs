@@ -1,6 +1,5 @@
 /// Database operations for users
 use crate::{
-
     database::Database,
     error::Result,
     models::{
@@ -746,10 +745,7 @@ pub async fn get_users_by_realm(db: &Database, realm_id: Uuid) -> Result<Vec<Use
     Ok(users)
 }
 
-pub async fn bulk_create_users(
-    db: &Database,
-    users: Vec<CreateUserRequest>,
-) -> Result<Vec<User>> {
+pub async fn bulk_create_users(db: &Database, users: Vec<CreateUserRequest>) -> Result<Vec<User>> {
     if users.is_empty() {
         return Ok(Vec::new());
     }
@@ -837,8 +833,7 @@ pub async fn bulk_update_users(
     for (user_id, update_data) in updates {
         let mut set_clauses = Vec::new();
         let mut param_index = 2; // Start from 2 since $1 is user_id
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> =
-            vec![Box::new(user_id)];
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> = vec![Box::new(user_id)];
 
         // Build dynamic UPDATE query based on provided fields
         if let Some(email) = update_data.get("email").and_then(|v| v.as_str()) {
@@ -865,9 +860,7 @@ pub async fn bulk_update_users(
             param_index += 1;
         }
 
-        if let Some(email_verified) =
-            update_data.get("email_verified").and_then(|v| v.as_bool())
-        {
+        if let Some(email_verified) = update_data.get("email_verified").and_then(|v| v.as_bool()) {
             set_clauses.push(format!("email_verified = ${}", param_index));
             params.push(Box::new(email_verified));
             param_index += 1;
@@ -959,10 +952,7 @@ pub async fn bulk_remove_roles(
     Ok(removed_count)
 }
 
-pub async fn export_users(
-    db: &Database,
-    realm_id: Option<Uuid>,
-) -> Result<Vec<serde_json::Value>> {
+pub async fn export_users(db: &Database, realm_id: Option<Uuid>) -> Result<Vec<serde_json::Value>> {
     let query = if realm_id.is_some() {
         r#"
             SELECT

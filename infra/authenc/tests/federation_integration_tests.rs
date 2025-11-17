@@ -1,9 +1,4 @@
-use axum::{
-    Router,
-    extract::{Json, State},
-    http::StatusCode,
-    routing::{get, post},
-};
+use axum::{Router, extract::Json, http::StatusCode, routing::post};
 use axum_test::TestServer;
 use serde_json::json;
 use std::collections::HashMap;

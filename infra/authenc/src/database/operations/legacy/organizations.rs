@@ -1,6 +1,5 @@
 /// Database operations for organizations
 use crate::{
-
     database::Database,
     error::{AuthencError, Result},
     models::{Organization, OrganizationInvitation, OrganizationMember},
@@ -53,10 +52,7 @@ pub async fn create_organization(db: &Database, org: &Organization) -> Result<Or
     row.try_into()
 }
 
-pub async fn get_organization_by_id(
-    db: &Database,
-    org_id: Uuid,
-) -> Result<Option<Organization>> {
+pub async fn get_organization_by_id(db: &Database, org_id: Uuid) -> Result<Option<Organization>> {
     let query = r#"
         SELECT
             id, name, display_name, description, domain,
@@ -108,10 +104,7 @@ pub async fn add_member(
     Ok(())
 }
 
-pub async fn create_invitation(
-    db: &Database,
-    invitation: &OrganizationInvitation,
-) -> Result<()> {
+pub async fn create_invitation(db: &Database, invitation: &OrganizationInvitation) -> Result<()> {
     let invitation_id = Uuid::new_v4();
     let now = Utc::now();
 
@@ -307,10 +300,7 @@ pub async fn get_organization_members(
     Ok(members)
 }
 
-pub async fn get_user_organizations(
-    db: &Database,
-    user_id: &Uuid,
-) -> Result<Vec<Organization>> {
+pub async fn get_user_organizations(db: &Database, user_id: &Uuid) -> Result<Vec<Organization>> {
     let query = r#"
         SELECT
             o.id, o.name, o.display_name, o.description, o.domain, o.logo_url, o.website_url,
@@ -472,10 +462,7 @@ pub async fn verify_domain(db: &Database, domain_id: Uuid) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_domains(
-    db: &Database,
-    organization_id: Uuid,
-) -> Result<Vec<OrganizationDomain>> {
+pub async fn get_domains(db: &Database, organization_id: Uuid) -> Result<Vec<OrganizationDomain>> {
     let query = r#"
         SELECT id, organization_id, domain, verified, verification_token,
                verification_method, verified_at, created_at, updated_at

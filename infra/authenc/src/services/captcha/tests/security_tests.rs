@@ -2,13 +2,13 @@
 
 use crate::services::captcha::{
     enhanced_service::EnhancedCaptchaService,
-    fallback::{FallbackConfig, FallbackState},
+    fallback::FallbackConfig,
     retry::RetryConfig,
     service::{CaptchaService, CaptchaServiceTrait},
     types::*,
 };
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 /// Generate bot-like behavioral metrics
 fn generate_bot_behavioral_metrics(session_id: String) -> BehavioralMetrics {

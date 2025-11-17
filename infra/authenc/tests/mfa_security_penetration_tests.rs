@@ -8,16 +8,14 @@ use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
     response::Json as AxumJson,
-    routing::{get, post},
+    routing::post,
 };
 use axum_test::TestServer;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use uuid::Uuid;
 
-use authenc::error::AuthencError;
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
 /// Test state for penetration testing
@@ -82,7 +80,7 @@ async fn mock_mfa_verify(
 
     // Check failed attempts (account lockout)
     {
-        let mut failed_attempts = state.failed_attempts.lock().await;
+        let failed_attempts = state.failed_attempts.lock().await;
         let attempts = failed_attempts.get(user_id).unwrap_or(&0);
 
         if *attempts >= 10 {
@@ -616,9 +614,9 @@ mod penetration_tests {
 #[cfg(test)]
 mod performance_tests {
     use super::*;
+    use futures::future::join_all;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
-    use futures::future::join_all;
 
     #[tokio::test]
     async fn test_performance_under_load() {

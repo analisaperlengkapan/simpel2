@@ -1551,7 +1551,7 @@ async fn test_update_user_fields_reflected() {
                         let email = payload["email"].as_str().unwrap_or("default@example.com");
                         let id = "user123";
 
-                        let mut user_data = json!({
+                        let user_data = json!({
                             "id": id,
                             "username": username,
                             "email": email

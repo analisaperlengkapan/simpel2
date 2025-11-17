@@ -1,6 +1,5 @@
 /// Resource server operations
 use crate::{
-
     database::Database,
     error::Result,
     models::resource_server::{
@@ -54,10 +53,7 @@ pub async fn create_resource_server(
     row.try_into()
 }
 
-pub async fn get_resource_server_by_id(
-    db: &Database,
-    id: Uuid,
-) -> Result<Option<ResourceServer>> {
+pub async fn get_resource_server_by_id(db: &Database, id: Uuid) -> Result<Option<ResourceServer>> {
     let query = r#"
         SELECT
             id, client_id, name, description, enabled, realm_id,

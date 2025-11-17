@@ -2,7 +2,6 @@
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
 use crate::models::permission_ticket::{
-
     CreatePermissionTicketRequest, PermissionTicket, PermissionTicketFilter,
 };
 use chrono::Utc;
@@ -58,10 +57,7 @@ pub async fn create_permission_ticket(
     row.try_into()
 }
 
-pub async fn get_permission_ticket(
-    db: &Database,
-    id: Uuid,
-) -> Result<Option<PermissionTicket>> {
+pub async fn get_permission_ticket(db: &Database, id: Uuid) -> Result<Option<PermissionTicket>> {
     let query = r#"
         SELECT
             id, resource_id, scope_id, owner, requester, granted,

@@ -48,18 +48,24 @@ impl AdminService for JitAdminService {
         use crate::models::user::CreateUserRequest as DbCreateUserRequest;
 
         // Extract satker_code from request or attributes
-        let satker_code = request.satker_code.clone().or_else(|| {
-            request.attributes.as_ref().and_then(|attrs| {
-                attrs.get("satker_code")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
+        let satker_code = request
+            .satker_code
+            .clone()
+            .or_else(|| {
+                request.attributes.as_ref().and_then(|attrs| {
+                    attrs
+                        .get("satker_code")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
             })
-        }).unwrap_or_else(|| "default".to_string());
+            .unwrap_or_else(|| "default".to_string());
 
         // Extract nip from request or attributes
         let nip = request.nip.clone().or_else(|| {
             request.attributes.as_ref().and_then(|attrs| {
-                attrs.get("nip")
+                attrs
+                    .get("nip")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             })
@@ -68,7 +74,8 @@ impl AdminService for JitAdminService {
         // Extract nama from request or attributes
         let nama = request.nama.clone().or_else(|| {
             request.attributes.as_ref().and_then(|attrs| {
-                attrs.get("nama")
+                attrs
+                    .get("nama")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             })
@@ -77,7 +84,8 @@ impl AdminService for JitAdminService {
         // Extract jabatan from request or attributes
         let jabatan = request.jabatan.clone().or_else(|| {
             request.attributes.as_ref().and_then(|attrs| {
-                attrs.get("jabatan")
+                attrs
+                    .get("jabatan")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             })

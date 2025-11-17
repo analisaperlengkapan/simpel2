@@ -389,9 +389,11 @@ mod tests {
         assert!(config.hsts_include_subdomains);
         assert!(config.hsts_preload);
         assert!(config.csp_directives.len() > 0);
-        assert!(config
-            .csp_directives
-            .contains(&"default-src 'self'".to_string()));
+        assert!(
+            config
+                .csp_directives
+                .contains(&"default-src 'self'".to_string())
+        );
     }
 
     #[test]
@@ -401,9 +403,11 @@ mod tests {
         assert_eq!(config.hsts_max_age, 0);
         assert!(!config.hsts_include_subdomains);
         assert!(!config.hsts_preload);
-        assert!(config
-            .csp_directives
-            .contains(&"default-src 'self' 'unsafe-inline' 'unsafe-eval'".to_string()));
+        assert!(
+            config
+                .csp_directives
+                .contains(&"default-src 'self' 'unsafe-inline' 'unsafe-eval'".to_string())
+        );
     }
 
     #[test]

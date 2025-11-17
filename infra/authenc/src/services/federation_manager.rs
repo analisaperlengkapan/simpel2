@@ -115,10 +115,7 @@ impl FederationManager {
                         "Successfully registered provider: {} ({})",
                         config.alias, config.display_name
                     ),
-                    Err(e) => error!(
-                        "Failed to register provider {}: {}",
-                        config.alias, e
-                    ),
+                    Err(e) => error!("Failed to register provider {}: {}", config.alias, e),
                 }
             }
         }
@@ -141,7 +138,9 @@ impl FederationManager {
                 &[],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to load identity provider configs: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to load identity provider configs: {}", e))
+            })?;
 
         let mut configs = Vec::new();
 
@@ -235,9 +234,9 @@ impl FederationManager {
     ) -> Result<FederationAuthResult> {
         // Get LDAP provider
         let providers = self.ldap_providers.read().await;
-        let provider = providers
-            .get(provider_alias)
-            .ok_or_else(|| AuthencError::not_found(format!("LDAP provider '{}' not found", provider_alias)))?;
+        let provider = providers.get(provider_alias).ok_or_else(|| {
+            AuthencError::not_found(format!("LDAP provider '{}' not found", provider_alias))
+        })?;
 
         // Authenticate against LDAP
         let ldap_user = match provider.authenticate(username, password).await? {
@@ -272,7 +271,9 @@ impl FederationManager {
         }
 
         // Get provider configuration
-        let config = self.get_provider_config_by_alias(provider_alias, realm_id).await?;
+        let config = self
+            .get_provider_config_by_alias(provider_alias, realm_id)
+            .await?;
 
         // Check if link_only mode
         if config.link_only {
@@ -327,9 +328,9 @@ impl FederationManager {
     ) -> Result<FederationAuthResult> {
         // Get social provider
         let providers = self.social_providers.read().await;
-        let provider = providers
-            .get(provider_alias)
-            .ok_or_else(|| AuthencError::not_found(format!("Social provider '{}' not found", provider_alias)))?;
+        let provider = providers.get(provider_alias).ok_or_else(|| {
+            AuthencError::not_found(format!("Social provider '{}' not found", provider_alias))
+        })?;
 
         // Exchange authorization code for token
         let token = provider.exchange_code(auth_code, redirect_uri).await?;
@@ -348,7 +349,9 @@ impl FederationManager {
 
             // Update stored token if configured
             if let Some(updated_link) = self.get_identity_link(&link.id).await? {
-                let config = self.get_provider_config_by_alias(provider_alias, realm_id).await?;
+                let config = self
+                    .get_provider_config_by_alias(provider_alias, realm_id)
+                    .await?;
                 if config.store_token {
                     self.update_identity_link_token(
                         &link.id,
@@ -372,7 +375,9 @@ impl FederationManager {
         }
 
         // Get provider configuration
-        let config = self.get_provider_config_by_alias(provider_alias, realm_id).await?;
+        let config = self
+            .get_provider_config_by_alias(provider_alias, realm_id)
+            .await?;
 
         // Check if link_only mode
         if config.link_only {
@@ -403,9 +408,9 @@ impl FederationManager {
                 } else {
                     None
                 },
-                token.expires_in.map(|secs| {
-                    chrono::Utc::now() + chrono::Duration::seconds(secs as i64)
-                }),
+                token
+                    .expires_in
+                    .map(|secs| chrono::Utc::now() + chrono::Duration::seconds(secs as i64)),
                 if config.store_token {
                     token.refresh_token.as_deref()
                 } else {
@@ -549,7 +554,9 @@ impl FederationManager {
                 ],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to create identity link: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to create identity link: {}", e))
+            })?;
 
         Ok(FederatedIdentityLink {
             id,
@@ -582,7 +589,9 @@ impl FederationManager {
                 &[link_id],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to update authentication stats: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to update authentication stats: {}", e))
+            })?;
 
         Ok(())
     }
@@ -608,7 +617,9 @@ impl FederationManager {
                 &[&link_id, &token, &token_expires_at, &refresh_token],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to update identity link token: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to update identity link token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -675,9 +686,10 @@ impl FederationManager {
 
         // Use email if available and trusted
         let email = if config.trust_email {
-            profile.email.clone().unwrap_or_else(|| {
-                format!("{}@social.local", username)
-            })
+            profile
+                .email
+                .clone()
+                .unwrap_or_else(|| format!("{}@social.local", username))
         } else {
             format!("{}@social.local", username)
         };
@@ -737,8 +749,7 @@ impl FederationManager {
 
     /// Load user by ID
     async fn load_user_by_id(&self, user_id: Uuid) -> Result<User> {
-        self
-            .db
+        self.db
             .query_one::<User>("SELECT * FROM users WHERE id = $1", &[&user_id])
             .await
     }
@@ -785,7 +796,10 @@ impl FederationManager {
     }
 
     /// List all configured identity providers for a realm
-    pub async fn list_identity_providers(&self, realm_id: Uuid) -> Result<Vec<IdentityProviderConfig>> {
+    pub async fn list_identity_providers(
+        &self,
+        realm_id: Uuid,
+    ) -> Result<Vec<IdentityProviderConfig>> {
         let client = self.db.get_connection().await?;
 
         let rows = client
@@ -798,7 +812,9 @@ impl FederationManager {
                 &[&realm_id],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to list identity providers: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to list identity providers: {}", e))
+            })?;
 
         let mut configs = Vec::new();
 
@@ -841,7 +857,10 @@ impl FederationManager {
     }
 
     /// Get federated identity links for a user
-    pub async fn get_user_identity_links(&self, user_id: Uuid) -> Result<Vec<FederatedIdentityLink>> {
+    pub async fn get_user_identity_links(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<FederatedIdentityLink>> {
         let client = self.db.get_connection().await?;
 
         let rows = client
@@ -855,7 +874,9 @@ impl FederationManager {
                 &[&user_id],
             )
             .await
-            .map_err(|e| AuthencError::database(format!("Failed to get user identity links: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::database(format!("Failed to get user identity links: {}", e))
+            })?;
 
         let mut links = Vec::new();
 

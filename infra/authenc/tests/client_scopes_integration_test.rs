@@ -5,7 +5,6 @@
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     /// Test demonstrates:
     /// 1. Creating client scopes

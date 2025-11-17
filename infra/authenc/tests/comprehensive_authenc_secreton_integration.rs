@@ -18,11 +18,11 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
+use authenc::crypto::SecretonPermissions;
 use authenc::error::AuthencError;
 use authenc::models::user::{
     AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext, User,
 };
-use authenc::crypto::SecretonPermissions;
 
 /// Test suite for comprehensive authenc-secreton integration
 #[cfg(test)]
@@ -794,10 +794,7 @@ mod comprehensive_integration_tests {
 struct CryptoEngine;
 
 impl CryptoEngine {
-    async fn sign_jwt(
-        &self,
-        claims: &serde_json::Value,
-    ) -> Result<String, AuthencError> {
+    async fn sign_jwt(&self, claims: &serde_json::Value) -> Result<String, AuthencError> {
         Ok(serde_json::to_string(claims).unwrap())
     }
 
@@ -1056,9 +1053,7 @@ fn test_config_with_post_quantum() -> AuthencConfig {
 
 // Mock implementations for comprehensive testing
 impl SecretonClient {
-    async fn new(
-        _config: &Option<authenc::config::SecretonConfig>,
-    ) -> Result<Self, AuthencError> {
+    async fn new(_config: &Option<authenc::config::SecretonConfig>) -> Result<Self, AuthencError> {
         Ok(SecretonClient)
     }
 

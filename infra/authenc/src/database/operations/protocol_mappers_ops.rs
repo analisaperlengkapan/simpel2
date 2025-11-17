@@ -1,8 +1,7 @@
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
 use crate::models::protocol_mapper::{
-    CreateProtocolMapperRequest, ProtocolMapper,
-    ProtocolMapperType, UpdateProtocolMapperRequest,
+    CreateProtocolMapperRequest, ProtocolMapper, ProtocolMapperType, UpdateProtocolMapperRequest,
 };
 use chrono::Utc;
 use uuid::Uuid;
@@ -215,8 +214,10 @@ pub mod protocol_mappers {
 
         // For now, use a simpler approach with explicit fields
         let query = if request.config.is_some() {
-            let config_json = serde_json::to_value(request.config.as_ref().unwrap())
-                .map_err(|e| AuthencError::internal(&format!("Failed to serialize config: {}", e)))?;
+            let config_json =
+                serde_json::to_value(request.config.as_ref().unwrap()).map_err(|e| {
+                    AuthencError::internal(&format!("Failed to serialize config: {}", e))
+                })?;
 
             r#"
                 UPDATE protocol_mappers
@@ -251,8 +252,9 @@ pub mod protocol_mappers {
 
         // Execute based on which fields are being updated
         let row: tokio_postgres::Row = if let Some(ref config) = request.config {
-            let config_json = serde_json::to_value(config)
-                .map_err(|e| AuthencError::internal(&format!("Failed to serialize config: {}", e)))?;
+            let config_json = serde_json::to_value(config).map_err(|e| {
+                AuthencError::internal(&format!("Failed to serialize config: {}", e))
+            })?;
             db.query_one(query, &[&config_json, &now, &id]).await?
         } else if request.name.is_some() && request.enabled.is_some() {
             db.query_one(
@@ -324,7 +326,10 @@ pub mod protocol_mappers {
     }
 
     /// Initialize standard protocol mappers for a realm
-    pub async fn initialize_standard_mappers(db: &Database, realm_id: Uuid) -> Result<Vec<ProtocolMapper>> {
+    pub async fn initialize_standard_mappers(
+        db: &Database,
+        realm_id: Uuid,
+    ) -> Result<Vec<ProtocolMapper>> {
         use crate::models::protocol_mapper::standard_mappers::*;
 
         let standard_mappers = vec![
@@ -343,8 +348,9 @@ pub mod protocol_mappers {
                 continue;
             }
 
-            let config_json = serde_json::to_value(&mapper.config)
-                .map_err(|e| AuthencError::internal(&format!("Failed to serialize config: {}", e)))?;
+            let config_json = serde_json::to_value(&mapper.config).map_err(|e| {
+                AuthencError::internal(&format!("Failed to serialize config: {}", e))
+            })?;
 
             let query = r#"
                 INSERT INTO protocol_mappers (

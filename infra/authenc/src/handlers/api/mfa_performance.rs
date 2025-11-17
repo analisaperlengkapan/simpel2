@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_calculate_health_score() {
-        let mut metrics = MfaMetrics::default();
+        let metrics = MfaMetrics::default();
 
         // Test perfect health score
         let score = calculate_health_score(&metrics, 1.0, 50.0);

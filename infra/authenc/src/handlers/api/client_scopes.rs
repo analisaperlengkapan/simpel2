@@ -254,15 +254,17 @@ pub async fn grant_user_consent(
         .realm_id
         .ok_or_else(|| AuthencError::validation("realm_id query parameter required"))?;
 
-    let scope_names: Vec<String> = request
-        .scope_names
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    let scope_names: Vec<String> = request.scope_names.iter().map(|s| s.to_string()).collect();
 
     let _consents = app_state
         .client_scope_service
-        .grant_consent(user_id, client_id, realm_id, &scope_names, request.expires_in)
+        .grant_consent(
+            user_id,
+            client_id,
+            realm_id,
+            &scope_names,
+            request.expires_in,
+        )
         .await?;
 
     Ok(StatusCode::CREATED)
@@ -402,8 +404,8 @@ pub async fn initialize_standard_scopes(
 // ROUTE REGISTRATION
 // ============================================================================
 
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 
 /// Register client scope routes
 pub fn routes() -> Router<Arc<AppState>> {

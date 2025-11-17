@@ -123,11 +123,7 @@ pub async fn assign_role_to_user(db: &Database, user_id: &Uuid, role_id: &Uuid) 
     Ok(())
 }
 
-pub async fn remove_role_from_user(
-    db: &Database,
-    user_id: &Uuid,
-    role_id: &Uuid,
-) -> Result<()> {
+pub async fn remove_role_from_user(db: &Database, user_id: &Uuid, role_id: &Uuid) -> Result<()> {
     let client = db.get_connection().await?;
     let query = r#"
         DELETE FROM user_roles
@@ -172,11 +168,7 @@ pub async fn get_user_roles(db: &Database, user_id: &Uuid) -> Result<Vec<Role>> 
     Ok(roles)
 }
 
-pub async fn user_has_permission(
-    db: &Database,
-    user_id: &Uuid,
-    permission: &str,
-) -> Result<bool> {
+pub async fn user_has_permission(db: &Database, user_id: &Uuid, permission: &str) -> Result<bool> {
     let query = r#"
         SELECT COUNT(*) > 0
         FROM user_roles ur

@@ -11,11 +11,11 @@ use crate::error::{AuthencError, Result};
 use crate::spi::ldap_federation::LdapFederationConfig;
 use crate::spi::social::SocialProviderConfig;
 use axum::{
+    Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     routing::{delete, get, post, put},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -35,8 +35,14 @@ pub fn create_federation_admin_routes() -> Router<Arc<AppState>> {
         .route("/sync/status", get(get_sync_status))
         .route("/sync/history/:alias", get(get_sync_history))
         // User identity links
-        .route("/users/:user_id/identity-links", get(get_user_identity_links))
-        .route("/users/:user_id/identity-links/:link_id", delete(delete_identity_link))
+        .route(
+            "/users/:user_id/identity-links",
+            get(get_user_identity_links),
+        )
+        .route(
+            "/users/:user_id/identity-links/:link_id",
+            delete(delete_identity_link),
+        )
         // Federation statistics
         .route("/statistics/:alias", get(get_federation_statistics))
 }
@@ -106,7 +112,11 @@ async fn list_identity_providers(
         Uuid::nil()
     });
 
-    match state.federation_manager.list_identity_providers(realm_id).await {
+    match state
+        .federation_manager
+        .list_identity_providers(realm_id)
+        .await
+    {
         Ok(providers) => {
             let responses: Vec<IdentityProviderResponse> = providers
                 .into_iter()
@@ -152,7 +162,9 @@ async fn create_identity_provider(
     let validation_result = match request.provider_type.as_str() {
         "ldap" | "active_directory" => validate_ldap_config(&request.config),
         "social" | "oidc" | "oauth2" => validate_social_config(&request.config),
-        _ => Err(AuthencError::validation("Invalid provider type".to_string())),
+        _ => Err(AuthencError::validation(
+            "Invalid provider type".to_string(),
+        )),
     };
 
     if let Err(e) = validation_result {
@@ -174,7 +186,7 @@ async fn create_identity_provider(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -248,7 +260,7 @@ async fn get_identity_provider(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -311,7 +323,7 @@ async fn update_identity_provider(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -419,15 +431,12 @@ async fn delete_identity_provider(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
     match client
-        .execute(
-            "DELETE FROM identity_broker_configs WHERE id = $1",
-            &[&id],
-        )
+        .execute("DELETE FROM identity_broker_configs WHERE id = $1", &[&id])
         .await
     {
         Ok(rows_affected) if rows_affected > 0 => {
@@ -528,7 +537,11 @@ async fn get_user_identity_links(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match state.federation_manager.get_user_identity_links(user_id).await {
+    match state
+        .federation_manager
+        .get_user_identity_links(user_id)
+        .await
+    {
         Ok(links) => Json(links).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -554,7 +567,7 @@ async fn delete_identity_link(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -600,7 +613,7 @@ async fn get_federation_statistics(
                     "error": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 

@@ -136,11 +136,7 @@ pub async fn get_realm_mappers(
         .collect())
 }
 
-pub async fn update_mapper_config(
-    db: &Database,
-    mapper_id: Uuid,
-    config: JsonValue,
-) -> Result<()> {
+pub async fn update_mapper_config(db: &Database, mapper_id: Uuid, config: JsonValue) -> Result<()> {
     let query = r#"
         UPDATE protocol_mappers
         SET config = $1, updated_at = $2

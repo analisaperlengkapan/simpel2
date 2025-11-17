@@ -1,5 +1,5 @@
 // XMLDSig Security Tests
-use authenc::crypto::xmldsig::{XmlSecurityLimits, XmlSecurityValidator};
+use authenc::crypto::xmldsig::XmlSecurityValidator;
 
 #[test]
 fn test_validator_creation() {

@@ -8,7 +8,9 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
-use authenc::models::user::{AccessLevel, AdminLevel, RoleScope, SecretonAccessPolicy, SecurityContext};
+use authenc::models::user::{
+    AccessLevel, AdminLevel, RoleScope, SecretonAccessPolicy, SecurityContext,
+};
 
 /// Test suite for validating Attorney General's Office compliance requirements
 #[cfg(test)]
@@ -906,11 +908,7 @@ impl CryptoEngine {
         Ok(data.to_vec())
     }
 
-    async fn verify_document_signature(
-        &self,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<bool, ()> {
+    async fn verify_document_signature(&self, data: &[u8], signature: &[u8]) -> Result<bool, ()> {
         Ok(data == signature)
     }
 

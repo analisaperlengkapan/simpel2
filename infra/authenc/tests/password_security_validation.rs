@@ -8,7 +8,7 @@
 
 use authenc::utils::crypto::password::{
     calculate_password_expiration, check_password_expiration, check_password_history,
-    hash_password, validate_password_strength, verify_password, PasswordStrengthResult,
+    hash_password, validate_password_strength, verify_password,
 };
 use chrono::{Duration, Utc};
 
@@ -49,10 +49,12 @@ fn test_password_strength_minimum_length() {
         !result.is_valid,
         "Password shorter than 8 chars should be invalid "
     );
-    assert!(result
-        .errors
-        .iter()
-        .any(|e| e.contains("at least 8 characters")));
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("at least 8 characters"))
+    );
 
     let result = validate_password_strength("LongPass1!", None);
     assert!(result.is_valid, "Password with 8+ chars should be valid ");
@@ -108,10 +110,12 @@ fn test_password_strength_special_char_requirement() {
         !result.is_valid,
         "Password without special char should be invalid "
     );
-    assert!(result
-        .errors
-        .iter()
-        .any(|e| e.contains("special character")));
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("special character"))
+    );
 
     let result = validate_password_strength("WithSpecial123!", None);
     assert!(
@@ -166,10 +170,12 @@ fn test_password_strength_repeated_characters() {
         !result.is_valid,
         "Password with 3+ repeated chars should be invalid "
     );
-    assert!(result
-        .errors
-        .iter()
-        .any(|e| e.contains("repeated characters")));
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("repeated characters"))
+    );
 
     let result = validate_password_strength("Password123!", None);
     assert!(

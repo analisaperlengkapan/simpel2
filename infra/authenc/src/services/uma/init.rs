@@ -64,7 +64,12 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_policy_resources table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!(
+                "Failed to create uma_policy_resources table: {}",
+                e
+            ))
+        })?;
 
     database
         .execute(
@@ -88,7 +93,9 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_policy_scopes table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!("Failed to create uma_policy_scopes table: {}", e))
+        })?;
 
     database
         .execute(
@@ -112,7 +119,9 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_policy_clients table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!("Failed to create uma_policy_clients table: {}", e))
+        })?;
 
     database
         .execute(
@@ -144,7 +153,12 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_delegation_policies table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!(
+                "Failed to create uma_delegation_policies table: {}",
+                e
+            ))
+        })?;
 
     // Create indexes for uma_delegation_policies
     let delegation_indexes = vec![
@@ -184,7 +198,12 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_claims_gathering_state table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!(
+                "Failed to create uma_claims_gathering_state table: {}",
+                e
+            ))
+        })?;
 
     // Create indexes for uma_claims_gathering_state
     let claims_indexes = vec![
@@ -222,7 +241,9 @@ pub async fn init_uma_tables(database: &Arc<Database>) -> Result<()> {
             &[],
         )
         .await
-        .map_err(|e| AuthencError::database(format!("Failed to create uma_rpt_tokens table: {}", e)))?;
+        .map_err(|e| {
+            AuthencError::database(format!("Failed to create uma_rpt_tokens table: {}", e))
+        })?;
 
     // Create indexes for uma_rpt_tokens
     let rpt_indexes = vec![

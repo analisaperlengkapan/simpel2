@@ -402,5 +402,4 @@ mod tests {
             "myapp:master:db_password"
         );
     }
-
 }

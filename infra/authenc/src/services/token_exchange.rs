@@ -152,14 +152,26 @@ impl Default for TokenExchangeConfig {
             allow_impersonation: false, // Disabled by default for security
             allow_delegation: true,
             require_audience: true,
-            default_token_ttl: 3600,    // 1 hour
-            max_token_ttl: 7200,        // 2 hours
+            default_token_ttl: 3600, // 1 hour
+            max_token_ttl: 7200,     // 2 hours
             enforce_scope_downscoping: true,
             allowed_conversions: vec![
-                (token_types::ACCESS_TOKEN.to_string(), token_types::ACCESS_TOKEN.to_string()),
-                (token_types::REFRESH_TOKEN.to_string(), token_types::ACCESS_TOKEN.to_string()),
-                (token_types::ID_TOKEN.to_string(), token_types::ACCESS_TOKEN.to_string()),
-                (token_types::JWT.to_string(), token_types::ACCESS_TOKEN.to_string()),
+                (
+                    token_types::ACCESS_TOKEN.to_string(),
+                    token_types::ACCESS_TOKEN.to_string(),
+                ),
+                (
+                    token_types::REFRESH_TOKEN.to_string(),
+                    token_types::ACCESS_TOKEN.to_string(),
+                ),
+                (
+                    token_types::ID_TOKEN.to_string(),
+                    token_types::ACCESS_TOKEN.to_string(),
+                ),
+                (
+                    token_types::JWT.to_string(),
+                    token_types::ACCESS_TOKEN.to_string(),
+                ),
             ],
         }
     }
@@ -349,9 +361,8 @@ impl TokenExchangeService {
         let claims = verify_jwt_with_validation(token)?;
 
         // Extract user information from token
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
-            AuthencError::validation("Invalid user ID format in subject token")
-        })?;
+        let user_id = Uuid::parse_str(&claims.sub)
+            .map_err(|_| AuthencError::validation("Invalid user ID format in subject token"))?;
 
         // Get user details from database for additional info
         let user = self
@@ -437,9 +448,8 @@ impl TokenExchangeService {
         // ID tokens are JWTs, validate signature and claims
         let claims = verify_jwt_with_validation(token)?;
 
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
-            AuthencError::validation("Invalid user ID format in ID token")
-        })?;
+        let user_id = Uuid::parse_str(&claims.sub)
+            .map_err(|_| AuthencError::validation("Invalid user ID format in ID token"))?;
 
         let user = self
             .get_user_info(user_id)
@@ -488,11 +498,7 @@ impl TokenExchangeService {
     }
 
     /// Validate actor token
-    async fn validate_actor_token(
-        &self,
-        token: &str,
-        token_type: &str,
-    ) -> Result<ActorTokenInfo> {
+    async fn validate_actor_token(&self, token: &str, token_type: &str) -> Result<ActorTokenInfo> {
         match token_type {
             token_types::ACCESS_TOKEN | token_types::JWT => {
                 let claims = verify_jwt_with_validation(token)?;
@@ -623,7 +629,7 @@ impl TokenExchangeService {
         resource: Option<&str>,
         client_id: &str,
     ) -> Result<TokenExchangeResponse> {
-        use crate::handlers::oauth2_comprehensive::{generate_access_token, AccessTokenClaims};
+        use crate::handlers::oauth2_comprehensive::{AccessTokenClaims, generate_access_token};
 
         let now = Utc::now().timestamp();
         let expires_in = self.config.default_token_ttl;
@@ -639,7 +645,7 @@ impl TokenExchangeService {
             nbf: now,
             jti: Uuid::new_v4().to_string(),
             scope: Some(scopes.join(" ")),
-            roles: None, // Would be populated from user data
+            roles: None,  // Would be populated from user data
             groups: None, // Would be populated from user data
         };
 
@@ -669,14 +675,8 @@ impl TokenExchangeService {
         let access_token = generate_access_token(&claims, Some(&additional_claims));
 
         // Store token in database
-        self.store_exchanged_token(
-            &access_token,
-            subject_info,
-            client_id,
-            scopes,
-            expires_in,
-        )
-        .await?;
+        self.store_exchanged_token(&access_token, subject_info, client_id, scopes, expires_in)
+            .await?;
 
         Ok(TokenExchangeResponse {
             access_token,
@@ -740,7 +740,10 @@ impl TokenExchangeService {
         let mut detail = format!(
             "Token exchange: {} -> {}",
             &request.subject_token_type,
-            request.requested_token_type.as_deref().unwrap_or("access_token")
+            request
+                .requested_token_type
+                .as_deref()
+                .unwrap_or("access_token")
         );
 
         if let Some(actor) = actor_info {

@@ -3,7 +3,6 @@
 //! This module validates the post-quantum cryptography readiness of the authenc system
 //! and ensures smooth migration path from classical to quantum-safe algorithms.
 
-use std::collections::HashMap;
 use uuid::Uuid;
 
 use authenc::config::AppConfig as AuthencConfig;
@@ -71,7 +70,9 @@ mod post_quantum_readiness {
     #[tokio::test]
     async fn test_ml_dsa_signature_algorithms() {
         let _config = test_config();
-        let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
+        let crypto_engine = HybridCrypto {
+            mode: CryptoMode::PostQuantum,
+        };
 
         // Test ML-DSA signature variants
         let ml_dsa_variants = vec![
@@ -131,7 +132,9 @@ mod post_quantum_readiness {
     #[tokio::test]
     async fn test_ml_kem_key_encapsulation() {
         let _config = test_config();
-        let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
+        let crypto_engine = HybridCrypto {
+            mode: CryptoMode::PostQuantum,
+        };
 
         // Test ML-KEM variants
         let ml_kem_variants = vec![
@@ -183,7 +186,9 @@ mod post_quantum_readiness {
     #[tokio::test]
     async fn test_hybrid_signature_verification() {
         let _config = test_config();
-        let crypto_engine = HybridCrypto { mode: CryptoMode::Hybrid };
+        let crypto_engine = HybridCrypto {
+            mode: CryptoMode::Hybrid,
+        };
 
         // Test hybrid signatures (Ed25519 + ML-DSA)
         let test_message = b"Hybrid signature test for SIMKARI authentication";
@@ -231,7 +236,9 @@ mod post_quantum_readiness {
     #[tokio::test]
     async fn test_hybrid_key_exchange() {
         let _config = test_config();
-        let crypto_engine = HybridCrypto { mode: CryptoMode::Hybrid };
+        let crypto_engine = HybridCrypto {
+            mode: CryptoMode::Hybrid,
+        };
 
         // Test hybrid key exchange (X25519 + ML-KEM)
 
@@ -279,7 +286,9 @@ mod post_quantum_readiness {
     #[tokio::test]
     async fn test_post_quantum_jwt_signing() {
         let _config = test_config();
-        let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
+        let crypto_engine = HybridCrypto {
+            mode: CryptoMode::PostQuantum,
+        };
 
         // Test JWT signing with post-quantum algorithms
         let user = create_test_user();
@@ -306,7 +315,9 @@ mod post_quantum_readiness {
         assert!(jwt_header.alg.starts_with("ML-DSA"));
         // assert_eq!(jwt_header.alg, "ML-DSA-87");
         // Test cross-algorithm verification (should fail)
-        let classical_crypto = HybridCrypto { mode: CryptoMode::Classical };
+        let classical_crypto = HybridCrypto {
+            mode: CryptoMode::Classical,
+        };
         let classical_verification = classical_crypto.verify_jwt(&pq_jwt).await;
         assert!(classical_verification.is_err());
     }
@@ -324,7 +335,9 @@ mod post_quantum_readiness {
         let classical_signature = classical_crypto.sign(test_data).await.unwrap();
 
         // Migrate to hybrid cryptography
-        let hybrid_crypto = HybridCrypto { mode: CryptoMode::Hybrid };
+        let hybrid_crypto = HybridCrypto {
+            mode: CryptoMode::Hybrid,
+        };
 
         // Hybrid should be able to verify classical signatures
         let classical_sig_valid = hybrid_crypto
@@ -345,7 +358,9 @@ mod post_quantum_readiness {
         let hybrid_signature = hybrid_crypto.sign_hybrid(test_data).await.unwrap();
 
         // Migrate to post-quantum only
-        let pq_crypto = HybridCrypto { mode: CryptoMode::PostQuantum };
+        let pq_crypto = HybridCrypto {
+            mode: CryptoMode::PostQuantum,
+        };
 
         // Post-quantum should be able to verify hybrid signatures (ML-DSA component)
         let hybrid_sig_valid = pq_crypto
@@ -810,10 +825,7 @@ impl HybridCrypto {
         Ok(serde_json::json!({"verified": true}))
     }
 
-    pub fn decode_jwt_header(
-        &self,
-        _token: &str,
-    ) -> Result<JwtHeader, Box<dyn std::error::Error>> {
+    pub fn decode_jwt_header(&self, _token: &str) -> Result<JwtHeader, Box<dyn std::error::Error>> {
         Ok(JwtHeader {
             alg: "ML-DSA".to_string(),
             typ: "JWT".to_string(),

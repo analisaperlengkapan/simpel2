@@ -16,14 +16,14 @@ pub mod client_scopes {
     ) -> Result<ClientScope> {
         let scope_id = Uuid::new_v4();
         let now = Utc::now();
-        let protocol = request.protocol.unwrap_or_else(|| "openid-connect".to_string());
+        let protocol = request
+            .protocol
+            .unwrap_or_else(|| "openid-connect".to_string());
         let consent_required = request.consent_required.unwrap_or(true);
         let display_on_consent_screen = request.display_on_consent_screen.unwrap_or(true);
         let include_in_token_scope = request.include_in_token_scope.unwrap_or(true);
         let gui_order = request.gui_order.unwrap_or(0);
-        let attributes = request
-            .attributes
-            .unwrap_or_else(|| serde_json::json!({}));
+        let attributes = request.attributes.unwrap_or_else(|| serde_json::json!({}));
 
         let query = r#"
             INSERT INTO client_scopes (

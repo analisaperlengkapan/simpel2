@@ -11,9 +11,8 @@ use crate::app::AppState;
 use crate::error::Result;
 use crate::handlers::api::auth_bearer::AuthBearer;
 use crate::services::uma::{
-    UmaAuthorizationRequest, UmaAuthorizationResponse,
-    UmaPermissionRequest, AuthorizationContextBuilder,
-    SubmittedClaims, AuthorizationDecision,
+    AuthorizationContextBuilder, AuthorizationDecision, SubmittedClaims, UmaAuthorizationRequest,
+    UmaAuthorizationResponse, UmaPermissionRequest,
 };
 use axum::{
     Router,
@@ -202,8 +201,7 @@ pub struct UmaConfiguration {
     pub uma_profiles_supported: Vec<String>,
 }
 
-pub async fn uma_discovery(
-    // TODO: Extract base URL from config
+pub async fn uma_discovery(// TODO: Extract base URL from config
 ) -> Result<Json<UmaConfiguration>> {
     let base_url = "https://auth.example.com"; // TODO: Get from config
 
@@ -261,9 +259,7 @@ mod tests {
             jwks_uri: "https://auth.example.com/.well-known/jwks.json".to_string(),
             grant_types_supported: vec!["urn:ietf:params:oauth:grant-type:uma-ticket".to_string()],
             response_types_supported: vec!["token".to_string()],
-            token_endpoint_auth_methods_supported: vec![
-                "client_secret_basic".to_string(),
-            ],
+            token_endpoint_auth_methods_supported: vec!["client_secret_basic".to_string()],
             uma_profiles_supported: vec![],
         };
 

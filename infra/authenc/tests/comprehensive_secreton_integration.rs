@@ -891,7 +891,10 @@ mod comprehensive_secreton_integration_tests {
     fn extract_satker_from_token(token: &str) -> Option<String> {
         serde_json::from_str::<serde_json::Value>(token)
             .ok()
-            .and_then(|v| v.get("satker_code").and_then(|s| s.as_str().map(|s| s.to_string())))
+            .and_then(|v| {
+                v.get("satker_code")
+                    .and_then(|s| s.as_str().map(|s| s.to_string()))
+            })
     }
 
     #[async_trait]
@@ -1002,7 +1005,9 @@ mod comprehensive_secreton_integration_tests {
                     path: secret_path.to_string(),
                 })
             } else {
-                Err(authenc::error::AuthencError::secret_access_denied(secret_path))
+                Err(authenc::error::AuthencError::secret_access_denied(
+                    secret_path,
+                ))
             }
         }
 
@@ -1109,7 +1114,9 @@ mod comprehensive_secreton_integration_tests {
             .map(|s| s.to_string())
             .collect();
 
-            Ok(HybridCryptoModeResponse { supported_algorithms })
+            Ok(HybridCryptoModeResponse {
+                supported_algorithms,
+            })
         }
     }
 }
@@ -1251,8 +1258,12 @@ fn create_admin_role(admin_level: &str, admin_satker: &str) -> authenc::models::
         managed_by: match admin_level {
             "AdminPusat" => authenc::models::user::AdminLevel::AdminPusat,
             "AdminEselonI" => authenc::models::user::AdminLevel::AdminEselonI,
-            "AdminWilayah" => authenc::models::user::AdminLevel::AdminWilayah(admin_satker.to_string()),
-            "AdminSatker" => authenc::models::user::AdminLevel::AdminSatker(admin_satker.to_string()),
+            "AdminWilayah" => {
+                authenc::models::user::AdminLevel::AdminWilayah(admin_satker.to_string())
+            }
+            "AdminSatker" => {
+                authenc::models::user::AdminLevel::AdminSatker(admin_satker.to_string())
+            }
             _ => authenc::models::user::AdminLevel::AdminSatker(admin_satker.to_string()),
         },
         realm_id: None,
@@ -1267,9 +1278,7 @@ fn create_admin_role(admin_level: &str, admin_satker: &str) -> authenc::models::
     }
 }
 
-fn create_secreton_access_policy(
-    satker_code: &str,
-) -> authenc::models::user::SecretonAccessPolicy {
+fn create_secreton_access_policy(satker_code: &str) -> authenc::models::user::SecretonAccessPolicy {
     authenc::models::user::SecretonAccessPolicy {
         allowed_satker_secrets: vec![satker_code.to_string()],
         access_level: authenc::models::user::AccessLevel::ReadOnly,

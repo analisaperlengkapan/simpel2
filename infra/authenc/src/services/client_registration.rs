@@ -59,7 +59,11 @@ pub struct DefaultClientRegistrationService {
 
 impl DefaultClientRegistrationService {
     /// Create a new client registration service
-    pub fn new(db: Arc<Database>, realm_id: Option<Uuid>, registration_endpoint_base: String) -> Self {
+    pub fn new(
+        db: Arc<Database>,
+        realm_id: Option<Uuid>,
+        registration_endpoint_base: String,
+    ) -> Self {
         Self {
             db,
             realm_id,

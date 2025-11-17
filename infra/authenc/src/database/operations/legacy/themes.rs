@@ -137,16 +137,11 @@ pub async fn get_realm_themes(
     Ok(themes)
 }
 
-pub async fn update_theme(
-    db: &Database,
-    theme_id: Uuid,
-    updates: serde_json::Value,
-) -> Result<()> {
+pub async fn update_theme(db: &Database, theme_id: Uuid, updates: serde_json::Value) -> Result<()> {
     let now = chrono::Utc::now();
     let mut set_clauses = Vec::new();
     let mut param_index = 2;
-    let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> =
-        vec![Box::new(theme_id)];
+    let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync>> = vec![Box::new(theme_id)];
 
     if let Some(name) = updates.get("name").and_then(|v| v.as_str()) {
         set_clauses.push(format!("name = ${}", param_index));
@@ -385,10 +380,7 @@ pub async fn set_realm_theme(
     Ok(())
 }
 
-pub async fn get_realm_active_themes(
-    db: &Database,
-    realm_id: Uuid,
-) -> Result<serde_json::Value> {
+pub async fn get_realm_active_themes(db: &Database, realm_id: Uuid) -> Result<serde_json::Value> {
     let query = r#"
         SELECT login_theme_id, account_theme_id, admin_theme_id, email_theme_id
         FROM realm_theme_settings

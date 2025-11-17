@@ -388,4 +388,3 @@ pub async fn clear_old_admin_events(db: &Database, retention_days: i32) -> Resul
 
     Ok(deleted as i64)
 }
-

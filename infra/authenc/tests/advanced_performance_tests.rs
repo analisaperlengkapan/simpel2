@@ -3,7 +3,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
     response::Json as JsonResponse,
-    routing::{delete, get, post, put},
+    routing::{get, post, put},
 };
 use axum_test::TestServer;
 use serde_json::{Value, json};
@@ -307,7 +307,7 @@ async fn test_scalability_under_load() {
 
     let server = Arc::new(TestServer::new(app).unwrap());
 
-    let mut load_levels = vec![10, 50, 100, 200, 500];
+    let load_levels = vec![10, 50, 100, 200, 500];
 
     for load_level in load_levels {
         let mut handles = vec![];

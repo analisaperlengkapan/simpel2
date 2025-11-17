@@ -1,6 +1,5 @@
 /// Database operations for realms
 use crate::{
-
     database::Database,
     error::Result,
     models::{Realm, realm::CreateRealmRequest, realm::UpdateRealmRequest},

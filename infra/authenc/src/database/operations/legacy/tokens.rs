@@ -58,10 +58,7 @@ pub async fn create_access_token(
     Ok(id)
 }
 
-pub async fn get_access_token(
-    db: &Database,
-    token_hash: &str,
-) -> Result<Option<AccessTokenData>> {
+pub async fn get_access_token(db: &Database, token_hash: &str) -> Result<Option<AccessTokenData>> {
     let query = "
         SELECT id, token_hash, refresh_token_hash, client_id, user_id, scopes,
                expires_at, refresh_expires_at, revoked, revoked_at, created_at, last_used_at
@@ -170,10 +167,7 @@ pub async fn revoke_client_tokens(db: &Database, client_id: Uuid) -> Result<u64>
     Ok(rows_affected)
 }
 
-pub async fn get_user_active_tokens(
-    db: &Database,
-    user_id: Uuid,
-) -> Result<Vec<AccessTokenData>> {
+pub async fn get_user_active_tokens(db: &Database, user_id: Uuid) -> Result<Vec<AccessTokenData>> {
     let query = "
         SELECT id, token_hash, refresh_token_hash, client_id, user_id, scopes,
                expires_at, refresh_expires_at, revoked, revoked_at, created_at, last_used_at

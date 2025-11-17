@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod enhanced_user_model_tests {
     use authenc::models::user::*;
-    use chrono::{DateTime, Duration, Timelike, Utc};
+    use chrono::{Duration, Timelike, Utc};
     use serde_json::json;
     use uuid::Uuid;
 

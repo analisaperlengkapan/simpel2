@@ -1,10 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use authenc::database::operations::protocol_mappers_ops;
-    use authenc::database::Database;
-    use authenc::models::protocol_mapper::{
-        CreateProtocolMapperRequest, ProtocolMapperConfiguration, ProtocolMapperType,
-    };
+
+    use authenc::models::protocol_mapper::{ProtocolMapperConfiguration, ProtocolMapperType};
 
     #[tokio::test]
     #[ignore = "Requires PostgreSQL database"]

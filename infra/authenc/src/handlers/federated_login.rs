@@ -6,11 +6,11 @@
 use crate::app::AppState;
 use crate::error::Result as AuthencResult;
 use axum::{
+    Router,
     extract::{Query, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     routing::{get, post},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -179,7 +179,11 @@ async fn social_authorize(
     let realm_id = query.realm_id.unwrap_or_else(Uuid::nil);
 
     // Get social provider
-    let provider = match state.federation_manager.get_social_provider(&query.provider_alias).await {
+    let provider = match state
+        .federation_manager
+        .get_social_provider(&query.provider_alias)
+        .await
+    {
         Some(p) => p,
         None => {
             return (
@@ -188,12 +192,17 @@ async fn social_authorize(
                     "error": "Provider not found"
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
     // Generate state parameter for CSRF protection
-    let state_param = format!("{}:{}:{}", query.provider_alias, realm_id, uuid::Uuid::new_v4());
+    let state_param = format!(
+        "{}:{}:{}",
+        query.provider_alias,
+        realm_id,
+        uuid::Uuid::new_v4()
+    );
 
     // Generate redirect URI
     let redirect_uri = format!(
@@ -207,7 +216,10 @@ async fn social_authorize(
     );
 
     // Get authorization URL
-    match provider.get_authorization_url(&state_param, &redirect_uri).await {
+    match provider
+        .get_authorization_url(&state_param, &redirect_uri)
+        .await
+    {
         Ok(auth_url) => Json(serde_json::json!({
             "authorization_url": auth_url,
             "state": state_param
@@ -264,7 +276,7 @@ async fn social_callback(
                     error: Some("Invalid realm ID in state".to_string()),
                 }),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -372,7 +384,11 @@ async fn social_callback(
 async fn list_providers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let realm_id = Uuid::nil(); // Default realm - should come from JWT
 
-    match state.federation_manager.list_identity_providers(realm_id).await {
+    match state
+        .federation_manager
+        .list_identity_providers(realm_id)
+        .await
+    {
         Ok(providers) => {
             let provider_infos: Vec<ProviderInfo> = providers
                 .into_iter()

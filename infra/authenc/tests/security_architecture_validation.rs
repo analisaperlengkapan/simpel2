@@ -3,17 +3,13 @@
 //! This module contains comprehensive tests to validate the zero-trust architecture
 //! and ensure proper security isolation between authenc and secreton services.
 
-use std::collections::HashSet;
-use std::process::Command;
 use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
 
 use authenc::config::AuthencConfig;
 use authenc::error::AuthencError;
-use authenc::models::user::{
-    AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy,
-};
+use authenc::models::user::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
 use authenc::secreton_client::secreton_client::SecretonClient;
 
 /// Test suite for validating zero-trust architecture principles
@@ -543,10 +539,14 @@ trait SecretonClientMtlsExt {
     fn establish_secure_channel(
         &self,
         host: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MockSecureChannel, AuthencError>> + Send + '_>>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<MockSecureChannel, AuthencError>> + Send + '_>,
+    >;
     fn test_mutual_authentication(
         &self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MutualAuthInfo, AuthencError>> + Send + '_>>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<MutualAuthInfo, AuthencError>> + Send + '_>,
+    >;
 }
 
 impl SecretonClientMtlsExt for SecretonClient {
@@ -573,7 +573,9 @@ impl SecretonClientMtlsExt for SecretonClient {
     fn establish_secure_channel(
         &self,
         _host: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MockSecureChannel, AuthencError>> + Send + '_>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<MockSecureChannel, AuthencError>> + Send + '_>,
+    > {
         Box::pin(async {
             Err(AuthencError::secreton_communication(
                 "Secure channel not available in test environment",
@@ -584,7 +586,9 @@ impl SecretonClientMtlsExt for SecretonClient {
 
     fn test_mutual_authentication(
         &self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MutualAuthInfo, AuthencError>> + Send + '_>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<MutualAuthInfo, AuthencError>> + Send + '_>,
+    > {
         Box::pin(async {
             Err(AuthencError::secreton_communication(
                 "Mutual authentication not available in test environment",
@@ -601,7 +605,11 @@ impl CryptoEngine {
         Ok(data.to_vec())
     }
 
-    async fn verify_signature(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, AuthencError> {
+    async fn verify_signature(
+        &self,
+        _data: &[u8],
+        _signature: &[u8],
+    ) -> Result<bool, AuthencError> {
         Ok(true)
     }
 

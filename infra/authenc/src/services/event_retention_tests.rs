@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use crate::config::{ColdStorageConfig, EventsConfig};
     use crate::services::event_retention::{RetentionCleanupResult, RetentionStats};
     use chrono::Utc;

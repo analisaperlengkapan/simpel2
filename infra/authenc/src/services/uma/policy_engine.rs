@@ -11,7 +11,7 @@
 use crate::database::Database;
 use crate::error::Result;
 use crate::services::resource_store::ResourceStoreTrait;
-use chrono::{Utc, Datelike, Timelike};
+use chrono::{Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -315,8 +315,14 @@ impl PolicyEngine {
             PolicyType::Group => self.evaluate_group_policy(context, &policy.config),
             PolicyType::Time => self.evaluate_time_policy(context, &policy.config),
             PolicyType::Attribute => self.evaluate_attribute_policy(context, &policy.config),
-            PolicyType::JavaScript => self.evaluate_javascript_policy(context, &policy.config).await?,
-            PolicyType::Aggregate => self.evaluate_aggregate_policy(context, &policy.config).await?,
+            PolicyType::JavaScript => {
+                self.evaluate_javascript_policy(context, &policy.config)
+                    .await?
+            }
+            PolicyType::Aggregate => {
+                self.evaluate_aggregate_policy(context, &policy.config)
+                    .await?
+            }
             PolicyType::Client => PolicyDecision::NotApplicable,
         };
 
@@ -559,9 +565,7 @@ impl PolicyEngine {
         match strategy {
             DecisionStrategy::Unanimous => {
                 // All must permit
-                let all_permit = decisions
-                    .iter()
-                    .all(|(_, d)| *d == PolicyDecision::Permit);
+                let all_permit = decisions.iter().all(|(_, d)| *d == PolicyDecision::Permit);
                 if all_permit {
                     PolicyDecision::Permit
                 } else {
@@ -570,9 +574,7 @@ impl PolicyEngine {
             }
             DecisionStrategy::Affirmative => {
                 // At least one must permit
-                let any_permit = decisions
-                    .iter()
-                    .any(|(_, d)| *d == PolicyDecision::Permit);
+                let any_permit = decisions.iter().any(|(_, d)| *d == PolicyDecision::Permit);
                 if any_permit {
                     PolicyDecision::Permit
                 } else {
@@ -645,7 +647,9 @@ mod tests {
         };
 
         let db = Arc::new(tokio_test::block_on(Database::mock()));
-        let resource_store = Arc::new(crate::services::resource_store::ResourceStore::new(db.clone()));
+        let resource_store = Arc::new(crate::services::resource_store::ResourceStore::new(
+            db.clone(),
+        ));
         let engine = PolicyEngine::new(db, resource_store);
 
         let decision = engine.evaluate_role_policy(&context, &config);

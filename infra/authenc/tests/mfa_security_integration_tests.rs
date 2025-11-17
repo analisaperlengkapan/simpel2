@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use authenc::error::{AuthencError, Result};
 use authenc::middleware::mfa_rate_limit::MfaRateLimitConfig;
-use authenc::models::user::{SecurityContext, User};
+use authenc::models::user::User;
 use authenc::services::mfa_security_monitor::{MfaSecurityMonitor, MfaSecurityMonitorConfig};
 use authenc::services::mfa_service::MfaService;
 
@@ -456,10 +456,7 @@ mod mfa_security_monitoring_tests {
                     .get("total_failed_attempts")
                     .copied()
                     .unwrap_or(0)
-                    + correlation
-                        .get("total_mfa_setups")
-                        .copied()
-                        .unwrap_or(0);
+                    + correlation.get("total_mfa_setups").copied().unwrap_or(0);
                 assert!((total_events as usize) >= events.len());
             }
             Err(e) => {
@@ -537,60 +534,59 @@ mod mfa_security_monitoring_tests {
     #[tokio::test]
     #[ignore] // Requires test infrastructure
     async fn test_security_metrics_collection() {
-    let security_monitor = create_test_security_monitor().await;
+        let security_monitor = create_test_security_monitor().await;
 
-    println!("📊 Testing security metrics collection");
+        println!("📊 Testing security metrics collection");
 
-    // Generate various security events for metrics
-    let test_users: Vec<User> = (0..5)
-        .map(|i| {
-            create_test_user_with_context(&format!("192.168.1.{}", 210 + i), "test-browser")
-        })
-        .collect();
+        // Generate various security events for metrics
+        let test_users: Vec<User> = (0..5)
+            .map(|i| {
+                create_test_user_with_context(&format!("192.168.1.{}", 210 + i), "test-browser")
+            })
+            .collect();
 
-    for (i, user) in test_users.iter().enumerate() {
-        // Simulate different types of events for each user
-        let events = match i {
-            0 => vec![("mfa_success", 5), ("mfa_failure", 1)],
-            1 => vec![("mfa_success", 3), ("mfa_failure", 2)],
-            2 => vec![("mfa_success", 2), ("mfa_failure", 4)],
-            3 => vec![("mfa_success", 1), ("mfa_failure", 5)],
-            4 => vec![("mfa_success", 0), ("mfa_failure", 6)],
-            _ => vec![],
-        };
+        for (i, user) in test_users.iter().enumerate() {
+            // Simulate different types of events for each user
+            let events = match i {
+                0 => vec![("mfa_success", 5), ("mfa_failure", 1)],
+                1 => vec![("mfa_success", 3), ("mfa_failure", 2)],
+                2 => vec![("mfa_success", 2), ("mfa_failure", 4)],
+                3 => vec![("mfa_success", 1), ("mfa_failure", 5)],
+                4 => vec![("mfa_success", 0), ("mfa_failure", 6)],
+                _ => vec![],
+            };
 
-        for (event_type, count) in events {
-            for _ in 0..count {
-                security_monitor
-                    .record_mfa_event(
-                        user.id,
-                        event_type,
-                        user
-                            .security_context
-                            .ip_address
-                            .as_deref()
-                            .unwrap_or("127.0.0.1"),
-                    )
-                    .await
-                    .expect("Failed to record MFA event");
+            for (event_type, count) in events {
+                for _ in 0..count {
+                    security_monitor
+                        .record_mfa_event(
+                            user.id,
+                            event_type,
+                            user.security_context
+                                .ip_address
+                                .as_deref()
+                                .unwrap_or("127.0.0.1"),
+                        )
+                        .await
+                        .expect("Failed to record MFA event");
+                }
+            }
+        }
+
+        // Collect and analyze security metrics
+        let metrics_result = security_monitor.collect_security_metrics().await;
+        match metrics_result {
+            Ok(metrics) => {
+                println!("✅ Security metrics collected successfully");
+                println!("   Metrics: {:?}", metrics);
+
+                assert!(metrics.get("total_failed_attempts").is_some());
+            }
+            Err(e) => {
+                println!("⚠️  Security metrics collection failed: {:?}", e);
             }
         }
     }
-
-    // Collect and analyze security metrics
-    let metrics_result = security_monitor.collect_security_metrics().await;
-    match metrics_result {
-        Ok(metrics) => {
-            println!("✅ Security metrics collected successfully");
-            println!("   Metrics: {:?}", metrics);
-
-            assert!(metrics.get("total_failed_attempts").is_some());
-        }
-        Err(e) => {
-            println!("⚠️  Security metrics collection failed: {:?}", e);
-        }
-    }
-}
 }
 
 #[cfg(test)]

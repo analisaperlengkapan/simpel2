@@ -1,11 +1,9 @@
 use axum::{
     Router,
-    body::Body,
     extract::{Path, Query, State},
-    http::{Method, Request, StatusCode, header},
-    middleware,
+    http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use axum_test::TestServer;
 use serde_json::json;
@@ -161,7 +159,7 @@ async fn bulk_create_resources(
 
     if let Some(resources) = payload.get("resources").and_then(|r| r.as_array()) {
         let mut created_resources = Vec::new();
-        let mut errors: Vec<String> = Vec::new();
+        let errors: Vec<String> = Vec::new();
 
         for (index, resource_payload) in resources.iter().enumerate() {
             let resource_id = Uuid::new_v4().to_string();

@@ -10,18 +10,15 @@
 
 #[cfg(test)]
 mod token_exchange_tests {
+    use async_trait::async_trait;
     use authenc::database::Database;
-    use authenc::handlers::oauth2_comprehensive::{
-        generate_access_token,
-        AccessTokenClaims,
-    };
-    use authenc::services::jwt_validator::JwtValidator;
+    use authenc::handlers::oauth2_comprehensive::{AccessTokenClaims, generate_access_token};
     use authenc::models::audit_log::AuditLog;
+    use authenc::services::jwt_validator::JwtValidator;
     use authenc::services::stores::audit_log_store::AuditLogStore;
     use authenc::services::token_exchange::{
         TokenExchangeConfig, TokenExchangeRequest, TokenExchangeService,
     };
-    use async_trait::async_trait;
     use chrono::Utc;
     use std::sync::Arc;
     use uuid::Uuid;
@@ -135,30 +132,19 @@ mod token_exchange_tests {
             ..Default::default()
         };
 
-        let service = TokenExchangeService::new(
-            db.clone(),
-            jwt_validator,
-            audit_log,
-            Some(config),
-        );
+        let service = TokenExchangeService::new(db.clone(), jwt_validator, audit_log, Some(config));
 
         // Create subject token
         let subject_user_id = Uuid::new_v4().to_string();
         let subject_client_id = Uuid::new_v4().to_string();
-        let subject_token = create_test_access_token(
-            &subject_user_id,
-            &subject_client_id,
-            &["read:data"],
-        );
+        let subject_token =
+            create_test_access_token(&subject_user_id, &subject_client_id, &["read:data"]);
 
         // Create actor token
         let actor_user_id = Uuid::new_v4().to_string();
         let actor_client_id = Uuid::new_v4().to_string();
-        let actor_token = create_test_access_token(
-            &actor_user_id,
-            &actor_client_id,
-            &["delegate:on-behalf"],
-        );
+        let actor_token =
+            create_test_access_token(&actor_user_id, &actor_client_id, &["delegate:on-behalf"]);
 
         // Request token exchange with actor (delegation)
         let request = TokenExchangeRequest {
@@ -197,21 +183,12 @@ mod token_exchange_tests {
             ..Default::default()
         };
 
-        let service = TokenExchangeService::new(
-            db.clone(),
-            jwt_validator,
-            audit_log,
-            Some(config),
-        );
+        let service = TokenExchangeService::new(db.clone(), jwt_validator, audit_log, Some(config));
 
         // Create subject token with limited scopes
         let user_id = Uuid::new_v4().to_string();
         let client_id = Uuid::new_v4().to_string();
-        let subject_token = create_test_access_token(
-            &user_id,
-            &client_id,
-            &["read:data"],
-        );
+        let subject_token = create_test_access_token(&user_id, &client_id, &["read:data"]);
 
         // Try to request more scopes (should fail)
         let request = TokenExchangeRequest {

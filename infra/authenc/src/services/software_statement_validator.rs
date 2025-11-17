@@ -2,15 +2,14 @@
 ///
 /// Validates software statements (signed JWTs containing client metadata)
 /// from trusted issuers
-
 use async_trait::async_trait;
-use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::database::operations::client_registration as db_ops;
 use crate::database::Database;
+use crate::database::operations::client_registration as db_ops;
 use crate::error::{AuthencError, Result};
 
 /// Software Statement claims (from JWT payload)
@@ -76,10 +75,7 @@ pub struct SoftwareStatementClaims {
 #[async_trait]
 pub trait SoftwareStatementValidator: Send + Sync {
     /// Validate a software statement JWT and extract claims
-    async fn validate_statement(
-        &self,
-        statement_jwt: &str,
-    ) -> Result<SoftwareStatementClaims>;
+    async fn validate_statement(&self, statement_jwt: &str) -> Result<SoftwareStatementClaims>;
 
     /// Check if an issuer is trusted
     async fn is_trusted_issuer(&self, issuer: &str) -> Result<bool>;
@@ -110,9 +106,12 @@ impl ProductionSoftwareStatementValidator {
             });
         }
 
-        response.json().await.map_err(|e| AuthencError::InternalError {
-            message: format!("Failed to parse JWKS: {}", e),
-        })
+        response
+            .json()
+            .await
+            .map_err(|e| AuthencError::InternalError {
+                message: format!("Failed to parse JWKS: {}", e),
+            })
     }
 
     /// Extract public key from JWKS for the given key ID
@@ -160,10 +159,8 @@ impl ProductionSoftwareStatementValidator {
                     }
                 })?;
 
-                DecodingKey::from_rsa_components(n, e).map_err(|e| {
-                    AuthencError::ValidationError {
-                        message: format!("Invalid RSA key: {}", e),
-                    }
+                DecodingKey::from_rsa_components(n, e).map_err(|e| AuthencError::ValidationError {
+                    message: format!("Invalid RSA key: {}", e),
                 })
             }
             "EC" => {
@@ -178,10 +175,8 @@ impl ProductionSoftwareStatementValidator {
                     }
                 })?;
 
-                DecodingKey::from_ec_components(x, y).map_err(|e| {
-                    AuthencError::ValidationError {
-                        message: format!("Invalid EC key: {}", e),
-                    }
+                DecodingKey::from_ec_components(x, y).map_err(|e| AuthencError::ValidationError {
+                    message: format!("Invalid EC key: {}", e),
                 })
             }
             "OKP" => {
@@ -192,10 +187,8 @@ impl ProductionSoftwareStatementValidator {
                     }
                 })?;
 
-                DecodingKey::from_ed_components(x).map_err(|e| {
-                    AuthencError::ValidationError {
-                        message: format!("Invalid Ed25519 key: {}", e),
-                    }
+                DecodingKey::from_ed_components(x).map_err(|e| AuthencError::ValidationError {
+                    message: format!("Invalid Ed25519 key: {}", e),
                 })
             }
             _ => Err(AuthencError::ValidationError {
@@ -222,10 +215,7 @@ impl ProductionSoftwareStatementValidator {
 
 #[async_trait]
 impl SoftwareStatementValidator for ProductionSoftwareStatementValidator {
-    async fn validate_statement(
-        &self,
-        statement_jwt: &str,
-    ) -> Result<SoftwareStatementClaims> {
+    async fn validate_statement(&self, statement_jwt: &str) -> Result<SoftwareStatementClaims> {
         // Decode header to get algorithm and key ID
         let header = decode_header(statement_jwt).map_err(|e| AuthencError::ValidationError {
             message: format!("Invalid JWT header: {}", e),
@@ -240,16 +230,15 @@ impl SoftwareStatementValidator for ProductionSoftwareStatementValidator {
         temp_validation.insecure_disable_signature_validation();
         temp_validation.validate_exp = false;
 
-        let untrusted_claims: SoftwareStatementClaims =
-            decode::<SoftwareStatementClaims>(
-                statement_jwt,
-                &DecodingKey::from_secret(&[]), // Dummy key since we're not validating
-                &temp_validation,
-            )
-            .map_err(|e| AuthencError::ValidationError {
-                message: format!("Failed to decode JWT: {}", e),
-            })?
-            .claims;
+        let untrusted_claims: SoftwareStatementClaims = decode::<SoftwareStatementClaims>(
+            statement_jwt,
+            &DecodingKey::from_secret(&[]), // Dummy key since we're not validating
+            &temp_validation,
+        )
+        .map_err(|e| AuthencError::ValidationError {
+            message: format!("Failed to decode JWT: {}", e),
+        })?
+        .claims;
 
         // Get issuer configuration from database
         let issuer_config =
@@ -280,12 +269,9 @@ impl SoftwareStatementValidator for ProductionSoftwareStatementValidator {
         validation.set_issuer(&[&issuer_config.issuer]);
         validation.validate_exp = false; // Software statements typically don't expire
 
-        let token_data = decode::<SoftwareStatementClaims>(
-            statement_jwt,
-            &decoding_key,
-            &validation,
-        )
-        .map_err(|e| AuthencError::AuthenticationFailed)?;
+        let token_data =
+            decode::<SoftwareStatementClaims>(statement_jwt, &decoding_key, &validation)
+                .map_err(|e| AuthencError::AuthenticationFailed)?;
 
         Ok(token_data.claims)
     }

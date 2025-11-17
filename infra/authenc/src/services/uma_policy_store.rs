@@ -4,7 +4,7 @@
 
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
-use crate::services::uma::policy_engine::{UmaPolicy, PolicyType, Logic, DecisionStrategy};
+use crate::services::uma::policy_engine::{DecisionStrategy, Logic, PolicyType, UmaPolicy};
 use crate::services::uma::resource_owner_auth::DelegationPolicy;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -188,7 +188,10 @@ impl UmaPolicyStore {
             "javascript" => Ok(PolicyType::JavaScript),
             "aggregate" => Ok(PolicyType::Aggregate),
             "client" => Ok(PolicyType::Client),
-            _ => Err(AuthencError::internal(format!("Unknown policy type: {}", s))),
+            _ => Err(AuthencError::internal(format!(
+                "Unknown policy type: {}",
+                s
+            ))),
         }
     }
 
@@ -207,7 +210,10 @@ impl UmaPolicyStore {
             "UNANIMOUS" => Ok(DecisionStrategy::Unanimous),
             "AFFIRMATIVE" => Ok(DecisionStrategy::Affirmative),
             "CONSENSUS" => Ok(DecisionStrategy::Consensus),
-            _ => Err(AuthencError::internal(format!("Unknown decision strategy: {}", s))),
+            _ => Err(AuthencError::internal(format!(
+                "Unknown decision strategy: {}",
+                s
+            ))),
         }
     }
 }
@@ -284,8 +290,12 @@ impl UmaDelegationPolicyStore {
                     delegates: row.get(4),
                     conditions: serde_json::from_value(row.get(5)).ok()?,
                     enabled: row.get(6),
-                    valid_from: row.get::<_, Option<chrono::DateTime<chrono::Utc>>>(7).map(|dt| dt.timestamp()),
-                    valid_until: row.get::<_, Option<chrono::DateTime<chrono::Utc>>>(8).map(|dt| dt.timestamp()),
+                    valid_from: row
+                        .get::<_, Option<chrono::DateTime<chrono::Utc>>>(7)
+                        .map(|dt| dt.timestamp()),
+                    valid_until: row
+                        .get::<_, Option<chrono::DateTime<chrono::Utc>>>(8)
+                        .map(|dt| dt.timestamp()),
                     realm_id: row.get::<_, Uuid>(9).to_string(),
                 })
             })
@@ -312,7 +322,6 @@ impl UmaDelegationPolicyStore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     #[ignore = "Requires database"]

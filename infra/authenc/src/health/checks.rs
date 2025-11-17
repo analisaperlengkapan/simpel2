@@ -32,17 +32,11 @@ impl DatabaseHealthCheck {
         match self.db.health_check().await {
             Ok(_) => {
                 let response_time_ms = start.elapsed().as_millis() as i64;
-                debug!(
-                    "Database health check passed in {}ms",
-                    response_time_ms
-                );
+                debug!("Database health check passed in {}ms", response_time_ms);
 
                 // Check if response time is degraded (> 1000ms)
                 if response_time_ms > 1000 {
-                    warn!(
-                        "Database response time degraded: {}ms",
-                        response_time_ms
-                    );
+                    warn!("Database response time degraded: {}ms", response_time_ms);
                     DependencyHealth::degraded(
                         name,
                         response_time_ms,
@@ -119,10 +113,7 @@ impl SecretonHealthCheck {
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         let response_time_ms = start.elapsed().as_millis() as i64;
-        debug!(
-            "Secreton health check simulated in {}ms",
-            response_time_ms
-        );
+        debug!("Secreton health check simulated in {}ms", response_time_ms);
 
         // Return healthy status for now (placeholder)
         DependencyHealth::healthy(name, response_time_ms)

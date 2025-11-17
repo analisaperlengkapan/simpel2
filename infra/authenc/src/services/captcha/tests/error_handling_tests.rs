@@ -1,15 +1,15 @@
 //! Comprehensive tests for CAPTCHA error handling and fallback mechanisms
 
 use crate::services::captcha::{
-    enhanced_service::{EnhancedCaptchaService, ServiceHealth},
+    enhanced_service::EnhancedCaptchaService,
     error::{CaptchaError, ErrorContext, ErrorRecovery, RecoveryResult},
-    fallback::{FallbackConfig, FallbackService, FallbackState, LocalEncryptionFallback},
+    fallback::{FallbackConfig, FallbackService, LocalEncryptionFallback},
     retry::{CircuitBreaker, RetryConfig, RetryExecutor},
     service::{CaptchaService, CaptchaServiceTrait},
     types::*,
 };
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use tokio::time::sleep;
 
 /// Test error recovery mechanisms

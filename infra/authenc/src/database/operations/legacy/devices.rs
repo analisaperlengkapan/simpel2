@@ -1,6 +1,5 @@
 /// Database operations for device management
 use crate::{
-
     database::Database,
     error::{AuthencError, Result},
     models::{Device, DeviceInfo},

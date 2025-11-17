@@ -1,6 +1,5 @@
 /// Database operations for social accounts
 use crate::{
-
     database::Database,
     error::Result,
     models::social_account::{CreateSocialAccountRequest, SocialAccount},
@@ -10,10 +9,7 @@ use chrono::Utc;
 use std::str::FromStr;
 use uuid::Uuid;
 
-pub async fn get_social_account(
-    db: &Database,
-    account_id: Uuid,
-) -> Result<Option<SocialAccount>> {
+pub async fn get_social_account(db: &Database, account_id: Uuid) -> Result<Option<SocialAccount>> {
     let query = r#"
         SELECT id, user_id, provider, provider_user_id, display_name, email,
                profile_picture_url, access_token, refresh_token, token_expires_at,
@@ -48,10 +44,7 @@ pub async fn get_social_account(
     }
 }
 
-pub async fn get_user_social_accounts(
-    db: &Database,
-    user_id: Uuid,
-) -> Result<Vec<SocialAccount>> {
+pub async fn get_user_social_accounts(db: &Database, user_id: Uuid) -> Result<Vec<SocialAccount>> {
     let query = r#"
         SELECT id, user_id, provider, provider_user_id, display_name, email,
                profile_picture_url, access_token, refresh_token, token_expires_at,

@@ -30,10 +30,10 @@ pub async fn create_registration_token(
     "#;
 
     db.query_one::<ClientRegistrationToken>(
-            query,
-            &[&id, &token_hash, &client_id, &realm_id, &expires_at, &now],
-        )
-        .await
+        query,
+        &[&id, &token_hash, &client_id, &realm_id, &expires_at, &now],
+    )
+    .await
 }
 
 /// Get registration token by hash
@@ -122,19 +122,19 @@ pub async fn create_initial_access_token(
     "#;
 
     db.query_one::<InitialAccessToken>(
-            query,
-            &[
-                &id,
-                &token_hash,
-                &realm_id,
-                &count,
-                &count,
-                &expires_at,
-                &now,
-                &created_by,
-            ],
-        )
-        .await
+        query,
+        &[
+            &id,
+            &token_hash,
+            &realm_id,
+            &count,
+            &count,
+            &expires_at,
+            &now,
+            &created_by,
+        ],
+    )
+    .await
 }
 
 /// Get initial access token by hash
@@ -369,56 +369,56 @@ pub async fn create_client_with_metadata(
     "#;
 
     db.query_one::<OAuth2Client>(
-            query,
-            &[
-                &client_db_id,
-                &client.client_id,
-                &client.client_secret_hash,
-                &client.client_name,
-                &client.client_type,
-                &client.redirect_uris,
-                &client.scopes,
-                &client.grant_types,
-                &client.response_types,
-                &client.token_endpoint_auth_method,
-                &client.owner_id,
-                &client.realm_id,
-                &client.enabled,
-                &now,
-                &now,
-                &client.logo_uri,
-                &client.client_uri,
-                &client.policy_uri,
-                &client.tos_uri,
-                &client.jwks_uri,
-                &client.jwks,
-                &client.sector_identifier_uri,
-                &client.subject_type,
-                &client.id_token_signed_response_alg,
-                &client.id_token_encrypted_response_alg,
-                &client.id_token_encrypted_response_enc,
-                &client.userinfo_signed_response_alg,
-                &client.userinfo_encrypted_response_alg,
-                &client.userinfo_encrypted_response_enc,
-                &client.request_object_signing_alg,
-                &client.request_object_encryption_alg,
-                &client.request_object_encryption_enc,
-                &client.token_endpoint_auth_signing_alg,
-                &client.default_max_age,
-                &client.require_auth_time,
-                &client.default_acr_values,
-                &client.initiate_login_uri,
-                &client.request_uris,
-                &client.application_type,
-                &client.contacts,
-                &client.client_id_issued_at,
-                &client.client_secret_expires_at,
-                &client.software_id,
-                &client.software_version,
-                &client.registration_access_token_hash,
-            ],
-        )
-        .await
+        query,
+        &[
+            &client_db_id,
+            &client.client_id,
+            &client.client_secret_hash,
+            &client.client_name,
+            &client.client_type,
+            &client.redirect_uris,
+            &client.scopes,
+            &client.grant_types,
+            &client.response_types,
+            &client.token_endpoint_auth_method,
+            &client.owner_id,
+            &client.realm_id,
+            &client.enabled,
+            &now,
+            &now,
+            &client.logo_uri,
+            &client.client_uri,
+            &client.policy_uri,
+            &client.tos_uri,
+            &client.jwks_uri,
+            &client.jwks,
+            &client.sector_identifier_uri,
+            &client.subject_type,
+            &client.id_token_signed_response_alg,
+            &client.id_token_encrypted_response_alg,
+            &client.id_token_encrypted_response_enc,
+            &client.userinfo_signed_response_alg,
+            &client.userinfo_encrypted_response_alg,
+            &client.userinfo_encrypted_response_enc,
+            &client.request_object_signing_alg,
+            &client.request_object_encryption_alg,
+            &client.request_object_encryption_enc,
+            &client.token_endpoint_auth_signing_alg,
+            &client.default_max_age,
+            &client.require_auth_time,
+            &client.default_acr_values,
+            &client.initiate_login_uri,
+            &client.request_uris,
+            &client.application_type,
+            &client.contacts,
+            &client.client_id_issued_at,
+            &client.client_secret_expires_at,
+            &client.software_id,
+            &client.software_version,
+            &client.registration_access_token_hash,
+        ],
+    )
+    .await
 }
 
 /// Update client with full metadata
@@ -534,10 +534,10 @@ pub async fn create_software_statement_issuer(
     "#;
 
     db.query_one::<SoftwareStatementIssuer>(
-            query,
-            &[&id, &name, &issuer, &jwks_uri, &jwks, &realm_id, &now, &now],
-        )
-        .await
+        query,
+        &[&id, &name, &issuer, &jwks_uri, &jwks, &realm_id, &now, &now],
+    )
+    .await
 }
 
 /// Get software statement issuer by issuer string
@@ -581,9 +581,11 @@ pub async fn list_software_statement_issuers(
     };
 
     let rows: Vec<crate::models::SoftwareStatementIssuer> = if let Some(realm) = realm_id {
-        db.query::<crate::models::SoftwareStatementIssuer>(query, &[&realm]).await?
+        db.query::<crate::models::SoftwareStatementIssuer>(query, &[&realm])
+            .await?
     } else {
-        db.query::<crate::models::SoftwareStatementIssuer>(query, &[]).await?
+        db.query::<crate::models::SoftwareStatementIssuer>(query, &[])
+            .await?
     };
 
     Ok(rows)
@@ -659,7 +661,8 @@ pub async fn update_software_statement_issuer(
     }
     params.push(&now);
 
-    db.query_one::<crate::models::SoftwareStatementIssuer>(&query, &params[..]).await
+    db.query_one::<crate::models::SoftwareStatementIssuer>(&query, &params[..])
+        .await
 }
 
 /// Delete software statement issuer
@@ -712,30 +715,30 @@ pub async fn update_client_registration_policy(
     "#;
 
     db.query_one::<ClientRegistrationPolicy>(
-            query,
-            &[
-                &realm_id,
-                &policy.name,
-                &policy.allow_dynamic_registration,
-                &policy.require_initial_access_token,
-                &policy.require_software_statement,
-                &policy.allowed_redirect_uri_patterns,
-                &policy.blocked_redirect_uri_patterns,
-                &policy.max_redirect_uris,
-                &policy.allowed_scopes,
-                &policy.default_scopes,
-                &policy.allowed_grant_types,
-                &policy.allowed_response_types,
-                &policy.require_https_redirect_uris,
-                &policy.allow_localhost_redirect,
-                &policy.client_secret_expires_in,
-                &policy.registration_token_expires_in,
-                &policy.enabled,
-                &now,
-                &policy.id,
-            ],
-        )
-        .await
+        query,
+        &[
+            &realm_id,
+            &policy.name,
+            &policy.allow_dynamic_registration,
+            &policy.require_initial_access_token,
+            &policy.require_software_statement,
+            &policy.allowed_redirect_uri_patterns,
+            &policy.blocked_redirect_uri_patterns,
+            &policy.max_redirect_uris,
+            &policy.allowed_scopes,
+            &policy.default_scopes,
+            &policy.allowed_grant_types,
+            &policy.allowed_response_types,
+            &policy.require_https_redirect_uris,
+            &policy.allow_localhost_redirect,
+            &policy.client_secret_expires_in,
+            &policy.registration_token_expires_in,
+            &policy.enabled,
+            &now,
+            &policy.id,
+        ],
+    )
+    .await
 }
 
 /// Create a new client registration policy
@@ -774,31 +777,31 @@ pub async fn create_client_registration_policy(
     "#;
 
     db.query_one::<ClientRegistrationPolicy>(
-            query,
-            &[
-                &id,
-                &realm_id,
-                &name,
-                &policy.allow_dynamic_registration,
-                &policy.require_initial_access_token,
-                &policy.require_software_statement,
-                &policy.allowed_redirect_uri_patterns,
-                &policy.blocked_redirect_uri_patterns,
-                &policy.max_redirect_uris,
-                &policy.allowed_scopes,
-                &policy.default_scopes,
-                &policy.allowed_grant_types,
-                &policy.allowed_response_types,
-                &policy.require_https_redirect_uris,
-                &policy.allow_localhost_redirect,
-                &policy.client_secret_expires_in,
-                &policy.registration_token_expires_in,
-                &policy.enabled,
-                &now,
-                &now,
-            ],
-        )
-        .await
+        query,
+        &[
+            &id,
+            &realm_id,
+            &name,
+            &policy.allow_dynamic_registration,
+            &policy.require_initial_access_token,
+            &policy.require_software_statement,
+            &policy.allowed_redirect_uri_patterns,
+            &policy.blocked_redirect_uri_patterns,
+            &policy.max_redirect_uris,
+            &policy.allowed_scopes,
+            &policy.default_scopes,
+            &policy.allowed_grant_types,
+            &policy.allowed_response_types,
+            &policy.require_https_redirect_uris,
+            &policy.allow_localhost_redirect,
+            &policy.client_secret_expires_in,
+            &policy.registration_token_expires_in,
+            &policy.enabled,
+            &now,
+            &now,
+        ],
+    )
+    .await
 }
 
 /// Delete client registration policy

@@ -94,10 +94,7 @@ pub async fn get_flow(db: &Database, flow_id: Uuid) -> Result<Option<serde_json:
     }))
 }
 
-pub async fn list_flows(
-    db: &Database,
-    realm_id: Option<Uuid>,
-) -> Result<Vec<serde_json::Value>> {
+pub async fn list_flows(db: &Database, realm_id: Option<Uuid>) -> Result<Vec<serde_json::Value>> {
     let query = if realm_id.is_some() {
         r#"
             SELECT id, realm_id, alias, description, provider_id,

@@ -7,10 +7,10 @@ use crate::error::AuthencError;
 use crate::models::client_policy::*;
 use crate::services::client_policy::ClientPolicyStore;
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -63,7 +63,10 @@ pub async fn create_client_policy(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok((StatusCode::CREATED, Json(ClientPolicyResponse::from(policy))))
+    Ok((
+        StatusCode::CREATED,
+        Json(ClientPolicyResponse::from(policy)),
+    ))
 }
 
 /// Get a client policy by ID
@@ -365,8 +368,10 @@ pub async fn get_client_policies(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let responses: Vec<ClientPolicyResponse> =
-        policies.into_iter().map(ClientPolicyResponse::from).collect();
+    let responses: Vec<ClientPolicyResponse> = policies
+        .into_iter()
+        .map(ClientPolicyResponse::from)
+        .collect();
 
     Ok(Json(responses))
 }
@@ -446,8 +451,8 @@ pub async fn remove_profile_assignment(
 
 // ========== Router Setup ==========
 
-use axum::routing::{delete, get, post, put};
 use axum::Router;
+use axum::routing::{delete, get, post, put};
 
 /// Create the router for client policy management endpoints
 pub fn create_policy_router(state: Arc<PolicyHandlerState>) -> Router {
@@ -465,7 +470,10 @@ pub fn create_policy_router(state: Arc<PolicyHandlerState>) -> Router {
         .route("/client-profiles/:id", put(update_client_profile))
         .route("/client-profiles/:id", delete(delete_client_profile))
         // Client policy assignments
-        .route("/clients/:client_id/policies", post(assign_policy_to_client))
+        .route(
+            "/clients/:client_id/policies",
+            post(assign_policy_to_client),
+        )
         .route("/clients/:client_id/policies", get(get_client_policies))
         .route(
             "/clients/:client_id/policy-assignments",

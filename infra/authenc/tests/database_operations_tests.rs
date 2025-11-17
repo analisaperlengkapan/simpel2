@@ -4,15 +4,14 @@
 use axum::{
     Router,
     extract::{Json, Path, Query, State},
-    http::{Method, Request, StatusCode},
+    http::StatusCode,
     response::Json as AxumJson,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use axum_test::TestServer;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
 // Mock database state for testing

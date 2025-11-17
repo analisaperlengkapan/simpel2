@@ -1,17 +1,15 @@
 use axum::{
     Router,
-    body::Body,
-    extract::{Path, Query, State},
-    http::{Method, Request, StatusCode, header},
-    middleware,
+    extract::{Path, State},
+    http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use axum_test::TestServer;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tokio::time::{Duration, Instant, sleep};
+use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
 // Shared test state for end-to-end tests
@@ -56,7 +54,7 @@ async fn register_user(
     }
 
     let user_id = Uuid::new_v4().to_string();
-    let mut user = json!({
+    let user = json!({
         "id": user_id,
         "email": email,
         "name": name,

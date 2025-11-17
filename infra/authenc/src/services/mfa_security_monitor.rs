@@ -692,14 +692,16 @@ impl MfaSecurityMonitor {
         ip_address: &str,
     ) -> Result<(), AuthencError> {
         let mut ip_tracking = self.ip_tracking.write().await;
-        let tracking = ip_tracking.entry(ip_address.to_string()).or_insert_with(|| IpTrackingInfo {
-            failed_attempts: 0,
-            mfa_setups: 0,
-            last_activity: Instant::now(),
-            first_seen: Instant::now(),
-            user_agents: vec![],
-            targeted_users: vec![],
-        });
+        let tracking = ip_tracking
+            .entry(ip_address.to_string())
+            .or_insert_with(|| IpTrackingInfo {
+                failed_attempts: 0,
+                mfa_setups: 0,
+                last_activity: Instant::now(),
+                first_seen: Instant::now(),
+                user_agents: vec![],
+                targeted_users: vec![],
+            });
 
         tracking.last_activity = Instant::now();
         if !tracking.targeted_users.contains(&user_id) {
@@ -712,7 +714,10 @@ impl MfaSecurityMonitor {
             tracking.mfa_setups += 1;
         }
 
-        info!("Recorded MFA event: {} for user {} from IP {}", event_type, user_id, ip_address);
+        info!(
+            "Recorded MFA event: {} for user {} from IP {}",
+            event_type, user_id, ip_address
+        );
         Ok(())
     }
 
@@ -738,22 +743,37 @@ impl MfaSecurityMonitor {
             .filter(|info| info.targeted_users.contains(&user_id))
             .collect();
 
-        let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
+        let total_failed = user_related_ips
+            .iter()
+            .map(|info| info.failed_attempts)
+            .sum::<u32>();
         if total_failed > self.config.max_failed_attempts_per_ip {
-            anomalies.push(format!("Excessive failed MFA attempts: {} across multiple IPs", total_failed));
+            anomalies.push(format!(
+                "Excessive failed MFA attempts: {} across multiple IPs",
+                total_failed
+            ));
         }
 
         // Check for rapid MFA setups
-        let total_setups = user_related_ips.iter().map(|info| info.mfa_setups).sum::<u32>();
+        let total_setups = user_related_ips
+            .iter()
+            .map(|info| info.mfa_setups)
+            .sum::<u32>();
         if total_setups > self.config.max_setups_per_ip_per_hour {
-            anomalies.push(format!("Suspicious MFA setup pattern: {} setups", total_setups));
+            anomalies.push(format!(
+                "Suspicious MFA setup pattern: {} setups",
+                total_setups
+            ));
         }
 
         Ok(anomalies)
     }
 
     /// Analyze event correlations for security patterns
-    pub async fn analyze_event_correlation(&self, user_id: Uuid) -> Result<HashMap<String, u32>, AuthencError> {
+    pub async fn analyze_event_correlation(
+        &self,
+        user_id: Uuid,
+    ) -> Result<HashMap<String, u32>, AuthencError> {
         let mut correlations = HashMap::new();
 
         let ip_tracking = self.ip_tracking.read().await;
@@ -762,8 +782,14 @@ impl MfaSecurityMonitor {
             .filter(|info| info.targeted_users.contains(&user_id))
             .collect();
 
-        let total_failed = user_related_ips.iter().map(|info| info.failed_attempts).sum::<u32>();
-        let total_setups = user_related_ips.iter().map(|info| info.mfa_setups).sum::<u32>();
+        let total_failed = user_related_ips
+            .iter()
+            .map(|info| info.failed_attempts)
+            .sum::<u32>();
+        let total_setups = user_related_ips
+            .iter()
+            .map(|info| info.mfa_setups)
+            .sum::<u32>();
         let unique_ips = user_related_ips.len() as u32;
 
         correlations.insert("total_failed_attempts".to_string(), total_failed);
@@ -774,7 +800,10 @@ impl MfaSecurityMonitor {
     }
 
     /// Analyze threats and provide automated response suggestions
-    pub async fn analyze_and_respond_to_threats(&self, user_id: Uuid) -> Result<HashMap<String, String>, AuthencError> {
+    pub async fn analyze_and_respond_to_threats(
+        &self,
+        user_id: Uuid,
+    ) -> Result<HashMap<String, String>, AuthencError> {
         let mut response = HashMap::new();
 
         let anomalies = self.check_for_anomalies(user_id).await?;
@@ -817,18 +846,24 @@ impl MfaSecurityMonitor {
     }
 
     /// Collect comprehensive security metrics for reporting
-    pub async fn collect_security_metrics(&self) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
+    pub async fn collect_security_metrics(
+        &self,
+    ) -> Result<HashMap<String, serde_json::Value>, AuthencError> {
         use serde_json::json;
 
         let mut metrics = HashMap::new();
         let ip_tracking = self.ip_tracking.read().await;
 
         let total_tracked_ips = ip_tracking.len();
-        let total_failed_attempts: u32 = ip_tracking.values().map(|info| info.failed_attempts).sum();
+        let total_failed_attempts: u32 =
+            ip_tracking.values().map(|info| info.failed_attempts).sum();
         let total_mfa_setups: u32 = ip_tracking.values().map(|info| info.mfa_setups).sum();
 
         metrics.insert("total_tracked_ips".to_string(), json!(total_tracked_ips));
-        metrics.insert("total_failed_attempts".to_string(), json!(total_failed_attempts));
+        metrics.insert(
+            "total_failed_attempts".to_string(),
+            json!(total_failed_attempts),
+        );
         metrics.insert("total_mfa_setups".to_string(), json!(total_mfa_setups));
 
         // Identify high-risk IPs
@@ -840,7 +875,10 @@ impl MfaSecurityMonitor {
         metrics.insert("high_risk_ip_count".to_string(), json!(high_risk_ips.len()));
         metrics.insert("high_risk_ips".to_string(), json!(high_risk_ips));
 
-        info!("Collected comprehensive security metrics: {} IPs tracked", total_tracked_ips);
+        info!(
+            "Collected comprehensive security metrics: {} IPs tracked",
+            total_tracked_ips
+        );
         Ok(metrics)
     }
 }

@@ -1,6 +1,5 @@
 /// Database operations for federated identity management
 use crate::{
-
     database::Database,
     error::Result,
     models::user::{CreateFederatedIdentityRequest, FederatedIdentity},
@@ -137,10 +136,7 @@ pub async fn update_last_login(db: &Database, federated_identity_id: Uuid) -> Re
     Ok(())
 }
 
-pub async fn delete_federated_identity(
-    db: &Database,
-    federated_identity_id: Uuid,
-) -> Result<()> {
+pub async fn delete_federated_identity(db: &Database, federated_identity_id: Uuid) -> Result<()> {
     let query = r#"
         DELETE FROM federated_identities
         WHERE id = $1
