@@ -114,6 +114,7 @@ mod totp_security_tests {
     fn test_input_validation_security() {
         println!("=== Input Validation Security Testing ===");
 
+        let long_input = "A".repeat(10000);
         let malicious_inputs = vec![
             ("", "Empty code"),
             ("a", "Non-numeric code"),
@@ -124,7 +125,7 @@ mod totp_security_tests {
             ("'; DROP TABLE users; --", "SQL injection"),
             ("\\x00\\x01\\x02", "Binary data"),
             ("🔥💯🚀", "Unicode/emoji"),
-            (&"A".repeat(10000), "Buffer overflow attempt"),
+            (&long_input, "Buffer overflow attempt"),
         ];
 
         for (input, description) in malicious_inputs {

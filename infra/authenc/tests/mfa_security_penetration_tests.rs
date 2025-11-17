@@ -37,6 +37,17 @@ impl PenetrationTestState {
     }
 }
 
+impl Clone for PenetrationTestState {
+    fn clone(&self) -> Self {
+        Self {
+            // OtpCredentialProvider is stateless, create a new instance for each clone
+            otp_provider: OtpCredentialProvider::new(),
+            failed_attempts: std::sync::Arc::clone(&self.failed_attempts),
+            rate_limits: std::sync::Arc::clone(&self.rate_limits),
+        }
+    }
+}
+
 /// Mock MFA verification endpoint for testing
 async fn mock_mfa_verify(
     State(state): State<PenetrationTestState>,
@@ -237,13 +248,13 @@ mod penetration_tests {
                 .await;
 
             match response.status_code() {
-                429 => {
+                StatusCode::TOO_MANY_REQUESTS => {
                     if !rate_limited {
                         println!("✅ Rate limiting activated at attempt {}", i);
                         rate_limited = true;
                     }
                 }
-                423 => {
+                StatusCode::LOCKED => {
                     if !account_locked {
                         println!("✅ Account lockout triggered at attempt {}", i);
                         account_locked = true;
@@ -418,8 +429,8 @@ mod penetration_tests {
 
                     match status_code.as_u16() {
                         200 => {} // Successful response (expected to be failure)
-                        400..=499 => successful_blocks += 1,
                         429 => rate_limited += 1,
+                        400..=499 => successful_blocks += 1,
                         500..=599 => server_errors += 1,
                         _ => {}
                     }
@@ -607,6 +618,7 @@ mod performance_tests {
     use super::*;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use futures::future::join_all;
 
     #[tokio::test]
     async fn test_performance_under_load() {

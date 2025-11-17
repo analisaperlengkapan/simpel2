@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use authenc::models::User;
     use authenc::models::user::*;
+    use authenc::models::User;
     use chrono::{DateTime, Duration, Utc};
     use serde_json::json;
     use uuid::Uuid;
@@ -14,6 +14,7 @@ mod tests {
         let user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             password_hash.clone(),
             Some(realm_id),
         );
@@ -35,6 +36,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -62,6 +64,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -89,6 +92,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -105,6 +109,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -114,13 +119,18 @@ mod tests {
         let update_request = UpdateUserRequest {
             username: Some("newusername".to_string()),
             email: Some("newemail@example.com".to_string()),
+            satker_code: None,
             first_name: Some("John".to_string()),
             last_name: Some("Doe".to_string()),
+            nip: None,
+            nama: None,
+            jabatan: None,
             phone_number: Some("+1234567890".to_string()),
             enabled: Some(false),
             email_verified: Some(true),
             phone_verified: Some(true),
             require_password_change: Some(true),
+            secreton_access_policy: None,
             attributes: Some(json!({"custom_field": "value"})),
         };
 
@@ -143,6 +153,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -166,6 +177,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -183,6 +195,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -202,6 +215,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -224,6 +238,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -244,6 +259,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -265,6 +281,7 @@ mod tests {
         let mut user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             None,
         );
@@ -413,10 +430,15 @@ mod tests {
             id: Uuid::new_v4(),
             name: "admin".to_string(),
             description: Some("Administrator role".to_string()),
+            scope: RoleScope::Pusat,
+            permissions: Vec::new(),
+            managed_by: AdminLevel::AdminPusat,
             realm_id: Some(realm_id),
             composite: false,
             client_role: false,
             client_id: None,
+            priority: 100,
+            active: true,
             attributes: Some(json!({"level": "high"})),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -460,9 +482,12 @@ mod tests {
             name: "user.read".to_string(),
             description: Some("Read user data".to_string()),
             resource_type: "user".to_string(),
-            resource_id: Some("user123".to_string()),
+            resource_pattern: Some("user123".to_string()),
             action: "read".to_string(),
+            scope: RoleScope::Pusat,
+            conditions: None,
             realm_id: Some(realm_id),
+            active: true,
             attributes: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -615,12 +640,18 @@ mod tests {
         let request = CreateUserRequest {
             username: "testuser".to_string(),
             email: "test@example.com".to_string(),
+            satker_code: "SATKER_TEST".to_string(),
             password: Some("password123".to_string()),
             first_name: Some("John".to_string()),
             last_name: Some("Doe".to_string()),
+            nip: None,
+            nama: None,
+            jabatan: None,
             phone_number: Some("+1234567890".to_string()),
             realm_id: Some(realm_id),
             organization_id: Some(Uuid::new_v4()),
+            roles: None,
+            secreton_access_policy: None,
             attributes: Some(json!({"department": "engineering"})),
         };
 
@@ -640,13 +671,18 @@ mod tests {
         let request = UpdateUserRequest {
             username: Some("newusername".to_string()),
             email: None,
+            satker_code: None,
             first_name: Some("Jane".to_string()),
             last_name: None,
+            nip: None,
+            nama: None,
+            jabatan: None,
             phone_number: None,
             enabled: Some(true),
             email_verified: None,
             phone_verified: Some(false),
             require_password_change: None,
+            secreton_access_policy: None,
             attributes: None,
         };
 
@@ -663,6 +699,7 @@ mod tests {
         let user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             Some("hashed_pass".to_string()),
             Some(Uuid::new_v4()),
         );
@@ -803,6 +840,7 @@ mod tests {
         let user = User::new(
             "testuser".to_string(),
             "test@example.com".to_string(),
+            "KEJAGUNG".to_string(),
             None,
             Some(Uuid::new_v4()),
         );

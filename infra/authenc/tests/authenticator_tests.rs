@@ -12,37 +12,17 @@ use uuid::Uuid;
 
 /// Mock user for testing
 fn create_mock_user() -> Arc<User> {
-    Arc::new(User {
-        id: Uuid::new_v4(),
-        username: "testuser".to_string(),
-        email: "test@example.com".to_string(),
-        email_verified: false,
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
-        phone_number: Some("+1234567890".to_string()),
-        phone_verified: false,
-        password_hash: None,
-        totp_secret: None,
-        totp_backup_codes: None,
-        webauthn_enabled: false,
-        account_locked: false,
-        account_locked_until: None,
-        failed_login_attempts: 0,
-        last_login_at: None,
-        last_failed_login_at: None,
-        password_changed_at: None,
-        password_expires_at: None,
-        require_password_change: false,
-        realm_id: Some(Uuid::new_v4()),
-        organization_id: None,
-        attributes: None,
-        enabled: true,
-        federated: false,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-        deleted_at: None,
-        login_count: 0,
-    })
+    let mut user = User::new(
+        "testuser".to_string(),
+        "test@example.com".to_string(),
+        "SATKER_TEST".to_string(),
+        None,
+        Some(Uuid::new_v4()),
+    );
+    user.first_name = Some("Test".to_string());
+    user.last_name = Some("User".to_string());
+    user.phone_number = Some("+1234567890".to_string());
+    Arc::new(user)
 }
 
 #[cfg(test)]

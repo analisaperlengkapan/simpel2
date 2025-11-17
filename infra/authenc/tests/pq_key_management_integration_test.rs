@@ -21,9 +21,11 @@ async fn test_mldsa_signature_support_in_authenc() {
 
     let data = b"Authentication token data for SIMKARI";
     let signer = SignerInfo {
+        user_id: Uuid::new_v4(),
         nip: "198501012010011001".to_string(),
-        satker_code: "A.01.01".to_string(),
+        name: "Test Admin".to_string(),
         role: "admin".to_string(),
+        satker_code: "A.01.01".to_string(),
         admin_level: Some(AdminLevel::AdminPusat),
     };
 
@@ -62,9 +64,11 @@ async fn test_hybrid_mode_signatures() {
 
     let data = b"Hybrid signature test data";
     let signer = SignerInfo {
+        user_id: Uuid::new_v4(),
         nip: "198501012010011001".to_string(),
-        satker_code: "A.01.01".to_string(),
+        name: "Test Jaksa".to_string(),
         role: "jaksa".to_string(),
+        satker_code: "A.01.01".to_string(),
         admin_level: None,
     };
 
@@ -130,7 +134,7 @@ async fn test_pegawai_jwt_with_pq_mode() {
         };
 
         let jwt_result = engine.sign_jwt_for_pegawai(&claims).await;
-        assert!(jws_ok(), "JWT signing failed for mode {:?}", mode);
+        assert!(jwt_result.is_ok(), "JWT signing failed for mode {:?}", mode);
 
         let jwt = jwt_result.unwrap();
         assert!(!jwt.is_empty());
@@ -185,9 +189,11 @@ async fn test_performance_metrics_with_pq_operations() {
     // Perform multiple operations to generate metrics
     let data = b"Performance test data";
     let signer = SignerInfo {
+        user_id: Uuid::new_v4(),
         nip: "198501012010011001".to_string(),
-        satker_code: "A.01.01".to_string(),
+        name: "Test Admin".to_string(),
         role: "admin".to_string(),
+        satker_code: "A.01.01".to_string(),
         admin_level: Some(AdminLevel::AdminPusat),
     };
 
@@ -303,5 +309,5 @@ async fn test_batch_validation_with_pq_tokens() {
 
     let batch_response = response.unwrap();
     assert_eq!(batch_response.results.len(), 3);
-    assert!(batch_response.metrics.total_time_ms > 0);
+    assert!(batch_response.processing_time_ms > 0);
 }

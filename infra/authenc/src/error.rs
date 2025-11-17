@@ -12,6 +12,9 @@ pub type Result<T> = std::result::Result<T, AuthencError>;
 /// Legacy alias for backward compatibility
 pub type AuthenceResult<T> = Result<T>; // backward compat
 
+/// Backwards-compatibility alias for older optimized error type name
+pub type OptimizedAuthencError = AuthencError;
+
 /// Comprehensive error types for the Authence application
 #[derive(Error, Debug)]
 pub enum AuthencError {

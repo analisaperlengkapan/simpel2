@@ -191,7 +191,7 @@ mod post_quantum_crypto_tests {
             },
             performance_config: PerformanceConfig {
                 cache_size: 1000,
-                operation_timeout: Duration::from_secs(30),
+                operation_timeout: Duration::seconds(30),
                 batch_size: 100,
                 enable_hardware_acceleration: true,
             },

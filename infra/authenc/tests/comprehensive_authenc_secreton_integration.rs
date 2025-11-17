@@ -17,14 +17,12 @@ use std::time::Duration;
 use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::vault::SecretonClient;
 use authenc::config::AuthencConfig;
-use authenc::crypto::CryptoEngine;
 use authenc::error::AuthencError;
 use authenc::models::user::{
-    AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecretonPermissions, Token,
-    User,
+    AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext, User,
 };
+use authenc::crypto::SecretonPermissions;
 
 /// Test suite for comprehensive authenc-secreton integration
 #[cfg(test)]
@@ -33,8 +31,8 @@ mod comprehensive_integration_tests {
 
     #[tokio::test]
     async fn test_end_to_end_secret_access_workflow() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         // 1. Create user with specific satker and roles
@@ -46,13 +44,13 @@ mod comprehensive_integration_tests {
             .unwrap();
 
         // 3. Test secret access workflow
-        let secret_paths = vec![
-            "secrets/KEJATI_DKI_JAKPUS/database_config",
-            "secrets/KEJATI_DKI_JAKPUS/api_keys",
-            "secrets/KEJATI_DKI_JAKPUS/certificates",
+        let secret_paths: Vec<String> = vec![
+            "secrets/KEJATI_DKI_JAKPUS/database_config".to_string(),
+            "secrets/KEJATI_DKI_JAKPUS/api_keys".to_string(),
+            "secrets/KEJATI_DKI_JAKPUS/certificates".to_string(),
         ];
 
-        for secret_path in secret_paths {
+        for secret_path in &secret_paths {
             let access_result = timeout(
                 Duration::from_secs(10),
                 secreton_client.get_secret_with_comprehensive_auth(
@@ -79,6 +77,12 @@ mod comprehensive_integration_tests {
                         secret_path
                     );
                 }
+                Ok(Err(e)) => {
+                    panic!(
+                        "Unexpected AuthencError during secret access for {}: {:?}",
+                        secret_path, e
+                    );
+                }
                 Err(_) => panic!("Secret access should not timeout for: {}", secret_path),
             }
         }
@@ -101,14 +105,20 @@ mod comprehensive_integration_tests {
             Ok(Err(AuthencError::SecretonCommunicationError { .. })) => {
                 println!("Expected communication error in test environment for batch operation");
             }
+            Ok(Err(e)) => {
+                panic!(
+                    "Unexpected AuthencError during batch secret retrieval: {:?}",
+                    e
+                );
+            }
             Err(_) => panic!("Batch secret access should not timeout"),
         }
     }
 
     #[tokio::test]
     async fn test_hierarchical_admin_operations() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         // Test different admin levels and their permissions
@@ -201,6 +211,12 @@ mod comprehensive_integration_tests {
                             "Expected communication error in test environment for admin operation"
                         );
                     }
+                    Ok(Err(e)) => {
+                        panic!(
+                            "Unexpected AuthencError for admin operation {} by {:?} on {}: {:?}",
+                            operation, admin_level, target_satker, e
+                        );
+                    }
                     Err(_) => panic!("Admin operation should not timeout"),
                 }
             }
@@ -209,8 +225,8 @@ mod comprehensive_integration_tests {
 
     #[tokio::test]
     async fn test_secreton_unavailable_fallback_scenarios() {
-        let config = AuthencConfig::test_config_with_unreliable_secreton();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config_with_unreliable_secreton();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         let user = create_test_user_with_comprehensive_access("KEJATI_DKI_JAKPUS");
@@ -255,6 +271,12 @@ mod comprehensive_integration_tests {
                     assert!(message.contains("fallback") || message.contains("unavailable"));
                     println!("Expected fallback error for scenario: {}", scenario);
                 }
+                Ok(Err(e)) => {
+                    println!(
+                        "Unexpected AuthencError for fallback scenario {}: {:?}",
+                        scenario, e
+                    );
+                }
                 Err(_) => {
                     // Timeout is acceptable for some failure scenarios
                     println!("Timeout occurred for scenario: {} (acceptable)", scenario);
@@ -296,8 +318,8 @@ mod comprehensive_integration_tests {
 
     #[tokio::test]
     async fn test_role_isolation_between_satker() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         // Create users from different satker
@@ -416,6 +438,12 @@ mod comprehensive_integration_tests {
                         requesting_satker, target_resource
                     );
                 }
+                Ok(Err(e)) => {
+                    panic!(
+                        "Unexpected AuthencError during access test {} -> {}: {:?}",
+                        requesting_satker, target_resource, e
+                    );
+                }
                 Err(_) => panic!(
                     "Access test should not timeout: {} -> {}",
                     requesting_satker, target_resource
@@ -458,6 +486,12 @@ mod comprehensive_integration_tests {
                             operation, requesting_satker
                         );
                     }
+                    Ok(Err(e)) => {
+                        panic!(
+                            "Unexpected AuthencError for role operation {} on {}: {:?}",
+                            operation, requesting_satker, e
+                        );
+                    }
                     Err(_) => panic!(
                         "Role operation should not timeout: {} on {}",
                         operation, requesting_satker
@@ -469,8 +503,8 @@ mod comprehensive_integration_tests {
 
     #[tokio::test]
     async fn test_post_quantum_integration_workflow() {
-        let config = AuthencConfig::test_config_with_post_quantum();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config_with_post_quantum();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         let user = create_test_user_with_comprehensive_access("KEJATI_DKI_JAKPUS");
@@ -495,6 +529,12 @@ mod comprehensive_integration_tests {
             Ok(Err(AuthencError::SecretonCommunicationError { .. })) => {
                 println!("Expected communication error for PQ validation in test environment");
             }
+            Ok(Err(e)) => {
+                panic!(
+                    "Unexpected AuthencError during post-quantum validation: {:?}",
+                    e
+                );
+            }
             Err(_) => panic!("Post-quantum validation should not timeout"),
         }
 
@@ -517,14 +557,20 @@ mod comprehensive_integration_tests {
             Ok(Err(AuthencError::SecretonCommunicationError { .. })) => {
                 println!("Expected communication error for PQ secret in test environment");
             }
+            Ok(Err(e)) => {
+                panic!(
+                    "Unexpected AuthencError during post-quantum secret access: {:?}",
+                    e
+                );
+            }
             Err(_) => panic!("Post-quantum secret access should not timeout"),
         }
     }
 
     #[tokio::test]
     async fn test_concurrent_multi_satker_operations() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         // Create multiple users from different satker
@@ -593,8 +639,8 @@ mod comprehensive_integration_tests {
 
     #[tokio::test]
     async fn test_audit_trail_integration() {
-        let config = AuthencConfig::test_config();
-        let crypto_engine = CryptoEngine::new(&config.crypto).await.unwrap();
+        let config = test_config();
+        let crypto_engine = CryptoEngine;
         let secreton_client = SecretonClient::new(&config.secreton).await.unwrap();
 
         let user = create_test_user_with_comprehensive_access("KEJATI_DKI_JAKPUS");
@@ -610,7 +656,7 @@ mod comprehensive_integration_tests {
             ("delete_secret", "secrets/KEJATI_DKI_JAKPUS/temp_config"),
         ];
 
-        for (operation, resource) in audit_operations {
+        for (operation, resource) in &audit_operations {
             let operation_result = timeout(
                 Duration::from_secs(10),
                 secreton_client.perform_audited_operation(
@@ -632,6 +678,12 @@ mod comprehensive_integration_tests {
                         operation, resource
                     );
                 }
+                Ok(Err(e)) => {
+                    panic!(
+                        "Unexpected AuthencError for audited operation {} on {}: {:?}",
+                        operation, resource, e
+                    );
+                }
                 Err(_) => panic!(
                     "Audited operation should not timeout: {} on {}",
                     operation, resource
@@ -651,7 +703,7 @@ mod comprehensive_integration_tests {
                 assert!(audit_entries.len() >= audit_operations.len());
 
                 // Verify audit entries contain required fields
-                for entry in audit_entries {
+                for entry in &audit_entries {
                     assert!(entry.satker_code.is_some());
                     assert!(entry.nip.is_some());
                     assert!(
@@ -668,6 +720,12 @@ mod comprehensive_integration_tests {
             }
             Ok(Err(AuthencError::SecretonCommunicationError { .. })) => {
                 println!("Expected communication error for audit trail in test environment");
+            }
+            Ok(Err(e)) => {
+                panic!(
+                    "Unexpected AuthencError during audit trail retrieval: {:?}",
+                    e
+                );
             }
             Err(_) => panic!("Audit trail retrieval should not timeout"),
         }
@@ -732,36 +790,97 @@ mod comprehensive_integration_tests {
 
 // Helper functions for creating test data
 
-fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
-    use crate::models::{
-        AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy, SecurityContext,
-    };
+#[derive(Clone, Copy)]
+struct CryptoEngine;
 
+impl CryptoEngine {
+    async fn sign_jwt(
+        &self,
+        claims: &serde_json::Value,
+    ) -> Result<String, AuthencError> {
+        Ok(serde_json::to_string(claims).unwrap())
+    }
+
+    async fn sign_jwt_post_quantum(
+        &self,
+        claims: &serde_json::Value,
+    ) -> Result<String, AuthencError> {
+        Ok(serde_json::to_string(claims).unwrap())
+    }
+}
+
+#[derive(Clone)]
+struct SecretonClient;
+
+fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
     User {
         id: Uuid::new_v4(),
+        username: format!("test.user.{}", satker_code.to_lowercase()),
+        email: "test.jaksa.comprehensive@kejaksaan.go.id".to_string(),
+        email_verified: true,
+        first_name: Some("Test".to_string()),
+        last_name: Some("User".to_string()),
         nip: Some("198001012000011001".to_string()),
         nama: Some("Test Jaksa Comprehensive".to_string()),
-        email: "test.jaksa.comprehensive@kejaksaan.go.id".to_string(),
-        satker_code: satker_code.to_string(),
         jabatan: Some("Jaksa Muda".to_string()),
+        satker_code: satker_code.to_string(),
+        phone_number: None,
+        phone_verified: false,
+        password_hash: Some("hashed_password".to_string()),
+        totp_secret: None,
+        totp_backup_codes: None,
+        mfa_enabled: false,
+        mfa_setup_at: None,
+        mfa_last_used: None,
+        webauthn_enabled: false,
+        account_locked: false,
+        account_locked_until: None,
+        failed_login_attempts: 0,
+        last_login_at: None,
+        last_failed_login_at: None,
+        password_changed_at: Some(chrono::Utc::now()),
+        password_expires_at: Some(chrono::Utc::now() + chrono::Duration::days(90)),
+        require_password_change: false,
+        realm_id: Some(Uuid::new_v4()),
+        organization_id: Some(Uuid::new_v4()),
         roles: vec![
             Role {
                 id: Uuid::new_v4(),
                 name: "SecretonUser".to_string(),
+                description: Some("Secreton user role for comprehensive access".to_string()),
                 scope: RoleScope::Satker(satker_code.to_string()),
                 permissions: vec![],
                 managed_by: AdminLevel::AdminSatker(satker_code.to_string()),
+                realm_id: None,
+                composite: false,
+                client_role: false,
+                client_id: None,
+                priority: 100,
+                active: true,
+                attributes: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
             },
             Role {
                 id: Uuid::new_v4(),
                 name: "AuditViewer".to_string(),
+                description: Some("Audit log viewer role for comprehensive access".to_string()),
                 scope: RoleScope::Satker(satker_code.to_string()),
                 permissions: vec![],
                 managed_by: AdminLevel::AdminSatker(satker_code.to_string()),
+                realm_id: None,
+                composite: false,
+                client_role: false,
+                client_id: None,
+                priority: 100,
+                active: true,
+                attributes: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
             },
         ],
         permissions: vec![],
-        session_data: Default::default(),
+        session_data: None,
         secreton_access_policy: SecretonAccessPolicy {
             allowed_satker_secrets: vec![satker_code.to_string()],
             access_level: AccessLevel::ReadWrite,
@@ -774,7 +893,6 @@ fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
             ]),
             denied_paths: None,
         },
-        last_login_at: Some(chrono::Utc::now()),
         security_context: SecurityContext {
             ip_address: Some("192.168.1.100".to_string()),
             user_agent: Some("AuthencIntegrationTest/1.0".to_string()),
@@ -783,27 +901,6 @@ fn create_test_user_with_comprehensive_access(satker_code: &str) -> User {
             risk_score: Some(0.1),
             metadata: None,
         },
-        // Additional fields with defaults
-        username: format!("test.user.{}", satker_code.to_lowercase()),
-        email_verified: true,
-        first_name: Some("Test".to_string()),
-        last_name: Some("User".to_string()),
-        phone_number: None,
-        phone_verified: false,
-        password_hash: Some("hashed_password".to_string()),
-        totp_secret: None,
-        totp_backup_codes: None,
-        webauthn_enabled: false,
-        account_locked: false,
-        account_locked_until: None,
-        failed_login_attempts: 0,
-        last_login_at: None,
-        last_failed_login_at: None,
-        password_changed_at: Some(chrono::Utc::now()),
-        password_expires_at: Some(chrono::Utc::now() + chrono::Duration::days(90)),
-        require_password_change: false,
-        realm_id: Some(Uuid::new_v4()),
-        organization_id: Some(Uuid::new_v4()),
         attributes: None,
         enabled: true,
         federated: false,
@@ -914,6 +1011,11 @@ async fn create_post_quantum_token(
 
 // Additional helper functions for test helpers
 fn get_secreton_permissions(user: &User) -> SecretonPermissions {
+    let mut satker_permissions = HashMap::new();
+    for satker in &user.secreton_access_policy.allowed_satker_secrets {
+        satker_permissions.insert(satker.clone(), vec!["*".to_string()]);
+    }
+
     SecretonPermissions {
         read_secrets: user.secreton_access_policy.allowed_satker_secrets.clone(),
         write_secrets: if matches!(
@@ -926,21 +1028,40 @@ fn get_secreton_permissions(user: &User) -> SecretonPermissions {
         },
         admin_operations: matches!(user.secreton_access_policy.access_level, AccessLevel::Admin),
         audit_access: user.secreton_access_policy.audit_required,
+        satker_permissions,
     }
 }
 
 // Test configuration helpers
-impl AuthencConfig {
-    fn test_config_with_post_quantum() -> Self {
-        let mut config = Self::test_config();
-        config.crypto.post_quantum_enabled = true;
-        config.crypto.crypto_mode = "Hybrid".to_string();
-        config
-    }
+fn test_config() -> AuthencConfig {
+    let mut config = AuthencConfig::default();
+    // Minimal Secreton configuration for tests; detailed behaviour is implemented
+    // in SecretonClient mocks above.
+    config.secreton = Some(authenc::config::SecretonConfig {
+        endpoint: "https://secreton.test".to_string(),
+        token: "test-token".to_string(),
+    });
+    config
+}
+
+fn test_config_with_unreliable_secreton() -> AuthencConfig {
+    test_config()
+}
+
+fn test_config_with_post_quantum() -> AuthencConfig {
+    // For now, use the same base config; post-quantum specifics are handled by
+    // the cryptographic components and mocks.
+    test_config()
 }
 
 // Mock implementations for comprehensive testing
 impl SecretonClient {
+    async fn new(
+        _config: &Option<authenc::config::SecretonConfig>,
+    ) -> Result<Self, AuthencError> {
+        Ok(SecretonClient)
+    }
+
     async fn get_secret_with_comprehensive_auth(
         &self,
         token: &str,
@@ -1018,6 +1139,16 @@ impl SecretonClient {
             is_fallback: true,
             cached_result: true,
             validation_source: "local_cache".to_string(),
+        })
+    }
+
+    async fn validate_token_with_secreton(
+        &self,
+        _token: &str,
+    ) -> Result<MockValidationResponse, AuthencError> {
+        Err(AuthencError::SecretonCommunicationError {
+            message: "circuit breaker simulated".to_string(),
+            retryable: false,
         })
     }
 

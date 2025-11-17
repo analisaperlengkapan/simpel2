@@ -3,10 +3,10 @@
 //! This module provides examples of how to use the enhanced audit logging
 //! service in handlers to capture comprehensive context.
 
-use crate::error::Result;
-use crate::models::events::{Event, EventType};
-use crate::services::enhanced_audit::{EnhancedAuditService, create_audit_context};
-use crate::utils::payload_sanitizer::SanitizerConfig;
+use authenc::error::Result;
+use authenc::models::events::{Event, EventType};
+use authenc::services::enhanced_audit::{EnhancedAuditService, create_audit_context};
+use authenc::utils::payload_sanitizer::{SanitizerConfig, sanitize_payload};
 use axum::{
     Json,
     extract::State,
@@ -140,7 +140,7 @@ pub fn example_payload_sanitization() {
     });
 
     // Sanitize the payload
-    let sanitized = crate::utils::payload_sanitizer::sanitize_payload(&payload, &config);
+    let sanitized = sanitize_payload(&payload, &config);
 
     // Result will have:
     // - password: "[REDACTED]"
@@ -153,6 +153,16 @@ pub fn example_payload_sanitization() {
         "Sanitized payload: {}",
         serde_json::to_string_pretty(&sanitized).unwrap()
     );
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    use axum::http::HeaderMap;
+
+    let headers = HeaderMap::new();
+    // Run a simple example to ensure the audit helpers work
+    simple_audit_example(headers, None).await?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -188,7 +198,7 @@ mod tests {
             "password": "secret123"
         });
 
-        let sanitized = crate::utils::payload_sanitizer::sanitize_payload(&payload, &config);
+        let sanitized = sanitize_payload(&payload, &config);
 
         assert_eq!(sanitized["username"], json!("testuser"));
         assert_eq!(sanitized["password"], json!("[REDACTED]"));

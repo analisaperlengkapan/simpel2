@@ -1,4 +1,4 @@
-use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, get_ed25519_jwk};
+use crate::crypto::ed25519_keys::{get_ed25519_jwk, ED25519_KEYPAIR};
 use crate::utils::crypto_monitor::CryptoMonitor;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use chrono::Utc;
@@ -24,7 +24,7 @@ pub struct Ed25519JwtHeader {
     pub kid: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// OIDC ID token claims for Ed25519 JWTs
 ///
 /// Standard OIDC claims included in ID tokens.

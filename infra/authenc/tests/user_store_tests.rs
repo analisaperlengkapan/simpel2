@@ -35,14 +35,8 @@ async fn user_store_basic_flow() {
     let store = UserStore::new(database);
 
     let request = CreateUserRequest {
-        username: "alice".into(),
-        email: "alice@example.com".into(),
-        password: Some("hash".into()),
-        first_name: None,
-        last_name: None,
-        phone_number: None,
-        realm_id: Some(Uuid::new_v4()),
-        organization_id: None,
+        username: "alice".to_string(),
+        email: "alice@example.com".to_string(),
         satker_code: "SATKER_TEST".to_string(),
         password: Some("password123".to_string()),
         first_name: Some("Test".to_string()),

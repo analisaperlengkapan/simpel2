@@ -21,6 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/0".to_string(),
+        pool_size: 10,
+        connection_timeout: 5,
         default_ttl: 3600,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 90,

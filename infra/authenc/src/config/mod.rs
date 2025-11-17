@@ -491,6 +491,9 @@ pub struct AppConfig {
     pub federation: Option<FederationConfig>,
 }
 
+/// Backwards-compatibility alias for older tests and integrations
+pub type AuthencConfig = AppConfig;
+
 /// Federation configuration for LDAP/AD and social login
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FederationConfig {

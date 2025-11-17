@@ -8,7 +8,7 @@
 use authenc::config::RedisConfig;
 use authenc::models::events::{Event, EventType};
 use authenc::services::cache::{
-    CacheInvalidationService, EventConsumerConfig, EventDrivenCacheInvalidator, MultiLayerCache,
+    Cache, CacheInvalidationService, EventConsumerConfig, EventDrivenCacheInvalidator, MultiLayerCache,
     RedisCache,
 };
 use authenc::services::event_publisher::{EventPublisher, EventPublisherConfig, PublishableEvent};

@@ -6,9 +6,10 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::config::AuthencConfig;
-use crate::crypto::{CryptoEngine, CryptoMode, HybridCrypto};
-use crate::models::{Token, User};
+use authenc::config::AppConfig as AuthencConfig;
+
+// CryptoMode and HybridCrypto are defined as mocks later in this file, so we
+// intentionally do not import them from the main crate.
 
 /// Test suite for validating post-quantum cryptography readiness
 #[cfg(test)]
@@ -17,7 +18,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_hybrid_cryptography_support() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
 
         // Test all supported cryptographic modes
         let crypto_modes = vec![
@@ -27,7 +28,7 @@ mod post_quantum_readiness {
         ];
 
         for mode in crypto_modes {
-            let crypto_engine = HybridCrypto { mode };
+            let crypto_engine = HybridCrypto { mode: mode.clone() };
 
             // Test basic cryptographic operations in each mode
             let test_data = b"Test data for post-quantum validation";
@@ -69,7 +70,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_ml_dsa_signature_algorithms() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
 
         // Test ML-DSA signature variants
@@ -79,7 +80,7 @@ mod post_quantum_readiness {
             "ML-DSA-87", // NIST Level 5
         ];
 
-        for variant in ml_dsa_variants {
+        for &variant in &ml_dsa_variants {
             // Generate key pair for the variant
             let key_pair = crypto_engine
                 .generate_ml_dsa_keypair(variant)
@@ -111,8 +112,8 @@ mod post_quantum_readiness {
             assert!(sig_info.security_level >= 2); // At least NIST Level 2
 
             // Test cross-variant compatibility (should fail)
-            for other_variant in &ml_dsa_variants {
-                if other_variant != &variant {
+            for &other_variant in &ml_dsa_variants {
+                if other_variant != variant {
                     let cross_verify = crypto_engine
                         .verify_ml_dsa_signature(
                             message.as_bytes(),
@@ -129,7 +130,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_ml_kem_key_encapsulation() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
 
         // Test ML-KEM variants
@@ -181,24 +182,27 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_hybrid_signature_verification() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto { mode: CryptoMode::Hybrid };
 
         // Test hybrid signatures (Ed25519 + ML-DSA)
         let test_message = b"Hybrid signature test for SIMKARI authentication";
 
-        // Generate hybrid signature
-        let hybrid_signature = crypto_engine.sign_hybrid(test_message).await.unwrap();
+        // Generate hybrid signature and wrap in HybridSignature for component-level tests
+        let hybrid_sig_bytes = crypto_engine.sign_hybrid(test_message).await.unwrap();
+        let mut hybrid_signature = HybridSignature {
+            data: hybrid_sig_bytes.clone(),
+        };
 
         // Verify hybrid signature
         let is_valid = crypto_engine
-            .verify_hybrid(test_message, &hybrid_signature)
+            .verify_hybrid(test_message, &hybrid_sig_bytes)
             .await
             .unwrap();
         assert!(is_valid);
 
         // Verify signature components
-        let sig_components = crypto_engine.decompose_hybrid_signature(&hybrid_signature);
+        let sig_components = crypto_engine.decompose_hybrid_signature(&hybrid_sig_bytes);
         assert!(sig_components.ed25519_signature.is_some());
         assert!(sig_components.ml_dsa_signature.is_some());
 
@@ -216,10 +220,9 @@ mod post_quantum_readiness {
         assert!(ml_dsa_valid);
 
         // Test that signature fails if either component is invalid
-        let mut invalid_hybrid = hybrid_signature.clone();
-        invalid_hybrid.corrupt_ed25519_component();
+        hybrid_signature.corrupt_ed25519_component();
         let invalid_result = crypto_engine
-            .verify_hybrid(test_message, &invalid_hybrid)
+            .verify_hybrid(test_message, &hybrid_signature.data)
             .await
             .unwrap();
         assert!(!invalid_result);
@@ -227,7 +230,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_hybrid_key_exchange() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto { mode: CryptoMode::Hybrid };
 
         // Test hybrid key exchange (X25519 + ML-KEM)
@@ -275,7 +278,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_post_quantum_jwt_signing() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto { mode: CryptoMode::PostQuantum };
 
         // Test JWT signing with post-quantum algorithms
@@ -310,7 +313,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_migration_compatibility() {
-        let _config = AuthencConfig::test_config();
+        let _config = test_config();
 
         // Test migration from Classical -> Hybrid -> PostQuantum
         let test_data = b"Migration compatibility test data";
@@ -368,7 +371,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_algorithm_agility() {
-        let config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto::new(CryptoMode::Hybrid).await.unwrap();
 
         // Test algorithm agility - ability to switch algorithms dynamically
@@ -429,7 +432,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_performance_benchmarks() {
-        let config = AuthencConfig::test_config();
+        let _config = test_config();
 
         // Benchmark different cryptographic modes
         let modes = vec![
@@ -492,7 +495,7 @@ mod post_quantum_readiness {
 
     #[tokio::test]
     async fn test_quantum_safe_key_storage() {
-        let config = AuthencConfig::test_config();
+        let _config = test_config();
         let crypto_engine = HybridCrypto::new(CryptoMode::PostQuantum).await.unwrap();
 
         // Test quantum-safe key storage and retrieval
@@ -583,9 +586,21 @@ mod post_quantum_readiness {
 }
 
 // Helper functions for post-quantum testing
-fn create_test_user() -> User {
-    use authenc::models::{AccessLevel, AdminLevel, Role, RoleScope, SecretonAccessPolicy};
+fn test_config() -> AuthencConfig {
+    AuthencConfig::default()
+}
 
+#[derive(Debug, Clone)]
+struct User {
+    id: Uuid,
+    nip: String,
+    nama: String,
+    email: String,
+    satker_code: String,
+    jabatan: String,
+}
+
+fn create_test_user() -> User {
     User {
         id: Uuid::new_v4(),
         nip: "198001012000011001".to_string(),
@@ -593,17 +608,6 @@ fn create_test_user() -> User {
         email: "test.pq@kejaksaan.go.id".to_string(),
         satker_code: "KEJARI_TEST".to_string(),
         jabatan: "Jaksa Muda".to_string(),
-        roles: vec![],
-        permissions: vec![],
-        session_data: Default::default(),
-        secreton_access_policy: SecretonAccessPolicy {
-            allowed_satker_secrets: vec!["KEJARI_TEST".to_string()],
-            access_level: AccessLevel::Read,
-            time_restrictions: None,
-            audit_required: true,
-        },
-        last_auth: chrono::Utc::now(),
-        security_context: Default::default(),
     }
 }
 
@@ -665,6 +669,12 @@ pub struct HybridSignature {
 pub struct SharedSecretComponents {
     pub x25519_component: Option<Vec<u8>>,
     pub ml_kem_component: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SignatureComponents {
+    pub ed25519_signature: Option<Vec<u8>>,
+    pub ml_dsa_signature: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone)]
@@ -777,48 +787,6 @@ impl HybridCrypto {
         }
     }
 
-    pub async fn sign_hybrid(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(format!("hybrid_signature_{}", data.len()).into_bytes())
-    }
-
-    pub async fn verify_hybrid(
-        &self,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn decrypt_classical(
-        &self,
-        data: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(b"decrypted_classical".to_vec())
-    }
-
-    pub async fn verify_classical_signature(
-        &self,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn verify_hybrid_ml_dsa_component(
-        &self,
-        data: &[u8],
-        signature: &[u8],
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        Ok(true)
-    }
-
-    pub async fn decrypt_hybrid_ml_kem_component(
-        &self,
-        data: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        Ok(b"decrypted_hybrid".to_vec())
-    }
-
     pub fn get_migration_info(&self) -> Result<MigrationInfo, Box<dyn std::error::Error>> {
         Ok(MigrationInfo {
             supports_classical: true,
@@ -837,16 +805,19 @@ impl HybridCrypto {
 
     pub async fn verify_jwt_ml_dsa(
         &self,
-        token: &str,
+        _token: &str,
     ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         Ok(serde_json::json!({"verified": true}))
     }
 
     pub fn decode_jwt_header(
         &self,
-        token: &str,
-    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-        Ok(serde_json::json!({"alg": "ML-DSA"}))
+        _token: &str,
+    ) -> Result<JwtHeader, Box<dyn std::error::Error>> {
+        Ok(JwtHeader {
+            alg: "ML-DSA".to_string(),
+            typ: "JWT".to_string(),
+        })
     }
 
     pub async fn verify_jwt(

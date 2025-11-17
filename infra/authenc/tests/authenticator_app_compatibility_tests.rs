@@ -12,7 +12,6 @@ use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 use base32;
 use chrono::Utc;
 use qrcode::QrCode;
-use std::collections::HashMap;
 
 /// Test data for different authenticator apps
 struct AuthenticatorTestCase {
@@ -125,12 +124,7 @@ fn test_provisioning_uri_compatibility() {
         }
 
         // Test QR code generation
-        let qr_result = QrCode::new(&uri);
-        assert!(
-            qr_result.is_ok(),
-            "{}: Should be able to generate QR code from URI",
-            app.name
-        );
+        QrCode::new(&uri).expect("Should generate QR code from URI");
 
         // Validate URI length (most apps have limits)
         assert!(
@@ -402,7 +396,7 @@ fn test_qr_code_size_compatibility() {
         );
 
         // Generate QR code at different sizes
-        let qr_code = QrCode::new(&uri).expect("Should generate QR code");
+        QrCode::new(&uri).expect("Should generate QR code");
 
         // Test minimum size (most phones can scan this)
         let min_size = 150; // pixels
@@ -420,8 +414,6 @@ fn test_qr_code_size_compatibility() {
             app.name
         );
 
-        // Verify QR code can be generated (validates URI format)
-        let _qr_string = format!("{:?}", qr_code);
         // If we get here, QR code generation succeeded
     }
 }
@@ -558,7 +550,7 @@ fn test_end_to_end_compatibility() {
         assert!(uri.starts_with("otpauth://totp/"));
 
         // Generate QR code
-        let qr_code = QrCode::new(&uri).expect("QR code generation should succeed");
+        QrCode::new(&uri).expect("QR code generation should succeed");
 
         // Simulate TOTP generation (what the app would do)
         let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
@@ -589,7 +581,7 @@ fn test_end_to_end_compatibility() {
 /// Generate compatibility report for documentation
 #[test]
 fn generate_compatibility_report() {
-    let provider = OtpCredentialProvider::new();
+    let _provider = OtpCredentialProvider::new();
     let mut report = String::new();
 
     report.push_str("# Authenticator App Compatibility Report\n\n");

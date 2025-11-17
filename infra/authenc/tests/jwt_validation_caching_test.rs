@@ -9,7 +9,7 @@
 use authenc::config::RedisConfig;
 use authenc::services::cache::redis_cache::RedisCache;
 use authenc::services::cache::{Cache, CacheConfig};
-use authenc::services::{JwtValidator, ValidationResult};
+use authenc::services::{JwtValidator, JwtValidationResult};
 use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -84,6 +84,8 @@ async fn test_jwt_validation_with_cache() {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/15".to_string(), // Use test database
+        pool_size: 5,
+        connection_timeout: 5,
         default_ttl: 300,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 300,
@@ -137,6 +139,8 @@ async fn test_token_revocation_and_blacklist() {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/15".to_string(),
+        pool_size: 5,
+        connection_timeout: 5,
         default_ttl: 300,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 300,
@@ -180,6 +184,8 @@ async fn test_cache_invalidation() {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/15".to_string(),
+        pool_size: 5,
+        connection_timeout: 5,
         default_ttl: 300,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 300,
@@ -233,6 +239,8 @@ async fn benchmark_jwt_validation_performance() {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/15".to_string(),
+        pool_size: 5,
+        connection_timeout: 5,
         default_ttl: 300,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 300,
@@ -287,6 +295,8 @@ async fn test_concurrent_jwt_validations() {
     let redis_config = RedisConfig {
         enabled: true,
         url: "redis://localhost:6379/15".to_string(),
+        pool_size: 5,
+        connection_timeout: 5,
         default_ttl: 300,
         mfa_cache_ttl: 300,
         otp_verification_ttl: 300,

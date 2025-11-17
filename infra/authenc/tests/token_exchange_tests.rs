@@ -11,15 +11,18 @@
 #[cfg(test)]
 mod token_exchange_tests {
     use authenc::database::Database;
-    use authenc::handlers::oauth2_comprehensive::generate_access_token;
-    use authenc::handlers::oauth2_comprehensive::AccessTokenClaims;
+    use authenc::handlers::oauth2_comprehensive::{
+        generate_access_token,
+        AccessTokenClaims,
+    };
     use authenc::services::jwt_validator::JwtValidator;
-    use authenc::services::pg_audit_log_store::AuditLogStore;
+    use authenc::models::audit_log::AuditLog;
+    use authenc::services::stores::audit_log_store::AuditLogStore;
     use authenc::services::token_exchange::{
         TokenExchangeConfig, TokenExchangeRequest, TokenExchangeService,
     };
+    use async_trait::async_trait;
     use chrono::Utc;
-    use std::collections::HashMap;
     use std::sync::Arc;
     use uuid::Uuid;
 
@@ -30,6 +33,21 @@ mod token_exchange_tests {
         unimplemented!("Test database setup required")
     }
 
+    /// Simple in-memory audit log store for tests
+    #[derive(Default)]
+    struct InMemoryAuditLogStore;
+
+    #[async_trait]
+    impl AuditLogStore for InMemoryAuditLogStore {
+        async fn add_log(&self, _log: &AuditLog) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn all(&self) -> anyhow::Result<Vec<AuditLog>> {
+            Ok(Vec::new())
+        }
+    }
+
     /// Helper to create test access token
     fn create_test_access_token(user_id: &str, client_id: &str, scopes: &[&str]) -> String {
         let now = Utc::now().timestamp();
@@ -37,12 +55,14 @@ mod token_exchange_tests {
             iss: "http://localhost:8080/v1".to_string(),
             sub: user_id.to_string(),
             aud: client_id.to_string(),
-            exp: (now + 3600) as usize,
-            iat: now as usize,
-            nbf: now as usize,
+            client_id: client_id.to_string(),
+            exp: now + 3600,
+            iat: now,
+            nbf: now,
             jti: Uuid::new_v4().to_string(),
             scope: Some(scopes.join(" ")),
-            client_id: Some(client_id.to_string()),
+            roles: None,
+            groups: None,
         };
 
         generate_access_token(&claims, None)
@@ -53,7 +73,7 @@ mod token_exchange_tests {
     async fn test_token_exchange_access_token_to_access_token() {
         let db = create_test_db().await;
         let jwt_validator = Arc::new(JwtValidator::new(None));
-        let audit_log = Arc::new(AuditLogStore::new(db.clone()));
+        let audit_log: Arc<dyn AuditLogStore> = Arc::new(InMemoryAuditLogStore::default());
 
         let service = TokenExchangeService::new(
             db.clone(),
@@ -107,7 +127,7 @@ mod token_exchange_tests {
     async fn test_token_exchange_with_delegation() {
         let db = create_test_db().await;
         let jwt_validator = Arc::new(JwtValidator::new(None));
-        let audit_log = Arc::new(AuditLogStore::new(db.clone()));
+        let audit_log: Arc<dyn AuditLogStore> = Arc::new(InMemoryAuditLogStore::default());
 
         let config = TokenExchangeConfig {
             allow_delegation: true,
@@ -170,7 +190,7 @@ mod token_exchange_tests {
     async fn test_token_exchange_scope_downscoping_enforcement() {
         let db = create_test_db().await;
         let jwt_validator = Arc::new(JwtValidator::new(None));
-        let audit_log = Arc::new(AuditLogStore::new(db.clone()));
+        let audit_log: Arc<dyn AuditLogStore> = Arc::new(InMemoryAuditLogStore::default());
 
         let config = TokenExchangeConfig {
             enforce_scope_downscoping: true,
@@ -221,7 +241,7 @@ mod token_exchange_tests {
     async fn test_token_exchange_invalid_grant_type() {
         let db = create_test_db().await;
         let jwt_validator = Arc::new(JwtValidator::new(None));
-        let audit_log = Arc::new(AuditLogStore::new(db.clone()));
+        let audit_log: Arc<dyn AuditLogStore> = Arc::new(InMemoryAuditLogStore::default());
 
         let service = TokenExchangeService::new(
             db.clone(),
@@ -255,7 +275,7 @@ mod token_exchange_tests {
     async fn test_token_exchange_expired_subject_token() {
         let db = create_test_db().await;
         let jwt_validator = Arc::new(JwtValidator::new(None));
-        let audit_log = Arc::new(AuditLogStore::new(db.clone()));
+        let audit_log: Arc<dyn AuditLogStore> = Arc::new(InMemoryAuditLogStore::default());
 
         let service = TokenExchangeService::new(
             db.clone(),
@@ -270,12 +290,14 @@ mod token_exchange_tests {
             iss: "http://localhost:8080/v1".to_string(),
             sub: Uuid::new_v4().to_string(),
             aud: "test_client".to_string(),
-            exp: (now - 3600) as usize, // Expired 1 hour ago
-            iat: (now - 7200) as usize,
-            nbf: (now - 7200) as usize,
+            client_id: "test_client".to_string(),
+            exp: now - 3600, // Expired 1 hour ago
+            iat: now - 7200,
+            nbf: now - 7200,
             jti: Uuid::new_v4().to_string(),
             scope: Some("read:data".to_string()),
-            client_id: Some("test_client".to_string()),
+            roles: None,
+            groups: None,
         };
 
         let expired_token = generate_access_token(&claims, None);

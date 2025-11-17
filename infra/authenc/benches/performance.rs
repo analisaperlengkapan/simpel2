@@ -3,19 +3,23 @@
 //! This module contains comprehensive performance benchmarks for authenc functionality,
 //! focusing on the enhanced features for SIMKARI super app integration with secreton.
 //!
-#![cfg(feature = "secreton_integration")]
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use serde_json::json;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 
+#[cfg(feature = "secreton_integration")]
 use authenc::config::AuthencConfig;
+#[cfg(feature = "secreton_integration")]
 use authenc::crypto::CryptoEngine;
+#[cfg(feature = "secreton_integration")]
 use authenc::models::{AdminLevel, OptimizedToken, Role, RoleScope, User};
+#[cfg(feature = "secreton_integration")]
 use authenc::secreton_client::SecretonClient;
 
 /// Benchmark JWT signing for pegawai authentication
+#[cfg(feature = "secreton_integration")]
 fn bench_pegawai_jwt_signing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -66,6 +70,7 @@ fn bench_pegawai_jwt_signing(c: &mut Criterion) {
 }
 
 /// Benchmark batch NIP validation for multiple pegawai
+#[cfg(feature = "secreton_integration")]
 fn bench_batch_nip_validation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -108,6 +113,7 @@ fn bench_batch_nip_validation(c: &mut Criterion) {
 }
 
 /// Benchmark secreton integration performance per satker
+#[cfg(feature = "secreton_integration")]
 fn bench_satker_secreton_integration(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -186,6 +192,7 @@ fn bench_satker_secreton_integration(c: &mut Criterion) {
 }
 
 /// Benchmark role-based access control validation
+#[cfg(feature = "secreton_integration")]
 fn bench_role_based_access_control(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -250,6 +257,7 @@ fn bench_role_based_access_control(c: &mut Criterion) {
 }
 
 /// Benchmark hierarchical admin operations across satker/wilayah/pusat levels
+#[cfg(feature = "secreton_integration")]
 fn bench_hierarchical_admin_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -333,6 +341,7 @@ fn bench_hierarchical_admin_operations(c: &mut Criterion) {
 }
 
 /// Benchmark post-quantum cryptographic operations
+#[cfg(feature = "secreton_integration")]
 fn bench_post_quantum_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config_with_post_quantum();
@@ -414,6 +423,7 @@ fn bench_post_quantum_operations(c: &mut Criterion) {
 }
 
 /// Benchmark session data encryption/decryption
+#[cfg(feature = "secreton_integration")]
 fn bench_session_data_encryption(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -466,6 +476,7 @@ fn bench_session_data_encryption(c: &mut Criterion) {
 }
 
 /// Benchmark audit signature generation for compliance
+#[cfg(feature = "secreton_integration")]
 fn bench_audit_signature_generation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let config = AuthencConfig::benchmark_config();
@@ -505,12 +516,14 @@ fn bench_audit_signature_generation(c: &mut Criterion) {
 
 // Helper functions for creating test data
 
+#[cfg(feature = "secreton_integration")]
 fn create_benchmark_users(count: usize) -> Vec<User> {
     (0..count)
         .map(|i| create_test_user(&format!("19800101200001{:04}", i), "KEJATI_DKI_JAKPUS"))
         .collect()
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_test_user(nip: &str, satker_code: &str) -> User {
     User {
         id: Uuid::new_v4(),
@@ -528,6 +541,7 @@ fn create_test_user(nip: &str, satker_code: &str) -> User {
     }
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_basic_role(satker_code: &str) -> Role {
     Role {
         id: Uuid::new_v4(),
@@ -538,6 +552,7 @@ fn create_basic_role(satker_code: &str) -> Role {
     }
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_pegawai_claims(user: &User) -> serde_json::Value {
     json!({
         "sub": user.id,
@@ -551,6 +566,7 @@ fn create_pegawai_claims(user: &User) -> serde_json::Value {
     })
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_users_with_various_roles(count: usize) -> Vec<User> {
     let satker_codes = vec![
         "KEJATI_DKI_JAKPUS",
@@ -586,6 +602,7 @@ fn create_users_with_various_roles(count: usize) -> Vec<User> {
         .collect()
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_admin_users_at_all_levels() -> Vec<User> {
     let mut admin_users = Vec::new();
 
@@ -647,6 +664,7 @@ fn create_admin_users_at_all_levels() -> Vec<User> {
     admin_users
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_test_session_data(size_bytes: usize) -> authenc::models::SessionData {
     let data = vec![0u8; size_bytes];
     authenc::models::SessionData {
@@ -658,6 +676,7 @@ fn create_test_session_data(size_bytes: usize) -> authenc::models::SessionData {
     }
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_audit_data_samples(count: usize) -> Vec<authenc::models::AuditData> {
     (0..count)
         .map(|i| authenc::models::AuditData {
@@ -677,6 +696,7 @@ fn create_audit_data_samples(count: usize) -> Vec<authenc::models::AuditData> {
 }
 
 /// Benchmark Classical vs Hybrid vs PostQuantum JWT signing performance
+#[cfg(feature = "secreton_integration")]
 fn bench_jwt_crypto_mode_comparison(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
@@ -775,6 +795,7 @@ fn bench_jwt_crypto_mode_comparison(c: &mut Criterion) {
 }
 
 /// Measure overhead of hybrid cryptography in batch operations
+#[cfg(feature = "secreton_integration")]
 fn bench_batch_operations_overhead(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
@@ -873,6 +894,7 @@ fn bench_batch_operations_overhead(c: &mut Criterion) {
 }
 
 /// Benchmark PQ operations in hierarchical admin context
+#[cfg(feature = "secreton_integration")]
 fn bench_pq_hierarchical_admin_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let pq_config = AuthencConfig::benchmark_config_with_post_quantum();
@@ -1003,6 +1025,7 @@ fn bench_pq_hierarchical_admin_operations(c: &mut Criterion) {
 }
 
 /// Benchmark session encryption with different crypto modes
+#[cfg(feature = "secreton_integration")]
 fn bench_session_encryption_modes(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
@@ -1105,6 +1128,7 @@ fn bench_session_encryption_modes(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "secreton_integration")]
 fn create_pq_admin_users_at_all_levels() -> Vec<User> {
     let mut admin_users = Vec::new();
 
@@ -1161,6 +1185,7 @@ fn create_pq_admin_users_at_all_levels() -> Vec<User> {
     admin_users
 }
 
+#[cfg(feature = "secreton_integration")]
 criterion_group!(
     benches,
     bench_pegawai_jwt_signing,
@@ -1177,4 +1202,11 @@ criterion_group!(
     bench_session_encryption_modes
 );
 
+#[cfg(feature = "secreton_integration")]
 criterion_main!(benches);
+
+// When the `secreton_integration` feature is not enabled, provide a no-op main
+// so that `cargo check --all-targets` succeeds without compiling the old
+// benchmark code that depends on legacy APIs.
+#[cfg(not(feature = "secreton_integration"))]
+fn main() {}
