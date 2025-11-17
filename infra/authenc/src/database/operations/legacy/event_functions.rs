@@ -199,20 +199,33 @@ pub async fn query_events(db: &Database, query: &EventQuery) -> Result<Vec<Event
         let details: HashMap<String, String> =
             serde_json::from_str(&details_json).unwrap_or_default();
 
-        events.push(Event {
-            id: row.get::<_, Uuid>(0).to_string(),
-            time: row.get(1),
-            event_type: EventType::from_str(&row.get::<_, String>(2)).unwrap_or(EventType::Login),
-            realm_id: row.get(3),
-            realm_name: row.get(4),
-            client_id: row.get(5),
-            user_id: row.get(6),
-            session_id: row.get(7),
-            ip_address: row.get(8),
-            error: row.get(9),
-            details,
-        });
-    }
+        let event_type_str = row.get::<_, String>(2);
+        match EventType::from_str(&event_type_str) {
+            Ok(event_type) => {
+                events.push(Event {
+                    id: row.get::<_, Uuid>(0).to_string(),
+                    time: row.get(1),
+                    event_type,
+                    realm_id: row.get(3),
+                    realm_name: row.get(4),
+                    client_id: row.get(5),
+                    user_id: row.get(6),
+                    session_id: row.get(7),
+                    ip_address: row.get(8),
+                    error: row.get(9),
+                    details,
+                });
+            }
+            Err(_) => {
+                error!(
+                    "Unknown event type '{}' in event row with id '{}'. Skipping event.",
+                    event_type_str,
+                    row.get::<_, Uuid>(0)
+                );
+                // Optionally, you could collect these in a separate vector for reporting
+                continue;
+            }
+        }
 
     Ok(events)
 }
