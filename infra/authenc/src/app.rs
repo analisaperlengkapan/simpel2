@@ -589,8 +589,8 @@ impl AppState {
         }
 
         Ok(Self {
-            config: config.clone(),
-            database: database.clone(),
+            config,
+            database,
             user_store,
             session_store,
             totp_store,
