@@ -207,10 +207,6 @@ pub async fn get_organization_by_domain(
 
     if let Some(row) = row {
         // Convert row to Organization
-        let attributes_json: serde_json::Value = row.get(10);
-        let _attributes: HashMap<String, String> =
-            serde_json::from_value(attributes_json).unwrap_or_default();
-
         Ok(Some(Organization {
             id: row.get(0),
             name: row.get(1),
