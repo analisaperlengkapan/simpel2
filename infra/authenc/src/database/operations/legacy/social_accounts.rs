@@ -230,19 +230,31 @@ pub async fn update_social_account(
     )
     .await?;
 
+    // Query the updated row to get the correct user_id and other fields
+    let select_query = r#"
+        SELECT id, user_id, provider, provider_user_id, display_name, email,
+               profile_picture_url, access_token, refresh_token, token_expires_at,
+               linked_at, updated_at
+        FROM user_social_accounts
+        WHERE id = $1
+    "#;
+    let row = db
+        .query_one(select_query, &[&account_id])
+        .await?;
+
     Ok(SocialAccount {
-        id: account_id,
-        user_id: Uuid::nil(), // This will be filled by the caller if needed
-        provider: request.provider,
-        provider_user_id: request.provider_user_id,
-        display_name: request.display_name,
-        email: request.email,
-        profile_picture_url: request.profile_picture_url,
-        access_token: request.access_token,
-        refresh_token: request.refresh_token,
-        token_expires_at: request.token_expires_at,
-        linked_at: now,
-        updated_at: now,
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        provider: SocialProvider::from_str(row.get::<_, &str>("provider")).unwrap_or(request.provider),
+        provider_user_id: row.get("provider_user_id"),
+        display_name: row.get("display_name"),
+        email: row.get("email"),
+        profile_picture_url: row.get("profile_picture_url"),
+        access_token: row.get("access_token"),
+        refresh_token: row.get("refresh_token"),
+        token_expires_at: row.get("token_expires_at"),
+        linked_at: row.get("linked_at"),
+        updated_at: row.get("updated_at"),
     })
 }
 
