@@ -22,7 +22,7 @@ env:
 jobs:
   cargo-audit:
     name: Security Audit (cargo-audit)
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -50,7 +50,7 @@ jobs:
 
   cargo-deny:
     name: Dependency Policy (cargo-deny)
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -78,7 +78,7 @@ jobs:
 
   semgrep-sast:
     name: SAST - Semgrep
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -115,7 +115,7 @@ jobs:
 
   gitleaks-secrets:
     name: Secrets Scanning (Gitleaks)
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -130,7 +130,7 @@ jobs:
 
   trivy-scan:
     name: Vulnerability Scan (Trivy)
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -165,7 +165,7 @@ jobs:
 
   authenc-security:
     name: Authenc IAM Security
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -212,7 +212,7 @@ jobs:
 
   secreton-security:
     name: Secreton Vault Security
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -259,7 +259,7 @@ jobs:
 
   dependency-review:
     name: Dependency Review
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
@@ -273,7 +273,7 @@ jobs:
 
   security-summary:
     name: Security CI Summary
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     needs:
       [
         cargo-audit,
