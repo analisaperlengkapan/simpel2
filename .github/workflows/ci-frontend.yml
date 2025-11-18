@@ -29,7 +29,7 @@ env:
 jobs:
   check-wasm:
     name: Check WASM - ${{ matrix.module }}
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     strategy:
       fail-fast: false
       matrix:
@@ -80,7 +80,7 @@ jobs:
 
   test-wasm:
     name: Test WASM Components
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -131,7 +131,7 @@ jobs:
 
   build-wasm:
     name: Build WASM - ${{ matrix.module }}
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     needs: [check-wasm]
     strategy:
       fail-fast: false
@@ -223,7 +223,7 @@ jobs:
 
   lint-frontend:
     name: Lint Frontend Code
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -257,7 +257,7 @@ jobs:
 
   summary:
     name: Frontend CI Summary
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     needs: [check-wasm, test-wasm, build-wasm, lint-frontend]
     if: always()
     steps:
