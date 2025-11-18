@@ -19,7 +19,7 @@ env:
 jobs:
   auto-fix:
     name: Auto-fix All Workspaces
-    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
+    runs-on: [self-hosted, ubuntu-latest]
     permissions:
       contents: write
       pull-requests: write
