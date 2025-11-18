@@ -27,7 +27,7 @@ env:
 jobs:
   create-release:
     name: Create GitHub Release
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     outputs:
       version: ${{ steps.version.outputs.version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -106,13 +106,13 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: [self-hosted, ubuntu-latest]
+            os: self-hosted
             cross: false
           - target: x86_64-unknown-linux-musl
-            os: [self-hosted, ubuntu-latest]
+            os: self-hosted
             cross: true
           - target: aarch64-unknown-linux-gnu
-            os: [self-hosted, ubuntu-latest]
+            os: self-hosted
             cross: true
 
     steps:
@@ -181,7 +181,7 @@ jobs:
 
   build-frontend:
     name: Build Frontend
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     needs: create-release
     steps:
       - name: Checkout repository
@@ -254,7 +254,7 @@ jobs:
 
   build-docker:
     name: Build & Push Docker Images
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     needs: [create-release, build-backend]
     permissions:
       contents: read
@@ -303,7 +303,7 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     needs: [create-release, build-docker]
     # Note: Create 'staging' environment in GitHub repository settings for protection rules
     # environment:
@@ -340,7 +340,7 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     needs: [create-release, build-docker, deploy-staging]
     # Note: Create 'production' environment in GitHub repository settings for protection rules
     # environment:
