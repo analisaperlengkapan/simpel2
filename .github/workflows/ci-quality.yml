@@ -22,7 +22,7 @@ env:
 jobs:
   documentation:
     name: Documentation Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -92,7 +92,7 @@ jobs:
 
   coverage:
     name: Code Coverage
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     services:
       postgres:
         image: postgres:15-alpine
@@ -185,7 +185,7 @@ jobs:
 
   benchmarks:
     name: Performance Benchmarks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
@@ -236,7 +236,7 @@ jobs:
 
   dependencies-health:
     name: Dependencies Health Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -275,7 +275,7 @@ jobs:
 
   code-metrics:
     name: Code Metrics
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -315,7 +315,7 @@ jobs:
 
   quality-summary:
     name: Quality CI Summary
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, DESKTOP-12HPMCI, ASUS, ubuntu-latest]
     needs: [documentation, coverage, dependencies-health, code-metrics]
     if: always()
     steps:
