@@ -445,18 +445,32 @@ impl FallbackService {
         match state {
             FallbackState::Normal => {
                 // Try normal generation first, fallback if it fails
-                Err(CaptchaError::GenerationFailed {
-                    message: "Normal generation not implemented in fallback service".to_string(),
-                    recoverable: true,
-                    retry_after: Some(Duration::from_secs(1)),
-                })
+                if self.config.enable_simplified_challenges {
+                    debug!("Using simplified challenge generation in fallback mode");
+                    let mut challenge = self
+                        .simplified_generator
+                        .generate_simple_challenge(difficulty)?;
+                    // Preserve requested challenge type from caller (e.g. Visual/Audio)
+                    challenge.challenge_type = challenge_type;
+                    Ok(challenge)
+                } else {
+                    Err(CaptchaError::GenerationFailed {
+                        message: "Challenge generation unavailable in current mode".to_string(),
+                        recoverable: false,
+                        retry_after: None,
+                    })
+                }
             }
             FallbackState::Degraded | FallbackState::Emergency => {
                 // Use simplified challenge generation
                 if self.config.enable_simplified_challenges {
                     debug!("Using simplified challenge generation in degraded mode");
-                    self.simplified_generator
-                        .generate_simple_challenge(difficulty)
+                    let mut challenge = self
+                        .simplified_generator
+                        .generate_simple_challenge(difficulty)?;
+                    // Preserve requested challenge type from caller (e.g. Visual/Audio)
+                    challenge.challenge_type = challenge_type;
+                    Ok(challenge)
                 } else {
                     Err(CaptchaError::GenerationFailed {
                         message: "Challenge generation unavailable in current mode".to_string(),

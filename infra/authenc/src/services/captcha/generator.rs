@@ -170,9 +170,12 @@ impl ChallengeGenerator {
             answer.push(chars[idx]);
         }
 
+        // Include a unique nonce in the data field to ensure per-challenge uniqueness
+        let nonce = uuid::Uuid::new_v4().to_string();
+
         Ok(VisualChallenge {
             challenge_type: "text_recognition".to_string(),
-            data: answer.clone(),
+            data: format!("{}:{}", answer, nonce),
             answer: answer.clone(),
             options: None,
             instructions: "Enter the characters you see".to_string(),
@@ -231,12 +234,16 @@ impl ChallengeGenerator {
             .collect::<Vec<_>>()
             .join(",");
 
+        // Include a unique nonce in the data payload to ensure per-challenge uniqueness
+        let nonce = uuid::Uuid::new_v4().to_string();
+
         Ok(VisualChallenge {
             challenge_type: "image_selection".to_string(),
             data: serde_json::json!({
                 "category": selected_category,
                 "grid_size": grid_size,
-                "total_images": total_images
+                "total_images": total_images,
+                "nonce": nonce,
             })
             .to_string(),
             answer,
@@ -580,15 +587,21 @@ impl ChallengeGenerator {
     ) -> Result<String, CaptchaError> {
         match challenge_type {
             ChallengeType::Visual => {
-                let visual: VisualChallenge =
-                    serde_json::from_str(challenge_data).map_err(|e| {
-                        CaptchaError::GenerationFailed {
-                            message: format!("Failed to parse visual challenge: {}", e),
-                            recoverable: true,
-                            retry_after: Some(Duration::from_secs(1)),
-                        }
-                    })?;
-                Ok(visual.answer)
+                match serde_json::from_str::<VisualChallenge>(challenge_data) {
+                    Ok(visual) => Ok(visual.answer),
+                    Err(_) => {
+                        let image: ImageChallenge = serde_json::from_str(challenge_data)
+                            .map_err(|e| CaptchaError::GenerationFailed {
+                                message: format!(
+                                    "Failed to parse visual challenge: {}",
+                                    e
+                                ),
+                                recoverable: true,
+                                retry_after: Some(Duration::from_secs(1)),
+                            })?;
+                        Ok(image.answer)
+                    }
+                }
             }
             ChallengeType::Logical => {
                 let logical: LogicalChallenge =

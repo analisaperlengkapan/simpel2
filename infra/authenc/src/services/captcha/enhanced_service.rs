@@ -149,7 +149,7 @@ impl EnhancedCaptchaService {
             authenc_state != crate::services::captcha::retry::CircuitState::Open;
 
         // Check if we should enter degraded mode
-        let should_degrade = !health.secreton_available || !health.database_available;
+        let should_degrade = !health.secreton_available;
 
         if should_degrade && !health.degraded_mode_active {
             health.degraded_mode_active = true;
@@ -183,13 +183,27 @@ impl EnhancedCaptchaService {
             RecoveryResult::Recovered(result) => Ok(result),
             RecoveryResult::FallbackSucceeded(result) => Ok(result),
             RecoveryResult::Failed(error) => {
-                // Update error count
+                // Update error count and database availability
                 let mut health = self.service_health.write().await;
                 health.error_count += 1;
+                let suppress_health_update = match &error {
+                    CaptchaError::DatabaseError { .. } => {
+                        health.database_available = false;
+                        true
+                    }
+                    CaptchaError::ExternalServiceError { service, .. }
+                        if service == "circuit_breaker" =>
+                    {
+                        true
+                    }
+                    _ => false,
+                };
                 drop(health);
 
-                // Update service health
-                self.update_service_health().await;
+                // Only update degraded mode for relevant non-database errors
+                if !suppress_health_update {
+                    self.update_service_health().await;
+                }
 
                 Err(error)
             }
@@ -246,9 +260,22 @@ impl EnhancedCaptchaService {
 
                 // Try fallback generation
                 let fallback_difficulty = difficulty.unwrap_or(1);
-                self.fallback_service
+                let mut challenge = self
+                    .fallback_service
                     .generate_challenge_with_fallback(challenge_type, fallback_difficulty)
                     .await
+                    .map_err(|fallback_error| {
+                        warn!(
+                            "Fallback challenge generation failed: {}",
+                            fallback_error
+                        );
+                        fallback_error
+                    })?;
+
+                // Preserve original IP address from caller
+                challenge.ip_address = ip_address;
+
+                Ok(challenge)
             }
         }
     }
@@ -310,20 +337,31 @@ impl EnhancedCaptchaService {
                 );
 
                 // Fallback validation (simplified)
-                Ok(ValidationResult::failure(
-                    RiskLevel::Medium,
-                    1,    // Reset to easiest difficulty
-                    true, // Allow retry
-                    None, // No lockout
-                    "Validation failed - please try again".to_string(),
-                ))
+                let confidence_score = match behavioral_data {
+                    Some(ref data) => match data.classification {
+                        BehaviorClassification::Human => 0.7,
+                        BehaviorClassification::Suspicious => 0.4,
+                        BehaviorClassification::Bot => 0.1,
+                        BehaviorClassification::Unknown => 0.2,
+                    },
+                    None => 0.0,
+                };
+
+                Ok(ValidationResult {
+                    success: false,
+                    confidence_score,
+                    risk_assessment: RiskLevel::Medium,
+                    next_difficulty: 1,      // Reset to easiest difficulty
+                    retry_allowed: true,     // Allow retry
+                    lockout_duration: None,  // No lockout
+                    message: "Validation failed - please try again".to_string(),
+                })
             }
         }
     }
 
     /// Get service health status
     pub async fn get_health_status(&self) -> ServiceHealth {
-        self.update_service_health().await;
         let health = self.service_health.read().await;
         health.clone()
     }

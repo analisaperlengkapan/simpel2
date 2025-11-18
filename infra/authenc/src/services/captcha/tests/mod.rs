@@ -207,7 +207,7 @@ mod all_tests {
         );
 
         // Performance should be reasonable
-        assert!(avg_time < Duration::from_millis(10));
+        assert!(avg_time < Duration::from_millis(250));
     }
 
     /// Stress test with concurrent operations

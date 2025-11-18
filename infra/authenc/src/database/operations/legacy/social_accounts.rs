@@ -231,7 +231,7 @@ pub async fn update_social_account(
         FROM user_social_accounts
         WHERE id = $1
     "#;
-    let row = db
+    let row: tokio_postgres::Row = db
         .query_one(select_query, &[&account_id])
         .await?;
 

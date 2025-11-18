@@ -201,7 +201,7 @@ pub async fn query_events(db: &Database, query: &EventQuery) -> Result<Vec<Event
 
         let event_type_str = row.get::<_, String>(2);
         match EventType::from_str(&event_type_str) {
-            Ok(event_type) => {
+            Some(event_type) => {
                 events.push(Event {
                     id: row.get::<_, Uuid>(0).to_string(),
                     time: row.get(1),
@@ -216,7 +216,7 @@ pub async fn query_events(db: &Database, query: &EventQuery) -> Result<Vec<Event
                     details,
                 });
             }
-            Err(_) => {
+            None => {
                 error!(
                     "Unknown event type '{}' in event row with id '{}'. Skipping event.",
                     event_type_str,
@@ -226,6 +226,7 @@ pub async fn query_events(db: &Database, query: &EventQuery) -> Result<Vec<Event
                 continue;
             }
         }
+    }
 
     Ok(events)
 }
