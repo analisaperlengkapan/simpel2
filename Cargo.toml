@@ -183,7 +183,15 @@ amqprs = { version = "2.0", features = ["tls"] }
 tokio-stream = "0.1"
 
 # Configuration & Templates (Updated)
-config = "0.15" # Updated for better features
+config = { version = "0.15.19", default-features = false, features = [
+    "toml",
+    "json",
+    "yaml",
+    "ini",
+    "ron",
+    "convert-case",
+    "async",
+] } # Drop json5 feature to avoid unmaintained dependency
 tera = "1.20.1"
 
 # HTTP Client - Unified version

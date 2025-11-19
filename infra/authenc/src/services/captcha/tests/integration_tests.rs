@@ -462,42 +462,44 @@ async fn test_concurrent_operations_with_error_handling() {
 }
 
 /// Test metrics collection during error scenarios
-#[tokio::test]
-async fn test_metrics_collection_during_errors() {
-    let core_service = Arc::new(CaptchaService::simple().await);
-    let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+#[test]
+fn test_metrics_collection_during_errors() {
+    tokio_test::block_on(async {
+        let core_service = Arc::new(CaptchaService::simple().await);
+        let fallback_config = FallbackConfig::default();
+        let retry_config = RetryConfig::default();
 
-    let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
+        let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
-    // Generate some challenges and validations
-    for i in 0..5 {
-        let challenge = enhanced_service
-            .generate_challenge(
-                ChallengeType::Visual,
-                Some(2),
-                Some(format!("metrics_session_{}", i)),
-                format!("192.168.1.{}", 120 + i),
-            )
-            .await
-            .unwrap();
+        // Generate some challenges and validations
+        for i in 0..5 {
+            let challenge = enhanced_service
+                .generate_challenge(
+                    ChallengeType::Visual,
+                    Some(2),
+                    Some(format!("metrics_session_{}", i)),
+                    format!("192.168.1.{}", 120 + i),
+                )
+                .await
+                .unwrap();
 
-        // Validate with wrong answer to generate failure metrics
-        let _ = enhanced_service
-            .validate_challenge(challenge.id, "wrong_answer".to_string(), None)
-            .await;
-    }
+            // Validate with wrong answer to generate failure metrics
+            let _ = enhanced_service
+                .validate_challenge(challenge.id, "wrong_answer".to_string(), None)
+                .await;
+        }
 
-    // Get comprehensive metrics
-    let metrics = enhanced_service.get_comprehensive_metrics().await;
-    assert!(metrics.is_ok());
+        // Get comprehensive metrics
+        let metrics = enhanced_service.get_comprehensive_metrics().await;
+        assert!(metrics.is_ok());
 
-    let metrics = metrics.unwrap();
-    assert!(!metrics.service_health.degraded_mode_active);
-    assert_eq!(
-        metrics.fallback_status.state,
-        crate::services::captcha::FallbackState::Normal
-    );
+        let metrics = metrics.unwrap();
+        assert!(!metrics.service_health.degraded_mode_active);
+        assert_eq!(
+            metrics.fallback_status.state,
+            crate::services::captcha::FallbackState::Normal
+        );
+    });
 }
 
 /// Test maintenance operations during various states

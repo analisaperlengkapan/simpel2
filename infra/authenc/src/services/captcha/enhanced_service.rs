@@ -84,8 +84,12 @@ impl EnhancedCaptchaService {
             Duration::from_secs(60),
         ));
 
-        let retry_executor =
-            RetryExecutor::new(retry_config).with_circuit_breaker(secreton_circuit_breaker.clone());
+        // Use a plain retry executor here so that internal database/metrics
+        // errors for the core CAPTCHA service do not drive the Secreton
+        // circuit breaker state. The dedicated circuit breaker is still
+        // tracked separately for health reporting and can be wired to
+        // true external Secreton calls when present.
+        let retry_executor = RetryExecutor::new(retry_config);
 
         Self {
             core_service,
@@ -347,11 +351,39 @@ impl EnhancedCaptchaService {
                     None => 0.0,
                 };
 
+                // Derive next difficulty from the original challenge when possible,
+                // and adjust based on behavioral classification so suspicious/bot
+                // behavior increases difficulty.
+                let base_difficulty = match self.core_service.get_challenge(challenge_id.clone()).await {
+                    Ok(challenge) => challenge.difficulty_level,
+                    Err(fetch_err) => {
+                        warn!(
+                            "Failed to fetch challenge {} for fallback difficulty: {}",
+                            challenge_id, fetch_err
+                        );
+                        // Use a moderate default difficulty when original challenge
+                        // cannot be retrieved, so that suspicious/bot behavior can
+                        // still increase difficulty meaningfully in fallback mode.
+                        3
+                    }
+                };
+
+                let next_difficulty = match behavioral_data {
+                    Some(ref data) => match data.classification {
+                        BehaviorClassification::Human => base_difficulty,
+                        BehaviorClassification::Suspicious => base_difficulty.saturating_add(1),
+                        BehaviorClassification::Bot => base_difficulty.saturating_add(2),
+                        BehaviorClassification::Unknown => base_difficulty,
+                    },
+                    None => base_difficulty,
+                }
+                .clamp(1, 10);
+
                 Ok(ValidationResult {
                     success: false,
                     confidence_score,
                     risk_assessment: RiskLevel::Medium,
-                    next_difficulty: 1,      // Reset to easiest difficulty
+                    next_difficulty,
                     retry_allowed: true,     // Allow retry
                     lockout_duration: None,  // No lockout
                     message: "Validation failed - please try again".to_string(),
@@ -404,8 +436,12 @@ impl EnhancedCaptchaService {
         Ok(())
     }
 
-    /// Get comprehensive service metrics including error rates
+    /// Get comprehensive service metrics including error handling status
     pub async fn get_comprehensive_metrics(&self) -> Result<ComprehensiveMetrics, CaptchaError> {
+        // Refresh service health snapshot before collecting metrics so that
+        // last_health_check and availability flags reflect the current state.
+        self.update_service_health().await;
+
         let health = self.get_health_status().await;
         let fallback_status = self.get_fallback_status().await;
 
