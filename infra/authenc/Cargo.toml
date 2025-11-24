@@ -293,7 +293,7 @@ criterion = { version = "0.7.0", features = ["html_reports", "async_tokio"] }
 # sqlx removed - using tokio-postgres + deadpool-postgres for better compile speed and flexibility
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-build = "0.14"
 
 [[bench]]
 name = "performance"
