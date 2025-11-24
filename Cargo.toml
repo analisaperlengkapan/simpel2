@@ -312,7 +312,7 @@ tempfile = "3"
 
 # Dev dependencies (for testing)
 tokio-test = "0.4.4"
-mockall = "0.13"
+mockall = "0.14"
 serial_test = "3"
 assert-json-diff = "2"
 
