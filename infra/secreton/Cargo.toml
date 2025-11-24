@@ -62,7 +62,7 @@ chacha20poly1305 = "0.10.1"
 ring = "0.17.14"
 rand = "0.8.5"
 rand_core = { version = "0.6", features = ["getrandom"] }
-getrandom = "0.2"
+getrandom = "0.3"
 
 # Encoding
 base64 = "0.22"
