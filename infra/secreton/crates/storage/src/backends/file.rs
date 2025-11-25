@@ -247,10 +247,10 @@ impl KvBackend for FileBackend {
                     let path = entry.path();
 
                     if path.is_file() {
-                        if let Ok(relative) = path.strip_prefix(base) {
-                            if let Some(key) = relative.to_str() {
-                                keys.push(key.to_string());
-                            }
+                        if let Ok(relative) = path.strip_prefix(base)
+                            && let Some(key) = relative.to_str()
+                        {
+                            keys.push(key.to_string());
                         }
                     } else if path.is_dir() {
                         visit_dirs(&path, base, keys)?;

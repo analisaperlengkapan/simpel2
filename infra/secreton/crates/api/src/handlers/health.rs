@@ -682,7 +682,7 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 fn get_uptime_seconds() -> u64 {
     use std::sync::OnceLock;
     static START_TIME: OnceLock<std::time::Instant> = OnceLock::new();
-    let start = START_TIME.get_or_init(|| std::time::Instant::now());
+    let start = START_TIME.get_or_init(std::time::Instant::now);
     start.elapsed().as_secs()
 }
 

@@ -8,7 +8,7 @@
 //! - **MfaService**: User MFA configuration, recovery codes, authentication flow
 //! - **TotpEngine**: TOTP key storage, code generation/validation (RFC 6238 compliant)
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

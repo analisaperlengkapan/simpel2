@@ -23,7 +23,7 @@ pub use app::App;
 #[wasm_bindgen(start)]
 pub fn hydrate() {
     // Enable better error messages in debug mode
-    #[cfg(feature = "dev")]
+    #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
 
     // Mount the Leptos application

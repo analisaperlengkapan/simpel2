@@ -560,16 +560,16 @@ impl AutoRotationEngine {
                         continue;
                     }
 
-                    if let Some(next_rotation) = policy.next_rotation {
-                        if Utc::now() >= next_rotation {
-                            info!("Triggering scheduled rotation for: {}", policy.name);
+                    if let Some(next_rotation) = policy.next_rotation
+                        && Utc::now() >= next_rotation
+                    {
+                        info!("Triggering scheduled rotation for: {}", policy.name);
 
-                            if let Err(e) = engine
-                                .execute_rotation(&policy_id, "system".to_string())
-                                .await
-                            {
-                                error!("Scheduled rotation failed: {}", e);
-                            }
+                        if let Err(e) = engine
+                            .execute_rotation(&policy_id, "system".to_string())
+                            .await
+                        {
+                            error!("Scheduled rotation failed: {}", e);
                         }
                     }
                 }

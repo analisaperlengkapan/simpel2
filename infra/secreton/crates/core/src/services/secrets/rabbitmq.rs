@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 /// Error types for RabbitMQ secrets engine
 #[derive(Debug, thiserror::Error)]
@@ -503,9 +503,7 @@ impl RabbitMqEngine {
     /// Get credential info
     pub async fn get_credential_info(&self, username: &str) -> Option<RabbitMqCredentialInfo> {
         let credentials = self.credentials.read().await;
-        credentials
-            .get(username)
-            .map(|c| RabbitMqCredentialInfo::from(c))
+        credentials.get(username).map(RabbitMqCredentialInfo::from)
     }
 
     /// Generate username

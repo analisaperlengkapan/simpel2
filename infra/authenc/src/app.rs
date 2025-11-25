@@ -118,41 +118,20 @@ impl AppState {
         let config = Arc::new(config);
 
         // Initialize database connection pool
-        let database = Arc::new(
-            crate::database::Database::new(&config.database)
-                .await
-                .map_err(|e| {
-                    AuthencError::database(format!("Failed to initialize database: {}", e))
-                })?,
-        );
+        let database = crate::app_init::database::initialize_database(&config).await?;
 
         // Initialize UMA 2.0 tables
-        crate::services::uma::init::init_uma_tables(&database)
-            .await
-            .inspect_err(|e| {
-                tracing::warn!("Failed to initialize UMA tables (may already exist): {}", e);
-                // Don't fail startup if tables already exist
-            })
-            .ok();
+        crate::app_init::database::init_uma_tables(&database).await?;
 
         // Initialize audit log store
-        let audit_log_store = Arc::new(
-            crate::services::pg_audit_log_store::PgAuditLogStore::new(&config.database_url())
-                .await
-                .map_err(|e| {
-                    AuthencError::database(format!("Failed to init audit store: {}", e))
-                })?,
-        );
+        let audit_log_store = crate::app_init::database::initialize_audit_store(&config).await?;
 
         // Initialize consent store
-        let consent_store = Arc::new(crate::services::stores::consent_store::ConsentStore::new(
-            database.clone(),
-        ));
+        let consent_store = crate::app_init::database::initialize_consent_store(database.clone());
 
         // Initialize authentication flow store
-        let auth_flow_store = Arc::new(
-            crate::services::stores::auth_flow_store::AuthFlowStore::new(database.clone()),
-        );
+        let auth_flow_store =
+            crate::app_init::database::initialize_auth_flow_store(database.clone());
 
         // Initialize other services
         let user_store = Arc::new(crate::services::stores::user_store::UserStore::new(
@@ -863,28 +842,9 @@ impl ApplicationBuilder {
     }
 }
 
-/// Initialize logging based on configuration
-pub fn initialize_logging(config: &AppConfig) -> Result<()> {
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-    let level = match config.observability.log_level.as_str() {
-        "error" => tracing::Level::ERROR,
-        "warn" => tracing::Level::WARN,
-        "info" => tracing::Level::INFO,
-        "debug" => tracing::Level::DEBUG,
-        "trace" => tracing::Level::TRACE,
-        _ => tracing::Level::INFO,
-    };
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| level.as_str().to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    Ok(())
-}
+// Re-export initialize_logging from app_logging module
+// The implementation has been extracted for better code organization
+pub use crate::app_logging::initialize_logging;
 
 #[cfg(test)]
 mod tests {

@@ -6,10 +6,6 @@
 
 #![allow(async_fn_in_trait)]
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::str::FromStr;
-
 // Re-export shared types from secreton-types
 pub use secreton_types::{Metadata, ResourceId, SecurityLevel, Tags};
 
@@ -22,6 +18,7 @@ pub mod models;
 pub mod namespace;
 pub mod pki; // Renamed from 'crypto' - contains PKI/certificate code only
 pub mod prelude;
+pub mod resilience; // Resilience patterns (circuit breaker, retry)
 pub mod sdk_libraries;
 pub mod security;
 pub mod services;

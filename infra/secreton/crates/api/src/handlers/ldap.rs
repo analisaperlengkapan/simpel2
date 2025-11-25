@@ -3,7 +3,6 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -12,7 +11,7 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::ldap::{
-    LdapConfig, LdapCredential, LdapCredentialInfo, LdapError, LdapRole, LdapSchema,
+    LdapConfig, LdapCredential, LdapCredentialInfo, LdapRole, LdapSchema,
 };
 
 use super::AppState;

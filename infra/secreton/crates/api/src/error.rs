@@ -546,7 +546,7 @@ mod tests {
         let body = response.into_body();
         let runtime = tokio::runtime::Runtime::new().expect("create runtime");
         let bytes = runtime
-            .block_on(hyper::body::to_bytes(body))
+            .block_on(axum::body::to_bytes(body, 1024 * 1024))
             .expect("read body");
         let payload: ApiResponse<Option<serde_json::Value>> = serde_json::from_slice(&bytes);
 

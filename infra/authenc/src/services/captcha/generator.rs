@@ -6,12 +6,15 @@ use super::adaptive_difficulty::*;
 use super::audio_challenges::*;
 use super::error::CaptchaError;
 use super::image_challenges::*;
+use super::secreton_integration::{CaptchaSecretonClient, CaptchaSecretonTrait};
 use super::types::*;
+use crate::models::user::SecurityContext;
 use async_trait::async_trait;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Visual challenge data structure
@@ -97,17 +100,25 @@ pub struct ChallengeGenerator {
     image_generator: ImageChallengeGenerator,
     /// Audio challenge generator
     audio_generator: AudioChallengeGenerator,
+    /// Optional Secreton client for challenge encryption
+    secreton_client: Option<Arc<CaptchaSecretonClient>>,
 }
 
 impl ChallengeGenerator {
     /// Create a new challenge generator with cryptographically secure RNG
     pub fn new() -> Self {
+        Self::new_with_secreton(None)
+    }
+
+    /// Create a new challenge generator with optional Secreton client for encryption
+    pub fn new_with_secreton(secreton_client: Option<Arc<CaptchaSecretonClient>>) -> Self {
         // Use system entropy to seed the cryptographically secure RNG
         let rng = ChaCha20Rng::from_entropy();
         Self {
             rng,
             image_generator: ImageChallengeGenerator::new(),
             audio_generator: AudioChallengeGenerator::new(),
+            secreton_client,
         }
     }
 
@@ -535,17 +546,45 @@ impl ChallengeGeneratorTrait for ChallengeGenerator {
         // Hash the expected answer
         let expected_answer_hash = self.hash_answer(&expected_answer, &challenge_id);
 
-        // Create challenge with unencrypted data for now
-        // Note: Secreton integration is available via CaptchaSecretonClient
-        // In production, challenge_data should be encrypted before storage
+        // Attempt to encrypt challenge data if Secreton is available
+        let (encrypted_data_stored, encrypted_challenge_data, is_encrypted) =
+            if let Some(secreton) = &self.secreton_client {
+                let context = SecurityContext {
+                    ip_address: Some("127.0.0.1".to_string()),
+                    user_agent: None,
+                    session_id: session_id.clone(),
+                    timestamp: chrono::Utc::now(),
+                    risk_score: None,
+                    metadata: None,
+                };
+
+                match secreton.encrypt_challenge(&challenge_data, &context).await {
+                    Ok(encrypted) => {
+                        // Store encrypted, clear the plaintext
+                        ("".to_string(), Some(encrypted), true)
+                    }
+                    Err(e) => {
+                        eprintln!("CAPTCHA encryption failed, storing unencrypted: {}", e);
+                        // Fallback to unencrypted
+                        (challenge_data.clone(), None, false)
+                    }
+                }
+            } else {
+                // No Secreton, store unencrypted
+                (challenge_data.clone(), None, false)
+            };
+
+        // Create challenge
         let challenge = Challenge::new(
             challenge_type,
             difficulty,
-            challenge_data, // TODO: Encrypt using CaptchaSecretonClient in production
+            encrypted_data_stored,
             expected_answer_hash,
             session_id,
             "127.0.0.1".to_string(), // Placeholder IP - will be extracted from request context
-        );
+        )
+        .with_encrypted_data(encrypted_challenge_data)
+        .with_encryption_flag(is_encrypted);
 
         Ok(challenge)
     }
@@ -590,14 +629,13 @@ impl ChallengeGenerator {
                 match serde_json::from_str::<VisualChallenge>(challenge_data) {
                     Ok(visual) => Ok(visual.answer),
                     Err(_) => {
-                        let image: ImageChallenge = serde_json::from_str(challenge_data)
-                            .map_err(|e| CaptchaError::GenerationFailed {
-                                message: format!(
-                                    "Failed to parse visual challenge: {}",
-                                    e
-                                ),
-                                recoverable: true,
-                                retry_after: Some(Duration::from_secs(1)),
+                        let image: ImageChallenge =
+                            serde_json::from_str(challenge_data).map_err(|e| {
+                                CaptchaError::GenerationFailed {
+                                    message: format!("Failed to parse visual challenge: {}", e),
+                                    recoverable: true,
+                                    retry_after: Some(Duration::from_secs(1)),
+                                }
                             })?;
                         Ok(image.answer)
                     }

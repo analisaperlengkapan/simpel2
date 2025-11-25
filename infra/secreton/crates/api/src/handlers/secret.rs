@@ -26,10 +26,10 @@ use secreton_core::audit::AuditLog;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Secret operations
-        .route("/secrets/{path}", get(get_secret))
-        .route("/secrets/{path}", post(create_secret))
-        .route("/secrets/{path}", put(update_secret))
-        .route("/secrets/{path}", delete(delete_secret))
+        .route("/data/{path}", get(get_secret))
+        .route("/data/{path}", post(create_secret))
+        .route("/data/{path}", put(update_secret))
+        .route("/data/{path}", delete(delete_secret))
         .route("/secrets", get(list_secrets))
         // Key operations
         .route("/keys", get(list_keys))

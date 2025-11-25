@@ -25,6 +25,9 @@ async-trait.workspace = true
 # Database backends (optional - not recommended for HA)
 tokio-postgres = { workspace = true, optional = true }
 deadpool-postgres = { workspace = true, optional = true }
+tokio-postgres-rustls = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+rustls-native-certs = { workspace = true, optional = true }
 
 # HTTP client for Consul and cloud backends
 reqwest = { workspace = true, optional = true }
@@ -36,6 +39,8 @@ zeroize.workspace = true
 
 # OpenRaft consensus (modern alternative to raft)
 openraft = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
 slog = { workspace = true, optional = true }
 slog-term = { workspace = true, optional = true }
 slog-async = { workspace = true, optional = true }
@@ -48,9 +53,15 @@ default = ["file"]
 # Backend features (HashiCorp Vault-compatible)
 file = []
 consul = ["reqwest"]
-raft-consensus = ["openraft", "slog", "slog-term", "slog-async"]
+raft-consensus = ["openraft", "tonic", "prost", "slog", "slog-term", "slog-async"]
 s3 = ["reqwest"]
-postgres = ["tokio-postgres", "deadpool-postgres"]
+postgres = [
+    "tokio-postgres",
+    "deadpool-postgres",
+    "tokio-postgres-rustls",
+    "rustls",
+    "rustls-native-certs",
+]
 
 # Convenience features
 all-backends = ["file", "consul", "raft-consensus", "s3", "postgres"]

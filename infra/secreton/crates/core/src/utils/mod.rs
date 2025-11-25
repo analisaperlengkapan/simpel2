@@ -303,6 +303,9 @@
 /// Configuration utilities
 pub mod config;
 
+/// Correlation tracking for distributed tracing
+pub mod correlation;
+
 /// LRU cache implementation with TTL support optimized for secrets
 pub mod cache;
 

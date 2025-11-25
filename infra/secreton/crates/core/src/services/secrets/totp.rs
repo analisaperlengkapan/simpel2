@@ -63,9 +63,10 @@ pub enum TotpError {
 }
 
 /// TOTP algorithm
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum TotpAlgorithm {
     /// SHA1 (most compatible, default for Google Authenticator)
+    #[default]
     SHA1,
     /// SHA256 (more secure)
     SHA256,
@@ -89,12 +90,6 @@ impl TotpAlgorithm {
             "SHA512" => Ok(TotpAlgorithm::SHA512),
             _ => Err(TotpError::InvalidAlgorithm(s.to_string())),
         }
-    }
-}
-
-impl Default for TotpAlgorithm {
-    fn default() -> Self {
-        TotpAlgorithm::SHA1
     }
 }
 

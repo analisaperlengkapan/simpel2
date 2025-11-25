@@ -40,6 +40,7 @@ mod tests {
     use super::*;
     use crate::config::ApiConfig;
     use crate::services::ServiceContainer;
+    use axum::http::StatusCode;
     use axum_test::TestServer;
     use std::sync::Arc;
 

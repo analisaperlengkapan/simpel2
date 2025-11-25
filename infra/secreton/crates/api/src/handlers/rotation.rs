@@ -3,7 +3,6 @@
 use axum::{
     Router,
     extract::{Path, Query, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -11,9 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
-use secreton_core::services::rotation::{
-    AutoRotationEngine, RotationHistory, RotationPolicy, RotationStatistics,
-};
+use secreton_core::services::rotation::{RotationHistory, RotationPolicy, RotationStatistics};
 
 use super::AppState;
 

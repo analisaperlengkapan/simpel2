@@ -663,7 +663,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             })?;
 
             // Build peer list
-            let peers = status
+            let peers: Vec<PeerInfo> = status
                 .membership
                 .iter()
                 .map(|&node_id| {
@@ -1708,10 +1708,10 @@ impl SecretonGrpcService {
     }
 
     #[allow(dead_code)]
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn restore_snapshot(
         &self,
-        _request: Request<RestoreSnapshotRequest>,
+        request: Request<RestoreSnapshotRequest>,
     ) -> Result<Response<RestoreSnapshotResponse>, Status> {
         #[cfg(not(feature = "raft-consensus"))]
         {

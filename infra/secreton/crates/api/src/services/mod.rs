@@ -458,9 +458,63 @@ impl ServiceContainer {
 
         match backend_type.as_str() {
             "raft" | "integrated" => {
-                // TODO: Implement Raft storage backend
-                tracing::warn!("Raft backend not yet fully implemented, falling back to memory");
-                Ok(Arc::new(MemoryBackend::new()))
+                #[cfg(feature = "raft-consensus")]
+                {
+                    tracing::info!("Using Raft storage backend (integrated mode)");
+
+                    // Node ID for this Raft node (default: 1)
+                    let node_id = std::env::var("SECRETON_RAFT_NODE_ID")
+                        .ok()
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(1);
+
+                    let mut raft_config = RaftClusterConfig::default();
+                    raft_config.node_id = node_id;
+
+                    // Optional peer list from environment: "2=http://node2:7000,3=http://node3:7000"
+                    if let Ok(peers_str) = std::env::var("SECRETON_RAFT_PEERS") {
+                        let mut peers = std::collections::HashMap::new();
+                        for part in peers_str
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|s| !s.is_empty())
+                        {
+                            if let Some((id_str, addr)) = part.split_once('=') {
+                                match id_str.trim().parse::<u64>() {
+                                    Ok(id) => {
+                                        peers.insert(id, addr.trim().to_string());
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            "Invalid node id '{}' in SECRETON_RAFT_PEERS: {}",
+                                            id_str,
+                                            e
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        if !peers.is_empty() {
+                            tracing::info!("Configured Raft peers from SECRETON_RAFT_PEERS");
+                            raft_config.peers = peers;
+                        }
+                    }
+
+                    let cluster = RaftCluster::new(raft_config).await.map_err(|e| {
+                        anyhow::anyhow!("Failed to create Raft storage backend: {}", e)
+                    })?;
+
+                    Ok(Arc::new(cluster) as Arc<dyn StorageBackend + Send + Sync>)
+                }
+
+                #[cfg(not(feature = "raft-consensus"))]
+                {
+                    tracing::warn!(
+                        "Raft storage backend requested but 'raft-consensus' feature is disabled; falling back to memory",
+                    );
+                    Ok(Arc::new(MemoryBackend::new()))
+                }
             }
 
             "memory" | "mock" => {
@@ -470,8 +524,30 @@ impl ServiceContainer {
 
             // TODO: Add other backends (PostgreSQL, Redis, File)
             "postgres" => {
-                tracing::warn!("PostgreSQL backend not yet implemented, falling back to memory");
-                Ok(Arc::new(MemoryBackend::new()))
+                #[cfg(feature = "postgres")]
+                {
+                    let url = std::env::var("SECRETON_STORAGE_URL")
+                        .or_else(|_| std::env::var("DATABASE_URL"))
+                        .map_err(|_| {
+                            anyhow::anyhow!(
+                                "SECRETON_STORAGE_URL or DATABASE_URL must be set for postgres storage backend"
+                            )
+                        })?;
+                    tracing::info!("Using PostgreSQL storage backend");
+                    let backend = secreton_storage::StorageFactory::create_postgres(&url, None)
+                        .await
+                        .map_err(|e| {
+                            anyhow::anyhow!("Failed to create PostgreSQL storage backend: {}", e)
+                        })?;
+                    Ok(backend)
+                }
+                #[cfg(not(feature = "postgres"))]
+                {
+                    tracing::warn!(
+                        "PostgreSQL backend feature not enabled, falling back to memory"
+                    );
+                    Ok(Arc::new(MemoryBackend::new()))
+                }
             }
 
             "redis" => {
@@ -480,8 +556,39 @@ impl ServiceContainer {
             }
 
             "file" => {
-                tracing::warn!("File backend not yet implemented, falling back to memory");
-                Ok(Arc::new(MemoryBackend::new()))
+                let path = std::env::var("Secreton_STORAGE_FILE_PATH")
+                    .unwrap_or_else(|_| "/var/lib/secreton/data".to_string());
+                tracing::info!("Using file storage backend at {}", path);
+                let backend = secreton_storage::StorageFactory::create_file(path)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to create file storage backend: {}", e))?;
+                Ok(backend)
+            }
+
+            "consul" => {
+                #[cfg(feature = "consul")]
+                {
+                    let address = std::env::var("Secreton_CONSUL_ADDRESS")
+                        .unwrap_or_else(|_| "127.0.0.1:8500".to_string());
+                    let path = std::env::var("Secreton_CONSUL_PATH")
+                        .unwrap_or_else(|_| "secreton/".to_string());
+                    tracing::info!(
+                        "Using Consul storage backend at {} with path {}",
+                        address,
+                        path
+                    );
+                    let backend = secreton_storage::StorageFactory::create_consul(&address, &path)
+                        .await
+                        .map_err(|e| {
+                            anyhow::anyhow!("Failed to create Consul storage backend: {}", e)
+                        })?;
+                    Ok(backend)
+                }
+                #[cfg(not(feature = "consul"))]
+                {
+                    tracing::warn!("Consul backend feature not enabled, falling back to memory");
+                    Ok(Arc::new(MemoryBackend::new()))
+                }
             }
 
             _ => {
@@ -505,11 +612,52 @@ impl ServiceContainer {
         cfg.dbname = Some(config.database.database.clone());
         cfg.user = Some(config.database.username.clone());
         cfg.password = Some(config.database.password.clone());
+
+        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
+        pool_cfg.max_size = config.database.max_connections as usize;
+        pool_cfg.timeouts.wait = Some(std::time::Duration::from_secs(
+            config.database.connection_timeout,
+        ));
+        pool_cfg.timeouts.create = Some(std::time::Duration::from_secs(
+            config.database.connection_timeout,
+        ));
+        pool_cfg.timeouts.recycle = Some(std::time::Duration::from_secs(5));
+        cfg.pool = Some(pool_cfg);
+
         cfg.manager = Some(ManagerConfig {
-            recycling_method: RecyclingMethod::Fast,
+            recycling_method: RecyclingMethod::Verified,
         });
 
-        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls)?;
+        let tls_mode =
+            std::env::var("SECRETON_DB_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
+
+        let pool = if tls_mode.eq_ignore_ascii_case("disable") {
+            cfg.create_pool(Some(Runtime::Tokio1), NoTls)?
+        } else {
+            let mut root_store = rustls::RootCertStore::empty();
+            let cert_result = rustls_native_certs::load_native_certs();
+
+            // Log any errors but continue with whatever certs we got
+            for err in &cert_result.errors {
+                tracing::warn!("Error loading native TLS root certificate: {}", err);
+            }
+
+            // Add successfully loaded certificates
+            if !cert_result.certs.is_empty() {
+                let _ = root_store.add_parsable_certificates(cert_result.certs);
+            } else {
+                tracing::warn!("No native TLS root certificates found");
+            }
+
+            cfg.ssl_mode = Some(deadpool_postgres::SslMode::Require);
+
+            let tls_config = rustls::ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+            let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
+
+            cfg.create_pool(Some(Runtime::Tokio1), tls)?
+        };
         tracing::info!("✅ Database connection pool created");
         Ok(pool)
     }

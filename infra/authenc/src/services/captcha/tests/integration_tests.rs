@@ -469,7 +469,8 @@ fn test_metrics_collection_during_errors() {
         let fallback_config = FallbackConfig::default();
         let retry_config = RetryConfig::default();
 
-        let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
+        let enhanced_service =
+            EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
         // Generate some challenges and validations
         for i in 0..5 {

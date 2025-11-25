@@ -1,107 +1,308 @@
 # 🏛️ SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md) [![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://rustlang.org) [![Leptos](https://img.shields.io/badge/leptos-0.8.x-green.svg)](https://leptos.dev) [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](CHANGELOG.md)
+[![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://rustlang.org)
+[![Leptos](https://img.shields.io/badge/leptos-0.8.12-green.svg)](https://leptos.dev)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**SIMPelv2** adalah platform modern untuk pengelolaan Barang Milik Negara (BMN) yang dibangun dengan arsitektur microservices dan microfrontends menggunakan **Rust** dan **Leptos** untuk performa, keamanan, dan pengalaman pengguna yang optimal.
+**SIMPelv2** adalah platform enterprise-grade untuk pengelolaan Barang Milik Negara (BMN) Kejaksaan Agung Republik Indonesia, dibangun dengan arsitektur **microfrontend + microservices** menggunakan **Rust** untuk performa, keamanan, dan skalabilitas maksimal.
 
-## 🎯 **Overview**
+## 🎯 Overview
 
-SIMPelv2 adalah sistem terintegrasi yang menyediakan solusi lengkap untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Dibangun dengan teknologi modern Rust dan mengikuti standar keamanan enterprise dengan arsitektur microfrontend untuk skalabilitas dan maintainability maksimal.
+SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari perencanaan, pengadaan, distribusi, hingga pelaporan. Platform ini menggunakan:
 
-## 🚀 **Production Deployment**
+- **Zero-Trust Security Architecture** dengan custom IAM (Authenc) dan secrets management (Secreton)
+- **12 Microfrontend Independen** + shared component library
+- **17 Backend Microservices** dengan gRPC internal communication
+- **Enterprise CI/CD** dengan 12+ security tools
 
-### **� Live URLs**
+## 🌐 Production Deployment
 
-- **Main Portal**: [https://simpel.kejaksaan.go.id/](https://simpel.kejaksaan.go.id/)
-- **Badiklat Module**: [https://simpel.kejaksaan.go.id/badiklat](https://simpel.kejaksaan.go.id/badiklat)
-- **Datun Module**: [https://simpel.kejaksaan.go.id/datun](https://simpel.kejaksaan.go.id/datun)
-- **Intel Module**: [https://simpel.kejaksaan.go.id/intel](https://simpel.kejaksaan.go.id/intel)
-- **Pengawasan Module**: [https://simpel.kejaksaan.go.id/pengawasan](https://simpel.kejaksaan.go.id/pengawasan)
-- **Pidum Module**: [https://simpel.kejaksaan.go.id/pidum](https://simpel.kejaksaan.go.id/pidum)
-- **Portal Microfrontend**: [https://simpel.kejaksaan.go.id/portal](https://simpel.kejaksaan.go.id/portal)
-- **Perlengkapan Module**: [https://simpel.kejaksaan.go.id/perlengkapan](https://simpel.kejaksaan.go.id/perlengkapan)
+### Live URLs
 
-### **🛡️ Security Features**
+| Service         | URL                                                                                    | Status  |
+| --------------- | -------------------------------------------------------------------------------------- | ------- |
+| **Main Portal** | [https://simpel.kejaksaan.go.id/](https://simpel.kejaksaan.go.id/)                     | ✅ Live |
+| **Badiklat**    | [https://simpel.kejaksaan.go.id/badiklat](https://simpel.kejaksaan.go.id/badiklat)     | ✅ Live |
+| **Datun**       | [https://simpel.kejaksaan.go.id/datun](https://simpel.kejaksaan.go.id/datun)           | ✅ Live |
+| **Intel**       | [https://simpel.kejaksaan.go.id/intel](https://simpel.kejaksaan.go.id/intel)           | ✅ Live |
+| **Pengawasan**  | [https://simpel.kejaksaan.go.id/pengawasan](https://simpel.kejaksaan.go.id/pengawasan) | ✅ Live |
+| **Pidum**       | [https://simpel.kejaksaan.go.id/pidum](https://simpel.kejaksaan.go.id/pidum)           | ✅ Live |
+| **Pidsus**      | [https://simpel.kejaksaan.go.id/pidsus](https://simpel.kejaksaan.go.id/pidsus)         | ✅ Live |
+| **Pidmil**      | [https://simpel.kejaksaan.go.id/pidmil](https://simpel.kejaksaan.go.id/pidmil)         | ✅ Live |
 
-- ✅ **SSL/TLS**: DigiCert certificate with HTTP/2 support
+### Security Features
+
+- ✅ **SSL/TLS**: DigiCert certificate dengan HTTP/2 support
 - ✅ **HSTS**: Strict Transport Security headers
 - ✅ **CSP**: Content Security Policy implementation
-- ✅ **Zero-Trust Architecture**: All traffic encrypted and authenticated
+- ✅ **Zero-Trust**: All traffic encrypted dan authenticated
 
-## �🏗️ **Architecture**
+---
 
-### **🦀 Technology Stack**
+## 🏗️ Architecture
 
-- **Backend Services**: Rust (Axum) untuk performa dan keamanan tinggi
-- **Frontend Microfrontends**: Leptos 0.8.x + WebAssembly untuk speed dan type-safety
-- **Shared UI Library**: Komponen terpusat dengan Kejaksaan RI branding
-- **Build System**: Trunk 0.21.14 dengan optimasi WASM
-- **Database**: PostgreSQL (multi-schema) dengan connection pooling
-- **Container Orchestration**: MicroK8s dengan LoadBalancer dan Ingress
-- **Security**: Secreton + JWT + MFA + Zero-Trust Architecture
-- **AI/ML**: Rust-Bert + Tch + Qdrant untuk intelligent processing
-- **Monitoring**: Prometheus + Grafana + Loki + comprehensive observability
+### Technology Stack
 
-### **🌐 Microfrontend Architecture**
+| Layer         | Technology         | Version              | Purpose                              |
+| ------------- | ------------------ | -------------------- | ------------------------------------ |
+| **Language**  | Rust               | 1.90+ (Edition 2024) | Memory safety & performance          |
+| **Frontend**  | Leptos             | 0.8.12               | Reactive WASM framework              |
+| **Backend**   | Axum               | 0.8.6                | High-performance web framework       |
+| **Database**  | PostgreSQL         | 15+                  | Multi-schema dengan deadpool pooling |
+| **Cache**     | Redis              | 7+                   | Session & data caching               |
+| **Build**     | Trunk              | Latest               | WASM bundling & optimization         |
+| **Container** | MicroK8s           | Latest               | Kubernetes orchestration             |
+| **Security**  | Authenc + Secreton | Custom               | Zero-trust IAM & secrets             |
+| **AI/ML**     | Qdrant + tiktoken  | Latest               | Vector search & tokenization         |
 
-SIMPelv2 menggunakan arsitektur microfrontend dengan 11 modul independen yang didukung oleh **shared components library** yang telah dioptimasi dengan Leptos 0.8.x:
+### Microfrontend Architecture
 
-| Modul              | Fungsi                    | Port       | Status                  | Deployment        |
-| ------------------ | ------------------------- | ---------- | ----------------------- | ----------------- |
-| **Portal**         | Gateway & Dashboard Utama | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Perlengkapan**   | Equipment Management      | :80      | ✅ **v0.3.0 Live**      | 🚀 K8s Production |
-| **Badiklat**       | Pelatihan & Pendidikan    | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Datun**          | Tindak Pidana Umum        | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Intel**          | Intelligence & Analytics  | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Pembinaan**      | Manajemen Pembinaan       | :80 | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Pemulihan Aset** | Asset Recovery            | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Pengawasan**     | Monitoring & Compliance   | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **PIDMIL**         | Pidana Militer            | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **PIDSUS**         | Pidana Khusus             | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **PIDUM**          | Pidana Umum               | :80      | ✅ **v0.4.0 Live**      | 🚀 K8s Production |
-| **Shared**         | Komponen Terpusat         | -          | ✅ **v0.2.0 Optimized** | 📦 Library        |
+SIMPelv2 menggunakan **12 microfrontend independen** yang didukung shared component library:
 
-### **🧩 Shared Components Library v0.2.0**
-
-**Production-Ready UI Components dengan Leptos 0.8.x Compatibility**
-
-- **40+ Components**: Button, Input, Modal, Table, Navigation, Form, Toast, Spinner, dll.
-- **Zero Compilation Errors**: Full compatibility setelah resolusi 113+ compilation errors
-- **Thread Safety**: Complete Send + Sync implementation untuk reactive components
-- **Modern Patterns**: Updated signal patterns, callback methods, dan type annotations
-- **Government Branding**: Kejaksaan RI design system dan accessibility compliance
-- **Performance Optimized**: High-performance WASM dengan zero-copy operations
-
-### **🔐 Security Features**
-
-- **Zero-Trust Architecture**: Tidak ada implicit trust
-- **Immutable Audit Trail**: Logging yang tidak dapat diubah
-- **Multi-Factor Authentication**: TOTP-based security
-- **Role-Based Access Control**: Granular permissions per microfrontend
-- **Content Security Policy**: CSP headers untuk setiap modul
-- **Honeytrap Service**: Advanced threat detection
-
-### **🤖 AI Capabilities**
-
-- **LLM Integration**: Internal fine-tuned models
-- **RAG System**: Retrieval-Augmented Generation
-- **OCR Processing**: Document text extraction
-- **Supervised Learning**: Traditional ML models
-- **RLHF**: Reinforcement Learning from Human Feedback
-
-## 🚀 **Quick Start**
-
-### **Prerequisites**
-
-```bash
-# System requirements
-- Docker & Docker Compose
-- Rust 1.75+ (for development)
-- PostgreSQL 15+
-- Secreton
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Load Balancer (Nginx)                     │
+│                       SSL Termination / HTTP2                    │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        │                       │                       │
+        ▼                       ▼                       ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│    Portal     │    │   Badiklat    │    │    Datun      │
+│  (Gateway)    │    │  (Training)   │    │  (Criminal)   │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │
+┌───────────────────────────────────────────────────────────┐
+│                    Pembinaan Division                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐  │
+│  │  Keuangan   │ │ Perencanaan │ │    Perlengkapan     │  │
+│  │ (Finance)   │ │ (Planning)  │ │    (Equipment)      │  │
+│  └─────────────┘ └─────────────┘ └─────────────────────┘  │
+└───────────────────────────────────────────────────────────┘
 ```
 
-### **Installation**
+| Modul                      | Fungsi                    | Dev Port | Status        |
+| -------------------------- | ------------------------- | -------- | ------------- |
+| **Portal**                 | Gateway & SSO Integration | 8080     | ✅ Production |
+| **Badiklat**               | Training & Education      | 8081     | ✅ Production |
+| **Datun**                  | Civil Litigation          | 8082     | ✅ Production |
+| **Intel**                  | Intelligence & Analytics  | 8083     | ✅ Production |
+| **Pemulihan Aset**         | Asset Recovery            | 8084     | ✅ Production |
+| **Pengawasan**             | Monitoring & Compliance   | 8085     | ✅ Production |
+| **Pidmil**                 | Military Criminal Law     | 8086     | ✅ Production |
+| **Pidsus**                 | Special Crimes            | 8087     | ✅ Production |
+| **Pidum**                  | General Crimes            | 8088     | ✅ Production |
+| **Pembinaan/Keuangan**     | Finance Management        | 8089     | ✅ Production |
+| **Pembinaan/Perencanaan**  | Planning                  | 8090     | ✅ Production |
+| **Pembinaan/Perlengkapan** | Equipment Management      | 8091     | ✅ Production |
+
+### Shared Component Library v1.0.0
+
+Production-ready UI library dengan Leptos 0.8.x compatibility:
+
+- **40+ Components**: Button, Input, Modal, Table, Navigation, Form, Toast, dll.
+- **Thread Safety**: Complete `Send + Sync` implementation
+- **Modern Patterns**: Signal-based reactivity, callback methods
+- **Government Branding**: Kejaksaan RI design system
+- **60% Smaller**: Refactored dari 7,637 → ~2,800 lines
+
+```rust
+use shared_microfrontend::prelude::*;
+use shared_microfrontend::components::auth::ProtectedRoute;
+```
+
+### Backend Microservices Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   API Gateway (Gerbang)                      │
+│                  HTTP:8080 / gRPC:9080                       │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│   Authenc     │    │   Secreton    │    │   Layanan     │
+│   (IAM)       │    │   (Secrets)   │    │   Domain      │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                    ▼                   ▼
+             ┌───────────┐       ┌───────────┐
+             │ PostgreSQL│       │   Redis   │
+             │  (15+)    │       │   (7+)    │
+             └───────────┘       └───────────┘
+```
+
+#### Domain Services (`layanan/`)
+
+| Service                    | Function            | Port |
+| -------------------------- | ------------------- | ---- |
+| **badiklat**               | Training management | 3001 |
+| **datun**                  | Civil litigation    | 3002 |
+| **intel**                  | Intelligence        | 3003 |
+| **pemulihan_aset**         | Asset recovery      | 3004 |
+| **pengawasan**             | Monitoring          | 3005 |
+| **pidmil**                 | Military criminal   | 3006 |
+| **pidsus**                 | Special crimes      | 3007 |
+| **pidum**                  | General crimes      | 3008 |
+| **pembinaan/perlengkapan** | Equipment           | 3009 |
+
+#### Shared Services (`layanan/shared/`)
+
+| Service         | Function            | Port |
+| --------------- | ------------------- | ---- |
+| **ai**          | LLM, RAG, OCR       | 3010 |
+| **bantuan**     | Help desk & FAQ     | 3011 |
+| **dasbor**      | Dashboard & metrics | 3012 |
+| **dokumen**     | Document management | 3013 |
+| **integrasi**   | External APIs       | 3014 |
+| **konfigurasi** | System config       | 3015 |
+| **laporan**     | Reporting           | 3016 |
+| **notifikasi**  | Notifications       | 3017 |
+
+#### Infrastructure Services (`infra/`)
+
+| Service        | Function                     | Notes              |
+| -------------- | ---------------------------- | ------------------ |
+| **authenc**    | Identity & Access Management | Separate workspace |
+| **secreton**   | Secret management            | Separate workspace |
+| **gerbang**    | API Gateway (Envoy)          | HTTP/gRPC routing  |
+| **monitoring** | Prometheus + Grafana         | Observability      |
+
+> **Note**: `authenc` dan `secreton` adalah **separate Cargo workspaces** untuk architectural independence. Mereka berkomunikasi via mTLS, bukan shared code.
+
+### Security Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Zero-Trust Model                          │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐  │
+│  │  User   │───▶│ Authenc │───▶│   JWT   │───▶│ Service │  │
+│  │         │    │  (IAM)  │    │  Token  │    │         │  │
+│  └─────────┘    └────┬────┘    └─────────┘    └─────────┘  │
+│                      │                                      │
+│                      ▼                                      │
+│               ┌─────────────┐                               │
+│               │  Secreton   │                               │
+│               │  (Secrets)  │                               │
+│               └─────────────┘                               │
+├─────────────────────────────────────────────────────────────┤
+│  • Ed25519 signing (NOT RSA)                                │
+│  • ChaCha20-Poly1305 encryption                             │
+│  • TOTP-based MFA                                           │
+│  • Immutable audit logs                                     │
+│  • Post-quantum ready design                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Security Features:**
+
+- **Zero-Trust Architecture**: No implicit trust between services
+- **Ed25519 Cryptography**: Faster dan more secure than RSA
+- **Multi-Factor Authentication**: TOTP-based with authenticator apps
+- **RBAC**: Granular permissions per microfrontend
+- **Immutable Audit Trail**: PostgreSQL-backed forensic logging
+- **Content Security Policy**: CSP headers untuk setiap module
+
+---
+
+## 📁 Project Structure
+
+```
+simpelv2/
+├── 📁 antarmuka/                    # Microfrontend Applications
+│   ├── 🏛️ portal/                  # Main Gateway & SSO
+│   ├── 🎓 badiklat/                 # Training & Education
+│   ├── ⚖️ datun/                    # Civil Litigation
+│   ├── 🔍 intel/                    # Intelligence Analytics
+│   ├── 💰 pemulihan_aset/           # Asset Recovery
+│   ├── 🛡️ pengawasan/               # Monitoring & Compliance
+│   ├── 🪖 pidmil/                   # Military Criminal Law
+│   ├── 🔒 pidsus/                   # Special Crimes
+│   ├── 📜 pidum/                    # General Crimes
+│   ├── 📁 pembinaan/                # Pembinaan Division
+│   │   ├── 💵 keuangan/             # Finance Management
+│   │   ├── 📋 perencanaan/          # Planning
+│   │   └── 🛠️ perlengkapan/         # Equipment Management
+│   └── 🧩 shared/                   # Shared Component Library v1.0.0
+│
+├── 📁 layanan/                      # Backend Microservices
+│   ├── 🎓 badiklat/                 # Training Service
+│   ├── ⚖️ datun/                    # Civil Litigation Service
+│   ├── 🔍 intel/                    # Intelligence Service
+│   ├── 💰 pemulihan_aset/           # Asset Recovery Service
+│   ├── 🛡️ pengawasan/               # Monitoring Service
+│   ├── 🪖 pidmil/                   # Military Criminal Service
+│   ├── 🔒 pidsus/                   # Special Crimes Service
+│   ├── 📜 pidum/                    # General Crimes Service
+│   ├── 📁 pembinaan/                # Pembinaan Services
+│   │   └── 🛠️ perlengkapan/         # Equipment Service
+│   └── 📁 shared/                   # Shared Services
+│       ├── 🤖 ai/                   # AI/ML Service
+│       ├── 🆘 bantuan/              # Help Desk Service
+│       ├── 📊 dasbor/               # Dashboard Service
+│       ├── 📄 dokumen/              # Document Service
+│       ├── 🔗 integrasi/            # Integration Service
+│       ├── ⚙️ konfigurasi/          # Configuration Service
+│       ├── 📋 laporan/              # Reporting Service
+│       └── 🔔 notifikasi/           # Notification Service
+│
+├── 📁 infra/                        # Infrastructure
+│   ├── 🔐 authenc/                  # IAM Service (Separate Workspace)
+│   ├── 🗝️ secreton/                 # Secret Management (Separate Workspace)
+│   ├── 🚪 gerbang/                  # API Gateway (Envoy)
+│   ├── ☸️ k8s/                      # Kubernetes Manifests
+│   ├── 🌐 nginx/                    # Reverse Proxy Config
+│   ├── 📡 proto/                    # Protocol Buffers
+│   └── 📊 monitoring/               # Prometheus + Grafana
+│
+├── 📁 scripts/                      # Build & Automation
+│   ├── 📁 cli/                      # CLI Tool
+│   ├── 📁 makefiles/                # Modular Makefiles
+│   ├── 📁 backup/                   # Backup Scripts
+│   ├── 📁 test/                     # Test Automation
+│   └── 📁 tools/                    # Development Tools
+│
+├── 📁 docs/                         # Documentation (60+ files)
+│   ├── 📖 MFA_*.md                  # MFA Documentation
+│   ├── 📖 AUTHENC_*.md              # Authenc Documentation
+│   ├── 📖 SECRETON_*.md             # Secreton Documentation
+│   ├── 📖 CAPTCHA_*.md              # CAPTCHA Documentation
+│   └── 📖 layanan-*.md              # Service Documentation
+│
+├── 📄 Cargo.toml                    # Workspace Configuration
+├── 📄 Makefile                      # Build Commands
+├── 🐳 docker-compose.yml            # Base Docker Config
+├── 🐳 docker-compose.dev.yml        # Development Override
+├── 🐳 docker-compose.prod.yml       # Production Override
+└── 📄 .gitlab-ci.yml                # CI/CD Pipeline
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+```bash
+# System Requirements
+- Docker & Docker Compose 20+
+- Rust 1.90+ (for development)
+- Trunk (for WASM builds)
+- PostgreSQL 15+ (or use Docker)
+- Redis 7+ (or use Docker)
+```
+
+### Installation
 
 ```bash
 # Clone repository
@@ -112,547 +313,285 @@ cd simpelv2
 cp .env.example .env
 # Edit .env with your configuration
 
-# Start services
+# Start infrastructure services
+docker compose up -d postgres redis
+
+# Build and run (development)
 make up-dev
 
-# Access the application
-# Frontend: http://localhost:3000
-# API Gateway: http://localhost:80
-# Security Service: http://localhost:3001
-# AI Service: http://localhost:3002
+# Or build specific microfrontend
+cd antarmuka/portal && trunk serve --port 8080 --open
 ```
 
-### **Development**
+### Development Commands
 
 ```bash
-# Start development environment
-make up-dev
+# ===== Frontend Development =====
+make build-all-fe          # Build all microfrontends
+cd antarmuka/portal && trunk serve --open  # Serve portal with hot reload
 
-# View logs
-make logs
+# ===== Backend Development =====
+cargo build --bin layanan-dasbor  # Build specific service
+cargo build                       # Build all workspace members
 
-# Stop services
-make down
+# ===== Testing =====
+cargo test                        # Run all tests
+cargo test --package layanan-ai   # Test specific service
+make rust-test                    # Comprehensive test suite
 
-# Build and deploy
-make build
-make deploy-prod
+# ===== Quality =====
+make rust-fmt                     # Format all code
+make rust-clippy                  # Lint all code
+cargo doc --open                  # Generate documentation
+
+# ===== Infrastructure =====
+make up-dev                       # Start development environment
+make logs                         # View service logs
+make down                         # Stop all services
 ```
 
-## 🚀 **CI/CD Pipeline**
-
-### **Enterprise-Grade GitLab CI/CD (v1.0.0)**
-
-SIMPelv2 menggunakan pipeline CI/CD modern dengan 9 stages dan 12+ security tools:
-
-| Stage             | Jobs                                           | Description                             |
-| ----------------- | ---------------------------------------------- | --------------------------------------- |
-| **Preparation**   | Dependencies                                   | Rust toolchain, cargo tools, WASM tools |
-| **Quality**       | Format, Clippy, Spellcheck, Docs               | Code quality dan documentation          |
-| **Security**      | Audit, Deny, Geiger, Miri, Vet, SAST           | Static security analysis                |
-| **Build**         | Chef, Rust Backend, Leptos Frontend            | Parallel builds dengan caching          |
-| **Test**          | Unit, Integration, Coverage, Performance, Fuzz | Comprehensive testing suite             |
-| **Security-Scan** | Trivy FS, License, Secrets, IaC, Container     | Runtime security scanning               |
-| **SBOM**          | Generate SBOM, Policy Validation, Image Build  | Supply chain security                   |
-| **Deploy**        | Dev, Review, Staging, Production               | Multi-environment deployment            |
-| **Cleanup**       | Cache, Security Summary                        | Cleanup dan reporting                   |
-
-### **🔐 Security Tools Integrated**
-
-- **Cargo Audit**: Vulnerability database scanning
-- **Cargo Deny**: Dependency policy enforcement
-- **Cargo Geiger**: Unsafe code analysis
-- **Cargo Vet**: Supply chain verification
-- **Semgrep**: Static Application Security Testing (SAST)
-- **Trivy**: Filesystem dan container scanning
-- **TruffleHog**: Secret detection
-- **Checkov**: Infrastructure as Code security
-- **Miri**: Undefined behavior detection
-- **OPA**: Policy validation engine
-- **Cosign**: Container image signing
-- **SBOM**: Software Bill of Materials (CycloneDX + SPDX)
-
-### **⚡ Performance Optimizations**
-
-- **Cargo Chef**: Docker build optimization
-- **sccache**: Distributed compilation caching (2G cache)
-- **Parallel Builds**: Matrix strategy untuk 7 backend + 9 frontend
-- **Multi-level Caching**: Cargo.lock fingerprinting
-- **Distroless Images**: Minimal attack surface
-
-### **📋 Compliance & Standards**
-
-- **SLSA Level 3**: Supply chain security framework
-- **Zero-Trust Architecture**: Security by design
-- **OWASP Guidelines**: Web application security
-- **ISO/IEC 25010**: Software quality standards
-
-## 📁 **Project Structure**
-
-```
-simpelv2/
-├── 📁 antarmuka/                 # Microfrontend Leptos Applications
-│   ├── 🏛️ portal/              # Main Dashboard & Gateway
-│   ├── 🎓 badiklat/             # Training & Education Module
-│   ├── ⚖️ datun/               # Criminal Prosecution Module
-│   ├── 🔍 intel/               # Intelligence Analytics Module
-│   ├── 📋 pembinaan/           # Development Management Module
-│   ├──  pemulihan_aset/      # Asset Recovery Module
-│   ├── 🛡️ pengawasan/          # Monitoring & Compliance Module
-│   ├── 🪖 pidmil/             # Military Criminal Law Module
-│   ├── 🔒 pidsus/             # Special Crimes Module
-│   ├── 📜 pidum/              # General Crimes Module
-│   └── 🧩 shared/             # Shared UI Components Library v0.2.0
-├── 📁 layanan/                   # Backend Microservices (Rust)
-│   ├── 🎓 badiklat/             # Training Service
-│   ├── ⚖️ datun/               # Criminal Prosecution Service
-│   ├── 🔍 intel/               # Intelligence Service
-│   ├── 📋 pembinaan/           # Development Service
-│   ├── � pemulihan_aset/      # Asset Recovery Service
-│   ├── �️ pengawasan/          # Monitoring Service
-│   ├── � pidmil/             # Military Criminal Law Service
-│   ├── � pidsus/             # Special Crimes Service
-│   ├── 📜 pidum/              # General Crimes Service
-│   └── 🧩 shared/             # Shared Backend Components
-├── � infra/                     # Infrastructure & DevOps
-│   ├── � authenc/             # Authentication Service
-│   ├── � gerbang/             # API Gateway (Envoy)
-│   ├── ☸️ k8s/                 # Kubernetes Manifests
-│   ├── 🌐 nginx/               # Nginx Reverse Proxy
-│   ├── � proto/               # Protocol Buffers
-│   └── � secreton/            # Custom Secreton Service
-├── 📁 config/                    # Configuration Files
-│   ├── 📢 alertmanager/         # Alertmanager Config
-│   ├── 📊 prometheus/           # Prometheus Config
-│   ├── � authenc.production.toml
-│   ├── 🛡️ captcha.development.toml
-│   ├── 📊 captcha.monitoring.toml
-│   ├── 🛡️ captcha.production.toml
-│   └── 🔒 secreton.production.toml
-├── 📁 scripts/                   # Build & Automation Scripts
-│   ├── 💾 backup/               # Backup Scripts
-│   ├── 💻 cli/                  # CLI Tools
-│   ├── 📦 makefiles/            # Make Configurations
-│   ├── 🧪 test/                 # Test Automation
-│   ├── 🔧 tools/                # Development Tools
-│   ├── 📊 analyze-bundle-size.sh
-│   ├── 📊 analyze-bundle-sizes.sh
-│   ├── 📊 analyze-bundle.sh
-│   ├── 🚀 build-and-push-all.sh
-│   ├── � build-incremental.sh
-│   └── 🛡️ security_validation.sh
-├── 📁 docs/                      # Comprehensive Documentation
-│   ├── 📚 (40+ documentation files)
-│   ├── 🏗️ architecture/         # Architecture Diagrams
-│   ├── 🔐 security/             # Security Guides
-│   ├── 🚀 deployment/           # Deployment Guides
-│   └── 📋 api/                  # API Documentation
-├── 📁 test/                      # Test Files
-│   └── ⚡ performance_test_runner.rs
-└── 📁 target/                    # Rust Build Artifacts
-    ├── 🐛 debug/                # Development Builds
-    ├── 🚀 release/              # Production Builds
-    └── 🕸️ wasm32-unknown-unknown/ # WebAssembly Builds
-```
-
-## 🎨 **Frontend Microfrontends**
-
-### **🏛️ Portal Dashboard**
-
-**Primary Gateway & Unified Dashboard**
-
-- **Port**: `:80`
-- **Function**: Main entry point, authentication, navigation
-- **Technology**: Leptos 0.7.8 + WebAssembly
-- **Features**: Single Sign-On, role-based routing, system overview
-
-### **🎓 Badiklat Training System**
-
-**Training & Education Management**
-
-- **Port**: `:80`
-- **Function**: Training programs, certifications, learning paths
-- **Features**: Course management, progress tracking, assessments
-
-### **⚖️ Datun Criminal Prosecution**
-
-**General Criminal Case Management**
-
-- **Port**: `:80`
-- **Function**: Case tracking, prosecution workflow, legal documents
-- **Features**: Case assignment, timeline management, evidence tracking
-
-### **🔍 Intel Analytics Platform**
-
-**Intelligence & Data Analytics**
-
-- **Port**: `:80`
-- **Function**: Data visualization, intelligence reports, analytics dashboards
-- **Features**: Real-time monitoring, predictive analytics, custom reports
-- **Upload/Download**: File management
-- **Preview**: PDF/Word document preview
-- **Classification**: AI-powered tagging
-- **Encryption**: In-transit & at-rest encryption
-
-### **⚙️ Configuration Service**
-
-- **Dynamic Metadata**: Categories, tags, reference codes
-- **User Preferences**: Display settings
-- **JSONB Config**: Flexible configuration storage
-
-### **🆘 Help Service**
-
-- **FAQ Management**: Knowledge base
-- **Ticket System**: Support requests
-- **AI Chatbot**: Intelligent assistance
-- **Integration**: Notification & document linking
-
-### **📊 Dashboard Service**
-
-- **Performance Summary**: Institutional overview
-- **Data Visualization**: Cross-service analytics
-- **Microfrontend Integration**: Modular UI components
-
-### **📋 Reporting Service**
-
-- **Dynamic Reports**: User-generated reports
-
-## 🔧 **Backend Microservices**
-
-### **🔐 Security Service (Rust)**
-
-- **JWT Authentication**: Token management & validation
-- **Multi-Factor Authentication**: TOTP-based security
-- **Role-Based Access Control**: Granular permissions per microfrontend
-- **Secreton Integration**: Secret management
-- **Immutable Audit Trail**: Forensic capabilities
-
-**Port**: `3001` | **Health**: `/health`
-
-### **🤖 AI Service (Rust)**
-
-- **LLM Integration**: Internal fine-tuned models untuk analisa dokumen
-- **RAG System**: Retrieval-Augmented Generation untuk Q&A
-- **OCR Processing**: Document text extraction dengan AI
-- **Supervised Learning**: Traditional ML models
-- **RLHF**: Reinforcement Learning from Human Feedback
-
-**Port**: `3002` | **Health**: `/health`
-
-### **📄 Document Service (Rust)**
-
-- **Document Management**: Upload, versioning, storage
-- **Full-text Search**: Advanced search capabilities
-- **AI Classification**: Automated categorization
-- **Digital Signatures**: PKI-based document signing
-- **Workflow Integration**: Document approval processes
-
-**Port**: `3003` | **Health**: `/health`
-
-### **� Dashboard Service (Rust)**
-
-- **Real-time Metrics**: Live performance indicators
-- **Custom Dashboards**: Per-role dashboard configurations
-- **Data Visualization**: Charts, graphs, analytics
-- **Pivot Tables**: Interactive data analysis
-- **Export Functions**: PDF, Excel, CSV output
-
-**Port**: `3006` | **Health**: `/health`
-
-### **🛠️ Perlengkapan Service (Rust)**
-
-- **Equipment Management**: Comprehensive BMN equipment tracking
-- **Asset Database**: PostgreSQL dengan BigDecimal precision
-- **Hierarchical Menu System**: Dashboard, Bank Aset, Analisis Kebutuhan, Pengadaan, Pengelolaan BMN
-- **REST API**: Complete CRUD operations dengan pagination
-- **JWT Authentication**: Secure API endpoints dengan middleware
-- **Business Logic**: Asset lifecycle management dan validation
-
-**Port**: `3010` | **Health**: `/health`
-
-### **📋 Reporting Service (Rust)**
-
-- **Dynamic Reports**: Template-based report generation
-- **Scheduled Reports**: Automated report delivery
-- **Data Warehouse**: Filtered reporting capabilities
-- **AI Integration**: Automated insights generation
-- **Multi-format Output**: PDF, Excel, Word, JSON
-
-**Port**: `3007` | **Health**: `/health`
-
-## 🛡️ **Security Architecture**
-
-### **🔐 Authentication Flow**
-
-```
-User Login → JWT Token → MFA Verification → Role Assignment → Microfrontend Access
-```
-
-### **🛡️ Multi-Layer Security**
-
-1. **Network Security**: Envoy Gateway + Nginx with SSL termination
-2. **Application Security**: Rust memory safety + type checking
-3. **Authentication**: JWT + MFA + RBAC per service
-4. **Secret Management**: Secreton integration
-5. **Audit Trail**: Immutable logging across all microfrontends
-6. **Content Security Policy**: CSP headers for each frontend module
-7. **Threat Detection**: Honeytrap service + anomaly detection
-
-### **📊 Compliance Standards**
-
-- **ISO 27001**: Information security management system
-- **PCI DSS**: Payment card industry data security
-- **GDPR**: General data protection regulation compliance
-- **SOX**: Sarbanes-Oxley financial reporting compliance
-
-## 🤖 **AI Capabilities**
-
-### **🧠 Machine Learning Models**
-
-- **LLM**: Fine-tuned language models
-- **OCR**: Document text extraction
-- **Classification**: Document categorization
-- **Recommendation**: Smart suggestions
-- **Anomaly Detection**: Security monitoring
-
-### **🔄 Learning Approaches**
-
-- **Supervised Learning**: Traditional ML models
-- **RLHF**: Reinforcement Learning from Human Feedback
-- **Active Learning**: Query optimization
-- **Transfer Learning**: Model adaptation
-- **HITL**: Human-in-the-loop annotation
-
-## 📊 **Performance Metrics**
-
-### **🔐 Security Service**
-
-- **JWT Generation**: ~1ms per token
-- **Password Verification**: ~10ms per verification
-- **MFA Verification**: ~5ms per code
-- **Audit Logging**: ~2ms per log entry
-
-### **🤖 AI Service**
-
-- **LLM Inference**: ~50ms per request
-- **OCR Processing**: ~100ms per page
-- **RAG Query**: ~20ms per query
-- **Model Loading**: ~2s startup time
-
-## 🚀 **Deployment**
-
-## 🚀 **Quick Start**
-
-### **Prerequisites**
+### Building Microfrontends
 
 ```bash
-# System requirements
-- Docker & Docker Compose 20+
-- Rust 1.75+ (for development)
-- Node.js 18+ & Trunk 0.21.14 (for microfrontends)
-- PostgreSQL 15+
-- Secreton
+# Build single microfrontend
+cd antarmuka/portal
+trunk build --release
+
+# Build all microfrontends (parallel)
+make build-all-fe
+
+# Build with optimization
+trunk build --release --config Trunk.toml
 ```
 
-### **🚀 Development Setup**
+### Building Backend Services
 
 ```bash
-# Clone repository
-git clone https://gitlab.com/analisiskebutuhan/simpelv2_web.git
-cd simpelv2
+# Build specific service
+cargo build --bin layanan-dasbor
+cargo build --bin layanan-ai
 
-# Setup development environment
-make setup-dev
+# Build all services
+cargo build --workspace
 
-# Start all services
-make up-dev
-
-# Build microfrontends
-make build-frontends
-
-# Access applications
-make open-portal        # Opens http://localhost:80
+# Release build
+cargo build --release
 ```
 
-### **🌐 Access Points**
+---
 
-| Service         | URL                   | Description              |
-| --------------- | --------------------- | ------------------------ |
-| **Portal**      | http://localhost:80 | Main Dashboard & Gateway |
-| **Badiklat**    | http://localhost:80 | Training System          |
-| **Datun**       | http://localhost:80 | Criminal Prosecution     |
-| **Intel**       | http://localhost:80 | Intelligence Platform    |
-| **API Gateway** | http://localhost:8000 | Backend API Gateway      |
-| **Secreton UI**    | http://localhost:8200 | Secreton          |
-| **Grafana**     | http://localhost:3000 | Monitoring Dashboard     |
+## 🔄 CI/CD Pipeline
 
-### **🔧 Development Commands**
+### GitLab CI/CD (9 Stages)
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│ Preparation │───▶│   Quality   │───▶│  Security   │
+│  (Toolchain)│    │(Fmt/Clippy) │    │(Audit/SAST) │
+└─────────────┘    └─────────────┘    └─────────────┘
+       │                  │                  │
+       ▼                  ▼                  ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│    Build    │───▶│    Test     │───▶│Security-Scan│
+│(Parallel)   │    │(Unit/Integ) │    │(Trivy/IaC)  │
+└─────────────┘    └─────────────┘    └─────────────┘
+       │                  │                  │
+       ▼                  ▼                  ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│    SBOM     │───▶│   Deploy    │───▶│   Cleanup   │
+│(CycloneDX)  │    │(Dev/Prod)   │    │  (Cache)    │
+└─────────────┘    └─────────────┘    └─────────────┘
+```
+
+| Stage             | Jobs                                    | Description                             |
+| ----------------- | --------------------------------------- | --------------------------------------- |
+| **Preparation**   | Dependencies                            | Rust toolchain, cargo tools, WASM tools |
+| **Quality**       | Format, Clippy, Docs                    | Code quality dan documentation          |
+| **Security**      | Audit, Deny, Geiger, Miri, Vet, SAST    | Static security analysis                |
+| **Build**         | Chef, Rust Backend, Leptos Frontend     | Parallel builds dengan sccache          |
+| **Test**          | Unit, Integration, Coverage, Fuzz       | Comprehensive testing suite             |
+| **Security-Scan** | Trivy, License, Secrets, IaC, Container | Runtime security scanning               |
+| **SBOM**          | Generate SBOM, Policy Validation        | Supply chain security                   |
+| **Deploy**        | Dev, Staging, Production                | Multi-environment deployment            |
+| **Cleanup**       | Cache, Security Summary                 | Cleanup dan reporting                   |
+
+### Security Tools Integrated
+
+| Tool             | Purpose                             |
+| ---------------- | ----------------------------------- |
+| **Cargo Audit**  | Vulnerability database scanning     |
+| **Cargo Deny**   | Dependency policy enforcement       |
+| **Cargo Geiger** | Unsafe code analysis                |
+| **Cargo Vet**    | Supply chain verification           |
+| **Semgrep**      | Static Application Security Testing |
+| **Trivy**        | Filesystem & container scanning     |
+| **TruffleHog**   | Secret detection                    |
+| **Checkov**      | Infrastructure as Code security     |
+| **Miri**         | Undefined behavior detection        |
+| **OPA**          | Policy validation engine            |
+| **Cosign**       | Container image signing             |
+| **CycloneDX**    | SBOM generation                     |
+
+---
+
+## 📊 Monitoring & Observability
+
+### Metrics Stack
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Services   │───▶│ Prometheus  │───▶│   Grafana   │
+│  (Metrics)  │    │ (Scraping)  │    │ (Dashboard) │
+└─────────────┘    └─────────────┘    └─────────────┘
+       │                                     │
+       │          ┌─────────────┐            │
+       └─────────▶│    Loki     │◀───────────┘
+                  │  (Logging)  │
+                  └─────────────┘
+```
+
+### Collected Metrics
+
+- **Application**: Response times, throughput, error rates
+- **Infrastructure**: CPU, memory, disk, network
+- **Business**: User engagement, feature adoption
+- **Security**: Authentication events, threat detection
+- **Microfrontend**: Load times, bundle sizes, user flows
+
+### Alerting
+
+- Service health monitoring
+- Performance threshold alerts
+- Security incident response
+- Business process alerts
+
+---
+
+## 🔐 Authentication Flow
+
+### Portal SSO Integration
+
+```
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────────┐
+│  User   │───▶│ Portal  │───▶│ Authenc │───▶│ Secreton    │
+│         │    │ (Login) │    │  (IAM)  │    │ (MFA Keys)  │
+└─────────┘    └────┬────┘    └────┬────┘    └─────────────┘
+                    │              │
+                    │   JWT Token  │
+                    │◀─────────────┘
+                    │
+                    ▼
+            ┌───────────────┐
+            │ Microfrontend │
+            │ (Protected)   │
+            └───────────────┘
+```
+
+**Authentication Pattern:**
+
+```rust
+// Microfrontend integration
+use shared_microfrontend::hooks::use_auth;
+use shared_microfrontend::components::auth::ProtectedRoute;
+
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <Router>
+            <Routes>
+                <Route path="/" view=LoginRedirectPage />
+                <Route path="/dashboard" view=|| {
+                    view! { <ProtectedRoute><Dashboard /></ProtectedRoute> }
+                }/>
+            </Routes>
+        </Router>
+    }
+}
+```
+
+> **Important**: Microfrontends NEVER handle credentials directly. All authentication goes through Portal + Authenc.
+
+---
+
+## 🧪 Testing
+
+### Test Strategy
 
 ```bash
-# Frontend development
-make serve-portal       # Serve portal with hot reload
-make build-all-fe      # Build all microfrontends
-make test-frontends    # Test all frontend modules
+# Unit Tests
+cargo test                           # All workspace tests
+cargo test --package layanan-ai      # Specific service
 
-# Backend development
-make dev-backend       # Start backend services
-make test-backend      # Run backend tests
-make clippy           # Rust linting
+# Integration Tests
+make test-integration                # Full integration suite
 
-# Infrastructure
-make up-infra         # Start infrastructure only
-make logs-all         # View all service logs
-make clean-all        # Clean all build artifacts
+# Frontend Tests
+cd antarmuka/portal && trunk test    # WASM tests
+
+# Security Tests
+./scripts/security_validation.sh     # Security validation
+
+# Performance Tests
+cargo bench                          # Benchmarks
+make load-test                       # Load testing
 ```
 
-### **📦 Production Deployment**
+### Quality Metrics
 
-```bash
-# Build production images
-make build-prod
+- **Code Coverage**: Minimum 85% for production
+- **Performance**: Response time <100ms average
+- **Reliability**: 99.9% uptime SLA
+- **Security**: Zero critical vulnerabilities
 
-# Deploy to staging
-make deploy-staging
+---
 
-# Deploy to production
-make deploy-prod
+## ☸️ Kubernetes Deployment
 
-# Monitor deployment
-make monitor-prod
-```
-
-### **☸️ Kubernetes Deployment**
-
-**MicroK8s Production Deployment**
+### MicroK8s Production
 
 ```bash
 # Build Portal microfrontend
 cd antarmuka/portal
 trunk build --release
 
-# Deploy Portal to MicroK8s
+# Deploy to MicroK8s
 microk8s kubectl apply -f infra/k8s/microfrontends/portal-deployment.yaml
-
-# Deploy Perlengkapan (if needed)
-microk8s kubectl apply -f infra/k8s/microfrontends/perlengkapan-deployment.yaml
-
-# Update Ingress configuration
 microk8s kubectl apply -f infra/k8s/ingress/ingress.yaml
 
-# Check deployment status
+# Check deployment
 microk8s kubectl get pods,svc,ingress -n simpelv2
 
-# Test SSL endpoints
-curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/ -I
-curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/portal -I
-curl -k -H "Host: simpel.kejaksaan.go.id" https://127.0.0.1/perlengkapan -I
+# Test endpoints
+curl -k https://simpel.kejaksaan.go.id/ -I
 ```
 
-**Production URLs:**
+### Namespace Organization
 
-- 🌐 **Main Portal**: https://simpel.kejaksaan.go.id/
-- 🛠️ **Perlengkapan**: https://simpel.kejaksaan.go.id/perlengkapan
-- 📊 **Portal Direct**: https://simpel.kejaksaan.go.id/portal
-
-## 📚 **Documentation**
-
-### **📖 Core Documentation**
-
-- [🏗️ Architecture Overview](docs/architecture/README.md)
-- [🔐 Security Guide](docs/security/README.md)
-- [🤝 Contributing Guidelines](CONTRIBUTING.md)
-- [🚀 Deployment Guide](docs/deployment/README.md)
-- [📋 API Documentation](docs/api/README.md)
-
-### **📱 Frontend Documentation**
-
-- [🎨 Microfrontend Architecture](docs/MICROFRONTEND_STATUS_REPORT.md)
-- [🧩 Shared Components Guide](antarmuka/shared/README.md)
-- [🎯 Portal System](antarmuka/portal/README.md)
-- [🔧 Build & Optimization](docs/ANTARMUKA_OPTIMIZATION_FINAL_REPORT.md)
-
-### **⚙️ Backend Documentation**
-
-- [🔐 Security Service](layanan/keamanan/README.md)
-- [🤖 AI/ML Service](layanan/ai/README.md)
-- [📄 Document Service](layanan/dokumen/README.md)
-- [📊 Dashboard Service](layanan/dasbor/README.md)
-
-### **📋 API Documentation**
-
-- **OpenAPI 3.0**: Interactive API documentation
-- **Postman Collection**: Comprehensive API testing suite
-- **Swagger UI**: Visual API explorer dengan examples
-- **GraphQL**: Real-time query interface untuk analytics
-
-## 🔍 **Quality Assurance**
-
-### **🧪 Testing Strategy**
-
-- **Unit Tests**: Rust services dengan coverage >90%
-- **Integration Tests**: End-to-end microfrontend testing
-- **Performance Tests**: Load testing dengan K6
-- **Security Tests**: Penetration testing automation
-- **UI Tests**: Playwright untuk semua microfrontends
-
-### **📊 Quality Metrics**
-
-- **Code Coverage**: Minimum 85% untuk production
-- **Performance**: Response time <100ms average
-- **Reliability**: 99.9% uptime SLA
-- **Security**: Zero critical vulnerabilities
-- **Compliance**: ISO 27001 & SOX compliance
-
-### **🔄 CI/CD Pipeline**
-
-```bash
-# Quality checks pipeline
-Code Push → Pre-commit Hooks → Unit Tests → Integration Tests
-         → Security Scan → Build → Deploy Staging → E2E Tests
-         → Deploy Production → Health Check → Monitoring
+```
+simpelv2/                    # Main namespace
+simpelv2-frontend/           # Frontend microfrontends
+simpelv2-backend/            # Backend microservices
+simpelv2-infra/              # Infrastructure services
+simpelv2-monitoring/         # Monitoring stack
 ```
 
-## 📈 **Monitoring & Observability**
+---
 
-### **📊 Comprehensive Metrics**
+## 🤝 Contributing
 
-- **Application Performance**: Response times, throughput, error rates
-- **Infrastructure Health**: CPU, memory, disk, network utilization
-- **Business Intelligence**: User engagement, feature adoption
-- **Security Monitoring**: Authentication events, threat detection
-- **Microfrontend Metrics**: Load times, bundle sizes, user flows
-
-### **📝 Structured Logging**
-
-- **Centralized Logging**: Loki + Grafana stack
-- **Structured JSON**: Consistent log format across services
-- **Immutable Audit Trail**: Security & compliance logging
-- **Real-time Monitoring**: Live log streaming & analysis
-- **Performance Tracing**: Distributed request tracing
-
-### **⚠️ Intelligent Alerting**
-
-- **Service Health Monitoring**: Automated health checks
-- **Performance Thresholds**: SLA-based alerting
-- **Security Incident Response**: Automated threat detection
-- **Business Process Alerts**: Critical workflow monitoring
-- **Predictive Alerts**: AI-powered anomaly detection
-
-## 🤝 **Contributing**
-
-### **🛠️ Development Setup**
+### Development Setup
 
 ```bash
 # Install Rust toolchain
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup default 1.90
 rustup component add clippy rustfmt
 
 # Install frontend tools
 cargo install trunk
-npm install -g wasm-pack
+cargo install wasm-pack
 
 # Install development tools
-cargo install sqlx-cli
 cargo install cargo-audit
 cargo install cargo-watch
 
@@ -662,163 +601,92 @@ cd simpelv2
 make setup-dev
 ```
 
-### **📋 Development Standards**
+### Code Standards
 
-- **Code Quality**: Rust conventions + clippy linting
+- **Rust Conventions**: Follow Rust idioms + clippy linting
 - **Security First**: Security-by-design approach
 - **Comprehensive Testing**: Unit, integration, e2e tests
 - **Documentation**: Clear comments + API documentation
-- **Performance**: Benchmarking + optimization
 
-### **🔄 Contribution Process**
+### Contribution Process
 
-1. **📋 Issue Creation**: Create detailed issue dengan requirements
-2. **🌿 Branch Creation**: Feature branch dari main branch
-3. **💻 Development**: Implement dengan tests + documentation
-4. **🧪 Quality Checks**: Run tests, linting, security scans
-5. **📝 Merge Request**: Submit dengan comprehensive description
-6. **👁️ Code Review**: Peer review + automated checks
-7. **🚀 Merge & Deploy**: Automated deployment pipeline
-
-## 🧪 **Testing**
-
-### **Unit Tests**
-
-```bash
-# Run all tests
-cargo test
-
-# Run specific service tests
-cargo test --package layanan-keamanan
-cargo test --package layanan-ai
-```
-
-### **Integration Tests**
-
-```bash
-# Run integration tests
-make test-integration
-
-# Run security tests
-make test-security
-```
-
-### **Performance Tests**
-
-```bash
-# Run benchmarks
-cargo bench
-
-# Load testing
-make load-test
-```
-
-## 🔄 **CI/CD Pipeline**
-
-### **GitLab CI**
-
-- **Build**: Multi-stage Docker builds
-- **Test**: Automated testing suite
-- **Security**: Vulnerability scanning
-- **Deploy**: Automated deployment
-
-### **Quality Gates**
-
-- **Code Coverage**: >80% coverage required
-- **Security Scan**: No critical vulnerabilities
-- **Performance**: Response time <100ms
-- **Compliance**: Security standards met
-
-## 📈 **Monitoring & Observability**
-
-### **Metrics**
-
-- **Application Metrics**: Response times, error rates
-- **Infrastructure Metrics**: CPU, memory, disk usage
-- **Business Metrics**: User activity, feature usage
-- **Security Metrics**: Authentication, authorization events
-
-### **Logging**
-
-- **Structured Logging**: JSON format
-- **Centralized Logging**: Loki + Grafana
-- **Audit Logging**: Immutable security logs
-- **Performance Logging**: Request tracing
-
-### **Alerting**
-
-- **Service Health**: Automatic health checks
-- **Performance Alerts**: Response time thresholds
-- **Security Alerts**: Suspicious activity detection
-- **Business Alerts**: Critical business events
-
-## 🤝 **Contributing**
-
-### **Development Setup**
-
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install dependencies
-cargo install sqlx-cli
-cargo install cargo-audit
-
-# Setup development environment
-make setup-dev
-```
-
-### **Code Standards**
-
-- **Rust**: Follow Rust conventions
-- **Security**: Security-first development
-- **Testing**: Comprehensive test coverage
-- **Documentation**: Clear and concise docs
-
-### **Pull Request Process**
-
-1. **Fork** the repository
-2. **Create** feature branch
-3. **Implement** changes with tests
-4. **Submit** pull request
-5. **Review** and merge
-
-## 🆘 **Support**
-
-### **Getting Help**
-
-- **Documentation**: Comprehensive guides
-- **Issues**: GitHub issue tracker
-- **Discussions**: Community forum
-- **Security**: Responsible disclosure
-
-### **Contact**
-
-- **Email**: support@simpelv2.go.id
-- **Slack**: #simpelv2-support
-- **GitHub**: Issues and discussions
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📝 **Changelog**
-
-Lihat file `CHANGELOG.md` untuk riwayat perubahan lengkap. Perubahan terakhir:
-
-- Workspace Cargo.toml: Semua layanan backend dan shared sudah terdaftar di `[workspace].members`.
-- SIMPelv2.code-workspace: Semua backend dan shared sudah di-link ke Rust Analyzer, serta task build/check/test backend sudah tersedia.
-- Struktur workspace kini siap build/test lintas layanan dan kolaborasi tim.
-
-## 🙏 **Acknowledgments**
-
-- **Rust Community**: For the amazing language and ecosystem
-- **Axum Team**: For the high-performance web framework
-- **HashiCorp**: For enterprise security tools
-- **Open Source Community**: For all the amazing libraries
+1. **Create Issue**: Detailed issue dengan requirements
+2. **Create Branch**: Feature branch dari main
+3. **Implement**: Code dengan tests + documentation
+4. **Quality Checks**: `make rust-fmt && make rust-clippy`
+5. **Submit MR**: Merge request dengan description
+6. **Review**: Peer review + automated checks
+7. **Merge**: Automated deployment pipeline
 
 ---
 
-**🏛️ Built with ❤️ and Rust for maximum security and performance**
+## 📚 Documentation
+
+### Core Documentation
+
+| Document                                                                           | Description                 |
+| ---------------------------------------------------------------------------------- | --------------------------- |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                                 | Contribution guidelines     |
+| [COMPLETE_AUTH_FLOW_ARCHITECTURE.md](antarmuka/COMPLETE_AUTH_FLOW_ARCHITECTURE.md) | Authentication architecture |
+| [MFA_ARCHITECTURE_DOCUMENTATION.md](docs/MFA_ARCHITECTURE_DOCUMENTATION.md)        | MFA implementation          |
+| [MICROFRONTEND_INTEGRATION.md](antarmuka/shared/MICROFRONTEND_INTEGRATION.md)      | Frontend integration guide  |
+
+### Service Documentation
+
+Located in `docs/` folder:
+
+- `layanan-*.md` - Individual service documentation
+- `MFA_*.md` - Multi-factor authentication docs
+- `AUTHENC_*.md` - IAM service documentation
+- `SECRETON_*.md` - Secret management docs
+- `CAPTCHA_*.md` - CAPTCHA integration docs
+
+---
+
+## 🆘 Support
+
+### Getting Help
+
+- **Documentation**: `docs/` folder (60+ files)
+- **Issues**: GitLab issue tracker
+- **Architecture**: See `antarmuka/COMPLETE_AUTH_FLOW_ARCHITECTURE.md`
+
+### Contact
+
+- **Repository**: [gitlab.com/analisiskebutuhan/simpelv2_web](https://gitlab.com/analisiskebutuhan/simpelv2_web)
+- **Production**: [simpel.kejaksaan.go.id](https://simpel.kejaksaan.go.id)
+
+---
+
+## 📄 License
+
+This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for full change history.
+
+**Recent Updates:**
+
+- ✅ Rust 1.90+ (Edition 2024) migration
+- ✅ Leptos 0.8.12 upgrade
+- ✅ Shared component library v1.0.0 refactor
+- ✅ Authenc + Secreton separate workspace architecture
+- ✅ 9-stage CI/CD pipeline with 12+ security tools
+- ✅ Zero-trust security implementation
+
+---
+
+## 🙏 Acknowledgments
+
+- **Rust Community**: Amazing language dan ecosystem
+- **Leptos Team**: High-performance reactive framework
+- **Open Source Community**: All the amazing libraries
+
+---
+
+**🏛️ Built with ❤️ and Rust for Kejaksaan Agung Republik Indonesia**
 
 _SIMPelv2 - Sistem Informasi Manajemen Pengelolaan BMN_

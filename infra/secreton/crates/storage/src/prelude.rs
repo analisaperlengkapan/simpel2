@@ -30,7 +30,7 @@ pub use crate::factory::{StorageBackendType, StorageFactory, StorageFactoryConfi
 // Re-export Raft components (if enabled)
 #[cfg(feature = "raft-consensus")]
 pub use crate::raft::{
-    RaftCluster, RaftClusterConfig, RaftStatus, SecretonStateMachine, SecretonStorage,
+    Raft, RaftCluster, RaftClusterConfig, RaftStatus, SecretonRaftStorage, SecretonStateMachine,
 };
 
 // Re-export commonly used external crates

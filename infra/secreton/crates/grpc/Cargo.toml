@@ -12,10 +12,11 @@ raft-consensus = ["secreton-storage/raft-consensus"]
 enable-inline-tests = []
 
 [dependencies]
-# Core dependencies
-secreton-core = { workspace = true }
-secreton-crypto = { workspace = true }
-secreton-storage = { workspace = true }
+# Internal dependencies
+secreton-core.workspace = true
+secreton-storage.workspace = true
+secreton-crypto.workspace = true
+
 
 # Async runtime
 tokio = { workspace = true }

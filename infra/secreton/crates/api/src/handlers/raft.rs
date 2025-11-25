@@ -17,21 +17,19 @@ use axum::{
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
-use std::sync::Arc;
 use tracing::{error, info, instrument, warn};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState};
 
 /// Create Raft management routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/raft/join", post(join_cluster))
+        .route("/raft/join", post(add_peer))
         .route("/raft/peers", get(list_peers))
         .route("/raft/peers/{node_id}", delete(remove_peer))
-        .route("/raft/status", get(raft_status))
+        .route("/raft/status", get(get_cluster_status))
         .route("/raft/snapshot", post(create_snapshot))
         .route("/raft/snapshots", get(list_snapshots))
-        .with_state(state)
 }
 
 /// Cluster status response
@@ -178,6 +176,21 @@ pub struct RestoreSnapshotResponse {
     pub snapshot: SnapshotMetadata,
 }
 
+fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
+    let is_admin = user.roles.iter().any(|role| {
+        let r = role.to_lowercase();
+        r == "admin" || r == "vault-admin"
+    });
+
+    if is_admin {
+        Ok(())
+    } else {
+        Err(ApiError::Authorization {
+            message: "Admin role required for this operation".to_string(),
+        })
+    }
+}
+
 /// Get cluster status
 ///
 /// Returns comprehensive information about the Raft cluster including
@@ -185,6 +198,7 @@ pub struct RestoreSnapshotResponse {
 #[instrument(skip(state))]
 pub async fn get_cluster_status(
     State(state): State<AppState>,
+    _user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<ClusterStatusResponse>>> {
     info!("Getting Raft cluster status");
 
@@ -254,6 +268,7 @@ pub async fn get_cluster_status(
         })
         .collect();
 
+    let membership_len = status.membership.len();
     let response = ClusterStatusResponse {
         node_id: status.node_id,
         current_term: status.current_term,
@@ -267,18 +282,15 @@ pub async fn get_cluster_status(
     };
 
     // Record metrics
-    metrics::gauge!("secreton_raft_current_term", status.current_term as f64);
-    metrics::gauge!(
-        "secreton_raft_is_leader",
-        if status.is_leader { 1.0 } else { 0.0 }
-    );
+    metrics::gauge!("secreton_raft_current_term").set(status.current_term as f64);
+    metrics::gauge!("secreton_raft_is_leader").set(if status.is_leader { 1.0 } else { 0.0 });
     if let Some(last_applied) = status.last_applied {
-        metrics::gauge!("secreton_raft_last_applied", last_applied as f64);
+        metrics::gauge!("secreton_raft_last_applied").set(last_applied as f64);
     }
     if let Some(last_log_index) = status.last_log_index {
-        metrics::gauge!("secreton_raft_last_log_index", last_log_index as f64);
+        metrics::gauge!("secreton_raft_last_log_index").set(last_log_index as f64);
     }
-    metrics::gauge!("secreton_raft_cluster_size", status.membership.len() as f64);
+    metrics::gauge!("secreton_raft_cluster_size").set(membership_len as f64);
 
     info!("Cluster status retrieved successfully");
     Ok(Json(ApiResponse::success(response)))
@@ -288,6 +300,7 @@ pub async fn get_cluster_status(
 #[instrument(skip(state))]
 pub async fn list_peers(
     State(state): State<AppState>,
+    _user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<PeerInfo>>>> {
     info!("Listing cluster peers");
 
@@ -311,7 +324,7 @@ pub async fn list_peers(
     })?;
 
     // Build peer list
-    let peers = status
+    let peers: Vec<PeerInfo> = status
         .membership
         .iter()
         .map(|&node_id| {
@@ -351,9 +364,12 @@ pub async fn list_peers(
 #[instrument(skip(state))]
 pub async fn add_peer(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<AddPeerRequest>,
 ) -> ApiResult<Json<ApiResponse<AddPeerResponse>>> {
     info!("Adding peer {} at {}", request.node_id, request.address);
+
+    ensure_admin(&user)?;
 
     // TODO: Extract user from JWT and verify admin access
     // For now, we'll proceed with the operation
@@ -362,15 +378,17 @@ pub async fn add_peer(
     // Validate request
     if request.address.is_empty() {
         warn!("Attempted to add peer with empty address");
-        return Err(ApiError::BadRequest("Address cannot be empty".to_string()));
+        return Err(ApiError::BadRequest {
+            message: "Address cannot be empty".to_string(),
+        });
     }
 
     // Validate address format (should be host:port)
     if !request.address.contains(':') {
         warn!("Invalid address format: {}", request.address);
-        return Err(ApiError::BadRequest(
-            "Address must be in format 'host:port'".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Address must be in format 'host:port'".to_string(),
+        });
     }
 
     // Validate address is resolvable
@@ -378,19 +396,17 @@ pub async fn add_peer(
         Ok(mut addrs) => {
             if addrs.next().is_none() {
                 warn!("Address does not resolve: {}", request.address);
-                return Err(ApiError::BadRequest(format!(
-                    "Address does not resolve: {}",
-                    request.address
-                )));
+                return Err(ApiError::BadRequest {
+                    message: format!("Address does not resolve: {}", request.address),
+                });
             }
             info!("Address {} validated successfully", request.address);
         }
         Err(e) => {
             warn!("Failed to resolve address {}: {}", request.address, e);
-            return Err(ApiError::BadRequest(format!(
-                "Invalid address format: {}",
-                e
-            )));
+            return Err(ApiError::BadRequest {
+                message: format!("Invalid address format: {}", e),
+            });
         }
     }
 
@@ -416,10 +432,9 @@ pub async fn add_peer(
 
     if status.membership.contains(&request.node_id) {
         warn!("Node {} already exists in cluster", request.node_id);
-        return Err(ApiError::BadRequest(format!(
-            "Node {} already exists in cluster",
-            request.node_id
-        )));
+        return Err(ApiError::BadRequest {
+            message: format!("Node {} already exists in cluster", request.node_id),
+        });
     }
 
     // Add the node
@@ -466,8 +481,8 @@ pub async fn add_peer(
         .collect();
 
     // Record metrics
-    metrics::counter!("secreton_raft_peers_added", 1);
-    metrics::gauge!("secreton_raft_cluster_size", status.membership.len() as f64);
+    metrics::counter!("secreton_raft_peers_added").increment(1);
+    metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
     // TODO: Add audit logging
     // audit_log.log_peer_added(request.node_id, request.address, user_id);
@@ -496,9 +511,12 @@ pub async fn add_peer(
 #[instrument(skip(state))]
 pub async fn remove_peer(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Path(node_id): Path<u64>,
 ) -> ApiResult<Json<ApiResponse<RemovePeerResponse>>> {
     info!("Removing peer {}", node_id);
+
+    ensure_admin(&user)?;
 
     // TODO: Extract user from JWT and verify admin access
     // For now, we'll proceed with the operation
@@ -527,10 +545,9 @@ pub async fn remove_peer(
     // Validate node exists in cluster
     if !status.membership.contains(&node_id) {
         warn!("Node {} does not exist in cluster", node_id);
-        return Err(ApiError::BadRequest(format!(
-            "Node {} does not exist in cluster",
-            node_id
-        )));
+        return Err(ApiError::BadRequest {
+            message: format!("Node {} does not exist in cluster", node_id),
+        });
     }
 
     // Prevent removing the leader (should transfer leadership first)
@@ -539,9 +556,9 @@ pub async fn remove_peer(
             "Cannot remove leader node {}. Transfer leadership first.",
             node_id
         );
-        return Err(ApiError::BadRequest(
-            "Cannot remove leader node. Transfer leadership first.".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Cannot remove leader node. Transfer leadership first.".to_string(),
+        });
     }
 
     // Check quorum safety
@@ -551,18 +568,19 @@ pub async fn remove_peer(
             "Cannot remove peer: would break quorum (remaining nodes: {})",
             remaining_nodes
         );
-        return Err(ApiError::BadRequest(
-            "Cannot remove peer: would break quorum. Minimum 2 nodes required.".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Cannot remove peer: would break quorum. Minimum 2 nodes required."
+                .to_string(),
+        });
     }
 
     // Additional safety check: ensure we maintain majority
     let quorum_size = (status.membership.len() / 2) + 1;
     if remaining_nodes < quorum_size {
         warn!("Cannot remove peer: would lose quorum majority");
-        return Err(ApiError::BadRequest(
-            "Cannot remove peer: would lose quorum majority.".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Cannot remove peer: would lose quorum majority.".to_string(),
+        });
     }
 
     // Remove the node
@@ -602,8 +620,8 @@ pub async fn remove_peer(
         .collect();
 
     // Record metrics
-    metrics::counter!("secreton_raft_peers_removed", 1);
-    metrics::gauge!("secreton_raft_cluster_size", status.membership.len() as f64);
+    metrics::counter!("secreton_raft_peers_removed").increment(1);
+    metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
     // TODO: Add audit logging
     // audit_log.log_peer_removed(node_id, user_id);
@@ -636,12 +654,12 @@ pub async fn remove_peer(
 #[instrument(skip(state))]
 pub async fn create_snapshot(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<CreateSnapshotResponse>>> {
     info!("Creating Raft snapshot");
 
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
+    // SECURITY: Require admin-level access for snapshot creation
+    ensure_admin(&user)?;
 
     // Get Raft storage backend
     let raft_storage = state
@@ -658,9 +676,9 @@ pub async fn create_snapshot(
     // Check if this node is the leader
     if !raft_storage.is_leader().await {
         warn!("Snapshot creation attempted on non-leader node");
-        return Err(ApiError::BadRequest(
-            "Snapshots can only be created on the leader node".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Snapshots can only be created on the leader node".to_string(),
+        });
     }
 
     // Get current cluster status for metadata
@@ -721,8 +739,8 @@ pub async fn create_snapshot(
         100 - (compressed_size * 100 / original_size.max(1))
     );
 
-    // Encrypt snapshot using crypto engine
-    let encrypted_data = state.crypto.encrypt(&compressed_data).map_err(|e| {
+    // Encrypt snapshot using crypto engine (simple mode with embedded key)
+    let encrypted_data = state.crypto.encrypt_simple(&compressed_data).map_err(|e| {
         error!("Failed to encrypt snapshot: {}", e);
         ApiError::Internal {
             message: format!("Failed to encrypt snapshot: {}", e),
@@ -793,28 +811,28 @@ pub async fn create_snapshot(
     };
 
     // Record metrics
-    metrics::counter!("secreton_raft_snapshots_created", 1);
-    metrics::gauge!("secreton_raft_snapshot_size_bytes", original_size as f64);
-    metrics::gauge!(
-        "secreton_raft_snapshot_compressed_size_bytes",
-        compressed_size as f64
-    );
+    metrics::counter!("secreton_raft_snapshots_created").increment(1);
+    metrics::gauge!("secreton_raft_snapshot_size_bytes").set(original_size as f64);
+    metrics::gauge!("secreton_raft_snapshot_compressed_size_bytes").set(compressed_size as f64);
 
     // Audit logging
-    state
-        .audit
-        .log_event(
-            "snapshot_created",
-            &format!("Snapshot {} created", snapshot_id),
-            serde_json::json!({
-                "snapshot_id": snapshot_id,
-                "size_bytes": original_size,
-                "compressed_size_bytes": compressed_size,
-                "last_included_index": status.last_applied.unwrap_or(0),
-                "last_included_term": status.current_term,
-            }),
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("snapshot_created")
+        .actor(user.id)
+        .resource_type("snapshot")
+        .resource_id(snapshot_id.clone())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("size_bytes", original_size.to_string())
+        .metadata("compressed_size_bytes", compressed_size.to_string())
+        .metadata(
+            "last_included_index",
+            status.last_applied.unwrap_or(0).to_string(),
         )
-        .await;
+        .metadata("last_included_term", status.current_term.to_string())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     // Trigger automatic cleanup of old snapshots
     tokio::spawn(cleanup_old_snapshots(state.pool.clone()));
@@ -837,9 +855,12 @@ pub async fn create_snapshot(
 #[instrument(skip(state))]
 pub async fn download_snapshot(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Query(params): Query<DownloadSnapshotQuery>,
 ) -> ApiResult<axum::response::Response> {
     info!("Downloading snapshot: {:?}", params.snapshot_id);
+
+    ensure_admin(&user)?;
 
     // TODO: Extract user from JWT and verify admin access
     // For now, we'll proceed with the operation
@@ -877,7 +898,9 @@ pub async fn download_snapshot(
             .await
             .map_err(|e| {
                 error!("Failed to get latest snapshot: {}", e);
-                ApiError::NotFound("No snapshots available".to_string())
+                ApiError::NotFound {
+                    resource: "No snapshots available".to_string(),
+                }
             })?;
 
         row.get::<_, String>(0)
@@ -901,7 +924,9 @@ pub async fn download_snapshot(
         .await
         .map_err(|e| {
             error!("Failed to retrieve snapshot: {}", e);
-            ApiError::NotFound(format!("Snapshot not found: {}", snapshot_id))
+            ApiError::NotFound {
+                resource: format!("Snapshot not found: {}", snapshot_id),
+            }
         })?;
 
     let encrypted_data: Vec<u8> = row.get(0);
@@ -937,7 +962,7 @@ pub async fn download_snapshot(
             }
         })?;
 
-        state
+        let is_valid = state
             .crypto
             .verify(&encrypted_data, &signature_bytes)
             .map_err(|e| {
@@ -947,21 +972,28 @@ pub async fn download_snapshot(
                 }
             })?;
 
+        if !is_valid {
+            error!("Snapshot signature is invalid");
+            return Err(ApiError::Internal {
+                message: "Snapshot signature is invalid".to_string(),
+            });
+        }
+
         info!("Snapshot signature verified");
     }
 
     // Audit logging
-    state
-        .audit
-        .log_event(
-            "snapshot_downloaded",
-            &format!("Snapshot {} downloaded", snapshot_id),
-            serde_json::json!({
-                "snapshot_id": snapshot_id,
-                "size_bytes": encrypted_data.len(),
-            }),
-        )
-        .await;
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("snapshot_downloaded")
+        .actor(user.id)
+        .resource_type("snapshot")
+        .resource_id(snapshot_id.clone())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("size_bytes", encrypted_data.len().to_string())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     // Return encrypted snapshot data as binary response
     use axum::http::header;
@@ -999,8 +1031,11 @@ pub struct DownloadSnapshotQuery {
 #[instrument(skip(state))]
 pub async fn list_snapshots(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<ListSnapshotsResponse>>> {
     info!("Listing available snapshots");
+
+    ensure_admin(&user)?;
 
     // TODO: Extract user from JWT and verify admin access
     // For now, we'll proceed with the operation
@@ -1092,9 +1127,12 @@ pub async fn list_snapshots(
 #[instrument(skip(state))]
 pub async fn restore_snapshot(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<RestoreSnapshotRequest>,
 ) -> ApiResult<Json<ApiResponse<RestoreSnapshotResponse>>> {
     info!("Restoring from snapshot {}", request.snapshot_id);
+
+    ensure_admin(&user)?;
 
     // TODO: Extract user from JWT and verify admin access
     // For now, we'll proceed with the operation
@@ -1103,16 +1141,16 @@ pub async fn restore_snapshot(
     // Validate snapshot ID format
     if request.snapshot_id.is_empty() {
         warn!("Attempted to restore with empty snapshot ID");
-        return Err(ApiError::BadRequest(
-            "Snapshot ID cannot be empty".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Snapshot ID cannot be empty".to_string(),
+        });
     }
 
     if !request.snapshot_id.starts_with("snapshot-") {
         warn!("Invalid snapshot ID format: {}", request.snapshot_id);
-        return Err(ApiError::BadRequest(
-            "Invalid snapshot ID format. Must start with 'snapshot-'".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Invalid snapshot ID format. Must start with 'snapshot-'".to_string(),
+        });
     }
 
     // Get Raft storage backend
@@ -1130,9 +1168,9 @@ pub async fn restore_snapshot(
     // Check if this node is the leader
     if !raft_storage.is_leader().await {
         warn!("Snapshot restore attempted on non-leader node");
-        return Err(ApiError::BadRequest(
-            "Snapshots can only be restored on the leader node".to_string(),
-        ));
+        return Err(ApiError::BadRequest {
+            message: "Snapshots can only be restored on the leader node".to_string(),
+        });
     }
 
     // Retrieve snapshot from database
@@ -1153,7 +1191,9 @@ pub async fn restore_snapshot(
         .await
         .map_err(|e| {
             error!("Failed to retrieve snapshot: {}", e);
-            ApiError::NotFound(format!("Snapshot not found: {}", request.snapshot_id))
+            ApiError::NotFound {
+                resource: format!("Snapshot not found: {}", request.snapshot_id),
+            }
         })?;
 
     let encrypted_data: Vec<u8> = row.get(0);
@@ -1196,18 +1236,27 @@ pub async fn restore_snapshot(
             }
         })?;
 
-        state.crypto.verify(&encrypted_data, &signature_bytes)
+        let is_valid = state.crypto.verify(&encrypted_data, &signature_bytes)
             .map_err(|e| {
                 error!("Snapshot signature verification failed: {}", e);
                 metrics::counter!("secreton_raft_restore_failures", "reason" => "signature_verification").increment(1);
-                return ApiError::Internal { message: "Snapshot signature verification failed".to_string() };
+                ApiError::Internal { message: "Snapshot signature verification failed".to_string() }
             })?;
+
+        if !is_valid {
+            error!("Snapshot signature is invalid");
+            metrics::counter!("secreton_raft_restore_failures", "reason" => "signature_invalid")
+                .increment(1);
+            return Err(ApiError::Internal {
+                message: "Snapshot signature is invalid".to_string(),
+            });
+        }
 
         info!("✓ Snapshot signature verified");
     }
 
     // Step 3: Decrypt snapshot data
-    let compressed_data = state.crypto.decrypt(&encrypted_data).map_err(|e| {
+    let compressed_data = state.crypto.decrypt_simple(&encrypted_data).map_err(|e| {
         error!("Failed to decrypt snapshot: {}", e);
         metrics::counter!("secreton_raft_restore_failures", "reason" => "decryption_failed")
             .increment(1);
@@ -1370,7 +1419,7 @@ async fn cleanup_old_snapshots(pool: deadpool_postgres::Pool) {
                     {
                         Ok(deleted) => {
                             info!("✓ Cleaned up {} old snapshots", deleted);
-                            metrics::counter!("secreton_raft_snapshots_cleaned", deleted as u64);
+                            metrics::counter!("secreton_raft_snapshots_cleaned").increment(deleted);
                         }
                         Err(e) => {
                             error!("Failed to cleanup old snapshots: {}", e);

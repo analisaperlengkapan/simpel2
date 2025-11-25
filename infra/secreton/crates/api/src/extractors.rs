@@ -3,14 +3,9 @@
 //! This module provides reusable extractors that eliminate code duplication
 //! across handlers by encapsulating common extraction and validation logic.
 
-use axum::{
-    RequestPartsExt, async_trait,
-    extract::{FromRequestParts, State},
-    http::{StatusCode, request::Parts},
-};
-use std::sync::Arc;
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 
-use crate::{ApiError, services::ServiceContainer};
+use crate::ApiError;
 
 /// Authenticated user information extracted from JWT token.
 ///

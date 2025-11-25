@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 /// Error types for Kafka secrets engine
 #[derive(Debug, thiserror::Error)]
@@ -586,9 +586,7 @@ impl KafkaEngine {
     /// Get credential info
     pub async fn get_credential_info(&self, username: &str) -> Option<KafkaCredentialInfo> {
         let credentials = self.credentials.read().await;
-        credentials
-            .get(username)
-            .map(|c| KafkaCredentialInfo::from(c))
+        credentials.get(username).map(KafkaCredentialInfo::from)
     }
 
     /// Generate username

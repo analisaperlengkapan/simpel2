@@ -93,8 +93,10 @@ pub struct HybridEncryptedData {
     pub pq_ciphertext: Vec<u8>,
     /// Combined encryption metadata
     pub metadata: HybridEncryptionMetadata,
-    // WARNING: Never store symmetric keys in production data structures.
-    // For local decryption tests, use a separate test-only struct in test code.
+    /// Symmetric key (for Classical mode testing only, should be None in production)
+    /// WARNING: Never store symmetric keys in production. This is for local testing only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symmetric_key: Option<Vec<u8>>,
 }
 
 /// Metadata for hybrid encryption

@@ -269,10 +269,7 @@ impl EnhancedCaptchaService {
                     .generate_challenge_with_fallback(challenge_type, fallback_difficulty)
                     .await
                     .map_err(|fallback_error| {
-                        warn!(
-                            "Fallback challenge generation failed: {}",
-                            fallback_error
-                        );
+                        warn!("Fallback challenge generation failed: {}", fallback_error);
                         fallback_error
                     })?;
 
@@ -354,19 +351,20 @@ impl EnhancedCaptchaService {
                 // Derive next difficulty from the original challenge when possible,
                 // and adjust based on behavioral classification so suspicious/bot
                 // behavior increases difficulty.
-                let base_difficulty = match self.core_service.get_challenge(challenge_id.clone()).await {
-                    Ok(challenge) => challenge.difficulty_level,
-                    Err(fetch_err) => {
-                        warn!(
-                            "Failed to fetch challenge {} for fallback difficulty: {}",
-                            challenge_id, fetch_err
-                        );
-                        // Use a moderate default difficulty when original challenge
-                        // cannot be retrieved, so that suspicious/bot behavior can
-                        // still increase difficulty meaningfully in fallback mode.
-                        3
-                    }
-                };
+                let base_difficulty =
+                    match self.core_service.get_challenge(challenge_id.clone()).await {
+                        Ok(challenge) => challenge.difficulty_level,
+                        Err(fetch_err) => {
+                            warn!(
+                                "Failed to fetch challenge {} for fallback difficulty: {}",
+                                challenge_id, fetch_err
+                            );
+                            // Use a moderate default difficulty when original challenge
+                            // cannot be retrieved, so that suspicious/bot behavior can
+                            // still increase difficulty meaningfully in fallback mode.
+                            3
+                        }
+                    };
 
                 let next_difficulty = match behavioral_data {
                     Some(ref data) => match data.classification {
@@ -384,8 +382,8 @@ impl EnhancedCaptchaService {
                     confidence_score,
                     risk_assessment: RiskLevel::Medium,
                     next_difficulty,
-                    retry_allowed: true,     // Allow retry
-                    lockout_duration: None,  // No lockout
+                    retry_allowed: true,    // Allow retry
+                    lockout_duration: None, // No lockout
                     message: "Validation failed - please try again".to_string(),
                 })
             }

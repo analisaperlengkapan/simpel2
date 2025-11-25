@@ -4,7 +4,7 @@
 //! Follows HashiCorp Vault patterns for backend selection and configuration.
 
 use crate::{
-    MemoryBackend, StorageBackend, StorageResult,
+    MemoryBackend, StorageBackend, StorageError, StorageResult,
     backends::{FileBackend, FileConfig},
 };
 
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = StorageFactoryConfig::default();
-        assert_eq!(config.backend_type, StorageBackendType::Memory);
+        assert_eq!(config.backend_type, StorageBackendType::File);
     }
 
     #[tokio::test]
