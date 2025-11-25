@@ -1,0 +1,56 @@
+# Security Audit Configuration for Secreton
+# This file documents known vulnerabilities and their mitigations
+#
+# Reference: https://rustsec.org/advisories/
+
+[advisories]
+# Advisory IDs to ignore (documented below)
+ignore = ["RUSTSEC-2023-0071"]
+
+# =============================================================================
+# RUSTSEC-2023-0071: RSA Marvin Attack (timing sidechannel)
+# =============================================================================
+# Status: ACKNOWLEDGED with mitigations
+#
+# Justification:
+# - RSA support is maintained ONLY for legacy SSH key compatibility
+# - Government systems (e.g., Indonesian Attorney General's Office) may require RSA keys
+# - Ed25519 is the PREFERRED and DEFAULT algorithm for all new keys
+# - The vulnerability affects RSA decryption timing; our usage is primarily key generation
+# - SSH key generation has different threat model than decryption
+#
+# Mitigations:
+# 1. Ed25519 is always preferred and documented as default
+# 2. RSA variants (Rsa2048, Rsa4096) are deprecated with warnings
+# 3. New implementations should use Ed25519 exclusively
+# 4. RSA support will be reviewed for removal in future versions
+#
+# Risk Assessment: MEDIUM (acceptable for legacy compatibility)
+
+# =============================================================================
+# RUSTSEC-2024-0436: paste crate unmaintained
+# =============================================================================
+# Status: ACCEPTED (low risk)
+#
+# Justification:
+# - paste is a compile-time only proc-macro crate
+# - Used by pqcrypto-mldsa for post-quantum cryptography
+# - Post-quantum crypto is essential for future security compliance
+# - No runtime code is affected; security risk is minimal
+# - The proc-macro functionality is stable and requires no updates
+#
+# Risk Assessment: LOW (compile-time only dependency)
+# Note: This is handled as a warning, not ignored
+
+# =============================================================================
+# RUSTSEC-2025-0120: json5 crate unmaintained
+# =============================================================================
+# Status: FIXED via feature flag
+#
+# The json5 dependency has been removed by disabling default features
+# on the config crate. We only use TOML for configuration files.
+# This entry is kept for documentation purposes.
+
+[yanked]
+enabled = true
+update_index = true

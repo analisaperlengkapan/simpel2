@@ -1,6 +1,14 @@
 //! SSH Secrets Engine - Production Implementation
 //!
 //! Dynamic SSH key generation, OTP for SSH, and SSH Certificate Authority.
+//!
+//! # Security Notice
+//!
+//! **Ed25519 is the PREFERRED algorithm** for all new SSH keys.
+//! RSA variants (Rsa2048, Rsa4096) are maintained only for legacy compatibility
+//! with systems that require RSA keys. New implementations should use Ed25519.
+//!
+//! See: RUSTSEC-2023-0071 (RSA timing sidechannel vulnerability)
 
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Pool;
@@ -10,7 +18,7 @@ use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// SSH engine errors
 #[derive(Debug, thiserror::Error)]
@@ -44,16 +52,31 @@ pub enum SshError {
 }
 
 /// SSH key type
+///
+/// # Security Recommendations
+///
+/// - **Ed25519**: Recommended for all new keys. Modern, fast, and secure.
+/// - **EcdsaP256/EcdsaP384**: Good alternatives when Ed25519 is not supported.
+/// - **Rsa2048/Rsa4096**: DEPRECATED - Use only for legacy system compatibility.
+///   See RUSTSEC-2023-0071 for RSA timing vulnerability information.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum SshKeyType {
+    /// Ed25519 - RECOMMENDED for all new keys
     Ed25519,
+    /// RSA 2048-bit - DEPRECATED: Legacy compatibility only
+    #[deprecated(since = "1.0.0", note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only.")]
     Rsa2048,
+    /// RSA 4096-bit - DEPRECATED: Legacy compatibility only
+    #[deprecated(since = "1.0.0", note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only.")]
     Rsa4096,
+    /// ECDSA P-256 - Good alternative to Ed25519
     EcdsaP256,
+    /// ECDSA P-384 - Good alternative to Ed25519
     EcdsaP384,
 }
 
+#[allow(deprecated)]
 impl SshKeyType {
     pub fn to_algorithm(&self) -> Algorithm {
         match self {
@@ -186,6 +209,11 @@ impl SshEngine {
     }
 
     /// Generate SSH key pair
+    ///
+    /// # Security Note
+    ///
+    /// Ed25519 keys are preferred for all new deployments.
+    /// RSA keys are supported only for legacy compatibility.
     pub async fn generate_keypair(&self, role_name: &str) -> Result<SshKeyPair, SshError> {
         let roles = self.roles.read().await;
         let role = roles
@@ -195,7 +223,23 @@ impl SshEngine {
         let key_type = role.key_type.clone();
         drop(roles);
 
+        // Emit deprecation warning for RSA key types
+        #[allow(deprecated)]
+        match &key_type {
+            SshKeyType::Rsa2048 | SshKeyType::Rsa4096 => {
+                warn!(
+                    role = %role_name,
+                    key_type = ?key_type,
+                    "RSA key generation requested. Ed25519 is recommended for new keys. \
+                     RSA support is maintained for legacy compatibility only. \
+                     See: RUSTSEC-2023-0071"
+                );
+            }
+            _ => {}
+        }
+
         // Generate private key
+        #[allow(deprecated)]
         let private_key = match key_type {
             SshKeyType::Ed25519 => PrivateKey::random(&mut rand::thread_rng(), Algorithm::Ed25519)
                 .map_err(|e| SshError::KeyGenerationFailed(e.to_string()))?,
