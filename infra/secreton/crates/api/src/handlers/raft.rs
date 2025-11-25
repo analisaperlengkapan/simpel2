@@ -15,6 +15,7 @@ use axum::{
     routing::{delete, get, post},
 };
 use chrono::Utc;
+use metrics::{counter, gauge};
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
 use tracing::{error, info, instrument, warn};

@@ -207,7 +207,7 @@ rpassword = "7.3"
 serde_yaml = "0.9"
 
 # Testing
-axum-test = "17.0.0"
+axum-test = "16.4.1"
 criterion = { version = "0.7.0", features = ["html_reports"] }
 proptest = { version = "1.8.0", default-features = false, features = ["std"] }
 tempfile = "3.23.0"
@@ -315,10 +315,14 @@ num-bigint.workspace = true
 num-traits.workspace = true
 flate2.workspace = true
 
-# [[bench]]
-# name = "performance"
-# harness = false
-# NOTE: Performance bench disabled - needs criterion API updates
+# Benchmarks
+[[bench]]
+name = "transit_bench"
+harness = false
+
+[[bench]]
+name = "storage_bench"
+harness = false
 
 [profile.release]
 opt-level = 3

@@ -1,3 +1,6 @@
+// This test module requires the raft-consensus feature
+#![cfg(feature = "raft-consensus")]
+
 use secreton_storage::raft::{RaftCluster, RaftClusterConfig, StateMachineCommand};
 use secreton_storage::{SecurityLevel, StorageResult, VaultEntry};
 use std::collections::HashMap;

@@ -34,7 +34,6 @@ pub fn initialize_logging(config: &AppConfig) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_initialize_logging_compiles() {

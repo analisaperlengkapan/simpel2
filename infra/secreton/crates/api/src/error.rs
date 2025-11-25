@@ -528,9 +528,12 @@ mod tests {
                 assert_eq!(message, "Invalid data");
                 assert_eq!(field, Some("username".to_string()));
                 assert!(details.is_some());
-                let details = details;
-                assert_eq!(details.get("min_length"), Some(&"3".to_string()));
-                assert_eq!(details.get("pattern"), Some(&"alphanumeric".to_string()));
+                let details_map = details.expect("details map");
+                assert_eq!(details_map.get("min_length"), Some(&"3".to_string()));
+                assert_eq!(
+                    details_map.get("pattern"),
+                    Some(&"alphanumeric".to_string())
+                );
             }
             _ => panic!("Expected validation error"),
         }
@@ -548,7 +551,8 @@ mod tests {
         let bytes = runtime
             .block_on(axum::body::to_bytes(body, 1024 * 1024))
             .expect("read body");
-        let payload: ApiResponse<Option<serde_json::Value>> = serde_json::from_slice(&bytes);
+        let payload: ApiResponse<Option<serde_json::Value>> =
+            serde_json::from_slice(&bytes).expect("deserialize ApiResponse from body");
 
         assert!(!payload.success);
         assert!(payload.data.is_none());

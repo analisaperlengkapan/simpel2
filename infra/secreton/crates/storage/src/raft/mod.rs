@@ -2,6 +2,8 @@ use crate::{
     HealthStatus, QueryParams, StorageBackend, StorageError, StorageResult, StorageStats,
     StorageTransaction, VaultEntry,
 };
+#[cfg(feature = "metrics")]
+use ::metrics::{counter, gauge};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -263,11 +265,8 @@ impl RaftCluster {
 
                             #[cfg(feature = "metrics")]
                             {
-                                metrics::counter!("secreton_raft_snapshots_created").increment(1);
-                                metrics::gauge!(
-                                    "secreton_raft_last_snapshot_index",
-                                    log_size as f64
-                                );
+                                counter!("secreton_raft_snapshots_created").increment(1);
+                                gauge!("secreton_raft_last_snapshot_index").set(log_size as f64);
                             }
                         }
                         Err(e) => {
@@ -275,7 +274,7 @@ impl RaftCluster {
 
                             #[cfg(feature = "metrics")]
                             {
-                                metrics::counter!("secreton_raft_snapshot_errors").increment(1);
+                                counter!("secreton_raft_snapshot_errors").increment(1);
                             }
                         }
                     }

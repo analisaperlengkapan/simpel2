@@ -204,7 +204,7 @@ pub struct SecretMetadata {
     pub classification: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecretResponse {
     pub path: String,
     pub data: HashMap<String, String>,
@@ -215,7 +215,7 @@ pub struct SecretResponse {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecretListItem {
     pub path: String,
     pub metadata: SecretMetadata,
@@ -244,7 +244,7 @@ pub struct KeyMetadata {
     pub purpose: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KeyResponse {
     pub id: String,
     pub name: String,
@@ -268,7 +268,7 @@ pub struct EncryptRequest {
     pub algorithm: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EncryptResponse {
     pub ciphertext: String,
     pub key_version: u32,
@@ -282,7 +282,7 @@ pub struct DecryptRequest {
     pub context: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptResponse {
     pub plaintext: String,
     pub key_version: u32,
@@ -296,7 +296,7 @@ pub struct SignRequest {
     pub format: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SignResponse {
     pub signature: String,
     pub key_version: u32,
@@ -311,7 +311,7 @@ pub struct VerifyRequest {
     pub algorithm: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct VerifyResponse {
     pub valid: bool,
     pub key_version: u32,
@@ -323,7 +323,7 @@ pub struct HashRequest {
     pub algorithm: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HashResponse {
     pub hash: String,
     pub algorithm: String,
@@ -355,7 +355,7 @@ pub struct PolicyMetadata {
     pub owner: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PolicyResponse {
     pub name: String,
     pub rules: Vec<PolicyRule>,

@@ -62,9 +62,6 @@ db = ["dep:tokio-postgres", "dep:deadpool-postgres"]
 # Monitoring features
 metrics = ["dep:metrics", "dep:metrics-exporter-prometheus"]
 
-# Hardware Security features
-tpm = ["dep:tss-esapi"]
-
 # Development features (enables all features)
 dev = [
     "axum",
@@ -257,9 +254,6 @@ regex = "1.12.2"
 
 # OpenSSL (Only for PKCS12 and advanced X.509 operations)
 openssl = "0.10.74"
-
-# Hardware Security Module
-tss-esapi = { version = "7.4", optional = true }
 
 # Post-Quantum Cryptography
 pqcrypto-mldsa = { version = "0.1.2", optional = true }

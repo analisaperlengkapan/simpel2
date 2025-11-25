@@ -6,6 +6,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use deadpool_postgres::{Config, Pool, Runtime};
+#[cfg(feature = "metrics")]
+use metrics::{counter, gauge};
 use rustls::{ClientConfig, RootCertStore};
 use rustls_native_certs::load_native_certs;
 use std::time::Duration;
@@ -114,10 +116,9 @@ impl PostgresBackend {
                     // Record metric for monitoring systems
                     #[cfg(feature = "metrics")]
                     {
-                        metrics::gauge!("secreton_postgres_pool_utilization", utilization);
-                        metrics::gauge!("secreton_postgres_pool_available", available as f64);
-                        metrics::counter!("secreton_postgres_pool_exhaustion_warnings")
-                            .increment(1);
+                        gauge!("secreton_postgres_pool_utilization").set(utilization);
+                        gauge!("secreton_postgres_pool_available").set(available as f64);
+                        counter!("secreton_postgres_pool_exhaustion_warnings").increment(1);
                     }
                 }
 
@@ -130,7 +131,7 @@ impl PostgresBackend {
 
                     #[cfg(feature = "metrics")]
                     {
-                        metrics::counter!("secreton_postgres_pool_exhausted").increment(1);
+                        counter!("secreton_postgres_pool_exhausted").increment(1);
                     }
                 }
             }

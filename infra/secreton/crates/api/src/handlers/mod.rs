@@ -182,7 +182,7 @@ async fn get_metrics(State(_state): State<AppState>) -> Result<String, StatusCod
 }
 
 /// Version information
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct VersionInfo {
     pub version: String,
     pub build_date: String,
@@ -206,7 +206,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app);
+        let server = TestServer::new(app).expect("Failed to create TestServer");
 
         let response = server.get("/").await;
         response.assert_status_ok();
@@ -226,7 +226,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app);
+        let server = TestServer::new(app).expect("Failed to create TestServer");
 
         let response = server.get("/api/v1/version").await;
         response.assert_status_ok();

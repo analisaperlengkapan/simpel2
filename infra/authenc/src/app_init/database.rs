@@ -67,7 +67,6 @@ pub fn initialize_auth_flow_store(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_module_compiles() {

@@ -169,7 +169,6 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 mod tests {
     use super::*;
     use crate::backends::{FileBackend, FileConfig};
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[tokio::test]

@@ -65,10 +65,16 @@ pub enum SshKeyType {
     /// Ed25519 - RECOMMENDED for all new keys
     Ed25519,
     /// RSA 2048-bit - DEPRECATED: Legacy compatibility only
-    #[deprecated(since = "1.0.0", note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only.")]
+    #[deprecated(
+        since = "1.0.0",
+        note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only."
+    )]
     Rsa2048,
     /// RSA 4096-bit - DEPRECATED: Legacy compatibility only
-    #[deprecated(since = "1.0.0", note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only.")]
+    #[deprecated(
+        since = "1.0.0",
+        note = "Use Ed25519 for new keys. RSA maintained for legacy compatibility only."
+    )]
     Rsa4096,
     /// ECDSA P-256 - Good alternative to Ed25519
     EcdsaP256,

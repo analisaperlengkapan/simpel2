@@ -97,6 +97,7 @@ mod tests {
         let request = CreateRoleRequest {
             name: "auditor".to_string(),
             description: Some("Audit role".to_string()),
+            permissions: vec!["vault:read".to_string()],
             metadata: None,
         };
 
@@ -125,7 +126,7 @@ mod tests {
 }
 
 /// User management models
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserRequest {
     pub username: String,
     pub email: String,
@@ -136,7 +137,7 @@ pub struct CreateUserRequest {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub full_name: Option<String>,
@@ -144,7 +145,7 @@ pub struct UpdateUserRequest {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserResponse {
     pub id: String,
     pub username: String,
@@ -165,7 +166,7 @@ pub struct AssignRolesRequest {
 }
 
 /// Role management models
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateRoleRequest {
     pub name: String,
     pub description: Option<String>,
@@ -173,7 +174,7 @@ pub struct CreateRoleRequest {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RoleResponse {
     pub name: String,
     pub description: Option<String>,
@@ -185,7 +186,7 @@ pub struct RoleResponse {
 }
 
 /// System configuration models
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SystemConfig {
     pub api: ApiConfigInfo,
     pub security: SecurityConfigInfo,
@@ -193,7 +194,7 @@ pub struct SystemConfig {
     pub monitoring: MonitoringConfigInfo,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApiConfigInfo {
     pub version: String,
     pub bind_address: String,
@@ -201,14 +202,14 @@ pub struct ApiConfigInfo {
     pub timeout: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecurityConfigInfo {
     pub mfa_enabled: bool,
     pub password_policy: PasswordPolicyInfo,
     pub session_timeout: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PasswordPolicyInfo {
     pub min_length: u8,
     pub require_uppercase: bool,
@@ -217,14 +218,14 @@ pub struct PasswordPolicyInfo {
     pub require_special: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StorageConfigInfo {
     pub backend: String,
     pub encryption_enabled: bool,
     pub backup_enabled: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MonitoringConfigInfo {
     pub metrics_enabled: bool,
     pub tracing_enabled: bool,
@@ -232,7 +233,7 @@ pub struct MonitoringConfigInfo {
 }
 
 /// System monitoring models
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SystemMetrics {
     pub uptime: u64,
     pub memory_usage: MemoryMetrics,
@@ -242,7 +243,7 @@ pub struct SystemMetrics {
     pub vault: VaultMetrics,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MemoryMetrics {
     pub total: u64,
     pub used: u64,
@@ -250,14 +251,14 @@ pub struct MemoryMetrics {
     pub cached: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CpuMetrics {
     pub cores: u32,
     pub usage_percent: f64,
     pub load_average: [f64; 3],
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DiskMetrics {
     pub total: u64,
     pub used: u64,
@@ -265,7 +266,7 @@ pub struct DiskMetrics {
     pub usage_percent: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NetworkMetrics {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -273,7 +274,7 @@ pub struct NetworkMetrics {
     pub packets_received: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct VaultMetrics {
     pub total_secrets: u64,
     pub total_keys: u64,
@@ -282,7 +283,7 @@ pub struct VaultMetrics {
     pub operations_per_second: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SystemStatus {
     pub status: String,
     pub version: String,
@@ -291,7 +292,7 @@ pub struct SystemStatus {
     pub last_check: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ComponentStatus {
     pub database: String,
     pub cache: String,
@@ -301,7 +302,7 @@ pub struct ComponentStatus {
 }
 
 /// Security models
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecurityScanResult {
     pub scan_id: String,
     pub status: String,
@@ -310,7 +311,7 @@ pub struct SecurityScanResult {
     pub findings: Vec<SecurityFinding>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecurityFinding {
     pub severity: String,
     pub category: String,
@@ -320,7 +321,7 @@ pub struct SecurityFinding {
     pub affected_resources: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecurityIncident {
     pub id: String,
     pub severity: String,

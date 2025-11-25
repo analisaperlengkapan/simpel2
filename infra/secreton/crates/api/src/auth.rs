@@ -504,12 +504,14 @@ mod tests {
         let config = JwtAuthConfig::default();
         let jwt_service = JwtService::new(config);
 
-        let token = jwt_service.generate_token(
-            "user123",
-            "Test User",
-            "test@example.com",
-            vec!["crypto-user".to_string()],
-        );
+        let token = jwt_service
+            .generate_token(
+                "user123",
+                "Test User",
+                "test@example.com",
+                vec!["crypto-user".to_string()],
+            )
+            .expect("token generation should succeed");
 
         let token_data = jwt_service
             .validate_token(&token)
@@ -540,6 +542,7 @@ mod tests {
             iss: "secreton-vault".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
+            metadata: std::collections::HashMap::new(),
         };
 
         assert!(jwt_service.check_permission(&claims, Permission::Encrypt));
@@ -563,6 +566,7 @@ mod tests {
             iss: "secreton-vault".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
+            metadata: std::collections::HashMap::new(),
         };
 
         assert!(jwt_service.check_permission(&claims, Permission::ManageUsers));
@@ -595,17 +599,17 @@ mod tests {
 
     #[test]
     fn test_extract_bearer_token() {
-        let header = HeaderValue::from_str("Bearer secret-token");
+        let header = HeaderValue::from_str("Bearer secret-token").expect("valid header");
         let token = extract_bearer_token(&header).expect("token expected");
         assert_eq!(token, "secret-token");
     }
 
     #[test]
     fn test_extract_bearer_token_invalid_format() {
-        let header = HeaderValue::from_str("Basic abc123");
+        let header = HeaderValue::from_str("Basic abc123").expect("valid header");
         assert!(extract_bearer_token(&header).is_none());
 
-        let header = HeaderValue::from_str("Bearer");
+        let header = HeaderValue::from_str("Bearer").expect("valid header");
         assert!(extract_bearer_token(&header).is_none());
     }
 }
