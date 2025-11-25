@@ -75,7 +75,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rust-docs
           path: target/doc/
@@ -177,7 +177,7 @@ jobs:
           echo "Coverage file size: $(echo "scale=2; $COVERAGE_SIZE / 1024" | bc)KB" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: lcov.info
@@ -228,7 +228,7 @@ jobs:
           fail-on-alert: false
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-results
           path: benchmark-output.txt
@@ -307,7 +307,7 @@ jobs:
           find infra -name "Cargo.toml" | wc -l | xargs echo "Total infra components:" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload metrics
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: code-metrics
           path: metrics.json
