@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for backend storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: secreton-postgres
+    environment:
+      POSTGRES_DB: secreton
+      POSTGRES_USER: secreton
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secreton"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - secreton-network
+
+  # Single Secreton node for development
+  secreton:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secreton-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - SECRETON_CONFIG=/app/config/secreton.toml
+      - SECRETON_STORAGE_TYPE=postgres
+      - SECRETON_POSTGRES_URL=postgresql://secreton:${POSTGRES_PASSWORD:-changeme}@postgres:5432/secreton
+    volumes:
+      - secreton_data:/app/data
+      - ./config:/app/config:ro
+      - ./certs:/app/certs:ro
+    ports:
+      - "8200:8200"  # HTTP API
+      - "8201:8201"  # HTTPS API
+    healthcheck:
+      test: ["CMD", "/app/secreton", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - secreton-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: secreton-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - secreton-network
+    restart: unless-stopped
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: secreton-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - secreton-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  secreton_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  secreton-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

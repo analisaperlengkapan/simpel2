@@ -213,19 +213,19 @@ mod tests {
     #[test]
     fn test_redis_check_creation() {
         let checker = RedisHealthCheck::new();
-        assert!(std::mem::size_of_val(&checker) >= 0);
+        assert!(std::mem::size_of_val(&checker) as isize >= 0);
     }
 
     #[test]
     fn test_secreton_check_creation() {
         let checker = SecretonHealthCheck::new();
-        assert!(std::mem::size_of_val(&checker) >= 0);
+        assert!(std::mem::size_of_val(&checker) as isize >= 0);
     }
 
     #[test]
     fn test_kafka_check_creation() {
         let checker = KafkaHealthCheck::new();
-        assert!(std::mem::size_of_val(&checker) >= 0);
+        assert!(std::mem::size_of_val(&checker) as isize >= 0);
     }
 
     #[tokio::test]

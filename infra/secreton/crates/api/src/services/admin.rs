@@ -549,7 +549,11 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto, &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
         let audit = Arc::new(AuditLogger::new(10000));
 
         let admin_service = AdminService::new(storage, auth, audit).await;
@@ -561,7 +565,11 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto, &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
         let audit = Arc::new(AuditLogger::new(10000));
         let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
 
@@ -577,7 +585,11 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto, &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
         let audit = Arc::new(AuditLogger::new(10000));
         let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
 
@@ -594,7 +606,11 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
-        let auth = Arc::new(AuthService::new(storage.clone(), crypto, &config).await);
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto, &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
         let audit = Arc::new(AuditLogger::new(10000));
         let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
 

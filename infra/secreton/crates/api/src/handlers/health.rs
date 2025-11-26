@@ -5,7 +5,7 @@
 
 use axum::{extract::State, response::Json};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
@@ -14,14 +14,14 @@ use crate::{
 };
 
 /// Basic health check response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SimpleHealthResponse {
     pub status: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 /// Detailed health check response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DetailedHealthResponse {
     pub status: String,
     pub version: String,
@@ -31,7 +31,7 @@ pub struct DetailedHealthResponse {
 }
 
 /// Individual health check result
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HealthCheck {
     pub status: String,
     pub message: Option<String>,
@@ -41,7 +41,7 @@ pub struct HealthCheck {
 }
 
 /// Readiness check response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReadinessResponse {
     pub ready: bool,
     pub version: String,
@@ -50,7 +50,7 @@ pub struct ReadinessResponse {
 }
 
 /// Liveness check response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LivenessResponse {
     pub alive: bool,
     pub uptime: u64,
@@ -682,7 +682,7 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 fn get_uptime_seconds() -> u64 {
     use std::sync::OnceLock;
     static START_TIME: OnceLock<std::time::Instant> = OnceLock::new();
-    let start = START_TIME.get_or_init(|| std::time::Instant::now());
+    let start = START_TIME.get_or_init(std::time::Instant::now);
     start.elapsed().as_secs()
 }
 
@@ -696,6 +696,7 @@ mod tests {
     fn create_state() -> Arc<ServiceContainer> {
         let config = ApiConfig::default();
         tokio::runtime::Runtime::new()
+            .expect("Failed to create Tokio runtime")
             .block_on(ServiceContainer::new(&config))
             .expect("Failed to create services")
             .into()
@@ -708,7 +709,7 @@ mod tests {
         let result = simple_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.0;
+        let response = result.unwrap().0;
         assert_eq!(response.status, "ok");
     }
 
@@ -719,7 +720,7 @@ mod tests {
         let result = liveness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.0;
+        let response = result.unwrap().0;
         assert!(response.alive);
     }
 
@@ -729,11 +730,13 @@ mod tests {
         let result = health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.0;
+        let response = result.unwrap().0;
         assert!(response.success);
         let health = response.data.expect("health data");
         assert_eq!(health.status, "healthy");
-        assert_eq!(health.dependencies.database, "healthy");
+        assert!(health.dependencies.storage.healthy);
+        assert!(health.dependencies.crypto.healthy);
+        assert!(health.dependencies.audit.healthy);
     }
 
     #[tokio::test]
@@ -742,7 +745,7 @@ mod tests {
         let result = readiness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.0;
+        let response = result.unwrap().0;
         assert!(response.ready);
         assert_eq!(response.version, env!("CARGO_PKG_VERSION"));
         assert!(response.checks.contains_key("database"));
@@ -756,7 +759,7 @@ mod tests {
         let result = detailed_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
-        let response = result.0;
+        let response = result.unwrap().0;
         assert!(response.success);
         let payload = response.data.expect("detailed data");
         assert_eq!(payload.status, "healthy");

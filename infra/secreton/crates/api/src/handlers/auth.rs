@@ -40,6 +40,7 @@ mod tests {
     use super::*;
     use crate::config::ApiConfig;
     use crate::services::ServiceContainer;
+    use axum::http::StatusCode;
     use axum_test::TestServer;
     use std::sync::Arc;
 
@@ -106,6 +107,7 @@ mod tests {
         assert!(
             data["auth_url"]
                 .as_str()
+                .expect("auth_url should be a string")
                 .contains("https://oauth.provider.com")
         );
     }
@@ -120,7 +122,7 @@ pub struct VerifyTokenRequest {
 }
 
 /// MFA setup request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MfaSetupRequest {
     pub method: String, // "totp", "sms", "email", "webauthn"
     pub phone_number: Option<String>,

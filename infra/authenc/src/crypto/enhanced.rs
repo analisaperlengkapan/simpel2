@@ -665,7 +665,7 @@ impl EnhancedCryptoEngine {
             let (ed25519_sig, mldsa_sig) = hybrid::sign_hybrid(data, &*ED25519_KEYPAIR, &mldsa_sk)
                 .map_err(|_| AuthencError::CryptographicError)?;
 
-            let ed25519_b64 = Base64UrlUnpadded::encode_string(ed25519_sig.to_bytes());
+            let ed25519_b64 = Base64UrlUnpadded::encode_string(&ed25519_sig.to_bytes());
             let mldsa_b64 = Base64UrlUnpadded::encode_string(mldsa_sig.as_bytes());
 
             Ok(AuditSignature {

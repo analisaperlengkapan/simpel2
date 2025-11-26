@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 /// LDAP secrets engine errors
 #[derive(Debug, thiserror::Error)]
@@ -274,6 +274,12 @@ pub struct LdapEngine {
     roles: Arc<RwLock<HashMap<String, LdapRole>>>,
     credentials: Arc<RwLock<HashMap<String, LdapCredential>>>,
     pool: Option<Pool>,
+}
+
+impl Default for LdapEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LdapEngine {

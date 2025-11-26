@@ -1,0 +1,68 @@
+# Ingress for external access to Secreton
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: secreton-ingress
+  namespace: secreton
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - secreton.example.com
+    secretName: secreton-tls-ingress
+  rules:
+  - host: secreton.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: secreton-service
+            port:
+              number: 8201  # HTTPS port
+
+---
+# ServiceAccount for Secreton pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secreton
+  namespace: secreton
+
+---
+# Role for Secreton pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secreton
+  namespace: secreton
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for Secreton
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secreton
+  namespace: secreton
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secreton
+subjects:
+- kind: ServiceAccount
+  name: secreton
+  namespace: secreton

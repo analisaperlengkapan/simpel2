@@ -1863,6 +1863,248 @@ impl SecretonClient {
     }
 }
 
+// Implement SecretonClientTrait for SecretonClient (required by HsmSecretonClient supertrait)
+#[async_trait]
+impl super::SecretonClientTrait for SecretonClient {
+    async fn get_secret(&self, key: &str, realm: Option<&str>) -> Option<Secret> {
+        self.get_secret(key, realm).await.map(|value| Secret {
+            value,
+            metadata: None,
+            version: Some(1),
+            created_at: Some(chrono::Utc::now()),
+            expires_at: None,
+        })
+    }
+
+    async fn put_secret(
+        &self,
+        _key: &str,
+        _value: &str,
+        _realm: Option<&str>,
+        _metadata: Option<std::collections::HashMap<String, String>>,
+    ) -> Result<(), SecretonError> {
+        // Secreton secrets are managed server-side
+        Err(SecretonError::Other(
+            "Direct secret writes not supported in this client".to_string(),
+        ))
+    }
+
+    async fn delete_secret(&self, _key: &str, _realm: Option<&str>) -> Result<(), SecretonError> {
+        // Secreton secrets are managed server-side
+        Err(SecretonError::Other(
+            "Direct secret deletion not supported in this client".to_string(),
+        ))
+    }
+
+    async fn list_secrets(&self, _realm: Option<&str>) -> Result<Vec<String>, SecretonError> {
+        // List operations not implemented for security
+        Ok(vec![])
+    }
+
+    async fn rotate_secret(
+        &self,
+        _key: &str,
+        _realm: Option<&str>,
+        _generator: Box<dyn Fn() -> String + Send>,
+    ) -> Result<super::RotationResult, SecretonError> {
+        Err(SecretonError::Other(
+            "Rotation managed by Secreton service directly".to_string(),
+        ))
+    }
+
+    async fn get_secret_versions(
+        &self,
+        _key: &str,
+        _realm: Option<&str>,
+    ) -> Result<Vec<Secret>, SecretonError> {
+        // Version history managed by Secreton service
+        Ok(vec![])
+    }
+
+    async fn health_check(&self) -> Result<bool, SecretonError> {
+        self.health_check().await.map(|_| true)
+    }
+}
+
+// HSM SecretonClient trait implementation for hardware-backed cryptography
+#[async_trait]
+impl super::HsmSecretonClient for SecretonClient {
+    /// Generate a key in HSM
+    async fn generate_hsm_key(
+        &self,
+        key_id: &str,
+        algorithm: &str,
+        key_size: u32,
+        usage: Vec<String>,
+    ) -> Result<super::HsmKeyMetadata, SecretonError> {
+        // TODO: Implement HSM key generation
+        // For P0-2, only encrypt/decrypt are critical
+        Err(SecretonError::HsmError(
+            "HSM key generation not yet implemented".to_string(),
+        ))
+    }
+
+    /// Sign data using HSM key
+    async fn hsm_sign(
+        &self,
+        key_id: &str,
+        data: &[u8],
+        algorithm: &str,
+    ) -> Result<Vec<u8>, SecretonError> {
+        // TODO: Implement HSM signing
+        // For P0-2, only encrypt/decrypt are critical
+        Err(SecretonError::HsmError(
+            "HSM signing not yet implemented".to_string(),
+        ))
+    }
+
+    /// Encrypt data using HSM key
+    async fn hsm_encrypt(&self, key_id: &str, plaintext: &[u8]) -> Result<Vec<u8>, SecretonError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let plaintext = plaintext.to_vec();
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                // POST /v1/hsm/encrypt
+                let url = format!("{}/v1/hsm/encrypt", endpoint);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "plaintext": BASE64.encode(&plaintext),
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| SecretonError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(SecretonError::NotFound(format!(
+                        "HSM key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(SecretonError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(SecretonError::Unauthorized(
+                        "Access denied to HSM encryption".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(SecretonError::HsmError(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct HsmEncryptResp {
+                    ciphertext: String,
+                    #[allow(dead_code)]
+                    key_version: Option<u32>,
+                }
+
+                let enc_resp: HsmEncryptResp = resp.json().await.map_err(|e| {
+                    SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                BASE64.decode(&enc_resp.ciphertext).map_err(|e| {
+                    SecretonError::InvalidFormat(format!("Invalid base64 in response: {}", e))
+                })
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// Decrypt data using HSM key
+    async fn hsm_decrypt(&self, key_id: &str, ciphertext: &[u8]) -> Result<Vec<u8>, SecretonError> {
+        let operation = || {
+            let key_id = key_id.to_string();
+            let ciphertext = ciphertext.to_vec();
+            let endpoint = self.endpoint.clone();
+            let token = self.token.clone();
+            let client = self.client.clone();
+
+            async move {
+                // POST /v1/hsm/decrypt
+                let url = format!("{}/v1/hsm/decrypt", endpoint);
+
+                let payload = serde_json::json!({
+                    "key_id": key_id,
+                    "ciphertext": BASE64.encode(&ciphertext),
+                });
+
+                let resp = client
+                    .post(&url)
+                    .bearer_auth(&token)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(|e| SecretonError::Unavailable(format!("Network error: {}", e)))?;
+
+                if resp.status() == 404 {
+                    return Err(SecretonError::NotFound(format!(
+                        "HSM key not found: {}",
+                        key_id
+                    )));
+                } else if resp.status() == 401 {
+                    return Err(SecretonError::AuthenticationFailed(
+                        "Invalid token".to_string(),
+                    ));
+                } else if resp.status() == 403 {
+                    return Err(SecretonError::Unauthorized(
+                        "Access denied to HSM decryption".to_string(),
+                    ));
+                } else if resp.status() == 400 {
+                    return Err(SecretonError::HsmError(
+                        "Invalid ciphertext or key mismatch".to_string(),
+                    ));
+                } else if !resp.status().is_success() {
+                    return Err(SecretonError::HsmError(format!("HTTP {}", resp.status())));
+                }
+
+                #[derive(Deserialize)]
+                struct HsmDecryptResp {
+                    plaintext: String,
+                }
+
+                let dec_resp: HsmDecryptResp = resp.json().await.map_err(|e| {
+                    SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
+                })?;
+
+                BASE64.decode(&dec_resp.plaintext).map_err(|e| {
+                    SecretonError::InvalidFormat(format!("Invalid base64 in response: {}", e))
+                })
+            }
+        };
+
+        self.execute_with_circuit_breaker(operation).await
+    }
+
+    /// List all HSM keys
+    async fn list_hsm_keys(&self) -> Result<Vec<super::HsmKeyMetadata>, SecretonError> {
+        // TODO: Implement HSM key listing
+        // For P0-2, only encrypt/decrypt are critical
+        Err(SecretonError::HsmError(
+            "HSM key listing not yet implemented".to_string(),
+        ))
+    }
+
+    /// Delete HSM key
+    async fn delete_hsm_key(&self, key_id: &str) -> Result<(), SecretonError> {
+        // TODO: Implement HSM key deletion
+        // For P0-2, only encrypt/decrypt are critical
+        Err(SecretonError::HsmError(
+            "HSM key deletion not yet implemented".to_string(),
+        ))
+    }
+}
+
 impl SecretonVault {
     /// Create a new Secreton vault with client configuration
     ///

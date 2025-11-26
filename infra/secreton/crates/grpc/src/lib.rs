@@ -24,8 +24,10 @@ pub mod generated {
     }
 }
 
+pub mod interceptor;
 pub mod server;
 pub mod tls;
 
+pub use interceptor::{AuthConfig, auth_interceptor, extract_bearer_token};
 pub use server::SecretonGrpcService;
 pub use tls::GrpcTlsConfig;

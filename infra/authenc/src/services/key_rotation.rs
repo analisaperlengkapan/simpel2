@@ -550,24 +550,8 @@ mod tests {
                 "http://localhost:8200".to_string(),
                 "token".to_string(),
             )),
-            database: Arc::new(
-                crate::database::Database::new(&crate::config::DatabaseConfig {
-                    host: "localhost".to_string(),
-                    port: 5432,
-                    username: "test".to_string(),
-                    password: "test".to_string(),
-                    database: "test".to_string(),
-                    max_connections: 5,
-                    min_connections: 1,
-                    connection_timeout: 5,
-                    idle_timeout: 600,
-                    max_lifetime: 1800,
-                    audit_log_url: None,
-                    connection_timeout_seconds: 5,
-                })
-                .await
-                .unwrap(),
-            ),
+            // Use mock database to avoid external dependency in unit test
+            database: Arc::new(crate::database::Database::mock().await),
             config: KeyRotationConfig::default(),
             key_metadata: Arc::new(RwLock::new(Vec::new())),
             task_handle: Arc::new(RwLock::new(None)),

@@ -5,7 +5,6 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -14,8 +13,8 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::totp::{
-    TotpCodeRequest, TotpCodeResponse, TotpKeyCreateRequest, TotpKeyResponse,
-    TotpValidationRequest, TotpValidationResponse,
+    TotpCodeResponse, TotpKeyCreateRequest, TotpKeyResponse, TotpValidationRequest,
+    TotpValidationResponse,
 };
 
 use super::AppState;

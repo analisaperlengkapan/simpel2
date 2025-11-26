@@ -39,6 +39,7 @@ pub struct HsmKeyMetadata {
 
 /// HSM provider trait for different HSM types
 #[async_trait]
+#[allow(dead_code)] // Trait methods used by implementations
 trait HsmProviderTrait {
     async fn initialize(&self) -> HsmResult<()>;
     async fn login(&self) -> HsmResult<()>;

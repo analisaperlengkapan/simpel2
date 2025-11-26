@@ -98,10 +98,6 @@ pub mod raft;
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
 
 use std::sync::Arc;
-use tower::ServiceBuilder;
-use tower_http::{
-    compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
-};
 
 use crate::{ApiResponse, ApiResult, config::ApiConfig, services::ServiceContainer};
 
@@ -112,11 +108,12 @@ pub type AppState = Arc<ServiceContainer>;
 pub use secret::ListQuery;
 
 /// Create the main application router
-pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
+pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
     let app_state = services.clone();
 
     // Build system routes
-    let sys_routes = seal::create_routes()
+    #[allow(unused_mut)]
+    let mut sys_routes = seal::create_routes()
         .merge(namespace::create_routes())
         .merge(lease::create_routes())
         .merge(policy::create_routes())
@@ -140,30 +137,17 @@ pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Rou
         sys_routes = sys_routes.merge(raft::create_routes());
     }
 
-    // Create API v1 routes
-    let api_v1 = Router::new()
+    // Create API v1 routes (to be nested by caller, e.g. under /v1)
+    Router::new()
         .nest("/auth", auth::create_routes())
-        .nest("/secrets", secret::create_routes())
+        .nest("/secret", secret::create_routes())
+        .route("/secrets", get(secret::list_secrets))
         .nest("/admin", admin::create_routes())
         .nest("/sys", sys_routes)
         .nest("/dynamic", dynamic::create_routes())
         .route("/health", get(health::health_check))
         .route("/version", get(get_version))
-        .route("/metrics", get(get_metrics));
-
-    // Main router with middleware stack
-    Router::new()
-        .nest("/api/v1", api_v1)
-        .route("/", get(root_handler))
-        .layer(
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(CompressionLayer::new())
-                .layer(TimeoutLayer::new(config.http.timeout))
-                .layer(CorsLayer::permissive()), // TODO: Configure properly
-                                                 // Note: auth_middleware and rate_limit middleware should be applied
-                                                 // using axum::middleware::from_fn_with_state if needed
-        )
+        .route("/metrics", get(get_metrics))
         .with_state(app_state)
 }
 
@@ -198,7 +182,7 @@ async fn get_metrics(State(_state): State<AppState>) -> Result<String, StatusCod
 }
 
 /// Version information
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct VersionInfo {
     pub version: String,
     pub build_date: String,
@@ -222,7 +206,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app);
+        let server = TestServer::new(app).expect("Failed to create TestServer");
 
         let response = server.get("/").await;
         response.assert_status_ok();
@@ -242,7 +226,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app);
+        let server = TestServer::new(app).expect("Failed to create TestServer");
 
         let response = server.get("/api/v1/version").await;
         response.assert_status_ok();

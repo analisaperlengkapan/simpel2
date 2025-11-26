@@ -19,6 +19,10 @@
 // Core modules
 /// Application state and initialization
 pub mod app;
+/// Initialization helpers (extracted from app for better organization)
+pub mod app_init;
+/// Logging initialization (extracted from app for better organization)
+pub mod app_logging;
 /// Configuration management
 pub mod config;
 /// Cryptographic operations and utilities

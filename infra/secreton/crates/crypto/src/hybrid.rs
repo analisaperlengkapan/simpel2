@@ -93,6 +93,10 @@ pub struct HybridEncryptedData {
     pub pq_ciphertext: Vec<u8>,
     /// Combined encryption metadata
     pub metadata: HybridEncryptionMetadata,
+    /// Symmetric key (for Classical mode testing only, should be None in production)
+    /// WARNING: Never store symmetric keys in production. This is for local testing only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symmetric_key: Option<Vec<u8>>,
 }
 
 /// Metadata for hybrid encryption
@@ -377,17 +381,11 @@ impl HybridCrypto {
                         security_level: 256,
                         timestamp: chrono::Utc::now().timestamp(),
                     },
+                    symmetric_key: Some(key),
                 })
             }
             CryptoMode::Hybrid | CryptoMode::PostQuantum => {
-                // Generate ephemeral symmetric key
-                let symmetric_key = crate::generate_key(crate::AlgorithmId::Aes256Gcm)?;
-
-                // Encrypt data with AES-256-GCM
-                let cipher = Aes256GcmCipher;
-                let classical_encrypted = cipher.encrypt(plaintext, &symmetric_key)?;
-
-                // Encapsulate symmetric key with ML-KEM
+                // Encapsulate with ML-KEM to derive a shared secret
                 let variant = self.select_mlkem_variant();
                 let kem_keypair = MLKemKeypair {
                     public_key: recipient_public_key.to_vec(),
@@ -397,13 +395,16 @@ impl HybridCrypto {
 
                 let (shared_secret, pq_ciphertext) = kem_keypair.encapsulate()?;
 
-                // Use shared secret to encrypt the symmetric key
-                // For simplicity, we XOR the symmetric key with the shared secret
-                // In production, use proper KDF
-                let mut protected_key = symmetric_key.clone();
-                for (i, byte) in protected_key.iter_mut().enumerate() {
-                    *byte ^= shared_secret[i % shared_secret.len()];
+                // Derive a symmetric AES key directly from the shared secret.
+                // This must match the derivation used in decrypt().
+                let mut symmetric_key = vec![0u8; 32];
+                for (i, byte) in symmetric_key.iter_mut().enumerate() {
+                    *byte = shared_secret[i % shared_secret.len()];
                 }
+
+                // Encrypt data with AES-256-GCM using the derived key
+                let cipher = Aes256GcmCipher;
+                let classical_encrypted = cipher.encrypt(plaintext, &symmetric_key)?;
 
                 Ok(HybridEncryptedData {
                     classical_data: classical_encrypted,
@@ -413,6 +414,7 @@ impl HybridCrypto {
                         security_level: self.security_requirements.security_level,
                         timestamp: chrono::Utc::now().timestamp(),
                     },
+                    symmetric_key: None,
                 })
             }
         }
@@ -423,10 +425,16 @@ impl HybridCrypto {
         match self.mode {
             CryptoMode::Classical => {
                 // Classical AES-256-GCM decryption
-                // Note: In real implementation, key would be derived/retrieved
-                Err(CryptoError::DecryptionFailed(
-                    "Classical decryption requires key management".to_string(),
-                ))
+                // In this implementation, the symmetric key is stored alongside
+                // the ciphertext for local testing/validation purposes.
+                let key = encrypted.symmetric_key.as_ref().ok_or_else(|| {
+                    CryptoError::DecryptionFailed(
+                        "Symmetric key not available for classical decryption".to_string(),
+                    )
+                })?;
+
+                let cipher = Aes256GcmCipher;
+                cipher.decrypt(&encrypted.classical_data, key)
             }
             CryptoMode::Hybrid | CryptoMode::PostQuantum => {
                 let pq_keypair = self

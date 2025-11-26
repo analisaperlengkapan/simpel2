@@ -231,14 +231,13 @@ pub async fn update_social_account(
         FROM user_social_accounts
         WHERE id = $1
     "#;
-    let row = db
-        .query_one(select_query, &[&account_id])
-        .await?;
+    let row: tokio_postgres::Row = db.query_one(select_query, &[&account_id]).await?;
 
     Ok(SocialAccount {
         id: row.get("id"),
         user_id: row.get("user_id"),
-        provider: SocialProvider::from_str(row.get::<_, &str>("provider")).unwrap_or(request.provider),
+        provider: SocialProvider::from_str(row.get::<_, &str>("provider"))
+            .unwrap_or(request.provider),
         provider_user_id: row.get("provider_user_id"),
         display_name: row.get("display_name"),
         email: row.get("email"),

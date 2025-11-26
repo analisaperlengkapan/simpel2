@@ -118,6 +118,7 @@ pub struct TransitKey {
 
 /// Individual key version with cryptographic material
 #[derive(Debug)]
+#[allow(dead_code)] // Fields used in key versioning system
 struct KeyVersion {
     /// Version number
     version: u32,
@@ -143,6 +144,7 @@ enum KeyMaterial {
     /// Ed25519 private key
     Ed25519(Box<Ed25519SigningKey>),
     /// X25519 private key (stored as bytes since EphemeralSecret can't be stored)
+    #[allow(dead_code)] // Reserved for future X25519 key exchange support
     X25519(Box<[u8; 32]>),
 }
 
@@ -222,7 +224,7 @@ impl TransitKey {
 
                 let mut nonce_bytes = [0u8; 12];
                 rand::thread_rng().fill_bytes(&mut nonce_bytes);
-                let nonce = aes_gcm::Nonce::from_slice(&nonce_bytes);
+                let nonce = aes_gcm::Nonce::from_slice(&nonce_bytes[..12]);
 
                 let mut payload = plaintext.to_vec();
                 if let Some(ctx) = context {
@@ -252,7 +254,7 @@ impl TransitKey {
 
                 let mut nonce_bytes = [0u8; 12];
                 rand::thread_rng().fill_bytes(&mut nonce_bytes);
-                let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes);
+                let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes[..12]);
 
                 let mut payload = plaintext.to_vec();
                 if let Some(ctx) = context {
@@ -281,7 +283,7 @@ impl TransitKey {
 
                 let mut nonce_bytes = [0u8; 24]; // XChaCha20 uses 192-bit nonce
                 rand::thread_rng().fill_bytes(&mut nonce_bytes);
-                let nonce = chacha20poly1305::XNonce::from_slice(&nonce_bytes);
+                let nonce = chacha20poly1305::XNonce::from_slice(&nonce_bytes[..24]);
 
                 let mut payload = plaintext.to_vec();
                 if let Some(ctx) = context {
@@ -362,7 +364,12 @@ impl TransitKey {
                 let nonce_bytes = BASE64.decode(parts[1]).map_err(|_| {
                     CryptoError::InvalidCiphertext("Invalid nonce encoding".to_string())
                 })?;
-                let nonce = aes_gcm::Nonce::from_slice(&nonce_bytes);
+                if nonce_bytes.len() != 12 {
+                    return Err(CryptoError::InvalidCiphertext(
+                        "Invalid nonce length".to_string(),
+                    ));
+                }
+                let nonce = aes_gcm::Nonce::from_slice(&nonce_bytes[..12]);
 
                 let encrypted_bytes = BASE64.decode(parts[2]).map_err(|_| {
                     CryptoError::InvalidCiphertext("Invalid ciphertext encoding".to_string())
@@ -401,7 +408,12 @@ impl TransitKey {
                 let nonce_bytes = BASE64.decode(parts[1]).map_err(|_| {
                     CryptoError::InvalidCiphertext("Invalid nonce encoding".to_string())
                 })?;
-                let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes);
+                if nonce_bytes.len() != 12 {
+                    return Err(CryptoError::InvalidCiphertext(
+                        "Invalid nonce length".to_string(),
+                    ));
+                }
+                let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes[..12]);
 
                 let encrypted_bytes = BASE64.decode(parts[2]).map_err(|_| {
                     CryptoError::InvalidCiphertext("Invalid ciphertext encoding".to_string())

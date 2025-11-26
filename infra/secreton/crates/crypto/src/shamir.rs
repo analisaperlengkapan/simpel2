@@ -55,15 +55,18 @@ const MAX_COMMITMENT_SIZE: usize = 100 * 1024 * 1024;
 pub struct Share {
     version: u8,
     #[zeroize(skip)]
+    #[allow(unused_assignments)] // x is set during share generation
     x: u8,
     // Store as bytes for serialization
     #[serde(with = "serde_bytes")]
     y_bytes: Vec<Vec<u8>>,
     #[serde(skip)]
     #[zeroize(skip)]
+    #[allow(unused_assignments)] // commitment is set during validation
     commitment: Commitment,
     #[serde(skip)]
     #[zeroize(skip)]
+    #[allow(unused_assignments)] // validated is set during verification
     validated: bool,
 }
 

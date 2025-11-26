@@ -38,13 +38,11 @@
 
 use crate::{BackendMetrics, KvBackend, StorageError, StorageResult};
 use async_trait::async_trait;
-use chrono::Utc;
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// S3 storage backend configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,9 +112,9 @@ impl S3Backend {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .build()
-            .map_err(|e| StorageError::ConnectionError {
-                backend: "s3".to_string(),
-                message: format!("Failed to create HTTP client: {}", e),
+            .map_err(|e| StorageError::ConnectionFailed {
+                message: format!("S3: Failed to create HTTP client: {}", e),
+                source: None,
             })?;
 
         let backend = Self {

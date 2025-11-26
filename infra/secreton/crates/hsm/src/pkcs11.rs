@@ -16,6 +16,7 @@ pub struct Pkcs11Provider {
 }
 
 /// PKCS#11 session state
+#[allow(dead_code)] // Fields used for PKCS#11 session management
 struct Pkcs11Session {
     slot_id: u64,
     session_handle: u64,

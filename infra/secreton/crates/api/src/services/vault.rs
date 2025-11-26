@@ -712,7 +712,7 @@ mod tests {
     use super::*;
     use crate::config::AuthConfig;
     use crate::services::auth::AuthService;
-    use secreton_core::audit::AuditLogger;
+    use secreton_core::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
     use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 
@@ -720,7 +720,8 @@ mod tests {
     async fn test_vault_service_creation() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
 
         let vault_service = VaultService::new(storage, crypto, audit).await;
         assert!(vault_service.is_ok());
@@ -730,12 +731,15 @@ mod tests {
     async fn test_get_secret_placeholder() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
         let service = VaultService::new(storage, crypto, audit)
             .await
             .expect("Failed to create VaultService");
 
         let secret = service.get_secret("app/config", "user1").await;
+        assert!(secret.is_ok());
+        let secret = secret.unwrap();
         assert_eq!(secret.path, "app/config");
         assert!(secret.data.contains_key("key1"));
     }
@@ -744,7 +748,8 @@ mod tests {
     async fn test_put_secret_placeholder() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
         let service = VaultService::new(storage, crypto, audit)
             .await
             .expect("Failed to create VaultService");
@@ -752,6 +757,8 @@ mod tests {
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
         let secret = service.put_secret("app/admin", data, "user1").await;
+        assert!(secret.is_ok());
+        let secret = secret.unwrap();
         assert_eq!(secret.path, "app/admin");
         assert!(secret.data.contains_key("username"));
     }
@@ -760,12 +767,15 @@ mod tests {
     async fn test_encrypt_placeholder_response() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
-        let audit = Arc::new(AuditLogger::new(storage.clone()).await);
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
         let service = VaultService::new(storage, crypto, audit)
             .await
             .expect("Failed to create VaultService");
 
         let result = service.encrypt("key1", "plaintext", "user1").await;
+        assert!(result.is_ok());
+        let result = result.unwrap();
         assert_eq!(result.ciphertext, "encrypted_data");
         assert_eq!(result.key_version, 1);
     }

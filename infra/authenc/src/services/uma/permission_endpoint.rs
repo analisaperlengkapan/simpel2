@@ -11,7 +11,7 @@ use super::rpt::{Permission as RptPermission, Rpt, RptService};
 use super::{UmaAuthorizationRequest, UmaAuthorizationResponse, UmaError, UmaPermissionRequest};
 use crate::database::Database;
 use crate::error::{AuthencError, Result};
-use crate::models::permission_ticket::PermissionTicket;
+use crate::models::permission_ticket::{CreatePermissionTicketRequest, PermissionTicket};
 use crate::models::resource::Resource;
 use crate::services::permission_ticket_store::PermissionTicketStoreTrait;
 use crate::services::resource_store::ResourceStoreTrait;
@@ -118,32 +118,37 @@ impl PermissionEndpoint {
         }
 
         // Create permission ticket
-        let ticket_id = Uuid::new_v4().to_string();
+        let ticket_id = Uuid::new_v4();
+        let ticket_string = ticket_id.to_string();
         let expires_at = Utc::now().timestamp() + self.ticket_lifetime;
 
         // Store ticket with requested permissions
-        // In production, this would store the ticket in database
-        // For now, we'll use the existing permission ticket model
-
         // Create permission tickets for each resource+scope combination
         for req in &requests {
             for scope in &req.resource_scopes {
-                let ticket = PermissionTicket::new(
-                    Uuid::parse_str(&req.resource_id)
-                        .map_err(|_| AuthencError::validation("Invalid resource ID format"))?,
-                    Uuid::new_v4(), // scope_id - would need to look this up in production
-                    "resource_owner".to_string(), // Would be actual resource owner
-                    "requesting_party".to_string(), // Would be actual requesting party
-                    realm_uuid,
-                    resource_server_uuid,
-                );
-
-                // Store ticket
-                // In production: self.ticket_store.create_ticket(ticket).await?;
+                // Store ticket in database
+                self.ticket_store
+                    .create_ticket(
+                        CreatePermissionTicketRequest {
+                            resource_id: Uuid::parse_str(&req.resource_id).map_err(|_| {
+                                AuthencError::validation("Invalid resource ID format")
+                            })?,
+                            scope_id: Uuid::new_v4(), // In production: lookup actual scope ID
+                            requester: "requesting_party".to_string(), // In production: actual requester ID
+                        },
+                        "resource_owner".to_string(), // In production: actual resource owner
+                        realm_uuid,
+                        resource_server_uuid,
+                    )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("Failed to store permission ticket: {}", e);
+                        AuthencError::internal("Failed to create permission ticket")
+                    })?;
             }
         }
 
-        Ok(ticket_id)
+        Ok(ticket_string)
     }
 
     /// Authorize access and issue RPT
@@ -277,15 +282,68 @@ impl PermissionEndpoint {
         ticket: &str,
         realm_id: &str,
     ) -> Result<Vec<PermissionTicket>> {
-        // In production, this would:
-        // 1. Look up ticket in database
-        // 2. Verify it's not expired
-        // 3. Verify it belongs to the correct realm
-        // 4. Verify it hasn't been used yet
+        // 1. Parse ticket ID - validate UUID format
+        let ticket_uuid = Uuid::parse_str(ticket).map_err(|_| {
+            tracing::warn!("Invalid permission ticket format: {}", ticket);
+            AuthencError::validation("Invalid permission ticket format")
+        })?;
 
-        // For now, return empty vector
-        // TODO: Implement ticket validation with database
-        Ok(Vec::new())
+        // 2. Get ticket from database - verify existence
+        let db_ticket = self
+            .ticket_store
+            .get_ticket(ticket_uuid)
+            .await?
+            .ok_or_else(|| {
+                tracing::warn!("Permission ticket not found: {}", ticket_uuid);
+                AuthencError::not_found("Permission ticket not found")
+            })?;
+
+        // 3. Parse realm ID for comparison
+        let realm_uuid = Uuid::parse_str(realm_id).map_err(|_| {
+            tracing::warn!("Invalid realm ID format: {}", realm_id);
+            AuthencError::validation("Invalid realm ID format")
+        })?;
+
+        // 4. Verify ticket belongs to this realm - prevent cross-realm attacks
+        if db_ticket.realm_id != realm_uuid {
+            tracing::warn!(
+                "Permission ticket {} does not belong to realm {}",
+                ticket_uuid,
+                realm_id
+            );
+            return Err(AuthencError::forbidden(
+                "Permission ticket does not belong to this realm",
+            ));
+        }
+
+        // 5. Check if ticket is expired - enforce time-bound tickets
+        let ticket_age = Utc::now().timestamp() - db_ticket.created_at.timestamp();
+        if ticket_age > self.ticket_lifetime {
+            tracing::warn!(
+                "Permission ticket {} has expired (age: {}s, lifetime: {}s)",
+                ticket_uuid,
+                ticket_age,
+                self.ticket_lifetime
+            );
+            return Err(AuthencError::forbidden("Permission ticket has expired"));
+        }
+
+        // 6. Check if ticket has already been granted/used - prevent reuse
+        if db_ticket.granted {
+            tracing::warn!("Permission ticket {} has already been used", ticket_uuid);
+            return Err(AuthencError::forbidden(
+                "Permission ticket has already been used",
+            ));
+        }
+
+        // All validation passed
+        tracing::info!(
+            "Permission ticket {} validated successfully for realm {}",
+            ticket_uuid,
+            realm_id
+        );
+
+        Ok(vec![db_ticket])
     }
 
     /// Get resources from permission ticket

@@ -17,6 +17,7 @@ use axum::{
     response::Json,
     routing::{get, post},
 };
+use metrics::{counter, gauge};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -355,7 +356,7 @@ pub async fn list_namespaces(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "list").increment(1);
+    counter!("namespace_operations_total", "operation" => "list").increment(1);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -466,7 +467,7 @@ pub async fn create_namespace(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "create").increment(1);
+    counter!("namespace_operations_total", "operation" => "create").increment(1);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -511,7 +512,7 @@ pub async fn get_namespace(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "get").increment(1);
+    counter!("namespace_operations_total", "operation" => "get").increment(1);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -614,7 +615,7 @@ pub async fn update_namespace(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "update").increment(1);
+    counter!("namespace_operations_total", "operation" => "update").increment(1);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -719,7 +720,7 @@ pub async fn delete_namespace(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "delete").increment(1);
+    counter!("namespace_operations_total", "operation" => "delete").increment(1);
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -820,9 +821,8 @@ pub async fn get_namespace_stats(
     );
 
     // Metrics
-    metrics::counter!("namespace_operations_total", "operation" => "stats").increment(1);
-    metrics::gauge!("namespace_quota_usage_percentage", "namespace_id" => id.clone())
-        .set(usage_percentage);
+    counter!("namespace_operations_total", "operation" => "stats").increment(1);
+    gauge!("namespace_quota_usage_percentage", "namespace_id" => id.clone()).set(usage_percentage);
 
     Ok(Json(ApiResponse::success(response)))
 }

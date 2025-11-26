@@ -5,7 +5,6 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -14,8 +13,7 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::identity::{
-    IdentityEngine, OidcDiscovery, OidcProviderConfig, TokenIntrospection, TokenRequest,
-    TokenResponse, UserInfo,
+    OidcDiscovery, OidcProviderConfig, TokenIntrospection, TokenRequest, TokenResponse, UserInfo,
 };
 
 use super::AppState;

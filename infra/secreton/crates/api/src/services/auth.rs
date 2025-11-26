@@ -435,9 +435,17 @@ mod tests {
         };
 
         let password = "test_password";
-        let hash = auth_service.hash_password(password);
-        assert!(auth_service.verify_password(password, &hash));
-        assert!(!auth_service.verify_password("wrong_password", &hash));
+        let hash = auth_service.hash_password(password).expect("hash password");
+        assert!(
+            auth_service
+                .verify_password(password, &hash)
+                .unwrap_or(false)
+        );
+        assert!(
+            !auth_service
+                .verify_password("wrong_password", &hash)
+                .unwrap_or(true)
+        );
     }
 
     #[tokio::test]
@@ -445,25 +453,30 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
         let mut config = AuthConfig::default();
-        config.jwt_secret = "secret".into();
+        config.jwt.secret = "secret".into();
         let auth_service = AuthService::new(storage.clone(), crypto, &config)
             .await
             .expect("service");
 
         // Insert a user with MFA enabled by mocking storage behavior via store_user and get_user_by_username
+        let password_hash = auth_service.hash_password("password").unwrap_or_default();
         let user = User {
-            id: "user123".into(),
+            id: Uuid::new_v4(),
             username: "alice".into(),
             email: "alice@example.com".into(),
-            password_hash: auth_service.hash_password("password"),
+            password_hash,
             full_name: None,
-            enabled: true,
+            is_active: true,
+            is_superuser: false,
             mfa_enabled: true,
-            mfa_secret: Some("secret".into()),
             last_login: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
         };
 
         auth_service.store_user(&user).await;
@@ -494,18 +507,22 @@ mod tests {
             .expect("service");
 
         let user = User {
-            id: "user1".into(),
+            id: Uuid::new_v4(),
             username: "wildcard".into(),
             email: "wildcard@example.com".into(),
             password_hash: "".into(),
             full_name: None,
-            enabled: true,
+            is_active: true,
+            is_superuser: false,
             mfa_enabled: false,
-            mfa_secret: None,
             last_login: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
         };
 
         // admin role already initialized in service with "*"
@@ -531,18 +548,22 @@ mod tests {
         assert!(result.is_ok());
         // Basic permission check still works
         let user = User {
-            id: "user2".into(),
+            id: Uuid::new_v4(),
             username: "viewer".into(),
             email: "viewer@example.com".into(),
             password_hash: "".into(),
             full_name: None,
-            enabled: true,
+            is_active: true,
+            is_superuser: false,
             mfa_enabled: false,
-            mfa_secret: None,
             last_login: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
         };
         let allowed = service
             .has_permission(&user, "vault:read")

@@ -12,25 +12,22 @@ use crate::services::admin::{AdminManager, AdminService};
 use crate::services::stores::user_store::UserStoreTrait;
 
 /// Create admin console routes
-pub fn create_admin_console_routes(
-    state: Arc<crate::app::AppState>,
-    db_state: Arc<Database>,
-) -> Router<Arc<Database>> {
+pub fn create_admin_console_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
         .route("/", axum::routing::get(dashboard))
         .route("/users", axum::routing::get(users_page))
         .route("/roles", axum::routing::get(roles_page))
         .route("/realms", axum::routing::get(realms_page))
         .route("/clients", axum::routing::get(clients_page))
-        .with_state((state, db_state))
+        .with_state(state)
 }
 
 /// Dashboard handler
 async fn dashboard(
-    State((_app_state, db_state)): State<(Arc<AppState>, Arc<Database>)>,
+    State(app_state): State<Arc<AppState>>,
     _auth: AuthBearer,
 ) -> Result<Html<String>, StatusCode> {
-    let admin_manager = AdminManager::new(db_state.clone());
+    let admin_manager = AdminManager::new(app_state.database.clone());
 
     // Fetch system stats from admin manager
     let stats = match admin_manager.get_system_stats().await {
@@ -106,7 +103,7 @@ async fn dashboard(
 
 /// Users page handler
 async fn users_page(
-    State((app_state, _db_state)): State<(Arc<AppState>, Arc<Database>)>,
+    State(app_state): State<Arc<AppState>>,
     _auth: AuthBearer,
 ) -> Result<Html<String>, StatusCode> {
     // Fetch users from user store
@@ -213,7 +210,7 @@ async fn users_page(
 
 /// Roles page handler
 async fn roles_page(
-    State((app_state, _db_state)): State<(Arc<AppState>, Arc<Database>)>,
+    State(app_state): State<Arc<AppState>>,
     _auth: AuthBearer,
 ) -> Result<Html<String>, StatusCode> {
     // Fetch roles from role store
@@ -314,7 +311,7 @@ async fn roles_page(
 
 /// Realms page handler
 async fn realms_page(
-    State((app_state, _db_state)): State<(Arc<AppState>, Arc<Database>)>,
+    State(app_state): State<Arc<AppState>>,
     _auth: AuthBearer,
 ) -> Result<Html<String>, StatusCode> {
     // Fetch realms from realm store
@@ -415,7 +412,7 @@ async fn realms_page(
 
 /// Clients page handler
 async fn clients_page(
-    State((app_state, _db_state)): State<(Arc<AppState>, Arc<Database>)>,
+    State(app_state): State<Arc<AppState>>,
     _auth: AuthBearer,
 ) -> Result<Html<String>, StatusCode> {
     // Fetch clients from OIDC client store

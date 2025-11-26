@@ -22,7 +22,7 @@ use aes::Aes256;
 use fpe::ff1::{BinaryNumeralString, FF1};
 use rand::RngCore;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::ZeroizeOnDrop;
 
 /// FPE errors
 #[derive(Debug, Error)]
@@ -135,6 +135,7 @@ impl FpeAlphabet {
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct FpeKey {
     #[zeroize(skip)]
+    #[allow(dead_code)] // Key is used internally by FPE operations
     key: [u8; 32],
 }
 

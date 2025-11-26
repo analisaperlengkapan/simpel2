@@ -2,18 +2,15 @@
 //!
 //! Implements the state machine for Secreton's distributed storage using OpenRaft.
 
-use crate::{SecurityLevel, VaultEntry};
-use async_trait::async_trait;
-use openraft::storage::RaftStateMachine;
-use openraft::{EntryPayload, LogId, RaftSnapshotBuilder, SnapshotMeta, StorageError};
+use super::types::{LogId, NodeId, SecretonTypeConfig};
+use crate::VaultEntry;
+use openraft::storage::RaftSnapshotBuilder;
+use openraft::{BasicNode, SnapshotMeta, StorageError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
-use super::types::{NodeId, SecretonTypeConfig};
 
 /// Commands that can be applied to the state machine
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,10 +51,10 @@ pub enum StateMachineResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateMachineSnapshot {
     /// Last applied log index
-    pub last_applied_log: Option<LogId<NodeId>>,
+    pub last_applied_log: Option<LogId>,
 
     /// Last membership configuration
-    pub last_membership: openraft::StoredMembership<SecretonTypeConfig>,
+    pub last_membership: openraft::StoredMembership<NodeId, BasicNode>,
 
     /// All vault entries
     pub entries: HashMap<String, VaultEntry>,
@@ -69,10 +66,10 @@ pub struct StateMachineSnapshot {
 /// OpenRaft state machine for Secreton storage
 pub struct SecretonStateMachine {
     /// Last applied log ID
-    pub last_applied_log: Arc<RwLock<Option<LogId<NodeId>>>>,
+    pub last_applied_log: Arc<RwLock<Option<LogId>>>,
 
     /// Last membership configuration
-    pub last_membership: Arc<RwLock<openraft::StoredMembership<SecretonTypeConfig>>>,
+    pub last_membership: Arc<RwLock<openraft::StoredMembership<NodeId, BasicNode>>>,
 
     /// Vault entries storage (path -> entry)
     pub data: Arc<RwLock<HashMap<String, VaultEntry>>>,
@@ -92,8 +89,8 @@ impl SecretonStateMachine {
         }
     }
 
-    /// Apply a command to the state machine
-    async fn apply_command(&self, cmd: StateMachineCommand) -> StateMachineResponse {
+    /// Apply a command to the state machine (made public for combined storage)
+    pub async fn apply_command(&mut self, cmd: StateMachineCommand) -> StateMachineResponse {
         match cmd {
             StateMachineCommand::Store(entry) => {
                 let mut data = self.data.write().await;
@@ -147,7 +144,7 @@ impl SecretonStateMachine {
 
     /// Get current snapshot
     async fn get_snapshot(&self) -> StateMachineSnapshot {
-        let last_applied_log = self.last_applied_log.read().await.clone();
+        let last_applied_log = *self.last_applied_log.read().await;
         let last_membership = self.last_membership.read().await.clone();
         let entries = self.data.read().await.clone();
         let id_index = self.id_index.read().await.clone();
@@ -167,6 +164,23 @@ impl SecretonStateMachine {
         *self.data.write().await = snapshot.entries;
         *self.id_index.write().await = snapshot.id_index;
     }
+
+    /// Build a snapshot for OpenRaft
+    pub async fn build_snapshot(&self) -> openraft::Snapshot<SecretonTypeConfig> {
+        let data = self.get_snapshot().await;
+        let snapshot_bytes = serde_json::to_vec(&data).unwrap_or_default();
+
+        let meta = openraft::SnapshotMeta {
+            last_log_id: data.last_applied_log,
+            last_membership: data.last_membership,
+            snapshot_id: uuid::Uuid::new_v4().to_string(),
+        };
+
+        openraft::Snapshot {
+            meta,
+            snapshot: Box::new(std::io::Cursor::new(snapshot_bytes)),
+        }
+    }
 }
 
 impl Default for SecretonStateMachine {
@@ -175,72 +189,7 @@ impl Default for SecretonStateMachine {
     }
 }
 
-#[async_trait]
-impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
-    type SnapshotBuilder = Self;
-
-    async fn applied_state(
-        &mut self,
-    ) -> Result<
-        (
-            Option<LogId<NodeId>>,
-            openraft::StoredMembership<SecretonTypeConfig>,
-        ),
-        StorageError<NodeId>,
-    > {
-        let last_applied = self.last_applied_log.read().await.clone();
-        let last_membership = self.last_membership.read().await.clone();
-        Ok((last_applied, last_membership))
-    }
-
-    async fn apply<I>(
-        &mut self,
-        entries: I,
-    ) -> Result<Vec<openraft::raft::AppResponse<SecretonTypeConfig>>, StorageError<NodeId>>
-    where
-        I: IntoIterator<Item = openraft::Entry<SecretonTypeConfig>> + Send,
-        I::IntoIter: Send,
-    {
-        let mut responses = Vec::new();
-
-        for entry in entries {
-            *self.last_applied_log.write().await = Some(entry.log_id);
-
-            match entry.payload {
-                EntryPayload::Blank => {
-                    responses.push(openraft::raft::AppResponse::default());
-                }
-                EntryPayload::Normal(ref data) => {
-                    // Deserialize command from entry data
-                    match bincode::decode_from_slice::<StateMachineCommand, _>(
-                        data.as_ref(),
-                        bincode::config::standard(),
-                    ) {
-                        Ok((cmd, _)) => {
-                            let response = self.apply_command(cmd).await;
-                            responses.push(openraft::raft::AppResponse::default());
-                        }
-                        Err(e) => {
-                            tracing::error!("Failed to deserialize command: {}", e);
-                            responses.push(openraft::raft::AppResponse::default());
-                        }
-                    }
-                }
-                EntryPayload::Membership(ref mem) => {
-                    *self.last_membership.write().await =
-                        openraft::StoredMembership::new(Some(entry.log_id), mem.clone());
-                    responses.push(openraft::raft::AppResponse::default());
-                }
-            }
-        }
-
-        Ok(responses)
-    }
-
-    async fn get_snapshot_builder(&mut self) -> Self::SnapshotBuilder {
-        self.clone()
-    }
-}
+// RaftStateMachine implementation removed - functionality moved to combined_storage.rs
 
 // Implement Clone for SecretonStateMachine
 impl Clone for SecretonStateMachine {
@@ -254,15 +203,14 @@ impl Clone for SecretonStateMachine {
     }
 }
 
-#[async_trait]
 impl RaftSnapshotBuilder<SecretonTypeConfig> for SecretonStateMachine {
     async fn build_snapshot(
         &mut self,
     ) -> Result<openraft::Snapshot<SecretonTypeConfig>, StorageError<NodeId>> {
         let snapshot = self.get_snapshot().await;
 
-        // Serialize snapshot
-        let data = bincode::encode_to_vec(&snapshot, bincode::config::standard()).map_err(|e| {
+        // Serialize snapshot using JSON
+        let data = serde_json::to_vec(&snapshot).map_err(|e| {
             openraft::StorageError::from_io_error(
                 openraft::ErrorSubject::Snapshot(None),
                 openraft::ErrorVerb::Write,
@@ -274,13 +222,8 @@ impl RaftSnapshotBuilder<SecretonTypeConfig> for SecretonStateMachine {
         let last_membership = snapshot.last_membership;
 
         let snapshot_id = format!(
-            "{}-{}-{}",
-            last_applied_log
-                .map(|l| l.leader_id.to_string())
-                .unwrap_or_default(),
-            last_applied_log
-                .map(|l| l.index.to_string())
-                .unwrap_or_default(),
+            "snapshot-{}-{}",
+            last_applied_log.map(|l| l.index).unwrap_or(0),
             chrono::Utc::now().timestamp()
         );
 
@@ -292,7 +235,7 @@ impl RaftSnapshotBuilder<SecretonTypeConfig> for SecretonStateMachine {
 
         Ok(openraft::Snapshot {
             meta,
-            snapshot: Box::new(Cursor::new(data)),
+            snapshot: Box::new(std::io::Cursor::new(data)),
         })
     }
 }

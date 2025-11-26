@@ -126,7 +126,7 @@ fn generate_ed25519(cli: &Cli) {
         }
         OutputFormat::File => {
             let filename = cli.output.as_deref().unwrap_or("ed25519-private.key");
-            std::fs::write(filename, &private_key_bytes).expect("Failed to write key file");
+            std::fs::write(filename, private_key_bytes).expect("Failed to write key file");
             println!("✅ Private key written to: {}", filename);
             println!();
             println!("Use with: export ED25519_PRIVATE_KEY_PATH={}", filename);
@@ -184,7 +184,7 @@ fn generate_p256(cli: &Cli) {
         }
         OutputFormat::File => {
             let filename = cli.output.as_deref().unwrap_or("p256-private.key");
-            std::fs::write(filename, &private_key_bytes).expect("Failed to write key file");
+            std::fs::write(filename, private_key_bytes).expect("Failed to write key file");
             println!("✅ Private key written to: {}", filename);
         }
     }
@@ -233,7 +233,7 @@ fn generate_p384(cli: &Cli) {
         }
         OutputFormat::File => {
             let filename = cli.output.as_deref().unwrap_or("p384-private.key");
-            std::fs::write(filename, &private_key_bytes).expect("Failed to write key file");
+            std::fs::write(filename, private_key_bytes).expect("Failed to write key file");
             println!("✅ Private key written to: {}", filename);
         }
     }
@@ -282,7 +282,7 @@ fn generate_p521(cli: &Cli) {
         }
         OutputFormat::File => {
             let filename = cli.output.as_deref().unwrap_or("p521-private.key");
-            std::fs::write(filename, &private_key_bytes).expect("Failed to write key file");
+            std::fs::write(filename, private_key_bytes).expect("Failed to write key file");
             println!("✅ Private key written to: {}", filename);
         }
     }

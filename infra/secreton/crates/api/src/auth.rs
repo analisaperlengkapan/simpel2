@@ -3,6 +3,8 @@
 //! Provides JWT-based authentication, role-based access control,
 //! and integration with external identity providers.
 
+pub mod oidc_verifier;
+
 use axum::http::HeaderValue;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{
@@ -11,6 +13,25 @@ use jsonwebtoken::{
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use uuid::Uuid;
+
+pub use oidc_verifier::{MultiVerifier, OidcVerifier, OidcVerifierConfig};
+
+/// Token verification trait for abstracting different JWT verification strategies
+///
+/// This trait allows Secreton to support multiple token verification methods:
+/// - SharedSecretVerifier: Uses HS256 with a shared secret (existing behavior)
+/// - OidcVerifier: Uses RS256/ES256 with JWKS from Authenc (new integration)
+#[async_trait::async_trait]
+pub trait TokenVerifier: Send + Sync {
+    /// Verify and decode a JWT token
+    async fn verify_token(&self, token: &str) -> Result<TokenData<Claims>, AuthError>;
+
+    /// Get the issuer this verifier handles
+    fn issuer(&self) -> &str;
+
+    /// Get the audience this verifier handles
+    fn audience(&self) -> &str;
+}
 
 /// JWT claims structure
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -82,7 +103,7 @@ impl JwtAuthConfig {
         }
 
         // Validate expiration is reasonable (between 1 hour and 1 week)
-        if jwt_expiration_hours < 1 || jwt_expiration_hours > 168 {
+        if !(1..=168).contains(&jwt_expiration_hours) {
             return Err(AuthError::Configuration(format!(
                 "JWT expiration hours must be between 1 and 168 (1 week). Got: {}",
                 jwt_expiration_hours
@@ -425,6 +446,41 @@ impl JwtService {
     }
 }
 
+/// Shared secret token verifier (HS256)
+///
+/// This verifier uses the existing JWT service with a shared secret.
+/// It provides backward compatibility with the current authentication system.
+pub struct SharedSecretVerifier {
+    jwt_service: JwtService,
+}
+
+impl SharedSecretVerifier {
+    pub fn new(config: JwtAuthConfig) -> Self {
+        Self {
+            jwt_service: JwtService::new(config),
+        }
+    }
+
+    pub fn jwt_service(&self) -> &JwtService {
+        &self.jwt_service
+    }
+}
+
+#[async_trait::async_trait]
+impl TokenVerifier for SharedSecretVerifier {
+    async fn verify_token(&self, token: &str) -> Result<TokenData<Claims>, AuthError> {
+        self.jwt_service.validate_token(token)
+    }
+
+    fn issuer(&self) -> &str {
+        &self.jwt_service.config.issuer
+    }
+
+    fn audience(&self) -> &str {
+        &self.jwt_service.config.audience
+    }
+}
+
 /// Extract bearer token from Authorization header
 pub fn extract_bearer_token(auth_header: &HeaderValue) -> Option<String> {
     let auth_str = auth_header.to_str().ok()?;
@@ -448,12 +504,14 @@ mod tests {
         let config = JwtAuthConfig::default();
         let jwt_service = JwtService::new(config);
 
-        let token = jwt_service.generate_token(
-            "user123",
-            "Test User",
-            "test@example.com",
-            vec!["crypto-user".to_string()],
-        );
+        let token = jwt_service
+            .generate_token(
+                "user123",
+                "Test User",
+                "test@example.com",
+                vec!["crypto-user".to_string()],
+            )
+            .expect("token generation should succeed");
 
         let token_data = jwt_service
             .validate_token(&token)
@@ -484,6 +542,7 @@ mod tests {
             iss: "secreton-vault".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
+            metadata: std::collections::HashMap::new(),
         };
 
         assert!(jwt_service.check_permission(&claims, Permission::Encrypt));
@@ -507,6 +566,7 @@ mod tests {
             iss: "secreton-vault".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
+            metadata: std::collections::HashMap::new(),
         };
 
         assert!(jwt_service.check_permission(&claims, Permission::ManageUsers));
@@ -539,17 +599,17 @@ mod tests {
 
     #[test]
     fn test_extract_bearer_token() {
-        let header = HeaderValue::from_str("Bearer secret-token");
+        let header = HeaderValue::from_str("Bearer secret-token").expect("valid header");
         let token = extract_bearer_token(&header).expect("token expected");
         assert_eq!(token, "secret-token");
     }
 
     #[test]
     fn test_extract_bearer_token_invalid_format() {
-        let header = HeaderValue::from_str("Basic abc123");
+        let header = HeaderValue::from_str("Basic abc123").expect("valid header");
         assert!(extract_bearer_token(&header).is_none());
 
-        let header = HeaderValue::from_str("Bearer");
+        let header = HeaderValue::from_str("Bearer").expect("valid header");
         assert!(extract_bearer_token(&header).is_none());
     }
 }

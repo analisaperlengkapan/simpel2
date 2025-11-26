@@ -32,6 +32,12 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
@@ -59,6 +65,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
 
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
@@ -116,6 +128,9 @@ jobs:
   gitleaks-secrets:
     name: Secrets Scanning (Gitleaks)
     runs-on: self-hosted
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -131,6 +146,10 @@ jobs:
   trivy-scan:
     name: Vulnerability Scan (Trivy)
     runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -149,7 +168,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
 
@@ -174,6 +193,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
 
       - name: Setup Rust cache
         uses: actions/cache@v4
@@ -204,14 +229,19 @@ jobs:
         working-directory: infra/authenc
         run: |
           echo "Verifying no weak cryptography..."
-          if cargo tree | grep -E "(sha1|md5)" | grep -v "sha256"; then
-            echo "::error::Weak cryptography detected (SHA1/MD5)"
+          if cargo tree | grep -i "md5"; then
+            echo "::error::Weak cryptography detected (MD5)"
             exit 1
           fi
-          echo "✅ No weak cryptography found"
+
+          if cargo tree | grep -i "sha1"; then
+            echo "::warning::SHA-1 detected. OTP modules allow SHA-1 per RFC 6238 but review if unexpected."
+          else
+            echo "✅ No weak cryptography found"
+          fi
 
   secreton-security:
-    name: Secreton Vault Security
+    name: Secreton Security
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -221,6 +251,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install Protocol Buffers compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
 
       - name: Setup Rust cache
         uses: actions/cache@v4

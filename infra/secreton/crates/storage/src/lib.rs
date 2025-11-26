@@ -55,7 +55,9 @@
 //! # Example: Using PostgreSQL Backend
 //!
 //! ```rust,no_run
-//! use secreton_storage::{StorageBackend, PostgresBackend};
+//! # #[cfg(feature = "postgres")]
+//! # {
+//! use secreton_storage::{StorageBackend, PostgresBackend, VaultEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -63,39 +65,66 @@
 //! let backend = PostgresBackend::new("postgres://localhost/secreton").await?;
 //! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(backend);
 //!
-//! // Store a value
-//! storage.put("app/config", b"secret-value").await?;
+//! // Create and store an entry
+//! let entry = VaultEntry {
+//!     id: uuid::Uuid::new_v4(),
+//!     path: "app/config".to_string(),
+//!     encrypted_data: b"secret-value".to_vec(),
+//!     security_level: SecurityLevel::Internal,
+//!     // ... other fields with defaults
+//! #   encryption_metadata: serde_json::json!({}),
+//! #   metadata: serde_json::json!({}),
+//! #   tags: vec![],
+//! #   version: 1,
+//! #   owner_id: "system".to_string(),
+//! #   created_at: chrono::Utc::now(),
+//! #   updated_at: chrono::Utc::now(),
+//! #   expires_at: None,
+//! };
+//! storage.store(&entry).await?;
 //!
-//! // Retrieve a value
-//! let value = storage.get("app/config").await?;
-//! assert_eq!(value.unwrap(), b"secret-value");
+//! // Retrieve by path
+//! let retrieved = storage.get_by_path("app/config").await?;
 //!
-//! // Delete a value
-//! storage.delete("app/config").await?;
+//! // Delete by path
+//! storage.delete_by_path("app/config").await?;
 //! # Ok(())
+//! # }
 //! # }
 //! ```
 //!
 //! # Example: Adding Encryption Layer
 //!
 //! ```rust,no_run
-//! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage};
-//! use secreton_crypto::CryptoEngine;
+//! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, VaultEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create base backend
 //! let base_backend = MemoryBackend::new();
 //!
-//! // Wrap with encryption
-//! let crypto = CryptoEngine::new(Default::default())?;
-//! let encrypted = EncryptedStorage::new(Arc::new(base_backend), Arc::new(crypto));
+//! // Wrap with encryption (specify encryption key ID)
+//! let encrypted = EncryptedStorage::new(Arc::new(base_backend), "primary-key-001".to_string());
 //!
 //! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(encrypted);
 //!
-//! // All operations are now encrypted at rest
-//! storage.put("sensitive/data", b"plaintext").await?;
-//! // Stored as encrypted in base_backend
+//! // All operations use the encryption wrapper
+//! let entry = VaultEntry {
+//!     id: uuid::Uuid::new_v4(),
+//!     path: "sensitive/data".to_string(),
+//!     encrypted_data: b"plaintext".to_vec(),
+//!     security_level: SecurityLevel::Secret,
+//! #   encryption_metadata: serde_json::json!({"key_id": "primary-key-001"}),
+//! #   metadata: serde_json::json!({}),
+//! #   tags: vec![],
+//! #   version: 1,
+//! #   owner_id: "system".to_string(),
+//! #   created_at: chrono::Utc::now(),
+//! #   updated_at: chrono::Utc::now(),
+//! #   expires_at: None,
+//! };
+//! storage.store(&entry).await?;
+//! // Data is stored with encryption key tracking
 //! # Ok(())
 //! # }
 //! ```
@@ -103,20 +132,24 @@
 //! # Example: Adding Cache Layer
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "postgres")]
+//! # {
 //! use secreton_storage::{StorageBackend, PostgresBackend, CachedStorage, InMemoryCache};
 //! use std::sync::Arc;
+//! use std::time::Duration;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let backend = PostgresBackend::new("postgres://localhost/secreton").await?;
 //! let cache = InMemoryCache::new(1000); // 1000 entry capacity
 //!
-//! let cached = CachedStorage::new(Arc::new(backend), Arc::new(cache));
+//! let cached = CachedStorage::new(backend, cache, Duration::from_secs(300));
 //! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(cached);
 //!
 //! // Reads are cached, writes invalidate cache
-//! storage.get("hot/key").await?; // Miss - reads from backend
-//! storage.get("hot/key").await?; // Hit - reads from cache
+//! storage.get_by_path("hot/key").await?; // Miss - reads from backend
+//! storage.get_by_path("hot/key").await?; // Hit - reads from cache
 //! # Ok(())
+//! # }
 //! # }
 //! ```
 //!
@@ -194,7 +227,7 @@ pub use backends::PostgresBackend;
 // Re-export OpenRaft components
 #[cfg(feature = "raft-consensus")]
 pub use raft::{
-    RaftCluster, RaftClusterConfig, RaftStatus, SecretonStateMachine, SecretonStorage,
+    Raft, RaftCluster, RaftClusterConfig, RaftStatus, SecretonRaftStorage, SecretonStateMachine,
     StateMachineCommand, StateMachineResponse,
 };
 

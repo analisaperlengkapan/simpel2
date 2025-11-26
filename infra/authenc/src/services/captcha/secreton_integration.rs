@@ -108,11 +108,27 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
         // Convert plaintext to bytes
         let plaintext_bytes = plaintext.as_bytes();
 
-        // Use HSM encryption if available, otherwise fall back to regular encryption
-        Err(CaptchaError::SecreonUnavailable {
-            message: "HSM encryption not implemented".to_string(),
-            fallback_available: false,
-            retry_after: Some(Duration::from_secs(30)),
+        // Use HSM encryption via SecretonClient
+        use crate::secreton_client::HsmSecretonClient;
+
+        let ciphertext_bytes = self
+            .client
+            .hsm_encrypt(&key_id, plaintext_bytes)
+            .await
+            .map_err(|e| CaptchaError::SecreonUnavailable {
+                message: format!("HSM encryption failed: {}", e),
+                fallback_available: false,
+                retry_after: Some(Duration::from_secs(30)),
+            })?;
+
+        // Encode ciphertext as base64
+        let ciphertext_b64 = BASE64.encode(&ciphertext_bytes);
+
+        Ok(EncryptedChallengeData {
+            ciphertext: ciphertext_b64,
+            key_id: key_id.clone(),
+            algorithm: "AES-256-GCM".to_string(), // HSM default
+            iv: None,                             // HSM handles IV internally
         })
     }
 
@@ -126,29 +142,29 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
             CaptchaError::SecreonUnavailable {
                 message: format!("Invalid base64 ciphertext: {}", e),
                 fallback_available: false,
-                retry_after: Some(Duration::from_secs(30)),
+                retry_after: None,
             }
         })?;
 
-        // Use HSM decryption
-        let plaintext_bytes = Err(VaultError::Other(
-            "HSM decryption not implemented".to_string(),
-        ))
-        .map_err(|_| CaptchaError::SecreonUnavailable {
-            message: "HSM decryption not implemented".to_string(),
-            fallback_available: false,
-            retry_after: Some(Duration::from_secs(30)),
-        })?;
+        // Use HSM decryption via SecretonClient
+        use crate::secreton_client::HsmSecretonClient;
 
-        // Convert bytes back to string
-        let plaintext =
-            String::from_utf8(plaintext_bytes).map_err(|e| CaptchaError::SecreonUnavailable {
-                message: format!("Invalid UTF-8 in decrypted data: {}", e),
+        let plaintext_bytes = self
+            .client
+            .hsm_decrypt(&encrypted_data.key_id, &ciphertext_bytes)
+            .await
+            .map_err(|e| CaptchaError::SecreonUnavailable {
+                message: format!("HSM decryption failed: {}", e),
                 fallback_available: false,
                 retry_after: Some(Duration::from_secs(30)),
             })?;
 
-        Ok(plaintext)
+        // Convert bytes to string
+        String::from_utf8(plaintext_bytes).map_err(|e| CaptchaError::SecreonUnavailable {
+            message: format!("Invalid UTF-8 in decrypted data: {}", e),
+            fallback_available: false,
+            retry_after: None,
+        })
     }
 
     async fn rotate_keys(&self) -> Result<(), CaptchaError> {
