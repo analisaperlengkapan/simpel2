@@ -184,7 +184,7 @@ env_logger = "0.11.7"
 
 # gRPC and Protocol Buffers
 tonic = { version = "0.12", features = ["transport", "tls"], optional = true }
-prost = { version = "0.13", optional = true }
+prost = { version = "0.14", optional = true }
 prost-types = { version = "0.13", optional = true }
 
 # Cryptography
