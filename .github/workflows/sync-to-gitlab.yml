@@ -13,7 +13,7 @@ concurrency:
 jobs:
   sync-to-gitlab:
     name: Mirror Push to GitLab
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 30
 
     steps:
