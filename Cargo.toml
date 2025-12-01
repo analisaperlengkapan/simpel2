@@ -315,7 +315,7 @@ rust_xlsxwriter = "0.91.0"       # Excel writing
 tokio-util = "0.7.16"
 walkdir = "2"
 mime = "0.3"
-sentry-tracing = "0.45.0"
+sentry-tracing = "0.46.0"
 tempfile = "3"
 
 # Dev dependencies (for testing)
