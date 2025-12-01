@@ -216,7 +216,7 @@ nutype = { version = "0.6.2", features = [
 opentelemetry = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
 prometheus = "0.14"
-sentry = { version = "0.45.0", features = ["tracing"] }
+sentry = { version = "0.46.0", features = ["tracing"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
 tracing-opentelemetry = "0.32.0"
