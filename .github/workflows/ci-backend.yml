@@ -44,11 +44,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -101,11 +99,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -152,11 +148,9 @@ jobs:
           components: clippy
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -195,11 +189,9 @@ jobs:
           components: rustfmt
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Check formatting (workspace)
         run: cargo fmt --all --check
 
@@ -226,11 +218,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
