@@ -10,7 +10,6 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// JIT Admin Service for federated authentication and SAML
-///
 /// This service provides a minimal implementation of AdminService focused on
 /// user creation for Just-In-Time provisioning scenarios. It delegates to
 /// database operations for actual user management.

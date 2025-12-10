@@ -15,20 +15,16 @@
 use subtle::ConstantTimeEq;
 
 /// Constant-time equality comparison for byte slices
-///
 /// # Security
 /// - Always processes ALL bytes, never short-circuits
 /// - Prevents timing side-channel attacks
 /// - Use for comparing secrets, signatures, MACs, etc.
-///
 /// # Example
 /// ```ignore
 /// use Secreton_crypto::pqc::constant_time::ct_eq;
-///
 /// let secret1 = vec![0x42; 32];
 /// let secret2 = vec![0x42; 32];
 /// let secret3 = vec![0x43; 32];
-///
 /// assert!(ct_eq(&secret1, &secret2)); // Equal
 /// assert!(!ct_eq(&secret1, &secret3)); // Not equal
 /// ```
@@ -41,18 +37,14 @@ pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 /// Constant-time inequality comparison for byte slices
-///
 /// # Security
 /// - Always processes ALL bytes, never short-circuits
 /// - Prevents timing side-channel attacks
-///
 /// # Example
 /// ```ignore
 /// use Secreton_crypto::pqc::constant_time::ct_ne;
-///
 /// let secret1 = vec![0x42; 32];
 /// let secret2 = vec![0x43; 32];
-///
 /// assert!(ct_ne(&secret1, &secret2)); // Not equal
 /// ```
 pub fn ct_ne(a: &[u8], b: &[u8]) -> bool {
@@ -60,23 +52,18 @@ pub fn ct_ne(a: &[u8], b: &[u8]) -> bool {
 }
 
 /// Validate key size in constant time (prevents size oracle attacks)
-///
 /// # Security
 /// - Always performs full comparison regardless of size mismatch
 /// - Prevents attackers from deducing key sizes through timing
-///
 /// # Arguments
 /// * `key` - The key bytes to validate
 /// * `expected_size` - The expected size in bytes
-///
 /// # Returns
 /// * `Ok(())` if size matches
 /// * `Err(String)` if size mismatch (includes both sizes for debugging)
-///
 /// # Example
 /// ```ignore
 /// use Secreton_crypto::pqc::constant_time::validate_key_size;
-///
 /// let key = vec![0x42; 2560]; // ML-DSA-44 private key
 /// validate_key_size(&key, 2560).unwrap(); // OK
 /// ```
@@ -96,30 +83,23 @@ pub fn validate_key_size(key: &[u8], expected_size: usize) -> Result<(), String>
 }
 
 /// Constant-time select between two byte slices based on condition
-///
 /// # Security
 /// - Always accesses both slices regardless of condition
 /// - Prevents branch prediction attacks
 /// - Uses conditional move instead of branching
-///
 /// # Arguments
 /// * `condition` - If true, return `a`; if false, return `b`
 /// * `a` - First byte slice
 /// * `b` - Second byte slice (must be same length as `a`)
-///
 /// # Returns
 /// * `a` if condition is true, `b` otherwise
-///
 /// # Panics
 /// Panics if `a` and `b` have different lengths
-///
 /// # Example
 /// ```ignore
 /// use Secreton_crypto::pqc::constant_time::ct_select;
-///
 /// let secret_a = vec![0xAA; 32];
 /// let secret_b = vec![0xBB; 32];
-///
 /// let result = ct_select(true, &secret_a, &secret_b);
 /// assert_eq!(result, secret_a);
 /// ```

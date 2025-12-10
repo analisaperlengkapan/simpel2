@@ -1,5 +1,4 @@
 /// Admin API for managing Dynamic Client Registration
-///
 /// Provides endpoints for:
 /// - Creating initial access tokens
 /// - Listing initial access tokens

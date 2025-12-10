@@ -20,7 +20,6 @@ macro_rules! console_log {
 }
 
 /// Login Page Component untuk SIMPEL Perencanaan
-///
 /// Menampilkan halaman login dengan:
 /// - Logo SIMPEL KEJAKSAAN RI
 /// - Judul aplikasi

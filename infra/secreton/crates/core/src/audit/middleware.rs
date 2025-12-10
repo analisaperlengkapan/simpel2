@@ -146,7 +146,6 @@ where
 }
 
 /// Extract namespace from request path
-///
 /// Namespaces are typically in paths like:
 /// - /v1/sys/namespaces/{ns}/...
 /// - /{ns}/secrets/...

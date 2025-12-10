@@ -89,10 +89,8 @@ pub struct WrapDataResponse {
 }
 
 /// Wrap data with one-time token
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/wrap`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -100,7 +98,6 @@ pub struct WrapDataResponse {
 ///   "ttl": 300
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -209,17 +206,14 @@ pub struct UnwrapTokenResponse {
 }
 
 /// Unwrap token and retrieve data (one-time use)
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/unwrap`
-///
 /// # Request Body
 /// ```json
 /// {
 ///   "token": "wrap_abc123..."
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -305,10 +299,8 @@ pub async fn unwrap_token(
 }
 
 /// Lookup token metadata without unwrapping
-///
 /// # Endpoint
 /// `GET /v1/sys/wrapping/lookup/{token}`
-///
 /// # Response
 /// ```json
 /// {
@@ -379,10 +371,8 @@ pub struct RewrapTokenRequest {
 }
 
 /// Rewrap token with new TTL
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/rewrap`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -390,7 +380,6 @@ pub struct RewrapTokenRequest {
 ///   "ttl": 600
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {

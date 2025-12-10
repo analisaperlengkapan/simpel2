@@ -6,14 +6,11 @@ use crate::hooks::use_notifications::{NotificationCategory, WsState, use_notific
 use leptos::prelude::*;
 
 /// Notification bell component with dropdown
-///
 /// Shows a bell icon with unread count badge and dropdown panel with recent notifications.
 /// Can be used in any microfrontend navbar.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::NotificationBell;
-///
 /// #[component]
 /// pub fn Navbar() -> impl IntoView {
 ///     view! {
@@ -195,14 +192,11 @@ pub fn NotificationBell(
 }
 
 /// Notification list component
-///
 /// Displays a list of notifications with filtering and actions.
 /// Can be used in a dedicated notifications page.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::NotificationList;
-///
 /// #[component]
 /// pub fn NotificationsPage() -> impl IntoView {
 ///     view! {
@@ -398,7 +392,6 @@ pub fn NotificationList(
 }
 
 /// Connection status indicator
-///
 /// Shows the current WebSocket connection status
 #[component]
 pub fn NotificationConnectionStatus() -> impl IntoView {

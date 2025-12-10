@@ -205,15 +205,12 @@ impl AuthContext {
 }
 
 /// Hook to access authentication context
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::hooks::use_auth;
-///
 /// #[component]
 /// pub fn MyComponent() -> impl IntoView {
 ///     let auth = use_auth();
-///
 ///     view! {
 ///         <Show when=move || auth.is_authenticated()>
 ///             <p>"Welcome, " {move || auth.get_session().map(|s| s.name).unwrap_or_default()}</p>

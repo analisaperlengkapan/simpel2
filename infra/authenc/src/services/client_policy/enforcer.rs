@@ -16,7 +16,6 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// Client Policy Enforcement Service
-///
 /// Orchestrates policy evaluation for OAuth2/OIDC clients during authentication flows.
 pub struct ClientPolicyEnforcer {
     policy_store: Arc<ClientPolicyStore>,

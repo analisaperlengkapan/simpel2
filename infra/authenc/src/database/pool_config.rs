@@ -8,7 +8,6 @@ use deadpool_postgres::{ManagerConfig, PoolConfig, RecyclingMethod};
 use std::time::Duration;
 
 /// Connection pool configuration builder
-///
 /// Provides fine-grained control over connection pool behavior following
 /// production best practices from enterprise IAM and PostgreSQL documentation.
 #[derive(Debug, Clone)]

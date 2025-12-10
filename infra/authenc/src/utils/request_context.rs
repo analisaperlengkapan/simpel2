@@ -47,7 +47,6 @@ impl RequestContext {
 }
 
 /// Extract IP address from request headers
-///
 /// Checks the following headers in order:
 /// 1. X-Forwarded-For (first IP in the list)
 /// 2. X-Real-IP

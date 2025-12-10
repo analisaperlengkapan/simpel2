@@ -193,7 +193,6 @@ fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
 }
 
 /// Get cluster status
-///
 /// Returns comprehensive information about the Raft cluster including
 /// leader, term, membership, and health status.
 #[instrument(skip(state))]
@@ -352,13 +351,9 @@ pub async fn list_peers(
 }
 
 /// Add a new peer to the cluster
-///
 /// # Security
-///
 /// Requires admin-level access. All operations are audited.
-///
 /// # Validation
-///
 /// - Address must be valid and reachable
 /// - Node ID must not already exist in cluster
 /// - Address format must be valid (host:port)
@@ -499,13 +494,9 @@ pub async fn add_peer(
 }
 
 /// Remove a peer from the cluster
-///
 /// # Security
-///
 /// Requires admin-level access. All operations are audited.
-///
 /// # Safety Checks
-///
 /// - Prevents removal if it would break quorum (minimum 2 nodes required)
 /// - Validates node exists in cluster before removal
 /// - Cannot remove the leader node (must transfer leadership first)
@@ -638,14 +629,10 @@ pub async fn remove_peer(
 }
 
 /// Create a new snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. Snapshots are encrypted using Transit engine
 /// and signed for integrity verification.
-///
 /// # Process
-///
 /// 1. Trigger Raft snapshot creation
 /// 2. Compress snapshot data (gzip)
 /// 3. Encrypt compressed data using Transit engine
@@ -849,9 +836,7 @@ pub async fn create_snapshot(
 }
 
 /// Download a snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. Returns encrypted snapshot data.
 #[instrument(skip(state))]
 pub async fn download_snapshot(
@@ -1025,9 +1010,7 @@ pub struct DownloadSnapshotQuery {
 }
 
 /// List available snapshots
-///
 /// # Security
-///
 /// Requires admin-level access.
 #[instrument(skip(state))]
 pub async fn list_snapshots(
@@ -1103,14 +1086,10 @@ pub async fn list_snapshots(
 }
 
 /// Restore from a snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. This is a destructive operation that replaces
 /// the current state with the snapshot state.
-///
 /// # Process
-///
 /// 1. Validate snapshot exists and integrity (checksum, signature)
 /// 2. Decrypt snapshot data
 /// 3. Decompress snapshot data
@@ -1118,9 +1097,7 @@ pub async fn list_snapshots(
 /// 5. Stop Raft operations
 /// 6. Restore state from snapshot
 /// 7. Restart Raft operations
-///
 /// # Safety
-///
 /// - Validates snapshot integrity before restoration
 /// - Checks version compatibility
 /// - Creates backup of current state before restoration
@@ -1370,7 +1347,6 @@ pub async fn restore_snapshot(
 }
 
 /// Cleanup old snapshots based on retention policy
-///
 /// Keeps the most recent N snapshots and deletes older ones.
 /// Default retention: 10 snapshots
 async fn cleanup_old_snapshots(pool: deadpool_postgres::Pool) {

@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// User group for organizing users
-///
 /// Represents a user group for organizing and managing users within a realm.
 /// Groups can be hierarchical and used for bulk operations and access control.
-///
 /// # Fields
 /// * `id` - Unique group identifier (UUID)
 /// * `name` - Group name (unique within realm and parent)
@@ -17,7 +15,6 @@ use uuid::Uuid;
 /// * `realm_id` - ID of the realm this group belongs to
 /// * `created_at` - Group creation timestamp
 /// * `updated_at` - Last modification timestamp
-///
 /// # Security Considerations
 /// - Groups are scoped to realms for multi-tenancy
 /// - Group names should be unique within a realm and parent
@@ -48,15 +45,12 @@ pub struct Group {
 }
 
 /// Group creation request
-///
 /// Parameters required to create a new user group.
 /// Used when creating groups through the API.
-///
 /// # Fields
 /// * `name` - Group name (must be unique within realm)
 /// * `description` - Optional human-readable description
 /// * `realm_id` - ID of the realm to create the group in
-///
 /// # Security Considerations
 /// - Group names should follow naming conventions
 /// - Realm ID must be validated before group creation
@@ -73,10 +67,8 @@ pub struct CreateGroupRequest {
 }
 
 /// Group update request
-///
 /// Parameters for updating an existing user group.
 /// All fields are optional to allow partial updates.
-///
 /// # Security Considerations
 /// - Group name changes may affect existing memberships
 /// - Parent changes affect hierarchical path
@@ -96,10 +88,8 @@ pub struct UpdateGroupRequest {
 }
 
 /// Group response
-///
 /// Safe group information returned to clients.
 /// Includes member count and hierarchical information.
-///
 /// # Fields
 /// * `id` - Unique group identifier
 /// * `name` - Group name
@@ -112,7 +102,6 @@ pub struct UpdateGroupRequest {
 /// * `subgroup_count` - Number of child groups
 /// * `created_at` - Group creation timestamp
 /// * `updated_at` - Last modification timestamp
-///
 /// # Security Considerations
 /// - Provides necessary group metadata for client management
 /// - Member count helps with group size management

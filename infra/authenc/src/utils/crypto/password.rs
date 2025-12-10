@@ -5,25 +5,20 @@ use argon2::{
 use rand::rngs::OsRng;
 
 /// Hash a password using Argon2 for secure storage with enhanced security parameters
-///
 /// This function generates a cryptographically secure password hash using the
 /// Argon2id algorithm with hardened parameters. The resulting hash can be safely
 /// stored in a database and later used for password verification.
-///
 /// # Security Parameters
 /// - Algorithm: Argon2id (hybrid mode, resistant to both side-channel and GPU attacks)
 /// - Memory cost: 64 MB (65536 KiB) - prevents parallel attacks
 /// - Time cost: 10 iterations - balances security and performance
 /// - Parallelism: 4 threads - utilizes modern CPU capabilities
 /// - Output length: 32 bytes (256 bits)
-///
 /// # Arguments
 /// * `password` - The plaintext password to hash
-///
 /// # Returns
 /// A `Result` containing the password hash string in PHC format on success,
 /// or an Argon2 error on failure
-///
 /// # Security Considerations
 /// - Uses Argon2id with parameters exceeding OWASP recommendations
 /// - Generates cryptographically secure random salt for each password
@@ -31,11 +26,9 @@ use rand::rngs::OsRng;
 /// - Computationally expensive to prevent brute force attacks (>100ms per hash)
 /// - Memory-hard to prevent GPU-based attacks
 /// - Should be used for all password storage operations
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::hash_password;
-///
 /// let hash = hash_password("my_secure_password").expect("Failed to hash password");
 /// // Store the hash in database
 /// ```
@@ -62,34 +55,27 @@ pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Er
 }
 
 /// Verify a password against its hash
-///
 /// This function verifies a plaintext password against a previously computed
 /// Argon2 password hash. It performs a constant-time comparison to prevent
 /// timing attacks and returns whether the password matches the hash.
-///
 /// # Arguments
 /// * `hash` - The password hash string in PHC format (from `hash_password`)
 /// * `password` - The plaintext password to verify
-///
 /// # Returns
 /// A `Result` containing `true` if the password matches, `false` otherwise,
 /// or an Argon2 error if the hash format is invalid
-///
 /// # Security Considerations
 /// - Uses constant-time comparison to prevent timing attacks
 /// - Validates hash format before verification
 /// - Returns boolean result to avoid information leakage
 /// - Should be used for all password verification operations
 /// - Failed verifications should be logged for security monitoring
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::{hash_password, verify_password};
-///
 /// let hash = hash_password("my_password").unwrap();
 /// let is_valid = verify_password(&hash, "my_password").unwrap();
 /// assert!(is_valid);
-///
 /// let is_invalid = verify_password(&hash, "wrong_password").unwrap();
 /// assert!(!is_invalid);
 /// ```
@@ -142,7 +128,6 @@ impl PasswordStrengthResult {
 }
 
 /// Validate password strength according to security requirements
-///
 /// This function validates a password against comprehensive security requirements:
 /// - Minimum 8 characters length
 /// - At least one uppercase letter
@@ -151,18 +136,14 @@ impl PasswordStrengthResult {
 /// - At least one special character
 /// - No common weak patterns
 /// - No username inclusion
-///
 /// # Arguments
 /// * `password` - The plaintext password to validate
 /// * `username` - Optional username to check for inclusion
-///
 /// # Returns
 /// A `PasswordStrengthResult` containing validation status, errors, and strength score
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::validate_password_strength;
-///
 /// let result = validate_password_strength("MyP@ssw0rd", Some("user123"));
 /// assert!(result.is_valid);
 /// assert!(result.strength_score >= 70);
@@ -302,36 +283,28 @@ pub fn validate_password_strength(
 }
 
 /// Check if a password matches any in the password history
-///
 /// This function verifies if a new password has been used before by comparing
 /// it against a list of previous password hashes. This prevents password reuse
 /// and enforces password history policies.
-///
 /// # Arguments
 /// * `password` - The new plaintext password to check
 /// * `password_history` - List of previous password hashes (most recent first)
 /// * `history_limit` - Maximum number of previous passwords to check (default: 5)
-///
 /// # Returns
 /// `true` if the password was found in history, `false` otherwise
-///
 /// # Security Considerations
 /// - Uses constant-time comparison for each hash check
 /// - Limits history check to prevent performance issues
 /// - Should be called before accepting a new password
 /// - History should be stored securely in the database
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::{hash_password, check_password_history};
-///
 /// let old_hash1 = hash_password("OldPassword1!").unwrap();
 /// let old_hash2 = hash_password("OldPassword2!").unwrap();
 /// let history = vec![old_hash1, old_hash2];
-///
 /// let is_reused = check_password_history("OldPassword1!", &history, 5);
 /// assert!(is_reused);
-///
 /// let is_new = check_password_history("NewPassword3!", &history, 5);
 /// assert!(!is_new);
 /// ```
@@ -356,22 +329,17 @@ pub fn check_password_history(
 }
 
 /// Calculate password expiration date based on policy
-///
 /// This function calculates when a password should expire based on the
 /// password change date and the configured expiration policy.
-///
 /// # Arguments
 /// * `password_changed_at` - Timestamp when the password was last changed
 /// * `expiration_days` - Number of days until password expires (0 = never expires)
-///
 /// # Returns
 /// Optional timestamp when the password will expire, or None if no expiration
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::calculate_password_expiration;
 /// use chrono::Utc;
-///
 /// let changed_at = Utc::now();
 /// let expires_at = calculate_password_expiration(changed_at, 90);
 /// assert!(expires_at.is_some());
@@ -388,22 +356,17 @@ pub fn calculate_password_expiration(
 }
 
 /// Check if a password has expired
-///
 /// This function checks if a password has expired based on the expiration
 /// timestamp. Returns true if the password is expired or will expire soon.
-///
 /// # Arguments
 /// * `password_expires_at` - Optional timestamp when the password expires
 /// * `grace_period_days` - Number of days before expiration to warn (default: 7)
-///
 /// # Returns
 /// Tuple of (is_expired, days_until_expiration)
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::password::check_password_expiration;
 /// use chrono::Utc;
-///
 /// let expires_at = Utc::now() + chrono::Duration::days(5);
 /// let (is_expired, days_left) = check_password_expiration(Some(expires_at), 7);
 /// assert!(!is_expired);

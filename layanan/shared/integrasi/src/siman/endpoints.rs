@@ -5,18 +5,14 @@ use serde_json::Value;
 use tracing::{info, warn};
 
 /// Mendapatkan jumlah baris untuk kategori aset tertentu
-///
 /// # Arguments
 /// * `client` - MonsaktiClient yang sudah dikonfigurasi
 /// * `category` - Kategori aset yang akan diquery
-///
 /// # Returns
 /// Total jumlah baris data untuk kategori aset tersebut
-///
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_row_count, SimanAssetCategory};
-///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let count = get_row_count(client, SimanAssetCategory::AlatBesar).await?;
 /// println!("Total aset alat besar: {}", count);
@@ -54,20 +50,16 @@ pub async fn get_row_count(
 }
 
 /// Mendapatkan data aset berdasarkan kategori dengan pagination
-///
 /// # Arguments
 /// * `client` - MonsaktiClient yang sudah dikonfigurasi
 /// * `category` - Kategori aset yang akan diquery
 /// * `start_id` - Index awal data (1-based)
 /// * `end_id` - Index akhir data (inklusif)
-///
 /// # Returns
 /// Vector JSON Value yang berisi data aset
-///
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_aset_by_category, SimanAssetCategory};
-///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let data = get_aset_by_category(client, SimanAssetCategory::Tanah, 1, 100).await?;
 /// println!("Retrieved {} records", data.len());
@@ -92,17 +84,14 @@ pub async fn get_aset_by_category(
 }
 
 /// Mengambil semua data aset dengan pagination otomatis
-///
 /// Fungsi ini akan:
 /// 1. Mendapatkan total row count
 /// 2. Melakukan pagination dengan chunk size 1000
 /// 3. Mengumpulkan semua data
-///
 /// # Arguments
 /// * `client` - MonsaktiClient yang sudah dikonfigurasi
 /// * `category` - Kategori aset yang akan diquery
 /// * `chunk_size` - Ukuran per batch (default: 1000)
-///
 /// # Returns
 /// Vector semua data aset untuk kategori tersebut
 pub async fn fetch_all_aset_paginated(
@@ -325,7 +314,6 @@ pub async fn get_aset_tetap_renovasi(
 }
 
 /// Fetch all assets with pagination and save to storage
-///
 /// This function fetches all assets for a given category and saves them using the storage strategy.
 /// Returns (success_count, failed_count)
 pub async fn fetch_all_assets_with_pagination(

@@ -4,15 +4,11 @@ use secreton_core::audit::{AuditLog, AuditStatus};
 use std::collections::HashMap;
 
 /// Create an audit log entry with common fields pre-filled.
-///
 /// This helper reduces duplication by providing a consistent way to create
 /// audit logs across all handlers.
-///
 /// # Example
-///
 /// ```rust,no_run
 /// use secreton_api::helpers::create_audit_log;
-///
 /// let log = create_audit_log(
 ///     "secret_created",
 ///     "john_doe",

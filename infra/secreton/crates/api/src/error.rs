@@ -12,10 +12,8 @@ use thiserror::Error;
 use crate::{ApiResponse, ErrorDetails, ResponseMetadata};
 
 /// Authentication and authorization error types.
-///
 /// This enum consolidates all authentication-related errors across the API crate.
 /// Previously duplicated in `auth.rs` and `services/auth.rs`, now centralized here.
-///
 /// # Design Notes
 /// - Includes HTTP-specific variants (MissingAuthHeader, InvalidAuthHeader)
 /// - Includes service-level variants (MfaRequired, TokenExpired, UserAlreadyExists)

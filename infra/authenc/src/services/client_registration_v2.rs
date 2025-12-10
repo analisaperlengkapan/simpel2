@@ -1,5 +1,4 @@
 /// Production-ready OAuth 2.0 Dynamic Client Registration Service (RFC 7591/7592)
-///
 /// This service implements comprehensive DCR with:
 /// - Database-backed registration tokens
 /// - Initial access token support

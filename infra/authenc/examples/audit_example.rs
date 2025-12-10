@@ -36,7 +36,6 @@ pub struct ExampleResponse {
 }
 
 /// Example handler demonstrating enhanced audit logging
-///
 /// This shows how to:
 /// 1. Extract request context from headers
 /// 2. Sanitize request/response payloads
@@ -97,7 +96,6 @@ pub async fn example_audit_handler(
 }
 
 /// Simplified helper for common audit logging patterns
-///
 /// This demonstrates a more concise approach for simple cases
 pub async fn simple_audit_example(headers: HeaderMap, session_id: Option<String>) -> Result<()> {
     // Create audit context with minimal boilerplate

@@ -90,17 +90,13 @@ const SALT_LENGTH: usize = 16;
 const KEY_VERSION_LENGTH: usize = 8; // First 8 bytes of key ID
 
 /// Represents a cryptographic key and its metadata in the key store
-///
 /// Each `KeyEntry` contains the actual encryption key along with metadata
 /// that controls its lifecycle and usage. The key material is stored in
 /// base64-encoded format for safe serialization.
-///
 /// # Example
-///
 /// ```rust
 /// use std::collections::HashMap;
 /// use secreton_core::storage::secure::KeyEntry;
-///
 /// let key_entry = KeyEntry {
 ///     id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
 ///     key: "MDEyMzQ1Njc4OUFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX".to_string(),
@@ -153,15 +149,11 @@ pub struct KeyEntry {
 }
 
 /// Key management configuration for secure storage
-///
 /// This struct defines the rotation and retention policies for encryption keys.
 /// All durations are specified in seconds.
-///
 /// # Example
-///
 /// ```
 /// use secreton_core::storage::secure::KeyConfig;
-///
 /// // Rotate keys every 30 days, keep old keys for 90 days
 /// let config = KeyConfig {
 ///     rotation_interval: 30 * 24 * 3600,    // 30 days
@@ -212,52 +204,40 @@ impl Default for KeyConfig {
 }
 
 /// Trait defining the interface for key storage backends
-///
 /// This trait must be implemented by any type that will be used to store
 /// encryption keys and their metadata. The implementation is responsible for
 /// persisting keys and maintaining the current key ID.
-///
 /// # Implementation Guidelines
-///
 /// 1. **Persistence**: The implementation must ensure that keys are durably
 ///    persisted to prevent data loss.
-///
 /// 2. **Atomicity**: Operations should be atomic to prevent corruption if the
 ///    system crashes during a write.
-///
 /// 3. **Security**: The implementation should protect the keys at rest using
 ///    appropriate security measures (e.g., encryption, access controls).
-///
 /// # Example: Database-backed Key Store
-///
 /// ```rust
 /// use std::collections::HashMap;
 /// use std::sync::Arc;
 /// use async_trait::async_trait;
 /// use secreton_core::storage::secure::{KeyStore, KeyEntry};
 /// use anyhow::Result;
-///
 /// pub struct DatabaseKeyStore {
 ///     connection: String, // Database connection string
 /// }
-///
 /// #[async_trait]
 /// impl KeyStore for DatabaseKeyStore {
 ///     async fn load_keys(&self) -> Result<HashMap<String, KeyEntry>> {
 ///         // Implementation to load keys from database
 /// #       todo!()
 ///     }
-///
 ///     async fn save_keys(&self, keys: &HashMap<String, KeyEntry>) -> Result<()> {
 ///         // Implementation to save keys to database
 /// #       todo!()
 ///     }
-///
 ///     async fn get_current_key_id(&self) -> Result<Option<String>> {
 ///         // Implementation to get current key ID from database
 /// #       todo!()
 ///     }
-///
 ///     async fn set_current_key_id(&self, key_id: &str) -> Result<()> {
 ///         // Implementation to set current key ID in database
 /// #       todo!()
@@ -319,22 +299,17 @@ pub trait KeyStore: Send + Sync {
 }
 
 /// In-memory implementation of KeyStore for testing and development
-///
 /// This implementation stores keys in memory and is not persistent across
 /// restarts. It's primarily intended for testing and development purposes.
-///
 /// # Example
-///
 /// ```rust
 /// use std::sync::Arc;
 /// use secreton_core::storage::secure::{MemoryKeyStore, KeyStore, KeyEntry};
 /// use std::collections::HashMap;
-///
 /// # #[tokio::main]
 /// # async fn main() -> anyhow::Result<()> {
 /// // Create a new in-memory key store
 /// let key_store = MemoryKeyStore::new();
-///
 /// // Create a test key entry
 /// let key_entry = KeyEntry {
 ///     id: "test-key".to_string(),
@@ -345,12 +320,10 @@ pub trait KeyStore: Send + Sync {
 ///     expires_at: None,
 ///     metadata: Default::default(),
 /// };
-///
 /// // Save the key
 /// let mut keys = HashMap::new();
 /// keys.insert(key_entry.id.clone(), key_entry);
 /// key_store.save_keys(&keys).await?;
-///
 /// // Set the current key ID
 /// key_store.set_current_key_id("test-key").await?;
 /// # Ok(())
@@ -419,55 +392,42 @@ impl KeyStore for MemoryKeyStore {
 }
 
 /// Secure encryption at rest with automatic key rotation
-///
 /// This struct provides high-level encryption/decryption functionality with built-in
 /// key management. It uses AES-256-GCM for encryption and Argon2 for key derivation.
-///
 /// # Key Features
-///
 /// - **Automatic Key Rotation**: Keys are automatically rotated based on configuration
 /// - **Key Versioning**: Multiple key versions are maintained for decryption
 /// - **Thread-Safe**: All operations are thread-safe using async/await
 /// - **Secure Defaults**: Uses modern cryptographic primitives with secure defaults
-///
 /// # Security Considerations
-///
 /// - The master key should be kept secure and never hardcoded
 /// - Key material is stored encrypted at rest by the `KeyStore`
 /// - Each encryption operation uses a unique nonce
 /// - Keys are derived using Argon2 with a unique salt per key
-///
 /// # Example
-///
 /// ```rust
 /// use secreton_core::storage::secure::{SecureStorage, MemoryKeyStore};
 /// use std::sync::Arc;
-///
 /// # #[tokio::main]
 /// # async fn main() -> anyhow::Result<()> {
 /// // Create a key store (in-memory for this example)
 /// let key_store = Arc::new(MemoryKeyStore::new());
-///
 /// // Create secure storage with default configuration
 /// let storage = SecureStorage::new_with_keystore(
 ///     b"your-secure-master-key-here",
 ///     key_store,
 ///     None, // Use default key configuration
 /// ).await?;
-///
 /// // Encrypt data
 /// let plaintext = b"sensitive data";
 /// let ciphertext = storage.encrypt(plaintext).await?;
-///
 /// // Decrypt data
 /// let decrypted = storage.decrypt(&ciphertext).await?;
 /// assert_eq!(decrypted, plaintext);
 /// # Ok(())
 /// # }
 /// ```
-///
 /// # Note on Backward Compatibility
-///
 /// The `new()` function is provided for backward compatibility but doesn't support
 /// key rotation. For new code, always use `new_with_keystore()`.
 pub struct SecureStorage {

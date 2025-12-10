@@ -67,7 +67,6 @@ pub struct EncodeDecodeResponse {
 }
 
 /// Create transformation
-///
 /// # Endpoint
 /// `POST /v1/transform/transformation`
 #[tracing::instrument(skip(state))]
@@ -103,7 +102,6 @@ async fn create_transformation(
 }
 
 /// Get transformation
-///
 /// # Endpoint
 /// `GET /v1/transform/transformation/:name`
 #[tracing::instrument(skip(state))]
@@ -123,7 +121,6 @@ async fn get_transformation(
 }
 
 /// List transformations
-///
 /// # Endpoint
 /// `GET /v1/transform/transformation`
 #[tracing::instrument(skip(state))]
@@ -137,7 +134,6 @@ async fn list_transformations(
 }
 
 /// Delete transformation
-///
 /// # Endpoint
 /// `DELETE /v1/transform/transformation/:name`
 #[tracing::instrument(skip(state))]
@@ -152,7 +148,6 @@ async fn delete_transformation(
 }
 
 /// Create role
-///
 /// # Endpoint
 /// `POST /v1/transform/role`
 #[tracing::instrument(skip(state))]
@@ -180,7 +175,6 @@ async fn create_role(
 }
 
 /// Get role
-///
 /// # Endpoint
 /// `GET /v1/transform/role/:name`
 #[tracing::instrument(skip(state))]
@@ -200,7 +194,6 @@ async fn get_role(
 }
 
 /// List roles
-///
 /// # Endpoint
 /// `GET /v1/transform/role`
 #[tracing::instrument(skip(state))]
@@ -212,7 +205,6 @@ async fn list_roles(State(state): State<AppState>) -> ApiResult<Json<ApiResponse
 }
 
 /// Encode value
-///
 /// # Endpoint
 /// `POST /v1/transform/encode/:role/:transformation`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name))]
@@ -248,7 +240,6 @@ async fn encode_value(
 }
 
 /// Decode value
-///
 /// # Endpoint
 /// `POST /v1/transform/decode/:role/:transformation`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name))]

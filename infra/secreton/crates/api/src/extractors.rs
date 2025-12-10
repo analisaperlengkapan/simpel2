@@ -8,15 +8,11 @@ use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use crate::ApiError;
 
 /// Authenticated user information extracted from JWT token.
-///
 /// This extractor automatically validates the JWT token from the Authorization header
 /// and extracts user information. Use this in any handler that requires authentication.
-///
 /// # Example
-///
 /// ```rust,no_run
 /// use secreton_api::extractors::AuthenticatedUser;
-///
 /// async fn my_handler(user: AuthenticatedUser) -> Result<String, ApiError> {
 ///     Ok(format!("Hello, {}!", user.username))
 /// }
@@ -59,7 +55,6 @@ where
 }
 
 /// Optional authenticated user - does not fail if token is missing/invalid.
-///
 /// Use this for endpoints that work differently for authenticated vs anonymous users.
 #[derive(Debug, Clone)]
 pub struct OptionalUser(pub Option<AuthenticatedUser>);

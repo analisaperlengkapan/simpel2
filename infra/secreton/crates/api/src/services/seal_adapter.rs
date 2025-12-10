@@ -9,7 +9,6 @@ use secreton_storage::StorageBackend;
 use std::sync::Arc;
 
 /// Storage adapter for SealService to use StorageBackend
-///
 /// This adapter implements the VaultStateStorage trait required by SealService
 /// and delegates to the underlying StorageBackend implementation.
 pub struct SealStorageAdapter {

@@ -52,7 +52,7 @@ fn test_rfc6238_test_vectors() {
 
     // Convert RFC test secret to base32 for our implementation
     let secret_bytes = RFC6238_SECRET.as_bytes();
-    let secret_base32 = base32::encode(base32::Alphabet::RFC4648 { padding: false }, secret_bytes);
+    let secret_base32 = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, secret_bytes);
 
     for &(timestamp, expected_code) in RFC6238_TEST_VECTORS {
         // Calculate time step (T = (Current Unix time - T0) / X)
@@ -116,7 +116,7 @@ fn test_clock_skew_tolerance() {
     let time_step = current_time / 30;
 
     // Generate codes for previous, current, and next time steps
-    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+    let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
         .expect("Valid base32 secret");
 
     let prev_code = provider
@@ -160,7 +160,7 @@ fn test_hmac_sha1_algorithm_compliance() {
 
     // RFC 6238 Section 4.1: HMAC-SHA-1 is the default algorithm
     let secret = "JBSWY3DPEHPK3PXP";
-    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
+    let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret)
         .expect("Valid base32 secret");
 
     let time_step = Utc::now().timestamp() as u64 / 30;
@@ -198,7 +198,7 @@ fn test_six_digit_code_format() {
     let secret = provider.generate_secret();
 
     // RFC 6238: Default is 6-digit codes
-    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+    let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
         .expect("Valid base32 secret");
 
     let time_step = Utc::now().timestamp() as u64 / 30;
@@ -241,7 +241,7 @@ fn test_thirty_second_time_window() {
     let time3 = time1 + 29; // End of current window
 
     let step = time1 / 30;
-    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+    let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
         .expect("Valid base32 secret");
 
     let code1 = provider
@@ -280,7 +280,7 @@ fn test_secret_key_requirements() {
 
     // RFC 6238 recommends at least 160 bits (20 bytes) for HMAC-SHA1
     let secret = provider.generate_secret();
-    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+    let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
         .expect("Valid base32 secret");
 
     assert!(
@@ -293,7 +293,7 @@ fn test_secret_key_requirements() {
     assert_ne!(secret, secret2, "Generated secrets should be unique");
 
     let time_step = Utc::now().timestamp() as u64 / 30;
-    let secret2_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret2)
+    let secret2_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret2)
         .expect("Valid base32 secret");
 
     let code1 = provider
@@ -317,12 +317,12 @@ fn test_base32_encoding_compliance() {
     let secret = provider.generate_secret();
 
     // Verify it's valid base32
-    let decoded = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret);
+    let decoded = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret);
     assert!(decoded.is_some(), "Generated secret should be valid base32");
 
     // Verify it can be re-encoded
     let decoded_bytes = decoded.unwrap();
-    let re_encoded = base32::encode(base32::Alphabet::RFC4648 { padding: false }, &decoded_bytes);
+    let re_encoded = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &decoded_bytes);
     assert_eq!(
         secret, re_encoded,
         "Secret should round-trip through base32 encoding"
@@ -404,7 +404,7 @@ mod integration_tests {
         assert!(uri.contains("otpauth://totp/"));
 
         // 3. Generate current TOTP code
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+        let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
             .expect("Valid base32 secret");
         let time_step = Utc::now().timestamp() as u64 / 30;
         let code = provider

@@ -6,11 +6,9 @@ use crate::hooks::use_search::{SearchResult, use_debounced_search, use_search};
 use leptos::prelude::*;
 
 /// Global search bar component with dropdown results
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::GlobalSearchBar;
-///
 /// #[component]
 /// pub fn Navbar() -> impl IntoView {
 ///     view! {
@@ -224,7 +222,6 @@ pub fn GlobalSearchBar(
 }
 
 /// Compact search button that opens a modal
-///
 /// Useful for mobile or space-constrained layouts
 #[component]
 pub fn GlobalSearchButton(
@@ -277,7 +274,6 @@ pub fn GlobalSearchButton(
 }
 
 /// Search results list component
-///
 /// Displays search results in a list format
 #[component]
 pub fn SearchResultsList<F>(

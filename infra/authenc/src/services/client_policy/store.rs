@@ -11,7 +11,6 @@ use tracing::{debug, error, info};
 use uuid::Uuid;
 
 /// Client Policy Store
-///
 /// Manages persistence of client policies, profiles, and their assignments.
 pub struct ClientPolicyStore {
     pool: Arc<Pool>,

@@ -8,17 +8,14 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Client Scope Service
-///
 /// Provides business logic for managing OAuth2/OIDC client scopes,
 /// including scope definitions, client assignments, and user consent.
-///
 /// # Features
 /// - Reusable scope definitions (like Keycloak's Client Scopes)
 /// - Default vs optional scope assignment
 /// - User consent management
 /// - Scope validation for OAuth2 flows
 /// - Standard OIDC scopes pre-configured
-///
 /// # Standards Compliance
 /// - OAuth 2.0 RFC 6749 (scope parameter)
 /// - OpenID Connect Core 1.0 (standard scopes)

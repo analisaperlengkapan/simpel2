@@ -274,9 +274,7 @@ fn validate_namespace_id(id: &str, namespace_type: NamespaceType) -> Result<(), 
 // ============================================================================
 
 /// List all accessible namespaces based on user's satker/wilayah
-///
 /// GET /v1/sys/namespaces
-///
 /// Authorization:
 /// - Pusat: Can list all namespaces
 /// - Eselon I: Can list all namespaces
@@ -362,9 +360,7 @@ pub async fn list_namespaces(
 }
 
 /// Create a new namespace with parent validation
-///
 /// POST /v1/sys/namespaces
-///
 /// Authorization:
 /// - Pusat: Can create any namespace
 /// - Eselon I: Can create any namespace
@@ -473,9 +469,7 @@ pub async fn create_namespace(
 }
 
 /// Get namespace details with hierarchy
-///
 /// GET /v1/sys/namespaces/{id}
-///
 /// Authorization: User must have access to the namespace
 pub async fn get_namespace(
     State(state): State<AppState>,
@@ -518,9 +512,7 @@ pub async fn get_namespace(
 }
 
 /// Update namespace quotas and policies
-///
 /// PUT /v1/sys/namespaces/{id}
-///
 /// Authorization:
 /// - Pusat: Can update any namespace
 /// - Eselon I: Can update any namespace
@@ -621,9 +613,7 @@ pub async fn update_namespace(
 }
 
 /// Delete namespace (if no children)
-///
 /// DELETE /v1/sys/namespaces/{id}
-///
 /// Authorization:
 /// - Pusat: Can delete any namespace (except pusat itself)
 /// - Eselon I: Can delete any namespace (except pusat)
@@ -726,9 +716,7 @@ pub async fn delete_namespace(
 }
 
 /// Get namespace usage statistics and quota enforcement
-///
 /// GET /v1/sys/namespaces/{id}/stats
-///
 /// Authorization: User must have access to the namespace
 pub async fn get_namespace_stats(
     State(state): State<AppState>,

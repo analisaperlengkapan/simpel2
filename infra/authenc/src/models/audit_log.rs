@@ -2,12 +2,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Audit log entry for tracking security and operational events.
-///
 /// This struct represents a single audit log entry that captures important
 /// events, user actions, and system activities for compliance and monitoring
 /// purposes. Audit logs are crucial for security analysis, compliance reporting,
 /// and forensic investigations.
-///
 /// # Fields
 /// * `timestamp` - When the event occurred (UTC)
 /// * `event` - Description of the event or action
@@ -15,7 +13,6 @@ use serde::{Deserialize, Serialize};
 /// * `client_id` - ID of the client application involved (if applicable)
 /// * `status` - Outcome status of the event (success/failure)
 /// * `detail` - Additional details about the event
-///
 /// # Security Considerations
 /// - Audit logs should be tamper-proof and immutable once written
 /// - Sensitive information should be sanitized before logging

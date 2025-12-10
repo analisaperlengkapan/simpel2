@@ -10,7 +10,6 @@ use std::sync::{Arc, RwLock};
 use uuid::Uuid;
 
 /// In-memory store for groups.
-///
 /// Provides thread-safe CRUD operations for `Group`.
 pub struct GroupStore {
     /// id -> group mapping

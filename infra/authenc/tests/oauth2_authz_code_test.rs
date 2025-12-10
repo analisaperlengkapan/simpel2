@@ -1,5 +1,4 @@
 /// Integration tests for OAuth2 Authorization Code Flow with PKCE
-///
 /// These tests verify the authorization code flow implementation including:
 /// - Authorization code generation
 /// - PKCE support (S256 and plain methods)

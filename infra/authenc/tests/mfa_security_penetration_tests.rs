@@ -476,7 +476,7 @@ mod penetration_tests {
 
         for time_step in 0..1000 {
             let secret_bytes =
-                base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+                base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
 
             let code = provider
                 .generate_totp_for_step(&secret_bytes, time_step, OtpAlgorithm::HmacSha1, 6)
@@ -496,7 +496,7 @@ mod penetration_tests {
         // Test 3: Algorithm diversity
         let time_step = chrono::Utc::now().timestamp() as u64 / 30;
         let secret_bytes =
-            base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+            base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
 
         let sha1_code = provider
             .generate_totp_for_step(&secret_bytes, time_step, OtpAlgorithm::HmacSha1, 6)

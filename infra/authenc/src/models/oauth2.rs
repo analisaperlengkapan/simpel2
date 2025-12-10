@@ -247,7 +247,6 @@ pub struct OAuth2TokenResponse {
 use crate::error::Result;
 
 /// Converts a PostgreSQL database row into an OAuth2Client instance
-///
 /// This implementation extracts all OAuth2Client fields from a database row
 /// and constructs a new OAuth2Client struct. All fields are required in the row.
 impl TryFrom<tokio_postgres::Row> for OAuth2Client {
@@ -308,7 +307,6 @@ impl TryFrom<tokio_postgres::Row> for OAuth2Client {
 }
 
 /// Converts a PostgreSQL database row into an OAuth2AuthorizationCode instance
-///
 /// This implementation extracts all OAuth2AuthorizationCode fields from a database row
 /// and constructs a new OAuth2AuthorizationCode struct. All fields are required in the row.
 impl TryFrom<tokio_postgres::Row> for OAuth2AuthorizationCode {
@@ -332,7 +330,6 @@ impl TryFrom<tokio_postgres::Row> for OAuth2AuthorizationCode {
 }
 
 /// Converts a PostgreSQL database row into an OAuth2AccessToken instance
-///
 /// This implementation extracts all OAuth2AccessToken fields from a database row
 /// and constructs a new OAuth2AccessToken struct. All fields are required in the row.
 impl TryFrom<tokio_postgres::Row> for OAuth2AccessToken {

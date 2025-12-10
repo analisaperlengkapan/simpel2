@@ -1,5 +1,4 @@
 /// Client Scopes Integration Test
-///
 /// This test demonstrates the end-to-end client scopes implementation
 /// including scope creation, assignment, validation, and consent management.
 

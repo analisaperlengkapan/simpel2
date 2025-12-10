@@ -78,10 +78,8 @@ pub struct TokenValidation {
 }
 
 /// User information for Authenc authorization checks
-///
 /// **Note**: This is specific to Indonesian government Authenc integration.
 /// For general user operations, use `crate::models::user::User` (the canonical User model).
-///
 /// This struct contains Authenc-specific fields (NIP, satker_code) that may not
 /// be present in other authentication providers.
 #[deprecated(
@@ -91,11 +89,9 @@ pub struct TokenValidation {
 pub type User = AuthencUserInfo;
 
 /// User information from Authenc provider (Indonesian government authentication)
-///
 /// This struct represents user data returned from the Authenc authentication system,
 /// which is specific to Indonesian government agencies. It includes government-specific
 /// fields like NIP (employee ID number) and satker_code (organizational unit code).
-///
 /// **Important**: This is NOT the canonical User model. For general user operations,
 /// use `crate::models::user::User` instead. This struct is only for Authenc integration.
 #[derive(Debug, Clone, Serialize, Deserialize)]

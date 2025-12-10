@@ -10,7 +10,6 @@ use tonic::{Request, Status};
 use tracing::{debug, info, warn};
 
 /// Authentication interceptor
-///
 /// Validates JWT tokens from request metadata and injects user context
 /// into request extensions for downstream handlers.
 #[derive(Clone)]
@@ -77,7 +76,6 @@ impl tonic::service::Interceptor for AuthInterceptor {
 }
 
 /// Logging interceptor
-///
 /// Logs all incoming gRPC requests with method name, metadata, and timing information.
 #[derive(Clone)]
 pub struct LoggingInterceptor {
@@ -151,7 +149,6 @@ impl tonic::service::Interceptor for LoggingInterceptor {
 }
 
 /// Metrics interceptor
-///
 /// Collects metrics for all gRPC requests including:
 /// - Request count per method
 /// - Request latency per method
@@ -203,7 +200,6 @@ impl tonic::service::Interceptor for MetricsInterceptor {
 }
 
 /// Rate limiting interceptor
-///
 /// Applies rate limiting based on client IP or user ID to prevent abuse.
 /// Uses a sliding window algorithm with per-client quota tracking.
 #[derive(Clone)]

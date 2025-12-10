@@ -6,7 +6,6 @@ use shared_microfrontend::components::optimized_image::preload_image;
 use shared_microfrontend::utils::font_optimization::FontLoadingStrategy;
 
 /// Initialize asset optimization for the portal
-///
 /// This should be called early in the application lifecycle
 pub fn init_asset_optimization() {
     // Apply font loading strategy

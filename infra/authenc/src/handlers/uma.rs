@@ -36,7 +36,6 @@ pub struct PermissionTicketResponse {
 }
 
 /// POST /uma/permission - Request permission ticket
-///
 /// Called by resource server when client attempts access without RPT
 pub async fn request_permission_ticket(
     State(state): State<Arc<AppState>>,
@@ -56,7 +55,6 @@ pub async fn request_permission_ticket(
 }
 
 /// POST /uma/authorize - Exchange permission ticket for RPT
-///
 /// Called by client to get RPT (Requesting Party Token)
 pub async fn authorize_access(
     State(state): State<Arc<AppState>>,
@@ -95,7 +93,6 @@ pub async fn authorize_access(
 }
 
 /// POST /uma/introspect - Introspect RPT token
-///
 /// Called by resource server to validate RPT
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntrospectionRequest {
@@ -114,7 +111,6 @@ pub async fn introspect_rpt(
 }
 
 /// POST /uma/claims/submit - Submit collected claims
-///
 /// Called by client after gathering required claims
 pub async fn submit_claims(
     State(state): State<Arc<AppState>>,
@@ -127,7 +123,6 @@ pub async fn submit_claims(
 }
 
 /// GET /uma/claims/gather - Interactive claims gathering page
-///
 /// Displays form for user to provide required claims
 pub async fn gather_claims_page(
     State(_state): State<Arc<AppState>>,
@@ -148,7 +143,6 @@ pub struct AuthorizationDecisionRequest {
 }
 
 /// GET /uma/pending-requests - Get pending authorization requests
-///
 /// Called by resource owner to see pending access requests
 pub async fn get_pending_requests(
     State(state): State<Arc<AppState>>,
@@ -166,7 +160,6 @@ pub async fn get_pending_requests(
 }
 
 /// POST /uma/authorize-request - Authorize or deny access request
-///
 /// Called by resource owner to grant/deny access
 pub async fn authorize_request(
     State(state): State<Arc<AppState>>,
@@ -184,7 +177,6 @@ pub async fn authorize_request(
 }
 
 /// GET /.well-known/uma2-configuration - UMA 2.0 discovery endpoint
-///
 /// Returns UMA 2.0 configuration metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UmaConfiguration {
@@ -225,7 +217,6 @@ pub async fn uma_discovery(// TODO: Extract base URL from config
 }
 
 /// Create UMA routes
-///
 /// Returns a router with all UMA 2.0 endpoints
 pub fn create_uma_routes() -> Router<Arc<AppState>> {
     Router::new()

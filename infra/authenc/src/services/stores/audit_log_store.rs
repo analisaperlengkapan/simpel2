@@ -3,40 +3,33 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 /// Audit log storage trait for persistent audit event storage
-///
 /// This trait defines the interface for storing and retrieving audit log events.
 /// Implementations should provide thread-safe, persistent storage of audit events
 /// for compliance, security monitoring, and forensic analysis.
-///
 /// # Security Considerations
 /// - Audit logs should be tamper-proof and immutable once written
 /// - Implement proper access controls for audit log reading
 /// - Ensure audit logs cannot be deleted or modified by regular users
 /// - Implement retention policies for long-term storage
 /// - Log access to audit logs themselves for compliance
-///
 /// # Performance Considerations
 /// - Implement efficient indexing for common query patterns
 /// - Consider asynchronous writes to avoid blocking operations
 /// - Implement proper connection pooling for database backends
 /// - Cache frequently accessed audit data if appropriate
-///
 /// # Compliance Requirements
 /// - Maintain audit trail integrity (immutable logs)
 /// - Support retention periods required by regulations
 /// - Enable efficient querying for compliance reporting
 /// - Provide tamper-evident storage mechanisms
-///
 /// # Example Implementation
 /// ```rust
 /// use async_trait::async_trait;
 /// use authenc::services::stores::audit_log_store::AuditLogStore;
 /// use authenc::models::audit_log::AuditLog;
-///
 /// struct DatabaseAuditStore {
 ///     // database connection
 /// }
-///
 /// #[async_trait]
 /// impl AuditLogStore for DatabaseAuditStore {
 ///     async fn add_log(&self, log: &AuditLog) -> Result<(), anyhow::Error> {

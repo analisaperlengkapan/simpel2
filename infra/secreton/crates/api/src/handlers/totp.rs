@@ -31,10 +31,8 @@ pub fn create_routes() -> Router<AppState> {
 }
 
 /// Create TOTP key
-///
 /// # Endpoint
 /// `POST /v1/totp/keys`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -47,7 +45,6 @@ pub fn create_routes() -> Router<AppState> {
 ///   "skew": 1
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -89,10 +86,8 @@ async fn create_totp_key(
 }
 
 /// Get TOTP key
-///
 /// # Endpoint
 /// `GET /v1/totp/keys/:key_name`
-///
 /// # Response
 /// ```json
 /// {
@@ -128,10 +123,8 @@ async fn get_totp_key(
 }
 
 /// Delete TOTP key
-///
 /// # Endpoint
 /// `DELETE /v1/totp/keys/:key_name`
-///
 /// # Response
 /// ```json
 /// {
@@ -162,10 +155,8 @@ async fn delete_totp_key(
 }
 
 /// List TOTP keys
-///
 /// # Endpoint
 /// `GET /v1/totp/keys`
-///
 /// # Response
 /// ```json
 /// {
@@ -186,10 +177,8 @@ async fn list_totp_keys(
 }
 
 /// Generate TOTP code
-///
 /// # Endpoint
 /// `POST /v1/totp/code/:key_name`
-///
 /// # Response
 /// ```json
 /// {
@@ -220,10 +209,8 @@ async fn generate_totp_code(
 }
 
 /// Validate TOTP code
-///
 /// # Endpoint
 /// `POST /v1/totp/validate/:key_name`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -232,7 +219,6 @@ async fn generate_totp_code(
 ///   "skew": 1
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {

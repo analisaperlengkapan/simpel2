@@ -2154,19 +2154,16 @@ impl SecretonVault {
 }
 
 /// Secreton vault implementation for the Vault trait
-///
 /// This struct provides a read-only vault interface to the Secreton service,
 /// implementing the standard Vault trait for integration with the authentication
 /// platform. It wraps a SecretonClient and provides secret retrieval operations
 /// while maintaining security boundaries appropriate for the Attorney General's
 /// Office SIMKARI super app.
-///
 /// # Security Considerations
 /// - Read-only operations only (no secret creation/modification)
 /// - All operations are audited through the Secreton service
 /// - Network communication uses TLS encryption
 /// - Access is scoped by satker (work unit) for multi-tenancy
-///
 /// # Integration Features
 /// - Implements standard Vault trait interface
 /// - Supports satker-based multi-tenancy

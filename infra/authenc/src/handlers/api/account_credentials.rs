@@ -191,7 +191,7 @@ pub async fn setup_totp(
     // Generate a new TOTP secret
     use rand::Rng;
     let secret_bytes: Vec<u8> = (0..32).map(|_| rand::thread_rng().r#gen()).collect();
-    let secret = base32::encode(base32::Alphabet::RFC4648 { padding: false }, &secret_bytes);
+    let secret = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &secret_bytes);
 
     // Store the secret temporarily (will be confirmed in verify_totp_setup)
     // For now, we'll store it directly - in production, use a temporary store
@@ -277,7 +277,7 @@ fn verify_totp_code(secret: &str, code: &str) -> bool {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     // Decode the base32 secret
-    let secret_bytes = match base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret) {
+    let secret_bytes = match base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret) {
         Some(bytes) => bytes,
         None => return false,
     };

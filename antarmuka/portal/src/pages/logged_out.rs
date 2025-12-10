@@ -5,20 +5,16 @@
 use leptos::prelude::*;
 
 /// Logged out confirmation page
-///
 /// Displayed after successful logout to confirm session termination.
 /// Provides clear feedback to users and options to login again or return home.
-///
 /// # Features
 /// - Success confirmation message
 /// - Security reminder for shared computers
 /// - Quick actions (login again, return home)
 /// - Responsive design with dark mode support
-///
 /// # Example
 /// ```rust
 /// use portal::pages::logged_out::LoggedOutPage;
-///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {

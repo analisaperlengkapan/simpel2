@@ -20,19 +20,15 @@ const JWKS_CACHE_KEY: &str = "jwks:response";
 const JWKS_CACHE_TTL_SECONDS: u64 = 3600;
 
 /// JWKS endpoint at /.well-known/jwks.json
-///
 /// Provides JSON Web Key Set containing Ed25519 public keys for JWT signature verification.
 /// Implements caching with 1-hour TTL for performance optimization.
-///
 /// # Features
 /// - Exposes Ed25519 public keys in JWK format
 /// - Supports multiple keys with key ID (kid) for key rotation
 /// - Caches response for 1 hour to reduce computation
 /// - Compatible with OIDC discovery specification
-///
 /// # Returns
 /// JWKS document containing all active Ed25519 public keys
-///
 /// # Security Considerations
 /// - Only exposes public keys for signature verification
 /// - Private keys never leave the server
@@ -83,10 +79,8 @@ pub async fn jwks_endpoint(
 }
 
 /// Generate JWKS response with all active keys
-///
 /// Currently returns the primary Ed25519 key. In the future, this will support
 /// multiple keys for key rotation scenarios.
-///
 /// # Returns
 /// JwksResponse containing all active public keys
 fn generate_jwks_response() -> JwksResponse {
@@ -106,13 +100,10 @@ fn generate_jwks_response() -> JwksResponse {
 }
 
 /// Invalidate JWKS cache
-///
 /// Should be called when keys are rotated to ensure clients get fresh keys.
 /// This is a utility function for key rotation service.
-///
 /// # Arguments
 /// * `state` - Application state containing Redis cache
-///
 /// # Returns
 /// Result indicating success or failure of cache invalidation
 pub async fn invalidate_jwks_cache(state: &AppState) -> Result<(), AuthencError> {

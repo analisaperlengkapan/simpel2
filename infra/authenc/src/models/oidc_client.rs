@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 /// OIDC client configuration for OAuth 2.0 and OpenID Connect authentication flows.
-///
 /// This struct represents an OAuth 2.0 client that can participate in OIDC authentication
 /// flows with the authorization server. It contains the necessary configuration for
 /// client authentication, redirection, and client identification.
-///
 /// # Fields
 /// * `id` - Unique internal identifier for the client
 /// * `client_id` - OAuth 2.0 client identifier (public)
@@ -13,7 +11,6 @@ use serde::{Deserialize, Serialize};
 /// * `redirect_uris` - Allowed redirect URIs for authorization responses
 /// * `name` - Human-readable display name for the client
 /// * `enabled` - Whether the client is enabled for authentication
-///
 /// # Security Considerations
 /// - Client secrets should be stored securely and never exposed in logs
 /// - Redirect URIs should be validated to prevent open redirect attacks

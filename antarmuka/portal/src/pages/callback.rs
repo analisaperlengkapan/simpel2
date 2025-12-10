@@ -9,7 +9,6 @@ use crate::features::oauth::OAuthClient;
 use leptos::prelude::*;
 
 /// OAuth callback page component
-///
 /// This page handles the OAuth2 authorization code flow callback:
 /// 1. Parse authorization code and state from URL
 /// 2. Verify state parameter (CSRF protection)
@@ -143,7 +142,6 @@ enum CallbackStatus {
 }
 
 /// Process OAuth callback
-///
 /// Extracts authorization code from URL, exchanges it for token,
 /// and returns user session
 #[cfg(target_arch = "wasm32")]

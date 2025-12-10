@@ -3,11 +3,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Service Account entity for machine-to-machine authentication
-///
 /// Service accounts represent non-human entities (services, applications, bots)
 /// that need to authenticate and access resources. Unlike regular OAuth2 clients,
 /// service accounts have roles and permissions assigned directly to them.
-///
 /// # Fields
 /// * `id` - Unique service account identifier (UUID)
 /// * `name` - Service account name (unique within realm)
@@ -21,7 +19,6 @@ use uuid::Uuid;
 /// * `updated_at` - Last modification timestamp
 /// * `last_used_at` - Last authentication timestamp (for monitoring)
 /// * `attributes` - Additional custom attributes as JSON
-///
 /// # Security Considerations
 /// - Service accounts use client credentials grant (OAuth2)
 /// - Client secrets must be bcrypt-hashed before storage
@@ -29,19 +26,16 @@ use uuid::Uuid;
 /// - All authentication attempts are audit logged
 /// - Inactive service accounts should be disabled, not deleted (for audit trail)
 /// - Role assignments control API access permissions
-///
 /// # Use Cases
 /// - Microservice-to-microservice authentication
 /// - Backend services accessing protected resources
 /// - Scheduled jobs requiring API access
 /// - CI/CD pipeline authentication
 /// - Integration with external systems
-///
 /// # Example
 /// ```rust
 /// use uuid::Uuid;
 /// use chrono::Utc;
-///
 /// let service_account = ServiceAccount {
 ///     id: Uuid::new_v4(),
 ///     name: "layanan-dasbor".to_string(),
@@ -86,17 +80,14 @@ pub struct ServiceAccount {
 }
 
 /// Service account creation request
-///
 /// Parameters required to create a new service account.
 /// Used when creating service accounts through the admin API.
-///
 /// # Fields
 /// * `name` - Service account name (must be unique within realm)
 /// * `description` - Optional human-readable description
 /// * `client_secret` - Plain-text client secret (will be hashed before storage)
 /// * `enabled` - Whether the service account should be enabled on creation
 /// * `roles` - Optional list of role IDs to assign
-///
 /// # Security Considerations
 /// - Service account names should follow naming conventions (e.g., "sa-service-name")
 /// - Client secrets should be strong (min 32 characters recommended)
@@ -104,7 +95,6 @@ pub struct ServiceAccount {
 /// - Realm ID is extracted from the request path
 /// - Input validation prevents malicious names
 /// - Role IDs must exist in the realm before assignment
-///
 /// # Example Request
 /// ```json
 /// {
@@ -129,16 +119,13 @@ pub struct CreateServiceAccountRequest {
 }
 
 /// Service account update request
-///
 /// Parameters for updating an existing service account.
 /// All fields are optional to allow partial updates.
-///
 /// # Fields
 /// * `name` - New service account name (if updating)
 /// * `description` - New description (if updating)
 /// * `enabled` - New enabled state (if updating)
 /// * `roles` - New list of role IDs (replaces existing roles if provided)
-///
 /// # Security Considerations
 /// - Service account name changes may affect existing integrations
 /// - Updates should be authorized based on admin permissions
@@ -146,7 +133,6 @@ pub struct CreateServiceAccountRequest {
 /// - Changes should trigger audit logging
 /// - Disabling a service account immediately revokes access
 /// - Role changes take effect on next token issuance
-///
 /// # Example Request
 /// ```json
 /// {
@@ -168,17 +154,14 @@ pub struct UpdateServiceAccountRequest {
 }
 
 /// Service account credential regeneration response
-///
 /// Response containing the new client secret after regeneration.
 /// The client secret is returned only once and cannot be retrieved again.
-///
 /// # Security Considerations
 /// - The plaintext secret is only returned in this response
 /// - Clients must securely store the secret
 /// - Old credentials are immediately revoked
 /// - Regeneration is audit logged
 /// - Consider notifying service owners about secret changes
-///
 /// # Example Response
 /// ```json
 /// {
@@ -198,10 +181,8 @@ pub struct RegenerateSecretResponse {
 }
 
 /// Service account list response item
-///
 /// Abbreviated service account information for list views.
 /// Does not include sensitive data like client secrets.
-///
 /// # Security Considerations
 /// - Client secret hash is never returned in API responses
 /// - Only authorized admins can list service accounts
@@ -245,7 +226,6 @@ impl From<ServiceAccount> for ServiceAccountListItem {
 }
 
 /// Service account response (without sensitive data)
-///
 /// Full service account information for single-item views.
 /// Excludes client secret hash for security.
 #[derive(Debug, Serialize)]

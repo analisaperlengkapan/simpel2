@@ -10,7 +10,6 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 /// Create a comprehensive UserLogin event with full context
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where login occurred
 /// * `user_id` - The user ID who logged in
@@ -21,7 +20,6 @@ use std::collections::HashMap;
 /// * `user_agent` - The user agent string of the client
 /// * `auth_method` - The authentication method used (e.g., "password", "mfa", "oauth2")
 /// * `success` - Whether the login was successful
-///
 /// # Returns
 /// A fully populated Event with Login or LoginError type
 pub fn create_user_login_event(
@@ -71,7 +69,6 @@ pub fn create_user_login_event(
 }
 
 /// Create a comprehensive UserLogout event with session duration
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where logout occurred
 /// * `user_id` - The user ID who logged out
@@ -82,7 +79,6 @@ pub fn create_user_login_event(
 /// * `user_agent` - The user agent string of the client
 /// * `session_start` - When the session started
 /// * `logout_type` - The type of logout (e.g., "user_initiated", "timeout", "admin_forced")
-///
 /// # Returns
 /// A fully populated Event with Logout type
 pub fn create_user_logout_event(
@@ -132,7 +128,6 @@ pub fn create_user_logout_event(
 }
 
 /// Create an MFAEnabled admin event
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where MFA was enabled
 /// * `target_user_id` - The user ID for whom MFA was enabled
@@ -142,7 +137,6 @@ pub fn create_user_logout_event(
 /// * `ip_address` - The IP address of the admin
 /// * `user_agent` - The user agent string of the admin
 /// * `mfa_method` - The MFA method enabled (e.g., "totp", "webauthn")
-///
 /// # Returns
 /// A fully populated AdminEvent for MFA enablement
 pub fn create_mfa_enabled_admin_event(
@@ -187,7 +181,6 @@ pub fn create_mfa_enabled_admin_event(
 }
 
 /// Create an MFADisabled admin event
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where MFA was disabled
 /// * `target_user_id` - The user ID for whom MFA was disabled
@@ -197,7 +190,6 @@ pub fn create_mfa_enabled_admin_event(
 /// * `ip_address` - The IP address of the admin
 /// * `user_agent` - The user agent string of the admin
 /// * `reason` - The reason for disabling MFA (optional)
-///
 /// # Returns
 /// A fully populated AdminEvent for MFA disablement
 pub fn create_mfa_disabled_admin_event(
@@ -245,7 +237,6 @@ pub fn create_mfa_disabled_admin_event(
 }
 
 /// Create a PermissionGranted admin event
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where permission was granted
 /// * `target_user_id` - The user ID who received the permission
@@ -257,7 +248,6 @@ pub fn create_mfa_disabled_admin_event(
 /// * `resource` - The resource for which permission was granted
 /// * `action` - The action permitted (e.g., "read", "write", "delete")
 /// * `scope` - The scope of the permission (optional)
-///
 /// # Returns
 /// A fully populated AdminEvent for permission grant
 pub fn create_permission_granted_admin_event(
@@ -308,7 +298,6 @@ pub fn create_permission_granted_admin_event(
 }
 
 /// Create a PermissionRevoked admin event
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where permission was revoked
 /// * `target_user_id` - The user ID whose permission was revoked
@@ -320,7 +309,6 @@ pub fn create_permission_granted_admin_event(
 /// * `resource` - The resource for which permission was revoked
 /// * `action` - The action that was revoked (e.g., "read", "write", "delete")
 /// * `reason` - The reason for revoking (optional)
-///
 /// # Returns
 /// A fully populated AdminEvent for permission revocation
 pub fn create_permission_revoked_admin_event(
@@ -371,7 +359,6 @@ pub fn create_permission_revoked_admin_event(
 }
 
 /// Create a PasswordChanged event
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where password was changed
 /// * `user_id` - The user ID whose password was changed
@@ -381,7 +368,6 @@ pub fn create_permission_revoked_admin_event(
 /// * `changed_by_admin` - Whether the password was changed by an admin (vs self-service)
 /// * `admin_user_id` - The admin user ID if changed by admin (optional)
 /// * `reset_token_used` - Whether a password reset token was used
-///
 /// # Returns
 /// A fully populated Event with UpdatePassword type
 pub fn create_password_changed_event(
@@ -417,7 +403,6 @@ pub fn create_password_changed_event(
 }
 
 /// Create an MFAEnabled user event (for user-initiated MFA setup)
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where MFA was enabled
 /// * `user_id` - The user ID who enabled MFA
@@ -425,7 +410,6 @@ pub fn create_password_changed_event(
 /// * `ip_address` - The IP address of the client
 /// * `user_agent` - The user agent string of the client
 /// * `mfa_method` - The MFA method enabled (e.g., "totp", "webauthn")
-///
 /// # Returns
 /// A fully populated Event with MfaEnabled type
 pub fn create_mfa_enabled_event(
@@ -454,14 +438,12 @@ pub fn create_mfa_enabled_event(
 }
 
 /// Create an MFADisabled user event (for user-initiated MFA disable)
-///
 /// # Arguments
 /// * `realm_id` - The realm ID where MFA was disabled
 /// * `user_id` - The user ID who disabled MFA
 /// * `username` - The username (optional)
 /// * `ip_address` - The IP address of the client
 /// * `user_agent` - The user agent string of the client
-///
 /// # Returns
 /// A fully populated Event with MfaDisabled type
 pub fn create_mfa_disabled_event(

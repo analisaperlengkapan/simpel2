@@ -12,17 +12,14 @@ use once_cell::sync::Lazy;
 
 // Placeholder to maintain compilation - DO NOT USE
 /// DEPRECATED: Legacy RSA keypair placeholder - DISABLED FOR SECURITY
-///
 /// This static is a placeholder to maintain compilation compatibility.
 /// The legacy RSA implementation has been disabled due to security vulnerabilities
 /// (RUSTSEC-2023-0071) and timing attack risks.
-///
 /// # Security Warning
 /// - DO NOT use this implementation
 /// - Use Ed25519 keys from `crypto/ed25519_keys.rs` instead
 /// - Legacy RSA is vulnerable to timing attacks
 /// - This will panic if accessed
-///
 /// # Migration
 /// Migrate to: `authenc::crypto::ed25519_keys`
 #[deprecated(since = "1.0.0", note = "Use Ed25519 keys instead - RSA is insecure")]
@@ -31,15 +28,12 @@ pub static RSA_KEYPAIR: Lazy<()> = Lazy::new(|| {
 });
 
 /// DEPRECATED: Get public key in PEM format - DISABLED FOR SECURITY
-///
 /// This function is disabled and will panic if called. The legacy RSA implementation
 /// has been removed due to security vulnerabilities and timing attack risks.
-///
 /// # Security Warning
 /// - DO NOT use this function
 /// - Legacy RSA is vulnerable to timing attacks (RUSTSEC-2023-0071)
 /// - This function will panic to prevent accidental use
-///
 /// # Migration
 /// Use Ed25519 public key functions from `crypto/ed25519_keys.rs` instead:
 /// ```rust
@@ -58,16 +52,13 @@ pub fn get_public_pem() -> Result<String, String> {
 }
 
 /// DEPRECATED: Get private key in PEM format - DISABLED FOR SECURITY
-///
 /// This function is disabled and will panic if called. The legacy RSA implementation
 /// has been removed due to security vulnerabilities and timing attack risks.
-///
 /// # Security Warning
 /// - DO NOT use this function
 /// - Legacy RSA is vulnerable to timing attacks (RUSTSEC-2023-0071)
 /// - Private keys should never be exposed in PEM format
 /// - This function will panic to prevent accidental use
-///
 /// # Migration
 /// Use Ed25519 signing functions from `crypto/ed25519_keys.rs` instead:
 /// ```rust

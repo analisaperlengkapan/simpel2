@@ -205,15 +205,12 @@ impl NotificationContext {
 }
 
 /// Hook to use notification system
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::hooks::use_notifications;
-///
 /// #[component]
 /// pub fn MyComponent() -> impl IntoView {
 ///     let notif_ctx = use_notifications();
-///
 ///     view! {
 ///         <div>
 ///             <p>"Unread: " {move || notif_ctx.unread_count()}</p>

@@ -51,7 +51,6 @@ pub struct Claims {
 }
 
 /// JWT Authentication configuration
-///
 /// This is a simplified runtime configuration for JWT operations.
 /// For comprehensive API authentication configuration including OAuth2, mTLS, and MFA,
 /// see `crate::config::AuthConfig`.
@@ -278,7 +277,6 @@ impl Permission {
 }
 
 /// JWT token service for generation and validation
-///
 /// This service focuses solely on JWT operations. For full authentication
 /// with user management, sessions, and roles, see `crate::services::auth::AuthService`.
 #[derive(Clone)]

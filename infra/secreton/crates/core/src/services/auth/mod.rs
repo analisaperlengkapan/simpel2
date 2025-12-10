@@ -9,15 +9,12 @@ use serde_json::Value;
 use std::error::Error;
 
 /// Common trait for all authentication methods
-///
 /// Each auth method (OIDC, Kubernetes, LDAP, etc.) implements this trait
 /// to provide a consistent interface for:
 /// - User authentication with method-specific credentials
 /// - Role creation and management
 /// - Configuration updates
-///
 /// # Associated Types
-///
 /// - `Request`: Authentication request type (e.g., JWT, username/password, certificate)
 /// - `Response`: Authentication response with user info and metadata
 /// - `Error`: Method-specific error type

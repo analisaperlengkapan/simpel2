@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Commands that can be applied to the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineCommand {
     /// Store a new vault entry
     Store(VaultEntry),
@@ -29,7 +29,7 @@ pub enum StateMachineCommand {
 }
 
 /// Response from state machine operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineResponse {
     /// Operation succeeded
     Success,
@@ -48,7 +48,7 @@ pub enum StateMachineResponse {
 }
 
 /// Snapshot of the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct StateMachineSnapshot {
     /// Last applied log index
     pub last_applied_log: Option<LogId>,
@@ -189,7 +189,76 @@ impl Default for SecretonStateMachine {
     }
 }
 
+<<<<<<< HEAD
+#[async_trait]
+impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
+    type SnapshotBuilder = Self;
+
+    async fn applied_state(
+        &mut self,
+    ) -> Result<
+        (
+            Option<LogId<NodeId>>,
+            openraft::StoredMembership<NodeId, super::types::Node>,
+        ),
+        StorageError<NodeId>,
+    > {
+        let last_applied = self.last_applied_log.read().await.clone();
+        let last_membership = self.last_membership.read().await.clone();
+        Ok((last_applied, last_membership))
+    }
+
+    async fn apply<I>(
+        &mut self,
+        entries: I,
+    ) -> Result<Vec<StateMachineResponse>, StorageError<NodeId>>
+    where
+        I: IntoIterator<Item = openraft::Entry<SecretonTypeConfig>> + Send,
+        I::IntoIter: Send,
+    {
+        let mut responses = Vec::new();
+
+        for entry in entries {
+            *self.last_applied_log.write().await = Some(entry.log_id);
+
+            match entry.payload {
+                EntryPayload::Blank => {
+                    responses.push(StateMachineResponse::Success);
+                }
+                EntryPayload::Normal(ref data) => {
+                    // Deserialize command from entry data
+                    match bincode::decode_from_slice::<StateMachineCommand, _>(
+                        data.as_ref(),
+                        bincode::config::standard(),
+                    ) {
+                        Ok((cmd, _)) => {
+                            let response = self.apply_command(cmd).await;
+                            responses.push(response);
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to deserialize command: {}", e);
+                            responses.push(StateMachineResponse::Error(e.to_string()));
+                        }
+                    }
+                }
+                EntryPayload::Membership(ref mem) => {
+                    *self.last_membership.write().await =
+                        openraft::StoredMembership::new(Some(entry.log_id), mem.clone());
+                    responses.push(StateMachineResponse::Success);
+                }
+            }
+        }
+
+        Ok(responses)
+    }
+
+    async fn get_snapshot_builder(&mut self) -> Self::SnapshotBuilder {
+        self.clone()
+    }
+}
+=======
 // RaftStateMachine implementation removed - functionality moved to combined_storage.rs
+>>>>>>> origin/main
 
 // Implement Clone for SecretonStateMachine
 impl Clone for SecretonStateMachine {

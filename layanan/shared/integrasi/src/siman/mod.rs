@@ -1,9 +1,7 @@
 pub mod endpoints;
 /// Modul untuk integrasi dengan SIMAN API v2.0 (Kemenkeu)
-///
 /// SIMAN (Sistem Informasi Manajemen Aset Negara) adalah sistem yang dikelola
 /// oleh Kementerian Keuangan untuk pengelolaan Barang Milik Negara (BMN).
-///
 /// API v2.0 menyediakan akses ke berbagai kategori aset melalui gateway API Kemenkeu
 /// dengan autentikasi OAuth2 client credentials flow.
 pub mod models;

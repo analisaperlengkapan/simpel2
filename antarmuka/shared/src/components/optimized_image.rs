@@ -3,18 +3,15 @@
 use leptos::prelude::*;
 
 /// OptimizedImage component with lazy loading, responsive images, and loading states
-///
 /// Features:
 /// - Lazy loading (native browser support)
 /// - Responsive images with srcset
 /// - Loading placeholder
 /// - Error handling
 /// - WebP format support with fallback
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::OptimizedImage;
-///
 /// #[component]
 /// pub fn Gallery() -> impl IntoView {
 ///     view! {
@@ -141,7 +138,6 @@ pub fn OptimizedImage(
 }
 
 /// Avatar component with optimized image loading
-///
 /// Specialized component for user avatars with fallback to initials
 #[component]
 pub fn Avatar(
@@ -219,7 +215,6 @@ pub enum AvatarSize {
 }
 
 /// Preload critical images for better perceived performance
-///
 /// Use this to preload images that will be needed soon (e.g., on hover)
 #[cfg(target_arch = "wasm32")]
 pub fn preload_image(src: &str) {
@@ -272,7 +267,6 @@ pub fn is_webp_supported() -> bool {
 }
 
 /// Get optimized image URL based on browser capabilities
-///
 /// Returns WebP version if supported, otherwise returns original
 pub fn get_optimized_image_url(src: &str) -> String {
     if is_webp_supported() {

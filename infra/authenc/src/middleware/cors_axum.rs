@@ -8,7 +8,6 @@ use std::time::Duration;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 /// Create a CORS layer with default configuration
-///
 /// This function creates a CORS layer that allows cross-origin requests from any origin
 /// with common HTTP methods and headers. It's configured for development and testing
 /// environments where strict CORS policies are not required.
@@ -36,7 +35,6 @@ pub fn cors_layer() -> CorsLayer {
 }
 
 /// Middleware that adds CORS headers to responses
-///
 /// This middleware adds Cross-Origin Resource Sharing (CORS) headers to HTTP responses
 /// to allow web browsers to make cross-origin requests. The headers include:
 /// - Access-Control-Allow-Origin: Allows requests from any origin
