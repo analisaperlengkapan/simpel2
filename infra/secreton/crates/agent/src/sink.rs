@@ -37,7 +37,6 @@ async fn write_to_file(token: &str, config: &SinkConfig) -> Result<()> {
 }
 
 /// Write token to environment variable
-///
 /// Note: Setting environment variables at runtime is not recommended in production
 /// as it can lead to race conditions in multi-threaded applications.
 /// Consider using file-based configuration or process environment setup instead.

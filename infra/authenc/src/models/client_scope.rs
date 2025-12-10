@@ -3,15 +3,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Client Scope entity - reusable OAuth2/OIDC scope definition
-///
 /// Client scopes are reusable scope configurations that can be assigned to clients
 /// as either default scopes (automatically granted) or optional scopes (require user consent).
-///
 /// # Standards Compliance
 /// - OAuth 2.0 RFC 6749 (scopes for access delegation)
 /// - OpenID Connect Core 1.0 (standard OIDC scopes: openid, profile, email, etc.)
 /// - OAuth 2.0 Incremental Authorization (consent management)
-///
 /// # Use Cases
 /// - Standard OIDC scopes (openid, profile, email, address, phone)
 /// - Custom application scopes (read:aset, write:aset, admin:satker)

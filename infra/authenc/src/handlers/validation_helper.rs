@@ -54,7 +54,6 @@ where
 }
 
 /// Macro to validate and sanitize a request in one line
-///
 /// Usage:
 /// ```ignore
 /// validate_and_sanitize!(request)?;

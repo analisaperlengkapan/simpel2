@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 /// ECDSA P-521 keypair for JWT signing - maximum security for enterprise
-///
 /// Production: Loads from ECDSA_P521_PRIVATE_KEY_BASE64 environment variable
 /// Development: Generates ephemeral key with warning
 pub static ECDSA_P521_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {

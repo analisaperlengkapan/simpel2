@@ -75,7 +75,6 @@ pub struct RotationHistoryResponse {
 }
 
 /// Manually rotate a key
-///
 /// POST /admin/keys/rotate
 pub async fn rotate_key_handler(
     State(state): State<Arc<crate::app::AppState>>,
@@ -123,7 +122,6 @@ pub async fn rotate_key_handler(
 }
 
 /// Register a key for automatic rotation
-///
 /// POST /admin/keys/register
 pub async fn register_key_handler(
     State(state): State<Arc<crate::app::AppState>>,
@@ -157,7 +155,6 @@ pub async fn register_key_handler(
 }
 
 /// Unregister a key from automatic rotation
-///
 /// DELETE /admin/keys/{key_id}/register
 pub async fn unregister_key_handler(
     State(state): State<Arc<crate::app::AppState>>,
@@ -185,7 +182,6 @@ pub async fn unregister_key_handler(
 }
 
 /// Get rotation history for a key
-///
 /// GET /admin/keys/{key_id}/history
 pub async fn get_rotation_history_handler(
     State(state): State<Arc<crate::app::AppState>>,

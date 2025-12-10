@@ -7,14 +7,11 @@ use crate::hooks::use_auth::{get_app_name, use_auth};
 use leptos::prelude::*;
 
 /// Login redirect page component
-///
 /// Shows a branded page with a login button that redirects to the portal.
 /// This should be the default route for unauthenticated users.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LoginRedirectPage;
-///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
@@ -98,14 +95,11 @@ pub fn LoginRedirectPage() -> impl IntoView {
 }
 
 /// Protected route wrapper component
-///
 /// Wraps content that requires authentication. If user is not authenticated,
 /// redirects to login page.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::ProtectedRoute;
-///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
 ///     view! {
@@ -166,13 +160,10 @@ pub fn ProtectedRoute(
 }
 
 /// Logout button component
-///
 /// Renders a button that logs out the user and redirects to portal.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LogoutButton;
-///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
 ///     view! {
@@ -212,13 +203,10 @@ pub fn LogoutButton(
 }
 
 /// User profile display component
-///
 /// Shows current user information with avatar and name.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::UserProfile;
-///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
 ///     view! {
@@ -269,13 +257,10 @@ pub fn UserProfile(
 }
 
 /// Permission guard component
-///
 /// Shows content only if user has required permission.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::PermissionGuard;
-///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {
 ///     view! {

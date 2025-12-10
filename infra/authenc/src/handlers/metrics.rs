@@ -128,7 +128,6 @@ async fn metrics_for_database(db: Arc<Database>) -> (StatusCode, String) {
 }
 
 /// Prometheus metrics endpoint
-///
 /// Exposes connection pool metrics in Prometheus format:
 /// - authenc_db_pool_size - Current pool size
 /// - authenc_db_pool_max_size - Maximum pool size

@@ -7,14 +7,11 @@ use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
 use ed25519_dalek::{Signature, Verifier};
 
 /// JWT claims structure for token payload
-///
 /// This struct represents the standard JWT claims used in authentication tokens.
 /// It contains the essential claims for user identification and token expiration.
-///
 /// # Fields
 /// * `sub` - Subject identifier (typically user ID)
 /// * `exp` - Expiration timestamp (Unix timestamp)
-///
 /// # Security Considerations
 /// - The `exp` claim should always be validated to prevent token reuse
 /// - The `sub` claim should be validated against authenticated user identity
@@ -32,16 +29,13 @@ pub struct Claims {
 // If symmetric signing is needed, use get_jwt_secret() function below.
 
 /// Get JWT secret from environment variable or secure configuration
-///
 /// This function retrieves the JWT secret from the environment variable `JWT_SECRET`.
 /// If not found, it falls back to a test-only value (NOT for production).
-///
 /// # Security Considerations
 /// - ALWAYS set JWT_SECRET environment variable in production
 /// - Never use hardcoded secrets
 /// - Rotate secrets regularly
 /// - Use strong random secrets (at least 32 bytes)
-///
 /// # Returns
 /// A `Result` containing the secret bytes on success, or an error string on failure
 fn get_jwt_secret() -> Result<Vec<u8>, String> {
@@ -67,25 +61,19 @@ fn get_jwt_secret() -> Result<Vec<u8>, String> {
 }
 
 /// Generate a temporary JWT token for MFA verification using Ed25519
-///
 /// Creates a short-lived JWT token for users who need to complete MFA verification.
 /// These tokens have limited validity and should only be used for MFA endpoints.
-///
 /// # Arguments
 /// * `user_id` - The user identifier to include in the token's subject claim
-///
 /// # Returns
 /// A `Result` containing the temporary JWT token string on success, or an error string on failure
-///
 /// # Security Considerations
 /// - Tokens expire after 10 minutes (shorter than regular tokens)
 /// - Should only be accepted by MFA verification endpoints
 /// - Uses Ed25519 for cryptographic signing
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::jwt::generate_temp_jwt;
-///
 /// let temp_token = generate_temp_jwt("user123").expect("Failed to generate temp token");
 /// ```
 pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
@@ -122,27 +110,21 @@ pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
 }
 
 /// Generate a JWT token for user authentication using Ed25519
-///
 /// Creates a signed JWT token with standard claims for the specified user.
 /// The token includes subject identifier and expiration time, and is signed
 /// using Ed25519 digital signatures - secure replacement for RSA.
-///
 /// # Arguments
 /// * `user_id` - The user identifier to include in the token's subject claim
-///
 /// # Returns
 /// A `Result` containing the JWT token string on success, or an error string on failure
-///
 /// # Security Considerations
 /// - Tokens expire after 1 hour by default
 /// - Uses Ed25519 for cryptographic signing (secure replacement for vulnerable RSA)
 /// - Ed25519 provides better security than RSA and is resistant to timing attacks
 /// - Tokens should be validated on every request
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::jwt::generate_jwt;
-///
 /// let token = generate_jwt("user123").expect("Failed to generate token");
 /// ```
 pub fn generate_jwt(user_id: &str) -> Result<String, String> {
@@ -179,27 +161,21 @@ pub fn generate_jwt(user_id: &str) -> Result<String, String> {
 }
 
 /// Verify and decode a JWT token using Ed25519
-///
 /// Validates the signature and expiration of a JWT token, then extracts the claims.
 /// This function performs all standard JWT validation including signature verification,
 /// expiration checking, and claim extraction using Ed25519.
-///
 /// # Arguments
 /// * `token` - The JWT token string to verify and decode
-///
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
-///
 /// # Security Considerations
 /// - Always verify tokens before trusting their claims
 /// - Check token expiration to prevent replay attacks
 /// - Validate Ed25519 signature to ensure token integrity
 /// - Handle verification failures gracefully without exposing sensitive information
-///
 /// # Example
 /// ```rust
 /// use authenc::utils::crypto::jwt::{generate_jwt, verify_jwt};
-///
 /// let token = generate_jwt("user123").unwrap();
 /// let claims = verify_jwt(&token).expect("Token verification failed");
 /// assert_eq!(claims.sub, "user123");
@@ -209,14 +185,11 @@ pub fn verify_jwt(token: &str) -> Result<Claims, String> {
 }
 
 /// Internal JWT verification function with optional blacklist checking
-///
 /// This is the core verification logic that can optionally skip blacklist checks
 /// for performance when called from cached validation paths.
-///
 /// # Arguments
 /// * `token` - The JWT token string to verify and decode
 /// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
-///
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
 fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
@@ -268,13 +241,10 @@ fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims
 }
 
 /// Compute SHA-256 hash of a token for cache key generation
-///
 /// Creates a deterministic hash of the token that can be used as a cache key.
 /// This allows for efficient cache lookups without storing the full token.
-///
 /// # Arguments
 /// * `token` - The JWT token string to hash
-///
 /// # Returns
 /// A hex-encoded SHA-256 hash of the token
 pub fn hash_token(token: &str) -> String {
@@ -285,16 +255,12 @@ pub fn hash_token(token: &str) -> String {
 }
 
 /// Generate a refresh token with longer expiration (30 days)
-///
 /// Creates a JWT refresh token that can be used to obtain new access tokens.
 /// Refresh tokens have a longer lifetime than access tokens.
-///
 /// # Arguments
 /// * `user_id` - The user identifier to include in the token's subject claim
-///
 /// # Returns
 /// A `Result` containing the refresh token string on success, or an error string on failure
-///
 /// # Security Considerations
 /// - Refresh tokens expire after 30 days
 /// - Should be stored securely (httpOnly cookies recommended)
@@ -334,13 +300,10 @@ pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
 }
 
 /// Verify and decode a refresh token
-///
 /// Validates the signature and expiration of a refresh token.
 /// This is identical to verify_jwt but semantically distinct for refresh tokens.
-///
 /// # Arguments
 /// * `token` - The refresh token string to verify and decode
-///
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
 pub fn verify_refresh_token(token: &str) -> Result<Claims, String> {
@@ -375,19 +338,15 @@ pub struct ExtendedClaims {
 }
 
 /// Verify JWT with extended validation and return extended claims
-///
 /// This function performs comprehensive JWT validation including:
 /// - Signature verification using Ed25519
 /// - Expiration checking
 /// - Claims extraction with all standard and custom fields
-///
 /// # Arguments
 /// * `token` - The JWT token string to verify
-///
 /// # Returns
 /// * `Ok(ExtendedClaims)` - Validated claims with all fields
 /// * `Err(crate::error::Result)` - Validation error
-///
 /// # Usage
 /// Used by token exchange and advanced OAuth2 flows that need access to
 /// all token claims (not just sub/exp).

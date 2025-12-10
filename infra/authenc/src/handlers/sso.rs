@@ -83,7 +83,6 @@ pub fn create_sso_router() -> Router<Arc<AppState>> {
 }
 
 /// Initiate SSO login
-///
 /// GET /sso/login?provider=oidc&client_id=xxx&redirect_uri=xxx&realm_id=xxx
 async fn initiate_sso_login(
     State(state): State<Arc<AppState>>,
@@ -121,7 +120,6 @@ async fn initiate_sso_login(
 }
 
 /// Handle SSO callback
-///
 /// GET /sso/callback?code=xxx&state=xxx&provider=oidc&realm_id=xxx
 async fn handle_sso_callback(
     State(state): State<Arc<AppState>>,
@@ -178,7 +176,6 @@ async fn handle_sso_callback(
 }
 
 /// Handle SSO logout (Single Logout)
-///
 /// POST /sso/logout
 async fn handle_sso_logout(
     State(state): State<Arc<AppState>>,
@@ -255,7 +252,6 @@ async fn handle_sso_logout(
 }
 
 /// Get current SSO session info
-///
 /// GET /sso/session
 async fn get_sso_session(
     State(state): State<Arc<AppState>>,
@@ -300,7 +296,6 @@ async fn get_sso_session(
 }
 
 /// Get all active sessions for user
-///
 /// GET /sso/sessions
 async fn get_user_sessions(
     State(state): State<Arc<AppState>>,

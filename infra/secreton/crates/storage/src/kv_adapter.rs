@@ -13,7 +13,6 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Adapter that wraps a KvBackend to implement StorageBackend
-///
 /// This is the bridge between simple key-value backends (File, Consul, S3)
 /// and the full-featured StorageBackend trait that Secreton expects.
 pub struct KvBackendAdapter<B: KvBackend> {

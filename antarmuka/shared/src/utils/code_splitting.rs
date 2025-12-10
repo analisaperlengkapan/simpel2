@@ -17,24 +17,18 @@
 use leptos::prelude::*;
 
 /// Lazy loading utilities for code splitting
-///
 /// **Note**: True lazy loading with dynamic imports is not yet fully supported
 /// in Leptos 0.8 due to WASM limitations. The current approach focuses on:
 /// - Build-time code splitting via Trunk configuration
 /// - Route-based chunking through separate WASM modules
 /// - Preloading strategies for better perceived performance
-///
 /// # Code Splitting Strategy
-///
 /// Instead of runtime lazy loading, we use build-time optimization:
-///
 /// 1. **Separate Microfrontends**: Each microfrontend is a separate WASM bundle
 /// 2. **Optimized Builds**: Use `-Oz` optimization for smaller bundles
 /// 3. **Preloading**: Prefetch routes on hover for instant navigation
 /// 4. **Compression**: Enable gzip/brotli in Nginx for 70%+ size reduction
-///
 /// # Example: Route Organization
-///
 /// ```rust
 /// // Organize routes by criticality
 /// #[component]
@@ -45,7 +39,6 @@ use leptos::prelude::*;
 ///                 // Critical routes - always loaded
 ///                 <Route path="/" view=HomePage />
 ///                 <Route path="/login" view=LoginPage />
-///
 ///                 // Feature routes - loaded on demand
 ///                 <Route path="/dashboard" view=DashboardPage />
 ///                 <Route path="/apps" view=AppsPage />
@@ -54,12 +47,9 @@ use leptos::prelude::*;
 ///     }
 /// }
 /// ```
-///
 /// # Preloading Example
-///
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::preload_route;
-///
 /// #[component]
 /// pub fn NavLink() -> impl IntoView {
 ///     view! {
@@ -76,7 +66,6 @@ use leptos::prelude::*;
 /// ```
 
 /// Default loading skeleton for lazy-loaded routes
-///
 /// Provides a consistent loading experience across the application
 #[component]
 pub fn RouteLoadingSkeleton() -> impl IntoView {
@@ -112,14 +101,11 @@ pub fn RouteLoadingSkeleton() -> impl IntoView {
 }
 
 /// Preload a route component before navigation
-///
 /// This allows preloading components when user hovers over a link
 /// to improve perceived performance.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::preload_route;
-///
 /// #[component]
 /// pub fn NavLink() -> impl IntoView {
 ///     view! {
@@ -169,7 +155,6 @@ pub fn preload_route(_route: &str) {
 }
 
 /// Get bundle size information for monitoring
-///
 /// Returns the size of the WASM bundle and JS glue code by analyzing
 /// the Performance API resource timing entries.
 #[cfg(target_arch = "wasm32")]
@@ -229,21 +214,17 @@ pub fn get_bundle_size() -> BundleSize {
 }
 
 /// Analyze and log bundle size on application load
-///
 /// Call this function in your app initialization to track bundle sizes
 /// and get optimization recommendations.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::analyze_bundle_size;
-///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     // Analyze bundle size on mount
 ///     create_effect(move |_| {
 ///         analyze_bundle_size();
 ///     });
-///
 ///     view! { /* ... */ }
 /// }
 /// ```
@@ -353,14 +334,11 @@ impl BundleSize {
 }
 
 /// Measure component render time for performance monitoring
-///
 /// Uses the Performance API to measure how long a component takes to render.
 /// Results are logged to the console and can be viewed in browser DevTools.
-///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::measure_render_time;
-///
 /// #[component]
 /// pub fn ExpensiveComponent() -> impl IntoView {
 ///     measure_render_time("ExpensiveComponent", || {
@@ -413,7 +391,6 @@ where
 }
 
 /// Track route navigation performance
-///
 /// Measures the time it takes to navigate between routes and load components.
 /// Useful for identifying slow route transitions.
 #[cfg(target_arch = "wasm32")]

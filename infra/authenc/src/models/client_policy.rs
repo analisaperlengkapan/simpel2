@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Client Policy database model
-///
 /// Represents a single security policy that can be applied to OAuth2/OIDC clients.
 /// Policies contain conditions that must be met and executors that enforce security rules.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,7 +44,6 @@ pub struct ClientPolicyModel {
 }
 
 /// Client Profile database model
-///
 /// A profile is a reusable collection of policies that can be applied to multiple clients.
 /// Profiles enable consistent policy enforcement across similar client types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +73,6 @@ pub struct ClientProfileModel {
 }
 
 /// Client-Policy Assignment
-///
 /// Associates a specific policy with a client, either directly or through a profile.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientPolicyAssignment {

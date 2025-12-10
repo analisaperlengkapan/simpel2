@@ -272,11 +272,9 @@ pub struct OAuth2AppState {
 }
 
 /// Generate PKCE code challenge
-///
 /// # Arguments
 /// * `code_verifier` - The code verifier string
 /// * `method` - The code challenge method (S256)
-///
 /// # Returns
 /// * `Ok(String)` containing the code challenge
 /// * `Err(AuthencError)` if the method is unsupported
@@ -415,10 +413,8 @@ pub fn generate_id_token(
 }
 
 /// Apply protocol mappers to generate additional claims
-///
 /// This function fetches effective mappers for a client and applies them to user data
 /// to generate additional JWT claims. This is called during token generation.
-///
 /// # Arguments
 /// * `database` - Database connection for fetching mappers
 /// * `protocol_mapper_service` - Service for evaluating mappers
@@ -428,7 +424,6 @@ pub fn generate_id_token(
 /// * `scopes` - Requested OAuth2 scopes
 /// * `protocol` - Protocol name (e.g., "openid-connect")
 /// * `token_type` - Type of token (AccessToken, IdToken, UserInfo)
-///
 /// # Returns
 /// * `Ok(HashMap)` - Additional claims to merge into token
 /// * `Err(AuthencError)` - If mapper evaluation fails

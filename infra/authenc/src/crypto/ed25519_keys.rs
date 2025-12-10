@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 /// Ed25519 keypair for JWT signing - replaces vulnerable RSA
-///
 /// Production: Loads from ED25519_PRIVATE_KEY_BASE64 environment variable
 /// Development: Generates ephemeral key with warning
 pub static ED25519_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
@@ -162,7 +161,6 @@ impl Ed25519Jwk {
 }
 
 /// Get the Ed25519 public key in JWK format
-///
 /// # Returns
 /// An `Ed25519Jwk` containing the public key from the global keypair
 pub fn get_ed25519_jwk() -> Ed25519Jwk {

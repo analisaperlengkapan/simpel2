@@ -12,7 +12,6 @@ use wasm_bindgen::prelude::*;
 // ============================================================================
 
 /// Hook for registering keyboard shortcuts
-///
 /// # Example
 /// ```rust
 /// use_keyboard_shortcut("ctrl+s", || {

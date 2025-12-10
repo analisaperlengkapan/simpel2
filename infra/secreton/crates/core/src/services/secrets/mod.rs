@@ -10,16 +10,13 @@ use serde_json::Value;
 use std::error::Error;
 
 /// Common trait for all secret engines
-///
 /// Each secret engine (KV, Transit, Database, SSH, etc.) implements this trait
 /// to provide a consistent interface for:
 /// - Secret read/write/delete operations
 /// - List operations with path support
 /// - Key generation and rotation (for cryptographic engines)
 /// - Configuration management
-///
 /// # Associated Types
-///
 /// - `Config`: Engine-specific configuration
 /// - `Error`: Engine-specific error type
 #[async_trait]

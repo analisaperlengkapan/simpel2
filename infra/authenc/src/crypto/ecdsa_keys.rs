@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 /// ECDSA P-256 keypair for JWT signing - secure alternative to RSA
-///
 /// Production: Loads from ECDSA_P256_PRIVATE_KEY_BASE64 environment variable
 /// Development: Generates ephemeral key with warning
 pub static ECDSA_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {

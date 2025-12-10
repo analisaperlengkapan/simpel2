@@ -175,7 +175,6 @@ impl HealthService {
 }
 
 /// Standard gRPC health check service
-///
 /// This implements the grpc.health.v1.Health service protocol
 pub struct StandardHealthService {
     authenc_health: Arc<HealthService>,

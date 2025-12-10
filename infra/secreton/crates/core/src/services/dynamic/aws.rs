@@ -14,10 +14,8 @@ pub struct AwsCredential {
 }
 
 /// Generate AWS credential using AwsEngine
-///
 /// NOTE: This is a legacy interface. New code should use AwsEngine directly.
 /// This function is kept for backward compatibility with existing dynamic credential APIs.
-///
 /// For production use, configure AwsEngine via `/v1/sys/aws/config/root` and
 /// create roles via `/v1/sys/aws/roles/:role_name`, then generate credentials
 /// via `/v1/sys/aws/creds/:role_name`.
@@ -34,7 +32,6 @@ pub async fn generate_aws_credential(role: &str) -> Result<AwsCredential, String
 }
 
 /// Revoke AWS credential
-///
 /// NOTE: This is a legacy interface. Use AwsEngine.revoke_credentials() instead.
 pub async fn revoke_aws_credential(username: &str) -> Result<(), String> {
     Err(format!(

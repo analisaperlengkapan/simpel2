@@ -55,26 +55,18 @@ pub mod common {
 }
 
 /// Create and configure the gRPC server
-///
 /// This function sets up the gRPC server with all services, interceptors,
 /// and middleware configured. The server is ready to be started with `.serve()`.
-///
 /// # Arguments
-///
 /// * `state` - Application state shared across all requests
 /// * `config` - gRPC server configuration
-///
 /// # Returns
-///
 /// A configured gRPC server ready to serve requests
-///
 /// # Example
-///
 /// ```rust,no_run
 /// use authenc::grpc::{create_grpc_server, GrpcConfig};
 /// use authenc::app::AppState;
 /// use std::sync::Arc;
-///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let state = Arc::new(AppState::new(/* config */));

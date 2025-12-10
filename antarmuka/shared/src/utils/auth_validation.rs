@@ -29,12 +29,10 @@ pub const SATKER_CODE_MAX_LENGTH: usize = 20;
 // ============================================================================
 
 /// Validate username format
-///
 /// Rules:
 /// - 3-50 characters
 /// - Alphanumeric with underscore (_) or hyphen (-)
 /// - No spaces or special characters
-///
 /// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_username`
 pub fn validate_username(username: &str) -> ValidationResult {
     let regex = Regex::new(r"^[a-zA-Z0-9_-]{3,50}$").unwrap();
@@ -71,13 +69,11 @@ pub fn validate_username(username: &str) -> ValidationResult {
 }
 
 /// Validate password complexity
-///
 /// Rules:
 /// - Minimum 8 characters
 /// - At least one uppercase letter
 /// - At least one lowercase letter
 /// - At least one digit
-///
 /// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_password_complexity`
 pub fn validate_password(password: &str) -> ValidationResult {
     let mut errors = Vec::new();
@@ -132,12 +128,10 @@ pub fn validate_password(password: &str) -> ValidationResult {
 }
 
 /// Validate satker code format
-///
 /// Rules:
 /// - 2-20 characters
 /// - Uppercase letters and numbers only
 /// - No spaces or special characters
-///
 /// Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_satker_code`
 pub fn validate_satker_code(code: &str) -> ValidationResult {
     let regex = Regex::new(r"^[A-Z0-9]{2,20}$").unwrap();
@@ -174,11 +168,9 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
 }
 
 /// Validate MFA code (6 digits)
-///
 /// Rules:
 /// - Exactly 6 digits
 /// - Numbers only
-///
 /// Sinkron dengan: Backend MFA verification
 pub fn validate_mfa_code(code: &str) -> ValidationResult {
     let regex = Regex::new(r"^\d{6}$").unwrap();
@@ -201,11 +193,9 @@ pub fn validate_mfa_code(code: &str) -> ValidationResult {
 }
 
 /// Validate realm name
-///
 /// Rules:
 /// - 1-100 characters
 /// - Not empty
-///
 /// Sinkron dengan: Backend realm validation
 pub fn validate_realm(realm: &str) -> ValidationResult {
     if realm.is_empty() {
@@ -230,7 +220,6 @@ pub fn validate_realm(realm: &str) -> ValidationResult {
 // ============================================================================
 
 /// Get password strength indicator
-///
 /// Returns: (strength_level, strength_text, color_class)
 /// - strength_level: 0-4 (weak to very strong)
 /// - strength_text: Human-readable description

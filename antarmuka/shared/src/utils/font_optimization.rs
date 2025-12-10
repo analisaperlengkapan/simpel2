@@ -3,7 +3,6 @@
 //! Provides utilities for optimizing web font loading to improve performance
 
 /// Preload critical fonts for better performance
-///
 /// Use this to preload fonts that are needed immediately on page load
 #[cfg(target_arch = "wasm32")]
 pub fn preload_font(href: &str, font_type: FontType) {
@@ -53,7 +52,6 @@ impl FontType {
 }
 
 /// Setup font display swap for better perceived performance
-///
 /// This ensures text is visible immediately with fallback fonts
 /// while custom fonts are loading
 #[cfg(target_arch = "wasm32")]
@@ -137,7 +135,6 @@ pub async fn wait_for_fonts_loaded() {
 }
 
 /// Subset fonts to only include characters used in the application
-///
 /// This is a build-time optimization that should be done during asset processing
 pub fn get_font_subset_characters() -> &'static str {
     // Indonesian alphabet + common punctuation + numbers

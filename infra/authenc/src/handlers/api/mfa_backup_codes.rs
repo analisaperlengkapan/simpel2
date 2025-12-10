@@ -54,10 +54,8 @@ pub struct BackupCodeStatusResponse {
 }
 
 /// Generate new backup codes for a user
-///
 /// This endpoint generates a fresh set of backup codes for MFA recovery.
 /// Previous backup codes are invalidated when new ones are generated.
-///
 /// # Security Considerations
 /// - Requires authenticated user session
 /// - Logs backup code generation for audit
@@ -78,10 +76,8 @@ pub async fn generate_backup_codes(
 }
 
 /// Verify a backup code for MFA bypass
-///
 /// This endpoint allows users to authenticate using a backup code when their
 /// primary MFA method (TOTP) is unavailable.
-///
 /// # Security Considerations
 /// - Each backup code can only be used once
 /// - Rate limiting applied to prevent brute force
@@ -127,7 +123,6 @@ pub async fn verify_backup_code(
 }
 
 /// Get backup code status for a user
-///
 /// Returns information about the user's backup codes without revealing the codes themselves.
 pub async fn get_backup_code_status(
     State(mfa_service): State<Arc<MfaService>>,
@@ -144,10 +139,8 @@ pub async fn get_backup_code_status(
 }
 
 /// Disable all backup codes for a user
-///
 /// This endpoint invalidates all backup codes for a user. This is typically used
 /// when a user wants to disable MFA entirely or when codes are compromised.
-///
 /// # Security Considerations
 /// - Requires admin privileges or user self-service
 /// - Logs backup code invalidation for audit

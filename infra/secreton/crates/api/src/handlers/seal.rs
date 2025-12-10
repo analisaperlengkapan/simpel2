@@ -187,7 +187,6 @@ pub struct RekeyStatusResponse {
 
 /// GET /v1/sys/seal-status
 /// Returns the seal status of the vault
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 #[instrument(skip(state))]
 pub async fn get_seal_status(
@@ -209,10 +208,8 @@ pub async fn get_seal_status(
 
 /// POST /v1/sys/seal
 /// Seals the vault
-///
 /// CRITICAL SECURITY: This immediately seals the vault and clears the master key from memory.
 /// All subsequent operations (except whitelisted endpoints) will be blocked until unsealed.
-///
 /// SECURITY: Requires admin role
 #[instrument(skip(state))]
 pub async fn seal_vault(
@@ -293,10 +290,8 @@ pub async fn seal_vault(
 
 /// POST /v1/sys/unseal
 /// Provides an unseal key and unseals the vault if threshold is met
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 /// Operators provide Shamir shares one at a time until threshold is reached.
-///
 /// SECURITY: Rate limited to prevent brute force attacks (max 10 attempts per 60 seconds per IP)
 #[instrument(skip(state, request))]
 pub async fn unseal_vault(
@@ -445,11 +440,9 @@ pub async fn unseal_vault(
 
 /// POST /v1/sys/init
 /// Initializes a new vault
-///
 /// CRITICAL SECURITY: This endpoint can only be called once.
 /// After initialization, the vault remains SEALED.
 /// Operators must manually unseal with threshold shares.
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 #[instrument(skip(state, request))]
 pub async fn initialize_vault(

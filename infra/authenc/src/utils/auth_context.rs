@@ -7,7 +7,6 @@ use crate::services::user_store::UserStore;
 use std::sync::Arc;
 
 /// Aggregates all dependencies for the login handler.
-///
 /// This struct is injected as a single dependency to simplify handler signatures and improve maintainability.
 #[derive(Clone)]
 pub struct AuthContext {

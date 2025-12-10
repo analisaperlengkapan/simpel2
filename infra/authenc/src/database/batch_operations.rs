@@ -58,23 +58,18 @@ impl BatchInsertable for AuditLogEntry {
 }
 
 /// Batch insert audit logs with optimized performance
-///
 /// Inserts multiple audit log entries in batches of 1000 to reduce database round-trips.
 /// This is significantly faster than individual inserts for bulk audit logging.
-///
 /// # Arguments
 /// * `db` - Database connection
 /// * `entries` - Vector of audit log entries to insert
-///
 /// # Returns
 /// Number of rows inserted
-///
 /// # Example
 /// ```no_run
 /// use authenc::database::batch_operations::{batch_insert_audit_logs, AuditLogEntry};
 /// use chrono::Utc;
 /// use uuid::Uuid;
-///
 /// async fn example(db: &Database) {
 ///     let entries = vec![
 ///         AuditLogEntry {
@@ -93,7 +88,6 @@ impl BatchInsertable for AuditLogEntry {
 ///         },
 ///         // ... more entries
 ///     ];
-///
 ///     let inserted = batch_insert_audit_logs(db, entries).await.unwrap();
 ///     println!("Inserted {} audit logs", inserted);
 /// }
@@ -164,26 +158,20 @@ async fn batch_insert_audit_logs_chunk(db: &Database, entries: &[AuditLogEntry])
 }
 
 /// Batch query user permissions for multiple users
-///
 /// Retrieves permissions for multiple users in a single query, significantly
 /// faster than querying each user individually.
-///
 /// # Arguments
 /// * `db` - Database connection
 /// * `user_ids` - Vector of user IDs to query permissions for
-///
 /// # Returns
 /// HashMap mapping user_id to their list of permissions
-///
 /// # Example
 /// ```no_run
 /// use authenc::database::batch_operations::batch_query_user_permissions;
 /// use uuid::Uuid;
-///
 /// async fn example(db: &Database) {
 ///     let user_ids = vec![Uuid::new_v4(), Uuid::new_v4()];
 ///     let permissions_map = batch_query_user_permissions(db, user_ids).await.unwrap();
-///
 ///     for (user_id, permissions) in permissions_map {
 ///         println!("User {} has {} permissions", user_id, permissions.len());
 ///     }
@@ -272,25 +260,19 @@ pub struct SessionValidationResult {
 }
 
 /// Batch validate multiple sessions
-///
 /// Validates multiple sessions in a single query, checking expiration and revocation status.
 /// Much faster than validating sessions individually.
-///
 /// # Arguments
 /// * `db` - Database connection
 /// * `session_ids` - Vector of session IDs to validate
-///
 /// # Returns
 /// Vector of validation results for each session
-///
 /// # Example
 /// ```no_run
 /// use authenc::database::batch_operations::batch_validate_sessions;
-///
 /// async fn example(db: &Database) {
 ///     let session_ids = vec!["session1".to_string(), "session2".to_string()];
 ///     let results = batch_validate_sessions(db, session_ids).await.unwrap();
-///
 ///     for result in results {
 ///         if result.is_valid {
 ///             println!("Session {} is valid", result.session_id);
@@ -390,26 +372,20 @@ pub async fn batch_validate_sessions(
 }
 
 /// Batch lookup users by IDs
-///
 /// Retrieves multiple users in a single query, significantly faster than
 /// querying each user individually.
-///
 /// # Arguments
 /// * `db` - Database connection
 /// * `user_ids` - Vector of user IDs to lookup
-///
 /// # Returns
 /// HashMap mapping user_id to User object (only includes found users)
-///
 /// # Example
 /// ```no_run
 /// use authenc::database::batch_operations::batch_lookup_users;
 /// use uuid::Uuid;
-///
 /// async fn example(db: &Database) {
 ///     let user_ids = vec![Uuid::new_v4(), Uuid::new_v4()];
 ///     let users_map = batch_lookup_users(db, user_ids).await.unwrap();
-///
 ///     for (user_id, user) in users_map {
 ///         println!("Found user: {} ({})", user.username, user_id);
 ///     }

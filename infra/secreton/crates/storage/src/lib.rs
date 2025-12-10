@@ -564,7 +564,6 @@ impl StorageError {
 }
 
 /// Simple key-value storage backend trait (HashiCorp Vault-style)
-///
 /// This is the core trait for physical storage backends. All data is pre-encrypted
 /// before being passed to the backend (untrusted storage principle).
 #[async_trait]
@@ -592,7 +591,6 @@ pub trait KvBackend: Send + Sync {
 }
 
 /// High-level storage backend trait for VaultEntry operations
-///
 /// This trait provides structured access to vault entries with metadata,
 /// versioning, and advanced querying capabilities.
 #[async_trait]

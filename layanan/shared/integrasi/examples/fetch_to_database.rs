@@ -1,12 +1,10 @@
 /// Example: Fetch data dari MonSAKTI + MySIMKARI dengan storage strategy yang fleksibel
-///
 /// Fitur:
 /// - Auto-retry dengan token reset ketika token expired
 /// - Flexible storage: Database, JSON, CSV, atau Both
 /// - Optimized untuk KL006 (Kejaksaan RI)
 /// - Batch processing untuk semua satker
 /// - Support MySIMKARI integration
-///
 /// Setup:
 /// 1. Copy .env.example ke .env
 /// 2. Isi DATABASE_URL (jika menggunakan database)
@@ -14,21 +12,16 @@
 /// 4. Isi MYSIMKARI_TOKEN
 /// 5. Set STORAGE_TYPE (database/json/csv/both)
 /// 6. Jalankan migrations (jika menggunakan database)
-///
 /// Usage:
 /// ```bash
 /// # Fetch ke database (default)
 /// cargo run --example fetch_to_database
-///
 /// # Fetch ke JSON files
 /// STORAGE_TYPE=json cargo run --example fetch_to_database
-///
 /// # Fetch ke database dan JSON
 /// STORAGE_TYPE=both cargo run --example fetch_to_database
-///
 /// # Test dengan satu satker
 /// TEST_SATKER=123456 cargo run --example fetch_to_database
-///
 /// # Hanya MySIMKARI
 /// FETCH_MODE=mysimkari cargo run --example fetch_to_database
 /// ```

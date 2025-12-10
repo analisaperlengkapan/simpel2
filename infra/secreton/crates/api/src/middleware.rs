@@ -564,7 +564,6 @@ pub async fn cors_preflight(request: Request, next: Next) -> Response {
 
 /// Seal status check middleware
 /// Blocks all secret operations when vault is sealed
-///
 /// CRITICAL SECURITY: This middleware enforces that all API operations
 /// (except whitelisted system endpoints) are blocked when the vault is sealed.
 /// This follows HashiCorp Vault security best practices.
@@ -621,10 +620,8 @@ pub async fn seal_check_middleware(
 }
 
 /// Namespace access validation middleware
-///
 /// Validates that the user has access to the requested namespace based on
 /// JWT claims and SIMKARI organizational hierarchy (Pusat -> Wilayah -> Satker).
-///
 /// This middleware should be applied to all secret operation endpoints.
 pub async fn namespace_access_middleware(
     State(_state): State<ApiState>,
@@ -683,7 +680,6 @@ pub async fn namespace_access_middleware(
 }
 
 /// Extract namespace ID from request path
-///
 /// Handles various path formats:
 /// - /v1/secret/data/{namespace}/{path}
 /// - /v1/transit/encrypt/{namespace}/{key}
@@ -713,7 +709,6 @@ fn extract_namespace_from_path(path: &str) -> Option<String> {
 }
 
 /// Extract JWT claims from token claims for namespace access control
-///
 /// Converts the auth service token claims into JwtClaims for namespace validation
 fn extract_jwt_claims_from_token(
     claims: &crate::auth::Claims,
@@ -783,7 +778,6 @@ fn determine_admin_level(
 }
 
 /// Extract policy names from JWT claims
-///
 /// Looks for policy_names field in JWT claims metadata or as a direct field
 fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String> {
     // Check metadata for policy_names
@@ -815,10 +809,8 @@ fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String>
 }
 
 /// Policy check middleware
-///
 /// Enforces policy-based authorization on all operations.
 /// Evaluates policies loaded from JWT claims against the requested path and action.
-///
 /// This middleware should be applied after authentication middleware.
 pub async fn policy_check_middleware(
     State(state): State<ApiState>,
@@ -1048,18 +1040,14 @@ mod tests {
 }
 
 /// Response wrapping middleware
-///
 /// Automatically wraps responses when X-Vault-Wrap-TTL header is present.
 /// This allows clients to request wrapped responses for any endpoint.
-///
 /// # Header Format
 /// `X-Vault-Wrap-TTL: <seconds>`
-///
 /// # Example
 /// ```bash
 /// curl -H "X-Vault-Wrap-TTL: 300" http://localhost:8200/v1/secret/data/myapp
 /// ```
-///
 /// # Response
 /// Instead of returning the actual secret, returns a wrapping token:
 /// ```json

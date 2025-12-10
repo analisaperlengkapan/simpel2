@@ -22,7 +22,6 @@ pub struct BatchPermissionResult {
 }
 
 /// Perform batch permission checks for multiple resources
-///
 /// This function optimizes permission checking by:
 /// 1. Fetching user data once
 /// 2. Checking all permissions in parallel
@@ -100,7 +99,6 @@ pub async fn batch_check_permissions(
 }
 
 /// Batch user lookup by IDs
-///
 /// Optimizes user lookups by fetching multiple users in parallel
 pub async fn batch_lookup_users(
     state: Arc<AppState>,
@@ -127,7 +125,6 @@ pub async fn batch_lookup_users(
 }
 
 /// Optimized user lookup with parallel queries for profile + permissions
-///
 /// This function demonstrates the optimization pattern for fetching user data
 /// with related information in parallel.
 pub async fn optimized_user_lookup(

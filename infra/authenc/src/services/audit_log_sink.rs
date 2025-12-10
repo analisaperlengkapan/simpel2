@@ -39,31 +39,25 @@ impl AuditLogSink for MultiAuditLogSink {
 
 // Example: PostgreSQL sink (wrapper, will call existing PgAuditLogStore)
 /// PostgreSQL audit log sink for persistent audit event storage
-///
 /// This sink implementation provides asynchronous audit log storage using
 /// PostgreSQL as the backend. It wraps the existing `PgAuditLogStore` to
 /// provide a standardized sink interface for audit event processing.
-///
 /// # Fields
 /// * `store` - The underlying PostgreSQL audit log store instance
-///
 /// # Security Considerations
 /// - Ensures audit logs are durably stored in PostgreSQL
 /// - Implements proper transaction handling for data integrity
 /// - Provides connection pooling for high-throughput scenarios
 /// - Supports encryption at rest for sensitive audit data
-///
 /// # Performance Considerations
 /// - Uses asynchronous operations to avoid blocking
 /// - Implements connection pooling for efficient resource usage
 /// - Supports batch operations for high-volume audit logging
 /// - Provides configurable timeouts and retry mechanisms
-///
 /// # Example
 /// ```rust
 /// use authenc::services::audit_log_sink::PgAuditLogSink;
 /// use authenc::services::pg_audit_log_store::PgAuditLogStore;
-///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let pg_store = PgAuditLogStore::new("postgresql://user:pass@localhost/db").await?;
 /// let sink = PgAuditLogSink { store: pg_store };

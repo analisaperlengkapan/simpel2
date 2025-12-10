@@ -9,11 +9,9 @@ use crate::error::CoreError;
 pub type ValidationResult<T> = Result<T, CoreError>;
 
 /// Validate that a string is not empty
-///
 /// # Arguments
 /// * `value` - String to validate
 /// * `field_name` - Name of the field for error messages
-///
 /// # Returns
 /// Ok(()) if valid, Err with descriptive message if empty
 #[inline]
@@ -28,7 +26,6 @@ pub fn validate_not_empty(value: &str, field_name: &str) -> ValidationResult<()>
 }
 
 /// Validate that a collection is not empty
-///
 /// # Arguments
 /// * `collection` - Collection to validate
 /// * `field_name` - Name of the field for error messages
@@ -47,7 +44,6 @@ pub fn validate_collection_not_empty<T>(
 }
 
 /// Validate that a string matches expected format/pattern
-///
 /// # Arguments
 /// * `value` - String to validate
 /// * `pattern` - Regex pattern to match
@@ -67,7 +63,6 @@ pub fn validate_pattern(
 }
 
 /// Validate string length constraints
-///
 /// # Arguments
 /// * `value` - String to validate
 /// * `min_len` - Minimum length (inclusive), None for no minimum
@@ -101,7 +96,6 @@ pub fn validate_length(
 }
 
 /// Validate that a value is within a numeric range
-///
 /// # Arguments
 /// * `value` - Value to validate
 /// * `min` - Minimum value (inclusive), None for no minimum
@@ -133,7 +127,6 @@ pub fn validate_range<T: PartialOrd + std::fmt::Display>(
 }
 
 /// Validate CIDR notation
-///
 /// # Arguments
 /// * `cidr` - CIDR string to validate
 pub fn validate_cidr(cidr: &str) -> ValidationResult<()> {
@@ -145,7 +138,6 @@ pub fn validate_cidr(cidr: &str) -> ValidationResult<()> {
 }
 
 /// Validate JWT token format (basic check, not verification)
-///
 /// # Arguments
 /// * `token` - JWT token string
 pub fn validate_jwt_format(token: &str) -> ValidationResult<()> {
@@ -159,7 +151,6 @@ pub fn validate_jwt_format(token: &str) -> ValidationResult<()> {
 }
 
 /// Validate URL format
-///
 /// # Arguments
 /// * `url` - URL string to validate
 /// * `field_name` - Name of the field for error messages
@@ -171,10 +162,8 @@ pub fn validate_url(url: &str, field_name: &str) -> ValidationResult<()> {
 }
 
 /// Combine multiple validation results
-///
 /// # Arguments
 /// * `validations` - Vector of validation results to combine
-///
 /// # Returns
 /// Ok(()) if all validations pass, Err with first error otherwise
 pub fn combine_validations(validations: Vec<ValidationResult<()>>) -> ValidationResult<()> {

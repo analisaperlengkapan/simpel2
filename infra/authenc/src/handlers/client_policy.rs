@@ -41,7 +41,6 @@ pub struct ListProfilesQuery {
 // ========== Client Policy Handlers ==========
 
 /// Create a new client policy
-///
 /// POST /api/v1/admin/client-policies
 pub async fn create_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -70,7 +69,6 @@ pub async fn create_client_policy(
 }
 
 /// Get a client policy by ID
-///
 /// GET /api/v1/admin/client-policies/:id
 pub async fn get_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -92,7 +90,6 @@ pub async fn get_client_policy(
 }
 
 /// List client policies for a realm
-///
 /// GET /api/v1/admin/client-policies?realm_id=<uuid>
 pub async fn list_client_policies(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -131,7 +128,6 @@ pub async fn list_client_policies(
 }
 
 /// Update a client policy
-///
 /// PUT /api/v1/admin/client-policies/:id
 pub async fn update_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -157,7 +153,6 @@ pub async fn update_client_policy(
 }
 
 /// Delete a client policy
-///
 /// DELETE /api/v1/admin/client-policies/:id
 pub async fn delete_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -183,7 +178,6 @@ pub async fn delete_client_policy(
 // ========== Client Profile Handlers ==========
 
 /// Create a new client profile
-///
 /// POST /api/v1/admin/client-profiles
 pub async fn create_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -209,7 +203,6 @@ pub async fn create_client_profile(
 }
 
 /// Get a client profile by ID (with policies)
-///
 /// GET /api/v1/admin/client-profiles/:id
 pub async fn get_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -231,7 +224,6 @@ pub async fn get_client_profile(
 }
 
 /// List client profiles for a realm
-///
 /// GET /api/v1/admin/client-profiles?realm_id=<uuid>
 pub async fn list_client_profiles(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -262,7 +254,6 @@ pub async fn list_client_profiles(
 }
 
 /// Update a client profile
-///
 /// PUT /api/v1/admin/client-profiles/:id
 pub async fn update_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -288,7 +279,6 @@ pub async fn update_client_profile(
 }
 
 /// Delete a client profile
-///
 /// DELETE /api/v1/admin/client-profiles/:id
 pub async fn delete_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -315,7 +305,6 @@ pub async fn delete_client_profile(
 // ========== Policy Assignment Handlers ==========
 
 /// Assign a policy to a client
-///
 /// POST /api/v1/admin/clients/:client_id/policies
 pub async fn assign_policy_to_client(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -353,7 +342,6 @@ pub async fn assign_policy_to_client(
 }
 
 /// Get all policies assigned to a client
-///
 /// GET /api/v1/admin/clients/:client_id/policies
 pub async fn get_client_policies(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -377,7 +365,6 @@ pub async fn get_client_policies(
 }
 
 /// Get all policy assignments for a client
-///
 /// GET /api/v1/admin/clients/:client_id/policy-assignments
 pub async fn get_client_policy_assignments(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -396,7 +383,6 @@ pub async fn get_client_policy_assignments(
 }
 
 /// Remove a policy assignment from a client
-///
 /// DELETE /api/v1/admin/clients/:client_id/policies/:policy_id
 pub async fn remove_policy_assignment(
     State(state): State<Arc<PolicyHandlerState>>,
@@ -423,7 +409,6 @@ pub async fn remove_policy_assignment(
 }
 
 /// Remove a profile assignment from a client
-///
 /// DELETE /api/v1/admin/clients/:client_id/profiles/:profile_id
 pub async fn remove_profile_assignment(
     State(state): State<Arc<PolicyHandlerState>>,

@@ -9,7 +9,6 @@ use std::time::Duration;
 // ============================================================================
 
 /// Hook for announcing messages to screen readers
-///
 /// # Example
 /// ```rust
 /// let announcer = use_announcer();

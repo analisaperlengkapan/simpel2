@@ -169,7 +169,6 @@ pub async fn detailed_health_check(
 }
 
 /// Readiness check - determines if the service is ready to accept traffic
-///
 /// CRITICAL: Returns 503 Service Unavailable if vault is sealed.
 /// This follows HashiCorp Vault best practices where Kubernetes/load balancers
 /// should not route traffic to a sealed vault instance.
@@ -639,7 +638,6 @@ async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
 }
 
 /// Check seal status
-///
 /// CRITICAL: Vault must be unsealed to be considered "ready"
 /// This follows HashiCorp Vault best practices where a sealed vault
 /// returns 503 Service Unavailable for readiness checks.

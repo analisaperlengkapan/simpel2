@@ -7,11 +7,9 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 /// Service Account Store
-///
 /// Business logic layer for managing service accounts (machine-to-machine authentication).
 /// Provides high-level operations for creating, updating, and managing service accounts
 /// with proper validation, security checks, and audit logging.
-///
 /// # Security Considerations
 /// - All client secrets are bcrypt-hashed before storage (cost factor 12)
 /// - Service account names must be unique within a realm
@@ -19,19 +17,15 @@ use uuid::Uuid;
 /// - Disabled service accounts cannot authenticate
 /// - All operations are audit logged
 /// - Role assignments are validated before assignment
-///
 /// # Use Cases
 /// - Microservice authentication
 /// - Backend service API access
 /// - CI/CD pipeline authentication
 /// - Scheduled job authentication
-///
 /// # Example
 /// ```rust
 /// use uuid::Uuid;
-///
 /// let store = ServiceAccountStore::with_database(database);
-///
 /// // Create a service account
 /// let service_account = store.create(
 ///     realm_id,
@@ -41,7 +35,6 @@ use uuid::Uuid;
 ///     true,
 ///     vec![role_id],
 /// ).await?;
-///
 /// // Authenticate
 /// let authenticated = store.authenticate(&service_account.client_id, "secret").await?;
 /// ```

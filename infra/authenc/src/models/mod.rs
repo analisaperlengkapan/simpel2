@@ -60,7 +60,6 @@ pub mod audit_log;
 
 // Legacy OIDC models (keeping for compatibility)
 /// Legacy OIDC client models for backward compatibility
-///
 /// This module contains legacy OIDC client model definitions that are maintained
 /// for backward compatibility with older versions of the authentication platform.
 /// New implementations should use the updated OIDC models in the main modules.
