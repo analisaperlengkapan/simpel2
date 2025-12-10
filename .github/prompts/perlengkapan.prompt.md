@@ -185,7 +185,6 @@ Nanti tampilannya:
 - **Observability**: Distributed tracing, structured logging
 - **Performance**: Lazy loading, code splitting, WASM optimization
 - **Accessibility**: WCAG 2.1 Level AA compliance
-- **i18n Ready**: Prepare for internationalization
 - **Progressive Enhancement**: Core functionality without JavaScript
 
 ## Portal Integration

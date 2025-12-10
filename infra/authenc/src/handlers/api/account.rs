@@ -429,7 +429,7 @@ pub async fn setup_totp(
     let mut rng = OsRng;
     let mut secret_bytes = [0u8; 32];
     rng.fill_bytes(&mut secret_bytes);
-    let secret = base32::encode(base32::Alphabet::RFC4648 { padding: false }, &secret_bytes);
+    let secret = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &secret_bytes);
 
     // Store the secret
     totp_store

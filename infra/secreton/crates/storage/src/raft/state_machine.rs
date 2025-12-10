@@ -2,7 +2,7 @@
 //!
 //! Implements the state machine for Secreton's distributed storage using OpenRaft.
 
-use crate::{SecurityLevel, VaultEntry};
+use crate::VaultEntry;
 use async_trait::async_trait;
 use openraft::storage::RaftStateMachine;
 use openraft::{EntryPayload, LogId, RaftSnapshotBuilder, SnapshotMeta, StorageError};
@@ -16,7 +16,7 @@ use uuid::Uuid;
 use super::types::{NodeId, SecretonTypeConfig};
 
 /// Commands that can be applied to the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineCommand {
     /// Store a new vault entry
     Store(VaultEntry),
@@ -32,7 +32,7 @@ pub enum StateMachineCommand {
 }
 
 /// Response from state machine operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineResponse {
     /// Operation succeeded
     Success,
@@ -51,13 +51,13 @@ pub enum StateMachineResponse {
 }
 
 /// Snapshot of the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct StateMachineSnapshot {
     /// Last applied log index
     pub last_applied_log: Option<LogId<NodeId>>,
 
     /// Last membership configuration
-    pub last_membership: openraft::StoredMembership<SecretonTypeConfig>,
+    pub last_membership: openraft::StoredMembership<NodeId, super::types::Node>,
 
     /// All vault entries
     pub entries: HashMap<String, VaultEntry>,
@@ -72,7 +72,7 @@ pub struct SecretonStateMachine {
     pub last_applied_log: Arc<RwLock<Option<LogId<NodeId>>>>,
 
     /// Last membership configuration
-    pub last_membership: Arc<RwLock<openraft::StoredMembership<SecretonTypeConfig>>>,
+    pub last_membership: Arc<RwLock<openraft::StoredMembership<NodeId, super::types::Node>>>,
 
     /// Vault entries storage (path -> entry)
     pub data: Arc<RwLock<HashMap<String, VaultEntry>>>,
@@ -184,7 +184,7 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
     ) -> Result<
         (
             Option<LogId<NodeId>>,
-            openraft::StoredMembership<SecretonTypeConfig>,
+            openraft::StoredMembership<NodeId, super::types::Node>,
         ),
         StorageError<NodeId>,
     > {
@@ -196,7 +196,7 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
     async fn apply<I>(
         &mut self,
         entries: I,
-    ) -> Result<Vec<openraft::raft::AppResponse<SecretonTypeConfig>>, StorageError<NodeId>>
+    ) -> Result<Vec<StateMachineResponse>, StorageError<NodeId>>
     where
         I: IntoIterator<Item = openraft::Entry<SecretonTypeConfig>> + Send,
         I::IntoIter: Send,
@@ -208,7 +208,7 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
 
             match entry.payload {
                 EntryPayload::Blank => {
-                    responses.push(openraft::raft::AppResponse::default());
+                    responses.push(StateMachineResponse::Success);
                 }
                 EntryPayload::Normal(ref data) => {
                     // Deserialize command from entry data
@@ -218,18 +218,18 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStateMachine {
                     ) {
                         Ok((cmd, _)) => {
                             let response = self.apply_command(cmd).await;
-                            responses.push(openraft::raft::AppResponse::default());
+                            responses.push(response);
                         }
                         Err(e) => {
                             tracing::error!("Failed to deserialize command: {}", e);
-                            responses.push(openraft::raft::AppResponse::default());
+                            responses.push(StateMachineResponse::Error(e.to_string()));
                         }
                     }
                 }
                 EntryPayload::Membership(ref mem) => {
                     *self.last_membership.write().await =
                         openraft::StoredMembership::new(Some(entry.log_id), mem.clone());
-                    responses.push(openraft::raft::AppResponse::default());
+                    responses.push(StateMachineResponse::Success);
                 }
             }
         }

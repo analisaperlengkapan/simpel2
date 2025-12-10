@@ -38,13 +38,11 @@
 
 use crate::{BackendMetrics, KvBackend, StorageError, StorageResult};
 use async_trait::async_trait;
-use chrono::Utc;
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// S3 storage backend configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

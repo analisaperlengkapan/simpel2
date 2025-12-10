@@ -173,6 +173,7 @@ pub mod prelude;
 
 // OpenRaft consensus module (migrated from old raft)
 #[cfg(feature = "raft-consensus")]
+#[cfg(feature = "raft-consensus")]
 pub mod raft;
 
 // Re-export essential backends

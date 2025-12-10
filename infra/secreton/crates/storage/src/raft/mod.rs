@@ -67,7 +67,8 @@ impl RaftCluster {
     pub async fn new(config: RaftClusterConfig) -> StorageResult<Self> {
         let storage = Arc::new(SecretonStorage::new());
         let raft_config = Arc::new(config.to_openraft_config());
-        let network = Arc::new(openraft::network::NetworkFactory::new());
+        // Network layer would be implemented separately for actual cluster communication
+        // For now, this is a placeholder for the Raft network interface
         let raft = openraft::Raft::new(config.node_id, raft_config, network, storage.clone())
             .await
             .map_err(|e| StorageError::BackendError {

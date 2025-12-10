@@ -4,8 +4,8 @@
 //! This allows HashiCorp Vault-style KV backends to work with the existing Secreton infrastructure.
 
 use crate::{
-    BackendMetrics, HealthStatus, HealthStatusEnum, KvBackend, QueryParams, StorageBackend,
-    StorageError, StorageResult, StorageStats, StorageTransaction, VaultEntry,
+    BackendMetrics, HealthStatus, KvBackend, QueryParams, StorageBackend, StorageError,
+    StorageResult, StorageStats, StorageTransaction, VaultEntry,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -18,6 +18,7 @@ use uuid::Uuid;
 /// and the full-featured StorageBackend trait that Secreton expects.
 pub struct KvBackendAdapter<B: KvBackend> {
     inner: B,
+    #[allow(dead_code)]
     metrics: Arc<RwLock<BackendMetrics>>,
 }
 
@@ -49,7 +50,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
     }
 
     /// Retrieve by ID (search all entries - inefficient for KV)
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, _id: Uuid) -> StorageResult<Option<VaultEntry>> {
         // KV backends don't have efficient ID lookup
         // This is a limitation - consider using path-based lookups instead
         Err(StorageError::BackendError {
@@ -211,18 +212,18 @@ mod tests {
         let file_backend = FileBackend::new(config).await.unwrap();
         let adapter = KvBackendAdapter::new(file_backend);
 
-        // Test put_entry/get_entry
-        let entry = VaultEntry {
-            key: "test_entry".to_string(),
-            data: b"entry_data".to_vec(),
-            metadata: Default::default(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
+        // Test store/get via StorageBackend trait
+        let entry = VaultEntry::new(
+            "test/entry".to_string(),
+            b"entry_data".to_vec(),
+            serde_json::json!({}),
+            SecurityLevel::Medium,
+            "test_user".to_string(),
+        );
 
-        adapter.put_entry(entry.clone()).await.unwrap();
-        let result = adapter.get_entry("test_entry").await.unwrap();
+        adapter.store(entry.clone()).await.unwrap();
+        let result: Option<VaultEntry> = adapter.get(&entry.path).await.unwrap();
         assert!(result.is_some());
-        assert_eq!(result.unwrap().data, b"entry_data".to_vec());
+        assert_eq!(result.unwrap().encrypted_data, b"entry_data".to_vec());
     }
 }

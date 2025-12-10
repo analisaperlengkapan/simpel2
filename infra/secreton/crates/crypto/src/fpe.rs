@@ -22,7 +22,7 @@ use aes::Aes256;
 use fpe::ff1::{BinaryNumeralString, FF1};
 use rand::RngCore;
 use thiserror::Error;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::ZeroizeOnDrop;
 
 /// FPE errors
 #[derive(Debug, Error)]

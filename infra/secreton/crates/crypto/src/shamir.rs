@@ -843,7 +843,7 @@ mod tests {
 
         // Serialize and deserialize share
         let share_bytes = shares[0].to_bytes().unwrap();
-        let mut reconstructed_share = Share::from_bytes(&share_bytes).unwrap();
+        let reconstructed_share = Share::from_bytes(&share_bytes).unwrap();
         assert_eq!(reconstructed_share.x(), shares[0].x());
 
         // Serialize and deserialize commitment
@@ -977,7 +977,7 @@ mod tests {
         let secret = b"test-canonical";
         let config = ShamirConfig::new(2, 3).unwrap();
 
-        let (mut shares, commitment) = generate_shares_with_commitments(secret, &config).unwrap();
+        let (mut shares, _commitment) = generate_shares_with_commitments(secret, &config).unwrap();
         validate_shares(&mut shares).unwrap();
 
         // Create a share with non-canonical scalar (all 0xFF bytes - larger than field order)

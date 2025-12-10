@@ -7,7 +7,6 @@ use crate::{
 };
 use chrono::Utc;
 use log::error;
-use std::collections::HashMap;
 use std::str::FromStr;
 use uuid::Uuid;
 

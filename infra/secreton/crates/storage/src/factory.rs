@@ -4,7 +4,7 @@
 //! Follows HashiCorp Vault patterns for backend selection and configuration.
 
 use crate::{
-    MemoryBackend, StorageBackend, StorageResult,
+    MemoryBackend, StorageBackend, StorageError, StorageResult,
     backends::{FileBackend, FileConfig},
 };
 

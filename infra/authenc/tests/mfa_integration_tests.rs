@@ -245,7 +245,7 @@ mod integration_tests {
 
                 // Generate a valid OTP code
                 let secret_bytes = base32::decode(
-                    base32::Alphabet::RFC4648 { padding: false },
+                    base32::Alphabet::Rfc4648 { padding: false },
                     &setup_response.secret_key,
                 )
                 .expect("Failed to decode secret");

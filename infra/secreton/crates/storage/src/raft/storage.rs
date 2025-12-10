@@ -7,8 +7,7 @@ use super::types::{Entry, LogId, NodeId, SecretonTypeConfig, Vote};
 use async_trait::async_trait;
 use openraft::storage::{LogState, RaftLogStorage, RaftStateMachine, Snapshot};
 use openraft::{
-    ErrorSubject, ErrorVerb, RaftLogReader, RaftSnapshotBuilder, SnapshotMeta, StorageError,
-    StoredMembership,
+    ErrorSubject, ErrorVerb, RaftLogReader, SnapshotMeta, StorageError, StoredMembership,
 };
 use std::fmt::Debug;
 use std::io::Cursor;
@@ -158,7 +157,8 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStorage {
 
     async fn applied_state(
         &mut self,
-    ) -> Result<(Option<LogId>, StoredMembership<SecretonTypeConfig>), StorageError<NodeId>> {
+    ) -> Result<(Option<LogId>, StoredMembership<NodeId, super::types::Node>), StorageError<NodeId>>
+    {
         let sm = self.state_machine.read().await;
         let last_applied = *sm.last_applied_log.read().await;
         let last_membership = sm.last_membership.read().await.clone();
@@ -168,7 +168,7 @@ impl RaftStateMachine<SecretonTypeConfig> for SecretonStorage {
     async fn apply<I>(
         &mut self,
         entries: I,
-    ) -> Result<Vec<openraft::raft::AppResponse<SecretonTypeConfig>>, StorageError<NodeId>>
+    ) -> Result<Vec<super::state_machine::StateMachineResponse>, StorageError<NodeId>>
     where
         I: IntoIterator<Item = Entry> + Send,
         I::IntoIter: Send,
