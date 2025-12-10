@@ -812,13 +812,38 @@ impl CertificateValidator {
     }
 
     /// Check if certificate has digital signature key usage
-    pub fn check_key_usage(&self, _cert: &X509) -> Result<bool> {
-        // Try to get key usage extension
-        // This is a simplified check - production would parse the extension properly
+    pub fn check_key_usage(&self, cert: &X509) -> Result<bool> {
+        use x509_parser::prelude::*;
 
-        // For now, return true (assume valid)
-        // TODO: Implement proper key usage extension parsing
-        Ok(true)
+        // Convert OpenSSL X509 to DER bytes
+        let der = cert.to_der()?;
+
+        // Parse with x509-parser
+        let (_, x509_cert) = X509Certificate::from_der(&der)
+            .map_err(|e| anyhow!("Failed to parse certificate: {}", e))?;
+
+        // Look for KeyUsage extension (OID 2.5.29.15)
+        for ext in x509_cert.extensions() {
+            if ext.oid == x509_parser::oid_registry::OID_X509_EXT_KEY_USAGE {
+                // Parse extension value
+                match ext.parsed_extension() {
+                    ParsedExtension::KeyUsage(ku) => {
+                        // Check digitalSignature bit
+                        if !ku.digital_signature() {
+                            tracing::warn!("Certificate missing digitalSignature key usage");
+                            return Ok(false);
+                        }
+                        tracing::debug!("Certificate has valid digitalSignature key usage");
+                        return Ok(true);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // No KeyUsage extension found
+        tracing::warn!("Certificate has no KeyUsage extension");
+        Ok(true) // Lenient: allow if missing
     }
 
     /// Disable expiration checking (for testing)
@@ -1422,15 +1447,49 @@ impl CrlManager {
     }
 
     /// Extract CRL distribution point URLs from a certificate
-    pub fn extract_crl_distribution_points(&self, _cert: &X509) -> Result<Vec<String>> {
-        // OpenSSL Rust bindings don't provide direct access to CRL distribution points
-        // This would require parsing the cRLDistributionPoints extension (OID 2.5.29.31)
-        // manually using ASN.1 parsing
+    pub fn extract_crl_distribution_points(&self, cert: &X509) -> Result<Vec<String>> {
+        use x509_parser::prelude::*;
 
-        // TODO: Implement proper CRL distribution point extraction
-        // For now, return empty list and allow caller to provide CRL URL manually
+        let mut urls = Vec::new();
 
-        let urls = Vec::new();
+        // Convert OpenSSL X509 to DER bytes
+        let der = cert.to_der()?;
+
+        // Parse with x509-parser
+        let (_, x509_cert) = X509Certificate::from_der(&der)
+            .map_err(|e| anyhow!("Failed to parse certificate: {}", e))?;
+
+        // Look for CRL Distribution Points extension (OID 2.5.29.31)
+        for ext in x509_cert.extensions() {
+            if ext.oid == x509_parser::oid_registry::OID_X509_EXT_CRL_DISTRIBUTION_POINTS {
+                // Parse extension value - contains distribution point names
+                // We'll use a simplified string extraction approach
+                let data = ext.value;
+                let data_str = String::from_utf8_lossy(data);
+
+                // Extract HTTP/HTTPS URLs
+                for part in data_str.split(&['\0', '\r', '\n', ' '][..]) {
+                    let trimmed = part.trim();
+                    if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+                        && (trimmed.contains(".crl") || trimmed.contains("/crl"))
+                    {
+                        if trimmed.len() < 512
+                            && trimmed
+                                .chars()
+                                .all(|c| c.is_ascii() && !c.is_control() || c == '/')
+                        {
+                            urls.push(trimmed.to_string());
+                            tracing::debug!("Found CRL distribution point: {}", trimmed);
+                        }
+                    }
+                }
+            }
+        }
+
+        if urls.is_empty() {
+            tracing::debug!("No CRL distribution points found in certificate");
+        }
+
         Ok(urls)
     }
 
@@ -1594,13 +1653,46 @@ impl OcspClient {
 
     /// Extract OCSP responder URL from certificate's Authority Information Access extension
     ///
-    /// Note: This is a placeholder implementation. Full implementation requires
-    /// parsing the AuthorityInfoAccess extension (OID 1.3.6.1.5.5.7.1.1)
-    pub fn extract_ocsp_url(&self, _cert: &X509) -> Result<String> {
-        // TODO: Implement proper AIA extension parsing
-        // For now, return error requiring manual URL configuration
+    /// Parses the AuthorityInfoAccess extension (OID 1.3.6.1.5.5.7.1.1)
+    /// to find the OCSP responder URL
+    pub fn extract_ocsp_url(&self, cert: &X509) -> Result<String> {
+        use x509_parser::prelude::*;
+
+        // Convert OpenSSL X509 to DER bytes
+        let der = cert.to_der()?;
+
+        // Parse with x509-parser
+        let (_, x509_cert) = X509Certificate::from_der(&der)
+            .map_err(|e| anyhow!("Failed to parse certificate: {}", e))?;
+
+        // Look for Authority Information Access extension (OID 1.3.6.1.5.5.7.1.1)
+        for ext in x509_cert.extensions() {
+            if ext.oid == x509_parser::oid_registry::OID_PKIX_AUTHORITY_INFO_ACCESS {
+                // Parse extension value for OCSP URL
+                let data = ext.value;
+                let data_str = String::from_utf8_lossy(data);
+
+                // Look for HTTP URLs containing "ocsp"
+                for part in data_str.split(&['\0', '\r', '\n', ' '][..]) {
+                    let trimmed = part.trim();
+                    if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+                        && trimmed.to_lowercase().contains("ocsp")
+                    {
+                        if trimmed.len() < 512
+                            && trimmed
+                                .chars()
+                                .all(|c| c.is_ascii() && !c.is_control() || c == '/')
+                        {
+                            tracing::debug!("Found OCSP URL in AIA extension: {}", trimmed);
+                            return Ok(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
         Err(anyhow!(
-            "OCSP URL extraction not yet implemented. Please configure OCSP responder URL manually."
+            "No OCSP URL found in Authority Information Access extension"
         ))
     }
 

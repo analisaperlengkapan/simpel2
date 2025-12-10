@@ -253,16 +253,17 @@ pub fn FocusTrap(
 
     // Setup focus trap when active
     Effect::new(move |_| {
-        if active.get() {
-            if let Some(container) = container_ref.get() {
-                // Focus first focusable element
-                if let Ok(focusable) = container.query_selector(
-                    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-                ) {
-                    if let Some(element) = focusable {
-                        let _ = element.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
-                    }
-                }
+        if active.get()
+            && let Some(container) = container_ref.get()
+        {
+            // Focus first focusable element
+            if let Ok(focusable) = container.query_selector(
+                "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
+            ) && let Some(element) = focusable
+            {
+                let _ = element
+                    .dyn_ref::<web_sys::HtmlElement>()
+                    .map(|el| el.focus());
             }
         }
     });

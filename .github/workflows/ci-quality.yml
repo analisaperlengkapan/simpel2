@@ -25,13 +25,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -75,7 +79,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: rust-docs
           path: target/doc/
@@ -106,11 +110,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 56432:5432
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -118,6 +122,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: llvm-tools-preview
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -136,7 +144,7 @@ jobs:
 
       - name: Setup database connection
         run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:coverage_test_2024@localhost:5432/simpelv2_coverage" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage" >> $GITHUB_ENV
 
       - name: Generate coverage report
         run: |
@@ -146,7 +154,7 @@ jobs:
             --output-path lcov.info \
             --verbose
         env:
-          DATABASE_URL: postgres://simpelv2_test:coverage_test_2024@localhost:5432/simpelv2_coverage
+          DATABASE_URL: postgres://simpelv2_test:coverage_test_2024@localhost:56432/simpelv2_coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -177,7 +185,7 @@ jobs:
           echo "Coverage file size: $(echo "scale=2; $COVERAGE_SIZE / 1024" | bc)KB" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: lcov.info
@@ -189,7 +197,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -228,7 +236,7 @@ jobs:
           fail-on-alert: false
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-results
           path: benchmark-output.txt
@@ -239,7 +247,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -278,7 +286,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install tokei
         run: |
@@ -307,7 +315,7 @@ jobs:
           find infra -name "Cargo.toml" | wc -l | xargs echo "Total infra components:" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload metrics
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: code-metrics
           path: metrics.json

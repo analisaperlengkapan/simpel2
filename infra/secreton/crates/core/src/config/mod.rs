@@ -223,11 +223,17 @@ use config;
 use serde::Deserialize;
 use std::path::Path;
 
+pub mod application;
+pub mod bootstrap;
 pub mod dynamic;
 pub mod mfa_policy_loader;
+pub mod migrate;
 
+pub use application::*;
+pub use bootstrap::*;
 pub use dynamic::*;
 pub use mfa_policy_loader::*;
+pub use migrate::*;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ServerConfig {

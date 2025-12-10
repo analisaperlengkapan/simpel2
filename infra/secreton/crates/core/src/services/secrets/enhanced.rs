@@ -203,8 +203,7 @@ impl EnhancedSecretEngine {
         };
 
         // Convert Secret to VaultEntry for storage
-        let encrypted_data =
-            serde_json::to_vec(&secret.data).map_err(|e| CoreError::Serialization(e))?;
+        let encrypted_data = serde_json::to_vec(&secret.data).map_err(CoreError::Serialization)?;
 
         let encryption_metadata = serde_json::json!({
             "algorithm": format!("{:?}", secret.data.encryption_algorithm),
@@ -279,7 +278,7 @@ impl EnhancedSecretEngine {
 
         // Convert VaultEntry to Secret
         let data: EncryptedValue = serde_json::from_slice(&vault_entry.encrypted_data)
-            .map_err(|e| CoreError::Serialization(e))?;
+            .map_err(CoreError::Serialization)?;
 
         // Map SecurityLevel back
         let security_level = match vault_entry.security_level {

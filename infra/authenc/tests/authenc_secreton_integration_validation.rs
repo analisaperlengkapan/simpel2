@@ -420,7 +420,7 @@ mod resilience_validation {
         // Verify connection pool statistics
         let pool_stats = get_connection_pool_stats(&secreton_client);
         assert!(pool_stats.active_connections <= pool_stats.max_connections);
-        assert!(pool_stats.idle_connections >= 0);
+        assert!((pool_stats.idle_connections as isize) >= 0);
     }
 
     #[tokio::test]
@@ -448,7 +448,7 @@ mod resilience_validation {
         // Verify retry attempts were made
         let retry_stats = get_retry_stats(&secreton_client);
         assert!(retry_stats.total_attempts > 0);
-        assert!(retry_stats.retry_attempts >= 0);
+        assert!((retry_stats.retry_attempts as isize) >= 0);
     }
 }
 

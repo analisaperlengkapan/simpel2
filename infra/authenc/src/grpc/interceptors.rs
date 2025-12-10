@@ -3,9 +3,11 @@
 //! This module provides middleware interceptors that can be applied to gRPC services
 //! to add cross-cutting concerns like authentication, request logging, and metrics collection.
 
-use std::time::Instant;
+use dashmap::DashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tonic::{Request, Status};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// Authentication interceptor
 /// Validates JWT tokens from request metadata and injects user context
@@ -199,16 +201,31 @@ impl tonic::service::Interceptor for MetricsInterceptor {
 
 /// Rate limiting interceptor
 /// Applies rate limiting based on client IP or user ID to prevent abuse.
+/// Uses a sliding window algorithm with per-client quota tracking.
+#[derive(Clone)]
+struct RateLimitEntry {
+    count: u32,
+    window_start: Instant,
+}
+
 #[derive(Clone)]
 pub struct RateLimitInterceptor {
     /// Requests per minute limit
     pub limit: u32,
+    /// Window duration (default: 1 minute)
+    window_duration: Duration,
+    /// Per-client rate limit entries
+    entries: Arc<DashMap<String, RateLimitEntry>>,
 }
 
 impl RateLimitInterceptor {
     /// Create a new rate limiting interceptor
     pub fn new(limit: u32) -> Self {
-        Self { limit }
+        Self {
+            limit,
+            window_duration: Duration::from_secs(60), // 1 minute window
+            entries: Arc::new(DashMap::new()),
+        }
     }
 
     /// Extract client identifier for rate limiting
@@ -224,16 +241,59 @@ impl RateLimitInterceptor {
             .map(|s| s.split(',').next().unwrap_or("").trim().to_string())
             .unwrap_or_else(|| "unknown".to_string())
     }
+
+    /// Check if request is within rate limit
+    fn check_rate_limit(&self, client_id: &str) -> bool {
+        let now = Instant::now();
+
+        // Get or create entry for this client
+        let mut entry = self
+            .entries
+            .entry(client_id.to_string())
+            .or_insert(RateLimitEntry {
+                count: 0,
+                window_start: now,
+            });
+
+        // Check if window has expired and reset if needed
+        if now.duration_since(entry.window_start) >= self.window_duration {
+            entry.count = 0;
+            entry.window_start = now;
+        }
+
+        // Check if client has exceeded limit
+        if entry.count >= self.limit {
+            return false; // Rate limit exceeded
+        }
+
+        // Increment counter
+        entry.count += 1;
+        true
+    }
 }
 
 impl tonic::service::Interceptor for RateLimitInterceptor {
     fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
         let client_id = self.extract_client_id(&request);
 
-        // TODO: Implement actual rate limiting logic
-        // This will be implemented in task 7.4 (adaptive rate limiting)
-        // For now, just pass th
-        debug!(client_id = %client_id, limit = %self.limit, "Rate limit check");
+        // Check rate limit
+        if !self.check_rate_limit(&client_id) {
+            warn!(
+                client_id = %client_id,
+                limit = %self.limit,
+                "Rate limit exceeded"
+            );
+            return Err(Status::resource_exhausted(format!(
+                "Rate limit exceeded: {} requests per minute. Please try again later.",
+                self.limit
+            )));
+        }
+
+        debug!(
+            client_id = %client_id,
+            limit = %self.limit,
+            "Rate limit check passed"
+        );
 
         Ok(request)
     }
@@ -243,6 +303,7 @@ impl tonic::service::Interceptor for RateLimitInterceptor {
 mod tests {
     use super::*;
     use tonic::metadata::MetadataValue;
+    use tonic::service::Interceptor;
 
     #[test]
     fn test_auth_interceptor_exempt_methods() {
@@ -276,5 +337,112 @@ mod tests {
 
         let method = interceptor.extract_method_name("/grpc.health.v1.Health/Check");
         assert_eq!(method, "Check");
+    }
+
+    #[test]
+    fn test_rate_limit_allows_requests_under_limit() {
+        let mut interceptor = RateLimitInterceptor::new(10);
+
+        // Make 10 requests from same client - all should pass
+        for i in 0..10 {
+            let mut request = Request::new(());
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
+
+            let result = interceptor.call(request);
+            assert!(
+                result.is_ok(),
+                "Request {} should pass (under limit of 10)",
+                i + 1
+            );
+        }
+    }
+
+    #[test]
+    fn test_rate_limit_blocks_requests_over_limit() {
+        let mut interceptor = RateLimitInterceptor::new(5);
+
+        // Make 6 requests from same client
+        for i in 0..6 {
+            let mut request = Request::new(());
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
+
+            let result = interceptor.call(request);
+
+            if i < 5 {
+                assert!(
+                    result.is_ok(),
+                    "Request {} should pass (under limit of 5)",
+                    i + 1
+                );
+            } else {
+                assert!(result.is_err(), "Request 6 should be blocked (over limit)");
+                if let Err(status) = result {
+                    assert_eq!(status.code(), tonic::Code::ResourceExhausted);
+                    assert!(status.message().contains("Rate limit exceeded"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rate_limit_per_client_isolation() {
+        let mut interceptor = RateLimitInterceptor::new(3);
+
+        // Client A: 3 requests (all should pass)
+        for i in 0..3 {
+            let mut request = Request::new(());
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
+            let result = interceptor.call(request);
+            assert!(result.is_ok(), "Client A request {} should pass", i + 1);
+        }
+
+        // Client A: 4th request (should be blocked)
+        let mut request = Request::new(());
+        request
+            .metadata_mut()
+            .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
+        assert!(
+            interceptor.call(request).is_err(),
+            "Client A 4th request should be blocked"
+        );
+
+        // Client B: 3 requests (all should pass - independent quota)
+        for i in 0..3 {
+            let mut request = Request::new(());
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.2"));
+            let result = interceptor.call(request);
+            assert!(
+                result.is_ok(),
+                "Client B request {} should pass (independent quota)",
+                i + 1
+            );
+        }
+    }
+
+    #[test]
+    fn test_rate_limit_extract_client_id() {
+        let interceptor = RateLimitInterceptor::new(100);
+
+        // Test with x-forwarded-for
+        let mut request = Request::new(());
+        request.metadata_mut().insert(
+            "x-forwarded-for",
+            MetadataValue::from_static("203.0.113.42, 198.51.100.17"),
+        );
+        let client_id = interceptor.extract_client_id(&request);
+        assert_eq!(client_id, "203.0.113.42");
+
+        // Test without header (fallback to "unknown")
+        let request2 = Request::new(());
+        let client_id2 = interceptor.extract_client_id(&request2);
+        assert_eq!(client_id2, "unknown");
     }
 }

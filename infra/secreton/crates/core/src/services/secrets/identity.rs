@@ -430,7 +430,7 @@ impl IdentityEngine {
         Ok(UserInfo {
             sub: entity.id.clone(),
             name: Some(entity.name.clone()),
-            email: entity.metadata.get("email").map(|v| v.clone()),
+            email: entity.metadata.get("email").cloned(),
             email_verified: Some(true),
             groups: Some(groups),
             metadata: entity
@@ -515,7 +515,7 @@ impl IdentityEngine {
             iat: Utc::now().timestamp(),
             nonce: None,
             auth_time: Some(Utc::now().timestamp()),
-            email: entity.metadata.get("email").map(|v| v.clone()),
+            email: entity.metadata.get("email").cloned(),
             email_verified: Some(true),
             name: Some(entity.name.clone()),
             groups: Some(self.get_entity_groups(&entity.id).await),

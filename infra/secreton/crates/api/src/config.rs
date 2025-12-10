@@ -1355,6 +1355,7 @@ mod tests {
                         rp_id: "vault.example.com".to_string(),
                         origin: "https://vault.example.com".to_string(),
                     }),
+                    ..Default::default()
                 },
             },
             rate_limit: RateLimitConfig {
@@ -1414,6 +1415,8 @@ mod tests {
                 file: None,
                 rotation: None,
             },
+            hsm: HsmConfig::default(),
+            database: DatabaseConfig::default(),
         }
     }
 

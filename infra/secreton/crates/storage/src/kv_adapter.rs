@@ -17,7 +17,7 @@ use uuid::Uuid;
 /// and the full-featured StorageBackend trait that Secreton expects.
 pub struct KvBackendAdapter<B: KvBackend> {
     inner: B,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Metrics tracked internally
     metrics: Arc<RwLock<BackendMetrics>>,
 }
 
@@ -168,7 +168,6 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 mod tests {
     use super::*;
     use crate::backends::{FileBackend, FileConfig};
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -177,7 +176,7 @@ mod tests {
         let config = FileConfig {
             path: temp_dir.path().to_path_buf(),
             sync_writes: false,
-            file_permissions: 0o600,
+            permissions: 0o600,
             dir_permissions: 0o700,
         };
 
@@ -186,15 +185,16 @@ mod tests {
 
         // Test put/get
         adapter
-            .put("test_key", b"test_value".to_vec())
+            .inner()
+            .put("test_key", b"test_value")
             .await
             .unwrap();
-        let result = adapter.get("test_key").await.unwrap();
+        let result = adapter.inner().get("test_key").await.unwrap();
         assert_eq!(result, Some(b"test_value".to_vec()));
 
         // Test delete
-        adapter.delete("test_key").await.unwrap();
-        let result = adapter.get("test_key").await.unwrap();
+        adapter.inner().delete("test_key").await.unwrap();
+        let result = adapter.inner().get("test_key").await.unwrap();
         assert_eq!(result, None);
     }
 
@@ -204,24 +204,31 @@ mod tests {
         let config = FileConfig {
             path: temp_dir.path().to_path_buf(),
             sync_writes: false,
-            file_permissions: 0o600,
+            permissions: 0o600,
             dir_permissions: 0o700,
         };
 
         let file_backend = FileBackend::new(config).await.unwrap();
         let adapter = KvBackendAdapter::new(file_backend);
 
-        // Test store/get via StorageBackend trait
-        let entry = VaultEntry::new(
-            "test/entry".to_string(),
-            b"entry_data".to_vec(),
-            serde_json::json!({}),
-            SecurityLevel::Medium,
-            "test_user".to_string(),
-        );
+        // Test put_entry/get_entry
+        let entry = VaultEntry {
+            id: uuid::Uuid::new_v4(),
+            path: "test_entry".to_string(),
+            encrypted_data: b"entry_data".to_vec(),
+            encryption_metadata: serde_json::json!({}),
+            security_level: crate::SecurityLevel::Internal,
+            metadata: Default::default(),
+            tags: vec![],
+            version: 1,
+            owner_id: "test".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            expires_at: None,
+        };
 
-        adapter.store(entry.clone()).await.unwrap();
-        let result: Option<VaultEntry> = adapter.get(&entry.path).await.unwrap();
+        adapter.store(&entry).await.unwrap();
+        let result = adapter.get_by_path("test_entry").await.unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap().encrypted_data, b"entry_data".to_vec());
     }

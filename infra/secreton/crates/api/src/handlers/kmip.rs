@@ -3,7 +3,6 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -11,9 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
-use secreton_core::services::secrets::kmip::{
-    KmipError, KmipKeyObject, KmipOperation, KmipRole, KmipServerConfig,
-};
+use secreton_core::services::secrets::kmip::{KmipKeyObject, KmipRole, KmipServerConfig};
 
 use super::AppState;
 

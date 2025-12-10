@@ -89,14 +89,24 @@ pub struct TlsMetricsResponse {
 
 /// Create the main API router combining all endpoints
 pub fn create_api_router(state: ApiState) -> Router {
+    // Legacy v1 routers (transit, kv, pki)
+    let v1_legacy = Router::new()
+        .nest("/transit", create_transit_router(state.transit))
+        .nest("/kv", create_kv_router(state.kv))
+        .nest("/pki", create_pki_router(state.pki));
+
+    // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)
+    let v1_handlers = handlers::create_router(
+        &config::ApiConfig::load().unwrap_or_default(),
+        state.services.clone(),
+    );
+
     Router::new()
         .route("/health", get(health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
-        .nest("/v1/transit", create_transit_router(state.transit))
-        .nest("/v1/secret", create_kv_router(state.kv))
-        .nest("/v1/pki", create_pki_router(state.pki))
+        .nest("/v1", v1_legacy.merge(v1_handlers))
 }
 
 #[derive(Serialize, Deserialize)]

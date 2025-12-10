@@ -3,6 +3,8 @@
 //! Implements the SecretonService gRPC interface defined in secreton.proto
 
 use async_trait::async_trait;
+#[cfg(feature = "metrics")]
+use metrics::{counter, gauge};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tonic::{Request, Response, Status, transport::Server};
@@ -609,13 +611,9 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_cluster_status_requests").increment(1);
-                metrics::gauge!("secreton_raft_current_term").set(status.current_term as f64);
-                metrics::gauge!("secreton_raft_is_leader").set(if status.is_leader {
-                    1.0
-                } else {
-                    0.0
-                });
+                counter!("secreton_grpc_cluster_status_requests").increment(1);
+                gauge!("secreton_raft_current_term").set(status.current_term as f64);
+                gauge!("secreton_raft_is_leader").set(if status.is_leader { 1.0 } else { 0.0 });
             }
 
             let response = ClusterStatusResponse {
@@ -663,7 +661,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             })?;
 
             // Build peer list
-            let peers = status
+            let peers: Vec<PeerInfo> = status
                 .membership
                 .iter()
                 .map(|&node_id| {
@@ -710,7 +708,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_list_peers_requests").increment(1);
+                counter!("secreton_grpc_list_peers_requests").increment(1);
             }
 
             let response = ListPeersResponse { peers, total };
@@ -764,8 +762,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_add_node_requests").increment(1);
-                metrics::counter!("secreton_raft_peers_added").increment(1);
+                counter!("secreton_grpc_add_node_requests").increment(1);
+                counter!("secreton_raft_peers_added").increment(1);
             }
 
             let response = AddNodeResponse {
@@ -831,8 +829,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_remove_node_requests").increment(1);
-                metrics::counter!("secreton_raft_peers_removed").increment(1);
+                counter!("secreton_grpc_remove_node_requests").increment(1);
+                counter!("secreton_raft_peers_removed").increment(1);
             }
 
             let response = RemoveNodeResponse {
@@ -1645,9 +1643,9 @@ impl SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_create_snapshot_requests").increment(1);
-                metrics::counter!("secreton_raft_snapshots_created").increment(1);
-                metrics::gauge!("secreton_raft_snapshot_size_bytes").set(original_size as f64);
+                counter!("secreton_grpc_create_snapshot_requests").increment(1);
+                counter!("secreton_raft_snapshots_created").increment(1);
+                gauge!("secreton_raft_snapshot_size_bytes").set(original_size as f64);
             }
 
             let response = CreateSnapshotResponse {
@@ -1694,7 +1692,7 @@ impl SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_list_snapshots_requests").increment(1);
+                counter!("secreton_grpc_list_snapshots_requests").increment(1);
             }
 
             let response = ListSnapshotsResponse {
@@ -1708,10 +1706,10 @@ impl SecretonGrpcService {
     }
 
     #[allow(dead_code)]
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn restore_snapshot(
         &self,
-        _request: Request<RestoreSnapshotRequest>,
+        request: Request<RestoreSnapshotRequest>,
     ) -> Result<Response<RestoreSnapshotResponse>, Status> {
         #[cfg(not(feature = "raft-consensus"))]
         {
@@ -1756,8 +1754,8 @@ impl SecretonGrpcService {
             // Record metrics (only if metrics feature is enabled)
             #[cfg(feature = "metrics")]
             {
-                metrics::counter!("secreton_grpc_restore_snapshot_requests").increment(1);
-                metrics::counter!("secreton_raft_restores_attempted").increment(1);
+                counter!("secreton_grpc_restore_snapshot_requests").increment(1);
+                counter!("secreton_raft_restores_attempted").increment(1);
             }
 
             warn!("Snapshot restore not yet fully implemented");

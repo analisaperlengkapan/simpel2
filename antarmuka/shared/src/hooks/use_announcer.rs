@@ -127,7 +127,7 @@ pub fn use_route_announcer() {
             .next()
             .unwrap_or("home");
 
-        let formatted_name = page_name.replace('-', " ").replace('_', " ");
+        let formatted_name = page_name.replace(['-', '_'], " ");
 
         announcer.announce_polite(format!("Navigated to {} page", formatted_name));
     });

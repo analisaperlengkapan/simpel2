@@ -34,9 +34,8 @@ pub async fn generate_aws_credential(role: &str) -> Result<AwsCredential, String
 /// Revoke AWS credential
 /// NOTE: This is a legacy interface. Use AwsEngine.revoke_credentials() instead.
 pub async fn revoke_aws_credential(username: &str) -> Result<(), String> {
-    Err(format!(
-        "Legacy AWS credential revocation is deprecated. \
+    Err("Legacy AWS credential revocation is deprecated. \
         Credentials are automatically revoked when their lease expires. \
         Use lease management API to revoke: DELETE /v1/sys/leases/revoke/:lease_id"
-    ))
+        .to_string())
 }

@@ -570,9 +570,14 @@ impl ErrorRecovery {
 
         // If we get here, all retries failed
         if let Some(error) = last_error {
+            // Non-recoverable errors should fail immediately without invoking fallback
+            if !error.is_recoverable() {
+                return RecoveryResult::Failed(error);
+            }
+
             match error.recovery_strategy() {
                 RecoveryStrategy::Fallback { .. } => {
-                    // Attempt fallback mechanism
+                    // Attempt fallback mechanism (handled by caller)
                     RecoveryResult::RequiresIntervention(error)
                 }
                 RecoveryStrategy::ManualIntervention { .. } => {

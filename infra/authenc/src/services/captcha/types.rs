@@ -2,6 +2,7 @@
 //!
 //! Core types and traits for CAPTCHA service implementation
 
+use super::secreton_integration::EncryptedChallengeData;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -56,7 +57,7 @@ pub struct Challenge {
     pub challenge_type: ChallengeType,
     /// Difficulty level (1-10)
     pub difficulty_level: u8,
-    /// Encrypted challenge data
+    /// Challenge data (legacy field for backward compatibility)
     pub encrypted_data: String,
     /// Hash of the expected answer
     pub expected_answer_hash: String,
@@ -68,6 +69,12 @@ pub struct Challenge {
     pub session_id: Option<String>,
     /// IP address of the client
     pub ip_address: String,
+    /// Encrypted challenge data with metadata (if encryption enabled)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encrypted_challenge_data: Option<EncryptedChallengeData>,
+    /// Flag indicating if challenge is encrypted
+    #[serde(default)]
+    pub is_encrypted: bool,
 }
 
 impl Challenge {
@@ -93,7 +100,21 @@ impl Challenge {
             expires_at,
             session_id,
             ip_address,
+            encrypted_challenge_data: None,
+            is_encrypted: false,
         }
+    }
+
+    /// Set encrypted challenge data with metadata
+    pub fn with_encrypted_data(mut self, encrypted_data: Option<EncryptedChallengeData>) -> Self {
+        self.encrypted_challenge_data = encrypted_data;
+        self
+    }
+
+    /// Set encryption flag
+    pub fn with_encryption_flag(mut self, is_encrypted: bool) -> Self {
+        self.is_encrypted = is_encrypted;
+        self
     }
 
     /// Check if the challenge has expired

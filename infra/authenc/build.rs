@@ -13,6 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_files = vec![
         proto_dir.join("authenc.proto"),
         proto_dir.join("common.proto"),
+        proto_dir.join("secreton.proto"), // For Secreton client
     ];
 
     // Configure tonic-build
@@ -31,6 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Tell Cargo to rerun this build script if proto files change
     println!("cargo:rerun-if-changed=../proto/authenc.proto");
     println!("cargo:rerun-if-changed=../proto/common.proto");
+    println!("cargo:rerun-if-changed=../proto/secreton.proto");
 
     Ok(())
 }

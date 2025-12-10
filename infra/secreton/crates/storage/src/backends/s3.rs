@@ -112,9 +112,9 @@ impl S3Backend {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .build()
-            .map_err(|e| StorageError::ConnectionError {
-                backend: "s3".to_string(),
-                message: format!("Failed to create HTTP client: {}", e),
+            .map_err(|e| StorageError::ConnectionFailed {
+                message: format!("S3: Failed to create HTTP client: {}", e),
+                source: None,
             })?;
 
         let backend = Self {

@@ -36,13 +36,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -83,17 +87,21 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          - 55432:5432
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -109,12 +117,12 @@ jobs:
 
       - name: Setup database connection
         run: |
-          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:5432/simpelv2_test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test" >> $GITHUB_ENV
 
       - name: Run workspace tests
         run: cargo test --workspace --all-targets --verbose
         env:
-          DATABASE_URL: postgres://simpelv2_test:test_password_secure_2024@localhost:5432/simpelv2_test
+          DATABASE_URL: postgres://simpelv2_test:test_password_secure_2024@localhost:55432/simpelv2_test
 
       - name: Test authenc (separate workspace)
         working-directory: infra/authenc
@@ -131,7 +139,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -139,6 +147,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: clippy
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -168,7 +180,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -176,6 +188,10 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Check formatting (workspace)
         run: cargo fmt --all --check
 
@@ -194,13 +210,17 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:

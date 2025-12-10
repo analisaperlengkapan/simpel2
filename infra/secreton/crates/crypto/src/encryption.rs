@@ -4,7 +4,9 @@ use crate::{AlgorithmId, CryptoError, CryptoResult, generate_random_bytes};
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use chacha20poly1305::ChaCha20Poly1305;
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
 use serde::{Deserialize, Serialize};
+use std::sync::RwLock;
 
 /// Encrypted data container
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +42,7 @@ impl SymmetricCipher for Aes256GcmCipher {
 
         // Generate random nonce
         let nonce_bytes = generate_random_bytes(12)?;
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes[..12]);
 
         let ciphertext = cipher.encrypt(nonce, plaintext).map_err(|e| {
             CryptoError::EncryptionFailed(format!("AES-GCM encryption failed: {}", e))
@@ -70,7 +72,7 @@ impl SymmetricCipher for Aes256GcmCipher {
             expected: 32,
             actual: key.len(),
         })?;
-        let nonce = Nonce::from_slice(&encrypted.nonce);
+        let nonce = Nonce::from_slice(&encrypted.nonce[..12]);
 
         cipher
             .decrypt(nonce, encrypted.ciphertext.as_ref())
@@ -98,7 +100,7 @@ impl SymmetricCipher for ChaCha20Poly1305Cipher {
 
         // Generate random nonce
         let nonce_bytes = generate_random_bytes(12)?;
-        let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes);
+        let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes[..12]);
 
         let ciphertext = cipher.encrypt(nonce, plaintext).map_err(|e| {
             CryptoError::EncryptionFailed(format!("ChaCha20-Poly1305 encryption failed: {}", e))
@@ -129,7 +131,7 @@ impl SymmetricCipher for ChaCha20Poly1305Cipher {
                 expected: 32,
                 actual: key.len(),
             })?;
-        let nonce = chacha20poly1305::Nonce::from_slice(&encrypted.nonce);
+        let nonce = chacha20poly1305::Nonce::from_slice(&encrypted.nonce[..12]);
 
         cipher
             .decrypt(nonce, encrypted.ciphertext.as_ref())
@@ -139,8 +141,11 @@ impl SymmetricCipher for ChaCha20Poly1305Cipher {
     }
 }
 
-/// Unified encryption interface
-pub struct CryptoEngine;
+/// Unified encryption interface with optional signing capability
+pub struct CryptoEngine {
+    /// Ed25519 signing key (generated lazily on first use)
+    signing_key: RwLock<Option<SigningKey>>,
+}
 
 impl Default for CryptoEngine {
     fn default() -> Self {
@@ -150,7 +155,36 @@ impl Default for CryptoEngine {
 
 impl CryptoEngine {
     pub fn new() -> Self {
-        Self
+        Self {
+            signing_key: RwLock::new(None),
+        }
+    }
+
+    /// Initialize or get the signing key
+    fn get_or_create_signing_key(&self) -> CryptoResult<SigningKey> {
+        // Try to read existing key
+        {
+            let read_guard = self.signing_key.read().map_err(|_| {
+                CryptoError::Internal("Failed to acquire signing key lock".to_string())
+            })?;
+            if let Some(key) = read_guard.as_ref() {
+                return Ok(key.clone());
+            }
+        }
+        // Generate new key
+        let mut write_guard = self
+            .signing_key
+            .write()
+            .map_err(|_| CryptoError::Internal("Failed to acquire signing key lock".to_string()))?;
+        if let Some(key) = write_guard.as_ref() {
+            return Ok(key.clone());
+        }
+        let key_bytes = generate_random_bytes(32)?;
+        let mut key_array = [0u8; 32];
+        key_array.copy_from_slice(&key_bytes);
+        let key = SigningKey::from_bytes(&key_array);
+        *write_guard = Some(key.clone());
+        Ok(key)
     }
 
     pub fn encrypt(
@@ -189,6 +223,78 @@ impl CryptoEngine {
                 "Unsupported decryption algorithm: {}",
                 encrypted.algorithm
             ))),
+        }
+    }
+
+    /// Encrypt data using a self-managed ephemeral key
+    /// Returns (encrypted_data, key) - key must be stored securely for decryption
+    /// This is a convenience method for simple encryption scenarios
+    pub fn encrypt_with_new_key(&self, plaintext: &[u8]) -> CryptoResult<(EncryptedData, Vec<u8>)> {
+        let key = crate::generate_key(AlgorithmId::ChaCha20Poly1305)?;
+        let encrypted = self.encrypt(AlgorithmId::ChaCha20Poly1305, plaintext, &key)?;
+        Ok((encrypted, key))
+    }
+
+    /// Simple encrypt method for backward compatibility
+    /// Generates an ephemeral key and includes it encrypted with the ciphertext
+    /// WARNING: This is less secure than proper key management - use for non-sensitive data only
+    pub fn encrypt_simple(&self, plaintext: &[u8]) -> CryptoResult<Vec<u8>> {
+        let (encrypted, key) = self.encrypt_with_new_key(plaintext)?;
+        // Serialize encrypted data with key prefix (simple format for internal use)
+        let mut result =
+            Vec::with_capacity(32 + encrypted.nonce.len() + encrypted.ciphertext.len());
+        result.extend_from_slice(&key); // 32 bytes for ChaCha20
+        result.extend_from_slice(&encrypted.nonce);
+        result.extend_from_slice(&encrypted.ciphertext);
+        Ok(result)
+    }
+
+    /// Simple decrypt for data encrypted with encrypt_simple
+    pub fn decrypt_simple(&self, data: &[u8]) -> CryptoResult<Vec<u8>> {
+        if data.len() < 44 {
+            // 32 (key) + 12 (nonce) minimum
+            return Err(CryptoError::DecryptionFailed(
+                "Data too short for decrypt_simple".to_string(),
+            ));
+        }
+        let key = &data[..32];
+        let nonce = data[32..44].to_vec();
+        let ciphertext = data[44..].to_vec();
+        let encrypted = EncryptedData {
+            algorithm: AlgorithmId::ChaCha20Poly1305,
+            nonce,
+            ciphertext,
+            tag: None,
+        };
+        self.decrypt(&encrypted, key)
+    }
+
+    /// Sign data using Ed25519
+    /// Returns the 64-byte signature
+    pub fn sign(&self, message: &[u8]) -> CryptoResult<Vec<u8>> {
+        let signing_key = self.get_or_create_signing_key()?;
+        let signature = signing_key.sign(message);
+        Ok(signature.to_bytes().to_vec())
+    }
+
+    /// Verify an Ed25519 signature
+    pub fn verify(&self, message: &[u8], signature: &[u8]) -> CryptoResult<bool> {
+        let signing_key = self.get_or_create_signing_key()?;
+        let verifying_key = signing_key.verifying_key();
+
+        if signature.len() != 64 {
+            return Err(CryptoError::VerificationFailed(
+                "Invalid signature length: expected 64 bytes".to_string(),
+            ));
+        }
+
+        let mut sig_bytes = [0u8; 64];
+        sig_bytes.copy_from_slice(signature);
+        let sig = Signature::from_bytes(&sig_bytes);
+
+        match verifying_key.verify(message, &sig) {
+            Ok(()) => Ok(true),
+            Err(_) => Ok(false),
         }
     }
 }

@@ -88,10 +88,10 @@ impl FocusManager {
 
     /// Focus the first focusable element in a container
     pub fn focus_first(&self, container: &web_sys::Element) {
-        if let Ok(Some(element)) = container.query_selector(FOCUSABLE_SELECTOR) {
-            if let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>() {
-                let _ = html_element.focus();
-            }
+        if let Ok(Some(element)) = container.query_selector(FOCUSABLE_SELECTOR)
+            && let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>()
+        {
+            let _ = html_element.focus();
         }
     }
 
@@ -251,10 +251,9 @@ where
                     if let Some(active) = web_sys::window()
                         .and_then(|w| w.document())
                         .and_then(|d| d.active_element())
+                        && let Some(index) = elements.iter().position(|el| el == &active)
                     {
-                        if let Some(index) = elements.iter().position(|el| el == &active) {
-                            on_select(index);
-                        }
+                        on_select(index);
                     }
                 }
                 _ => {}
@@ -318,11 +317,10 @@ pub fn setup_global_shortcuts() {
         if let Some(main) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("main-content"))
+            && let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>()
         {
-            if let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>() {
-                let _ = html_element.focus();
-                html_element.scroll_into_view();
-            }
+            let _ = html_element.focus();
+            html_element.scroll_into_view();
         }
     });
 
@@ -332,10 +330,9 @@ pub fn setup_global_shortcuts() {
         if let Some(search) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("global-search"))
+            && let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>()
         {
-            if let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>() {
-                let _ = html_element.focus();
-            }
+            let _ = html_element.focus();
         }
     });
 

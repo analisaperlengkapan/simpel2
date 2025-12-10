@@ -6,11 +6,14 @@
 use chrono::{DateTime, Duration, Utc};
 use rand::Rng;
 use rand::rngs::OsRng;
+use rustls::{ClientConfig, RootCertStore};
+use rustls_native_certs::load_native_certs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_postgres::{Client as PgClient, NoTls};
+use tokio_postgres_rustls::MakeRustlsConnect;
 use uuid::Uuid;
 
 /// Error types for database secrets engine
@@ -246,34 +249,56 @@ impl DatabaseSecretsEngine {
 
         match config.db_type {
             DatabaseType::PostgreSQL => {
-                // Test PostgreSQL connection
-                let (client, connection) = tokio_postgres::connect(&config.connection_url, NoTls)
-                    .await
-                    .map_err(|e| {
-                        DatabaseError::ConnectionError(format!(
-                            "PostgreSQL connection failed: {}",
-                            e
-                        ))
-                    })?;
+                let tls_mode =
+                    std::env::var("SECRETON_DB_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
 
-                // Spawn connection handler
-                tokio::spawn(async move {
-                    if let Err(e) = connection.await {
-                        eprintln!("PostgreSQL connection error: {}", e);
+                let client = if tls_mode.eq_ignore_ascii_case("disable") {
+                    let (client, connection) =
+                        tokio_postgres::connect(&config.connection_url, NoTls)
+                            .await
+                            .map_err(|e| {
+                                DatabaseError::ConnectionError(format!(
+                                    "PostgreSQL connection failed: {}",
+                                    e
+                                ))
+                            })?;
+
+                    tokio::spawn(async move {
+                        if let Err(e) = connection.await {
+                            eprintln!("PostgreSQL connection error: {}", e);
+                        }
+                    });
+
+                    client
+                } else {
+                    let mut root_store = RootCertStore::empty();
+                    let certs = load_native_certs();
+                    for cert in certs.certs {
+                        let _ = root_store.add(cert);
                     }
-                });
 
-                // Test query
-                client.query_one("SELECT 1", &[]).await.map_err(|e| {
-                    DatabaseError::ConnectionError(format!("PostgreSQL test query failed: {}", e))
-                })?;
+                    let tls_config = ClientConfig::builder()
+                        .with_root_certificates(root_store)
+                        .with_no_client_auth();
+                    let tls = MakeRustlsConnect::new(tls_config);
 
-                // Store client for reuse
-                let mut pools = self.db_pools.write().await;
-                pools.insert(
-                    config.name.clone(),
-                    DbPool::PostgreSQL(Arc::new(RwLock::new(Some(client)))),
-                );
+                    let (client, connection) = tokio_postgres::connect(&config.connection_url, tls)
+                        .await
+                        .map_err(|e| {
+                            DatabaseError::ConnectionError(format!(
+                                "PostgreSQL connection failed: {}",
+                                e
+                            ))
+                        })?;
+
+                    tokio::spawn(async move {
+                        if let Err(e) = connection.await {
+                            eprintln!("PostgreSQL connection error: {}", e);
+                        }
+                    });
+
+                    client
+                };
             }
             DatabaseType::MySQL => {
                 // MySQL support to be implemented
@@ -484,21 +509,57 @@ impl DatabaseSecretsEngine {
 
         // Reconnect if needed
         if needs_reconnect {
-            let (new_client, connection_handle) =
-                tokio_postgres::connect(&connection.connection_url, NoTls)
-                    .await
-                    .map_err(|e| {
-                        DatabaseError::ConnectionError(format!(
-                            "PostgreSQL connection failed: {}",
-                            e
-                        ))
-                    })?;
+            let tls_mode =
+                std::env::var("SECRETON_DB_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
 
-            tokio::spawn(async move {
-                if let Err(e) = connection_handle.await {
-                    eprintln!("PostgreSQL connection error: {}", e);
+            let new_client = if tls_mode.eq_ignore_ascii_case("disable") {
+                let (client, connection_handle) =
+                    tokio_postgres::connect(&connection.connection_url, NoTls)
+                        .await
+                        .map_err(|e| {
+                            DatabaseError::ConnectionError(format!(
+                                "PostgreSQL connection failed: {}",
+                                e
+                            ))
+                        })?;
+
+                tokio::spawn(async move {
+                    if let Err(e) = connection_handle.await {
+                        eprintln!("PostgreSQL connection error: {}", e);
+                    }
+                });
+
+                client
+            } else {
+                let mut root_store = RootCertStore::empty();
+                let certs = load_native_certs();
+                for cert in certs.certs {
+                    let _ = root_store.add(cert);
                 }
-            });
+
+                let tls_config = ClientConfig::builder()
+                    .with_root_certificates(root_store)
+                    .with_no_client_auth();
+                let tls = MakeRustlsConnect::new(tls_config);
+
+                let (client, connection_handle) =
+                    tokio_postgres::connect(&connection.connection_url, tls)
+                        .await
+                        .map_err(|e| {
+                            DatabaseError::ConnectionError(format!(
+                                "PostgreSQL connection failed: {}",
+                                e
+                            ))
+                        })?;
+
+                tokio::spawn(async move {
+                    if let Err(e) = connection_handle.await {
+                        eprintln!("PostgreSQL connection error: {}", e);
+                    }
+                });
+
+                client
+            };
 
             let mut pools = self.db_pools.write().await;
             pools.insert(

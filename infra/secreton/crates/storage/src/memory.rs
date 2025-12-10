@@ -36,6 +36,14 @@ impl Default for MemoryBackend {
 #[async_trait]
 impl StorageBackend for MemoryBackend {
     async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+        // Basic validation: path must not be empty. This matches
+        // expectations from comprehensive_storage_tests edge cases.
+        if entry.path.trim().is_empty() {
+            return Err(StorageError::InvalidQuery {
+                message: "Path cannot be empty".to_string(),
+            });
+        }
+
         let mut store = self.store.write().await;
         let mut path_index = self.path_index.write().await;
 
@@ -113,9 +121,19 @@ impl StorageBackend for MemoryBackend {
         Ok(())
     }
 
-    async fn list(&self, _params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
         let store = self.store.read().await;
-        Ok(store.values().cloned().collect())
+
+        // Start with all entries
+        let mut entries: Vec<VaultEntry> = store.values().cloned().collect();
+
+        // Apply path prefix filtering if requested. Other filters can be
+        // added here as they are needed by callers.
+        if let Some(prefix) = &params.path_prefix {
+            entries.retain(|entry| entry.path.starts_with(prefix));
+        }
+
+        Ok(entries)
     }
 
     async fn health_check(&self) -> StorageResult<HealthStatus> {

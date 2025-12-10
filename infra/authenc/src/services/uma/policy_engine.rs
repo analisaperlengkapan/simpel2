@@ -525,19 +525,25 @@ impl PolicyEngine {
         }
     }
 
-    /// Evaluate JavaScript policy
     async fn evaluate_javascript_policy(
         &self,
-        context: &PolicyEvaluationContext,
-        config: &PolicyConfig,
+        _context: &PolicyEvaluationContext,
+        _config: &PolicyConfig,
     ) -> Result<PolicyDecision> {
-        // In production, this would use a JavaScript engine like quickjs or deno_core
-        // For security, JavaScript policies should run in a sandbox
-        // For now, return NotApplicable
+        // SECURITY: JavaScript policies are currently disabled to prevent code injection attacks.
+        // Implementation requires proper sandboxing with:
+        // - Isolated V8/deno_core runtime
+        // - Memory limits (10MB recommended)
+        // - Execution timeout (100ms recommended)
+        // - No access to system resources
+        //
+        // See: https://github.com/denoland/deno_core for sandboxing implementation
+        tracing::error!("Attempted to execute JavaScript policy - currently disabled for security");
 
-        // Placeholder for JavaScript evaluation
-        // TODO: Implement JavaScript policy execution with proper sandboxing
-        Ok(PolicyDecision::NotApplicable)
+        Err(crate::error::AuthencError::ConfigurationError {
+            message: "JavaScript policies require sandboxing implementation and are currently disabled for security. \
+                     Please use Rule-based, Aggregate, Time-based, or Regex policies instead.".to_string()
+        })
     }
 
     /// Evaluate aggregate policy

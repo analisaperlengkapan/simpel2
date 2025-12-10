@@ -102,7 +102,7 @@ pub async fn token_exchange_endpoint(
     info!("Token exchange request received");
 
     // Extract client credentials from Authorization header
-    let client_id = match extract_client_credentials(&headers) {
+    let client_id = match extract_client_credentials(&headers, &state.database).await {
         Ok(id) => id,
         Err(e) => {
             error!("Client authentication failed: {}", e);
@@ -172,7 +172,10 @@ pub async fn token_exchange_endpoint(
 /// Supports:
 /// - HTTP Basic Auth: Authorization: Basic base64(client_id:client_secret)
 /// - Bearer token: Authorization: Bearer <token> (for service accounts)
-fn extract_client_credentials(headers: &HeaderMap) -> Result<String> {
+async fn extract_client_credentials(
+    headers: &HeaderMap,
+    database: &crate::database::Database,
+) -> Result<String> {
     let auth_header = headers
         .get("authorization")
         .and_then(|h| h.to_str().ok())
@@ -200,8 +203,8 @@ fn extract_client_credentials(headers: &HeaderMap) -> Result<String> {
         let client_id = parts[0];
         let client_secret = parts[1];
 
-        // Validate client credentials
-        validate_client_credentials(client_id, client_secret)?;
+        // Validate client credentials against database
+        validate_client_credentials(client_id, client_secret, database).await?;
 
         Ok(client_id.to_string())
     } else if auth_header.starts_with("Bearer ") {
@@ -221,20 +224,70 @@ fn extract_client_credentials(headers: &HeaderMap) -> Result<String> {
     }
 }
 
-/// Validate client credentials
-fn validate_client_credentials(client_id: &str, client_secret: &str) -> Result<()> {
-    // TODO: Implement proper client credential validation against database
-    // For now, perform basic validation
+/// Validate client credentials against database
+async fn validate_client_credentials(
+    client_id: &str,
+    client_secret: &str,
+    database: &crate::database::Database,
+) -> Result<()> {
+    use tracing::warn;
+
+    // Basic input validation
     if client_id.is_empty() || client_secret.is_empty() {
+        warn!("Client authentication failed: empty credentials");
         return Err(AuthencError::unauthorized("Invalid client credentials"));
     }
 
-    // In production, this would:
-    // 1. Look up client in database
-    // 2. Verify client_secret hash
-    // 3. Check if client is enabled
-    // 4. Verify client has token_exchange capability
+    // Look up client in database
+    let client = crate::database::operations::oauth2::get_client_by_id(database, client_id)
+        .await?
+        .ok_or_else(|| {
+            warn!(
+                "Client authentication failed: client not found: {}",
+                client_id
+            );
+            AuthencError::unauthorized("Invalid client credentials")
+        })?;
 
+    // Check if client is enabled
+    if !client.enabled {
+        warn!(
+            "Client authentication failed: client disabled: {}",
+            client_id
+        );
+        return Err(AuthencError::forbidden("Client is disabled"));
+    }
+
+    // Verify client_secret hash using bcrypt
+    let is_valid = bcrypt::verify(client_secret, &client.client_secret_hash).map_err(|e| {
+        error!("Bcrypt verification error for client {}: {}", client_id, e);
+        AuthencError::internal("Authentication error")
+    })?;
+
+    if !is_valid {
+        warn!(
+            "Client authentication failed: invalid secret for client: {}",
+            client_id
+        );
+        return Err(AuthencError::unauthorized("Invalid client credentials"));
+    }
+
+    // Verify client has token_exchange grant type capability
+    let token_exchange_grant = "urn:ietf:params:oauth:grant-type:token-exchange";
+    if !client
+        .grant_types
+        .contains(&token_exchange_grant.to_string())
+    {
+        warn!(
+            "Client authentication failed: client {} not authorized for token exchange",
+            client_id
+        );
+        return Err(AuthencError::forbidden(
+            "Client not authorized for token exchange",
+        ));
+    }
+
+    info!("Client authenticated successfully: {}", client_id);
     Ok(())
 }
 

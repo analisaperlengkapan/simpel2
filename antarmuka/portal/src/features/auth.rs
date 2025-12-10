@@ -410,7 +410,7 @@ impl AuthService {
 
     /// Save authentication token to localStorage
     #[cfg(target_arch = "wasm32")]
-    fn save_token(token: &str) {
+    pub fn save_token(token: &str) {
         if let Some(storage) = web_sys::window()
             .and_then(|w| w.local_storage().ok())
             .flatten()

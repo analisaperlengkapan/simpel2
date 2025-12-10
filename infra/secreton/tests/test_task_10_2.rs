@@ -7,7 +7,7 @@ use secreton_core::auth::{AuthencAuthProvider, PqSignature};
 use secreton_core::models::secret::{
     AccessControl, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
-use secreton_crypto::{CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements};
+use secreton_crypto::HybridCrypto;
 
 #[test]
 fn test_authenc_provider_can_be_created() {
@@ -22,31 +22,35 @@ fn test_authenc_provider_can_be_created() {
 
 #[test]
 fn test_hybrid_crypto_can_encrypt_decrypt() {
-    // Test that HybridCrypto works for secret encryption
-    let security_reqs = SecurityRequirements {
-        security_level: 256,
-        quantum_safe: true,
-        audit_required: true,
-        compliance_flags: vec!["KEJAKSAAN_SECURITY".to_string()],
-    };
+    // Test that HybridCrypto works for secret encryption (mirrors hybrid_crypto_tests)
+    let sender = HybridCrypto::new_default().expect("Failed to create HybridCrypto sender");
 
-    let perf_priority = PerformancePriority::Balanced;
-    let hybrid_crypto = HybridCrypto::new(CryptoMode::Hybrid, security_reqs, perf_priority)
-        .expect("Failed to create HybridCrypto");
+    let mut receiver = HybridCrypto::new_default().expect("Failed to create HybridCrypto receiver");
+
+    // Receiver generates a KEM keypair and exposes the public key
+    receiver
+        .generate_kem_keypair()
+        .expect("Failed to generate receiver KEM keypair");
+
+    let receiver_keys = receiver
+        .get_public_keys()
+        .expect("Failed to get receiver public keys");
+    let receiver_public_key = receiver_keys
+        .pq_kem_public_key
+        .expect("Receiver KEM public key should be present");
 
     let secret_data = b"test secret data";
-    let associated_data = b"satker:KEJATI_DKI_JAKPUS";
 
-    // Encrypt
-    let encrypted = hybrid_crypto
-        .encrypt(secret_data, associated_data)
+    // Encrypt to the receiver's public key
+    let encrypted = sender
+        .encrypt(secret_data, &receiver_public_key)
         .expect("Encryption should succeed");
 
     // Verify metadata exists
     assert!(encrypted.metadata.security_level > 0);
 
-    // Decrypt
-    let decrypted = hybrid_crypto
+    // Decrypt with the receiver (who has the private key)
+    let decrypted = receiver
         .decrypt(&encrypted)
         .expect("Decryption should succeed");
 

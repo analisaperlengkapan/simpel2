@@ -25,13 +25,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
@@ -53,13 +57,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 
@@ -81,10 +89,10 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -106,7 +114,7 @@ jobs:
 
       - name: Upload SAST results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: semgrep-results
           path: semgrep-results.sarif
@@ -116,9 +124,12 @@ jobs:
   gitleaks-secrets:
     name: Secrets Scanning (Gitleaks)
     runs-on: self-hosted
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Full history for better detection
 
@@ -131,9 +142,13 @@ jobs:
   trivy-scan:
     name: Vulnerability Scan (Trivy)
     runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
@@ -149,7 +164,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
 
@@ -168,13 +183,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -204,24 +223,33 @@ jobs:
         working-directory: infra/authenc
         run: |
           echo "Verifying no weak cryptography..."
-          if cargo tree | grep -E "(sha1|md5)" | grep -v "sha256"; then
-            echo "::error::Weak cryptography detected (SHA1/MD5)"
+          if cargo tree | grep -i "md5"; then
+            echo "::error::Weak cryptography detected (MD5)"
             exit 1
           fi
-          echo "✅ No weak cryptography found"
+
+          if cargo tree | grep -i "sha1"; then
+            echo "::warning::SHA-1 detected. OTP modules allow SHA-1 per RFC 6238 but review if unexpected."
+          else
+            echo "✅ No weak cryptography found"
+          fi
 
   secreton-security:
-    name: Secreton Vault Security
+    name: Secreton Security
     runs-on: self-hosted
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
+      - name: Install Protocol Buffers compiler
+        uses: arduino/setup-protoc@v4
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -263,7 +291,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4

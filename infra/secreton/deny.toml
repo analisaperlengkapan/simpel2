@@ -74,8 +74,23 @@ ignore = [
     #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
     #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
     #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
-    # Production deployment: ignore unmaintained crates that are required for core functionality
-    { id = "RUSTSEC-2025-0057", reason = "fxhash is required by wasmtime (WebAssembly runtime) - no viable alternative available" },
+
+    # SECURITY ADVISORIES - Documented exceptions for production deployment
+
+    # RSA Timing Vulnerability (RUSTSEC-2023-0071)
+    # Severity: Critical - Marvin Attack timing sidechannel
+    # Mitigation: Prefer Ed25519 keys over RSA. RSA only used via ssh-key crate for compatibility.
+    # Action: Document in security policy, prefer Ed25519, monitor for rsa crate updates
+    # Status: Accepted risk - SSH key generation non-critical feature
+    { id = "RUSTSEC-2023-0071", reason = "RSA timing vulnerability in ssh-key dep - Ed25519 preferred, SSH feature non-critical" },
+
+    # Unmaintained paste crate (RUSTSEC-2024-0436)
+    # Severity: Medium - crate archived but functional
+    # Impact: Via pqcrypto-mldsa (post-quantum crypto)
+    # Mitigation: Monitor pqcrypto-mldsa updates, fork if needed
+    # Action: PQ crypto more critical than proc-macro maintenance
+    # Status: Accepted risk - awaiting upstream fix
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained but functional - via pqcrypto-mldsa, monitoring for upstream updates" },
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.

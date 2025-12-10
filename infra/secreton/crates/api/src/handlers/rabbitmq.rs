@@ -3,7 +3,6 @@
 use axum::{
     Router,
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::{delete, get, post},
 };
@@ -12,8 +11,7 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::rabbitmq::{
-    RabbitMqConfig, RabbitMqCredentialInfo, RabbitMqCredentials, RabbitMqError, RabbitMqRole,
-    RabbitMqVhostPermission,
+    RabbitMqConfig, RabbitMqCredentialInfo, RabbitMqCredentials, RabbitMqRole,
 };
 
 use super::AppState;

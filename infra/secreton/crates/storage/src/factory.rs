@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = StorageFactoryConfig::default();
-        assert_eq!(config.backend_type, StorageBackendType::Memory);
+        assert_eq!(config.backend_type, StorageBackendType::File);
     }
 
     #[tokio::test]

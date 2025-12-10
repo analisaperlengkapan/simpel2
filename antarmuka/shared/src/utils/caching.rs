@@ -162,14 +162,14 @@ impl<T: Clone> MemoryCache<T> {
 
     /// Get item from cache if not expired
     pub fn get(&self, key: &str) -> Option<T> {
-        if let Ok(mut cache) = self.cache.lock() {
-            if let Some(cached_item) = cache.get(key) {
-                if cached_item.is_valid() {
-                    return Some(cached_item.data.clone());
-                } else {
-                    // Remove expired item
-                    cache.remove(key);
-                }
+        if let Ok(mut cache) = self.cache.lock()
+            && let Some(cached_item) = cache.get(key)
+        {
+            if cached_item.is_valid() {
+                return Some(cached_item.data.clone());
+            } else {
+                // Remove expired item
+                cache.remove(key);
             }
         }
         None
@@ -224,12 +224,12 @@ impl CacheKeyBuilder {
         }
     }
 
-    pub fn add(mut self, part: &str) -> Self {
+    pub fn part(mut self, part: &str) -> Self {
         self.parts.push(part.to_string());
         self
     }
 
-    pub fn add_param(mut self, key: &str, value: &str) -> Self {
+    pub fn param(mut self, key: &str, value: &str) -> Self {
         self.parts.push(format!("{}={}", key, value));
         self
     }
@@ -292,10 +292,10 @@ impl ApiCache {
     /// Generate cache key for API request
     pub fn generate_key(method: &str, url: &str, params: Option<&str>) -> String {
         let mut builder = CacheKeyBuilder::new("api");
-        builder = builder.add(method).add(url);
+        builder = builder.part(method).part(url);
 
         if let Some(params) = params {
-            builder = builder.add(params);
+            builder = builder.part(params);
         }
 
         builder.build()
@@ -397,10 +397,10 @@ mod tests {
     #[test]
     fn test_cache_key_builder() {
         let key = CacheKeyBuilder::new("api")
-            .add("GET")
-            .add("/users")
-            .add_param("page", "1")
-            .add_param("limit", "10")
+            .part("GET")
+            .part("/users")
+            .param("page", "1")
+            .param("limit", "10")
             .build();
 
         assert_eq!(key, "api:GET:/users:page=1:limit=10");

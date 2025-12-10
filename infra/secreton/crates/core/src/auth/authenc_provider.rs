@@ -6,6 +6,8 @@
 
 use crate::error::CoreError;
 use crate::models::auth::UserInfo;
+use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
+use crate::utils::correlation::CorrelationContext;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -291,6 +293,10 @@ pub struct AuthencAuthProvider {
     pq_validator: PostQuantumValidator,
     /// Request timeout
     request_timeout: Duration,
+    /// Circuit breaker for resilience
+    circuit_breaker: CircuitBreaker,
+    /// Current correlation context (thread-local)
+    correlation_context: Arc<RwLock<Option<CorrelationContext>>>,
 }
 
 impl AuthencAuthProvider {
@@ -309,6 +315,8 @@ impl AuthencAuthProvider {
             validation_cache: ValidationCache::new(Duration::from_secs(60), 500), // 1 min TTL, 500 entries
             pq_validator: PostQuantumValidator::new(),
             request_timeout: Duration::from_secs(30),
+            circuit_breaker: CircuitBreaker::new(),
+            correlation_context: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -325,6 +333,12 @@ impl AuthencAuthProvider {
             .build()
             .unwrap_or_else(|_| Client::new());
 
+        let circuit_breaker_config = CircuitBreakerConfig {
+            max_failures: 5,
+            timeout: Duration::from_secs(30),
+            reset_timeout: Duration::from_secs(60),
+        };
+
         Self {
             authenc_endpoint,
             client_cert,
@@ -333,14 +347,75 @@ impl AuthencAuthProvider {
             validation_cache: ValidationCache::new(cache_ttl / 5, max_cache_entries / 2),
             pq_validator: PostQuantumValidator::new(),
             request_timeout,
+            circuit_breaker: CircuitBreaker::with_config(circuit_breaker_config),
+            correlation_context: Arc::new(RwLock::new(None)),
         }
     }
 
-    /// Execute HTTP request with error handling
+    /// Set correlation context for subsequent requests
+    pub async fn set_correlation_context(&self, context: CorrelationContext) {
+        *self.correlation_context.write().await = Some(context);
+    }
+
+    /// Get current correlation context
+    pub async fn get_correlation_context(&self) -> Option<CorrelationContext> {
+        self.correlation_context.read().await.clone()
+    }
+
+    /// Clear correlation context
+    pub async fn clear_correlation_context(&self) {
+        *self.correlation_context.write().await = None;
+    }
+
+    /// Execute HTTP request with circuit breaker and error handling
     async fn execute_request<T>(&self, request: reqwest::RequestBuilder) -> Result<T, CoreError>
     where
         T: for<'de> Deserialize<'de>,
     {
+        // Check circuit breaker
+        if !self.circuit_breaker.can_execute().await {
+            tracing::warn!("Circuit breaker is open, blocking request to Authenc");
+            return Err(CoreError::service_unavailable(
+                "Authenc service unavailable (circuit breaker open)",
+            ));
+        }
+
+        // Execute request
+        let result = self.execute_request_internal(request).await;
+
+        // Record result in circuit breaker
+        match &result {
+            Ok(_) => {
+                self.circuit_breaker.record_success().await;
+            }
+            Err(e) => {
+                // Only record failure for network/service errors, not auth errors
+                if matches!(e, CoreError::ServiceUnavailable { .. }) {
+                    self.circuit_breaker.record_failure().await;
+                }
+            }
+        }
+
+        result
+    }
+
+    ///Internal request execution without circuit breaker
+    async fn execute_request_internal<T>(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> Result<T, CoreError>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        // Add correlation headers if context is set
+        let request = if let Some(ctx) = self.get_correlation_context().await {
+            ctx.add_to_headers(request)
+        } else {
+            // No correlation context, generate one for this request
+            let ctx = CorrelationContext::new();
+            ctx.add_to_headers(request)
+        };
+
         let response = request
             .send()
             .await

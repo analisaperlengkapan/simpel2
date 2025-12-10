@@ -1,0 +1,86 @@
+name: Sync to GitLab
+
+on:
+  push:
+    branches:
+      - main
+
+# Allow only one sync job to run at a time to prevent race conditions
+concurrency:
+  group: gitlab-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync-to-gitlab:
+    name: Mirror Push to GitLab
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Configure git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Mirror push to GitLab
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          # Exit on any error
+          set -e
+
+          echo "Starting mirror push to GitLab..."
+          echo "Repository: $(echo "$GITLAB_MIRROR_URL" | sed 's|://.*@|://***@|')"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+          # Perform mirror push with pruning to sync all branches/tags and remove deleted refs
+          git push --mirror --prune "$GITLAB_MIRROR_URL" 2>&1 | grep -v "W6vH" || true
+
+          echo "✓ Mirror push completed successfully"
+
+      - name: Generate success summary
+        if: success()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## ✅ GitLab Mirror Sync Successful
+
+          - **Repository:** https://gitlab.kejaksaan.go.id/irhas/simpel2
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** `${{ github.sha }}`
+          - **Message:** ${{ github.event.head_commit.message }}
+          - **Author:** ${{ github.actor }}
+          - **Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+          All branches, tags, and notes have been synchronized to the GitLab mirror repository.
+          EOF
+
+      - name: Generate failure summary
+        if: failure()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## ❌ GitLab Mirror Sync Failed
+
+          - **Repository:** https://gitlab.kejaksaan.go.id/irhas/simpel2
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** `${{ github.sha }}`
+          - **Error:** Check the job logs above for details
+          - **Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+          **Troubleshooting:**
+          1. Verify `GITLAB_MIRROR_URL` secret is correctly configured
+          2. Check if GitLab project access token is still valid
+          3. Ensure GitLab repository is accessible and not locked
+          4. Review detailed logs in the "Mirror push to GitLab" step
+          EOF
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Failed to sync repository to GitLab mirror. Please check the logs above."

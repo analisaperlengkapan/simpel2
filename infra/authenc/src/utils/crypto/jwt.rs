@@ -451,16 +451,17 @@ mod tests {
         let user_id = "test_user_123";
 
         // Generate a valid JWT
-        let mut token = generate_jwt(user_id).expect("Failed to generate JWT");
+        let token = generate_jwt(user_id).expect("Failed to generate JWT");
 
         // Tamper with the token (change a character in the payload)
-        let token_bytes = unsafe { token.as_bytes_mut() };
+        let mut token_bytes = token.into_bytes();
         if token_bytes.len() > 20 {
             token_bytes[20] = b'x'; // Change a character
         }
+        let tampered_token = String::from_utf8(token_bytes).expect("Invalid UTF-8");
 
         // This should fail
-        let result = verify_jwt(&token);
+        let result = verify_jwt(&tampered_token);
         assert!(result.is_err());
     }
 }

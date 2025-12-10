@@ -52,7 +52,7 @@ impl PkiApiState {
 // ============================================================================
 
 /// Request to generate root CA
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GenerateRootCARequest {
     /// Common Name for the root CA
     pub common_name: String,
@@ -115,7 +115,7 @@ pub struct ListRolesResponse {
 }
 
 /// Request to issue certificate
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct IssueCertificateRequest {
     /// Common Name (e.g., simpel.kejaksaan.go.id)
     pub common_name: String,

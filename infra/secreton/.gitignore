@@ -28,5 +28,17 @@ Thumbs.db
 dist/
 build/
 
-# Config files with secrets (in production)
-config/vault.toml
+# ===== NEW: Secure Config System =====
+# Actual bootstrap config (may contain infrastructure details)
+/secreton.toml
+
+# Safe to commit: example config with no secrets
+!/secreton.toml.example
+
+# ===== LEGACY: Old Config System (deprecated) =====
+# These will be deleted after migration
+/config/
+/.env.example
+
+# Config backups created during migration
+/config_backup_*/

@@ -6,12 +6,20 @@ use crate::{
 };
 use async_trait::async_trait;
 use deadpool_postgres::{Config, Pool, Runtime};
+#[cfg(feature = "metrics")]
+use metrics::{counter, gauge};
+use rustls::{ClientConfig, RootCertStore};
+use rustls_native_certs::load_native_certs;
+use std::time::Duration;
 use tokio_postgres::{NoTls, Row};
+use tokio_postgres_rustls::MakeRustlsConnect;
 use uuid::Uuid;
 
 /// PostgreSQL storage backend
 pub struct PostgresBackend {
     pool: Pool,
+    /// Pool exhaustion threshold (percentage)
+    exhaustion_threshold: f64,
 }
 
 impl PostgresBackend {
@@ -19,20 +27,141 @@ impl PostgresBackend {
     pub async fn new(database_url: &str) -> StorageResult<Self> {
         let mut cfg = Config::new();
         cfg.url = Some(database_url.to_string());
-        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).map_err(|e| {
-            StorageError::ConnectionFailed {
-                source: None,
-                message: format!("Failed to create PostgreSQL pool: {}", e),
+
+        let tls_mode =
+            std::env::var("SECRETON_STORAGE_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
+
+        let pool_result = if tls_mode.eq_ignore_ascii_case("disable") {
+            cfg.create_pool(Some(Runtime::Tokio1), NoTls)
+        } else {
+            let mut root_store = RootCertStore::empty();
+            let certs = load_native_certs();
+            for cert in certs.certs {
+                let _ = root_store.add(cert);
             }
+
+            cfg.ssl_mode = Some(deadpool_postgres::SslMode::Require);
+
+            let tls_config = ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+            let tls = MakeRustlsConnect::new(tls_config);
+
+            cfg.create_pool(Some(Runtime::Tokio1), tls)
+        };
+
+        let pool = pool_result.map_err(|e| StorageError::ConnectionFailed {
+            source: None,
+            message: format!("Failed to create PostgreSQL pool: {}", e),
         })?;
 
-        Ok(Self { pool })
+        let backend = Self {
+            pool,
+            exhaustion_threshold: 0.8, // Alert at 80% pool usage
+        };
+
+        // Start background pool monitoring
+        backend.start_pool_monitoring();
+
+        Ok(backend)
     }
 
     /// Get the connection pool
     pub fn pool(&self) -> &Pool {
         &self.pool
     }
+
+    /// Start background task for pool monitoring
+    fn start_pool_monitoring(&self) {
+        let pool = self.pool.clone();
+        let threshold = self.exhaustion_threshold;
+
+        tokio::spawn(async move {
+            let monitor_interval = Duration::from_secs(30); // Check every 30 seconds
+
+            loop {
+                tokio::time::sleep(monitor_interval).await;
+
+                let status = pool.status();
+                let max_size = status.max_size;
+                let available = status.available;
+                let size = status.size;
+
+                // Calculate pool utilization
+                let utilization = if max_size > 0 {
+                    (size as f64) / (max_size as f64)
+                } else {
+                    0.0
+                };
+
+                // Log metrics
+                tracing::debug!(
+                    "PostgreSQL pool status: size={}/{}, available={}, utilization={:.1}%",
+                    size,
+                    max_size,
+                    available,
+                    utilization * 100.0
+                );
+
+                // Alert on high utilization
+                if utilization >= threshold {
+                    tracing::warn!(
+                        "PostgreSQL pool exhaustion warning: {:.1}% utilized ({}/{}), {} available",
+                        utilization * 100.0,
+                        size,
+                        max_size,
+                        available
+                    );
+
+                    // Record metric for monitoring systems
+                    #[cfg(feature = "metrics")]
+                    {
+                        gauge!("secreton_postgres_pool_utilization").set(utilization);
+                        gauge!("secreton_postgres_pool_available").set(available as f64);
+                        counter!("secreton_postgres_pool_exhaustion_warnings").increment(1);
+                    }
+                }
+
+                // Alert on zero available connections
+                if available == 0 && size > 0 {
+                    tracing::error!(
+                        "PostgreSQL pool exhausted: 0 connections available out of {} total",
+                        size
+                    );
+
+                    #[cfg(feature = "metrics")]
+                    {
+                        counter!("secreton_postgres_pool_exhausted").increment(1);
+                    }
+                }
+            }
+        });
+    }
+
+    /// Get current pool statistics
+    pub fn get_pool_stats(&self) -> PoolStats {
+        let status = self.pool.status();
+
+        PoolStats {
+            max_size: status.max_size,
+            size: status.size,
+            available: status.available,
+            utilization: if status.max_size > 0 {
+                (status.size as f64) / (status.max_size as f64)
+            } else {
+                0.0
+            },
+        }
+    }
+}
+
+/// Pool statistics
+#[derive(Debug, Clone)]
+pub struct PoolStats {
+    pub max_size: usize,
+    pub size: usize,
+    pub available: usize,
+    pub utilization: f64,
 }
 
 #[async_trait]
@@ -392,6 +521,10 @@ impl StorageBackend for PostgresBackend {
     }
 
     async fn health_check(&self) -> StorageResult<HealthStatus> {
+        use std::time::Instant;
+
+        let start = Instant::now();
+
         let client = self
             .pool
             .get()
@@ -401,22 +534,31 @@ impl StorageBackend for PostgresBackend {
                 message: format!("Failed to get connection: {}", e),
             })?;
 
-        client
-            .query("SELECT 1", &[])
-            .await
-            .map_err(|e| StorageError::QueryFailed {
-                source: None,
-                message: format!("Health check failed: {}", e),
-            })?;
+        let query_result = client.query("SELECT 1", &[]).await;
 
-        Ok(HealthStatus {
-            is_healthy: true,
-            response_time_ms: 1.0,
-            connections_active: 1,
-            connections_idle: 0,
-            last_error: None,
-            uptime_seconds: 3600,
-        })
+        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+        // Get real pool status
+        let pool_status = self.pool.status();
+
+        match query_result {
+            Ok(_) => Ok(HealthStatus {
+                is_healthy: true,
+                response_time_ms,
+                connections_active: pool_status.size as u32,
+                connections_idle: pool_status.available as u32,
+                last_error: None,
+                uptime_seconds: 0, // Not tracked at backend level
+            }),
+            Err(e) => Ok(HealthStatus {
+                is_healthy: false,
+                response_time_ms,
+                connections_active: pool_status.size as u32,
+                connections_idle: pool_status.available as u32,
+                last_error: Some(format!("Health check query failed: {}", e)),
+                uptime_seconds: 0,
+            }),
+        }
     }
 
     async fn get_stats(&self) -> StorageResult<StorageStats> {
@@ -472,9 +614,11 @@ impl StorageBackend for PostgresBackend {
     }
 
     async fn begin_transaction(&self) -> StorageResult<Box<dyn StorageTransaction>> {
-        // For now, return a simple transaction implementation
-        // This would need to be properly implemented with actual transaction support
-        Ok(Box::new(PostgresTransaction::new()))
+        // TODO: Fix transaction lifetime management
+        // Currently disabled due to incompatible types between deadpool and tokio-postgres
+        Err(StorageError::TransactionNotSupported {
+            backend: "postgres".to_string(),
+        })
     }
 
     async fn migrate(&self) -> StorageResult<()> {
@@ -560,7 +704,7 @@ impl PostgresBackend {
             metadata,
             tags: row.get("tags"),
             version: row.get::<_, i32>("version") as u32,
-            owner_id: row.get("owner_id"),
+            owner_id: row.get::<_, Uuid>("owner_id").to_string(),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             expires_at: row.get("expires_at"),
@@ -568,39 +712,201 @@ impl PostgresBackend {
     }
 }
 
-/// Simple transaction implementation for PostgreSQL
-pub struct PostgresTransaction;
+/// PostgreSQL transaction implementation
+pub struct PostgresTransaction {
+    transaction: Option<tokio_postgres::Transaction<'static>>,
+}
 
 impl PostgresTransaction {
-    fn new() -> Self {
-        Self
+    fn new(transaction: tokio_postgres::Transaction<'static>) -> Self {
+        Self {
+            transaction: Some(transaction),
+        }
     }
 }
 
 #[async_trait]
 impl StorageTransaction for PostgresTransaction {
-    async fn store(&mut self, _entry: &VaultEntry) -> StorageResult<()> {
-        // TODO: Implement transactional store
+    async fn store(&mut self, entry: &VaultEntry) -> StorageResult<()> {
+        let transaction =
+            self.transaction
+                .as_mut()
+                .ok_or_else(|| StorageError::TransactionFailed {
+                    message: "Transaction already committed or rolled back".to_string(),
+                    source: None,
+                })?;
+
+        let query = r#"
+            INSERT INTO vault_entries
+            (id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        "#;
+
+        let encryption_metadata_json =
+            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
+                StorageError::SerializationError {
+                    source: None,
+                    message: format!("Failed to serialize encryption metadata: {}", e),
+                }
+            })?;
+
+        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
+            StorageError::SerializationError {
+                source: None,
+                message: format!("Failed to serialize metadata: {}", e),
+            }
+        })?;
+
+        transaction
+            .execute(
+                query,
+                &[
+                    &entry.id,
+                    &entry.path,
+                    &entry.encrypted_data,
+                    &encryption_metadata_json,
+                    &(entry.security_level as i32),
+                    &metadata_json,
+                    &entry.tags,
+                    &(entry.version as i32),
+                    &entry.owner_id,
+                    &entry.created_at,
+                    &entry.updated_at,
+                    &entry.expires_at,
+                ],
+            )
+            .await
+            .map_err(|e| StorageError::QueryFailed {
+                source: None,
+                message: format!("Failed to store vault entry in transaction: {}", e),
+            })?;
+
         Ok(())
     }
 
-    async fn update(&mut self, _entry: &VaultEntry) -> StorageResult<()> {
-        // TODO: Implement transactional update
+    async fn update(&mut self, entry: &VaultEntry) -> StorageResult<()> {
+        let transaction =
+            self.transaction
+                .as_mut()
+                .ok_or_else(|| StorageError::TransactionFailed {
+                    message: "Transaction already committed or rolled back".to_string(),
+                    source: None,
+                })?;
+
+        let query = r#"
+            UPDATE vault_entries
+            SET path = $2, encrypted_data = $3, encryption_metadata = $4, security_level = $5,
+                metadata = $6, tags = $7, version = $8, updated_at = $9, expires_at = $10
+            WHERE id = $1
+        "#;
+
+        let encryption_metadata_json =
+            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
+                StorageError::SerializationError {
+                    source: None,
+                    message: format!("Failed to serialize encryption metadata: {}", e),
+                }
+            })?;
+
+        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
+            StorageError::SerializationError {
+                source: None,
+                message: format!("Failed to serialize metadata: {}", e),
+            }
+        })?;
+
+        let rows_affected = transaction
+            .execute(
+                query,
+                &[
+                    &entry.id,
+                    &entry.path,
+                    &entry.encrypted_data,
+                    &encryption_metadata_json,
+                    &(entry.security_level as i32),
+                    &metadata_json,
+                    &entry.tags,
+                    &(entry.version as i32),
+                    &entry.updated_at,
+                    &entry.expires_at,
+                ],
+            )
+            .await
+            .map_err(|e| StorageError::QueryFailed {
+                source: None,
+                message: format!("Failed to update vault entry in transaction: {}", e),
+            })?;
+
+        if rows_affected == 0 {
+            return Err(StorageError::NotFound {
+                resource_type: "VaultEntry".to_string(),
+                id: entry.id.to_string(),
+            });
+        }
+
         Ok(())
     }
 
-    async fn delete(&mut self, _id: Uuid) -> StorageResult<bool> {
-        // TODO: Implement transactional delete
-        Ok(false)
+    async fn delete(&mut self, id: Uuid) -> StorageResult<bool> {
+        let transaction =
+            self.transaction
+                .as_mut()
+                .ok_or_else(|| StorageError::TransactionFailed {
+                    message: "Transaction already committed or rolled back".to_string(),
+                    source: None,
+                })?;
+
+        let query = "DELETE FROM vault_entries WHERE id = $1";
+
+        let rows_affected =
+            transaction
+                .execute(query, &[&id])
+                .await
+                .map_err(|e| StorageError::QueryFailed {
+                    source: None,
+                    message: format!("Failed to delete vault entry in transaction: {}", e),
+                })?;
+
+        Ok(rows_affected > 0)
     }
 
-    async fn commit(self: Box<Self>) -> StorageResult<()> {
-        // TODO: Implement actual transaction commit
+    async fn commit(mut self: Box<Self>) -> StorageResult<()> {
+        let transaction =
+            self.transaction
+                .take()
+                .ok_or_else(|| StorageError::TransactionFailed {
+                    message: "Transaction already committed or rolled back".to_string(),
+                    source: None,
+                })?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(|e| StorageError::TransactionFailed {
+                message: format!("Failed to commit transaction: {}", e),
+                source: None,
+            })?;
+
         Ok(())
     }
 
-    async fn rollback(self: Box<Self>) -> StorageResult<()> {
-        // TODO: Implement actual transaction rollback
+    async fn rollback(mut self: Box<Self>) -> StorageResult<()> {
+        let transaction =
+            self.transaction
+                .take()
+                .ok_or_else(|| StorageError::TransactionFailed {
+                    message: "Transaction already committed or rolled back".to_string(),
+                    source: None,
+                })?;
+
+        transaction
+            .rollback()
+            .await
+            .map_err(|e| StorageError::TransactionFailed {
+                message: format!("Failed to rollback transaction: {}", e),
+                source: None,
+            })?;
+
         Ok(())
     }
 }

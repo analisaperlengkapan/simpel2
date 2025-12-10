@@ -135,6 +135,7 @@ impl FpeAlphabet {
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct FpeKey {
     #[zeroize(skip)]
+    #[allow(dead_code)] // Key is used internally by FPE operations
     key: [u8; 32],
 }
 

@@ -383,9 +383,11 @@ async fn generate_backup_codes() -> Result<BackupCodesResponse, Box<dyn std::err
             let api_response: MfaBackupCodesApiResponse = response.json().await?;
 
             // Convert to frontend response format
+            let codes = api_response.codes.unwrap_or_default();
+            let count = codes.len();
             Ok(BackupCodesResponse {
-                codes: api_response.codes.unwrap_or_default(),
-                count: api_response.codes.as_ref().map(|c| c.len()).unwrap_or(0),
+                codes,
+                count,
                 warning: "⚠️ IMPORTANT: Save these codes immediately! Each code can only be used once. Store them in a secure, offline location.".to_string(),
             })
         } else {

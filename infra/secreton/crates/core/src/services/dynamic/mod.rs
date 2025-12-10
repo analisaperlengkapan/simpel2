@@ -181,11 +181,10 @@ pub async fn generate_aws_credential(role: &str) -> DynamicAwsCredential {
     let username = format!("secreton-{}-{}", role, Utc::now().timestamp());
     let access_key = format!(
         "AKIA{}",
-        uuid::Uuid::new_v4()
+        &uuid::Uuid::new_v4()
             .to_string()
             .replace("-", "")
             .to_uppercase()[..16]
-            .to_string()
     );
     let secret_key: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)

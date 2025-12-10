@@ -336,5 +336,15 @@ mod tests {
         assert_ne!(random1, random2); // Should be different
     }
 
-    // Test removed: AlgorithmRegistry was removed as an unused future feature (see line 252)
+    // TODO: Implement AlgorithmRegistry for algorithm capability checking
+    // #[test]
+    // fn test_algorithm_registry() {
+    //     let registry = AlgorithmRegistry::new();
+    //
+    //     assert!(registry.supports_cipher("aes-256-gcm"));
+    //     assert!(registry.supports_hash(HashAlgorithm::Sha256));
+    //     assert!(registry.supports_kdf(KdfAlgorithm::Pbkdf2Sha256));
+    //
+    //     assert!(!registry.supports_cipher("unknown-cipher"));
+    // }
 }

@@ -84,8 +84,12 @@ impl EnhancedCaptchaService {
             Duration::from_secs(60),
         ));
 
-        let retry_executor =
-            RetryExecutor::new(retry_config).with_circuit_breaker(secreton_circuit_breaker.clone());
+        // Use a plain retry executor here so that internal database/metrics
+        // errors for the core CAPTCHA service do not drive the Secreton
+        // circuit breaker state. The dedicated circuit breaker is still
+        // tracked separately for health reporting and can be wired to
+        // true external Secreton calls when present.
+        let retry_executor = RetryExecutor::new(retry_config);
 
         Self {
             core_service,
@@ -149,7 +153,7 @@ impl EnhancedCaptchaService {
             authenc_state != crate::services::captcha::retry::CircuitState::Open;
 
         // Check if we should enter degraded mode
-        let should_degrade = !health.secreton_available || !health.database_available;
+        let should_degrade = !health.secreton_available;
 
         if should_degrade && !health.degraded_mode_active {
             health.degraded_mode_active = true;
@@ -183,13 +187,27 @@ impl EnhancedCaptchaService {
             RecoveryResult::Recovered(result) => Ok(result),
             RecoveryResult::FallbackSucceeded(result) => Ok(result),
             RecoveryResult::Failed(error) => {
-                // Update error count
+                // Update error count and database availability
                 let mut health = self.service_health.write().await;
                 health.error_count += 1;
+                let suppress_health_update = match &error {
+                    CaptchaError::DatabaseError { .. } => {
+                        health.database_available = false;
+                        true
+                    }
+                    CaptchaError::ExternalServiceError { service, .. }
+                        if service == "circuit_breaker" =>
+                    {
+                        true
+                    }
+                    _ => false,
+                };
                 drop(health);
 
-                // Update service health
-                self.update_service_health().await;
+                // Only update degraded mode for relevant non-database errors
+                if !suppress_health_update {
+                    self.update_service_health().await;
+                }
 
                 Err(error)
             }
@@ -246,9 +264,19 @@ impl EnhancedCaptchaService {
 
                 // Try fallback generation
                 let fallback_difficulty = difficulty.unwrap_or(1);
-                self.fallback_service
+                let mut challenge = self
+                    .fallback_service
                     .generate_challenge_with_fallback(challenge_type, fallback_difficulty)
                     .await
+                    .map_err(|fallback_error| {
+                        warn!("Fallback challenge generation failed: {}", fallback_error);
+                        fallback_error
+                    })?;
+
+                // Preserve original IP address from caller
+                challenge.ip_address = ip_address;
+
+                Ok(challenge)
             }
         }
     }
@@ -310,20 +338,60 @@ impl EnhancedCaptchaService {
                 );
 
                 // Fallback validation (simplified)
-                Ok(ValidationResult::failure(
-                    RiskLevel::Medium,
-                    1,    // Reset to easiest difficulty
-                    true, // Allow retry
-                    None, // No lockout
-                    "Validation failed - please try again".to_string(),
-                ))
+                let confidence_score = match behavioral_data {
+                    Some(ref data) => match data.classification {
+                        BehaviorClassification::Human => 0.7,
+                        BehaviorClassification::Suspicious => 0.4,
+                        BehaviorClassification::Bot => 0.1,
+                        BehaviorClassification::Unknown => 0.2,
+                    },
+                    None => 0.0,
+                };
+
+                // Derive next difficulty from the original challenge when possible,
+                // and adjust based on behavioral classification so suspicious/bot
+                // behavior increases difficulty.
+                let base_difficulty =
+                    match self.core_service.get_challenge(challenge_id.clone()).await {
+                        Ok(challenge) => challenge.difficulty_level,
+                        Err(fetch_err) => {
+                            warn!(
+                                "Failed to fetch challenge {} for fallback difficulty: {}",
+                                challenge_id, fetch_err
+                            );
+                            // Use a moderate default difficulty when original challenge
+                            // cannot be retrieved, so that suspicious/bot behavior can
+                            // still increase difficulty meaningfully in fallback mode.
+                            3
+                        }
+                    };
+
+                let next_difficulty = match behavioral_data {
+                    Some(ref data) => match data.classification {
+                        BehaviorClassification::Human => base_difficulty,
+                        BehaviorClassification::Suspicious => base_difficulty.saturating_add(1),
+                        BehaviorClassification::Bot => base_difficulty.saturating_add(2),
+                        BehaviorClassification::Unknown => base_difficulty,
+                    },
+                    None => base_difficulty,
+                }
+                .clamp(1, 10);
+
+                Ok(ValidationResult {
+                    success: false,
+                    confidence_score,
+                    risk_assessment: RiskLevel::Medium,
+                    next_difficulty,
+                    retry_allowed: true,    // Allow retry
+                    lockout_duration: None, // No lockout
+                    message: "Validation failed - please try again".to_string(),
+                })
             }
         }
     }
 
     /// Get service health status
     pub async fn get_health_status(&self) -> ServiceHealth {
-        self.update_service_health().await;
         let health = self.service_health.read().await;
         health.clone()
     }
@@ -366,8 +434,12 @@ impl EnhancedCaptchaService {
         Ok(())
     }
 
-    /// Get comprehensive service metrics including error rates
+    /// Get comprehensive service metrics including error handling status
     pub async fn get_comprehensive_metrics(&self) -> Result<ComprehensiveMetrics, CaptchaError> {
+        // Refresh service health snapshot before collecting metrics so that
+        // last_health_check and availability flags reflect the current state.
+        self.update_service_health().await;
+
         let health = self.get_health_status().await;
         let fallback_status = self.get_fallback_status().await;
 

@@ -397,14 +397,14 @@ where
         loop {
             gloo_timers::future::TimeoutFuture::new(10_000).await;
 
-            let categories = vec![
+            let categories = [
                 NotificationCategory::Info,
                 NotificationCategory::Success,
                 NotificationCategory::Warning,
                 NotificationCategory::Error,
             ];
 
-            let titles = vec![
+            let titles = [
                 "Pembaruan Sistem",
                 "Dokumen Baru",
                 "Peringatan Keamanan",
@@ -412,7 +412,7 @@ where
                 "Pesan Baru",
             ];
 
-            let messages = vec![
+            let messages = [
                 "Sistem telah diperbarui ke versi terbaru",
                 "Dokumen baru telah ditambahkan ke sistem",
                 "Harap perbarui password Anda",

@@ -183,7 +183,15 @@ amqprs = { version = "2.0", features = ["tls"] }
 tokio-stream = "0.1"
 
 # Configuration & Templates (Updated)
-config = "0.15" # Updated for better features
+config = { version = "0.15.19", default-features = false, features = [
+    "toml",
+    "json",
+    "yaml",
+    "ini",
+    "ron",
+    "convert-case",
+    "async",
+] } # Drop json5 feature to avoid unmaintained dependency
 tera = "1.20.1"
 
 # HTTP Client - Unified version
@@ -208,7 +216,7 @@ nutype = { version = "0.6.2", features = [
 opentelemetry = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
 prometheus = "0.14"
-sentry = { version = "0.45.0", features = ["tracing"] }
+sentry = { version = "0.46.0", features = ["tracing"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
 tracing-opentelemetry = "0.32.0"
@@ -307,7 +315,7 @@ rust_xlsxwriter = "0.91.0"       # Excel writing
 tokio-util = "0.7.16"
 walkdir = "2"
 mime = "0.3"
-sentry-tracing = "0.45.0"
+sentry-tracing = "0.46.0"
 tempfile = "3"
 
 # Dev dependencies (for testing)
