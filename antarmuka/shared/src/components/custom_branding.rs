@@ -310,18 +310,13 @@ pub fn BrandedLogo(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum BrandedLogoSize {
     Small,
+    #[default]
     Medium,
     Large,
     ExtraLarge,
-}
-
-impl Default for BrandedLogoSize {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 // ============================================================================

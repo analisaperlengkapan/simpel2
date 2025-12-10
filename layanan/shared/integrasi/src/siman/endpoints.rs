@@ -30,23 +30,22 @@ pub async fn get_row_count(
     let response = client.fetch_siman_row_count(category).await?;
 
     // Parse response untuk mendapatkan count
-    if let Some(data) = response.data {
-        if let Some(array) = data.as_array() {
-            if let Some(first) = array.first() {
-                // Coba extract dari berbagai kemungkinan field name
-                if let Some(count) = first.get("row_count").and_then(|v| v.as_i64()) {
-                    return Ok(count);
-                }
-                if let Some(count) = first.get("total").and_then(|v| v.as_i64()) {
-                    return Ok(count);
-                }
-                if let Some(count) = first.get("ROW_COUNT").and_then(|v| v.as_i64()) {
-                    return Ok(count);
-                }
-                if let Some(count) = first.get("TOTAL").and_then(|v| v.as_i64()) {
-                    return Ok(count);
-                }
-            }
+    if let Some(data) = response.data
+        && let Some(array) = data.as_array()
+        && let Some(first) = array.first()
+    {
+        // Coba extract dari berbagai kemungkinan field name
+        if let Some(count) = first.get("row_count").and_then(|v| v.as_i64()) {
+            return Ok(count);
+        }
+        if let Some(count) = first.get("total").and_then(|v| v.as_i64()) {
+            return Ok(count);
+        }
+        if let Some(count) = first.get("ROW_COUNT").and_then(|v| v.as_i64()) {
+            return Ok(count);
+        }
+        if let Some(count) = first.get("TOTAL").and_then(|v| v.as_i64()) {
+            return Ok(count);
         }
     }
 
@@ -82,10 +81,10 @@ pub async fn get_aset_by_category(
 ) -> Result<Vec<Value>, MonsaktiError> {
     let response = client.fetch_siman_data(category, start_id, end_id).await?;
 
-    if let Some(data) = response.data {
-        if let Some(array) = data.as_array() {
-            return Ok(array.clone());
-        }
+    if let Some(data) = response.data
+        && let Some(array) = data.as_array()
+    {
+        return Ok(array.clone());
     }
 
     Ok(vec![])
@@ -336,7 +335,7 @@ pub async fn fetch_all_assets_with_pagination(
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
-    let response = client.fetch_siman_row_count(category.clone()).await?;
+    let response = client.fetch_siman_row_count(category).await?;
 
     let total_count = if let Some(data) = response.data {
         if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
@@ -376,10 +375,7 @@ pub async fn fetch_all_assets_with_pagination(
             current_id, end_id, total_count
         );
 
-        match client
-            .fetch_siman_data(category.clone(), current_id, end_id)
-            .await
-        {
+        match client.fetch_siman_data(category, current_id, end_id).await {
             Ok(response) => {
                 if let Some(data) = response.data {
                     // Extract results array
