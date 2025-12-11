@@ -5,13 +5,14 @@ use crate::error::MonsaktiError;
 use serde_json::Value;
 
 /// Strategy untuk menyimpan data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum StorageStrategy {
     /// Simpan ke file JSON
     JsonFile { base_dir: String },
     /// Simpan ke file CSV
     CsvFile { base_dir: String },
     /// Simpan ke database PostgreSQL
+    #[default]
     Database,
     /// Simpan ke file dan database
     Both { base_dir: String },
@@ -79,12 +80,6 @@ impl StorageStrategy {
             }
         }
         Ok(())
-    }
-}
-
-impl Default for StorageStrategy {
-    fn default() -> Self {
-        StorageStrategy::Database
     }
 }
 

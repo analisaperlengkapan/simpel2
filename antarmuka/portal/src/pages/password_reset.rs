@@ -72,12 +72,12 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle reset request submission
     let handle_request_reset = {
-        let email = email.clone();
-        let captcha_token = captcha_token.clone();
-        let set_error_message = set_error_message.clone();
-        let set_is_loading = set_is_loading.clone();
-        let set_reset_state = set_reset_state.clone();
-        let set_captcha_token = set_captcha_token.clone();
+        let email = email;
+        let captcha_token = captcha_token;
+        let set_error_message = set_error_message;
+        let set_is_loading = set_is_loading;
+        let set_reset_state = set_reset_state;
+        let set_captcha_token = set_captcha_token;
 
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
@@ -119,12 +119,12 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle new password submission
     let handle_reset_password = {
-        let new_password = new_password.clone();
-        let confirm_password = confirm_password.clone();
-        let reset_token = reset_token.clone();
-        let set_error_message = set_error_message.clone();
-        let set_is_loading = set_is_loading.clone();
-        let set_reset_state = set_reset_state.clone();
+        let new_password = new_password;
+        let confirm_password = confirm_password;
+        let reset_token = reset_token;
+        let set_error_message = set_error_message;
+        let set_is_loading = set_is_loading;
+        let set_reset_state = set_reset_state;
         let navigate = navigate.clone();
 
         move |ev: web_sys::SubmitEvent| {

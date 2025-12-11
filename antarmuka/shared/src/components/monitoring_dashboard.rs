@@ -81,24 +81,18 @@ pub fn MonitoringDashboard(
             set_loading.set(true);
 
             // Fetch metrics
-            if show_performance {
-                if let Ok(data) = fetch_performance_metrics().await {
-                    set_metrics.set(data);
-                }
+            if show_performance && let Ok(data) = fetch_performance_metrics().await {
+                set_metrics.set(data);
             }
 
             // Fetch errors
-            if show_errors {
-                if let Ok(data) = fetch_error_summary().await {
-                    set_errors.set(data);
-                }
+            if show_errors && let Ok(data) = fetch_error_summary().await {
+                set_errors.set(data);
             }
 
             // Fetch analytics
-            if show_analytics {
-                if let Ok(data) = fetch_analytics_summary().await {
-                    set_analytics.set(Some(data));
-                }
+            if show_analytics && let Ok(data) = fetch_analytics_summary().await {
+                set_analytics.set(Some(data));
             }
 
             set_loading.set(false);

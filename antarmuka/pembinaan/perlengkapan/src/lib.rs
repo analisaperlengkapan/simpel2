@@ -404,12 +404,11 @@ pub fn main() {
     leptos::logging::log!("🚀 Starting SIMPEL Perlengkapan...");
 
     // Clear fallback loading content
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            if let Some(app_div) = document.get_element_by_id("app") {
-                app_div.set_inner_html("");
-            }
-        }
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+        && let Some(app_div) = document.get_element_by_id("app")
+    {
+        app_div.set_inner_html("");
     }
 
     // Mount app to body

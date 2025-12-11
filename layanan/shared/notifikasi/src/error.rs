@@ -2,7 +2,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use deadpool_postgres;
 use thiserror::Error;
 use tracing::error;
 
