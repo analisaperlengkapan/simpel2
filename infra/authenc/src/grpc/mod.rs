@@ -27,6 +27,7 @@
 
 use std::sync::Arc;
 use tonic::transport::Server;
+use tonic::service::interceptor::InterceptorLayer;
 
 use crate::app::AppState;
 use crate::grpc::interceptors::{LoggingInterceptor, MetricsInterceptor};
@@ -117,8 +118,8 @@ pub fn create_grpc_server(
     // Build router with interceptors and services
     // Note: Health check service will be added in task 9.1
     server
-        .layer(tonic::service::interceptor(metrics_interceptor))
-        .layer(tonic::service::interceptor(logging_interceptor))
+        .layer(InterceptorLayer::new(metrics_interceptor))
+        .layer(InterceptorLayer::new(logging_interceptor))
         .add_service(proto::authenc_service_server::AuthencServiceServer::new(
             authenc_service,
         ))
