@@ -33,7 +33,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache
@@ -123,7 +123,7 @@ jobs:
           components: llvm-tools-preview
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache
