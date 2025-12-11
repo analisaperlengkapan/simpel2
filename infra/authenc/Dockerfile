@@ -21,7 +21,7 @@ COPY config ./config
 RUN cargo build --release --bins
 
 # Use a minimal base image for the runtime
-FROM debian:bookworm-slim
+FROM debian:13.2-slim
 
 # Install necessary runtime dependencies (if any)
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
