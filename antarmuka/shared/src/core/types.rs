@@ -98,17 +98,12 @@ pub struct TableColumn {
     pub align: TableAlign,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum TableAlign {
+    #[default]
     Left,
     Center,
     Right,
-}
-
-impl Default for TableAlign {
-    fn default() -> Self {
-        Self::Left
-    }
 }
 
 impl TableColumn {

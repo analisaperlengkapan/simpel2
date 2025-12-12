@@ -302,8 +302,8 @@ pub fn App() -> impl IntoView {
                                 <button
                                     on:click=move |_| {
                                         // Extend session by refreshing token
-                                        if let Some(session) = user_session.get() {
-                                            if let Some(refresh_token) = &session.refresh_token {
+                                        if let Some(session) = user_session.get()
+                                            && let Some(refresh_token) = &session.refresh_token {
                                                 let refresh_token = refresh_token.clone();
                                                 spawn_local(async move {
                                                     if let Ok(token_response) = AuthService::refresh_token(&refresh_token).await {
@@ -313,7 +313,6 @@ pub fn App() -> impl IntoView {
                                                     }
                                                 });
                                             }
-                                        }
                                     }
                                     class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
                                 >

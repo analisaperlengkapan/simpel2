@@ -144,47 +144,43 @@ impl MonsaktiClient {
 
                     // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
                     // Parse as array dan extract token + data
-                    if let Some(arr) = json_response.as_array() {
-                        if arr.len() >= 2 {
-                            // Element 0: token array
-                            let mut new_token_opt = None;
-                            if let Some(token_arr) = arr[0].as_array() {
-                                if let Some(token_obj) = token_arr.first() {
-                                    if let Some(token_str) =
-                                        token_obj.get("TOKEN").and_then(|t| t.as_str())
-                                    {
-                                        new_token_opt = Some(token_str.to_string());
-                                        info!("Memperbarui token untuk modul {}", module);
-                                        self.current_tokens
-                                            .insert(module.to_string(), token_str.to_string());
+                    if let Some(arr) = json_response.as_array()
+                        && arr.len() >= 2
+                    {
+                        // Element 0: token array
+                        let mut new_token_opt = None;
+                        if let Some(token_arr) = arr[0].as_array()
+                            && let Some(token_obj) = token_arr.first()
+                            && let Some(token_str) = token_obj.get("TOKEN").and_then(|t| t.as_str())
+                        {
+                            new_token_opt = Some(token_str.to_string());
+                            info!("Memperbarui token untuk modul {}", module);
+                            self.current_tokens
+                                .insert(module.to_string(), token_str.to_string());
 
-                                        // Save token baru ke database
-                                        if let Some(db) = &self.db_client {
-                                            match self.save_token_to_db(db, module, token_str).await
-                                            {
-                                                Ok(_) => info!(
-                                                    "✓ Token dari response disimpan ke database (modul: {})",
-                                                    module
-                                                ),
-                                                Err(e) => warn!(
-                                                    "⚠ Gagal simpan token dari response ke database: {:?}",
-                                                    e
-                                                ),
-                                            }
-                                        }
-                                    }
+                            // Save token baru ke database
+                            if let Some(db) = &self.db_client {
+                                match self.save_token_to_db(db, module, token_str).await {
+                                    Ok(_) => info!(
+                                        "✓ Token dari response disimpan ke database (modul: {})",
+                                        module
+                                    ),
+                                    Err(e) => warn!(
+                                        "⚠ Gagal simpan token dari response ke database: {:?}",
+                                        e
+                                    ),
                                 }
                             }
-
-                            // Element 1: data array
-                            let data_value = arr[1].clone();
-
-                            return Ok(MonsaktiResponse {
-                                new_token: new_token_opt,
-                                data: Some(data_value),
-                                error: None,
-                            });
                         }
+
+                        // Element 1: data array
+                        let data_value = arr[1].clone();
+
+                        return Ok(MonsaktiResponse {
+                            new_token: new_token_opt,
+                            data: Some(data_value),
+                            error: None,
+                        });
                     }
 
                     // Fallback: treat as plain JSON
