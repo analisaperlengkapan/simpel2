@@ -72,6 +72,7 @@ impl MonsaktiClient {
     }
 
     /// Clone untuk parallel processing - Token tidak di-share
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -629,12 +630,12 @@ impl MonsaktiClient {
                                 .iter()
                                 .map(|h| {
                                     obj.get(*h)
-                                        .and_then(|v| match v {
-                                            serde_json::Value::String(s) => Some(s.clone()),
-                                            serde_json::Value::Number(n) => Some(n.to_string()),
-                                            serde_json::Value::Bool(b) => Some(b.to_string()),
-                                            serde_json::Value::Null => Some("".to_string()),
-                                            _ => Some(v.to_string()),
+                                        .map(|v| match v {
+                                            serde_json::Value::String(s) => s.clone(),
+                                            serde_json::Value::Number(n) => n.to_string(),
+                                            serde_json::Value::Bool(b) => b.to_string(),
+                                            serde_json::Value::Null => String::new(),
+                                            _ => v.to_string(),
                                         })
                                         .unwrap_or_default()
                                 })
