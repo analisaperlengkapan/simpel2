@@ -3,7 +3,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
-use crate::mysimkari::mysimkari;
+use crate::mysimkari::api;
 use crate::storage::StorageStrategy;
 use tracing::{debug, error, info, warn};
 
@@ -499,7 +499,7 @@ pub async fn fetch_mysimkari(
     info!("Fetching MySIMKARI data...");
 
     // Get Satker
-    if let Ok(data) = mysimkari::get_satker(client).await {
+    if let Ok(data) = api::get_satker(client).await {
         storage
             .save_with_table(client, "mysimkari_satker", &data, "global")
             .await?;
@@ -510,7 +510,7 @@ pub async fn fetch_mysimkari(
                 if let Some(obj) = item.as_object() {
                     if let Some(id) = obj.get("id") {
                         if let Some(id_str) = id.as_str() {
-                            match mysimkari::pegawai_satker(client, id_str).await {
+                            match api::pegawai_satker(client, id_str).await {
                                 Ok(mut pegawai_data) => {
                                     // Inject satker_id ke setiap pegawai record
                                     if let Some(pegawai_array) = pegawai_data.as_array_mut() {

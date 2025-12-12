@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 // Core modules
 pub mod audit;
 pub mod client;
@@ -39,7 +41,7 @@ pub use db::{bulk_insert_postgres, save_to_database};
 
 // API module exports
 pub use monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
-pub use mysimkari::mysimkari::{get_satker, pegawai_satker};
+pub use mysimkari::api::{get_satker, pegawai_satker};
 
 // SIMAN module exports
 pub use siman::{

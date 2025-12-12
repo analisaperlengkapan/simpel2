@@ -26,8 +26,8 @@
 //! ```
 
 use std::sync::Arc;
-use tonic::transport::Server;
 use tonic::service::interceptor::InterceptorLayer;
+use tonic::transport::Server;
 
 use crate::app::AppState;
 use crate::grpc::interceptors::{LoggingInterceptor, MetricsInterceptor};

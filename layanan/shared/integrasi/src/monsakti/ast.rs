@@ -2,6 +2,7 @@ use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 
 /// Endpoint: /API/AST/asetTrx/KLxxx/KDSATKER/KDGOL/KDBID/KDKEL (opsional)/KDSKEL (opsional)/KDBRG (opsional)
+#[allow(clippy::too_many_arguments)]
 pub async fn aset_trx(
     client: &mut MonsaktiClient,
     kode_kl: &str,
