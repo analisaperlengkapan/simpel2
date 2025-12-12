@@ -203,8 +203,14 @@ async fn process_monsakti(
             if args.parallel {
                 fetch_satker_parallel(client, storage, &args.kode_kl, kdsatker).await?;
             } else if module_filter.is_some() {
-                fetch_satker_with_modules(client, storage, &args.kode_kl, kdsatker, module_filter)
-                    .await?;
+                fetch_satker_with_modules(
+                    client,
+                    storage,
+                    &args.kode_kl,
+                    kdsatker,
+                    module_filter,
+                )
+                .await?;
             } else {
                 fetch_satker_complete(client, storage, &args.kode_kl, kdsatker).await?;
             }

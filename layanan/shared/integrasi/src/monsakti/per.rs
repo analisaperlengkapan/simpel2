@@ -2,6 +2,7 @@ use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 
 /// Endpoint: /API/PER/persediaTrx/KLxxx/KDSATKER/KDGOL (opsional)/KDBID (opsional)/KDKEL (opsional)/KDSKEL (opsional)/KDBRG (opsional)
+#[allow(clippy::too_many_arguments)]
 pub async fn persedia_trx(
     client: &mut MonsaktiClient,
     kode_kl: &str,

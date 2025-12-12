@@ -16,8 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         proto_dir.join("secreton.proto"), // For Secreton client
     ];
 
-    // Configure tonic-build
-    tonic_build::configure()
+    // Configure tonic-prost-build (tonic 0.14+)
+    tonic_prost_build::configure()
         // Set the output directory for generated code
         .build_server(true)
         .build_client(true)

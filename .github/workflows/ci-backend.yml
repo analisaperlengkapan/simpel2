@@ -44,7 +44,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache
@@ -99,7 +99,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache
@@ -148,7 +148,7 @@ jobs:
           components: clippy
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache
@@ -189,7 +189,7 @@ jobs:
           components: rustfmt
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Check formatting (workspace)
@@ -218,7 +218,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        uses: arduino/setup-protoc@v4
+        uses: arduino/setup-protoc@v3
         with:
           version: "25.x"
       - name: Setup Rust cache

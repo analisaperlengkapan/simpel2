@@ -363,7 +363,10 @@ pub async fn fetch_all_assets_with_pagination(
             current_id, end_id, total_count
         );
 
-        match client.fetch_siman_data(category, current_id, end_id).await {
+        match client
+            .fetch_siman_data(category, current_id, end_id)
+            .await
+        {
             Ok(response) => {
                 if let Some(data) = response.data {
                     // Extract results array

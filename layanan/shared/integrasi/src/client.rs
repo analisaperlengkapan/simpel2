@@ -72,6 +72,7 @@ impl MonsaktiClient {
     }
 
     /// Clone untuk parallel processing - Token tidak di-share
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -219,7 +220,7 @@ impl MonsaktiClient {
                         status
                     );
                     match self.reset_token_auto(module, tipe_data).await {
-                        Ok(new_token) => {
+                        Ok(_new_token) => {
                             info!("✓ Token baru diterima dari resetToken endpoint");
                             info!(
                                 "⟳ Retry request dengan token baru (attempt {})",
@@ -261,7 +262,7 @@ impl MonsaktiClient {
                             "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
                         );
                         match self.reset_token_auto(module, tipe_data).await {
-                            Ok(new_token) => {
+                            Ok(_new_token) => {
                                 info!("✓ Token baru diterima dari resetToken endpoint");
                                 info!(
                                     "⟳ Retry request dengan token baru (attempt {})",
@@ -614,29 +615,29 @@ impl MonsaktiClient {
             }
 
             let mut wtr = csv::Writer::from_path(&path)?;
-            if let Some(first) = array.first()
-                && let Some(obj) = first.as_object()
-            {
-                let headers: Vec<&String> = obj.keys().collect();
-                wtr.write_record(&headers)?;
+            if let Some(first) = array.first() {
+                if let Some(obj) = first.as_object() {
+                    let headers: Vec<&String> = obj.keys().collect();
+                    wtr.write_record(&headers)?;
 
-                for item in array {
-                    if let Some(obj) = item.as_object() {
-                        let row: Vec<String> = headers
-                            .iter()
-                            .map(|h| {
-                                obj.get(*h)
-                                    .map(|v| match v {
-                                        serde_json::Value::String(s) => s.clone(),
-                                        serde_json::Value::Number(n) => n.to_string(),
-                                        serde_json::Value::Bool(b) => b.to_string(),
-                                        serde_json::Value::Null => "".to_string(),
-                                        _ => v.to_string(),
-                                    })
-                                    .unwrap_or_default()
-                            })
-                            .collect();
-                        wtr.write_record(&row)?;
+                    for item in array {
+                        if let Some(obj) = item.as_object() {
+                            let row: Vec<String> = headers
+                                .iter()
+                                .map(|h| {
+                                    obj.get(*h)
+                                        .map(|v| match v {
+                                            serde_json::Value::String(s) => s.clone(),
+                                            serde_json::Value::Number(n) => n.to_string(),
+                                            serde_json::Value::Bool(b) => b.to_string(),
+                                            serde_json::Value::Null => String::new(),
+                                            _ => v.to_string(),
+                                        })
+                                        .unwrap_or_default()
+                                })
+                                .collect();
+                            wtr.write_record(&row)?;
+                        }
                     }
                 }
             }
