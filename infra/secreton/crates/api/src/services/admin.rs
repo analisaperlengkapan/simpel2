@@ -75,6 +75,7 @@ pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
+    start_time: chrono::DateTime<chrono::Utc>,
 }
 
 impl AdminService {
@@ -88,6 +89,7 @@ impl AdminService {
             storage,
             auth,
             audit,
+            start_time: chrono::Utc::now(),
         })
     }
 
@@ -99,8 +101,8 @@ impl AdminService {
         // Get audit statistics
         let audit_count = self.audit.count().await;
 
-        // Calculate uptime (simplified - should track actual start time)
-        let uptime_seconds = 0; // TODO: Track actual service start time
+        // Calculate uptime
+        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds().max(0) as u64;
 
         // TODO: Get actual user and session counts from auth service
         // For now, using placeholder values as auth service doesn't expose these stats yet
@@ -573,11 +575,13 @@ mod tests {
         let audit = Arc::new(AuditLogger::new(10000));
         let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
 
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         let stats = admin_service.get_system_stats().await.expect("stats");
         // With empty storage, stats should reflect zero counts
         assert_eq!(stats.total_secrets, 0);
         assert_eq!(stats.total_keys, 0);
         assert_eq!(stats.storage_usage_bytes, 0);
+        assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
     }
 
     #[tokio::test]
@@ -633,6 +637,7 @@ impl AdminService {
             )),
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
+            start_time: chrono::Utc::now(),
         }
     }
 }
