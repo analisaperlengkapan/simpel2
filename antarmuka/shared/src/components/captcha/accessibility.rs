@@ -54,8 +54,9 @@ pub fn AudioChallenge(
                         utterance.set_volume(0.8);
 
                         // Set up event handlers
+                        let set_audio_playing_clone = set_audio_playing.clone();
                         let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                            set_audio_playing.set(false);
+                            set_audio_playing_clone.set(false);
                         })
                             as Box<dyn Fn()>);
 
@@ -130,8 +131,7 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         let _: () = view! {};
-                         ().into_any()
+                         view! {}.into_any()
                      }}
                  </div>
 
@@ -264,11 +264,11 @@ pub fn AlternativeInputMethods(
     on_answer: Callback<String>,
     challenge_type: ChallengeType,
 ) -> impl IntoView {
-    let (selected_option, set_selected_option) = signal(None::<String>);
-    let (voice_input_active, set_voice_input_active) = signal(false);
+    let (_selected_option, _set_selected_option) = signal(None::<String>);
+    let (_voice_input_active, set_voice_input_active) = signal(false);
 
     // Voice input using Web Speech API
-    let start_voice_input = move |_: ()| {
+    let _start_voice_input = move |_: ()| {
         set_voice_input_active.set(true);
 
         spawn_local(async move {
@@ -287,45 +287,50 @@ pub fn AlternativeInputMethods(
                         )
                         .unwrap();
 
-                    // Configure recognition
-                    let _ = js_sys::Reflect::set(&recognition, &"continuous".into(), &false.into());
-                    let _ =
-                        js_sys::Reflect::set(&recognition, &"interimResults".into(), &false.into());
-                    let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
+                        // Configure recognition
+                        let _ =
+                            js_sys::Reflect::set(&recognition, &"continuous".into(), &false.into());
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"interimResults".into(),
+                            &false.into(),
+                        );
+                        let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
-                    // Set up result handler
-                    let _on_answer_clone = on_answer;
-                    let set_voice_input_active_clone = set_voice_input_active;
-                    let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
-                        move |event: web_sys::Event| {
-                            // Extract speech result
-                            if let Ok(results) = js_sys::Reflect::get(&event, &"results".into()) {
-                                if let Ok(result) = js_sys::Reflect::get(&results, &0.into()) {
-                                    if let Ok(alternative) =
-                                        js_sys::Reflect::get(&result, &0.into())
-                                    {
-                                        if let Ok(transcript) = js_sys::Reflect::get(
-                                            &alternative,
-                                            &"transcript".into(),
-                                        ) {
-                                            if let Some(_text) = transcript.as_string() {
-                                                // on_answer_clone(text.trim().to_string());
+                        // Set up result handler
+                        let _on_answer_clone = on_answer.clone();
+                        let set_voice_input_active_clone = set_voice_input_active.clone();
+                        let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
+                            move |event: web_sys::Event| {
+                                // Extract speech result
+                                if let Ok(results) = js_sys::Reflect::get(&event, &"results".into())
+                                {
+                                    if let Ok(result) = js_sys::Reflect::get(&results, &0.into()) {
+                                        if let Ok(alternative) =
+                                            js_sys::Reflect::get(&result, &0.into())
+                                        {
+                                            if let Ok(transcript) = js_sys::Reflect::get(
+                                                &alternative,
+                                                &"transcript".into(),
+                                            ) {
+                                                if let Some(_text) = transcript.as_string() {
+                                                    // on_answer_clone(text.trim().to_string());
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                            set_voice_input_active_clone.set(false);
-                        },
-                    )
-                        as Box<dyn Fn(web_sys::Event)>);
+                                set_voice_input_active_clone.set(false);
+                            },
+                        )
+                            as Box<dyn Fn(web_sys::Event)>);
 
-                    let _ = js_sys::Reflect::set(
-                        &recognition,
-                        &"onresult".into(),
-                        onresult.as_ref().unchecked_ref(),
-                    );
-                    onresult.forget();
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"onresult".into(),
+                            onresult.as_ref().unchecked_ref(),
+                        );
+                        onresult.forget();
 
                         // Start recognition
                         let _ = js_sys::Reflect::apply(
@@ -346,7 +351,7 @@ pub fn AlternativeInputMethods(
     };
 
     // Multiple choice options for easier selection
-    let options = match challenge_type {
+    let _options = match challenge_type {
         ChallengeType::Visual | ChallengeType::Logical => vec![
             ("1", "One"),
             ("2", "Two"),
@@ -369,11 +374,12 @@ pub fn AlternativeInputs(
     challenge_type: ChallengeType,
     on_answer: Callback<String>,
 ) -> impl IntoView {
+    let _ = on_answer;
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);
 
     // Voice input handler - simplified implementation
-    let start_voice_input = move |_| {
+    let start_voice_input = move |_: ()| {
         set_voice_input_active.set(true);
 
         spawn_local(async move {
@@ -449,7 +455,7 @@ pub fn AlternativeInputs(
                 <div class="voice-input">
                     <Button
                         on_click=Box::new(move || {
-                            start_voice_input(leptos::ev::MouseEvent::new("click").unwrap())
+                            start_voice_input(())
                         })
                         variant=ButtonVariant::Secondary
                         size=ButtonSize::Small

@@ -106,7 +106,7 @@ pub fn BehavioralCollector(
     let config = config.unwrap_or_default();
 
     // State for behavioral data
-    let (behavioral_data, set_behavioral_data) = signal(BehavioralMetricsData {
+    let (_behavioral_data, set_behavioral_data) = signal(BehavioralMetricsData {
         session_id: session_id.clone(),
         mouse_movements: Vec::new(),
         keystroke_dynamics: Vec::new(),
@@ -291,7 +291,7 @@ pub fn BehavioralCollector(
                 });
 
                 // Trigger callback if provided
-                if let Some(callback) = on_data_collected {
+                if let Some(_callback) = on_data_collected {
                     // callback(behavioral_data.get());
                 }
             },
