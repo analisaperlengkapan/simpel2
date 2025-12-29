@@ -178,11 +178,10 @@ pub fn OtpInput(
     };
 
     let handle_keydown = move |ev: web_sys::KeyboardEvent| {
-        if ev.key() == "Enter" && value.get().len() == 6 {
-            if let Some(ref callback) = on_submit {
+        if ev.key() == "Enter" && value.get().len() == 6
+            && let Some(ref callback) = on_submit {
                 callback();
             }
-        }
     };
 
     view! {
@@ -580,11 +579,10 @@ pub fn Switch(
                 on:click={
                     let on_change = Rc::clone(&on_change_rc);
                     move |_| {
-                        if !disabled {
-                            if let Some(ref callback) = *on_change {
+                        if !disabled
+                            && let Some(ref callback) = *on_change {
                                 callback(!checked);
                             }
-                        }
                     }
                 }
             >
@@ -632,8 +630,8 @@ pub fn FileInput(
             let target = ev
                 .target()
                 .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
-            if let Some(input) = target {
-                if let Some(files) = input.files() {
+            if let Some(input) = target
+                && let Some(files) = input.files() {
                     let mut file_list = Vec::new();
                     for i in 0..files.length() {
                         if let Some(file) = files.get(i) {
@@ -642,7 +640,6 @@ pub fn FileInput(
                     }
                     callback(file_list);
                 }
-            }
         }
     };
 

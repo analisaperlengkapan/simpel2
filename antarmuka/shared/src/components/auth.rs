@@ -46,7 +46,7 @@ pub fn LoginRedirectPage() -> impl IntoView {
         }
     });
 
-    let auth_clone = auth.clone();
+    let auth_clone = auth;
     let handle_login = move || {
         auth_clone.redirect_to_login();
     };
@@ -127,22 +127,21 @@ pub fn ProtectedRoute(
     let auth = use_auth();
 
     // Check authentication and redirect if needed
-    let auth_check = auth.clone();
+    let auth_check = auth;
     let perm_check = required_permission.clone();
     Effect::new(move || {
         if !auth_check.is_authenticated() {
             auth_check.redirect_to_login();
-        } else if let Some(ref permission) = perm_check {
-            if !auth_check.has_permission(permission) {
+        } else if let Some(ref permission) = perm_check
+            && !auth_check.has_permission(permission) {
                 // User doesn't have required permission, show error or redirect
                 if let Some(window) = web_sys::window() {
                     let _ = window.location().set_href("/unauthorized");
                 }
             }
-        }
     });
 
-    let auth_show = auth.clone();
+    let auth_show = auth;
     let perm_show = required_permission.clone();
     view! {
         <Show
@@ -193,7 +192,7 @@ pub fn LogoutButton(
 ) -> impl IntoView {
     let auth = use_auth();
 
-    let auth_clone = auth.clone();
+    let auth_clone = auth;
     let handle_logout = move || {
         auth_clone.logout();
     };
@@ -235,8 +234,8 @@ pub fn UserProfile(
     class: String,
 ) -> impl IntoView {
     let auth = use_auth();
-    let auth_check = auth.clone();
-    let auth_session = auth.clone();
+    let auth_check = auth;
+    let auth_session = auth;
     let class_stored = StoredValue::new(class);
 
     view! {

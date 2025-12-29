@@ -7,7 +7,7 @@ use std::collections::HashMap;
 /// Uses a whitelist approach to allow only safe HTML tags and attributes
 pub fn sanitize_html(input: &str) -> String {
     // Define allowed tags and attributes
-    let allowed_tags = vec![
+    let _allowed_tags = vec![
         "p",
         "br",
         "strong",
@@ -30,7 +30,7 @@ pub fn sanitize_html(input: &str) -> String {
         "div",
     ];
 
-    let allowed_attributes: HashMap<&str, Vec<&str>> = [
+    let _allowed_attributes: HashMap<&str, Vec<&str>> = [
         ("a", vec!["href", "title", "target"]),
         ("span", vec!["class"]),
         ("div", vec!["class"]),

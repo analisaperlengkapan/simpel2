@@ -40,18 +40,18 @@ pub struct SimpleBehavioralMetrics {
 #[component]
 pub fn SimpleBehavioralTracker(
     /// Session ID for tracking
-    session_id: String,
+    _session_id: String,
     /// Callback when data is collected
     #[prop(optional)]
-    on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
+    _on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
     /// Children components
     children: Children,
 ) -> impl IntoView {
     // Tracking state
-    let (mouse_events, set_mouse_events) = signal(VecDeque::<SimpleMouseData>::new());
-    let (keystroke_events, set_keystroke_events) = signal(VecDeque::<SimpleKeystrokeData>::new());
-    let (interaction_start, set_interaction_start) = signal(js_sys::Date::now() as u64);
-    let (total_interactions, set_total_interactions) = signal(0u32);
+    let (_mouse_events, set_mouse_events) = signal(VecDeque::<SimpleMouseData>::new());
+    let (_keystroke_events, set_keystroke_events) = signal(VecDeque::<SimpleKeystrokeData>::new());
+    let (_interaction_start, _set_interaction_start) = signal(js_sys::Date::now() as u64);
+    let (_total_interactions, set_total_interactions) = signal(0u32);
 
     // Mouse event handler
     let handle_mouse_event = move |event: WebMouseEvent| {
@@ -222,7 +222,8 @@ pub fn BehavioralMetricsDisplay(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
                 }.into_any()

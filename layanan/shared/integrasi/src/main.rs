@@ -196,25 +196,23 @@ async fn process_monsakti(
             let kdsatker = args
                 .test_satker
                 .as_ref()
-                .ok_or_else(|| "ERROR: --test-satker required for single mode")?;
+                .ok_or("ERROR: --test-satker required for single mode")?;
 
             info!("Mode: SINGLE (satker {})", kdsatker);
 
             if args.parallel {
                 fetch_satker_parallel(client, storage, &args.kode_kl, kdsatker).await?;
+            } else if module_filter.is_some() {
+                fetch_satker_with_modules(
+                    client,
+                    storage,
+                    &args.kode_kl,
+                    kdsatker,
+                    module_filter,
+                )
+                .await?;
             } else {
-                if module_filter.is_some() {
-                    fetch_satker_with_modules(
-                        client,
-                        storage,
-                        &args.kode_kl,
-                        kdsatker,
-                        module_filter,
-                    )
-                    .await?;
-                } else {
-                    fetch_satker_complete(client, storage, &args.kode_kl, kdsatker).await?;
-                }
+                fetch_satker_complete(client, storage, &args.kode_kl, kdsatker).await?;
             }
         }
         Mode::List => {
@@ -303,7 +301,7 @@ async fn process_siman(
         info!("");
         info!("📦 Processing: {}", category.description());
 
-        match fetch_all_assets_with_pagination(client, storage, category.clone()).await {
+        match fetch_all_assets_with_pagination(client, storage, category).await {
             Ok((success, failed)) => {
                 info!(
                     "✅ {} completed: {} records fetched, {} failed",

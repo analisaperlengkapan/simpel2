@@ -106,7 +106,7 @@ pub fn BehavioralCollector(
     let config = config.unwrap_or_default();
 
     // State for behavioral data
-    let (behavioral_data, set_behavioral_data) = signal(BehavioralMetricsData {
+    let (_behavioral_data, set_behavioral_data) = signal(BehavioralMetricsData {
         session_id: session_id.clone(),
         mouse_movements: Vec::new(),
         keystroke_dynamics: Vec::new(),
@@ -291,7 +291,7 @@ pub fn BehavioralCollector(
                 });
 
                 // Trigger callback if provided
-                if let Some(callback) = on_data_collected {
+                if let Some(_callback) = on_data_collected {
                     // callback(behavioral_data.get());
                 }
             },
@@ -328,7 +328,7 @@ fn collect_browser_fingerprint(
     let user_agent = navigator.user_agent().unwrap_or_default();
 
     // Screen resolution
-    let screen_resolution = if let Some(screen) = window.screen().ok() {
+    let screen_resolution = if let Ok(screen) = window.screen() {
         format!(
             "{}x{}",
             screen.width().unwrap_or(0),
@@ -423,16 +423,14 @@ fn generate_webgl_fingerprint(window: &Window) -> Option<String> {
     // Get WebGL parameters for fingerprinting
     let mut fingerprint_parts = Vec::new();
 
-    if let Some(vendor) = gl
+    if let Ok(vendor) = gl
         .get_parameter(web_sys::WebGlRenderingContext::VENDOR)
-        .ok()
     {
         fingerprint_parts.push(format!("vendor:{}", vendor.as_string().unwrap_or_default()));
     }
 
-    if let Some(renderer) = gl
+    if let Ok(renderer) = gl
         .get_parameter(web_sys::WebGlRenderingContext::RENDERER)
-        .ok()
     {
         fingerprint_parts.push(format!(
             "renderer:{}",
@@ -440,9 +438,8 @@ fn generate_webgl_fingerprint(window: &Window) -> Option<String> {
         ));
     }
 
-    if let Some(version) = gl
+    if let Ok(version) = gl
         .get_parameter(web_sys::WebGlRenderingContext::VERSION)
-        .ok()
     {
         fingerprint_parts.push(format!(
             "version:{}",
@@ -467,7 +464,7 @@ fn set_interval<F>(mut f: F, duration: std::time::Duration) -> i32
 where
     F: FnMut() + 'static,
 {
-    let closure = Closure::wrap(Box::new(move || f()) as Box<dyn FnMut()>);
+    let closure = Closure::wrap(Box::new(f) as Box<dyn FnMut()>);
     let handle = set_interval_with_handle(
         closure.as_ref().unchecked_ref(),
         duration.as_millis() as i32,

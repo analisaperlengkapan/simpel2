@@ -6,12 +6,14 @@ use serde_json::Value;
 
 /// Strategy untuk menyimpan data
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum StorageStrategy {
     /// Simpan ke file JSON
     JsonFile { base_dir: String },
     /// Simpan ke file CSV
     CsvFile { base_dir: String },
     /// Simpan ke database PostgreSQL
+    #[default]
     Database,
     /// Simpan ke file dan database
     Both { base_dir: String },
@@ -82,11 +84,6 @@ impl StorageStrategy {
     }
 }
 
-impl Default for StorageStrategy {
-    fn default() -> Self {
-        StorageStrategy::Database
-    }
-}
 
 /// Helper untuk membuat storage strategy dari environment variable
 pub fn storage_from_env() -> StorageStrategy {

@@ -311,18 +311,15 @@ pub fn BrandedLogo(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum BrandedLogoSize {
     Small,
+    #[default]
     Medium,
     Large,
     ExtraLarge,
 }
 
-impl Default for BrandedLogoSize {
-    fn default() -> Self {
-        Self::Medium
-    }
-}
 
 // ============================================================================
 // BRANDING EDITOR COMPONENT

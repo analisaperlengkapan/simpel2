@@ -41,11 +41,10 @@ pub fn AudioChallenge(
         set_audio_playing.set(true);
 
         spawn_local(async move {
-            if let Some(window) = web_sys::window() {
-                if let Ok(speech_synthesis) =
+            if let Some(window) = web_sys::window()
+                && let Ok(speech_synthesis) =
                     js_sys::Reflect::get(&window, &"speechSynthesis".into())
-                {
-                    if !speech_synthesis.is_undefined() {
+                    && !speech_synthesis.is_undefined() {
                         // Create speech utterance
                         let utterance =
                             web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get())
@@ -54,7 +53,7 @@ pub fn AudioChallenge(
                         utterance.set_volume(0.8);
 
                         // Set up event handlers
-                        let set_audio_playing_clone = set_audio_playing.clone();
+                        let set_audio_playing_clone = set_audio_playing;
                         let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                             set_audio_playing_clone.set(false);
                         })
@@ -67,8 +66,6 @@ pub fn AudioChallenge(
                         let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
                         synthesis.speak(&utterance);
                     }
-                }
-            }
 
             // Fallback timeout
             gloo_timers::future::TimeoutFuture::new(5000).await;
@@ -78,14 +75,12 @@ pub fn AudioChallenge(
 
     // Stop audio playback
     let stop_audio = move |_| {
-        if let Some(window) = web_sys::window() {
-            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
-                if !speech_synthesis.is_undefined() {
+        if let Some(window) = web_sys::window()
+            && let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into())
+                && !speech_synthesis.is_undefined() {
                     let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
                     synthesis.cancel();
                 }
-            }
-        }
         set_audio_playing.set(false);
     };
 
@@ -131,7 +126,8 @@ pub fn AudioChallenge(
                              </Button>
                          }.into_any()
                      } else {
-                         view! {}.into_any()
+                         let _: () = view! {};
+                         ().into_any()
                      }}
                  </div>
 
@@ -210,14 +206,12 @@ pub fn KeyboardNavigation(
                 // Activate focused element
                 if let Some(focused_id) = current_focus.get() {
                     // Trigger click event on focused element
-                    if let Some(window) = web_sys::window() {
-                        if let Some(document) = window.document() {
-                            if let Some(element) = document.get_element_by_id(&focused_id) {
+                    if let Some(window) = web_sys::window()
+                        && let Some(document) = window.document()
+                            && let Some(element) = document.get_element_by_id(&focused_id) {
                                 let _ =
                                     element.dispatch_event(&web_sys::Event::new("click").unwrap());
                             }
-                        }
-                    }
                 }
                 ev.prevent_default();
             }
@@ -261,14 +255,14 @@ pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl
 /// Alternative input methods for users with motor impairments
 #[component]
 pub fn AlternativeInputMethods(
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
     challenge_type: ChallengeType,
 ) -> impl IntoView {
-    let (selected_option, set_selected_option) = signal(None::<String>);
-    let (voice_input_active, set_voice_input_active) = signal(false);
+    let (_selected_option, _set_selected_option) = signal(None::<String>);
+    let (_voice_input_active, set_voice_input_active) = signal(false);
 
     // Voice input using Web Speech API
-    let start_voice_input = move |_: ()| {
+    let _start_voice_input = move |_: ()| {
         set_voice_input_active.set(true);
 
         spawn_local(async move {
@@ -278,8 +272,8 @@ pub fn AlternativeInputMethods(
                     js_sys::Reflect::get(&window, &"webkitSpeechRecognition".into())
                         .or_else(|_| js_sys::Reflect::get(&window, &"SpeechRecognition".into()));
 
-                if let Ok(recognition_constructor) = speech_recognition {
-                    if !recognition_constructor.is_undefined() {
+                if let Ok(recognition_constructor) = speech_recognition
+                    && !recognition_constructor.is_undefined() {
                         // Create speech recognition instance
                         let recognition = js_sys::Reflect::construct(
                             &recognition_constructor.into(),
@@ -298,28 +292,22 @@ pub fn AlternativeInputMethods(
                         let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                         // Set up result handler
-                        let on_answer_clone = on_answer.clone();
-                        let set_voice_input_active_clone = set_voice_input_active.clone();
+                        let _on_answer_clone = _on_answer;
+                        let set_voice_input_active_clone = set_voice_input_active;
                         let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                             move |event: web_sys::Event| {
                                 // Extract speech result
                                 if let Ok(results) = js_sys::Reflect::get(&event, &"results".into())
-                                {
-                                    if let Ok(result) = js_sys::Reflect::get(&results, &0.into()) {
-                                        if let Ok(alternative) =
+                                    && let Ok(result) = js_sys::Reflect::get(&results, &0.into())
+                                        && let Ok(alternative) =
                                             js_sys::Reflect::get(&result, &0.into())
-                                        {
-                                            if let Ok(transcript) = js_sys::Reflect::get(
+                                            && let Ok(transcript) = js_sys::Reflect::get(
                                                 &alternative,
                                                 &"transcript".into(),
-                                            ) {
-                                                if let Some(text) = transcript.as_string() {
+                                            )
+                                                && let Some(_text) = transcript.as_string() {
                                                     // on_answer_clone(text.trim().to_string());
                                                 }
-                                            }
-                                        }
-                                    }
-                                }
                                 set_voice_input_active_clone.set(false);
                             },
                         )
@@ -341,7 +329,6 @@ pub fn AlternativeInputMethods(
                             &js_sys::Array::new(),
                         );
                     }
-                }
             }
 
             // Timeout after 10 seconds
@@ -351,7 +338,7 @@ pub fn AlternativeInputMethods(
     };
 
     // Multiple choice options for easier selection
-    let options = match challenge_type {
+    let _options = match challenge_type {
         ChallengeType::Visual | ChallengeType::Logical => vec![
             ("1", "One"),
             ("2", "Two"),
@@ -372,7 +359,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);

@@ -112,7 +112,7 @@ impl ErrorTracker {
     }
 
     fn get_user_context(&self) -> UserContext {
-        self.user_context.clone().unwrap_or_else(|| UserContext {
+        self.user_context.clone().unwrap_or(UserContext {
             user_id: None,
             username: None,
             email: None,
@@ -198,7 +198,7 @@ fn setup_error_handler() {
             send_error_report(error_report);
         }) as Box<dyn FnMut(ErrorEvent)>);
 
-        let _ = window.set_onerror(Some(closure.as_ref().unchecked_ref()));
+        window.set_onerror(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
     }
 }

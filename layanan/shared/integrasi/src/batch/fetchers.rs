@@ -167,17 +167,13 @@ pub async fn fetch_ang(
     // Ref STS
     if let Ok(data) = ang::ref_sts(client, kode_kl, kdsatker).await {
         // Extract latest STS history code
-        if let Some(array) = data.as_array() {
-            if let Some(latest) = array.last() {
-                if let Some(obj) = latest.as_object() {
-                    if let Some(sts) = obj.get("KODE_STS_HISTORY") {
-                        if let Some(sts_str) = sts.as_str() {
+        if let Some(array) = data.as_array()
+            && let Some(latest) = array.last()
+                && let Some(obj) = latest.as_object()
+                    && let Some(sts) = obj.get("KODE_STS_HISTORY")
+                        && let Some(sts_str) = sts.as_str() {
                             kode_sts_history = sts_str.to_string();
                         }
-                    }
-                }
-            }
-        }
         storage
             .save(client, "ang", "ref_sts", &data, &context)
             .await?;
@@ -507,9 +503,9 @@ pub async fn fetch_mysimkari(
         // Fetch pegawai untuk setiap satker
         if let Some(array) = data.as_array() {
             for item in array {
-                if let Some(obj) = item.as_object() {
-                    if let Some(id) = obj.get("id") {
-                        if let Some(id_str) = id.as_str() {
+                if let Some(obj) = item.as_object()
+                    && let Some(id) = obj.get("id")
+                        && let Some(id_str) = id.as_str() {
                             match mysimkari::pegawai_satker(client, id_str).await {
                                 Ok(mut pegawai_data) => {
                                     // Inject satker_id ke setiap pegawai record
@@ -543,8 +539,6 @@ pub async fn fetch_mysimkari(
                             // Rate limiting
                             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                         }
-                    }
-                }
             }
         }
     }

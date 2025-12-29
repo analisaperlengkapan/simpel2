@@ -89,11 +89,10 @@ impl FocusManager {
 
     /// Focus the first focusable element in a container
     pub fn focus_first(&self, container: &web_sys::Element) {
-        if let Ok(Some(element)) = container.query_selector(FOCUSABLE_SELECTOR) {
-            if let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>() {
+        if let Ok(Some(element)) = container.query_selector(FOCUSABLE_SELECTOR)
+            && let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>() {
                 let _ = html_element.focus();
             }
-        }
     }
 
     /// Focus the last focusable element in a container
@@ -252,11 +251,9 @@ where
                     if let Some(active) = web_sys::window()
                         .and_then(|w| w.document())
                         .and_then(|d| d.active_element())
-                    {
-                        if let Some(index) = elements.iter().position(|el| el == &active) {
+                        && let Some(index) = elements.iter().position(|el| el == &active) {
                             on_select(index);
                         }
-                    }
                 }
                 _ => {}
             }
@@ -319,12 +316,10 @@ pub fn setup_global_shortcuts() {
         if let Some(main) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("main-content"))
-        {
-            if let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>() {
+            && let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>() {
                 let _ = html_element.focus();
                 html_element.scroll_into_view();
             }
-        }
     });
 
     // Open search (Ctrl+K or Cmd+K)
@@ -333,11 +328,9 @@ pub fn setup_global_shortcuts() {
         if let Some(search) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("global-search"))
-        {
-            if let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>() {
+            && let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>() {
                 let _ = html_element.focus();
             }
-        }
     });
 
     // Open help (Shift+?)

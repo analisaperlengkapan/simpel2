@@ -39,7 +39,7 @@ pub fn Captcha(
     // Accessibility state
     let (current_focus, set_current_focus) = signal(None::<String>);
     let (announcements, set_announcements) = signal(Vec::<String>::new());
-    let (show_alternative_inputs, set_show_alternative_inputs) = signal(false);
+    let (show_alternative_inputs, _set_show_alternative_inputs) = signal(false);
 
     // Behavioral analysis state
     let (behavioral_metrics, set_behavioral_metrics) =
@@ -232,7 +232,7 @@ pub fn Captcha(
     ];
 
     // Add announcement helper
-    let announce = move |message: String| {
+    let _announce = move |message: String| {
         set_announcements.update(|announcements| {
             announcements.push(message);
             // Keep only last 3 announcements
@@ -246,8 +246,8 @@ pub fn Captcha(
         {if behavioral_analysis {
             view! {
                 <super::behavioral_tracker::SimpleBehavioralTracker
-                    session_id=session_id.clone()
-                    on_data_update=Callback::new(handle_behavioral_update)
+                    _session_id=session_id.clone()
+                    _on_data_update=Callback::new(handle_behavioral_update)
                 >
                     <CaptchaContainer
                         class=class
@@ -431,12 +431,13 @@ fn CaptchaContainer(
                             {if accessibility_enabled && show_alternative_inputs.get() {
                                 view! {
                                     <AlternativeInputMethods
-                                        on_answer=on_success
+                                        _on_answer=on_success
                                         challenge_type=state.get().challenge_type
                                     />
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
 
                             {if behavioral_analysis {
@@ -458,7 +459,8 @@ fn CaptchaContainer(
                                     </div>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
                     }.into_any()
@@ -524,7 +526,8 @@ pub fn ChallengeDisplay(
                         </Button>
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    let _: () = view! {};
+                    ().into_any()
                 }}
             </div>
 
@@ -776,7 +779,10 @@ pub fn ChallengeInput(
                             "🔄 Validating..."
                         </div>
                     }.into_any(),
-                    _ => view! {}.into_any()
+                    _ => {
+                        let _: () = view! {};
+                        ().into_any()
+                    }
                 }
             }}
 
@@ -810,7 +816,8 @@ pub fn ChallengeInput(
                     </div>
                 }.into_any()
             } else {
-                view! {}.into_any()
+                let _: () = view! {};
+                ().into_any()
             }}
         </div>
     }

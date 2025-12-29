@@ -162,8 +162,8 @@ impl<T: Clone> MemoryCache<T> {
 
     /// Get item from cache if not expired
     pub fn get(&self, key: &str) -> Option<T> {
-        if let Ok(mut cache) = self.cache.lock() {
-            if let Some(cached_item) = cache.get(key) {
+        if let Ok(mut cache) = self.cache.lock()
+            && let Some(cached_item) = cache.get(key) {
                 if cached_item.is_valid() {
                     return Some(cached_item.data.clone());
                 } else {
@@ -171,7 +171,6 @@ impl<T: Clone> MemoryCache<T> {
                     cache.remove(key);
                 }
             }
-        }
         None
     }
 

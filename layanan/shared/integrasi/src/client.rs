@@ -143,13 +143,13 @@ impl MonsaktiClient {
 
                     // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
                     // Parse as array dan extract token + data
-                    if let Some(arr) = json_response.as_array() {
-                        if arr.len() >= 2 {
+                    if let Some(arr) = json_response.as_array()
+                        && arr.len() >= 2 {
                             // Element 0: token array
                             let mut new_token_opt = None;
-                            if let Some(token_arr) = arr[0].as_array() {
-                                if let Some(token_obj) = token_arr.first() {
-                                    if let Some(token_str) =
+                            if let Some(token_arr) = arr[0].as_array()
+                                && let Some(token_obj) = token_arr.first()
+                                    && let Some(token_str) =
                                         token_obj.get("TOKEN").and_then(|t| t.as_str())
                                     {
                                         new_token_opt = Some(token_str.to_string());
@@ -172,8 +172,6 @@ impl MonsaktiClient {
                                             }
                                         }
                                     }
-                                }
-                            }
 
                             // Element 1: data array
                             let data_value = arr[1].clone();
@@ -184,7 +182,6 @@ impl MonsaktiClient {
                                 error: None,
                             });
                         }
-                    }
 
                     // Fallback: treat as plain JSON
                     return Ok(MonsaktiResponse {
@@ -487,9 +484,9 @@ impl MonsaktiClient {
 
     /// Fetch data with ureq (synchronous client)
     fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
-        let response = ureq::get(url)
-            .set("Authorization", &format!("Bearer {}", token))
-            .set("Accept", "*/*")
+        let mut response = ureq::get(url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -498,13 +495,15 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .into_string()
+                .body_mut()
+                .read_to_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
 
         let json: serde_json::Value = response
-            .into_json()
+            .body_mut()
+            .read_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         Ok(json)
@@ -518,9 +517,9 @@ impl MonsaktiClient {
             token: String,
         }
 
-        let response = ureq::get(url)
-            .set("Authorization", &format!("Bearer {}", token))
-            .set("Accept", "*/*")
+        let mut response = ureq::get(url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -529,13 +528,15 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .into_string()
+                .body_mut()
+                .read_to_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
 
         let tokens: Vec<TokenItem> = response
-            .into_json()
+            .body_mut()
+            .read_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         if tokens.is_empty() {
@@ -618,8 +619,8 @@ impl MonsaktiClient {
             }
 
             let mut wtr = csv::Writer::from_path(&path)?;
-            if let Some(first) = array.first() {
-                if let Some(obj) = first.as_object() {
+            if let Some(first) = array.first()
+                && let Some(obj) = first.as_object() {
                     let headers: Vec<&String> = obj.keys().collect();
                     wtr.write_record(&headers)?;
 
@@ -629,12 +630,12 @@ impl MonsaktiClient {
                                 .iter()
                                 .map(|h| {
                                     obj.get(*h)
-                                        .and_then(|v| match v {
-                                            serde_json::Value::String(s) => Some(s.clone()),
-                                            serde_json::Value::Number(n) => Some(n.to_string()),
-                                            serde_json::Value::Bool(b) => Some(b.to_string()),
-                                            serde_json::Value::Null => Some("".to_string()),
-                                            _ => Some(v.to_string()),
+                                        .map(|v| match v {
+                                            serde_json::Value::String(s) => s.clone(),
+                                            serde_json::Value::Number(n) => n.to_string(),
+                                            serde_json::Value::Bool(b) => b.to_string(),
+                                            serde_json::Value::Null => "".to_string(),
+                                            _ => v.to_string(),
                                         })
                                         .unwrap_or_default()
                                 })
@@ -643,7 +644,6 @@ impl MonsaktiClient {
                         }
                     }
                 }
-            }
             wtr.flush()?;
             info!("CSV disimpan ke: {}", path.display());
         }
