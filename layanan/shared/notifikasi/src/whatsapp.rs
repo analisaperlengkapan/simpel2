@@ -7,8 +7,11 @@ use serde_json::json;
 use uuid::Uuid;
 
 pub struct WhatsAppService {
+    #[allow(dead_code)]
     pub config: AppConfig,
+    #[allow(dead_code)]
     pub pool: Pool,
+    #[allow(dead_code)]
     pub client: Client,
 }
 
@@ -21,6 +24,7 @@ impl WhatsAppService {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn send_whatsapp(
         &self,
         phone_number: &str,
@@ -91,6 +95,7 @@ impl WhatsAppService {
         Ok(notif)
     }
 
+    #[allow(dead_code)]
     pub async fn send_batch_whatsapp(
         &self,
         recipients: Vec<String>,
@@ -112,6 +117,7 @@ impl WhatsAppService {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
         let row = self
             .pool

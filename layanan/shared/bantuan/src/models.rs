@@ -4,6 +4,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
@@ -27,6 +28,7 @@ impl From<&Row> for User {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct RbacPermission {
     pub id: Uuid,
     pub role: String,
@@ -150,6 +152,7 @@ impl From<&Row> for TicketComment {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ChatbotConversation {
     pub id: Uuid,
     pub user_id: Option<Uuid>,
@@ -292,6 +295,7 @@ impl From<&Row> for WebhookEvent {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ExportImportLog {
     pub id: Uuid,
     pub user_id: Option<Uuid>,
@@ -342,6 +346,7 @@ impl From<&Row> for GdprRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CaptchaLog {
     pub id: Uuid,
     pub user_id: Option<Uuid>,

@@ -5,6 +5,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub struct TemplateService {
+    #[allow(dead_code)]
     pub pool: Pool,
 }
 
@@ -13,6 +14,7 @@ impl TemplateService {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     pub async fn create_template(
         &self,
         name: &str,
@@ -31,6 +33,7 @@ impl TemplateService {
         Ok(rec)
     }
 
+    #[allow(dead_code)]
     pub async fn get_template(&self, id: Uuid) -> Result<NotificationTemplate, AppError> {
         let sql = r#"SELECT id, name, content, variables, version, created_at, updated_at, is_active FROM notifikasi.notification_templates WHERE id = $1"#;
         let row = self.pool.get().await?.query_one(sql, &[&id]).await?;
@@ -38,6 +41,7 @@ impl TemplateService {
         Ok(rec)
     }
 
+    #[allow(dead_code)]
     pub async fn update_template(
         &self,
         id: Uuid,
@@ -55,12 +59,14 @@ impl TemplateService {
         Ok(rec)
     }
 
+    #[allow(dead_code)]
     pub async fn delete_template(&self, id: Uuid) -> Result<(), AppError> {
         let sql = r#"DELETE FROM notifikasi.notification_templates WHERE id = $1"#;
         self.pool.get().await?.execute(sql, &[&id]).await?;
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn render_template(&self, id: Uuid, variables: Value) -> Result<String, AppError> {
         let template = self.get_template(id).await?;
         let mut content = template.content;
