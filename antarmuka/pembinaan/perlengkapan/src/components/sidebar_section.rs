@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct MenuItem {
     pub href: String,
     pub label: String,
@@ -18,10 +19,10 @@ impl MenuItem {
 
 #[component]
 pub fn SidebarSection(
-    title: String,
-    icon: String,
-    is_expanded: RwSignal<bool>,
-    items: Vec<MenuItem>,
+    #[allow(unused_variables)] title: String,
+    #[allow(unused_variables)] icon: String,
+    #[allow(unused_variables)] is_expanded: RwSignal<bool>,
+    #[allow(unused_variables)] items: Vec<MenuItem>,
 ) -> impl IntoView {
     let toggle_expand = move |_| {
         is_expanded.update(|v| *v = !*v);

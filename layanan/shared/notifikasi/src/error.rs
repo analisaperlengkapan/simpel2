@@ -6,6 +6,7 @@ use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("Database error: {0}")]
     Db(#[from] tokio_postgres::Error),
@@ -34,7 +35,7 @@ pub enum AppError {
 }
 
 impl From<redis::RedisError> for AppError {
-    fn from(err: redis::RedisError) -> Self {
+    fn from(_err: redis::RedisError) -> Self {
         AppError::Internal
     }
 }

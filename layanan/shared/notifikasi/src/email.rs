@@ -6,8 +6,11 @@ use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, messag
 use uuid::Uuid;
 
 pub struct EmailService {
+    #[allow(dead_code)]
     pub config: AppConfig,
+    #[allow(dead_code)]
     pub pool: Pool,
+    #[allow(dead_code)]
     pub mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
@@ -29,6 +32,7 @@ impl EmailService {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn send_email(
         &self,
         recipient: &str,
@@ -83,6 +87,7 @@ impl EmailService {
         Ok(notif)
     }
 
+    #[allow(dead_code)]
     pub async fn send_batch_emails(
         &self,
         recipients: Vec<String>,
@@ -105,6 +110,7 @@ impl EmailService {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
         let sql = r#"SELECT id, channel, status, subject, body, created_at, sent_at, error_message FROM notifikasi.notifications WHERE id = $1"#;
         let row = self

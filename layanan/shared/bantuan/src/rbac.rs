@@ -7,6 +7,7 @@ use axum::{
 use deadpool_postgres::Pool;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum Role {
     User,
     Agent,
@@ -14,6 +15,7 @@ pub enum Role {
 }
 
 impl Role {
+    #[allow(dead_code)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "user" => Some(Role::User),
@@ -24,6 +26,7 @@ impl Role {
     }
 }
 
+#[allow(dead_code)]
 pub async fn has_permission(
     pool: &Pool,
     role: &str,
@@ -39,6 +42,7 @@ pub async fn has_permission(
 }
 
 // Middleware Axum untuk validasi permission
+#[allow(dead_code)]
 pub async fn rbac_middleware(
     State(pool): State<deadpool_postgres::Pool>,
     req: Request,
