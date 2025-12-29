@@ -5,8 +5,6 @@
 use crate::components::layout::*;
 use crate::hooks::use_auth::{get_app_name, use_auth};
 use leptos::prelude::*;
-#[cfg(doc)]
-use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
 
 /// Login redirect page component
 ///
@@ -15,19 +13,17 @@ use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::{LoginRedirectPage, ProtectedRoute};
-/// use leptos::prelude::*;
-/// use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
+/// use shared_microfrontend::components::auth::LoginRedirectPage;
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
 ///         <Router>
-///             <Routes fallback=|| "Not Found">
-///                 <Route path=StaticSegment("/") view=LoginRedirectPage />
-///                 <Route path=StaticSegment("/dashboard") view=|| view! {
+///             <Routes>
+///                 <Route path="/" view=LoginRedirectPage />
+///       <Route path="/dashboard" view=|| view! {
 ///                     <ProtectedRoute>
-///                         {move || view! { <div>"Dashboard"</div> }}
+///                         <DashboardPage />
 ///                     </ProtectedRoute>
 ///                 } />
 ///             </Routes>
@@ -50,8 +46,9 @@ pub fn LoginRedirectPage() -> impl IntoView {
         }
     });
 
+    let auth_clone = auth;
     let handle_login = move || {
-        auth.redirect_to_login();
+        auth_clone.redirect_to_login();
     };
 
     view! {
@@ -108,13 +105,12 @@ pub fn LoginRedirectPage() -> impl IntoView {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::ProtectedRoute;
-/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
 ///     view! {
 ///         <ProtectedRoute>
-///             {move || view! { <div>"Protected dashboard content"</div> }}
+///             <div>"Protected dashboard content"</div>
 ///         </ProtectedRoute>
 ///     }
 /// }
@@ -131,26 +127,27 @@ pub fn ProtectedRoute(
     let auth = use_auth();
 
     // Check authentication and redirect if needed
+    let auth_check = auth;
     let perm_check = required_permission.clone();
     Effect::new(move || {
-        if !auth.is_authenticated() {
-            auth.redirect_to_login();
+        if !auth_check.is_authenticated() {
+            auth_check.redirect_to_login();
         } else if let Some(ref permission) = perm_check
-            && !auth.has_permission(permission)
-        {
-            // User doesn't have required permission, show error or redirect
-            if let Some(window) = web_sys::window() {
-                let _ = window.location().set_href("/unauthorized");
+            && !auth_check.has_permission(permission) {
+                // User doesn't have required permission, show error or redirect
+                if let Some(window) = web_sys::window() {
+                    let _ = window.location().set_href("/unauthorized");
+                }
             }
-        }
     });
 
+    let auth_show = auth;
     let perm_show = required_permission.clone();
     view! {
         <Show
             when=move || {
-                auth.is_authenticated() && perm_show.as_ref()
-                    .map(|p| auth.has_permission(p))
+                auth_show.is_authenticated() && perm_show.as_ref()
+                    .map(|p| auth_show.has_permission(p))
                     .unwrap_or(true)
             }
             fallback=|| view! {
@@ -174,7 +171,6 @@ pub fn ProtectedRoute(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LogoutButton;
-/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -196,8 +192,9 @@ pub fn LogoutButton(
 ) -> impl IntoView {
     let auth = use_auth();
 
+    let auth_clone = auth;
     let handle_logout = move || {
-        auth.logout();
+        auth_clone.logout();
     };
 
     view! {
@@ -220,7 +217,6 @@ pub fn LogoutButton(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::UserProfile;
-/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -238,13 +234,15 @@ pub fn UserProfile(
     class: String,
 ) -> impl IntoView {
     let auth = use_auth();
+    let auth_check = auth;
+    let auth_session = auth;
     let class_stored = StoredValue::new(class);
 
     view! {
-        <Show when=move || auth.is_authenticated()>
+        <Show when=move || auth_check.is_authenticated()>
             {move || {
                 let class_value = class_stored.get_value();
-                auth.get_session().map(|session| {
+                auth_session.get_session().map(|session| {
                     view! {
                         <div class=format!("flex items-center space-x-3 {}", class_value)>
                             // Avatar
@@ -276,13 +274,12 @@ pub fn UserProfile(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::PermissionGuard;
-/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {
 ///     view! {
-///         <PermissionGuard permission="admin:*".to_string()>
-///             {move || view! { <div>"Admin only content"</div> }}
+///         <PermissionGuard permission="admin:*">
+///             <div>"Admin only content"</div>
 ///         </PermissionGuard>
 ///     }
 /// }

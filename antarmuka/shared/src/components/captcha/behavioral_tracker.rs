@@ -40,10 +40,10 @@ pub struct SimpleBehavioralMetrics {
 #[component]
 pub fn SimpleBehavioralTracker(
     /// Session ID for tracking
-    session_id: String,
+    _session_id: String,
     /// Callback when data is collected
     #[prop(optional)]
-    on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
+    _on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
     /// Children components
     children: Children,
 ) -> impl IntoView {

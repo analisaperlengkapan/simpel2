@@ -12,20 +12,12 @@ use wasm_bindgen::prelude::*;
 // ============================================================================
 
 /// Hook for registering keyboard shortcuts
+///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_keyboard::use_keyboard_shortcut;
-/// use leptos::prelude::*;
-///
-/// #[component]
-/// pub fn Editor() -> impl leptos::IntoView {
-///     use_keyboard_shortcut("ctrl+s", || {
-///         // Save action
-///         // save_document();
-///     });
-///
-///     view! { <div>"Press Ctrl+S to save"</div> }
-/// }
+/// use_keyboard_shortcut("ctrl+s", || {
+///     // Save action
+/// });
 /// ```
 pub fn use_keyboard_shortcut<F>(shortcut: &'static str, callback: F)
 where
@@ -98,10 +90,9 @@ impl FocusManager {
     /// Focus the first focusable element in a container
     pub fn focus_first(&self, container: &web_sys::Element) {
         if let Ok(Some(element)) = container.query_selector(FOCUSABLE_SELECTOR)
-            && let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>()
-        {
-            let _ = html_element.focus();
-        }
+            && let Some(html_element) = element.dyn_ref::<web_sys::HtmlElement>() {
+                let _ = html_element.focus();
+            }
     }
 
     /// Focus the last focusable element in a container
@@ -260,10 +251,9 @@ where
                     if let Some(active) = web_sys::window()
                         .and_then(|w| w.document())
                         .and_then(|d| d.active_element())
-                        && let Some(index) = elements.iter().position(|el| el == &active)
-                    {
-                        on_select(index);
-                    }
+                        && let Some(index) = elements.iter().position(|el| el == &active) {
+                            on_select(index);
+                        }
                 }
                 _ => {}
             }
@@ -326,11 +316,10 @@ pub fn setup_global_shortcuts() {
         if let Some(main) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("main-content"))
-            && let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>()
-        {
-            let _ = html_element.focus();
-            html_element.scroll_into_view();
-        }
+            && let Some(html_element) = main.dyn_ref::<web_sys::HtmlElement>() {
+                let _ = html_element.focus();
+                html_element.scroll_into_view();
+            }
     });
 
     // Open search (Ctrl+K or Cmd+K)
@@ -339,10 +328,9 @@ pub fn setup_global_shortcuts() {
         if let Some(search) = web_sys::window()
             .and_then(|w| w.document())
             .and_then(|d| d.get_element_by_id("global-search"))
-            && let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>()
-        {
-            let _ = html_element.focus();
-        }
+            && let Some(html_element) = search.dyn_ref::<web_sys::HtmlElement>() {
+                let _ = html_element.focus();
+            }
     });
 
     // Open help (Shift+?)

@@ -3,7 +3,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
-use crate::mysimkari::api;
+use crate::mysimkari::mysimkari;
 use crate::storage::StorageStrategy;
 use tracing::{debug, error, info, warn};
 
@@ -169,12 +169,11 @@ pub async fn fetch_ang(
         // Extract latest STS history code
         if let Some(array) = data.as_array()
             && let Some(latest) = array.last()
-            && let Some(obj) = latest.as_object()
-            && let Some(sts) = obj.get("KODE_STS_HISTORY")
-            && let Some(sts_str) = sts.as_str()
-        {
-            kode_sts_history = sts_str.to_string();
-        }
+                && let Some(obj) = latest.as_object()
+                    && let Some(sts) = obj.get("KODE_STS_HISTORY")
+                        && let Some(sts_str) = sts.as_str() {
+                            kode_sts_history = sts_str.to_string();
+                        }
         storage
             .save(client, "ang", "ref_sts", &data, &context)
             .await?;
@@ -496,7 +495,7 @@ pub async fn fetch_mysimkari(
     info!("Fetching MySIMKARI data...");
 
     // Get Satker
-    if let Ok(data) = api::get_satker(client).await {
+    if let Ok(data) = mysimkari::get_satker(client).await {
         storage
             .save_with_table(client, "mysimkari_satker", &data, "global")
             .await?;
@@ -504,10 +503,10 @@ pub async fn fetch_mysimkari(
         // Fetch pegawai untuk setiap satker
         if let Some(array) = data.as_array() {
             for item in array {
-                if let Some(obj) = item.as_object() {
-                    if let Some(id) = obj.get("id") {
-                        if let Some(id_str) = id.as_str() {
-                            match api::pegawai_satker(client, id_str).await {
+                if let Some(obj) = item.as_object()
+                    && let Some(id) = obj.get("id")
+                        && let Some(id_str) = id.as_str() {
+                            match mysimkari::pegawai_satker(client, id_str).await {
                                 Ok(mut pegawai_data) => {
                                     // Inject satker_id ke setiap pegawai record
                                     if let Some(pegawai_array) = pegawai_data.as_array_mut() {
@@ -537,10 +536,9 @@ pub async fn fetch_mysimkari(
                                     warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
                                 }
                             }
-                    }
-                    // Rate limiting
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                }
+                            // Rate limiting
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        }
             }
         }
     }

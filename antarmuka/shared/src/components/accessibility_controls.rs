@@ -18,19 +18,6 @@ pub enum FontSize {
     ExtraLarge,
 }
 
-impl std::str::FromStr for FontSize {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "small" => Self::Small,
-            "large" => Self::Large,
-            "extra-large" => Self::ExtraLarge,
-            _ => Self::Medium,
-        })
-    }
-}
-
 impl FontSize {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -38,6 +25,15 @@ impl FontSize {
             Self::Medium => "medium",
             Self::Large => "large",
             Self::ExtraLarge => "extra-large",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "small" => Self::Small,
+            "large" => Self::Large,
+            "extra-large" => Self::ExtraLarge,
+            _ => Self::Medium,
         }
     }
 
@@ -57,22 +53,18 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
     let class = class.unwrap_or_default();
     let (font_size, set_font_size) = use_storage::<String>("font-size", "medium".to_string());
 
-    let current_size = move || {
-        use std::str::FromStr;
-        FontSize::from_str(&font_size.get()).unwrap_or(FontSize::Medium)
-    };
+    let current_size = move || FontSize::from_str(&font_size.get());
 
     // Apply font size to document root
     Effect::new(move |_| {
         if let Some(document) = web_sys::window().and_then(|w| w.document())
-            && let Some(root) = document.document_element()
-        {
-            let scale = current_size().scale_factor();
-            let _ = root.dyn_ref::<web_sys::HtmlElement>().map(|el| {
-                el.style()
-                    .set_property("font-size", &format!("{}rem", scale))
-            });
-        }
+            && let Some(root) = document.document_element() {
+                let scale = current_size().scale_factor();
+                let _ = root.dyn_ref::<web_sys::HtmlElement>().map(|el| {
+                    el.style()
+                        .set_property("font-size", &format!("{}rem", scale))
+                });
+            }
     });
 
     let handle_change = move |size: FontSize| {
@@ -167,14 +159,13 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
     // Apply high contrast mode to document
     Effect::new(move |_| {
         if let Some(document) = web_sys::window().and_then(|w| w.document())
-            && let Some(root) = document.document_element()
-        {
-            if high_contrast.get() {
-                let _ = root.class_list().add_1("high-contrast");
-            } else {
-                let _ = root.class_list().remove_1("high-contrast");
+            && let Some(root) = document.document_element() {
+                if high_contrast.get() {
+                    let _ = root.class_list().add_1("high-contrast");
+                } else {
+                    let _ = root.class_list().remove_1("high-contrast");
+                }
             }
-        }
     });
 
     let toggle = move |_| {
@@ -231,14 +222,13 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
     // Apply reduced motion preference to document
     Effect::new(move |_| {
         if let Some(document) = web_sys::window().and_then(|w| w.document())
-            && let Some(root) = document.document_element()
-        {
-            if reduced_motion.get() {
-                let _ = root.class_list().add_1("reduce-motion");
-            } else {
-                let _ = root.class_list().remove_1("reduce-motion");
+            && let Some(root) = document.document_element() {
+                if reduced_motion.get() {
+                    let _ = root.class_list().add_1("reduce-motion");
+                } else {
+                    let _ = root.class_list().remove_1("reduce-motion");
+                }
             }
-        }
     });
 
     let toggle = move |_| {
@@ -294,14 +284,13 @@ pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> 
     // Apply enhanced focus indicators to document
     Effect::new(move |_| {
         if let Some(document) = web_sys::window().and_then(|w| w.document())
-            && let Some(root) = document.document_element()
-        {
-            if enhanced_focus.get() {
-                let _ = root.class_list().add_1("enhanced-focus");
-            } else {
-                let _ = root.class_list().remove_1("enhanced-focus");
+            && let Some(root) = document.document_element() {
+                if enhanced_focus.get() {
+                    let _ = root.class_list().add_1("enhanced-focus");
+                } else {
+                    let _ = root.class_list().remove_1("enhanced-focus");
+                }
             }
-        }
     });
 
     let toggle = move |_| {

@@ -30,38 +30,22 @@ impl CsrfToken {
         let mut bytes = [0u8; 32];
 
         // Use crypto.getRandomValues for secure random generation
-        #[cfg(target_arch = "wasm32")]
-        {
-            if let Some(window) = window() {
-                if let Ok(crypto) = window.crypto() {
-                    if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
-                        return bytes
-                            .iter()
-                            .map(|b| format!("{:02x}", b))
-                            .collect::<String>();
-                    }
+        if let Some(window) = window()
+            && let Ok(crypto) = window.crypto() {
+                let _array = js_sys::Uint8Array::new_with_length(32);
+                if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
+                    // Convert bytes to hex string
+                    return bytes
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<String>();
                 }
             }
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use rand::{Rng, thread_rng};
-            let mut rng = thread_rng();
-            rng.fill(&mut bytes);
-            return bytes
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<String>();
-        }
 
         // Fallback to Math.random (less secure, but better than nothing)
-        #[cfg(target_arch = "wasm32")]
-        {
-            (0..32)
-                .map(|_| format!("{:02x}", (js_sys::Math::random() * 255.0) as u8))
-                .collect::<String>()
-        }
+        (0..32)
+            .map(|_| format!("{:02x}", (js_sys::Math::random() * 255.0) as u8))
+            .collect::<String>()
     }
 
     /// Check if token is expired

@@ -237,7 +237,7 @@ pub fn use_auth() -> AuthContext {
     let ctx = AuthContext { session };
 
     // Provide context for child components
-    provide_context(ctx.clone());
+    provide_context(ctx);
 
     ctx
 }
