@@ -44,6 +44,7 @@ mod auth_service {
     }
 
     /// Check if user is authenticated
+    #[allow(dead_code)]
     pub fn is_authenticated() -> bool {
         if let Some(window) = window()
             && let Ok(Some(storage)) = window.local_storage()
