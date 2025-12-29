@@ -12,17 +12,23 @@ use wasm_bindgen::prelude::*;
 
 mod components;
 pub use components::{
-    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader, SearchBox, StatsCard,
-    StatusBadge,
+    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader as MilitaryHeaderComponent,
+    SearchBox, StatsCard, StatusBadge,
 };
 
 mod pages;
 pub use pages::{
-    PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan, PidmilTersangka,
+    CaseStatusBadge, MilitaryActionButton, MilitaryHeader as MilitaryHeaderPage, MilitarySearchInput,
+    MilitaryStatCard, PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan,
+    PidmilTersangka, PriorityBadge, ProgressBar,
 };
 
 mod types;
-pub use types::*;
+pub use types::{
+    ButtonVariant, CasePriority, CaseStatus, CaseType, ContactInfo, DetentionStatus, Investigation,
+    InvestigationStatus, InvestigationType, MilitaryCase, MilitaryRank, MilitaryStatistics,
+    MilitarySuspect, SuspectStatus,
+};
 
 #[component]
 pub fn App() -> impl IntoView {

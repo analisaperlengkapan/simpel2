@@ -2,11 +2,31 @@ use crate::types::*;
 use chrono::Utc;
 use leptos::prelude::*;
 
-// MilitaryHeader removed as it conflicts with component in components.rs
+/// Military Case Header Component
+#[component]
+pub fn MilitaryHeader(
+    #[prop(into)] title: String,
+    #[prop(into)] subtitle: String,
+    #[prop(optional)] icon_class: Option<String>,
+) -> impl IntoView {
+    let icon = icon_class.unwrap_or_else(|| "fa-shield-alt".to_string());
+
+    view! {
+        <div class="bg-gradient-to-r from-red-800 to-red-900 text-white p-6 rounded-lg shadow-lg mb-6">
+            <div class="flex items-center">
+                <i class={format!("fas {icon} text-3xl mr-4")}></i>
+                <div>
+                    <h1 class="text-2xl font-bold">{title}</h1>
+                    <p class="text-red-100">{subtitle}</p>
+                </div>
+            </div>
+        </div>
+    }
+}
 
 /// Case Status Badge Component
 #[component]
-fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
+pub fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
     let (class, text) = match status {
         CaseStatus::Reported => ("bg-blue-100 text-blue-800", "Dilaporkan"),
         CaseStatus::UnderInvestigation => ("bg-yellow-100 text-yellow-800", "Dalam Penyidikan"),
@@ -30,7 +50,7 @@ fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
 
 /// Priority Badge Component
 #[component]
-fn PriorityBadge(priority: CasePriority) -> impl IntoView {
+pub fn PriorityBadge(priority: CasePriority) -> impl IntoView {
     let (class, text) = match priority {
         CasePriority::Low => ("bg-gray-100 text-gray-800", "Rendah"),
         CasePriority::Medium => ("bg-blue-100 text-blue-800", "Sedang"),
@@ -48,7 +68,7 @@ fn PriorityBadge(priority: CasePriority) -> impl IntoView {
 
 /// Statistics Card Component for Military Dashboard
 #[component]
-fn MilitaryStatCard(
+pub fn MilitaryStatCard(
     #[prop(into)] title: String,
     #[prop(into)] value: String,
     #[prop(into)] icon: String,
@@ -78,7 +98,7 @@ fn MilitaryStatCard(
 
 /// Military Search Input Component
 #[component]
-fn MilitarySearchInput(
+pub fn MilitarySearchInput(
     #[prop(into)] placeholder: String,
     #[prop(optional)] on_search: Option<leptos::callback::Callback<String>>,
 ) -> impl IntoView {
@@ -108,7 +128,7 @@ fn MilitarySearchInput(
 
 /// Action Button Component
 #[component]
-fn MilitaryActionButton(
+pub fn MilitaryActionButton(
     #[prop(into)] label: String,
     #[prop(into)] action: String,
     #[prop(optional)] variant: Option<String>,
@@ -136,7 +156,7 @@ fn MilitaryActionButton(
 
 /// Progress Bar Component
 #[component]
-fn ProgressBar(#[prop()] percentage: u8, #[prop(optional)] color: Option<String>) -> impl IntoView {
+pub fn ProgressBar(#[prop()] percentage: u8, #[prop(optional)] color: Option<String>) -> impl IntoView {
     let color_class = color.unwrap_or_else(|| "red".to_string());
     let progress_class = format!("bg-{color_class}-600");
     let bg_class = format!("bg-{color_class}-200");
@@ -204,10 +224,12 @@ pub fn PidmilDashboard() -> impl IntoView {
 
     view! {
         <div class="space-y-6">
-            <crate::components::MilitaryHeader
+            <MilitaryHeader
                 title="Dashboard PIDMIL".to_string()
                 subtitle="Penyidikan Pidana Militer - Kejaksaan Agung RI".to_string()
+                icon_class="fa-shield-alt".to_string()
             />
+
             // Quick Statistics
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MilitaryStatCard
@@ -410,10 +432,12 @@ pub fn PidmilPenyidikan() -> impl IntoView {
 
     view! {
         <div class="space-y-6">
-            <crate::components::MilitaryHeader
+            <MilitaryHeader
                 title="Penyidikan Militer".to_string()
                 subtitle="Kelola proses penyidikan kasus pidana militer".to_string()
+                icon_class="fa-search".to_string()
             />
+
             <div class="flex items-center justify-between">
                 <MilitarySearchInput
                     placeholder="Cari penyidikan...".to_string()
@@ -520,10 +544,12 @@ pub fn PidmilKasus() -> impl IntoView {
 
     view! {
         <div class="space-y-6">
-            <crate::components::MilitaryHeader
+            <MilitaryHeader
                 title="Manajemen Kasus".to_string()
                 subtitle="Kelola kasus penyidikan pidana militer".to_string()
+                icon_class="fa-folder".to_string()
             />
+
             <div class="flex items-center justify-between">
                 <MilitarySearchInput
                     placeholder="Cari kasus...".to_string()
@@ -618,10 +644,12 @@ pub fn PidmilTersangka() -> impl IntoView {
 
     view! {
         <div class="space-y-6">
-            <crate::components::MilitaryHeader
+            <MilitaryHeader
                 title="Manajemen Tersangka".to_string()
                 subtitle="Kelola data tersangka dalam kasus pidana militer".to_string()
+                icon_class="fa-user-secret".to_string()
             />
+
             <div class="flex items-center justify-between">
                 <MilitarySearchInput
                     placeholder="Cari tersangka...".to_string()
@@ -703,10 +731,12 @@ pub fn PidmilTersangka() -> impl IntoView {
 pub fn PidmilLaporan() -> impl IntoView {
     view! {
         <div class="space-y-6">
-            <crate::components::MilitaryHeader
+            <MilitaryHeader
                 title="Laporan PIDMIL".to_string()
                 subtitle="Laporan penyidikan dan statistik kasus pidana militer".to_string()
+                icon_class="fa-chart-bar".to_string()
             />
+
             <div class="flex items-center justify-between">
                 <MilitarySearchInput
                     placeholder="Cari laporan...".to_string()
