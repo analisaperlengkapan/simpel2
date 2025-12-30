@@ -156,10 +156,10 @@ pub fn ValidationStatusIndicator(
                                     <div class="text-xs text-red-700 dark:text-red-300 mb-2">
                                         {message}
                                     </div>
-                                    {if let Some(_retry_callback) = on_retry {
+                                    {if let Some(retry_callback) = on_retry {
                                         view! {
                                             <Button
-                                                // on_click=Some(Box::new(move || _retry_callback(())))
+                                                on_click=Box::new(move || retry_callback.run(()))
                                                 variant=ButtonVariant::Danger
                                                 size=ButtonSize::Small
                                             >
@@ -345,8 +345,6 @@ pub fn RetryMechanism(
     on_new_challenge: Callback<()>,
 ) -> impl IntoView {
     let _ = max_attempts;
-    let _ = on_retry;
-    let _ = on_new_challenge;
 
     let (countdown, set_countdown) = signal(cooldown_seconds.unwrap_or(0));
 
@@ -395,7 +393,7 @@ pub fn RetryMechanism(
                     {if attempts_remaining > 0 && countdown.get() == 0 {
                         view! {
                             <Button
-                                // on_click=Some(Box::new(move || on_retry(())))
+                                on_click=Box::new(move || on_retry.run(()))
                                 variant=ButtonVariant::Primary
                                 size=ButtonSize::Small
                             >
@@ -408,7 +406,7 @@ pub fn RetryMechanism(
                     }}
 
                     <Button
-                        // on_click=Some(Box::new(move || on_new_challenge(())))
+                        on_click=Box::new(move || on_new_challenge.run(()))
                         variant=ButtonVariant::Secondary
                         size=ButtonSize::Small
                         disabled=countdown.get() != 0
