@@ -141,10 +141,10 @@ pub fn DashboardLayout(
 /// Sidebar item component
 #[component]
 fn SidebarItem(
-    icon: &'static str,
-    title: &'static str,
-    href: &'static str,
-    expanded: ReadSignal<bool>,
+    #[allow(unused_variables)] icon: &'static str,
+    #[allow(unused_variables)] title: &'static str,
+    #[allow(unused_variables)] href: &'static str,
+    #[allow(unused_variables)] expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
         <a
@@ -162,10 +162,10 @@ fn SidebarItem(
 /// Sidebar section with expandable submenu
 #[component]
 fn SidebarSection(
-    title: &'static str,
-    icon: &'static str,
-    expanded: ReadSignal<bool>,
-    items: Vec<(String, String)>,
+    #[allow(unused_variables)] title: &'static str,
+    #[allow(unused_variables)] icon: &'static str,
+    #[allow(unused_variables)] expanded: ReadSignal<bool>,
+    #[allow(unused_variables)] items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);
 
