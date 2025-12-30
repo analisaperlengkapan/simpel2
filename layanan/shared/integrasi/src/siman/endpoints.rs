@@ -16,6 +16,7 @@ use tracing::{info, warn};
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_row_count, SimanAssetCategory};
+/// use layanan_integrasi::MonsaktiClient;
 ///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let count = get_row_count(client, SimanAssetCategory::AlatBesar).await?;
@@ -65,6 +66,7 @@ pub async fn get_row_count(
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_aset_by_category, SimanAssetCategory};
+/// use layanan_integrasi::MonsaktiClient;
 ///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let data = get_aset_by_category(client, SimanAssetCategory::Tanah, 1, 100).await?;
