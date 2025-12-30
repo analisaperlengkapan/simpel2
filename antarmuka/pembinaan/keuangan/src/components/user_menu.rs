@@ -71,6 +71,8 @@ pub fn UserMenu(
     let user_avatar_display_main = user_avatar.clone();
     let user_avatar_display_header = user_avatar.clone();
 
+    let on_logout = StoredValue::new(on_logout);
+
     // Get user initial for avatar
     let user_initial = user_name
         .chars()
@@ -181,10 +183,17 @@ pub fn UserMenu(
                                                 let _ = window.location().set_href(&href_val);
                                             }
                                         } else {
-                                            // Logout action - redirect to portal logout
-                                            if let Some(window) = web_sys::window() {
-                                                let _ = window.location().set_href("/portal/logout");
-                                            }
+                                            // Logout action
+                                            on_logout.with_value(|logout| {
+                                                if let Some(cb) = logout {
+                                                    cb();
+                                                } else {
+                                                    // Fallback default logout
+                                                    if let Some(window) = web_sys::window() {
+                                                        let _ = window.location().set_href("/portal/logout");
+                                                    }
+                                                }
+                                            });
                                         }
                                     }
                                 >
