@@ -22,7 +22,8 @@ pub fn use_behavioral_collector() -> (ReadSignal<BehavioralData>, WriteSignal<Be
 
 /// Mouse tracking component
 #[component]
-pub fn MouseTracker(_on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoView {
+pub fn MouseTracker(on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoView {
+    let _ = on_data_collected;
     let (_mouse_events, _set_mouse_events) = signal(Vec::<MouseEvent>::new());
 
     // TODO: Implement mouse event tracking
@@ -40,7 +41,8 @@ pub fn MouseTracker(_on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoV
 
 /// Keystroke dynamics analyzer
 #[component]
-pub fn KeystrokeAnalyzer(_on_data_collected: Callback<Vec<KeystrokeEvent>>) -> impl IntoView {
+pub fn KeystrokeAnalyzer(on_data_collected: Callback<Vec<KeystrokeEvent>>) -> impl IntoView {
+    let _ = on_data_collected;
     let (_keystroke_events, _set_keystroke_events) = signal(Vec::<KeystrokeEvent>::new());
 
     // TODO: Implement keystroke timing analysis
