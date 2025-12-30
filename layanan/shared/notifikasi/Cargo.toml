@@ -24,7 +24,7 @@ uuid = { workspace = true }
 lettre = { workspace = true }
 reqwest = { workspace = true }
 redis = { workspace = true }
-garde = { workspace = true }
+garde = { workspace = true, features = ["derive", "email"] }
 sea-query = { workspace = true }
 # sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros"], default-features = false }  # DISABLED: sqlx pulls sqlx-mysql which has RSA vulnerability
 # Using tokio-postgres directly instead

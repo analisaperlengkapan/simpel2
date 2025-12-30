@@ -13,6 +13,7 @@ use axum::{
     routing::{get, post, put},
 };
 use deadpool_postgres::Pool;
+use garde::Validate;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -83,60 +84,88 @@ pub fn routes(
         )
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SendEmailRequest {
+    #[garde(email)]
     pub recipient: String,
+    #[garde(length(min = 1, max = 255))]
     pub subject: String,
+    #[garde(length(min = 1))]
     pub body: String,
 }
 
-#[derive(Deserialize)]
-pub struct SendBatchEmailRequest {
+#[derive(Deserialize, Validate)]
+pub struct SendBatchEmailRequestSimple {
+    #[garde(length(min = 1, max = 100))]
+    #[garde(inner(email))]
     pub recipients: Vec<String>,
+    #[garde(length(min = 1, max = 255))]
     pub subject: String,
+    #[garde(length(min = 1))]
     pub body: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SendWhatsAppRequest {
+    #[garde(length(min = 10, max = 20))]
     pub phone_number: String,
+    #[garde(length(min = 1, max = 100))]
     pub template_name: String,
+    #[garde(skip)]
     pub variables: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SendBatchWhatsAppRequest {
+    #[garde(length(min = 1, max = 100))]
+    #[garde(inner(length(min = 10, max = 20)))]
     pub recipients: Vec<String>,
+    #[garde(length(min = 1, max = 100))]
     pub template_name: String,
+    #[garde(skip)]
     pub variables: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SendPushRequest {
+    #[garde(length(min = 1))]
     pub device_token: String,
+    #[garde(length(min = 1, max = 255))]
     pub title: String,
+    #[garde(length(min = 1))]
     pub body: String,
+    #[garde(skip)]
     pub data: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct SendBatchPushRequest {
+    #[garde(length(min = 1, max = 100))]
+    #[garde(inner(length(min = 1)))]
     pub device_tokens: Vec<String>,
+    #[garde(length(min = 1, max = 255))]
     pub title: String,
+    #[garde(length(min = 1))]
     pub body: String,
+    #[garde(skip)]
     pub data: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct CreateTemplateRequest {
+    #[garde(length(min = 1, max = 100))]
     pub name: String,
+    #[garde(length(min = 1))]
     pub content: String,
+    #[garde(skip)]
     pub variables: Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct UpdateTemplateRequest {
+    #[garde(length(min = 1))]
     pub content: String,
+    #[garde(skip)]
     pub variables: Value,
 }
 
@@ -144,6 +173,8 @@ pub async fn send_email(
     State(state): State<AppState>,
     Json(payload): Json<SendEmailRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .email_service
         .send_email(&payload.recipient, &payload.subject, &payload.body)
@@ -153,8 +184,10 @@ pub async fn send_email(
 
 pub async fn send_batch_email(
     State(state): State<AppState>,
-    Json(payload): Json<SendBatchEmailRequest>,
+    Json(payload): Json<SendBatchEmailRequestSimple>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .email_service
         .send_batch_emails(payload.recipients, &payload.subject, &payload.body)
@@ -174,6 +207,8 @@ pub async fn send_whatsapp(
     State(state): State<AppState>,
     Json(payload): Json<SendWhatsAppRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .whatsapp_service
         .send_whatsapp(&payload.phone_number, &payload.template_name, payload.variables)
@@ -185,6 +220,8 @@ pub async fn send_batch_whatsapp(
     State(state): State<AppState>,
     Json(payload): Json<SendBatchWhatsAppRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .whatsapp_service
         .send_batch_whatsapp(
@@ -208,6 +245,8 @@ pub async fn send_push(
     State(state): State<AppState>,
     Json(payload): Json<SendPushRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .push_service
         .send_push(
@@ -224,6 +263,8 @@ pub async fn send_batch_push(
     State(state): State<AppState>,
     Json(payload): Json<SendBatchPushRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .push_service
         .send_batch_push(
@@ -253,6 +294,8 @@ pub async fn create_template(
     State(state): State<AppState>,
     Json(payload): Json<CreateTemplateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .template_service
         .create_template(&payload.name, &payload.content, payload.variables)
@@ -265,6 +308,8 @@ pub async fn update_template(
     Path(id): Path<Uuid>,
     Json(payload): Json<UpdateTemplateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
+
     let result = state
         .template_service
         .update_template(id, &payload.content, payload.variables)
