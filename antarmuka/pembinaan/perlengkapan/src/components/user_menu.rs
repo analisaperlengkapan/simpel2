@@ -8,8 +8,11 @@ use leptos::prelude::*;
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct UserMenuItem {
+    #[allow(dead_code)]
     pub label: String,
+    #[allow(dead_code)]
     pub href: Option<String>,
+    #[allow(dead_code)]
     pub icon: String,
 }
 
@@ -42,6 +45,7 @@ pub fn UserMenu(
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
+    #[allow(dead_code)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);

@@ -122,7 +122,7 @@ mod qr_code_visual_tests {
 
         let test_qr_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-        mount_to(
+        let _ = mount_to(
             test_div.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -215,7 +215,7 @@ mod qr_code_visual_tests {
 
         let test_qr_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-        mount_to(
+        let _ = mount_to(
             test_div.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -289,7 +289,7 @@ mod qr_code_visual_tests {
         let (is_loading, set_is_loading) = signal(true);
         let (has_error, set_has_error) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             test_div.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -385,7 +385,7 @@ mod qr_code_visual_tests {
         let (has_error, set_has_error) = signal(false);
         let (is_focused, set_is_focused) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             test_div.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {

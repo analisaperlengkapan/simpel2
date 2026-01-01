@@ -8,12 +8,14 @@ use tracing::error;
 #[derive(Debug, Error)]
 #[allow(dead_code)]
 pub enum AppError {
+    #[allow(dead_code)]
     #[error("Database error: {0}")]
     Db(#[from] tokio_postgres::Error),
     #[error("Pool error: {0}")]
     Pool(#[from] deadpool_postgres::PoolError),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[allow(dead_code)]
     #[error("Not found")]
     #[allow(dead_code)]
     NotFound,
@@ -22,11 +24,13 @@ pub enum AppError {
     Forbidden,
     #[error("Validation error: {0}")]
     Validation(String),
+    #[allow(dead_code)]
     #[error("Rate limit exceeded")]
     #[allow(dead_code)]
     RateLimit,
     #[error("AI error: {0}")]
     Ai(String),
+    #[allow(dead_code)]
     #[error("Unauthorized")]
     #[allow(dead_code)]
     Unauthorized,

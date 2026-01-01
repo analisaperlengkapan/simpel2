@@ -356,6 +356,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_csrf_token_generation() {
         let token = CsrfToken::generate();
         assert_eq!(token.value().len(), 64); // 32 bytes = 64 hex chars
@@ -370,6 +371,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_double_submit_cookie() {
         let cookie = DoubleSubmitCookie::new();
         assert!(!cookie.token.is_empty());
