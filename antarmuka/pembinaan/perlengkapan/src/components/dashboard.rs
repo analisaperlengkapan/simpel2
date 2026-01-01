@@ -9,6 +9,7 @@ use shared_microfrontend::components::Logo;
 
 /// User information structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct User {
     pub name: String,
     pub role: String,
@@ -25,6 +26,9 @@ pub fn DashboardLayout(
     /// Children content
     children: Children,
 ) -> impl IntoView {
+    let _ = user;
+    let _ = sidebar_open;
+    let _ = children;
     // Toggle sidebar function
     let toggle_sidebar = move |_| {
         sidebar_open.update(|open| *open = !*open);
@@ -160,6 +164,7 @@ pub fn DashboardLayout(
 }
 
 /// Sidebar item component
+#[allow(dead_code)]
 #[component]
 fn SidebarItem(
     icon: &'static str,
@@ -167,6 +172,10 @@ fn SidebarItem(
     href: &'static str,
     expanded: ReadSignal<bool>,
 ) -> impl IntoView {
+    let _ = icon;
+    let _ = title;
+    let _ = href;
+    let _ = expanded;
     view! {
         <a
             href=href
@@ -181,6 +190,7 @@ fn SidebarItem(
 }
 
 /// Sidebar section with expandable submenu
+#[allow(dead_code)]
 #[component]
 fn SidebarSection(
     title: &'static str,
@@ -188,6 +198,10 @@ fn SidebarSection(
     expanded: ReadSignal<bool>,
     items: Vec<(String, String)>,
 ) -> impl IntoView {
+    let _ = title;
+    let _ = icon;
+    let _ = expanded;
+    let _ = items;
     let (section_open, set_section_open) = signal(false);
 
     view! {

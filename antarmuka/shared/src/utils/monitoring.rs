@@ -255,7 +255,7 @@ async fn send_alert_to_service(metric: &str, actual: f64, threshold: f64) -> Res
 
 /// Track API request performance
 pub fn track_api_request(endpoint: &str, method: &str, status_code: u16, response_time_ms: f64) {
-    let metrics = ApiMetrics {
+    let _metrics = ApiMetrics {
         timestamp: Utc::now(),
         endpoint: endpoint.to_string(),
         method: method.to_string(),
@@ -281,7 +281,7 @@ pub fn track_api_request(endpoint: &str, method: &str, status_code: u16, respons
     {
         use wasm_bindgen_futures::spawn_local;
         spawn_local(async move {
-            let _ = send_api_metrics(metrics).await;
+            let _ = send_api_metrics(_metrics).await;
         });
     }
 }

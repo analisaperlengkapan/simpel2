@@ -6,6 +6,7 @@ use leptos::prelude::*;
 
 /// User menu item structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct UserMenuItem {
     pub label: String,
     pub href: Option<String>,
@@ -13,6 +14,7 @@ pub struct UserMenuItem {
 }
 
 impl UserMenuItem {
+    #[allow(dead_code)]
     pub fn new(label: &str, href: Option<String>, icon: &str) -> Self {
         Self {
             label: label.to_string(),
@@ -26,18 +28,26 @@ impl UserMenuItem {
 #[component]
 pub fn UserMenu(
     /// User name to display
+    #[allow(unused_variables)]
     user_name: String,
     /// User role/title
+    #[allow(unused_variables)]
     user_role: String,
     /// User avatar URL (optional)
     #[prop(default = None)]
+    #[allow(unused_variables)]
     user_avatar: Option<String>,
     /// Menu items
+    #[allow(unused_variables)]
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
+    let _ = user_name;
+    let _ = user_role;
+    let _ = user_avatar;
+    let _ = menu_items;
     let (is_open, set_is_open) = signal(false);
 
     // Default menu items if none provided

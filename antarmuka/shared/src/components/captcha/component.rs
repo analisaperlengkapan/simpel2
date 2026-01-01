@@ -39,7 +39,7 @@ pub fn Captcha(
     // Accessibility state
     let (current_focus, set_current_focus) = signal(None::<String>);
     let (announcements, set_announcements) = signal(Vec::<String>::new());
-    let (show_alternative_inputs, set_show_alternative_inputs) = signal(false);
+    let (show_alternative_inputs, _set_show_alternative_inputs) = signal(false);
 
     // Behavioral analysis state
     let (behavioral_metrics, set_behavioral_metrics) =
@@ -232,7 +232,7 @@ pub fn Captcha(
     ];
 
     // Add announcement helper
-    let announce = move |message: String| {
+    let _announce = move |message: String| {
         set_announcements.update(|announcements| {
             announcements.push(message);
             // Keep only last 3 announcements

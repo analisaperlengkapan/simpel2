@@ -284,7 +284,7 @@ pub fn setup_session_cleanup() {
 
     // Clean up expired sessions every 5 minutes
     let interval = Interval::new(300_000, move || {
-        let storage = SecureStorage::new(StorageType::Local);
+        let _storage = SecureStorage::new(StorageType::Local);
 
         // This will automatically remove expired items when accessed
         // We could also implement a more aggressive cleanup here

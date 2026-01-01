@@ -16,6 +16,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct CreateDashboardRequest {
     pub name: String,
     pub description: Option<String>,
@@ -23,6 +24,7 @@ pub struct CreateDashboardRequest {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct UpdateDashboardRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -30,6 +32,7 @@ pub struct UpdateDashboardRequest {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct CreateChartRequest {
     pub name: String,
     pub chart_type: String,

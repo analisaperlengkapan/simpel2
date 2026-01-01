@@ -32,7 +32,7 @@ impl CsrfToken {
         // Use crypto.getRandomValues for secure random generation
         if let Some(window) = window() {
             if let Ok(crypto) = window.crypto() {
-                let array = js_sys::Uint8Array::new_with_length(32);
+                let _array = js_sys::Uint8Array::new_with_length(32);
                 if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
                     // Convert bytes to hex string
                     return bytes

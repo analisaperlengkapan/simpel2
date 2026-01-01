@@ -107,6 +107,7 @@ async fn handle_migrate(direction: String, steps: Option<u32>) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn migrate_sqlx_to_tokio_postgres(_src_path: &str) -> Result<()> {
     println!(
         "{}",

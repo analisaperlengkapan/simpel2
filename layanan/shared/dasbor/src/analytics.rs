@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Pool;
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait AnalyticsServiceTrait {
     async fn get_metrics(&self) -> Result<Vec<Metric>, DashboardError>;
     async fn get_metric_history(&self, name: &str) -> Result<Vec<Metric>, DashboardError>;
@@ -21,6 +22,7 @@ pub trait AnalyticsServiceTrait {
     ) -> Result<(), DashboardError>;
 }
 
+#[allow(dead_code)]
 pub struct AnalyticsService {
     pool: Pool,
 }
