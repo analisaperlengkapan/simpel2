@@ -15,16 +15,20 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Not found")]
+    #[allow(dead_code)]
     NotFound,
     #[error("Forbidden")]
+    #[allow(dead_code)]
     Forbidden,
     #[error("Validation error: {0}")]
     Validation(String),
     #[error("Rate limit exceeded")]
+    #[allow(dead_code)]
     RateLimit,
     #[error("AI error: {0}")]
     Ai(String),
     #[error("Unauthorized")]
+    #[allow(dead_code)]
     Unauthorized,
     #[error("Bad request: {0}")]
     BadRequest(String),

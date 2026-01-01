@@ -6,6 +6,7 @@ use reqwest::Client;
 use serde_json::json;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct PushService {
     #[allow(dead_code)]
     pub config: AppConfig,
@@ -16,6 +17,7 @@ pub struct PushService {
 }
 
 impl PushService {
+    #[allow(dead_code)]
     pub fn new(config: AppConfig, pool: Pool) -> Self {
         Self {
             config,

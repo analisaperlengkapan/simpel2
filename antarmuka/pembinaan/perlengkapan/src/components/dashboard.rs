@@ -18,15 +18,13 @@ pub struct User {
 
 /// Dashboard layout component for SIMPEL Perlengkapan
 #[component]
+#[allow(dead_code)]
 pub fn DashboardLayout(
     /// User information
-    #[allow(unused_variables)]
     user: User,
     /// Sidebar open state
-    #[allow(unused_variables)]
     sidebar_open: RwSignal<bool>,
     /// Children content
-    #[allow(unused_variables)]
     children: Children,
 ) -> impl IntoView {
     // Toggle sidebar function
@@ -164,14 +162,17 @@ pub fn DashboardLayout(
 }
 
 /// Sidebar item component
-#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarItem(
-    #[allow(unused_variables)] icon: &'static str,
-    #[allow(unused_variables)] title: &'static str,
-    #[allow(unused_variables)] href: &'static str,
-    #[allow(unused_variables)] expanded: ReadSignal<bool>,
+    #[allow(unused_variables)]
+    icon: &'static str,
+    #[allow(unused_variables)]
+    title: &'static str,
+    #[allow(unused_variables)]
+    href: &'static str,
+    #[allow(unused_variables)]
+    expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
         <a
@@ -187,14 +188,17 @@ fn SidebarItem(
 }
 
 /// Sidebar section with expandable submenu
-#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarSection(
-    #[allow(unused_variables)] title: &'static str,
-    #[allow(unused_variables)] icon: &'static str,
-    #[allow(unused_variables)] expanded: ReadSignal<bool>,
-    #[allow(unused_variables)] items: Vec<(String, String)>,
+    #[allow(unused_variables)]
+    title: &'static str,
+    #[allow(unused_variables)]
+    icon: &'static str,
+    #[allow(unused_variables)]
+    expanded: ReadSignal<bool>,
+    #[allow(unused_variables)]
+    items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);
 

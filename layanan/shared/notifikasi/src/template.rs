@@ -4,12 +4,14 @@ use deadpool_postgres::Pool;
 use serde_json::Value;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct TemplateService {
     #[allow(dead_code)]
     pub pool: Pool,
 }
 
 impl TemplateService {
+    #[allow(dead_code)]
     pub fn new(pool: Pool) -> Self {
         Self { pool }
     }
