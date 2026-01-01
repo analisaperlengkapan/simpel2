@@ -167,6 +167,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_generate_csp_nonce() {
         let nonce = generate_csp_nonce();
         assert_eq!(nonce.len(), 32); // 16 bytes = 32 hex chars

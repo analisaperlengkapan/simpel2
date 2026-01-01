@@ -33,6 +33,7 @@ mod auth_service {
     use super::*;
 
     /// Store authentication token in localStorage
+    #[allow(dead_code)]
     pub fn store_token(token: &str) -> Result<(), String> {
         window()
             .ok_or("Window not available")?
@@ -44,6 +45,7 @@ mod auth_service {
     }
 
     /// Check if user is authenticated
+    #[allow(dead_code)]
     pub fn is_authenticated() -> bool {
         if let Some(window) = window()
             && let Ok(Some(storage)) = window.local_storage()

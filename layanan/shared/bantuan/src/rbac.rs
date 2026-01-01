@@ -39,6 +39,7 @@ pub async fn has_permission(
 }
 
 // Middleware Axum untuk validasi permission
+#[allow(dead_code)]
 pub async fn rbac_middleware(
     State(pool): State<deadpool_postgres::Pool>,
     req: Request,

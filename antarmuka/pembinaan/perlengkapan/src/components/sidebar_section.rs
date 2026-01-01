@@ -2,11 +2,14 @@ use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct MenuItem {
+    #[allow(dead_code)]
     pub href: String,
+    #[allow(dead_code)]
     pub label: String,
 }
 
 impl MenuItem {
+    #[allow(dead_code)]
     pub fn new(href: &str, label: &str) -> Self {
         Self {
             href: href.to_string(),
@@ -16,6 +19,7 @@ impl MenuItem {
 }
 
 #[component]
+#[allow(dead_code)]
 pub fn SidebarSection(
     title: String,
     icon: String,

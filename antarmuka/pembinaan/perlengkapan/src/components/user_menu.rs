@@ -7,12 +7,16 @@ use leptos::prelude::*;
 /// User menu item structure
 #[derive(Clone, Debug)]
 pub struct UserMenuItem {
+    #[allow(dead_code)]
     pub label: String,
+    #[allow(dead_code)]
     pub href: Option<String>,
+    #[allow(dead_code)]
     pub icon: String,
 }
 
 impl UserMenuItem {
+    #[allow(dead_code)]
     pub fn new(label: &str, href: Option<String>, icon: &str) -> Self {
         Self {
             label: label.to_string(),
@@ -36,6 +40,7 @@ pub fn UserMenu(
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
+    #[allow(dead_code)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
