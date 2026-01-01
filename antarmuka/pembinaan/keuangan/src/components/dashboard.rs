@@ -119,7 +119,7 @@ pub fn DashboardLayout(
 
             <div class="flex">
                 // Sidebar
-                <Sidebar _sidebar_open=sidebar_open />
+                <Sidebar sidebar_open=sidebar_open />
 
                 // Main Content Area
                 <main class="flex-1 p-6">

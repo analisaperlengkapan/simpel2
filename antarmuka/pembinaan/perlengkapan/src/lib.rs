@@ -404,9 +404,9 @@ pub fn main() {
     leptos::logging::log!("🚀 Starting SIMPEL Perlengkapan...");
 
     // Clear fallback loading content
-    if let Some(window) = web_sys::window()
-        && let Some(document) = window.document()
-        && let Some(app_div) = document.get_element_by_id("app")
+    if let Some(app_div) = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.get_element_by_id("app"))
     {
         app_div.set_inner_html("");
     }
