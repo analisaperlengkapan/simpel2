@@ -41,8 +41,8 @@ pub fn UserMenu(
     #[allow(unused_variables)]
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
-    #[prop(optional)]
-    _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
+    #[prop(optional, into)]
+    on_logout: Option<Callback<()>>,
 ) -> impl IntoView {
     let _ = user_name;
     let _ = user_role;
@@ -192,8 +192,11 @@ pub fn UserMenu(
                                                 let _ = window.location().set_href(&href_val);
                                             }
                                         } else {
-                                            // Logout action - redirect to portal logout
-                                            if let Some(window) = web_sys::window() {
+                                            // Logout action
+                                            if let Some(logout_fn) = on_logout {
+                                                logout_fn.run(());
+                                            } else if let Some(window) = web_sys::window() {
+                                                // Fallback to direct redirect if no handler
                                                 let _ = window.location().set_href("/portal/logout");
                                             }
                                         }

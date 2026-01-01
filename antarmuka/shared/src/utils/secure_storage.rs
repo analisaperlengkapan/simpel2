@@ -348,18 +348,19 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_base64_encode_decode() {
         let input = "Hello, World!";
         let encoded = base64_encode(input);
         let decoded = base64_decode(&encoded);
-        // Note: This test may not work in non-browser environment
-        // assert_eq!(decoded, input);
+        assert_eq!(decoded, input);
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_session_fingerprint_generation() {
         // This test requires a browser environment
-        // let fingerprint = SessionFingerprint::generate();
-        // assert!(!fingerprint.user_agent.is_empty());
+        let fingerprint = SessionFingerprint::generate();
+        assert!(!fingerprint.user_agent.is_empty());
     }
 }
