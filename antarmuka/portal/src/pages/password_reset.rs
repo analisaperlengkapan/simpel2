@@ -17,6 +17,7 @@ enum ResetState {
     /// Email sent confirmation
     EmailSent,
     /// Reset token validation
+    #[allow(dead_code)]
     ValidatingToken,
     /// New password entry
     NewPassword,
@@ -28,7 +29,7 @@ enum ResetState {
 #[component]
 pub fn PasswordResetPage() -> impl IntoView {
     let (email, set_email) = signal(String::new());
-    let (reset_token, set_reset_token) = signal(String::new());
+    let (reset_token, _set_reset_token) = signal(String::new());
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
     let (captcha_token, set_captcha_token) = signal(None::<String>);
@@ -50,7 +51,7 @@ pub fn PasswordResetPage() -> impl IntoView {
                             .find(|(key, _)| key == "token")
                             .map(|(_, value)| value.to_string())
                         {
-                            set_reset_token.set(token);
+                            _set_reset_token.set(token);
                             set_reset_state.set(ResetState::NewPassword);
                         }
                     }
@@ -410,6 +411,7 @@ pub fn PasswordResetPage() -> impl IntoView {
 // ============================================================================
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }

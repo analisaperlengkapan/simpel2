@@ -34,6 +34,7 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
+    let _ = navigate; // Suppress unused
     let navigate_clone = navigate.clone();
 
     // Generate MFA setup data on component mount
@@ -369,6 +370,7 @@ struct MfaVerifyData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiErrorResponse {
     #[allow(dead_code)]
     success: bool,
@@ -376,6 +378,7 @@ struct ApiErrorResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiError {
     #[allow(dead_code)]
     code: String,
@@ -504,6 +507,7 @@ async fn generate_mfa_setup(
 
 /// Verify MFA setup with authenc API
 async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = code; // Suppress unused for non-wasm target
     #[cfg(target_arch = "wasm32")]
     {
         use gloo_net::http::Request;

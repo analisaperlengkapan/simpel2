@@ -35,11 +35,9 @@ pub fn UserMenu(
     /// Menu items
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
-    #[prop(optional)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
-    let logout_handler = StoredValue::new(_on_logout);
 
     // Default menu items if none provided
     let default_items = vec![
@@ -183,17 +181,10 @@ pub fn UserMenu(
                                                 let _ = window.location().set_href(&href_val);
                                             }
                                         } else {
-                                            // Logout action
-                                            logout_handler.with_value(|handler| {
-                                                if let Some(logout_fn) = handler {
-                                                    logout_fn();
-                                                } else {
-                                                    // Fallback redirect to portal logout
-                                                    if let Some(window) = web_sys::window() {
-                                                        let _ = window.location().set_href("/portal/logout");
-                                                    }
-                                                }
-                                            });
+                                            // Logout action - redirect to portal logout
+                                            if let Some(window) = web_sys::window() {
+                                                let _ = window.location().set_href("/portal/logout");
+                                            }
                                         }
                                     }
                                 >

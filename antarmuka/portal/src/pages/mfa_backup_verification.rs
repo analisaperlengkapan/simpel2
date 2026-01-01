@@ -64,10 +64,10 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (attempts_remaining, set_attempts_remaining) = signal(5);
     let (is_locked, set_is_locked) = signal(false);
-    let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
-    let _set_remaining_codes = set_remaining_codes; // Suppress unused warning if only used in callbacks
-    let (verification_success, set_verification_success) = signal(false);
-    let _set_verification_success = set_verification_success; // Suppress unused warning if only used in callbacks
+    let (remaining_codes, _set_remaining_codes) = signal(None::<i32>);
+    let (verification_success, _set_verification_success) = signal(false);
+    let _ = remaining_codes; // Suppress unused
+    let _ = verification_success; // Suppress unused
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -210,8 +210,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_error_message.set(String::new());
 
                                     let navigate = leptos_router::hooks::use_navigate();
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    let _navigate = navigate; // Suppress unused warning in non-WASM
 
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
@@ -309,6 +307,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
                                             let navigate = leptos_router::hooks::use_navigate();
+                                    let _ = navigate; // Suppress unused if navigation is conditional or side-effect
                                             navigate("/mfa/verify", Default::default());
                                         }
                                     >
