@@ -344,6 +344,7 @@ pub fn MfaSetupPage() -> impl IntoView {
 
 /// API response structure for MFA setup
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaSetupResponse {
     success: bool,
     data: MfaSetupData,
@@ -352,6 +353,7 @@ struct MfaSetupResponse {
 
 /// API response structure for MFA verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyResponse {
     success: bool,
     data: MfaVerifyData,
@@ -359,6 +361,7 @@ struct MfaVerifyResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyData {
     mfa_enabled: bool,
     setup_completed_at: String,
@@ -367,17 +370,20 @@ struct MfaVerifyData {
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ApiErrorResponse {
+    #[allow(dead_code)]
     success: bool,
     error: ApiError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ApiError {
+    #[allow(dead_code)]
     code: String,
     message: String,
 }
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }

@@ -17,12 +17,18 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use portal::pages::logged_out::LoggedOutPage;
+/// use portal_microfrontend::pages::logged_out::LoggedOutPage;
+/// use leptos::prelude::*;
+/// use leptos_router::{components::{Route, Router, Routes}, StaticSegment};
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
-///         <Route path="/logged-out" view=LoggedOutPage />
+///         <Router>
+///             <Routes fallback=|| "Not Found">
+///                 <Route path=StaticSegment("/logged-out") view=LoggedOutPage />
+///             </Routes>
+///         </Router>
 ///     }
 /// }
 /// ```

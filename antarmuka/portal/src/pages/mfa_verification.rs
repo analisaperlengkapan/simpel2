@@ -185,6 +185,8 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_error_message.set(String::new());
 
                                     let navigate = leptos_router::hooks::use_navigate();
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    let _navigate = navigate; // Suppress unused warning in non-WASM
 
                                     spawn_local(async move {
                                         match verify_mfa_code(&temp_token, &code).await {

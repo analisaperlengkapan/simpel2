@@ -139,6 +139,7 @@ pub fn DashboardLayout(
 }
 
 /// Sidebar item component
+#[allow(dead_code)]
 #[component]
 fn SidebarItem(
     icon: &'static str,
@@ -160,6 +161,7 @@ fn SidebarItem(
 }
 
 /// Sidebar section with expandable submenu
+#[allow(dead_code)]
 #[component]
 fn SidebarSection(
     title: &'static str,

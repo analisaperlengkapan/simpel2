@@ -5,6 +5,8 @@
 use crate::components::layout::*;
 use crate::hooks::use_auth::{get_app_name, use_auth};
 use leptos::prelude::*;
+#[cfg(doc)]
+use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
 
 /// Login redirect page component
 ///
@@ -13,17 +15,19 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::auth::LoginRedirectPage;
+/// use shared_microfrontend::components::auth::{LoginRedirectPage, ProtectedRoute};
+/// use leptos::prelude::*;
+/// use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
 ///         <Router>
-///             <Routes>
-///                 <Route path="/" view=LoginRedirectPage />
-///       <Route path="/dashboard" view=|| view! {
+///             <Routes fallback=|| "Not Found">
+///                 <Route path=StaticSegment("/") view=LoginRedirectPage />
+///                 <Route path=StaticSegment("/dashboard") view=|| view! {
 ///                     <ProtectedRoute>
-///                         <DashboardPage />
+///                         {move || view! { <div>"Dashboard"</div> }}
 ///                     </ProtectedRoute>
 ///                 } />
 ///             </Routes>
@@ -105,12 +109,13 @@ pub fn LoginRedirectPage() -> impl IntoView {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::ProtectedRoute;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
 ///     view! {
 ///         <ProtectedRoute>
-///             <div>"Protected dashboard content"</div>
+///             {move || view! { <div>"Protected dashboard content"</div> }}
 ///         </ProtectedRoute>
 ///     }
 /// }
@@ -172,6 +177,7 @@ pub fn ProtectedRoute(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LogoutButton;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -218,6 +224,7 @@ pub fn LogoutButton(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::UserProfile;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -275,12 +282,13 @@ pub fn UserProfile(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::PermissionGuard;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {
 ///     view! {
-///         <PermissionGuard permission="admin:*">
-///             <div>"Admin only content"</div>
+///         <PermissionGuard permission="admin:*".to_string()>
+///             {move || view! { <div>"Admin only content"</div> }}
 ///         </PermissionGuard>
 ///     }
 /// }

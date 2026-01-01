@@ -204,11 +204,12 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::sso_cookie::init_auth_from_sso_cookie;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     // Initialize auth from SSO cookie on mount
-///     create_effect(move |_| {
+///     Effect::new(move |_| {
 ///         init_auth_from_sso_cookie();
 ///     });
 ///
@@ -253,11 +254,12 @@ pub fn init_auth_from_sso_cookie() {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::sso_cookie::setup_sso_session_monitor;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     // Setup SSO session monitoring on mount
-///     create_effect(move |_| {
+///     Effect::new(move |_| {
 ///         setup_sso_session_monitor(60000); // Check every 60 seconds
 ///     });
 ///

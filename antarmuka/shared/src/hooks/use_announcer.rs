@@ -12,8 +12,14 @@ use std::time::Duration;
 ///
 /// # Example
 /// ```rust
+/// use shared_microfrontend::hooks::use_announcer::{use_announcer, Announcer};
+/// use shared_microfrontend::utils::accessibility::AriaLive;
+/// use leptos::prelude::*;
+///
+/// # fn example() {
 /// let announcer = use_announcer();
 /// announcer.announce("Form submitted successfully", AriaLive::Polite);
+/// # }
 /// ```
 pub fn use_announcer() -> Announcer {
     let (message, set_message) = signal(String::new());

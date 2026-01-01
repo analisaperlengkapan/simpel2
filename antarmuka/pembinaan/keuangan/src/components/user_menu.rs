@@ -35,6 +35,7 @@ pub fn UserMenu(
     /// Menu items
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
+    #[allow(unused_variables)]
     on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);

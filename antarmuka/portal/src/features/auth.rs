@@ -101,7 +101,7 @@ pub struct LoginCredentials {
 #[derive(Clone, Debug)]
 pub enum LoginResult {
     /// Login successful with session
-    Success(UserSession),
+    Success(Box<UserSession>),
     /// MFA setup required - contains temp token
     MfaSetupRequired(String), // temp_token
     /// MFA verification required - contains temp token
@@ -227,7 +227,7 @@ impl AuthService {
                                     match Self::decode_jwt_claims(&access_token) {
                                         Ok(session) => {
                                             Self::save_session(&session);
-                                            LoginResult::Success(session)
+                                            LoginResult::Success(Box::new(session))
                                         }
                                         Err(e) => LoginResult::Error(format!(
                                             "Failed to decode token: {}",
@@ -327,7 +327,7 @@ impl AuthService {
             permissions,
         };
 
-        LoginResult::Success(session)
+        LoginResult::Success(Box::new(session))
     }
 
     /// Decode JWT token to extract user claims

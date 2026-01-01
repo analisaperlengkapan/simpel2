@@ -36,19 +36,29 @@ use leptos::prelude::*;
 /// # Example: Route Organization
 ///
 /// ```rust
+/// use leptos::prelude::*;
+/// use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
+/// use shared_microfrontend::utils::code_splitting::RouteLoadingSkeleton;
+///
+/// // Placeholder components
+/// #[component] fn HomePage() -> impl IntoView { view! { "Home" } }
+/// #[component] fn LoginPage() -> impl IntoView { view! { "Login" } }
+/// #[component] fn DashboardPage() -> impl IntoView { view! { "Dashboard" } }
+/// #[component] fn AppsPage() -> impl IntoView { view! { "Apps" } }
+///
 /// // Organize routes by criticality
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
 ///         <Router>
-///             <Routes>
+///             <Routes fallback=|| "Not found">
 ///                 // Critical routes - always loaded
-///                 <Route path="/" view=HomePage />
-///                 <Route path="/login" view=LoginPage />
+///                 <Route path=StaticSegment("/") view=HomePage />
+///                 <Route path=StaticSegment("/login") view=LoginPage />
 ///
 ///                 // Feature routes - loaded on demand
-///                 <Route path="/dashboard" view=DashboardPage />
-///                 <Route path="/apps" view=AppsPage />
+///                 <Route path=StaticSegment("/dashboard") view=DashboardPage />
+///                 <Route path=StaticSegment("/apps") view=AppsPage />
 ///             </Routes>
 ///         </Router>
 ///     }
@@ -119,9 +129,10 @@ pub fn RouteLoadingSkeleton() -> impl IntoView {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::preload_route;
+/// use leptos::prelude::*;
 ///
 /// #[component]
-/// pub fn NavLink() -> impl IntoView {
+/// pub fn NavLink() -> impl leptos::IntoView {
 ///     view! {
 ///         <a
 ///             href="/dashboard"
@@ -360,12 +371,13 @@ impl BundleSize {
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::code_splitting::measure_render_time;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn ExpensiveComponent() -> impl IntoView {
 ///     measure_render_time("ExpensiveComponent", || {
 ///         view! {
-///             // Complex rendering logic
+///             <div>"Complex rendering logic"</div>
 ///         }
 ///     })
 /// }

@@ -341,7 +341,7 @@ mod tests {
         let output = sanitize_input(input);
         assert_eq!(
             output,
-            "&lt;script&gt;alert(&#x27;xss&#x;)&lt;&#x2F;script&gt;"
+            "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;&#x2F;script&gt;"
         );
     }
 

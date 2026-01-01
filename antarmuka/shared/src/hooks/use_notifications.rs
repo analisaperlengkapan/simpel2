@@ -208,7 +208,8 @@ impl NotificationContext {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_notifications;
+/// use shared_microfrontend::hooks::use_notifications::use_notifications;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn MyComponent() -> impl IntoView {
