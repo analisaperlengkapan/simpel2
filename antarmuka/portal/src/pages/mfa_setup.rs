@@ -34,6 +34,7 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
+    let _ = navigate; // Suppress unused
     let navigate_clone = navigate.clone();
 
     // Generate MFA setup data on component mount
@@ -344,6 +345,7 @@ pub fn MfaSetupPage() -> impl IntoView {
 
 /// API response structure for MFA setup
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaSetupResponse {
     success: bool,
     data: MfaSetupData,
@@ -352,6 +354,7 @@ struct MfaSetupResponse {
 
 /// API response structure for MFA verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyResponse {
     success: bool,
     data: MfaVerifyData,
@@ -359,6 +362,7 @@ struct MfaVerifyResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyData {
     mfa_enabled: bool,
     setup_completed_at: String,
@@ -366,18 +370,21 @@ struct MfaVerifyData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiErrorResponse {
     success: bool,
     error: ApiError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiError {
     code: String,
     message: String,
 }
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }
@@ -498,6 +505,7 @@ async fn generate_mfa_setup(
 
 /// Verify MFA setup with authenc API
 async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = code; // Suppress unused for non-wasm target
     #[cfg(target_arch = "wasm32")]
     {
         use gloo_net::http::Request;

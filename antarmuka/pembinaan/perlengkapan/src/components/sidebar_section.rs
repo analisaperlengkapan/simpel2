@@ -1,12 +1,14 @@
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct MenuItem {
     pub href: String,
     pub label: String,
 }
 
 impl MenuItem {
+    #[allow(dead_code)]
     pub fn new(href: &str, label: &str) -> Self {
         Self {
             href: href.to_string(),

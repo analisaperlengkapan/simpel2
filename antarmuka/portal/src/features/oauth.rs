@@ -112,6 +112,7 @@ impl OAuthClient {
         &self,
         code: &str,
     ) -> Result<crate::features::auth::TokenResponse, String> {
+        let _ = code; // Suppress unused warning in non-wasm builds
         #[cfg(target_arch = "wasm32")]
         {
             use gloo_net::http::Request;
