@@ -41,28 +41,32 @@ pub fn AudioChallenge(
         set_audio_playing.set(true);
 
         spawn_local(async move {
-            if let Some(window) = web_sys::window()
-                && let Ok(speech_synthesis) =
+            if let Some(window) = web_sys::window() {
+                if let Ok(speech_synthesis) =
                     js_sys::Reflect::get(&window, &"speechSynthesis".into())
-                && !speech_synthesis.is_undefined()
-            {
-                // Create speech utterance
-                let utterance =
-                    web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get()).unwrap();
-                utterance.set_rate(playback_speed.get() as f32);
-                utterance.set_volume(0.8);
+                {
+                    if !speech_synthesis.is_undefined() {
+                        // Create speech utterance
+                        let utterance =
+                            web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get())
+                                .unwrap();
+                        utterance.set_rate(playback_speed.get() as f32);
+                        utterance.set_volume(0.8);
 
-                // Set up event handlers
-                let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                    set_audio_playing.set(false);
-                }) as Box<dyn Fn()>);
+                        // Set up event handlers
+                        let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                            set_audio_playing.set(false);
+                        })
+                            as Box<dyn Fn()>);
 
-                utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
-                onend.forget(); // Keep closure alive
+                        utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
+                        onend.forget(); // Keep closure alive
 
-                // Speak the text
-                let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
-                synthesis.speak(&utterance);
+                        // Speak the text
+                        let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
+                        synthesis.speak(&utterance);
+                    }
+                }
             }
 
             // Fallback timeout
@@ -73,12 +77,13 @@ pub fn AudioChallenge(
 
     // Stop audio playback
     let stop_audio = move |_| {
-        if let Some(window) = web_sys::window()
-            && let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into())
-            && !speech_synthesis.is_undefined()
-        {
-            let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
-            synthesis.cancel();
+        if let Some(window) = web_sys::window() {
+            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
+                if !speech_synthesis.is_undefined() {
+                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
+                    synthesis.cancel();
+                }
+            }
         }
         set_audio_playing.set(false);
     };
@@ -205,11 +210,13 @@ pub fn KeyboardNavigation(
                 // Activate focused element
                 if let Some(focused_id) = current_focus.get() {
                     // Trigger click event on focused element
-                    if let Some(window) = web_sys::window()
-                        && let Some(document) = window.document()
-                        && let Some(element) = document.get_element_by_id(&focused_id)
-                    {
-                        let _ = element.dispatch_event(&web_sys::Event::new("click").unwrap());
+                    if let Some(window) = web_sys::window() {
+                        if let Some(document) = window.document() {
+                            if let Some(element) = document.get_element_by_id(&focused_id) {
+                                let _ =
+                                    element.dispatch_event(&web_sys::Event::new("click").unwrap());
+                            }
+                        }
                     }
                 }
                 ev.prevent_default();
@@ -271,15 +278,14 @@ pub fn AlternativeInputMethods(
                     js_sys::Reflect::get(&window, &"webkitSpeechRecognition".into())
                         .or_else(|_| js_sys::Reflect::get(&window, &"SpeechRecognition".into()));
 
-                if let Ok(recognition_constructor) = speech_recognition
-                    && !recognition_constructor.is_undefined()
-                {
-                    // Create speech recognition instance
-                    let recognition = js_sys::Reflect::construct(
-                        &recognition_constructor.into(),
-                        &js_sys::Array::new(),
-                    )
-                    .unwrap();
+                if let Ok(recognition_constructor) = speech_recognition {
+                    if !recognition_constructor.is_undefined() {
+                        // Create speech recognition instance
+                        let recognition = js_sys::Reflect::construct(
+                            &recognition_constructor.into(),
+                            &js_sys::Array::new(),
+                        )
+                        .unwrap();
 
                     // Configure recognition
                     let _ = js_sys::Reflect::set(&recognition, &"continuous".into(), &false.into());
@@ -293,14 +299,21 @@ pub fn AlternativeInputMethods(
                     let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                         move |event: web_sys::Event| {
                             // Extract speech result
-                            if let Ok(results) = js_sys::Reflect::get(&event, &"results".into())
-                                && let Ok(result) = js_sys::Reflect::get(&results, &0.into())
-                                && let Ok(alternative) = js_sys::Reflect::get(&result, &0.into())
-                                && let Ok(transcript) =
-                                    js_sys::Reflect::get(&alternative, &"transcript".into())
-                                && let Some(_text) = transcript.as_string()
-                            {
-                                // on_answer_clone(text.trim().to_string());
+                            if let Ok(results) = js_sys::Reflect::get(&event, &"results".into()) {
+                                if let Ok(result) = js_sys::Reflect::get(&results, &0.into()) {
+                                    if let Ok(alternative) =
+                                        js_sys::Reflect::get(&result, &0.into())
+                                    {
+                                        if let Ok(transcript) = js_sys::Reflect::get(
+                                            &alternative,
+                                            &"transcript".into(),
+                                        ) {
+                                            if let Some(_text) = transcript.as_string() {
+                                                // on_answer_clone(text.trim().to_string());
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             set_voice_input_active_clone.set(false);
                         },
@@ -314,14 +327,15 @@ pub fn AlternativeInputMethods(
                     );
                     onresult.forget();
 
-                    // Start recognition
-                    let _ = js_sys::Reflect::apply(
-                        &js_sys::Reflect::get(&recognition, &"start".into())
-                            .unwrap()
-                            .into(),
-                        &recognition,
-                        &js_sys::Array::new(),
-                    );
+                        // Start recognition
+                        let _ = js_sys::Reflect::apply(
+                            &js_sys::Reflect::get(&recognition, &"start".into())
+                                .unwrap()
+                                .into(),
+                            &recognition,
+                            &js_sys::Array::new(),
+                        );
+                    }
                 }
             }
 
