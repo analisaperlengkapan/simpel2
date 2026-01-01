@@ -51,11 +51,11 @@ pub fn get_theme() -> ThemeMode {
     };
 
     // Try localStorage first
-    if let Ok(Some(storage)) = window.local_storage()
-        && let Ok(Some(theme_str)) = storage.get_item("simpelv2_theme")
-    {
-        use std::str::FromStr;
-        return ThemeMode::from_str(&theme_str).unwrap_or(ThemeMode::Light);
+    if let Ok(Some(storage)) = window.local_storage() {
+        if let Ok(Some(theme_str)) = storage.get_item("simpelv2_theme") {
+            use std::str::FromStr;
+            return ThemeMode::from_str(&theme_str).unwrap_or(ThemeMode::Light);
+        }
     }
 
     // Fall back to system preference
