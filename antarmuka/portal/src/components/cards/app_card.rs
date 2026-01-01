@@ -32,6 +32,12 @@ pub fn AppCard(
                     }
                 }
             }
+            // Suppress unused variables when not targeting wasm32
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let _ = is_pembinaan;
+                let _ = app_url;
+            }
         }
     };
 
@@ -48,6 +54,11 @@ pub fn AppCard(
                         let _ = window.open_with_url_and_target(&app_url2, "_blank");
                     }
                 }
+            }
+            // Suppress unused variables when not targeting wasm32
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let _ = app_url2;
             }
         }
     };

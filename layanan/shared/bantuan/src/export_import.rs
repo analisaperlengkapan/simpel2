@@ -29,7 +29,7 @@ impl ExportImportService {
                     .map(|row| KnowledgeArticle::from(&row))
                     .collect::<Vec<_>>();
                 serde_json::to_value(articles)
-                    .map_err(|e| AppError::Validation("Internal error".to_string()))?
+                    .map_err(|_e| AppError::Validation("Internal error".to_string()))?
             }
             "faq_articles" => {
                 let rows = client
@@ -43,7 +43,7 @@ impl ExportImportService {
                     .map(|row| FaqArticle::from(&row))
                     .collect::<Vec<_>>();
                 serde_json::to_value(articles)
-                    .map_err(|e| AppError::Validation("Internal error".to_string()))?
+                    .map_err(|_e| AppError::Validation("Internal error".to_string()))?
             }
             "support_tickets" => {
                 let rows = client
@@ -57,7 +57,7 @@ impl ExportImportService {
                     .map(|row| SupportTicket::from(&row))
                     .collect::<Vec<_>>();
                 serde_json::to_value(tickets)
-                    .map_err(|e| AppError::Validation("Internal error".to_string()))?
+                    .map_err(|_e| AppError::Validation("Internal error".to_string()))?
             }
             _ => return Err(AppError::BadRequest("Resource tidak didukung".to_string())),
         };
@@ -103,6 +103,7 @@ impl ExportImportService {
         }
         Ok(())
     }
+    #[allow(dead_code)]
     pub async fn log_export_import(
         &self,
         user_id: Option<Uuid>,

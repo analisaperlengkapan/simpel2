@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # User Menu Component for SIMPEL Perlengkapan
 //!
 //! Komponen menu pengguna dengan dropdown untuk profil dan logout
@@ -13,6 +14,7 @@ pub struct UserMenuItem {
 }
 
 impl UserMenuItem {
+    #[allow(dead_code)]
     pub fn new(label: &str, href: Option<String>, icon: &str) -> Self {
         Self {
             label: label.to_string(),
@@ -24,18 +26,24 @@ impl UserMenuItem {
 
 /// User Menu Component
 #[component]
+#[allow(dead_code)]
 pub fn UserMenu(
     /// User name to display
+    #[allow(unused)]
     user_name: String,
     /// User role/title
+    #[allow(unused)]
     user_role: String,
     /// User avatar URL (optional)
     #[prop(default = None)]
+    #[allow(unused)]
     user_avatar: Option<String>,
     /// Menu items
+    #[allow(unused)]
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
+    #[allow(unused)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);

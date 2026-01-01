@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # SIMPEL Keuangan - Dashboard Layout
 //!
 //! Layout utama untuk dashboard keuangan dengan navbar, sidebar, dan footer
@@ -109,7 +110,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
-                                on_logout=on_logout
+                                _on_logout=on_logout
                             />
                         </div>
                     </div>
@@ -140,11 +141,12 @@ pub fn DashboardLayout(
 
 /// Sidebar item component
 #[component]
+#[allow(dead_code)]
 fn SidebarItem(
-    icon: &'static str,
-    title: &'static str,
-    href: &'static str,
-    expanded: ReadSignal<bool>,
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] href: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
         <a
@@ -161,11 +163,12 @@ fn SidebarItem(
 
 /// Sidebar section with expandable submenu
 #[component]
+#[allow(dead_code)]
 fn SidebarSection(
-    title: &'static str,
-    icon: &'static str,
-    expanded: ReadSignal<bool>,
-    items: Vec<(String, String)>,
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
+    #[allow(unused)] items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);
 

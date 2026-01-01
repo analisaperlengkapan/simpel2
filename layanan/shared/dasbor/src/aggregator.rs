@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Pool;
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait AggregatorServiceTrait {
     async fn aggregate_metrics(
         &self,
@@ -21,6 +22,7 @@ pub trait AggregatorServiceTrait {
 }
 
 pub struct AggregatorService {
+    #[allow(dead_code)]
     pool: Pool,
 }
 
@@ -29,6 +31,7 @@ impl AggregatorService {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     fn calculate_aggregation(&self, values: &[f64], aggregation_type: &str) -> f64 {
         match aggregation_type {
             "sum" => values.iter().sum(),

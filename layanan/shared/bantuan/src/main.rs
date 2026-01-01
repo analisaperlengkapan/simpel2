@@ -111,7 +111,7 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 }
 
 /// Setup database connection pool
-async fn setup_database(config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
+async fn setup_database(_config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
     tracing::info!("Connecting to database...");
 
     let pool_config = deadpool_postgres::Config::new();
@@ -171,6 +171,7 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         ])
         .allow_credentials(true);
 
+    #[allow(deprecated)]
     // Create main application router
     let app = routes(state.config.clone(), state.db.clone()).layer(
         tower::ServiceBuilder::new()

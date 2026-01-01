@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # SIMPEL Perlengkapan - Dashboard Layout
 //!
 //! Layout utama untuk dashboard perlengkapan dengan navbar, sidebar, dan footer
@@ -9,6 +10,7 @@ use shared_microfrontend::components::Logo;
 
 /// User information structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct User {
     pub name: String,
     pub role: String,
@@ -19,10 +21,13 @@ pub struct User {
 #[component]
 pub fn DashboardLayout(
     /// User information
+    #[allow(unused)]
     user: User,
     /// Sidebar open state
+    #[allow(unused)]
     sidebar_open: RwSignal<bool>,
     /// Children content
+    #[allow(unused)]
     children: Children,
 ) -> impl IntoView {
     // Toggle sidebar function
@@ -161,11 +166,12 @@ pub fn DashboardLayout(
 
 /// Sidebar item component
 #[component]
+#[allow(dead_code)]
 fn SidebarItem(
-    icon: &'static str,
-    title: &'static str,
-    href: &'static str,
-    expanded: ReadSignal<bool>,
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] href: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
         <a
@@ -182,11 +188,12 @@ fn SidebarItem(
 
 /// Sidebar section with expandable submenu
 #[component]
+#[allow(dead_code)]
 fn SidebarSection(
-    title: &'static str,
-    icon: &'static str,
-    expanded: ReadSignal<bool>,
-    items: Vec<(String, String)>,
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
+    #[allow(unused)] items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);
 

@@ -42,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _metrics_registry = Registry::new();
 
     // Create router
+    #[allow(deprecated)]
     let app = create_routes(config.clone(), db.clone()).layer(
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())

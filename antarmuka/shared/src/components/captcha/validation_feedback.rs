@@ -26,7 +26,7 @@ pub fn DifficultyIndicator(
     max_attempts: u32,
 ) -> impl IntoView {
     let difficulty_percentage = (current_difficulty as f32 / max_difficulty as f32 * 100.0) as u32;
-    let attempts_percentage = (attempts as f32 / max_attempts as f32 * 100.0) as u32;
+    let _attempts_percentage = (attempts as f32 / max_attempts as f32 * 100.0) as u32;
 
     view! {
         <div class="difficulty-indicator bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4">
@@ -153,7 +153,7 @@ pub fn ValidationStatusIndicator(
                                     <div class="text-xs text-red-700 dark:text-red-300 mb-2">
                                         {message}
                                     </div>
-                                    {if let Some(retry_callback) = on_retry {
+                                    {if let Some(_retry_callback) = on_retry {
                                         view! {
                                             <Button
                                                 // on_click=Some(Box::new(move || retry_callback(())))
@@ -290,7 +290,7 @@ pub fn ChallengeProgressIndicator(
                 {(1..=total_steps).map(|step| {
                     let is_current = step == current_step;
                     let is_completed = step < current_step;
-                    let step_name = step_names.get((step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", step));
+                    let _step_name = step_names.get((step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", step));
 
                     view! {
                         <div class="flex items-center">
@@ -331,11 +331,15 @@ pub fn ChallengeProgressIndicator(
 
 /// Retry mechanism component
 #[component]
+#[allow(dead_code)]
 pub fn RetryMechanism(
     attempts_remaining: u8,
+    #[allow(unused)]
     max_attempts: u8,
     cooldown_seconds: Option<u32>,
+    #[allow(unused)]
     on_retry: Callback<()>,
+    #[allow(unused)]
     on_new_challenge: Callback<()>,
 ) -> impl IntoView {
     let (countdown, set_countdown) = signal(cooldown_seconds.unwrap_or(0));
@@ -345,7 +349,7 @@ pub fn RetryMechanism(
         if let Some(initial_seconds) = cooldown_seconds {
             set_countdown.set(initial_seconds);
 
-            let interval_handle = gloo_timers::callback::Interval::new(1000, move || {
+            let _interval_handle = gloo_timers::callback::Interval::new(1000, move || {
                 set_countdown.update(|count| {
                     if *count > 0 {
                         *count -= 1;

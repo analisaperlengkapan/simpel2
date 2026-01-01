@@ -7,6 +7,7 @@ use reqwest::Client;
 use serde_json::json;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub async fn verify_captcha(secret: &str, token: &str) -> Result<bool, AppError> {
     let client = Client::new();
     let resp = client
@@ -22,6 +23,7 @@ pub async fn verify_captcha(secret: &str, token: &str) -> Result<bool, AppError>
     Ok(json["success"].as_bool().unwrap_or(false))
 }
 
+#[allow(dead_code)]
 pub async fn captcha_middleware(
     State(config): State<AppConfig>,
     State(pool): State<Pool>,

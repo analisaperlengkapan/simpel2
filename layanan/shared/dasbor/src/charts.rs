@@ -6,6 +6,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait ChartServiceTrait {
     async fn create_chart(
         &self,
@@ -33,6 +34,7 @@ pub trait ChartServiceTrait {
 }
 
 pub struct ChartService {
+    #[allow(dead_code)]
     pool: Pool,
 }
 

@@ -7,6 +7,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait RealTimeServiceTrait {
     async fn publish_update(
         &self,
@@ -24,7 +25,9 @@ pub trait RealTimeServiceTrait {
 }
 
 pub struct RealTimeService {
+    #[allow(dead_code)]
     pool: Pool,
+    #[allow(dead_code)]
     redis_url: String,
 }
 
@@ -33,6 +36,7 @@ impl RealTimeService {
         Self { pool, redis_url }
     }
 
+    #[allow(dead_code)]
     async fn get_redis_client(&self) -> Result<redis::Client, DashboardError> {
         let client = redis::Client::open(self.redis_url.as_str())?;
         Ok(client)

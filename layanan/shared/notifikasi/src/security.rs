@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 
 pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
+#[allow(dead_code)]
 pub async fn api_key_middleware(
     State(config): State<AppConfig>,
     req: Request<axum::body::Body>,
@@ -20,6 +21,7 @@ pub async fn api_key_middleware(
     Ok(next.run(req).await)
 }
 
+#[allow(dead_code)]
 pub async fn rate_limit_middleware(
     State(state): State<RateLimitState>,
     req: Request<axum::body::Body>,

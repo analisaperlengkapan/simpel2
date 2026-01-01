@@ -40,16 +40,16 @@ pub struct BackupCodeVerificationData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiErrorResponse {
+pub struct BackupVerificationApiErrorResponse {
     /// Success status (false for errors)
     pub success: bool,
     /// Error details
-    pub error: ApiError,
+    pub error: BackupVerificationApiError,
 }
 
 /// API error details
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiError {
+pub struct BackupVerificationApiError {
     /// Error code
     pub code: String,
     /// Error message
@@ -64,8 +64,8 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (attempts_remaining, set_attempts_remaining) = signal(5);
     let (is_locked, set_is_locked) = signal(false);
-    let (remaining_codes, set_remaining_codes) = signal(None::<i32>);
-    let (verification_success, set_verification_success) = signal(false);
+    let (remaining_codes, _set_remaining_codes) = signal(None::<i32>);
+    let (verification_success, _set_verification_success) = signal(false);
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -207,7 +207,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
+                                    let _navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
@@ -423,7 +423,7 @@ async fn verify_backup_code(
             Ok(verification_response)
         } else {
             // Try to parse error response
-            match response.json::<ApiErrorResponse>().await {
+            match response.json::<BackupVerificationApiErrorResponse>().await {
                 Ok(error_response) => Err(error_response.error.message.into()),
                 Err(_) => Err(format!(
                     "Backup code verification failed: HTTP {}",

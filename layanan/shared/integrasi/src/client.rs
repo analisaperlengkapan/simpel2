@@ -223,7 +223,7 @@ impl MonsaktiClient {
                         status
                     );
                     match self.reset_token_auto(module, tipe_data).await {
-                        Ok(new_token) => {
+                        Ok(_new_token) => {
                             info!("✓ Token baru diterima dari resetToken endpoint");
                             info!(
                                 "⟳ Retry request dengan token baru (attempt {})",
@@ -265,7 +265,7 @@ impl MonsaktiClient {
                             "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
                         );
                         match self.reset_token_auto(module, tipe_data).await {
-                            Ok(new_token) => {
+                            Ok(_new_token) => {
                                 info!("✓ Token baru diterima dari resetToken endpoint");
                                 info!(
                                     "⟳ Retry request dengan token baru (attempt {})",

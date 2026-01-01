@@ -260,15 +260,16 @@ pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl
 
 /// Alternative input methods for users with motor impairments
 #[component]
+#[allow(unused)]
 pub fn AlternativeInputMethods(
     on_answer: Callback<String>,
     challenge_type: ChallengeType,
 ) -> impl IntoView {
-    let (selected_option, set_selected_option) = signal(None::<String>);
-    let (voice_input_active, set_voice_input_active) = signal(false);
+    let (_selected_option, _set_selected_option) = signal(None::<String>);
+    let (_voice_input_active, set_voice_input_active) = signal(false);
 
     // Voice input using Web Speech API
-    let start_voice_input = move |_: ()| {
+    let _start_voice_input = move |_: ()| {
         set_voice_input_active.set(true);
 
         spawn_local(async move {
@@ -298,7 +299,7 @@ pub fn AlternativeInputMethods(
                         let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                         // Set up result handler
-                        let on_answer_clone = on_answer.clone();
+                        let _on_answer_clone = on_answer.clone();
                         let set_voice_input_active_clone = set_voice_input_active.clone();
                         let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                             move |event: web_sys::Event| {
@@ -313,7 +314,7 @@ pub fn AlternativeInputMethods(
                                                 &alternative,
                                                 &"transcript".into(),
                                             ) {
-                                                if let Some(text) = transcript.as_string() {
+                                                if let Some(_text) = transcript.as_string() {
                                                     // on_answer_clone(text.trim().to_string());
                                                 }
                                             }
@@ -351,7 +352,7 @@ pub fn AlternativeInputMethods(
     };
 
     // Multiple choice options for easier selection
-    let options = match challenge_type {
+    let _options = match challenge_type {
         ChallengeType::Visual | ChallengeType::Logical => vec![
             ("1", "One"),
             ("2", "Two"),
@@ -372,7 +373,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);

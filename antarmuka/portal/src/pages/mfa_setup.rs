@@ -11,6 +11,7 @@ use wasm_bindgen_futures::spawn_local;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct MfaSetupData {
     /// QR code URL for authenticator app
     pub qr_code_url: String,
@@ -344,6 +345,7 @@ pub fn MfaSetupPage() -> impl IntoView {
 
 /// API response structure for MFA setup
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaSetupResponse {
     success: bool,
     data: MfaSetupData,
@@ -352,6 +354,7 @@ struct MfaSetupResponse {
 
 /// API response structure for MFA verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyResponse {
     success: bool,
     data: MfaVerifyData,
@@ -359,6 +362,7 @@ struct MfaVerifyResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyData {
     mfa_enabled: bool,
     setup_completed_at: String,
@@ -366,18 +370,21 @@ struct MfaVerifyData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ApiErrorResponse {
+#[allow(dead_code)]
+struct MfaSetupApiErrorResponse {
     success: bool,
-    error: ApiError,
+    error: MfaSetupApiError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ApiError {
+#[allow(dead_code)]
+struct MfaSetupApiError {
     code: String,
     message: String,
 }
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }
@@ -482,7 +489,7 @@ async fn generate_mfa_setup(
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
 
-            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+            if let Ok(error_response) = serde_json::from_str::<MfaSetupApiErrorResponse>(&error_text) {
                 Err(error_response.error.message.into())
             } else {
                 Err(format!("MFA setup failed: HTTP {}", response.status()).into())
@@ -492,11 +499,13 @@ async fn generate_mfa_setup(
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let _ = captcha_token;
         Err("MFA setup not available in non-WASM environment".into())
     }
 }
 
 /// Verify MFA setup with authenc API
+#[allow(unused)]
 async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -537,7 +546,7 @@ async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> 
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
 
-            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+            if let Ok(error_response) = serde_json::from_str::<MfaSetupApiErrorResponse>(&error_text) {
                 Err(error_response.error.message.into())
             } else {
                 Err(format!("Verification failed: HTTP {}", response.status()).into())
