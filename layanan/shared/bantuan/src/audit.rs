@@ -6,7 +6,6 @@ use serde_json::Value;
 use uuid::Uuid;
 
 #[allow(dead_code)]
-#[allow(clippy::too_many_arguments)]
 pub async fn insert_audit_log(
     pool: &Pool,
     user_id: Option<Uuid>,

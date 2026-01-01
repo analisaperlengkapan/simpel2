@@ -3,35 +3,21 @@
 //! Service untuk menangani bantuan pengguna, FAQ, ticketing system,
 //! dan chatbot berbasis AI.
 
-#[allow(unused)]
 mod analytics;
-#[allow(unused)]
 mod audit;
-#[allow(unused)]
 mod captcha;
-#[allow(unused)]
 mod chatbot;
-#[allow(unused)]
 mod config;
 mod error;
-#[allow(unused)]
 mod export_import;
-#[allow(unused)]
 mod faq;
-#[allow(unused)]
 mod gdpr;
 mod handlers;
-#[allow(unused)]
 mod knowledge;
-#[allow(unused)]
 mod models;
-#[allow(unused)]
 mod rate_limit;
-#[allow(unused)]
 mod rbac;
-#[allow(unused)]
 mod ticket;
-#[allow(unused)]
 mod webhook;
 
 use crate::{config::AppConfig, error::AppError, handlers::routes};
@@ -185,16 +171,15 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         ])
         .allow_credentials(true);
 
-    #[allow(deprecated)]
     // Create main application router
     let app = routes(state.config.clone(), state.db.clone()).layer(
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            .layer(
-                #[allow(deprecated)]
-                TimeoutLayer::new(Duration::from_secs(30)),
-            )
+            .layer(TimeoutLayer::with_status_code(
+                axum::http::StatusCode::REQUEST_TIMEOUT,
+                Duration::from_secs(30),
+            ))
             .layer(cors),
     );
 
