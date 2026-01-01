@@ -109,7 +109,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
-                                on_logout=on_logout
+                                _on_logout=on_logout
                             />
                         </div>
                     </div>
@@ -118,7 +118,7 @@ pub fn DashboardLayout(
 
             <div class="flex">
                 // Sidebar
-                <Sidebar _sidebar_open=sidebar_open />
+                <Sidebar sidebar_open=sidebar_open />
 
                 // Main Content Area
                 <main class="flex-1 p-6">
