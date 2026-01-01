@@ -162,14 +162,14 @@ impl<T: Clone> MemoryCache<T> {
 
     /// Get item from cache if not expired
     pub fn get(&self, key: &str) -> Option<T> {
-        if let Ok(mut cache) = self.cache.lock() {
-            if let Some(cached_item) = cache.get(key) {
-                if cached_item.is_valid() {
-                    return Some(cached_item.data.clone());
-                } else {
-                    // Remove expired item
-                    cache.remove(key);
-                }
+        if let Ok(mut cache) = self.cache.lock()
+            && let Some(cached_item) = cache.get(key)
+        {
+            if cached_item.is_valid() {
+                return Some(cached_item.data.clone());
+            } else {
+                // Remove expired item
+                cache.remove(key);
             }
         }
         None
@@ -224,7 +224,7 @@ impl CacheKeyBuilder {
         }
     }
 
-    pub fn add(mut self, part: &str) -> Self {
+    pub fn push(mut self, part: &str) -> Self {
         self.parts.push(part.to_string());
         self
     }
@@ -292,10 +292,10 @@ impl ApiCache {
     /// Generate cache key for API request
     pub fn generate_key(method: &str, url: &str, params: Option<&str>) -> String {
         let mut builder = CacheKeyBuilder::new("api");
-        builder = builder.add(method).add(url);
+        builder = builder.push(method).push(url);
 
         if let Some(params) = params {
-            builder = builder.add(params);
+            builder = builder.push(params);
         }
 
         builder.build()
@@ -397,8 +397,8 @@ mod tests {
     #[test]
     fn test_cache_key_builder() {
         let key = CacheKeyBuilder::new("api")
-            .add("GET")
-            .add("/users")
+            .push("GET")
+            .push("/users")
             .add_param("page", "1")
             .add_param("limit", "10")
             .build();

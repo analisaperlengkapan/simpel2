@@ -100,7 +100,10 @@ pub fn ValidationStatusIndicator(
         <div class="validation-status">
             {move || {
                 match status.get() {
-                    ValidationStatus::Idle => view! {}.into_any(),
+                    ValidationStatus::Idle => {
+                        let _: () = view! {};
+                        ().into_any()
+                    }
 
                     ValidationStatus::Validating => view! {
                         <div class="validating-indicator bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
@@ -164,7 +167,8 @@ pub fn ValidationStatusIndicator(
                                             </Button>
                                         }.into_any()
                                     } else {
-                                        view! {}.into_any()
+                                        let _: () = view! {};
+                                        ().into_any()
                                     }}
                                 </div>
                             </div>
@@ -228,7 +232,7 @@ pub fn InputValidationFeedback(
                 }
             }
             _ => {
-                if value.len() >= 1 {
+                if !value.is_empty() {
                     ("valid", "Answer received", "text-green-600")
                 } else {
                     ("idle", "Enter your answer", "text-gray-500")
@@ -259,7 +263,8 @@ pub fn InputValidationFeedback(
                                 <div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
                 }
@@ -315,7 +320,8 @@ pub fn ChallengeProgressIndicator(
                                     )></div>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
                     }
@@ -377,7 +383,8 @@ pub fn RetryMechanism(
                         </div>
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    let _: () = view! {};
+                    ().into_any()
                 }}
 
                 <div class="flex justify-center space-x-2">
@@ -392,7 +399,8 @@ pub fn RetryMechanism(
                             </Button>
                         }.into_any()
                     } else {
-                        view! {}.into_any()
+                        let _: () = view! {};
+                        ().into_any()
                     }}
 
                     <Button

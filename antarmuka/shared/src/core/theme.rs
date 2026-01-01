@@ -25,12 +25,17 @@ impl ThemeMode {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
-        match s {
+}
+
+impl std::str::FromStr for ThemeMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
             "dark" => Self::Dark,
             "system" => Self::System,
             _ => Self::Light,
-        }
+        })
     }
 }
 
@@ -49,7 +54,8 @@ pub fn get_theme() -> ThemeMode {
     if let Ok(Some(storage)) = window.local_storage()
         && let Ok(Some(theme_str)) = storage.get_item("simpelv2_theme")
     {
-        return ThemeMode::from_str(&theme_str);
+        use std::str::FromStr;
+        return ThemeMode::from_str(&theme_str).unwrap_or(ThemeMode::Light);
     }
 
     // Fall back to system preference

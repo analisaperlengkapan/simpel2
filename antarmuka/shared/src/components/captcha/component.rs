@@ -436,7 +436,8 @@ fn CaptchaContainer(
                                     />
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
 
                             {if behavioral_analysis {
@@ -458,7 +459,8 @@ fn CaptchaContainer(
                                     </div>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
                     }.into_any()
@@ -776,7 +778,10 @@ pub fn ChallengeInput(
                             "🔄 Validating..."
                         </div>
                     }.into_any(),
-                    _ => view! {}.into_any()
+                    _ => {
+                        let _: () = view! {};
+                        ().into_any()
+                    }
                 }
             }}
 
@@ -810,7 +815,8 @@ pub fn ChallengeInput(
                     </div>
                 }.into_any()
             } else {
-                view! {}.into_any()
+                let _: () = view! {};
+                ().into_any()
             }}
         </div>
     }

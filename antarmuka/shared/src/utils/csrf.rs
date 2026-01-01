@@ -30,16 +30,16 @@ impl CsrfToken {
         let mut bytes = [0u8; 32];
 
         // Use crypto.getRandomValues for secure random generation
-        if let Some(window) = window() {
-            if let Ok(crypto) = window.crypto() {
-                let array = js_sys::Uint8Array::new_with_length(32);
-                if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
-                    // Convert bytes to hex string
-                    return bytes
-                        .iter()
-                        .map(|b| format!("{:02x}", b))
-                        .collect::<String>();
-                }
+        if let Some(window) = window()
+            && let Ok(crypto) = window.crypto()
+        {
+            let array = js_sys::Uint8Array::new_with_length(32);
+            if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
+                // Convert bytes to hex string
+                return bytes
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<String>();
             }
         }
 

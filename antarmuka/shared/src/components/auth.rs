@@ -46,9 +46,8 @@ pub fn LoginRedirectPage() -> impl IntoView {
         }
     });
 
-    let auth_clone = auth.clone();
     let handle_login = move || {
-        auth_clone.redirect_to_login();
+        auth.redirect_to_login();
     };
 
     view! {
@@ -127,28 +126,26 @@ pub fn ProtectedRoute(
     let auth = use_auth();
 
     // Check authentication and redirect if needed
-    let auth_check = auth.clone();
     let perm_check = required_permission.clone();
     Effect::new(move || {
-        if !auth_check.is_authenticated() {
-            auth_check.redirect_to_login();
-        } else if let Some(ref permission) = perm_check {
-            if !auth_check.has_permission(permission) {
-                // User doesn't have required permission, show error or redirect
-                if let Some(window) = web_sys::window() {
-                    let _ = window.location().set_href("/unauthorized");
-                }
+        if !auth.is_authenticated() {
+            auth.redirect_to_login();
+        } else if let Some(ref permission) = perm_check
+            && !auth.has_permission(permission)
+        {
+            // User doesn't have required permission, show error or redirect
+            if let Some(window) = web_sys::window() {
+                let _ = window.location().set_href("/unauthorized");
             }
         }
     });
 
-    let auth_show = auth.clone();
     let perm_show = required_permission.clone();
     view! {
         <Show
             when=move || {
-                auth_show.is_authenticated() && perm_show.as_ref()
-                    .map(|p| auth_show.has_permission(p))
+                auth.is_authenticated() && perm_show.as_ref()
+                    .map(|p| auth.has_permission(p))
                     .unwrap_or(true)
             }
             fallback=|| view! {
@@ -193,9 +190,8 @@ pub fn LogoutButton(
 ) -> impl IntoView {
     let auth = use_auth();
 
-    let auth_clone = auth.clone();
     let handle_logout = move || {
-        auth_clone.logout();
+        auth.logout();
     };
 
     view! {
@@ -235,15 +231,13 @@ pub fn UserProfile(
     class: String,
 ) -> impl IntoView {
     let auth = use_auth();
-    let auth_check = auth.clone();
-    let auth_session = auth.clone();
     let class_stored = StoredValue::new(class);
 
     view! {
-        <Show when=move || auth_check.is_authenticated()>
+        <Show when=move || auth.is_authenticated()>
             {move || {
                 let class_value = class_stored.get_value();
-                auth_session.get_session().map(|session| {
+                auth.get_session().map(|session| {
                     view! {
                         <div class=format!("flex items-center space-x-3 {}", class_value)>
                             // Avatar

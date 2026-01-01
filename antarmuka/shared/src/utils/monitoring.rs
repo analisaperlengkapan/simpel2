@@ -59,14 +59,14 @@ fn track_navigation_timing() {
     if let Some(win) = window() {
         // Wait for page load to complete
         let closure = Closure::wrap(Box::new(move || {
-            if let Some(window) = window() {
-                if let Some(performance) = window.performance() {
-                    collect_navigation_metrics(&performance);
-                }
+            if let Some(window) = window()
+                && let Some(performance) = window.performance()
+            {
+                collect_navigation_metrics(&performance);
             }
         }) as Box<dyn FnMut()>);
 
-        let _ = win.set_onload(Some(closure.as_ref().unchecked_ref()));
+        win.set_onload(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
     }
 }
@@ -76,7 +76,7 @@ fn collect_navigation_metrics(performance: &Performance) {
     use js_sys::Reflect;
 
     // Get timing object
-    if let Ok(timing) = Reflect::get(&performance, &JsValue::from_str("timing")) {
+    if let Ok(timing) = Reflect::get(performance, &JsValue::from_str("timing")) {
         // Calculate key metrics
         let navigation_start = get_timing_value(&timing, "navigationStart");
         let response_start = get_timing_value(&timing, "responseStart");
@@ -124,43 +124,32 @@ fn get_timing_value(timing: &JsValue, property: &str) -> Option<f64> {
 /// Track WASM module load time
 fn track_wasm_load_time(performance: &Performance) {
     // Get all resource timing entries using getEntriesByType
-    let entries_result = js_sys::Reflect::get(&performance, &JsValue::from_str("getEntriesByType"));
+    let entries_result = js_sys::Reflect::get(performance, &JsValue::from_str("getEntriesByType"));
 
-    if let Ok(get_entries_fn) = entries_result {
-        if let Ok(entries) = js_sys::Reflect::apply(
+    if let Ok(get_entries_fn) = entries_result
+        && let Ok(entries) = js_sys::Reflect::apply(
             &get_entries_fn.dyn_into::<js_sys::Function>().unwrap(),
-            &performance,
+            performance,
             &js_sys::Array::of1(&JsValue::from_str("resource")),
-        ) {
-            if let Ok(entries_array) = entries.dyn_into::<js_sys::Array>() {
-                for i in 0..entries_array.length() {
-                    if let Some(entry) = entries_array.get(i).dyn_into::<js_sys::Object>().ok() {
-                        if let Ok(name) = js_sys::Reflect::get(&entry, &JsValue::from_str("name")) {
-                            if let Some(name_str) = name.as_string() {
-                                // Check if this is a WASM file
-                                if name_str.ends_with(".wasm") {
-                                    if let Ok(duration) =
-                                        js_sys::Reflect::get(&entry, &JsValue::from_str("duration"))
-                                    {
-                                        if let Some(load_time) = duration.as_f64() {
-                                            log_metric(
-                                                &format!("WASM Load: {}", name_str),
-                                                load_time,
-                                            );
+        )
+        && let Ok(entries_array) = entries.dyn_into::<js_sys::Array>()
+    {
+        for i in 0..entries_array.length() {
+            if let Ok(entry) = entries_array.get(i).dyn_into::<js_sys::Object>()
+                && let Ok(name) = js_sys::Reflect::get(&entry, &JsValue::from_str("name"))
+                && let Some(name_str) = name.as_string()
+            {
+                // Check if this is a WASM file
+                if name_str.ends_with(".wasm")
+                    && let Ok(duration) =
+                        js_sys::Reflect::get(&entry, &JsValue::from_str("duration"))
+                    && let Some(load_time) = duration.as_f64()
+                {
+                    log_metric(&format!("WASM Load: {}", name_str), load_time);
 
-                                            // Alert if WASM takes > 3s to load
-                                            if load_time > 3000.0 {
-                                                send_performance_alert(
-                                                    "WASM Load",
-                                                    load_time,
-                                                    3000.0,
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    // Alert if WASM takes > 3s to load
+                    if load_time > 3000.0 {
+                        send_performance_alert("WASM Load", load_time, 3000.0);
                     }
                 }
             }
@@ -261,7 +250,7 @@ pub fn track_api_request(endpoint: &str, method: &str, status_code: u16, respons
         method: method.to_string(),
         status_code,
         response_time_ms,
-        success: status_code >= 200 && status_code < 300,
+        success: (200..300).contains(&status_code),
     };
 
     web_sys::console::log_2(
