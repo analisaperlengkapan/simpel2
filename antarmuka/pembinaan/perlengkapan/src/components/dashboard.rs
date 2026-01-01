@@ -58,6 +58,13 @@ pub fn DashboardLayout(
         UserMenuItem::new("Logout", None, "fas fa-sign-out-alt"),
     ];
 
+    // Logout handler
+    let on_logout = move || {
+        if let Some(window) = web_sys::window() {
+            let _ = window.location().set_href("/portal/logout");
+        }
+    };
+
     view! {
         <div class="min-h-screen bg-gray-50">
             // Modern Header with gradient and animations
@@ -124,6 +131,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
+                                on_logout=on_logout
                             />
                         </div>
                     </div>

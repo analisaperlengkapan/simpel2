@@ -52,7 +52,7 @@ pub fn DashboardLayout(
     ];
 
     // Logout handler
-    let on_logout: Option<Box<dyn Fn() + Send + Sync>> = Some(Box::new(|| {
+    let on_logout = move || {
         // Clear any stored session data
         if let Some(window) = web_sys::window()
             && let Ok(Some(local_storage)) = window.local_storage()
@@ -64,7 +64,7 @@ pub fn DashboardLayout(
         if let Some(window) = web_sys::window() {
             let _ = window.location().set_href("/portal/logout");
         }
-    }));
+    };
 
     view! {
         <div class="min-h-screen bg-gray-50">
