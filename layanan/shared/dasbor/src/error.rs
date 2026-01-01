@@ -6,6 +6,7 @@ use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
+#[allow(dead_code)]
 pub enum DashboardError {
     #[error("Database error: {0}")]
     Db(#[from] tokio_postgres::Error),

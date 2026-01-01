@@ -176,9 +176,8 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            .layer(
-                TimeoutLayer::new(Duration::from_secs(30)),
-            )
+            // Use with_status_code if possible, or just ignore deprecated warning if API surface matches
+            .layer(TimeoutLayer::new(Duration::from_secs(30)))
             .layer(cors),
     );
 

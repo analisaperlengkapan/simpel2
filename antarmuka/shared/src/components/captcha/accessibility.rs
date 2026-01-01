@@ -260,11 +260,11 @@ pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl
 
 /// Alternative input methods for users with motor impairments
 #[component]
-#[allow(unused)]
 pub fn AlternativeInputMethods(
     on_answer: Callback<String>,
     challenge_type: ChallengeType,
 ) -> impl IntoView {
+    let _ = on_answer;
     let (_selected_option, _set_selected_option) = signal(None::<String>);
     let (_voice_input_active, set_voice_input_active) = signal(false);
 
@@ -373,7 +373,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    _on_answer: Callback<String>,
+    on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);

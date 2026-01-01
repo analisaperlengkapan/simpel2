@@ -11,7 +11,6 @@ use wasm_bindgen_futures::spawn_local;
 
 /// MFA setup data from API
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct MfaSetupData {
     /// QR code URL for authenticator app
     pub qr_code_url: String,
@@ -30,8 +29,9 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (error_message, set_error_message) = signal(String::new());
     let (is_loading, set_is_loading) = signal(false);
     let (is_generating, set_is_generating) = signal(true);
-    let (_captcha_token, set_captcha_token) = signal(None::<String>);
+    let (captcha_token, set_captcha_token) = signal(None::<String>);
     let (show_captcha, set_show_captcha) = signal(false);
+    let _ = captcha_token;
     let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
@@ -71,6 +71,9 @@ pub fn MfaSetupPage() -> impl IntoView {
             }
         });
     });
+
+    // Suppress unused warning for captcha_token until it's used
+    let _ = captcha_token;
 
     // Handle CAPTCHA completion for high-risk scenarios
     let handle_captcha_success = move |token: String| {
@@ -371,14 +374,14 @@ struct MfaVerifyData {
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
-struct MfaSetupApiErrorResponse {
+struct ApiErrorResponse {
     success: bool,
-    error: MfaSetupApiError,
+    error: ApiError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
-struct MfaSetupApiError {
+struct ApiError {
     code: String,
     message: String,
 }
@@ -489,7 +492,7 @@ async fn generate_mfa_setup(
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
 
-            if let Ok(error_response) = serde_json::from_str::<MfaSetupApiErrorResponse>(&error_text) {
+            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
                 Err(error_response.error.message.into())
             } else {
                 Err(format!("MFA setup failed: HTTP {}", response.status()).into())
@@ -499,13 +502,11 @@ async fn generate_mfa_setup(
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let _ = captcha_token;
         Err("MFA setup not available in non-WASM environment".into())
     }
 }
 
 /// Verify MFA setup with authenc API
-#[allow(unused)]
 async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -546,7 +547,7 @@ async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> 
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
 
-            if let Ok(error_response) = serde_json::from_str::<MfaSetupApiErrorResponse>(&error_text) {
+            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
                 Err(error_response.error.message.into())
             } else {
                 Err(format!("Verification failed: HTTP {}", response.status()).into())
@@ -556,6 +557,7 @@ async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> 
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let _ = code; // Suppress unused warning
         Err("MFA verification not available in non-WASM environment".into())
     }
 }
