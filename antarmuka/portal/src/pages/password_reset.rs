@@ -51,7 +51,7 @@ pub fn PasswordResetPage() -> impl IntoView {
                             .find(|(key, _)| key == "token")
                             .map(|(_, value)| value.to_string())
                         {
-                            _set_reset_token.set(token);
+                            set_reset_token.set(token);
                             set_reset_state.set(ResetState::NewPassword);
                         }
                     }
@@ -73,6 +73,7 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle reset request submission
     let handle_request_reset = {
+        // Removed unnecessary clones
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
 
