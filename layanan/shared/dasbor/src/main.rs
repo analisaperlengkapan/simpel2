@@ -46,7 +46,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            .layer(TimeoutLayer::new(Duration::from_secs(30)))
+            .layer({
+                #[allow(deprecated)]
+                TimeoutLayer::new(Duration::from_secs(30))
+            })
             .layer(CorsLayer::permissive()),
     );
 

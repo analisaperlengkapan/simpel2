@@ -51,7 +51,7 @@ pub fn DashboardLayout(
     ];
 
     // Logout handler
-    let on_logout: Option<Box<dyn Fn() + Send + Sync>> = Some(Box::new(|| {
+    let on_logout: Box<dyn Fn() + Send + Sync> = Box::new(|| {
         // Clear any stored session data
         if let Some(window) = web_sys::window()
             && let Ok(Some(local_storage)) = window.local_storage()
@@ -63,7 +63,7 @@ pub fn DashboardLayout(
         if let Some(window) = web_sys::window() {
             let _ = window.location().set_href("/portal/logout");
         }
-    }));
+    });
 
     view! {
         <div class="min-h-screen bg-gray-50">
@@ -109,7 +109,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
-                                on_logout=on_logout
+                                _on_logout=on_logout
                             />
                         </div>
                     </div>
@@ -140,10 +140,15 @@ pub fn DashboardLayout(
 
 /// Sidebar item component
 #[component]
+#[allow(dead_code)]
 fn SidebarItem(
+    #[allow(unused_variables)]
     icon: &'static str,
+    #[allow(unused_variables)]
     title: &'static str,
+    #[allow(unused_variables)]
     href: &'static str,
+    #[allow(unused_variables)]
     expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
@@ -161,10 +166,15 @@ fn SidebarItem(
 
 /// Sidebar section with expandable submenu
 #[component]
+#[allow(dead_code)]
 fn SidebarSection(
+    #[allow(unused_variables)]
     title: &'static str,
+    #[allow(unused_variables)]
     icon: &'static str,
+    #[allow(unused_variables)]
     expanded: ReadSignal<bool>,
+    #[allow(unused_variables)]
     items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);

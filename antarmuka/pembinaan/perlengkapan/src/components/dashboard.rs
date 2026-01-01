@@ -9,6 +9,7 @@ use shared_microfrontend::components::Logo;
 
 /// User information structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct User {
     pub name: String,
     pub role: String,
@@ -17,6 +18,7 @@ pub struct User {
 
 /// Dashboard layout component for SIMPEL Perlengkapan
 #[component]
+#[allow(dead_code)]
 pub fn DashboardLayout(
     /// User information
     user: User,
@@ -161,10 +163,15 @@ pub fn DashboardLayout(
 
 /// Sidebar item component
 #[component]
+#[allow(dead_code)]
 fn SidebarItem(
+    #[allow(unused_variables)]
     icon: &'static str,
+    #[allow(unused_variables)]
     title: &'static str,
+    #[allow(unused_variables)]
     href: &'static str,
+    #[allow(unused_variables)]
     expanded: ReadSignal<bool>,
 ) -> impl IntoView {
     view! {
@@ -182,10 +189,15 @@ fn SidebarItem(
 
 /// Sidebar section with expandable submenu
 #[component]
+#[allow(dead_code)]
 fn SidebarSection(
+    #[allow(unused_variables)]
     title: &'static str,
+    #[allow(unused_variables)]
     icon: &'static str,
+    #[allow(unused_variables)]
     expanded: ReadSignal<bool>,
+    #[allow(unused_variables)]
     items: Vec<(String, String)>,
 ) -> impl IntoView {
     let (section_open, set_section_open) = signal(false);

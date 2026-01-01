@@ -7,6 +7,7 @@ pub struct MenuItem {
 }
 
 impl MenuItem {
+    #[allow(dead_code)]
     pub fn new(href: &str, label: &str) -> Self {
         Self {
             href: href.to_string(),

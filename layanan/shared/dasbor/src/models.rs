@@ -4,6 +4,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Dashboard {
     pub id: Uuid,
     pub name: String,
@@ -29,6 +30,7 @@ impl From<&Row> for Dashboard {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Chart {
     pub id: Uuid,
     pub dashboard_id: Uuid,
@@ -56,6 +58,7 @@ impl From<&Row> for Chart {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Metric {
     pub id: Uuid,
     pub name: String,
@@ -79,6 +82,7 @@ impl From<&Row> for Metric {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct AggregatedData {
     pub id: Uuid,
     pub metric_name: String,
@@ -104,6 +108,7 @@ impl From<&Row> for AggregatedData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct RealTimeUpdate {
     pub id: Uuid,
     pub metric_name: String,

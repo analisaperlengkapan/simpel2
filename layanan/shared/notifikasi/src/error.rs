@@ -13,29 +13,38 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Not found")]
+    #[allow(dead_code)]
     NotFound,
     #[error("Forbidden")]
+    #[allow(dead_code)]
     Forbidden,
     #[error("Validation error: {0}")]
+    #[allow(dead_code)]
     Validation(Box<str>),
     #[error("Rate limit exceeded")]
+    #[allow(dead_code)]
     RateLimit,
     #[error("Email error: {0}")]
+    #[allow(dead_code)]
     Email(Box<str>),
     #[error("WhatsApp error: {0}")]
+    #[allow(dead_code)]
     WhatsApp(Box<str>),
     #[error("Push error: {0}")]
+    #[allow(dead_code)]
     Push(Box<str>),
     #[error("Unauthorized")]
+    #[allow(dead_code)]
     Unauthorized,
     #[error("Bad request: {0}")]
+    #[allow(dead_code)]
     BadRequest(Box<str>),
     #[error("Internal server error")]
     Internal,
 }
 
 impl From<redis::RedisError> for AppError {
-    fn from(err: redis::RedisError) -> Self {
+    fn from(_err: redis::RedisError) -> Self {
         AppError::Internal
     }
 }
