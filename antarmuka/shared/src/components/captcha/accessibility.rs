@@ -53,11 +53,9 @@ pub fn AudioChallenge(
                 utterance.set_volume(0.8);
 
                 // Set up event handlers
-                let set_audio_playing_clone = set_audio_playing;
                 let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                    set_audio_playing_clone.set(false);
-                })
-                    as Box<dyn Fn()>);
+                    set_audio_playing.set(false);
+                }) as Box<dyn Fn()>);
 
                 utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
                 onend.forget(); // Keep closure alive
@@ -290,7 +288,7 @@ pub fn AlternativeInputMethods(
                     let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                     // Set up result handler
-                    let on_answer_clone = on_answer;
+                    let _on_answer_clone = on_answer;
                     let set_voice_input_active_clone = set_voice_input_active;
                     let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                         move |event: web_sys::Event| {
@@ -300,7 +298,7 @@ pub fn AlternativeInputMethods(
                                 && let Ok(alternative) = js_sys::Reflect::get(&result, &0.into())
                                 && let Ok(transcript) =
                                     js_sys::Reflect::get(&alternative, &"transcript".into())
-                                && let Some(text) = transcript.as_string()
+                                && let Some(_text) = transcript.as_string()
                             {
                                 // on_answer_clone(text.trim().to_string());
                             }

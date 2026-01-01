@@ -224,12 +224,12 @@ impl CacheKeyBuilder {
         }
     }
 
-    pub fn part(mut self, part: &str) -> Self {
+    pub fn push(mut self, part: &str) -> Self {
         self.parts.push(part.to_string());
         self
     }
 
-    pub fn param(mut self, key: &str, value: &str) -> Self {
+    pub fn add_param(mut self, key: &str, value: &str) -> Self {
         self.parts.push(format!("{}={}", key, value));
         self
     }
@@ -292,10 +292,10 @@ impl ApiCache {
     /// Generate cache key for API request
     pub fn generate_key(method: &str, url: &str, params: Option<&str>) -> String {
         let mut builder = CacheKeyBuilder::new("api");
-        builder = builder.part(method).part(url);
+        builder = builder.push(method).push(url);
 
         if let Some(params) = params {
-            builder = builder.part(params);
+            builder = builder.push(params);
         }
 
         builder.build()
@@ -397,10 +397,10 @@ mod tests {
     #[test]
     fn test_cache_key_builder() {
         let key = CacheKeyBuilder::new("api")
-            .part("GET")
-            .part("/users")
-            .param("page", "1")
-            .param("limit", "10")
+            .push("GET")
+            .push("/users")
+            .add_param("page", "1")
+            .add_param("limit", "10")
             .build();
 
         assert_eq!(key, "api:GET:/users:page=1:limit=10");

@@ -11,13 +11,16 @@ use shared_microfrontend::components::auth::{
 use wasm_bindgen::prelude::*;
 
 mod components;
-pub use components::*;
+pub use components::{
+    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader, SearchBox, StatsCard,
+    StatusBadge,
+};
 
 mod pages;
-pub use pages::*;
+pub use pages::PidmilDashboard;
 
 mod types;
-pub use types::*;
+pub use types::{ButtonVariant, CasePriority, CaseStatus, MilitaryCase};
 
 #[component]
 pub fn App() -> impl IntoView {

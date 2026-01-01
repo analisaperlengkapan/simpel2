@@ -582,9 +582,10 @@ pub fn Switch(
                     let on_change = Rc::clone(&on_change_rc);
                     move |_| {
                         if !disabled
-                            && let Some(ref callback) = *on_change {
-                                callback(!checked);
-                            }
+                            && let Some(ref callback) = *on_change
+                        {
+                            callback(!checked);
+                        }
                     }
                 }
             >

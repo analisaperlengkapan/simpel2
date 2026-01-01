@@ -18,6 +18,19 @@ pub enum FontSize {
     ExtraLarge,
 }
 
+impl std::str::FromStr for FontSize {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "small" => Self::Small,
+            "large" => Self::Large,
+            "extra-large" => Self::ExtraLarge,
+            _ => Self::Medium,
+        })
+    }
+}
+
 impl FontSize {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -25,15 +38,6 @@ impl FontSize {
             Self::Medium => "medium",
             Self::Large => "large",
             Self::ExtraLarge => "extra-large",
-        }
-    }
-
-    pub fn from_str(s: &str) -> Self {
-        match s {
-            "small" => Self::Small,
-            "large" => Self::Large,
-            "extra-large" => Self::ExtraLarge,
-            _ => Self::Medium,
         }
     }
 
@@ -53,7 +57,10 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
     let class = class.unwrap_or_default();
     let (font_size, set_font_size) = use_storage::<String>("font-size", "medium".to_string());
 
-    let current_size = move || FontSize::from_str(&font_size.get());
+    let current_size = move || {
+        use std::str::FromStr;
+        FontSize::from_str(&font_size.get()).unwrap_or(FontSize::Medium)
+    };
 
     // Apply font size to document root
     Effect::new(move |_| {

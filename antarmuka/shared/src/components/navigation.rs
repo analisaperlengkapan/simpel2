@@ -293,9 +293,10 @@ pub fn Tabs(
                             )
                             on:click=move |_| {
                                 if !item.disabled
-                                    && let Some(ref callback) = *on_change {
-                                        callback(item_id.clone());
-                                    }
+                                    && let Some(ref callback) = *on_change
+                                {
+                                    callback(item_id.clone());
+                                }
                             }
                         >
                             {item.icon.map(|icon| view! {

@@ -257,13 +257,10 @@ pub fn FocusTrap(
             && let Some(container) = container_ref.get()
         {
             // Focus first focusable element
-            if let Ok(focusable) = container.query_selector(
+            if let Ok(Some(element)) = container.query_selector(
                 "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-            ) && let Some(element) = focusable
-            {
-                let _ = element
-                    .dyn_ref::<web_sys::HtmlElement>()
-                    .map(|el| el.focus());
+            ) {
+                let _ = element.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
             }
         }
     });
