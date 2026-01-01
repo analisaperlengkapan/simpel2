@@ -5,8 +5,10 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
+#[allow(dead_code)]
 pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
+#[allow(dead_code)]
 pub async fn rate_limit_middleware(
     State(state): State<RateLimitState>,
     req: Request<axum::body::Body>,
