@@ -35,6 +35,7 @@ pub trait ChartServiceTrait {
 
 #[allow(dead_code)]
 pub struct ChartService {
+    #[allow(dead_code)]
     pool: Pool,
 }
 

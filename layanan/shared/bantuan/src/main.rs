@@ -185,6 +185,7 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         ])
         .allow_credentials(true);
 
+    #[allow(deprecated)]
     // Create main application router
     let app = routes(state.config.clone(), state.db.clone()).layer(
         tower::ServiceBuilder::new()

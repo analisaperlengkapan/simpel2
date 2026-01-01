@@ -6,6 +6,7 @@ use axum::{
 };
 use deadpool_postgres::Pool;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum Role {

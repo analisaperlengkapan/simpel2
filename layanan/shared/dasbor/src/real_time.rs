@@ -26,7 +26,9 @@ pub trait RealTimeServiceTrait {
 
 #[allow(dead_code)]
 pub struct RealTimeService {
+    #[allow(dead_code)]
     pool: Pool,
+    #[allow(dead_code)]
     redis_url: String,
 }
 

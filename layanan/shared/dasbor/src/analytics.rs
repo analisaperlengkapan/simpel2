@@ -24,6 +24,7 @@ pub trait AnalyticsServiceTrait {
 
 #[allow(dead_code)]
 pub struct AnalyticsService {
+    #[allow(dead_code)]
     pool: Pool,
 }
 

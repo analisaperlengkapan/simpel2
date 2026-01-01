@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # SIMPEL Perlengkapan - Dashboard Layout
 //!
 //! Layout utama untuk dashboard perlengkapan dengan navbar, sidebar, dan footer
@@ -9,24 +10,24 @@ use shared_microfrontend::components::Logo;
 
 /// User information structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct User {
-    #[allow(dead_code)]
     pub name: String,
-    #[allow(dead_code)]
     pub role: String,
-    #[allow(dead_code)]
     pub avatar: Option<String>,
 }
 
 /// Dashboard layout component for SIMPEL Perlengkapan
 #[component]
-#[allow(dead_code)]
 pub fn DashboardLayout(
     /// User information
+    #[allow(unused)]
     user: User,
     /// Sidebar open state
+    #[allow(unused)]
     sidebar_open: RwSignal<bool>,
     /// Children content
+    #[allow(unused)]
     children: Children,
 ) -> impl IntoView {
     // Toggle sidebar function
@@ -163,5 +164,71 @@ pub fn DashboardLayout(
     }
 }
 
-// Sidebar components removed as they are unused.
-// Use shared-microfrontend components or Sidebar component instead.
+/// Sidebar item component
+#[component]
+#[allow(dead_code)]
+fn SidebarItem(
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] href: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
+) -> impl IntoView {
+    view! {
+        <a
+            href=href
+            class="flex items-center p-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors group"
+        >
+            <i class=format!("{} text-lg", icon)></i>
+            {move || expanded.get().then(|| view! {
+                <span class="ml-3 font-medium">{title}</span>
+            })}
+        </a>
+    }
+}
+
+/// Sidebar section with expandable submenu
+#[component]
+#[allow(dead_code)]
+fn SidebarSection(
+    #[allow(unused)] title: &'static str,
+    #[allow(unused)] icon: &'static str,
+    #[allow(unused)] expanded: ReadSignal<bool>,
+    #[allow(unused)] items: Vec<(String, String)>,
+) -> impl IntoView {
+    let (section_open, set_section_open) = signal(false);
+
+    view! {
+        <div class="space-y-1">
+            <button
+                class="w-full flex items-center justify-between p-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                on:click=move |_| set_section_open.update(|open| *open = !*open)
+            >
+                <div class="flex items-center">
+                    <i class=format!("{} text-lg", icon)></i>
+                    {move || expanded.get().then(|| view! {
+                        <span class="ml-3 font-medium">{title}</span>
+                    })}
+                </div>
+                {move || expanded.get().then(|| view! {
+                    <i class=move || format!(
+                        "fas fa-chevron-{} text-xs transition-transform",
+                        if section_open.get() { "down" } else { "right" }
+                    )></i>
+                })}
+            </button>
+
+            {move || (section_open.get() && expanded.get()).then(|| view! {
+                <div class="ml-6 space-y-1">
+                    {items.iter().map(|(name, href)| view! {
+                        <a
+                            href=href.clone()
+                            class="block p-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        >
+                            {name.clone()}
+                        </a>
+                    }).collect::<Vec<_>>()}
+                </div>
+            })}
+        </div>
+    }
+}

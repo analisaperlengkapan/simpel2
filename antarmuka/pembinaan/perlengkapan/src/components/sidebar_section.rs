@@ -1,11 +1,9 @@
+#![allow(dead_code)]
 use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct MenuItem {
-    #[allow(dead_code)]
     pub href: String,
-    #[allow(dead_code)]
     pub label: String,
 }
 
@@ -22,10 +20,10 @@ impl MenuItem {
 #[component]
 #[allow(dead_code)]
 pub fn SidebarSection(
-    #[allow(unused_variables)] title: String,
-    #[allow(unused_variables)] icon: String,
-    #[allow(unused_variables)] is_expanded: RwSignal<bool>,
-    #[allow(unused_variables)] items: Vec<MenuItem>,
+    #[allow(unused)] title: String,
+    #[allow(unused)] icon: String,
+    #[allow(unused)] is_expanded: RwSignal<bool>,
+    #[allow(unused)] items: Vec<MenuItem>,
 ) -> impl IntoView {
     let toggle_expand = move |_| {
         is_expanded.update(|v| *v = !*v);

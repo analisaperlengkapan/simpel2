@@ -40,15 +40,15 @@ pub struct SimpleBehavioralMetrics {
 #[component]
 pub fn SimpleBehavioralTracker(
     /// Session ID for tracking
-    _session_id: String,
+    #[allow(unused)]
+    session_id: String,
     /// Callback when data is collected
     #[prop(optional)]
-    _on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
+    #[allow(unused)]
+    on_data_update: Option<Callback<SimpleBehavioralMetrics>>,
     /// Children components
     children: Children,
 ) -> impl IntoView {
-
-
     // Tracking state
     let (_mouse_events, set_mouse_events) = signal(VecDeque::<SimpleMouseData>::new());
     let (_keystroke_events, set_keystroke_events) = signal(VecDeque::<SimpleKeystrokeData>::new());
@@ -224,8 +224,7 @@ pub fn BehavioralMetricsDisplay(
                                 </div>
                             }.into_any()
                         } else {
-                            let _: () = view! {};
-                            ().into_any()
+                            view! {}.into_any()
                         }}
                     </div>
                 }.into_any()

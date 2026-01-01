@@ -100,10 +100,7 @@ pub fn ValidationStatusIndicator(
         <div class="validation-status">
             {move || {
                 match status.get() {
-                    ValidationStatus::Idle => {
-                        let _: () = view! {};
-                        ().into_any()
-                    },
+                    ValidationStatus::Idle => view! {}.into_any(),
 
                     ValidationStatus::Validating => view! {
                         <div class="validating-indicator bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
@@ -167,8 +164,7 @@ pub fn ValidationStatusIndicator(
                                             </Button>
                                         }.into_any()
                                     } else {
-                                        let _: () = view! {};
-                                        ().into_any()
+                                        view! {}.into_any()
                                     }}
                                 </div>
                             </div>
@@ -232,7 +228,7 @@ pub fn InputValidationFeedback(
                 }
             }
             _ => {
-                if !value.is_empty() {
+                if value.len() >= 1 {
                     ("valid", "Answer received", "text-green-600")
                 } else {
                     ("idle", "Enter your answer", "text-gray-500")
@@ -263,8 +259,7 @@ pub fn InputValidationFeedback(
                                 <div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
                             }.into_any()
                         } else {
-                            let _: () = view! {};
-                            ().into_any()
+                            view! {}.into_any()
                         }}
                     </div>
                 }
@@ -320,8 +315,7 @@ pub fn ChallengeProgressIndicator(
                                     )></div>
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
-                                ().into_any()
+                                view! {}.into_any()
                             }}
                         </div>
                     }
@@ -337,12 +331,16 @@ pub fn ChallengeProgressIndicator(
 
 /// Retry mechanism component
 #[component]
+#[allow(dead_code)]
 pub fn RetryMechanism(
     attempts_remaining: u8,
-    _max_attempts: u8,
+    #[allow(unused)]
+    max_attempts: u8,
     cooldown_seconds: Option<u32>,
-    _on_retry: Callback<()>,
-    _on_new_challenge: Callback<()>,
+    #[allow(unused)]
+    on_retry: Callback<()>,
+    #[allow(unused)]
+    on_new_challenge: Callback<()>,
 ) -> impl IntoView {
     let (countdown, set_countdown) = signal(cooldown_seconds.unwrap_or(0));
 
@@ -383,8 +381,7 @@ pub fn RetryMechanism(
                         </div>
                     }.into_any()
                 } else {
-                    let _: () = view! {};
-                    ().into_any()
+                    view! {}.into_any()
                 }}
 
                 <div class="flex justify-center space-x-2">
@@ -399,8 +396,7 @@ pub fn RetryMechanism(
                             </Button>
                         }.into_any()
                     } else {
-                        let _: () = view! {};
-                        ().into_any()
+                        view! {}.into_any()
                     }}
 
                     <Button
