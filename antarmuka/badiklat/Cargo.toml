@@ -45,6 +45,7 @@ url = { workspace = true }
 default = ["csr"]
 csr = ["leptos/csr"]
 hydrate = ["leptos/hydrate"]
+dev = []
 
 # WASM Build Optimization Profile
 # Development profile with fast rebuild

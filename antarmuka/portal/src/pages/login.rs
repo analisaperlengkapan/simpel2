@@ -64,7 +64,7 @@ pub fn LoginPage(
 
                     // Full authentication complete
                     AuthService::save_session(&session);
-                    on_login_success.set(Some(session));
+                    on_login_success.set(Some(*session));
                     nav("/dashboard", Default::default());
                 }
                 LoginResult::MfaSetupRequired(temp_token) => {

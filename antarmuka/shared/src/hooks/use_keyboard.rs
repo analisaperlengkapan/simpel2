@@ -14,9 +14,18 @@ use wasm_bindgen::prelude::*;
 /// Hook for registering keyboard shortcuts
 /// # Example
 /// ```rust
-/// use_keyboard_shortcut("ctrl+s", || {
-///     // Save action
-/// });
+/// use shared_microfrontend::hooks::use_keyboard::use_keyboard_shortcut;
+/// use leptos::prelude::*;
+///
+/// #[component]
+/// pub fn Editor() -> impl leptos::IntoView {
+///     use_keyboard_shortcut("ctrl+s", || {
+///         // Save action
+///         // save_document();
+///     });
+///
+///     view! { <div>"Press Ctrl+S to save"</div> }
+/// }
 /// ```
 pub fn use_keyboard_shortcut<F>(shortcut: &'static str, callback: F)
 where

@@ -13,6 +13,7 @@ pub struct UserMenuItem {
 }
 
 impl UserMenuItem {
+    #[allow(dead_code)]
     pub fn new(label: &str, href: Option<String>, icon: &str) -> Self {
         Self {
             label: label.to_string(),

@@ -12,15 +12,17 @@ use wasm_bindgen::prelude::*;
 
 mod components;
 pub use components::{
-    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader, SearchBox, StatsCard,
-    StatusBadge,
+    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader as MilitaryHeaderComp, SearchBox,
+    StatsCard, StatusBadge,
 };
 
 mod pages;
-pub use pages::PidmilDashboard;
+pub use pages::{
+    PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan, PidmilTersangka,
+};
 
 mod types;
-pub use types::{ButtonVariant, CasePriority, CaseStatus, MilitaryCase};
+pub use types::*;
 
 #[component]
 pub fn App() -> impl IntoView {

@@ -154,6 +154,7 @@ impl OAuthClient {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let _ = code; // Suppress unused variable warning in non-WASM
             Err("OAuth not available in non-WASM environment".to_string())
         }
     }

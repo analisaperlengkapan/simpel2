@@ -223,7 +223,7 @@ fn DashboardPage() -> impl IntoView {
 /// Header with authentication controls
 #[component]
 fn BadiklatHeaderWithAuth() -> impl IntoView {
-    let auth = use_auth();
+    let _auth = use_auth();
 
     view! {
         <header class="bg-kejaksaan-primary text-white shadow-lg">
