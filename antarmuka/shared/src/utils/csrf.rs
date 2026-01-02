@@ -30,23 +30,38 @@ impl CsrfToken {
         let mut bytes = [0u8; 32];
 
         // Use crypto.getRandomValues for secure random generation
-        if let Some(window) = window()
-            && let Ok(crypto) = window.crypto()
+        #[cfg(target_arch = "wasm32")]
         {
-            let array = js_sys::Uint8Array::new_with_length(32);
-            if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
-                // Convert bytes to hex string
-                return bytes
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>();
+            if let Some(window) = window() {
+                if let Ok(crypto) = window.crypto() {
+                    if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
+                        return bytes
+                            .iter()
+                            .map(|b| format!("{:02x}", b))
+                            .collect::<String>();
+                    }
+                }
             }
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use rand::{Rng, thread_rng};
+            let mut rng = thread_rng();
+            rng.fill(&mut bytes);
+            return bytes
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>();
+        }
+
         // Fallback to Math.random (less secure, but better than nothing)
-        (0..32)
-            .map(|_| format!("{:02x}", (js_sys::Math::random() * 255.0) as u8))
-            .collect::<String>()
+        #[cfg(target_arch = "wasm32")]
+        {
+            (0..32)
+                .map(|_| format!("{:02x}", (js_sys::Math::random() * 255.0) as u8))
+                .collect::<String>()
+        }
     }
 
     /// Check if token is expired
@@ -357,7 +372,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(target_arch = "wasm32")]
     fn test_csrf_token_generation() {
         let token = CsrfToken::generate();
         assert_eq!(token.value().len(), 64); // 32 bytes = 64 hex chars
@@ -372,7 +386,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_arch = "wasm32")]
     fn test_double_submit_cookie() {
         let cookie = DoubleSubmitCookie::new();
         assert!(!cookie.token.is_empty());

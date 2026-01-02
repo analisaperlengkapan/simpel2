@@ -46,6 +46,7 @@ gloo-storage = { workspace = true }
 urlencoding = "2.1"
 uuid = { workspace = true }
 base64 = { workspace = true }
+rand = { workspace = true }
 
 [build-dependencies]
 # Build-time optimizations
