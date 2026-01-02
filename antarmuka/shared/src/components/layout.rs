@@ -40,11 +40,10 @@ pub fn Card(
     let handle_keydown = {
         let on_click = Rc::clone(&on_click_rc);
         move |ev: web_sys::KeyboardEvent| {
-            if clickable && (ev.key() == "Enter" || ev.key() == " ") {
-                if let Some(ref callback) = *on_click {
+            if clickable && (ev.key() == "Enter" || ev.key() == " ")
+                && let Some(ref callback) = *on_click {
                     callback();
                 }
-            }
         }
     };
 

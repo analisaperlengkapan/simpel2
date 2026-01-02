@@ -17,7 +17,6 @@ enum ResetState {
     /// Email sent confirmation
     EmailSent,
     /// Reset token validation
-    #[allow(dead_code)]
     ValidatingToken,
     /// New password entry
     NewPassword,
@@ -30,7 +29,6 @@ enum ResetState {
 pub fn PasswordResetPage() -> impl IntoView {
     let (email, set_email) = signal(String::new());
     let (reset_token, set_reset_token) = signal(String::new());
-    let _set_reset_token = set_reset_token; // suppress unused warning if only used in Effect
     let (new_password, set_new_password) = signal(String::new());
     let (confirm_password, set_confirm_password) = signal(String::new());
     let (captcha_token, set_captcha_token) = signal(None::<String>);
@@ -74,6 +72,13 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle reset request submission
     let handle_request_reset = {
+        let email = email;
+        let captcha_token = captcha_token;
+        let set_error_message = set_error_message;
+        let set_is_loading = set_is_loading;
+        let set_reset_state = set_reset_state;
+        let set_captcha_token = set_captcha_token;
+
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
 
@@ -114,6 +119,12 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle new password submission
     let handle_reset_password = {
+        let new_password = new_password;
+        let confirm_password = confirm_password;
+        let reset_token = reset_token;
+        let set_error_message = set_error_message;
+        let set_is_loading = set_is_loading;
+        let set_reset_state = set_reset_state;
         let navigate = navigate.clone();
 
         move |ev: web_sys::SubmitEvent| {
@@ -399,7 +410,6 @@ pub fn PasswordResetPage() -> impl IntoView {
 // ============================================================================
 
 /// Get authenc API base URL
-#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }

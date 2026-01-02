@@ -246,8 +246,8 @@ pub fn Captcha(
         {if behavioral_analysis {
             view! {
                 <super::behavioral_tracker::SimpleBehavioralTracker
-                    session_id=session_id.clone()
-                    on_data_update=Callback::new(handle_behavioral_update)
+                    _session_id=session_id.clone()
+                    _on_data_update=Callback::new(handle_behavioral_update)
                 >
                     <CaptchaContainer
                         class=class
@@ -431,7 +431,7 @@ fn CaptchaContainer(
                             {if accessibility_enabled && show_alternative_inputs.get() {
                                 view! {
                                     <AlternativeInputMethods
-                                        on_answer=on_success
+                                        _on_answer=on_success
                                         challenge_type=state.get().challenge_type
                                     />
                                 }.into_any()
