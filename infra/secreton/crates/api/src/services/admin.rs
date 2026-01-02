@@ -75,8 +75,7 @@ pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
-    // Tracks service start time for uptime calculation
-    start_time: chrono::DateTime<chrono::Utc>,
+    start_time: std::time::Instant,
 }
 
 impl AdminService {
@@ -90,7 +89,7 @@ impl AdminService {
             storage,
             auth,
             audit,
-            start_time: chrono::Utc::now(),
+            start_time: std::time::Instant::now(),
         })
     }
 
@@ -102,8 +101,8 @@ impl AdminService {
         // Get audit statistics
         let audit_count = self.audit.count().await;
 
-        // Calculate uptime from service start time
-        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds().max(0) as u64;
+        // Calculate uptime
+        let uptime_seconds = self.start_time.elapsed().as_secs();
 
         // TODO: Get actual user and session counts from auth service
         // For now, using placeholder values as auth service doesn't expose these stats yet
@@ -639,7 +638,7 @@ impl AdminService {
             )),
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
-            start_time: chrono::Utc::now(),
+            start_time: std::time::Instant::now(),
         }
     }
 }
