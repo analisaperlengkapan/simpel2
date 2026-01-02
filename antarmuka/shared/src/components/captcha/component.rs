@@ -5,6 +5,7 @@
 use super::accessibility::*;
 use super::types::*;
 use super::validation_feedback::*;
+use wasm_bindgen::JsCast;
 use crate::components::feedback::Alert;
 use crate::components::forms::Button;
 use crate::core::types::{AlertVariant, ButtonSize, ButtonVariant};
@@ -480,11 +481,114 @@ pub fn ChallengeDisplay(
     let (audio_playing, set_audio_playing) = signal(false);
 
     // Handle audio challenge playback
+    let challenge_data_for_audio = challenge_data.clone();
     let play_audio = move |_| {
         set_audio_playing.set(true);
-        // Placeholder for audio playback
+        let challenge_data = challenge_data_for_audio.clone();
+
         spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(2000).await;
+            let mut audio_played = false;
+
+            if let Some(data) = challenge_data {
+                let content = data.challenge_data;
+
+                if let Some(window) = web_sys::window() {
+                    // Check if content is a URL or Data URI
+                    if content.starts_with("http")
+                        || content.starts_with("/")
+                        || content.starts_with("data:audio")
+                    {
+                        if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src(&content) {
+                            audio_played = true;
+                            let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                                // Success handler (ended)
+                                let resolve_success = resolve.clone();
+                                let on_ended =
+                                    wasm_bindgen::closure::Closure::once_into_js(move || {
+                                        let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                                    });
+                                let _ = audio.add_event_listener_with_callback(
+                                    "ended",
+                                    on_ended.as_ref().unchecked_ref(),
+                                );
+
+                                // Error handler
+                                let resolve_error = resolve.clone();
+                                let on_error =
+                                    wasm_bindgen::closure::Closure::once_into_js(move || {
+                                        let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                                    });
+                                let _ = audio.add_event_listener_with_callback(
+                                    "error",
+                                    on_error.as_ref().unchecked_ref(),
+                                );
+
+                                // Play and handle promise rejection
+                                let play_promise = audio.play();
+                                if let Ok(p) = play_promise {
+                                    let future = wasm_bindgen_futures::JsFuture::from(p);
+                                    let resolve_play_error = resolve.clone();
+                                    spawn_local(async move {
+                                        if let Err(_) = future.await {
+                                            let _ = resolve_play_error.call0(&wasm_bindgen::JsValue::NULL);
+                                        }
+                                    });
+                                } else {
+                                    // Play failed immediately
+                                    let _ = resolve.call0(&wasm_bindgen::JsValue::NULL);
+                                }
+                            });
+                            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                        }
+                    } else {
+                        // Use Text-to-Speech
+                        if let Ok(speech_synthesis) =
+                            js_sys::Reflect::get(&window, &"speechSynthesis".into())
+                        {
+                            if !speech_synthesis.is_undefined() {
+                                audio_played = true;
+                                let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
+                                if let Ok(utterance) =
+                                    web_sys::SpeechSynthesisUtterance::new_with_text(&content)
+                                {
+                                    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                                        // Success handler
+                                        let resolve_success = resolve.clone();
+                                        let on_end = wasm_bindgen::closure::Closure::once_into_js(
+                                            move || {
+                                                let _ =
+                                                    resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                                            },
+                                        );
+                                        let _ = utterance
+                                            .set_onend(Some(on_end.as_ref().unchecked_ref()));
+
+                                        // Error handler
+                                        let resolve_error = resolve.clone();
+                                        let on_error = wasm_bindgen::closure::Closure::once_into_js(
+                                            move || {
+                                                let _ =
+                                                    resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                                            },
+                                        );
+                                        let _ = utterance
+                                            .set_onerror(Some(on_error.as_ref().unchecked_ref()));
+
+                                        synthesis.speak(&utterance);
+                                    });
+                                    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !audio_played {
+                // Fallback if no audio played
+                gloo_timers::future::TimeoutFuture::new(1000).await;
+            }
+
             set_audio_playing.set(false);
         });
     };
@@ -513,6 +617,7 @@ pub fn ChallengeDisplay(
                 </div>
 
                 {if accessibility_enabled && challenge_type != ChallengeType::Audio {
+                    let play_audio = play_audio.clone();
                     view! {
                         <Button
                             on_click=Box::new(move || {
