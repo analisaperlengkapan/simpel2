@@ -110,7 +110,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
-                                _on_logout=on_logout
+                                on_logout=on_logout
                             />
                         </div>
                     </div>

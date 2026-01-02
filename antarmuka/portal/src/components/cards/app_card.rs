@@ -35,8 +35,7 @@ pub fn AppCard(
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let _ = is_pembinaan;
-                let _ = app_url;
+
             }
         }
     };
@@ -58,7 +57,7 @@ pub fn AppCard(
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let _ = app_url2;
+
             }
         }
     };
