@@ -71,7 +71,7 @@ mod otp_input_tests {
         let (otp_value, set_otp_value) = signal(String::new());
 
         // Mount simplified OTP input component
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -133,7 +133,7 @@ mod otp_input_tests {
 
         let (otp_value, set_otp_value) = signal(String::new());
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -193,7 +193,7 @@ mod otp_input_tests {
         let (otp_value, set_otp_value) = signal(String::new());
         let (has_error, set_has_error) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -246,7 +246,7 @@ mod qr_code_display_tests {
 
         let test_qr_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -290,7 +290,7 @@ mod qr_code_display_tests {
 
         let (qr_url, set_qr_url) = signal(String::new());
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -341,7 +341,7 @@ mod button_tests {
 
         let (clicked, set_clicked) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -399,7 +399,7 @@ mod button_tests {
         let (is_disabled, set_is_disabled) = signal(true);
         let (clicked, set_clicked) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -446,7 +446,7 @@ mod button_tests {
 
         let (is_loading, set_is_loading) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {

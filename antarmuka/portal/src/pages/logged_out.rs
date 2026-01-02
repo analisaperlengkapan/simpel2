@@ -25,7 +25,7 @@ use leptos::prelude::*;
 /// pub fn App() -> impl IntoView {
 ///     view! {
 ///         <Router>
-///             <Routes fallback=|| "Not Found">
+///             <Routes fallback=|| "Not Found".into_view()>
 ///                 <Route path=StaticSegment("/logged-out") view=LoggedOutPage />
 ///             </Routes>
 ///         </Router>

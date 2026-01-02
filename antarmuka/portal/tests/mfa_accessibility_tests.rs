@@ -154,7 +154,7 @@ mod mfa_accessibility_tests {
         container.set_id("a11y-test-container");
         document.body().unwrap().append_child(&container).unwrap();
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -295,7 +295,7 @@ mod mfa_accessibility_tests {
         let (attempts_remaining, _set_attempts_remaining) = signal(3);
         let (has_error, set_has_error) = signal(false);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -469,7 +469,7 @@ mod mfa_accessibility_tests {
 
         let (error_type, set_error_type) = signal(None::<String>);
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {
@@ -605,7 +605,7 @@ mod mfa_accessibility_tests {
         container.set_id("success-a11y-container");
         document.body().unwrap().append_child(&container).unwrap();
 
-        mount_to(
+        let _ = mount_to(
             container.clone().unchecked_into::<HtmlElement>(),
             move || {
                 view! {

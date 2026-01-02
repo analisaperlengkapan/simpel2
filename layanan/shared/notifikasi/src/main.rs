@@ -1,14 +1,23 @@
+#[allow(unused)]
 mod audit;
 mod config;
+#[allow(unused)]
 mod email;
+#[allow(unused)]
 mod error;
 mod handlers;
+#[allow(unused)]
 mod models;
+#[allow(unused)]
 mod push;
+#[allow(unused)]
 mod queue;
+#[allow(unused)]
 mod security;
+#[allow(unused)]
 mod template;
 mod websocket;
+#[allow(unused)]
 mod whatsapp;
 
 use crate::config::AppConfig;

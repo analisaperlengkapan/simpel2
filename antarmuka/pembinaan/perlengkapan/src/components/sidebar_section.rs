@@ -3,7 +3,9 @@ use leptos::prelude::*;
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct MenuItem {
+    #[allow(dead_code)]
     pub href: String,
+    #[allow(dead_code)]
     pub label: String,
 }
 
@@ -18,6 +20,7 @@ impl MenuItem {
 }
 
 #[component]
+#[allow(dead_code)]
 pub fn SidebarSection(
     #[allow(unused_variables)] title: String,
     #[allow(unused_variables)] icon: String,
