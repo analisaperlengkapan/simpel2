@@ -471,3 +471,104 @@ pub fn AlternativeInputs(
         </div>
     }
 }
+
+/// Plays audio content, either from a URL or by reading text using SpeechSynthesis.
+/// Returns a Future that resolves when playback is finished or fails.
+pub async fn play_audio_content(content: String) -> Result<(), ()> {
+    if let Some(window) = web_sys::window() {
+        // Check if content is a URL or Data URI
+        if content.starts_with("http")
+            || content.starts_with("/")
+            || content.starts_with("data:audio")
+        {
+            if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src(&content) {
+                let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                    // Success handler (ended)
+                    let resolve_success = resolve.clone();
+                    let on_ended =
+                        wasm_bindgen::closure::Closure::once_into_js(move || {
+                            let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                        });
+                    let _ = audio.add_event_listener_with_callback(
+                        "ended",
+                        on_ended.as_ref().unchecked_ref(),
+                    );
+
+                    // Error handler
+                    let resolve_error = resolve.clone();
+                    let on_error =
+                        wasm_bindgen::closure::Closure::once_into_js(move || {
+                            let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                        });
+                    let _ = audio.add_event_listener_with_callback(
+                        "error",
+                        on_error.as_ref().unchecked_ref(),
+                    );
+
+                    // Play and handle promise rejection
+                    let play_promise = audio.play();
+                    if let Ok(p) = play_promise {
+                        let future = wasm_bindgen_futures::JsFuture::from(p);
+                        let resolve_play_error = resolve.clone();
+                        spawn_local(async move {
+                            if let Err(_) = future.await {
+                                let _ = resolve_play_error.call0(&wasm_bindgen::JsValue::NULL);
+                            }
+                        });
+                    } else {
+                        // Play failed immediately
+                        let _ = resolve.call0(&wasm_bindgen::JsValue::NULL);
+                    }
+                });
+                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                return Ok(());
+            }
+        } else {
+            // Use Text-to-Speech
+            if let Ok(speech_synthesis) =
+                js_sys::Reflect::get(&window, &"speechSynthesis".into())
+            {
+                if !speech_synthesis.is_undefined() {
+                    // Safe cast using dyn_into if possible, or unchecked_into if we trust window property
+                    // Using unchecked_into for now as it's standard for this property,
+                    // but verifying it's not undefined is good practice.
+                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
+
+                    if let Ok(utterance) =
+                        web_sys::SpeechSynthesisUtterance::new_with_text(&content)
+                    {
+                        let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                            // Success handler
+                            let resolve_success = resolve.clone();
+                            let on_end = wasm_bindgen::closure::Closure::once_into_js(
+                                move || {
+                                    let _ =
+                                        resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                                },
+                            );
+                            let _ = utterance
+                                .set_onend(Some(on_end.as_ref().unchecked_ref()));
+
+                            // Error handler
+                            let resolve_error = resolve.clone();
+                            let on_error = wasm_bindgen::closure::Closure::once_into_js(
+                                move || {
+                                    let _ =
+                                        resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                                },
+                            );
+                            let _ = utterance
+                                .set_onerror(Some(on_error.as_ref().unchecked_ref()));
+
+                            synthesis.speak(&utterance);
+                        });
+                        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    // Fallback or error
+    Err(())
+}
