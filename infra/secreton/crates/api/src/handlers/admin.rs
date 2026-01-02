@@ -123,6 +123,44 @@ mod tests {
         assert!(config.security.mfa_enabled);
         assert_eq!(config.api.version, "1.0.0");
     }
+
+    #[tokio::test]
+    async fn test_get_system_metrics_returns_real_uptime() {
+        let server = server_with_routes().await;
+
+        // Sleep briefly to ensure uptime > 0 (1.1s to be safe vs 1s granularity)
+        tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
+        let response = server.get("/metrics").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<SystemMetrics> = response.json();
+        assert!(body.success);
+        let metrics = body.data.expect("metrics payload");
+
+        // Uptime should be > 0 since we slept
+        assert!(metrics.uptime > 0, "Uptime should be greater than 0");
+        // And definitely not the hardcoded 86400 (1 day)
+        assert!(metrics.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+    }
+
+    #[tokio::test]
+    async fn test_get_system_status_returns_real_uptime() {
+        let server = server_with_routes().await;
+
+        // Sleep briefly (1.1s)
+        tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
+        let response = server.get("/status").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<SystemStatus> = response.json();
+        assert!(body.success);
+        let status = body.data.expect("status payload");
+
+        assert!(status.uptime > 0, "Uptime should be greater than 0");
+        assert!(status.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+    }
 }
 
 /// User management models
@@ -468,11 +506,18 @@ pub async fn get_config(
 
 /// System monitoring endpoints
 pub async fn get_system_metrics(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SystemMetrics>>> {
-    // TODO: Implement metrics collection
+    // Get stats from admin service
+    let stats = state
+        .admin
+        .get_system_stats()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    // TODO: Implement actual metrics collection for other fields
     let metrics = SystemMetrics {
-        uptime: 86400, // 1 day in seconds
+        uptime: stats.uptime_seconds,
         memory_usage: MemoryMetrics {
             total: 16 * 1024 * 1024 * 1024, // 16GB
             used: 8 * 1024 * 1024 * 1024,   // 8GB
@@ -486,9 +531,9 @@ pub async fn get_system_metrics(
         },
         disk_usage: DiskMetrics {
             total: 1024 * 1024 * 1024 * 1024, // 1TB
-            used: 256 * 1024 * 1024 * 1024,   // 256GB
-            free: 768 * 1024 * 1024 * 1024,   // 768GB
-            usage_percent: 25.0,
+            used: stats.storage_usage_bytes,  // Use actual storage usage
+            free: 768 * 1024 * 1024 * 1024,   // Placeholder
+            usage_percent: 25.0,              // Placeholder
         },
         network: NetworkMetrics {
             bytes_sent: 1024 * 1024 * 1024,
@@ -497,11 +542,11 @@ pub async fn get_system_metrics(
             packets_received: 2000000,
         },
         vault: VaultMetrics {
-            total_secrets: 1500,
-            total_keys: 75,
-            total_policies: 25,
-            active_sessions: 42,
-            operations_per_second: 150.5,
+            total_secrets: stats.total_secrets,
+            total_keys: stats.total_keys,
+            total_policies: 25, // Placeholder
+            active_sessions: stats.active_sessions,
+            operations_per_second: stats.requests_per_minute / 60.0,
         },
     };
 
@@ -509,13 +554,19 @@ pub async fn get_system_metrics(
 }
 
 pub async fn get_system_status(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SystemStatus>>> {
-    // TODO: Implement status check
+    // Get stats from admin service to get actual uptime
+    let stats = state
+        .admin
+        .get_system_stats()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
     let status = SystemStatus {
         status: "healthy".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        uptime: 86400,
+        uptime: stats.uptime_seconds,
         components: ComponentStatus {
             database: "healthy".to_string(),
             cache: "healthy".to_string(),
