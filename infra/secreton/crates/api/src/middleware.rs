@@ -599,7 +599,7 @@ pub async fn seal_check_middleware(
 
         // Record metric for blocked requests
         // TODO: Re-enable when metrics are properly integrated
-        // metrics::counter!("secreton_seal_blocked_requests_total").increment(1);
+        metrics::counter!("secreton_seal_blocked_requests_total").increment(1);
 
         return (
             StatusCode::SERVICE_UNAVAILABLE,
