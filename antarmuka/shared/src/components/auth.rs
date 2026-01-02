@@ -7,11 +7,14 @@ use crate::hooks::use_auth::{get_app_name, use_auth};
 use leptos::prelude::*;
 
 /// Login redirect page component
+///
 /// Shows a branded page with a login button that redirects to the portal.
 /// This should be the default route for unauthenticated users.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LoginRedirectPage;
+///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     view! {
@@ -43,9 +46,8 @@ pub fn LoginRedirectPage() -> impl IntoView {
         }
     });
 
-    let auth_clone = auth;
     let handle_login = move || {
-        auth_clone.redirect_to_login();
+        auth.redirect_to_login();
     };
 
     view! {
@@ -95,11 +97,14 @@ pub fn LoginRedirectPage() -> impl IntoView {
 }
 
 /// Protected route wrapper component
+///
 /// Wraps content that requires authentication. If user is not authenticated,
 /// redirects to login page.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::ProtectedRoute;
+///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
 ///     view! {
@@ -121,13 +126,12 @@ pub fn ProtectedRoute(
     let auth = use_auth();
 
     // Check authentication and redirect if needed
-    let auth_check = auth;
     let perm_check = required_permission.clone();
     Effect::new(move || {
-        if !auth_check.is_authenticated() {
-            auth_check.redirect_to_login();
+        if !auth.is_authenticated() {
+            auth.redirect_to_login();
         } else if let Some(ref permission) = perm_check
-            && !auth_check.has_permission(permission)
+            && !auth.has_permission(permission)
         {
             // User doesn't have required permission, show error or redirect
             if let Some(window) = web_sys::window() {
@@ -136,13 +140,12 @@ pub fn ProtectedRoute(
         }
     });
 
-    let auth_show = auth;
     let perm_show = required_permission.clone();
     view! {
         <Show
             when=move || {
-                auth_show.is_authenticated() && perm_show.as_ref()
-                    .map(|p| auth_show.has_permission(p))
+                auth.is_authenticated() && perm_show.as_ref()
+                    .map(|p| auth.has_permission(p))
                     .unwrap_or(true)
             }
             fallback=|| view! {
@@ -160,10 +163,13 @@ pub fn ProtectedRoute(
 }
 
 /// Logout button component
+///
 /// Renders a button that logs out the user and redirects to portal.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::LogoutButton;
+///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
 ///     view! {
@@ -184,9 +190,8 @@ pub fn LogoutButton(
 ) -> impl IntoView {
     let auth = use_auth();
 
-    let auth_clone = auth;
     let handle_logout = move || {
-        auth_clone.logout();
+        auth.logout();
     };
 
     view! {
@@ -203,10 +208,13 @@ pub fn LogoutButton(
 }
 
 /// User profile display component
+///
 /// Shows current user information with avatar and name.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::UserProfile;
+///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
 ///     view! {
@@ -223,15 +231,13 @@ pub fn UserProfile(
     class: String,
 ) -> impl IntoView {
     let auth = use_auth();
-    let auth_check = auth;
-    let auth_session = auth;
     let class_stored = StoredValue::new(class);
 
     view! {
-        <Show when=move || auth_check.is_authenticated()>
+        <Show when=move || auth.is_authenticated()>
             {move || {
                 let class_value = class_stored.get_value();
-                auth_session.get_session().map(|session| {
+                auth.get_session().map(|session| {
                     view! {
                         <div class=format!("flex items-center space-x-3 {}", class_value)>
                             // Avatar
@@ -257,10 +263,13 @@ pub fn UserProfile(
 }
 
 /// Permission guard component
+///
 /// Shows content only if user has required permission.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::auth::PermissionGuard;
+///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {
 ///     view! {

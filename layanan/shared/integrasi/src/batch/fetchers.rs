@@ -523,21 +523,20 @@ pub async fn fetch_mysimkari(
                                             }
                                         }
                                     }
+
+                                    storage
+                                        .save_with_table(
+                                            client,
+                                            "mysimkari_pegawai",
+                                            &pegawai_data,
+                                            "global",
+                                        )
+                                        .await?;
+                                }
+                                Err(e) => {
+                                    warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
                                 }
                             }
-
-                            storage
-                                .save_with_table(
-                                    client,
-                                    "mysimkari_pegawai",
-                                    &pegawai_data,
-                                    "global",
-                                )
-                                .await?;
-                        }
-                        Err(e) => {
-                            warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
-                        }
                     }
                     // Rate limiting
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
