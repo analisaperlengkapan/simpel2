@@ -75,6 +75,7 @@ pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
+    // Tracks service start time for uptime calculation
     start_time: chrono::DateTime<chrono::Utc>,
 }
 
@@ -101,7 +102,7 @@ impl AdminService {
         // Get audit statistics
         let audit_count = self.audit.count().await;
 
-        // Calculate uptime
+        // Calculate uptime from service start time
         let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds().max(0) as u64;
 
         // TODO: Get actual user and session counts from auth service
