@@ -116,7 +116,7 @@ impl AdminService {
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
-            cache_hit_rate: 0.0,      // TODO: Implement cache hit rate tracking
+            cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
         })
     }
@@ -582,6 +582,7 @@ mod tests {
         assert_eq!(stats.total_keys, 0);
         assert_eq!(stats.storage_usage_bytes, 0);
         assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
+        assert!(stats.cache_hit_rate >= 0.0);
     }
 
     #[tokio::test]

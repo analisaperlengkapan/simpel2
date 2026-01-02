@@ -12,6 +12,7 @@ use axum::{
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
@@ -26,6 +27,8 @@ use crate::auth::{AuthError, extract_bearer_token};
 pub struct CertificateCache {
     cache: Mutex<HashMap<String, (X509Certificate<'static>, Instant)>>,
     ttl: Duration,
+    hits: AtomicU64,
+    misses: AtomicU64,
 }
 
 impl CertificateCache {
@@ -33,6 +36,8 @@ impl CertificateCache {
         Self {
             cache: Mutex::new(HashMap::new()),
             ttl: Duration::from_secs(ttl_seconds),
+            hits: AtomicU64::new(0),
+            misses: AtomicU64::new(0),
         }
     }
 
@@ -48,17 +53,30 @@ impl CertificateCache {
 
         if let Some((cert, timestamp)) = cache.get(cert_der) {
             if timestamp.elapsed() < self.ttl {
+                self.hits.fetch_add(1, Ordering::Relaxed);
                 return Some(cert.clone());
             } else {
                 cache.remove(cert_der);
             }
         }
+        self.misses.fetch_add(1, Ordering::Relaxed);
         None
     }
 
     pub fn insert(&self, cert_der: String, cert: X509Certificate<'static>) {
         if let Ok(mut cache) = self.cache.lock() {
             cache.insert(cert_der, (cert, Instant::now()));
+        }
+    }
+
+    pub fn hit_rate(&self) -> f64 {
+        let hits = self.hits.load(Ordering::Relaxed) as f64;
+        let misses = self.misses.load(Ordering::Relaxed) as f64;
+        let total = hits + misses;
+        if total == 0.0 {
+            0.0
+        } else {
+            hits / total
         }
     }
 }
@@ -76,6 +94,15 @@ pub fn init_certificate_cache(ttl_seconds: u64) {
 /// Get certificate cache instance
 fn get_cert_cache() -> Option<Arc<CertificateCache>> {
     CERT_CACHE.lock().ok()?.as_ref().cloned()
+}
+
+/// Get global cache hit rate
+pub fn get_cache_hit_rate() -> f64 {
+    if let Some(cache) = get_cert_cache() {
+        cache.hit_rate()
+    } else {
+        0.0
+    }
 }
 
 /// Certificate validation result
@@ -1143,6 +1170,9 @@ mod certificate_tests {
     fn test_certificate_cache() {
         let cache = CertificateCache::new(60);
         assert!(cache.get("test").is_none());
+        assert_eq!(cache.misses.load(Ordering::Relaxed), 1);
+        assert_eq!(cache.hits.load(Ordering::Relaxed), 0);
+        assert_eq!(cache.hit_rate(), 0.0);
     }
 
     #[test]
