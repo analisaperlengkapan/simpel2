@@ -47,8 +47,7 @@ pub fn SimpleBehavioralTracker(
     /// Children components
     children: Children,
 ) -> impl IntoView {
-    let _ = session_id;
-    let _ = on_data_update;
+
 
     // Tracking state
     let (_mouse_events, set_mouse_events) = signal(VecDeque::<SimpleMouseData>::new());

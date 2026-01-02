@@ -279,6 +279,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
                                             let navigate = leptos_router::hooks::use_navigate();
+                                    let _ = navigate; // Suppress unused
                                             navigate("/mfa/backup-verify", Default::default());
                                         }
                                     >

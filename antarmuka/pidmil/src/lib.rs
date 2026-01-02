@@ -11,14 +11,15 @@ use shared_microfrontend::components::auth::{
 use wasm_bindgen::prelude::*;
 
 mod components;
-// Only re-export non-conflicting types or specific types
 pub use components::{
-    ActionButton, CaseCard, FormGroup, FormSelect, SearchBox, StatsCard, StatusBadge,
+    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader, SearchBox, StatsCard,
+    StatusBadge,
 };
 
 mod pages;
-// Re-export pages which seem to be the main consumers or have different names
-pub use pages::*;
+pub use pages::{
+    PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan, PidmilTersangka,
+};
 
 mod types;
 pub use types::*;
