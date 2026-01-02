@@ -18,28 +18,40 @@ pub enum DashboardError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
     #[error("Not found")]
+    #[allow(dead_code)]
     NotFound,
     #[error("Forbidden")]
+    #[allow(dead_code)]
     Forbidden,
     #[error("Validation error: {0}")]
+    #[allow(dead_code)]
     Validation(Box<str>),
     #[error("Rate limit exceeded")]
+    #[allow(dead_code)]
     RateLimit,
     #[error("Unauthorized")]
+    #[allow(dead_code)]
     Unauthorized,
     #[error("Bad request: {0}")]
+    #[allow(dead_code)]
     BadRequest(Box<str>),
     #[error("Pool config error: {0}")]
+    #[allow(dead_code)]
     PoolConfig(Box<str>),
     #[error("Prometheus error: {0}")]
+    #[allow(dead_code)]
     Prometheus(#[from] prometheus::Error),
     #[error("UTF-8 error: {0}")]
+    #[allow(dead_code)]
     Utf8(#[from] std::string::FromUtf8Error),
     #[error("Aggregator error: {0}")]
+    #[allow(dead_code)]
     Aggregator(Box<str>),
     #[error("Chart error: {0}")]
+    #[allow(dead_code)]
     Chart(Box<str>),
     #[error("Real-time error: {0}")]
+    #[allow(dead_code)]
     RealTime(Box<str>),
 }
 

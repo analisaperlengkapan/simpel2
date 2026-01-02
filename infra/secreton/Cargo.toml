@@ -161,7 +161,7 @@ warp = "0.4.2"
 # gRPC
 tonic = { version = "0.14", features = ["tls", "tls-roots"] }
 tonic-build = "0.12"
-prost = "0.13"
+prost = "0.14"
 
 # Metrics
 metrics = "0.23"

@@ -5,6 +5,7 @@ use deadpool_postgres::Pool;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct EmailService {
     #[allow(dead_code)]
     pub config: AppConfig,
@@ -15,6 +16,7 @@ pub struct EmailService {
 }
 
 impl EmailService {
+    #[allow(dead_code)]
     pub fn new(config: AppConfig, pool: Pool) -> Self {
         let creds = lettre::transport::smtp::authentication::Credentials::new(
             config.smtp_username.clone(),
