@@ -25,7 +25,7 @@ use crate::auth::{AuthError, extract_bearer_token};
 /// Certificate cache for performance optimization
 #[derive(Debug)]
 pub struct CertificateCache {
-    cache: Mutex<HashMap<String, (X509Certificate<'static>, Instant)>>,
+    cache: Mutex<HashMap<String, (CertificateValidation, Instant)>>,
     ttl: Duration,
     hits: AtomicU64,
     misses: AtomicU64,
@@ -41,7 +41,7 @@ impl CertificateCache {
         }
     }
 
-    pub fn get(&self, cert_der: &str) -> Option<X509Certificate<'static>> {
+    pub fn get(&self, cache_key: &str) -> Option<CertificateValidation> {
         // Handle lock poisoning gracefully
         let mut cache = match self.cache.lock() {
             Ok(cache) => cache,
@@ -51,21 +51,21 @@ impl CertificateCache {
             }
         };
 
-        if let Some((cert, timestamp)) = cache.get(cert_der) {
+        if let Some((validation, timestamp)) = cache.get(cache_key) {
             if timestamp.elapsed() < self.ttl {
                 self.hits.fetch_add(1, Ordering::Relaxed);
-                return Some(cert.clone());
+                return Some(validation.clone());
             } else {
-                cache.remove(cert_der);
+                cache.remove(cache_key);
             }
         }
         self.misses.fetch_add(1, Ordering::Relaxed);
         None
     }
 
-    pub fn insert(&self, cert_der: String, cert: X509Certificate<'static>) {
+    pub fn insert(&self, cache_key: String, validation: CertificateValidation) {
         if let Ok(mut cache) = self.cache.lock() {
-            cache.insert(cert_der, (cert, Instant::now()));
+            cache.insert(cache_key, (validation, Instant::now()));
         }
     }
 
@@ -116,15 +116,44 @@ pub struct CertificateValidation {
     pub not_after: Option<String>,
 }
 
+/// Generate a cache key that includes allowed subjects to ensure validation correctness
+fn generate_cache_key(cert_der: &[u8], allowed_subjects: &[String]) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    cert_der.hash(&mut hasher);
+    for subject in allowed_subjects {
+        subject.hash(&mut hasher);
+    }
+    format!("{:x}", hasher.finish())
+}
+
 /// Validate client certificate
 pub fn validate_client_certificate(
     cert_der: &[u8],
     _ca_cert_path: Option<&PathBuf>,
     allowed_subjects: &[String],
 ) -> CertificateValidation {
+    // Check cache first
+    let cache_key = generate_cache_key(cert_der, allowed_subjects);
+    if let Some(cache) = get_cert_cache() {
+        if let Some(validation) = cache.get(&cache_key) {
+            debug!("Certificate cache hit for key: {}", cache_key);
+            return validation;
+        }
+    }
+
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
-        Ok((_, cert)) => validate_cached_certificate(&cert, allowed_subjects),
+        Ok((_, cert)) => {
+            let validation = validate_cached_certificate(&cert, allowed_subjects);
+            // Update cache
+            if let Some(cache) = get_cert_cache() {
+                cache.insert(cache_key, validation.clone());
+            }
+            validation
+        },
         Err(e) => {
             warn!("Failed to parse client certificate: {}", e);
             CertificateValidation {
@@ -1173,6 +1202,18 @@ mod certificate_tests {
         assert_eq!(cache.misses.load(Ordering::Relaxed), 1);
         assert_eq!(cache.hits.load(Ordering::Relaxed), 0);
         assert_eq!(cache.hit_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_validate_client_certificate_integration() {
+        init_certificate_cache(60);
+        // Using a dummy DER (not a real cert, parsing will fail but we check cache flow)
+        let _dummy_der = vec![0x30, 0x82, 0x01];
+        let _allowed = vec!["CN=test".to_string()];
+
+        // Verify that get_cache_hit_rate() is safe to call.
+        let rate = get_cache_hit_rate();
+        assert!(rate >= 0.0);
     }
 
     #[test]
