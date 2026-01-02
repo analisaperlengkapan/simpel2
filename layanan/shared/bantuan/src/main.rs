@@ -111,7 +111,7 @@ fn setup_sentry(config: &AppConfig) -> Option<sentry::ClientInitGuard> {
 }
 
 /// Setup database connection pool
-async fn setup_database(config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
+async fn setup_database(_config: &AppConfig) -> Result<deadpool_postgres::Pool, AppError> {
     tracing::info!("Connecting to database...");
 
     let pool_config = deadpool_postgres::Config::new();
@@ -176,7 +176,10 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         tower::ServiceBuilder::new()
             .layer(TraceLayer::new_for_http())
             .layer(CompressionLayer::new())
-            .layer(TimeoutLayer::new(Duration::from_secs(30)))
+            .layer(TimeoutLayer::with_status_code(
+                axum::http::StatusCode::REQUEST_TIMEOUT,
+                Duration::from_secs(30),
+            ))
             .layer(cors),
     );
 

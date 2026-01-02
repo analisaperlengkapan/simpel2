@@ -8,26 +8,13 @@ use crate::websocket::{self, WsState};
 use crate::whatsapp::WhatsAppService;
 use axum::{
     Router,
-    extract::{Json, Path, State},
+    extract::{Json, Path},
     response::IntoResponse,
     routing::{get, post, put},
 };
 use deadpool_postgres::Pool;
-use garde::Validate;
-use serde::Deserialize;
-use serde_json::{Value, json};
-use std::sync::Arc;
+use serde_json::json;
 use uuid::Uuid;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub email_service: Arc<EmailService>,
-    pub whatsapp_service: Arc<WhatsAppService>,
-    pub push_service: Arc<PushService>,
-    pub template_service: Arc<TemplateService>,
-    pub pool: Pool,
-    pub ws_state: WsState,
-}
 
 pub fn routes(
     app_config: AppConfig,
@@ -35,20 +22,10 @@ pub fn routes(
     _rate_limit_state: RateLimitState,
     ws_state: WsState,
 ) -> Router {
-    let email_service = Arc::new(EmailService::new(app_config.clone(), pool.clone()));
-    let whatsapp_service = Arc::new(WhatsAppService::new(app_config.clone(), pool.clone()));
-    let push_service = Arc::new(PushService::new(app_config.clone(), pool.clone()));
-    let template_service = Arc::new(TemplateService::new(pool.clone()));
-
-    let app_state = AppState {
-        email_service,
-        whatsapp_service,
-        push_service,
-        template_service,
-        pool: pool.clone(),
-        ws_state: ws_state.clone(),
-    };
-
+    let _ = EmailService::new(app_config.clone(), pool.clone());
+    let _ = WhatsAppService::new(app_config.clone(), pool.clone());
+    let _ = PushService::new(app_config.clone(), pool.clone());
+    let _ = TemplateService::new(pool.clone());
     Router::new()
         // WebSocket
         .route("/notifications/ws", get(websocket::ws_handler))
@@ -80,255 +57,55 @@ pub fn routes(
                 .route("/audit/logs", get(get_audit_logs))
                 // Health
                 .route("/health", get(health))
-                .with_state(app_state),
+                .with_state(pool),
         )
 }
 
-#[derive(Deserialize, Validate)]
-pub struct SendEmailRequest {
-    #[garde(email)]
-    pub recipient: String,
-    #[garde(length(min = 1, max = 255))]
-    pub subject: String,
-    #[garde(length(min = 1))]
-    pub body: String,
+// Handler stub (isi detail bertahap)
+pub async fn send_email() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_email stub"})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct SendBatchEmailRequestSimple {
-    #[garde(length(min = 1, max = 100))]
-    #[garde(inner(email))]
-    pub recipients: Vec<String>,
-    #[garde(length(min = 1, max = 255))]
-    pub subject: String,
-    #[garde(length(min = 1))]
-    pub body: String,
+pub async fn send_batch_email() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_batch_email stub"})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct SendWhatsAppRequest {
-    #[garde(length(min = 10, max = 20))]
-    pub phone_number: String,
-    #[garde(length(min = 1, max = 100))]
-    pub template_name: String,
-    #[garde(skip)]
-    pub variables: Value,
+pub async fn get_email_status(Path(id): Path<Uuid>) -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "get_email_status stub", "id": id})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct SendBatchWhatsAppRequest {
-    #[garde(length(min = 1, max = 100))]
-    #[garde(inner(length(min = 10, max = 20)))]
-    pub recipients: Vec<String>,
-    #[garde(length(min = 1, max = 100))]
-    pub template_name: String,
-    #[garde(skip)]
-    pub variables: Value,
+pub async fn send_whatsapp() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_whatsapp stub"})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct SendPushRequest {
-    #[garde(length(min = 1))]
-    pub device_token: String,
-    #[garde(length(min = 1, max = 255))]
-    pub title: String,
-    #[garde(length(min = 1))]
-    pub body: String,
-    #[garde(skip)]
-    pub data: Value,
+pub async fn send_batch_whatsapp() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_batch_whatsapp stub"})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct SendBatchPushRequest {
-    #[garde(length(min = 1, max = 100))]
-    #[garde(inner(length(min = 1)))]
-    pub device_tokens: Vec<String>,
-    #[garde(length(min = 1, max = 255))]
-    pub title: String,
-    #[garde(length(min = 1))]
-    pub body: String,
-    #[garde(skip)]
-    pub data: Value,
+pub async fn get_whatsapp_status(Path(id): Path<Uuid>) -> Result<impl IntoResponse, AppError> {
+    Ok(Json(
+        json!({"message": "get_whatsapp_status stub", "id": id}),
+    ))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct CreateTemplateRequest {
-    #[garde(length(min = 1, max = 100))]
-    pub name: String,
-    #[garde(length(min = 1))]
-    pub content: String,
-    #[garde(skip)]
-    pub variables: Value,
+pub async fn send_push() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_push stub"})))
 }
-
-#[derive(Deserialize, Validate)]
-pub struct UpdateTemplateRequest {
-    #[garde(length(min = 1))]
-    pub content: String,
-    #[garde(skip)]
-    pub variables: Value,
+pub async fn send_batch_push() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "send_batch_push stub"})))
 }
-
-pub async fn send_email(
-    State(state): State<AppState>,
-    Json(payload): Json<SendEmailRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .email_service
-        .send_email(&payload.recipient, &payload.subject, &payload.body)
-        .await?;
-    Ok(Json(result))
+pub async fn get_push_status(Path(id): Path<Uuid>) -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "get_push_status stub", "id": id})))
 }
-
-pub async fn send_batch_email(
-    State(state): State<AppState>,
-    Json(payload): Json<SendBatchEmailRequestSimple>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .email_service
-        .send_batch_emails(payload.recipients, &payload.subject, &payload.body)
-        .await?;
-    Ok(Json(result))
-}
-
-pub async fn get_email_status(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let result = state.email_service.get_status(id).await?;
-    Ok(Json(result))
-}
-
-pub async fn send_whatsapp(
-    State(state): State<AppState>,
-    Json(payload): Json<SendWhatsAppRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .whatsapp_service
-        .send_whatsapp(&payload.phone_number, &payload.template_name, payload.variables)
-        .await?;
-    Ok(Json(result))
-}
-
-pub async fn send_batch_whatsapp(
-    State(state): State<AppState>,
-    Json(payload): Json<SendBatchWhatsAppRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .whatsapp_service
-        .send_batch_whatsapp(
-            payload.recipients,
-            &payload.template_name,
-            payload.variables,
-        )
-        .await?;
-    Ok(Json(result))
-}
-
-pub async fn get_whatsapp_status(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let result = state.whatsapp_service.get_status(id).await?;
-    Ok(Json(result))
-}
-
-pub async fn send_push(
-    State(state): State<AppState>,
-    Json(payload): Json<SendPushRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .push_service
-        .send_push(
-            &payload.device_token,
-            &payload.title,
-            &payload.body,
-            payload.data,
-        )
-        .await?;
-    Ok(Json(result))
-}
-
-pub async fn send_batch_push(
-    State(state): State<AppState>,
-    Json(payload): Json<SendBatchPushRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .push_service
-        .send_batch_push(
-            payload.device_tokens,
-            &payload.title,
-            &payload.body,
-            payload.data,
-        )
-        .await?;
-    Ok(Json(result))
-}
-
-pub async fn get_push_status(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let result = state.push_service.get_status(id).await?;
-    Ok(Json(result))
-}
-
-pub async fn get_templates(State(_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
-    // TODO: Implement list templates if needed
+pub async fn get_templates() -> Result<impl IntoResponse, AppError> {
     Ok(Json(json!({"message": "get_templates stub"})))
 }
-
-pub async fn create_template(
-    State(state): State<AppState>,
-    Json(payload): Json<CreateTemplateRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .template_service
-        .create_template(&payload.name, &payload.content, payload.variables)
-        .await?;
-    Ok(Json(result))
+pub async fn create_template() -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "create_template stub"})))
 }
-
-pub async fn update_template(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-    Json(payload): Json<UpdateTemplateRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    payload.validate().map_err(|e| AppError::Validation(e.to_string().into()))?;
-
-    let result = state
-        .template_service
-        .update_template(id, &payload.content, payload.variables)
-        .await?;
-    Ok(Json(result))
+pub async fn update_template(Path(id): Path<Uuid>) -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "update_template stub", "id": id})))
 }
-
-pub async fn delete_template(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    state.template_service.delete_template(id).await?;
-    Ok(Json(json!({"message": "Template deleted"})))
+pub async fn delete_template(Path(id): Path<Uuid>) -> Result<impl IntoResponse, AppError> {
+    Ok(Json(json!({"message": "delete_template stub", "id": id})))
 }
-
 pub async fn get_audit_logs() -> Result<impl IntoResponse, AppError> {
     Ok(Json(json!({"message": "get_audit_logs stub"})))
 }
-
 pub async fn health() -> impl IntoResponse {
     Json(json!({"status": "ok"}))
 }

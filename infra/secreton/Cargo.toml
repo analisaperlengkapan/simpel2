@@ -169,7 +169,7 @@ metrics-exporter-prometheus = "0.15"
 
 # Authentication
 jsonwebtoken = "9.2"
-x509-parser = "0.16"
+x509-parser = "0.18"
 
 # TOTP/OTP support
 totp-lite = "2.0"

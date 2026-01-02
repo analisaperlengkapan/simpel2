@@ -19,18 +19,18 @@ use serde_json::json;
 use uuid::Uuid;
 
 pub fn routes(app_config: AppConfig, pool: Pool) -> Router {
-    let faq = FaqService::new(pool.clone());
-    let ticket = TicketService::new(pool.clone());
-    let chatbot = ChatbotService::new(
+    let _ = FaqService::new(pool.clone());
+    let _ = TicketService::new(pool.clone());
+    let _ = ChatbotService::new(
         pool.clone(),
         app_config.ai_service_url.clone(),
         app_config.ai_service_api_key.clone(),
     );
-    let knowledge = KnowledgeService::new(pool.clone());
-    let analytics = AnalyticsService::new(pool.clone());
-    let webhook = WebhookService::new(pool.clone());
-    let export_import = ExportImportService::new(pool.clone());
-    let gdpr = GdprService::new(pool.clone());
+    let _ = KnowledgeService::new(pool.clone());
+    let _ = AnalyticsService::new(pool.clone());
+    let _ = WebhookService::new(pool.clone());
+    let _ = ExportImportService::new(pool.clone());
+    let _ = GdprService::new(pool.clone());
     Router::new()
         // FAQ
         .route(

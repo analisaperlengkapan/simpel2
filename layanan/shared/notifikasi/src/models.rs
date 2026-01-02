@@ -68,6 +68,7 @@ impl From<Row> for NotificationTemplate {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct NotificationChannel {
     pub id: Uuid,
     pub channel: String,
@@ -77,6 +78,7 @@ pub struct NotificationChannel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct NotificationEvent {
     pub id: Uuid,
     pub event_type: String,
@@ -115,6 +117,7 @@ impl From<Row> for NotificationRecipient {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct DeliveryLog {
     pub id: Uuid,
     pub notification_id: Uuid,
@@ -126,6 +129,7 @@ pub struct DeliveryLog {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Consent {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -135,6 +139,7 @@ pub struct Consent {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Optout {
     pub id: Uuid,
     pub recipient: String,

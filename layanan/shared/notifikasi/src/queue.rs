@@ -5,21 +5,25 @@ use serde_json::Value;
 use tokio::time::{Duration, timeout};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct QueueJob {
     pub job_type: String,
     pub payload: Value,
 }
 
+#[allow(dead_code)]
 pub struct QueueService {
     pub redis: redis::Client,
 }
 
 impl QueueService {
+    #[allow(dead_code)]
     pub fn new(redis_url: &str) -> Result<Self, AppError> {
         let redis = redis::Client::open(redis_url).map_err(|_e| AppError::Internal)?;
         Ok(Self { redis })
     }
 
+    #[allow(dead_code)]
     pub async fn enqueue_job(&self, queue: &str, job: &QueueJob) -> Result<(), AppError> {
         let mut conn = self
             .redis
@@ -33,6 +37,7 @@ impl QueueService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn dequeue_job(
         &self,
         queue: &str,
@@ -55,6 +60,7 @@ impl QueueService {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn ack_job(&self, _queue: &str, _job: &QueueJob) -> Result<(), AppError> {
         // No-op for simple queue
         Ok(())

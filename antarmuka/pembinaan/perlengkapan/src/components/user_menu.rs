@@ -6,6 +6,7 @@ use leptos::prelude::*;
 
 /// User menu item structure
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct UserMenuItem {
     pub label: String,
     pub href: Option<String>,
@@ -27,13 +28,17 @@ impl UserMenuItem {
 #[component]
 pub fn UserMenu(
     /// User name to display
+    #[allow(unused_variables)]
     user_name: String,
     /// User role/title
+    #[allow(unused_variables)]
     user_role: String,
     /// User avatar URL (optional)
     #[prop(default = None)]
+    #[allow(unused_variables)]
     user_avatar: Option<String>,
     /// Menu items
+    #[allow(unused_variables)]
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
