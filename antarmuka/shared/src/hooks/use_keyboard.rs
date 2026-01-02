@@ -96,16 +96,28 @@ impl FocusManager {
     }
 
     /// Focus the last focusable element in a container
-    pub fn focus_last(&self, _container: &web_sys::Element) {
-        // TODO: Implement using proper DOM traversal
-        // query_selector_all is not available on Element in web-sys
+    pub fn focus_last(&self, container: &web_sys::Element) {
+        let elements = self.get_focusable_elements(container);
+        if let Some(last) = elements.last() {
+            if let Some(html_element) = last.dyn_ref::<web_sys::HtmlElement>() {
+                let _ = html_element.focus();
+            }
+        }
     }
 
     /// Get all focusable elements in a container
-    pub fn get_focusable_elements(&self, _container: &web_sys::Element) -> Vec<web_sys::Element> {
-        // TODO: Implement using proper DOM traversal
-        // query_selector_all is not available on Element in web-sys
-        Vec::new()
+    pub fn get_focusable_elements(&self, container: &web_sys::Element) -> Vec<web_sys::Element> {
+        let mut elements = Vec::new();
+        if let Ok(node_list) = container.query_selector_all(FOCUSABLE_SELECTOR) {
+            for i in 0..node_list.length() {
+                if let Some(node) = node_list.get(i) {
+                    if let Ok(element) = node.dyn_into::<web_sys::Element>() {
+                        elements.push(element);
+                    }
+                }
+            }
+        }
+        elements
     }
 
     /// Focus next focusable element
