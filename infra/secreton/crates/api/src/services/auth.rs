@@ -8,13 +8,87 @@ use uuid::Uuid;
 
 use crate::config::AuthConfig;
 use secreton_crypto::CryptoEngine;
-use secreton_storage::StorageBackend;
+use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
 
 // Use canonical User from core
 pub use secreton_core::models::User;
 
 // Use consolidated AuthError from error module
 pub use crate::error::AuthError;
+
+const USER_PATH_PREFIX: &str = "auth/users";
+const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
+
+/// User Data Transfer Object for storage persistence
+///
+/// This struct mirrors the core `User` model but ensures all fields,
+/// specifically `password_hash`, are serialized for storage.
+/// The core `User` model skips serialization of `password_hash` for API security.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct UserStorageDto {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub full_name: Option<String>,
+    pub is_active: bool,
+    pub is_superuser: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub last_login: Option<chrono::DateTime<chrono::Utc>>,
+    pub mfa_enabled: bool,
+    pub roles: HashSet<String>,
+    pub namespace: String,
+    pub is_locked: bool,
+    pub failed_attempts: u32,
+    pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl From<&User> for UserStorageDto {
+    fn from(user: &User) -> Self {
+        Self {
+            id: user.id,
+            username: user.username.clone(),
+            email: user.email.clone(),
+            password_hash: user.password_hash.clone(),
+            full_name: user.full_name.clone(),
+            is_active: user.is_active,
+            is_superuser: user.is_superuser,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+            last_login: user.last_login,
+            mfa_enabled: user.mfa_enabled,
+            roles: user.roles.clone(),
+            namespace: user.namespace.clone(),
+            is_locked: user.is_locked,
+            failed_attempts: user.failed_attempts,
+            locked_until: user.locked_until,
+        }
+    }
+}
+
+impl From<UserStorageDto> for User {
+    fn from(stored: UserStorageDto) -> Self {
+        Self {
+            id: stored.id,
+            username: stored.username,
+            email: stored.email,
+            password_hash: stored.password_hash,
+            full_name: stored.full_name,
+            is_active: stored.is_active,
+            is_superuser: stored.is_superuser,
+            created_at: stored.created_at,
+            updated_at: stored.updated_at,
+            last_login: stored.last_login,
+            mfa_enabled: stored.mfa_enabled,
+            roles: stored.roles,
+            namespace: stored.namespace,
+            is_locked: stored.is_locked,
+            failed_attempts: stored.failed_attempts,
+            locked_until: stored.locked_until,
+        }
+    }
+}
 
 /// Role definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -223,14 +297,37 @@ impl AuthService {
 
     /// Get user by ID
     pub async fn get_user(&self, user_id: &str) -> Result<User, AuthError> {
-        // TODO: Implement user retrieval from storage
-        Err(AuthError::UserNotFound)
+        let uuid = Uuid::parse_str(user_id)
+            .map_err(|_| AuthError::UserNotFound)?;
+
+        let path = format!("auth/users/{}", uuid);
+        let entry = self.storage.get_by_path(&path).await
+            .map_err(|e| AuthError::Internal(format!("Failed to retrieve user: {}", e)))?;
+
+        match entry {
+            Some(entry) => self.decrypt_user(entry),
+            None => Err(AuthError::UserNotFound),
+        }
     }
 
     /// Get user by username
     pub async fn get_user_by_username(&self, username: &str) -> Result<User, AuthError> {
-        // TODO: Implement user retrieval from storage by username
-        Err(AuthError::UserNotFound)
+        let path = format!("auth/usernames/{}", username);
+        let index_entry = self.storage.get_by_path(&path).await
+            .map_err(|e| AuthError::Internal(format!("Failed to retrieve user index: {}", e)))?;
+
+        match index_entry {
+            Some(entry) => {
+                let uuid_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+                    .map_err(|e| AuthError::Internal(format!("Failed to decrypt user index: {}", e)))?;
+
+                let uuid_str = String::from_utf8(uuid_bytes)
+                    .map_err(|e| AuthError::Internal(format!("Invalid UUID string in index: {}", e)))?;
+
+                self.get_user(&uuid_str).await
+            }
+            None => Err(AuthError::UserNotFound),
+        }
     }
 
     /// Check if user has permission
@@ -383,7 +480,27 @@ impl AuthService {
 
     /// Store user in storage
     async fn store_user(&self, user: &User) -> Result<(), AuthError> {
-        // TODO: Implement user storage
+        // Store user entry
+        let entry = self.encrypt_user(user)?;
+        self.storage.store(&entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store user: {}", e)))?;
+
+        // Store username index
+        let uuid_bytes = user.id.to_string().into_bytes();
+        let encrypted_uuid = self.crypto.encrypt_simple(&uuid_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt user index: {}", e)))?;
+
+        let index_entry = VaultEntry::new(
+            format!("auth/usernames/{}", user.username),
+            encrypted_uuid,
+            serde_json::json!({"method": "simple", "target": "user_id"}),
+            SecurityLevel::Internal,
+            "system".to_string(),
+        );
+
+        self.storage.store(&index_entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store user index: {}", e)))?;
+
         Ok(())
     }
 
@@ -403,6 +520,37 @@ impl AuthService {
     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
         // TODO: Implement last login update
         Ok(())
+    }
+
+    /// Encrypt user for storage
+    fn encrypt_user(&self, user: &User) -> Result<VaultEntry, AuthError> {
+        let stored_user = StoredUser::from(user);
+        let user_bytes = serde_json::to_vec(&stored_user)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize user: {}", e)))?;
+
+        let encrypted_data = self.crypto.encrypt_simple(&user_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt user: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/users/{}", user.id),
+            encrypted_data,
+            serde_json::json!({"method": "simple"}),
+            SecurityLevel::Confidential,
+            user.id.to_string(),
+        );
+
+        Ok(entry)
+    }
+
+    /// Decrypt user from storage
+    fn decrypt_user(&self, entry: VaultEntry) -> Result<User, AuthError> {
+        let decrypted_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+            .map_err(|e| AuthError::Internal(format!("Failed to decrypt user: {}", e)))?;
+
+        let stored_user: StoredUser = serde_json::from_slice(&decrypted_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to deserialize user: {}", e)))?;
+
+        Ok(User::from(stored_user))
     }
 }
 
