@@ -17,6 +17,7 @@ use std::collections::HashMap;
 
 use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, models::PaginatedResponse};
 
+use secreton_core::audit::AuditStatus;
 use secreton_core::services::lease::{EnhancedLease, LeaseError};
 
 /// Create lease management routes
@@ -143,7 +144,31 @@ pub async fn renew_lease(
         })?;
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("increment".to_string(), increment.to_string());
+    metadata.insert(
+        "new_expiry".to_string(),
+        renewed_lease.expired_at.to_rfc3339(),
+    );
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.renew".to_string(),
+            Some(user.to_string()),
+            "lease".to_string(),
+            request.lease_id,
+            namespace.to_string(),
+            AuditStatus::Success,
+            None, // IP address not available in this context
+            None, // User agent not available in this context
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let lease_duration = (renewed_lease.expired_at - renewed_lease.issued_at).num_seconds();
 

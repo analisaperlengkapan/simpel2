@@ -159,9 +159,9 @@ reqwest = { version = "0.12", features = ["json"] }
 warp = "0.4.2"
 
 # gRPC
-tonic = { version = "0.14", features = ["channel", "transport", "tls-ring", "tls-webpki-roots"] }
+tonic = { version = "0.12", features = ["channel", "transport", "tls"] }
 tonic-build = "0.12"
-prost = "0.14"
+prost = "0.13"
 
 # Metrics
 metrics = "0.23"
