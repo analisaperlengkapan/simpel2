@@ -52,7 +52,7 @@ pub fn DashboardLayout(
     ];
 
     // Logout handler
-    let on_logout: Option<Box<dyn Fn() + Send + Sync>> = Some(Box::new(|| {
+    let on_logout = move || {
         // Clear any stored session data
         if let Some(window) = web_sys::window()
             && let Ok(Some(local_storage)) = window.local_storage()
@@ -64,7 +64,7 @@ pub fn DashboardLayout(
         if let Some(window) = web_sys::window() {
             let _ = window.location().set_href("/portal/logout");
         }
-    }));
+    };
 
     view! {
         <div class="min-h-screen bg-gray-50">
@@ -110,7 +110,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
-                                _on_logout=on_logout
+                                on_logout=on_logout
                             />
                         </div>
                     </div>
@@ -140,6 +140,7 @@ pub fn DashboardLayout(
 }
 
 /// Sidebar item component
+#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarItem(
@@ -162,6 +163,7 @@ fn SidebarItem(
 }
 
 /// Sidebar section with expandable submenu
+#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarSection(

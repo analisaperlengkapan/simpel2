@@ -331,16 +331,12 @@ pub fn ChallengeProgressIndicator(
 
 /// Retry mechanism component
 #[component]
-#[allow(dead_code)]
 pub fn RetryMechanism(
     attempts_remaining: u8,
-    #[allow(unused)]
-    max_attempts: u8,
+    _max_attempts: u8,
     cooldown_seconds: Option<u32>,
-    #[allow(unused)]
-    on_retry: Callback<()>,
-    #[allow(unused)]
-    on_new_challenge: Callback<()>,
+    _on_retry: Callback<()>,
+    _on_new_challenge: Callback<()>,
 ) -> impl IntoView {
     let (countdown, set_countdown) = signal(cooldown_seconds.unwrap_or(0));
 

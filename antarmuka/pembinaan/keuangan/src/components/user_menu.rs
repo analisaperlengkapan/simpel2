@@ -35,8 +35,10 @@ pub fn UserMenu(
     /// Menu items
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
-    _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
+    #[prop(optional, into)]
+    on_logout: Option<Callback<()>>,
 ) -> impl IntoView {
+    let _ = on_logout;
     let (is_open, set_is_open) = signal(false);
 
     // Default menu items if none provided

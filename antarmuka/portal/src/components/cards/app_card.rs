@@ -15,50 +15,49 @@ pub fn AppCard(
     let is_available = app.status.is_available();
 
     // Check if this is Pembinaan - route internally instead of opening new tab
-    let is_pembinaan = app.id == "pembinaan";
-    let app_url = app.url.clone();
+    let _is_pembinaan = app.id == "pembinaan";
+    let _app_url = app.url.clone();
 
     let handle_click = move |_| {
         if is_available {
             #[cfg(target_arch = "wasm32")]
             {
                 if let Some(window) = web_sys::window() {
-                    if is_pembinaan {
+                    if _is_pembinaan {
                         // Navigate to internal route
                         let _ = window.location().set_href("/pembinaan");
                     } else {
                         // Open app in new tab
-                        let _ = window.open_with_url_and_target(&app_url, "_blank");
+                        let _ = window.open_with_url_and_target(&_app_url, "_blank");
                     }
                 }
             }
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let _ = is_pembinaan;
-                let _ = app_url;
+
             }
         }
     };
 
-    let app_url2 = app.url.clone();
+    let _app_url2 = app.url.clone();
     let handle_keydown = move |ev: web_sys::KeyboardEvent| {
         if is_available && (ev.key() == "Enter" || ev.key() == " ") {
             ev.prevent_default();
             #[cfg(target_arch = "wasm32")]
             {
                 if let Some(window) = web_sys::window() {
-                    if is_pembinaan {
+                    if _is_pembinaan {
                         let _ = window.location().set_href("/pembinaan");
                     } else {
-                        let _ = window.open_with_url_and_target(&app_url2, "_blank");
+                        let _ = window.open_with_url_and_target(&_app_url2, "_blank");
                     }
                 }
             }
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let _ = app_url2;
+
             }
         }
     };

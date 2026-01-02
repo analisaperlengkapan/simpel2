@@ -30,6 +30,9 @@ pub fn DashboardLayout(
     #[allow(unused)]
     children: Children,
 ) -> impl IntoView {
+    let _ = user;
+    let _ = sidebar_open;
+    let _ = children;
     // Toggle sidebar function
     let toggle_sidebar = move |_| {
         sidebar_open.update(|open| *open = !*open);
@@ -54,6 +57,13 @@ pub fn DashboardLayout(
         ),
         UserMenuItem::new("Logout", None, "fas fa-sign-out-alt"),
     ];
+
+    // Logout handler
+    let on_logout = move || {
+        if let Some(window) = web_sys::window() {
+            let _ = window.location().set_href("/portal/logout");
+        }
+    };
 
     view! {
         <div class="min-h-screen bg-gray-50">
@@ -121,6 +131,7 @@ pub fn DashboardLayout(
                                 user_role=user.role.clone()
                                 user_avatar=user.avatar.clone()
                                 menu_items=user_menu_items
+                                on_logout=on_logout
                             />
                         </div>
                     </div>
@@ -165,6 +176,7 @@ pub fn DashboardLayout(
 }
 
 /// Sidebar item component
+#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarItem(
@@ -173,6 +185,10 @@ fn SidebarItem(
     #[allow(unused)] href: &'static str,
     #[allow(unused)] expanded: ReadSignal<bool>,
 ) -> impl IntoView {
+    let _ = icon;
+    let _ = title;
+    let _ = href;
+    let _ = expanded;
     view! {
         <a
             href=href
@@ -187,6 +203,7 @@ fn SidebarItem(
 }
 
 /// Sidebar section with expandable submenu
+#[allow(dead_code)]
 #[component]
 #[allow(dead_code)]
 fn SidebarSection(
@@ -195,6 +212,10 @@ fn SidebarSection(
     #[allow(unused)] expanded: ReadSignal<bool>,
     #[allow(unused)] items: Vec<(String, String)>,
 ) -> impl IntoView {
+    let _ = title;
+    let _ = icon;
+    let _ = expanded;
+    let _ = items;
     let (section_open, set_section_open) = signal(false);
 
     view! {
