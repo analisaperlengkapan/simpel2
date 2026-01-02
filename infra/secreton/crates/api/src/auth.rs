@@ -305,6 +305,7 @@ impl JwtService {
         name: &str,
         email: &str,
         roles: Vec<String>,
+        metadata: Option<std::collections::HashMap<String, String>>,
     ) -> Result<String, AuthError> {
         let now = Utc::now();
         let exp = now + Duration::hours(self.config.jwt_expiration_hours);
@@ -323,7 +324,7 @@ impl JwtService {
             iss: self.config.issuer.clone(),
             aud: self.config.audience.clone(),
             jti: Uuid::new_v4().to_string(),
-            metadata: std::collections::HashMap::new(),
+            metadata: metadata.unwrap_or_default(),
         };
 
         encode(&Header::default(), &claims, &self.encoding_key)
@@ -502,12 +503,16 @@ mod tests {
         let config = JwtAuthConfig::default();
         let jwt_service = JwtService::new(config);
 
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert("mfa_passed".to_string(), "true".to_string());
+
         let token = jwt_service
             .generate_token(
                 "user123",
                 "Test User",
                 "test@example.com",
                 vec!["crypto-user".to_string()],
+                Some(metadata),
             )
             .expect("token generation should succeed");
 
@@ -519,6 +524,10 @@ mod tests {
         assert_eq!(token_data.claims.name, "Test User");
         assert_eq!(token_data.claims.email, "test@example.com");
         assert!(token_data.claims.roles.contains(&"crypto-user".to_string()));
+        assert_eq!(
+            token_data.claims.metadata.get("mfa_passed").map(|v| v.as_str()),
+            Some("true")
+        );
     }
 
     #[test]
@@ -582,6 +591,7 @@ mod tests {
                 "Vault Admin",
                 "vault.admin@example.com",
                 vec!["vault-admin".to_string()],
+                None,
             )
             .expect("token generation");
 
