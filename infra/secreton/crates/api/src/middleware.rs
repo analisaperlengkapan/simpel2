@@ -182,9 +182,9 @@ fn validate_cached_certificate(
     let not_before = validity.not_before.to_datetime();
     let not_after = validity.not_after.to_datetime();
 
-    // Validate time bounds (simplified - production should use proper time comparison)
-    // TODO: Implement proper time validation with x509_parser time types
-    let time_valid = true;
+    // Validate time bounds
+    let now = std::time::SystemTime::now();
+    let time_valid = not_before <= now && now <= not_after;
 
     // Check if subject is in allowed list
     let subject_valid =
