@@ -946,7 +946,12 @@ fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::
         "user_roles": ctx.user_roles,
         "client_ip": client_ip,
         "request_id": ctx.request_id,
-        "mfa_passed": false, // TODO: Get actual MFA status from context
+        "mfa_passed": ctx
+            .jwt_claims
+            .as_ref()
+            .and_then(|c| c.metadata.get("mfa_passed"))
+            .map(|v| v == "true")
+            .unwrap_or(false),
         "timestamp": chrono::Utc::now().to_rfc3339(),
     })
 }
@@ -1021,6 +1026,51 @@ async fn log_policy_decision_to_audit(
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_mfa_status_extraction() {
+        use std::collections::HashMap;
+        use secreton_core::namespace::{JwtClaims, AdminLevel};
+
+        // Create claims with MFA passed
+        let mut metadata = HashMap::new();
+        metadata.insert("mfa_passed".to_string(), "true".to_string());
+
+        let claims = JwtClaims {
+            sub: "user123".to_string(),
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            satker_code: None,
+            wilayah_code: None,
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".to_string(),
+            metadata,
+        };
+
+        let ctx = RequestContext {
+            request_id: "req123".to_string(),
+            user_id: Some("user123".to_string()),
+            user_email: Some("test@example.com".to_string()),
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims),
+            policy_names: vec![],
+        };
+
+        let request = Request::builder()
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let policy_context = build_policy_context(&ctx, &request);
+
+        // This should be true if implementation is correct
+        assert_eq!(policy_context["mfa_passed"], true, "MFA status should be extracted from claims");
+    }
 
     #[test]
     fn test_rate_limiting() {
