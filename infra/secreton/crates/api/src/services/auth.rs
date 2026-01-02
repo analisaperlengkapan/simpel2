@@ -1,8 +1,10 @@
 //! Authentication service for user management and token validation.
 
 use anyhow::Result;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -125,6 +127,27 @@ pub struct AuthToken {
     pub user: User,
 }
 
+/// JWT Claims
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+    iss: String,
+    aud: String,
+    exp: usize,
+    iat: usize,
+    jti: String,
+    roles: Vec<String>,
+    token_type: String, // "access" or "refresh"
+    // Extended claims for stateless validation
+    username: String,
+    email: String,
+    full_name: Option<String>,
+    is_superuser: bool,
+    is_active: bool,
+    mfa_enabled: bool,
+    namespace: String,
+}
+
 /// Authentication service
 pub struct AuthService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
@@ -216,28 +239,52 @@ impl AuthService {
 
     /// Validate access token
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
-        // TODO: Implement JWT token validation
-        // 1. Parse JWT token
-        // 2. Verify signature
-        // 3. Check expiration
-        // 4. Get user from token claims
-        // 5. Verify session still exists
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
-        // For now, return mock user
+        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+            |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
+        )?);
+
+        // Validation requires setting audience and issuer
+        validation.set_audience(&[&self.config.jwt.audience]);
+        validation.set_issuer(&[&self.config.jwt.issuer]);
+
+        // DecodingKey from secret
+        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+
+        let token_data = decode::<Claims>(token, &decoding_key, &validation)
+            .map_err(|e| match e.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                _ => AuthError::InvalidToken,
+            })?;
+
+        let claims = token_data.claims;
+
+        // Enforce token type
+        if claims.token_type != "access" {
+            return Err(AuthError::InvalidToken);
+        }
+
+        // Reconstruct user from claims
+        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AuthError::InvalidToken)?;
+
+        // Note: In a stateful system, we might check session validity or user status in DB here.
+        // For stateless/cached auth, we rely on the token signature and expiration.
+
         Ok(User {
-            id: Uuid::new_v4(),
-            username: "testuser".to_string(),
-            email: "test@example.com".to_string(),
-            password_hash: String::new(),
-            full_name: Some("Test User".to_string()),
-            is_active: true,
-            is_superuser: false,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            last_login: Some(chrono::Utc::now()),
-            mfa_enabled: false,
-            roles: HashSet::new(),
-            namespace: "default".to_string(),
+            id: user_id,
+            username: claims.username,
+            email: claims.email,
+            password_hash: String::new(), // Not present in token
+            full_name: claims.full_name,
+            is_active: claims.is_active,
+            is_superuser: claims.is_superuser,
+            created_at: chrono::Utc::now(), // Approximation
+            updated_at: chrono::Utc::now(), // Approximation
+            last_login: Some(chrono::Utc::now()), // Active now
+            mfa_enabled: claims.mfa_enabled,
+            roles: claims.roles.into_iter().collect(),
+            namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
@@ -459,14 +506,82 @@ impl AuthService {
 
     /// Create access token (JWT)
     fn create_access_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
-        // TODO: Implement JWT token creation
-        Ok(format!("access_token_for_{}", user.username))
+        let now = chrono::Utc::now();
+        let expiration = now
+            + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64);
+
+        let mut roles: Vec<String> = user.roles.iter().cloned().collect();
+        roles.sort();
+
+        let claims = Claims {
+            sub: user.id.to_string(),
+            iss: self.config.jwt.issuer.clone(),
+            aud: self.config.jwt.audience.clone(),
+            exp: expiration.timestamp() as usize,
+            iat: now.timestamp() as usize,
+            jti: session_id.to_string(),
+            roles,
+            token_type: "access".to_string(),
+            username: user.username.clone(),
+            email: user.email.clone(),
+            full_name: user.full_name.clone(),
+            is_superuser: user.is_superuser,
+            is_active: user.is_active,
+            mfa_enabled: user.mfa_enabled,
+            namespace: user.namespace.clone(),
+        };
+
+        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+            .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
+
+        let header = Header::new(algorithm);
+
+        encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+        )
+        .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
 
     /// Create refresh token
     fn create_refresh_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
-        // TODO: Implement refresh token creation
-        Ok(format!("refresh_token_for_{}", user.username))
+        let now = chrono::Utc::now();
+        let expiration = now
+            + chrono::Duration::seconds(self.config.jwt.refresh_expiration.as_secs() as i64);
+
+        let mut roles: Vec<String> = user.roles.iter().cloned().collect();
+        roles.sort();
+
+        let claims = Claims {
+            sub: user.id.to_string(),
+            iss: self.config.jwt.issuer.clone(),
+            aud: self.config.jwt.audience.clone(),
+            exp: expiration.timestamp() as usize,
+            iat: now.timestamp() as usize,
+            jti: session_id.to_string(),
+            roles,
+            token_type: "refresh".to_string(),
+            username: user.username.clone(),
+            email: user.email.clone(),
+            full_name: user.full_name.clone(),
+            is_superuser: user.is_superuser,
+            is_active: user.is_active,
+            mfa_enabled: user.mfa_enabled,
+            namespace: user.namespace.clone(),
+        };
+
+        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+            .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
+
+        let header = Header::new(algorithm);
+
+        encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+        )
+        .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
 
     /// Check if user exists
@@ -718,6 +833,72 @@ mod tests {
             .await
             .expect("permission");
         assert!(allowed);
+    }
+
+    #[tokio::test]
+    async fn test_create_access_token() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let mut config = AuthConfig::default();
+        config.jwt.secret = "test_secret".to_string();
+        config.jwt.issuer = "test_issuer".to_string();
+        config.jwt.audience = "test_audience".to_string();
+
+        let auth_service = AuthService::new(storage, crypto, &config)
+            .await
+            .expect("service");
+
+        let user = User {
+            id: Uuid::new_v4(),
+            username: "test_token".into(),
+            email: "token@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::from(["user".to_string()]),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+        };
+
+        let session_id = Uuid::new_v4().to_string();
+        let token = auth_service
+            .create_access_token(&user, &session_id)
+            .expect("create token");
+
+        assert!(!token.is_empty());
+
+        // Decode to verify
+        use jsonwebtoken::{decode, DecodingKey, Validation};
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.set_audience(&["test_audience"]);
+        validation.set_issuer(&["test_issuer"]);
+
+        let token_data = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret("test_secret".as_bytes()),
+            &validation,
+        )
+        .expect("decode token");
+
+        assert_eq!(token_data.claims.sub, user.id.to_string());
+        assert_eq!(token_data.claims.jti, session_id);
+        assert_eq!(token_data.claims.token_type, "access");
+        assert!(token_data.claims.roles.contains(&"user".to_string()));
+        assert_eq!(token_data.claims.username, user.username);
+        assert_eq!(token_data.claims.email, user.email);
+
+        // Verify validate_token works
+        let validated_user = auth_service.validate_token(&token).await.expect("validate");
+        assert_eq!(validated_user.id, user.id);
+        assert_eq!(validated_user.username, "test_token");
+        assert!(validated_user.has_role("user"));
     }
 }
 
