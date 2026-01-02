@@ -16,9 +16,16 @@ pub use secreton_core::models::User;
 // Use consolidated AuthError from error module
 pub use crate::error::AuthError;
 
-/// User structure for storage (includes password_hash)
+const USER_PATH_PREFIX: &str = "auth/users";
+const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
+
+/// User Data Transfer Object for storage persistence
+///
+/// This struct mirrors the core `User` model but ensures all fields,
+/// specifically `password_hash`, are serialized for storage.
+/// The core `User` model skips serialization of `password_hash` for API security.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct StoredUser {
+struct UserStorageDto {
     pub id: Uuid,
     pub username: String,
     pub email: String,
@@ -37,7 +44,7 @@ struct StoredUser {
     pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl From<&User> for StoredUser {
+impl From<&User> for UserStorageDto {
     fn from(user: &User) -> Self {
         Self {
             id: user.id,
@@ -60,8 +67,8 @@ impl From<&User> for StoredUser {
     }
 }
 
-impl From<StoredUser> for User {
-    fn from(stored: StoredUser) -> Self {
+impl From<UserStorageDto> for User {
+    fn from(stored: UserStorageDto) -> Self {
         Self {
             id: stored.id,
             username: stored.username,
