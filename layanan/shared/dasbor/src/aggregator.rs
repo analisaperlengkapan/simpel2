@@ -23,6 +23,7 @@ pub trait AggregatorServiceTrait {
 
 #[allow(dead_code)]
 pub struct AggregatorService {
+    #[allow(dead_code)]
     pool: Pool,
 }
 

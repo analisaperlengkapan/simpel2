@@ -273,7 +273,7 @@ pub fn track_api_request(endpoint: &str, method: &str, status_code: u16, respons
     {
         use wasm_bindgen_futures::spawn_local;
         spawn_local(async move {
-            let _ = send_api_metrics(metrics).await;
+            let _ = send_api_metrics(_metrics).await;
         });
     }
 }

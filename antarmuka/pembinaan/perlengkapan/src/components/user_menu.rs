@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # User Menu Component for SIMPEL Perlengkapan
 //!
 //! Komponen menu pengguna dengan dropdown untuk profil dan logout
@@ -6,13 +7,9 @@ use leptos::prelude::*;
 
 /// User menu item structure
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct UserMenuItem {
-    #[allow(dead_code)]
     pub label: String,
-    #[allow(dead_code)]
     pub href: Option<String>,
-    #[allow(dead_code)]
     pub icon: String,
 }
 
@@ -29,27 +26,27 @@ impl UserMenuItem {
 
 /// User Menu Component
 #[component]
+#[allow(dead_code)]
 pub fn UserMenu(
     /// User name to display
-    #[allow(unused_variables)]
+    #[allow(unused)]
     user_name: String,
     /// User role/title
-    #[allow(unused_variables)]
+    #[allow(unused)]
     user_role: String,
     /// User avatar URL (optional)
     #[prop(default = None)]
-    #[allow(unused_variables)]
+    #[allow(unused)]
     user_avatar: Option<String>,
     /// Menu items
-    #[allow(unused_variables)]
+    #[allow(unused)]
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
     #[prop(optional)]
-    #[allow(dead_code)]
+    #[allow(unused)]
     _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
-    let logout_handler = StoredValue::new(_on_logout);
 
     // Default menu items if none provided
     let default_items = vec![
@@ -193,17 +190,10 @@ pub fn UserMenu(
                                                 let _ = window.location().set_href(&href_val);
                                             }
                                         } else {
-                                            // Logout action
-                                            logout_handler.with_value(|handler| {
-                                                if let Some(logout_fn) = handler {
-                                                    logout_fn();
-                                                } else {
-                                                    // Fallback redirect to portal logout
-                                                    if let Some(window) = web_sys::window() {
-                                                        let _ = window.location().set_href("/portal/logout");
-                                                    }
-                                                }
-                                            });
+                                            // Logout action - redirect to portal logout
+                                            if let Some(window) = web_sys::window() {
+                                                let _ = window.location().set_href("/portal/logout");
+                                            }
                                         }
                                     }
                                 >

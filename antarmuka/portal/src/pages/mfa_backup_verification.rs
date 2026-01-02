@@ -40,16 +40,16 @@ pub struct BackupCodeVerificationData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiErrorResponse {
+pub struct BackupVerificationApiErrorResponse {
     /// Success status (false for errors)
     pub success: bool,
     /// Error details
-    pub error: ApiError,
+    pub error: BackupVerificationApiError,
 }
 
 /// API error details
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiError {
+pub struct BackupVerificationApiError {
     /// Error code
     pub code: String,
     /// Error message
@@ -66,8 +66,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
     let (is_locked, set_is_locked) = signal(false);
     let (remaining_codes, _set_remaining_codes) = signal(None::<i32>);
     let (verification_success, _set_verification_success) = signal(false);
-    let _ = remaining_codes; // Suppress unused
-    let _ = verification_success; // Suppress unused
 
     // Get temp token from localStorage and store in signal
     let (temp_token_value, _set_temp_token_value) = signal(AuthService::get_temp_token());
@@ -209,7 +207,7 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
+                                    let _navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match verify_backup_code(&temp_token, &code).await {
@@ -307,7 +305,6 @@ pub fn MfaBackupVerificationPage() -> impl IntoView {
                                         class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                                         on:click=move |_| {
                                             let navigate = leptos_router::hooks::use_navigate();
-                                    let _ = navigate; // Suppress unused if navigation is conditional or side-effect
                                             navigate("/mfa/verify", Default::default());
                                         }
                                     >
@@ -426,7 +423,7 @@ async fn verify_backup_code(
             Ok(verification_response)
         } else {
             // Try to parse error response
-            match response.json::<ApiErrorResponse>().await {
+            match response.json::<BackupVerificationApiErrorResponse>().await {
                 Ok(error_response) => Err(error_response.error.message.into()),
                 Err(_) => Err(format!(
                     "Backup code verification failed: HTTP {}",

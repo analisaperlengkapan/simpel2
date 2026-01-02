@@ -41,6 +41,7 @@ impl From<Row> for Notification {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct NotificationTemplate {
     pub id: Uuid,
     pub name: String,

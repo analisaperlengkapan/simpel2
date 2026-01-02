@@ -406,9 +406,10 @@ pub fn main() {
     // Clear fallback loading content
     if let Some(window) = web_sys::window()
         && let Some(document) = window.document()
-            && let Some(app_div) = document.get_element_by_id("app") {
-                app_div.set_inner_html("");
-            }
+        && let Some(app_div) = document.get_element_by_id("app")
+    {
+        app_div.set_inner_html("");
+    }
 
     // Mount app to body
     leptos::mount::mount_to_body(App);

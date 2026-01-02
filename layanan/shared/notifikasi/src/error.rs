@@ -6,7 +6,6 @@ use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
-#[allow(dead_code)]
 pub enum AppError {
     #[error("Database error: {0}")]
     Db(#[from] tokio_postgres::Error),
@@ -41,11 +40,13 @@ pub enum AppError {
     BadRequest(Box<str>),
     #[error("Internal server error")]
     Internal,
+    #[error("Redis error: {0}")]
+    Redis(redis::RedisError),
 }
 
 impl From<redis::RedisError> for AppError {
     fn from(_err: redis::RedisError) -> Self {
-        AppError::Internal
+        AppError::Redis(_err)
     }
 }
 
@@ -58,7 +59,7 @@ impl From<deadpool_postgres::PoolError> for AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let status = match self {
-            AppError::Db(_) | AppError::Io(_) | AppError::Internal => {
+            AppError::Db(_) | AppError::Io(_) | AppError::Internal | AppError::Redis(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
             AppError::NotFound => StatusCode::NOT_FOUND,
