@@ -9,8 +9,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::AuthConfig;
-use secreton_crypto::CryptoEngine;
+use secreton_crypto::{CryptoEngine, AlgorithmId};
 use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use totp_rs::{Algorithm as TotpAlgorithm, Secret, TOTP};
 
 // Use canonical User from core
 pub use secreton_core::models::User;
@@ -27,7 +28,7 @@ const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
 /// specifically `password_hash`, are serialized for storage.
 /// The core `User` model skips serialization of `password_hash` for API security.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct UserStorageDto {
+struct StoredUser {
     pub id: Uuid,
     pub username: String,
     pub email: String,
@@ -46,7 +47,7 @@ struct UserStorageDto {
     pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl From<&User> for UserStorageDto {
+impl From<&User> for StoredUser {
     fn from(user: &User) -> Self {
         Self {
             id: user.id,
@@ -69,8 +70,8 @@ impl From<&User> for UserStorageDto {
     }
 }
 
-impl From<UserStorageDto> for User {
-    fn from(stored: UserStorageDto) -> Self {
+impl From<StoredUser> for User {
+    fn from(stored: StoredUser) -> Self {
         Self {
             id: stored.id,
             username: stored.username,
@@ -198,7 +199,7 @@ impl AuthService {
         // Check MFA if enabled
         if user.mfa_enabled {
             if let Some(code) = mfa_code {
-                self.verify_mfa_code(&user, code)?;
+                self.verify_mfa_code(&user, code).await?;
             } else {
                 return Err(AuthError::MfaRequired);
             }
@@ -495,13 +496,93 @@ impl AuthService {
     }
 
     /// Verify MFA code
-    fn verify_mfa_code(&self, user: &User, code: &str) -> Result<(), AuthError> {
-        // TODO: Implement TOTP verification
-        if code == "123456" {
-            Ok(())
+    async fn verify_mfa_code(&self, user: &User, code: &str) -> Result<(), AuthError> {
+        let secret = self.get_mfa_secret(&user.id.to_string()).await?;
+
+        if let Some(secret_str) = secret {
+            // Check if user has TOTP enabled
+            let totp = TOTP::new(
+                TotpAlgorithm::SHA1,
+                6,
+                1,
+                30,
+                Secret::Raw(secret_str.into_bytes()).to_bytes().unwrap(),
+            ).map_err(|e| AuthError::Internal(format!("Failed to create TOTP instance: {}", e)))?;
+
+            let valid = totp.check_current(code).map_err(|e| AuthError::Internal(format!("Failed to verify code: {}", e)))?;
+            if valid {
+                Ok(())
+            } else {
+                Err(AuthError::InvalidMfaCode)
+            }
         } else {
-            Err(AuthError::InvalidMfaCode)
+            // If MFA is enabled but no secret is found, we cannot verify the code.
+            // This is a system inconsistency or setup issue.
+            Err(AuthError::Internal("MFA enabled but no secret found".to_string()))
         }
+    }
+
+    /// Retrieve and decrypt MFA secret
+    async fn get_mfa_secret(&self, user_id: &str) -> Result<Option<String>, AuthError> {
+        let path = format!("sys/mfa/{}/totp", user_id);
+
+        if let Some(entry) = self.storage.get_by_path(&path).await.map_err(|e| AuthError::Internal(e.to_string()))? {
+            // Derive key using PBKDF2 with user ID as salt
+            let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
+                self.config.jwt.secret.as_bytes(),
+                user_id.as_bytes(),
+                10000,
+                32
+            ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+
+            // Decrypt the secret
+            let encrypted = secreton_crypto::EncryptedData {
+                algorithm: AlgorithmId::Aes256Gcm, // Assuming AES-256-GCM as standard
+                nonce: entry.encryption_metadata["nonce"].as_str()
+                    .and_then(|s| hex::decode(s).ok())
+                    .unwrap_or_default(),
+                ciphertext: entry.encrypted_data,
+                tag: None,
+            };
+
+            let secret_bytes = self.crypto.decrypt(&encrypted, &key)
+                .map_err(|e| AuthError::Internal(format!("Decryption failed: {}", e)))?;
+
+            Ok(Some(String::from_utf8(secret_bytes).map_err(|_| AuthError::Internal("Invalid UTF-8 in secret".to_string()))?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Store MFA secret (helper for setup)
+    pub async fn store_mfa_secret(&self, user_id: &str, secret: &str) -> Result<(), AuthError> {
+        let path = format!("sys/mfa/{}/totp", user_id);
+
+        // Derive key
+        let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
+            self.config.jwt.secret.as_bytes(),
+            user_id.as_bytes(),
+            10000,
+            32
+        ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+
+        // Encrypt secret
+        let encrypted = self.crypto.encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
+            .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            path,
+            encrypted.ciphertext,
+            serde_json::json!({
+                "nonce": hex::encode(encrypted.nonce),
+                "algorithm": "Aes256Gcm"
+            }),
+            SecurityLevel::Secret,
+            "system".to_string(),
+        );
+
+        self.storage.store(&entry).await.map_err(|e| AuthError::Internal(e.to_string()))?;
+        Ok(())
     }
 
     /// Create access token (JWT)
@@ -615,7 +696,6 @@ impl AuthService {
 
         self.storage.store(&index_entry).await
             .map_err(|e| AuthError::Internal(format!("Failed to store user index: {}", e)))?;
-
         Ok(())
     }
 
@@ -722,9 +802,10 @@ mod tests {
             .expect("service");
 
         // Insert a user with MFA enabled by mocking storage behavior via store_user and get_user_by_username
-        let password_hash = auth_service.hash_password("password").unwrap_or_default();
+        let password_hash = auth_service.hash_password("password").expect("hash password failed");
+        let user_id = Uuid::new_v4();
         let user = User {
-            id: Uuid::new_v4(),
+            id: user_id,
             username: "alice".into(),
             email: "alice@example.com".into(),
             password_hash,
@@ -744,16 +825,55 @@ mod tests {
 
         auth_service.store_user(&user).await;
 
+        // Test missing code
         let result = auth_service
             .authenticate("alice", "password", None, "127.0.0.1", "test-agent")
             .await;
         assert!(matches!(result, Err(AuthError::MfaRequired)));
 
+        // Test system inconsistency (MFA enabled but no secret)
         let result = auth_service
             .authenticate(
                 "alice",
                 "password",
                 Some("123456"),
+                "127.0.0.1",
+                "test-agent",
+            )
+            .await;
+        assert!(matches!(result, Err(AuthError::Internal(_))));
+
+        // Setup real TOTP
+        let totp_secret = Secret::Raw("JBSWY3DPEHPK3PXP".as_bytes().to_vec()).to_encoded().to_string();
+        auth_service.store_mfa_secret(&user_id.to_string(), &totp_secret).await.expect("store secret");
+
+        // Test invalid code
+        let result = auth_service
+            .authenticate(
+                "alice",
+                "password",
+                Some("000000"),
+                "127.0.0.1",
+                "test-agent",
+            )
+            .await;
+        assert!(matches!(result, Err(AuthError::InvalidMfaCode)));
+
+        // Test valid code
+        let totp = TOTP::new(
+            Algorithm::SHA1,
+            6,
+            1,
+            30,
+            Secret::Raw(totp_secret.into_bytes()).to_bytes().unwrap(),
+        ).unwrap();
+        let code = totp.generate_current().unwrap();
+
+        let result = auth_service
+            .authenticate(
+                "alice",
+                "password",
+                Some(&code),
                 "127.0.0.1",
                 "test-agent",
             )
