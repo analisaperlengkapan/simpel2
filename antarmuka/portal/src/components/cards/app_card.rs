@@ -32,12 +32,7 @@ pub fn AppCard(
                     }
                 }
             }
-            // Suppress unused variables warnings in non-WASM
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let _ = is_pembinaan;
-                let _ = app_url;
-            }
+
         }
     };
 
@@ -55,12 +50,7 @@ pub fn AppCard(
                     }
                 }
             }
-            // Suppress unused variables warnings in non-WASM
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let _ = is_pembinaan;
-                let _ = app_url2;
-            }
+
         }
     };
 
