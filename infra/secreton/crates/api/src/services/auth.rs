@@ -861,7 +861,7 @@ mod tests {
 
         // Test valid code
         let totp = TOTP::new(
-            Algorithm::SHA1,
+            TotpAlgorithm::SHA1,
             6,
             1,
             30,

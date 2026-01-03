@@ -99,6 +99,7 @@ impl VaultService {
             version: entry.version,
             created_at: entry.created_at,
             updated_at: entry.updated_at,
+            expires_at: entry.expires_at,
         })
     }
 
@@ -108,6 +109,7 @@ impl VaultService {
         path: &str,
         data: HashMap<String, String>,
         user_id: &str,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<SecretData, VaultError> {
         // Log audit trail
         let _ = self
@@ -150,6 +152,10 @@ impl VaultService {
         entry.version = version;
         entry.updated_at = now;
 
+        if let Some(expires) = expires_at {
+            entry = entry.with_expiration(expires);
+        }
+
         // Store in storage
         self.storage.store(&entry).await?;
 
@@ -159,6 +165,7 @@ impl VaultService {
             version,
             created_at: now,
             updated_at: now,
+            expires_at,
         })
     }
 
@@ -660,6 +667,7 @@ pub struct SecretData {
     pub version: u32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Key information
@@ -737,6 +745,10 @@ mod tests {
             .await
             .expect("Failed to create VaultService");
 
+        let mut data = HashMap::new();
+        data.insert("key1".to_string(), "value1".to_string());
+        service.put_secret("app/config", data, "user1", None).await.expect("Failed to put secret");
+
         let secret = service.get_secret("app/config", "user1").await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
@@ -756,7 +768,7 @@ mod tests {
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
-        let secret = service.put_secret("app/admin", data, "user1").await;
+        let secret = service.put_secret("app/admin", data, "user1", None).await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
         assert_eq!(secret.path, "app/admin");
@@ -776,7 +788,7 @@ mod tests {
         let result = service.encrypt("key1", "plaintext", "user1").await;
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.ciphertext, "encrypted_data");
+        assert!(!result.ciphertext.is_empty());
         assert_eq!(result.key_version, 1);
     }
 }

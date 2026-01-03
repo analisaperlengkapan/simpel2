@@ -122,7 +122,28 @@ mod tests {
     #[tokio::test]
     async fn test_get_secret_returns_placeholder_data() {
         let server = server_with_routes().await;
-        let response = server.get("/secrets/app/config").await;
+        // First put a secret so we can retrieve it
+        let payload = serde_json::json!({
+            "data": {"key1": "value1"},
+            "metadata": {
+                "description": "Config",
+                "tags": ["config"],
+                "owner": "dev",
+                "classification": "confidential"
+            },
+            "ttl": 3600
+        });
+
+        let put_response = server.post("/data/app%2Fconfig")
+            .add_header("Authorization", "Bearer token")
+            .json(&payload)
+            .await;
+        put_response.assert_status_ok();
+
+        // Now retrieve it
+        let response = server.get("/data/app%2Fconfig")
+            .add_header("Authorization", "Bearer token")
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();
@@ -146,7 +167,10 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/secrets/app/admin").json(&payload).await;
+        let response = server.post("/data/app%2Fadmin")
+            .add_header("Authorization", "Bearer token")
+            .json(&payload)
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();
@@ -167,7 +191,10 @@ mod tests {
             "exportable": true
         });
 
-        let response = server.post("/keys").json(&request).await;
+        let response = server.post("/keys")
+            .add_header("Authorization", "Bearer token")
+            .json(&request)
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<KeyResponse> = response.json();
@@ -407,7 +434,7 @@ pub async fn get_secret(
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: None, // TODO: Add expires_at to SecretData
+        expires_at: secret_data.expires_at,
     };
 
     Ok(Json(ApiResponse::success(secret)))
@@ -419,10 +446,19 @@ pub async fn create_secret(
     user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    let expires_at = request
+        .ttl
+        .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
+
     // Create secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            &user.id.to_string(),
+            expires_at,
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to create secret: {}", e),
@@ -435,9 +471,7 @@ pub async fn create_secret(
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: request
-            .ttl
-            .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
+        expires_at: secret_data.expires_at,
     };
 
     // Audit log
@@ -453,10 +487,19 @@ pub async fn update_secret(
     user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    let expires_at = request
+        .ttl
+        .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
+
     // Update secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            &user.id.to_string(),
+            expires_at,
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to update secret: {}", e),
@@ -469,9 +512,7 @@ pub async fn update_secret(
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: request
-            .ttl
-            .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
+        expires_at: secret_data.expires_at,
     };
 
     // Audit log
