@@ -1240,6 +1240,10 @@ pub async fn response_wrapping_middleware(
         None => return next.run(request).await,
     };
 
+    // Extract namespace from path before request is consumed
+    let path = request.uri().path().to_string();
+    let namespace = extract_namespace_from_path(&path);
+
     // Validate TTL
     if wrap_ttl == 0 || wrap_ttl > 86400 {
         warn!("Invalid X-Vault-Wrap-TTL value: {}", wrap_ttl);
@@ -1264,36 +1268,71 @@ pub async fn response_wrapping_middleware(
         return response;
     }
 
-    // Extract response body
-    // Note: This is a simplified implementation. In production, you'd need to:
-    // 1. Extract the response body properly
+    // Extract response body for wrapping
+    // 1. Buffer the response body
     // 2. Parse it as JSON
-    // 3. Wrap it using WrappingService
-    // 4. Return the wrapped response
-    //
-    // For now, we'll just pass through the response and log that wrapping was requested
+    // 3. Call state.wrapping_service.wrap()
+    // 4. Return the wrapped token response
+
     info!(
         ttl = wrap_ttl,
         "Response wrapping requested via X-Vault-Wrap-TTL header"
     );
 
-    // TODO: Implement actual response wrapping
-    // This requires:
-    // 1. Buffering the response body
-    // 2. Parsing it as JSON
-    // 3. Calling state.wrapping_service.wrap()
-    // 4. Returning the wrapped token response
-    //
-    // For now, return the original response with a warning header
-    let mut response = response;
-    response.headers_mut().insert(
-        "X-Vault-Wrap-Warning",
-        "Response wrapping via middleware not yet fully implemented. Use /v1/sys/wrapping/wrap endpoint instead."
-            .parse()
-            .unwrap(),
-    );
+    let (parts, body) = response.into_parts();
 
-    response
+    // Buffer body with 10MB limit
+    let bytes = match axum::body::to_bytes(body, 10 * 1024 * 1024).await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("Failed to read response body for wrapping: {}", e);
+            return Response::from_parts(parts, axum::body::Body::empty());
+        }
+    };
+
+    // Parse as JSON
+    let body_json: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(e) => {
+            warn!("Response body is not valid JSON, cannot wrap: {}", e);
+            // Return original response if not JSON
+            return Response::from_parts(parts, axum::body::Body::from(bytes));
+        }
+    };
+
+    // Create wrap request
+    let wrap_request = secreton_core::services::wrapping::WrapRequest {
+        data: body_json,
+        ttl: Duration::from_secs(wrap_ttl),
+        namespace: namespace.unwrap_or_else(|| "default".to_string()),
+    };
+
+    // Wrap the response
+    match state.services.wrapping_service.wrap(wrap_request).await {
+        Ok(wrap_response) => {
+            let json_response = serde_json::json!({
+                "success": true,
+                "data": wrap_response
+            });
+
+            // Return 200 OK with wrapped token
+            let mut res = Json(json_response).into_response();
+            *res.status_mut() = StatusCode::OK;
+            res
+        }
+        Err(e) => {
+            warn!("Failed to wrap response: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": {
+                        "message": format!("Failed to wrap response: {}", e)
+                    }
+                })),
+            ).into_response()
+        }
+    }
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
