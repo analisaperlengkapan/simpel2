@@ -333,6 +333,13 @@ impl AuthService {
     /// Decode JWT token to extract user claims
     #[cfg(target_arch = "wasm32")]
     pub fn decode_jwt_claims(token: &str) -> Result<UserSession, String> {
+        Self::parse_jwt_claims_internal(token)
+    }
+
+    /// Parse JWT claims (internal, platform agnostic)
+    /// Visible for testing and non-WASM usage if needed
+    #[allow(dead_code)]
+    pub(crate) fn parse_jwt_claims_internal(token: &str) -> Result<UserSession, String> {
         // JWT format: header.payload.signature
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -340,7 +347,7 @@ impl AuthService {
         }
 
         // Decode base64 payload (part[1])
-        use base64::{Engine as _, engine::general_purpose};
+        use base64::{engine::general_purpose, Engine as _};
         let payload_bytes = general_purpose::URL_SAFE_NO_PAD
             .decode(parts[1])
             .map_err(|e| format!("Base64 decode error: {}", e))?;
@@ -356,6 +363,7 @@ impl AuthService {
             name: Option<String>,
             email: Option<String>,
             realm_access: Option<RealmAccess>,
+            exp: Option<i64>,
         }
 
         #[derive(Deserialize)]
@@ -403,7 +411,7 @@ impl AuthService {
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None, // Will be set separately if available
-            expires_at: None,    // TODO: Extract exp claim from JWT
+            expires_at: claims.exp,
             permissions,
         })
     }
