@@ -207,16 +207,13 @@ fn validate_cached_certificate(
 }
 
 /// Extract client certificate from TLS connection
-/// TODO: Re-enable after adding hex dependency
 pub fn extract_client_certificate_from_tls(request: &Request) -> Option<Vec<u8>> {
     // Try to get certificate from request extensions (set by TLS layer)
     if let Some(cert_der) = request.extensions().get::<Vec<u8>>() {
         return Some(cert_der.clone());
     }
 
-    // Temporarily disabled - needs hex dependency
-    // request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
-    None
+    request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
 }
 
 /// Enhanced mTLS authentication middleware with proper TLS integration
