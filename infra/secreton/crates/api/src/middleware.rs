@@ -21,6 +21,7 @@ use x509_parser::prelude::*;
 
 use crate::ApiState;
 use crate::auth::{AuthError, extract_bearer_token};
+use secreton_core::namespace::NamespaceAccessControl;
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
@@ -680,7 +681,7 @@ pub async fn seal_check_middleware(
 /// JWT claims and SIMKARI organizational hierarchy (Pusat -> Wilayah -> Satker).
 /// This middleware should be applied to all secret operation endpoints.
 pub async fn namespace_access_middleware(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     request: Request,
     next: Next,
 ) -> Result<Response, Response> {
@@ -707,25 +708,42 @@ pub async fn namespace_access_middleware(
             let namespace_id = extract_namespace_from_path(path);
 
             if let Some(ns_id) = namespace_id {
-                // TODO: Get NamespaceAccessControl from state
-                // For now, log the validation attempt
+                // Get NamespaceAccessControl from state
+                let hierarchy = state.services.namespace.hierarchy();
+                let access_control = NamespaceAccessControl::new(hierarchy);
+
                 debug!(
                     "Namespace access validation: user {} (level: {:?}) accessing namespace {}",
                     claims.sub, claims.admin_level, ns_id
                 );
 
-                // TODO: Implement actual validation when NamespaceAccessControl is in state
-                // let access_control = state.namespace_access_control;
-                // if !access_control.check_access(claims, &ns_id)? {
-                //     return Err((
-                //         StatusCode::FORBIDDEN,
-                //         Json(serde_json::json!({
-                //             "error": "Access denied to namespace",
-                //             "namespace": ns_id,
-                //             "admin_level": format!("{:?}", claims.admin_level)
-                //         })),
-                //     ));
-                // }
+                // Validate access
+                match access_control.check_access(claims, &ns_id) {
+                    Ok(true) => {
+                        debug!("Access granted to namespace {}", ns_id);
+                    }
+                    Ok(false) => {
+                         warn!("Access denied to namespace {} for user {}", ns_id, claims.sub);
+                         return Err((
+                             StatusCode::FORBIDDEN,
+                             Json(serde_json::json!({
+                                 "error": "Access denied to namespace",
+                                 "namespace": ns_id,
+                                 "admin_level": format!("{:?}", claims.admin_level)
+                             })),
+                         ).into_response());
+                    }
+                    Err(e) => {
+                        warn!("Error checking namespace access: {}", e);
+                         return Err((
+                             StatusCode::FORBIDDEN,
+                             Json(serde_json::json!({
+                                 "error": "Access check failed",
+                                 "message": e.to_string()
+                             })),
+                         ).into_response());
+                    }
+                }
             }
         } else {
             debug!("No JWT claims in request context for namespace validation");
