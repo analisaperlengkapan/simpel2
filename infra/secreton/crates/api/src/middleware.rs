@@ -953,9 +953,9 @@ pub async fn policy_check_middleware(
                 &action,
                 false,
                 &ctx.policy_names,
-                client_ip.clone(),
-                user_agent.clone(),
-                namespace.clone(),
+                client_ip,
+                user_agent,
+                namespace,
             )
             .await;
 
