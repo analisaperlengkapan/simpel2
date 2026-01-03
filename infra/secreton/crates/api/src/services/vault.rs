@@ -93,9 +93,14 @@ impl VaultService {
         let decrypted_data = serde_json::from_slice(&entry.encrypted_data)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
+        // Extract metadata
+        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
+            .unwrap_or_default();
+
         Ok(SecretData {
             path: path.to_string(),
             data: decrypted_data,
+            metadata,
             version: entry.version,
             created_at: entry.created_at,
             updated_at: entry.updated_at,
@@ -107,6 +112,7 @@ impl VaultService {
         &self,
         path: &str,
         data: HashMap<String, String>,
+        metadata: SecretMetadata,
         user_id: &str,
     ) -> Result<SecretData, VaultError> {
         // Log audit trail
@@ -143,7 +149,7 @@ impl VaultService {
         let mut entry = secreton_storage::VaultEntry::new(
             path.to_string(),
             serialized,
-            serde_json::json!({}),
+            serde_json::to_value(&metadata).unwrap_or(serde_json::json!({})),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
@@ -156,6 +162,7 @@ impl VaultService {
         Ok(SecretData {
             path: path.to_string(),
             data,
+            metadata,
             version,
             created_at: now,
             updated_at: now,
@@ -652,11 +659,21 @@ impl VaultService {
     }
 }
 
+/// Secret metadata
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SecretMetadata {
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+    pub owner: Option<String>,
+    pub classification: Option<String>,
+}
+
 /// Secret data structure
 #[derive(Debug, Serialize)]
 pub struct SecretData {
     pub path: String,
     pub data: HashMap<String, String>,
+    pub metadata: SecretMetadata,
     pub version: u32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
