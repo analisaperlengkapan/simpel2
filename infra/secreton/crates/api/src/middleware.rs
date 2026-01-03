@@ -1070,7 +1070,7 @@ async fn log_policy_decision_to_audit(
         },
         ip: None,         // TODO: Extract from request
         user_agent: None, // TODO: Extract from request
-        namespace: None,  // TODO: Extract namespace from path
+        namespace: extract_namespace_from_path(path),
         metadata,
     };
 
