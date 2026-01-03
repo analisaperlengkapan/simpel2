@@ -356,6 +356,11 @@ impl AuthService {
             name: Option<String>,
             email: Option<String>,
             realm_access: Option<RealmAccess>,
+            #[serde(default)]
+            mfa_enabled: bool,
+            #[serde(default)]
+            mfa_setup_required: bool,
+            exp: Option<i64>,
         }
 
         #[derive(Deserialize)]
@@ -398,12 +403,12 @@ impl AuthService {
             avatar: None,
             division: "Bagian Umum".to_string(),
             captcha_validated: true, // JWT tokens from authenc indicate successful CAPTCHA validation
-            mfa_enabled: false,      // TODO: Extract from JWT claims when available
-            mfa_setup_required: true, // TODO: Extract from JWT claims when available
+            mfa_enabled: claims.mfa_enabled,
+            mfa_setup_required: claims.mfa_setup_required,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None, // Will be set separately if available
-            expires_at: None,    // TODO: Extract exp claim from JWT
+            expires_at: claims.exp,
             permissions,
         })
     }
