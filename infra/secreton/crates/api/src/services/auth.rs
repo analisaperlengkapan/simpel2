@@ -412,6 +412,18 @@ impl AuthService {
         Ok(false)
     }
 
+    /// Check if user has a specific role
+    pub async fn has_role(&self, user_id: &str, role: &str) -> Result<bool, AuthError> {
+        let user = self.get_user(user_id).await?;
+
+        // Superusers have all roles implicitly
+        if user.is_superuser {
+            return Ok(true);
+        }
+
+        Ok(user.has_role(role))
+    }
+
     /// Get role by name
     pub async fn get_role(&self, role_name: &str) -> Result<Role, AuthError> {
         // TODO: Implement role retrieval from storage
@@ -861,7 +873,7 @@ mod tests {
 
         // Test valid code
         let totp = TOTP::new(
-            Algorithm::SHA1,
+            TotpAlgorithm::SHA1,
             6,
             1,
             30,
@@ -1019,6 +1031,71 @@ mod tests {
         assert_eq!(validated_user.id, user.id);
         assert_eq!(validated_user.username, "test_token");
         assert!(validated_user.has_role("user"));
+    }
+
+    #[tokio::test]
+    async fn test_has_role() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let auth_service = AuthService::new(storage.clone(), crypto, &AuthConfig::default())
+            .await
+            .expect("service");
+
+        let mut user = User {
+            id: Uuid::new_v4(),
+            username: "test_role".into(),
+            email: "role@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+        };
+
+        // Store user
+        auth_service.store_user(&user).await.expect("store user");
+
+        // Check no role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(!has_admin);
+
+        // Add role
+        user.roles.insert("admin".to_string());
+        auth_service.store_user(&user).await.expect("update user");
+
+        // Check role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+
+        // Check superuser
+        user.is_superuser = true;
+        user.roles.clear();
+        auth_service.store_user(&user).await.expect("update user");
+
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+        let has_random = auth_service
+            .has_role(&user.id.to_string(), "random")
+            .await
+            .expect("check role");
+        assert!(has_random);
     }
 }
 

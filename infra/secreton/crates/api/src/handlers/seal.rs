@@ -227,16 +227,16 @@ pub async fn seal_vault(
         )
     })?;
 
-    // TODO: Check if user has admin role
-    // For now, we log the user but allow the operation
-    // In production, add role check:
-    // if !state.auth.has_role(&user_id, "admin").await? {
-    //     return Err((StatusCode::FORBIDDEN, "Admin role required".to_string()));
-    // }
-    warn!(
-        "Seal operation requested by user: {} (role check not yet implemented)",
-        user_id
-    );
+    // Check if user has admin role
+    if !state
+        .auth
+        .has_role(&user_id, "admin")
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    {
+        warn!("Unauthorized seal attempt by user: {}", user_id);
+        return Err((StatusCode::FORBIDDEN, "Admin role required".to_string()));
+    }
 
     // Audit log the seal attempt
     let mut metadata = HashMap::new();
