@@ -741,23 +741,32 @@ pub async fn namespace_access_middleware(
 /// - /v1/transit/encrypt/{namespace}/{key}
 /// - /v1/dynamic/database/creds/{namespace}/{role}
 fn extract_namespace_from_path(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    // Avoid allocation by using iterator directly
+    let mut parts = path.split('/').filter(|s| !s.is_empty());
 
-    // Look for namespace after known prefixes
-    if parts.len() >= 4 {
-        // Check for secret paths: /v1/secret/data/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "secret" && parts[2] == "data" {
-            return Some(parts[3].to_string());
+    // Check first part "v1"
+    if parts.next()? != "v1" {
+        return None;
+    }
+
+    let p2 = parts.next()?;
+
+    // Check for secret paths: /v1/secret/data/{namespace}/...
+    if p2 == "secret" {
+        if parts.next()? == "data" {
+            return parts.next().map(String::from);
         }
-
-        // Check for transit paths: /v1/transit/{operation}/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "transit" && parts.len() >= 4 {
-            return Some(parts[3].to_string());
-        }
-
-        // Check for dynamic secrets: /v1/dynamic/{type}/creds/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "dynamic" && parts.len() >= 5 {
-            return Some(parts[4].to_string());
+    }
+    // Check for transit paths: /v1/transit/{operation}/{namespace}/...
+    else if p2 == "transit" {
+        let _operation = parts.next()?;
+        return parts.next().map(String::from);
+    }
+    // Check for dynamic secrets: /v1/dynamic/{type}/creds/{namespace}/...
+    else if p2 == "dynamic" {
+        let _type = parts.next()?;
+        if parts.next()? == "creds" {
+            return parts.next().map(String::from);
         }
     }
 
