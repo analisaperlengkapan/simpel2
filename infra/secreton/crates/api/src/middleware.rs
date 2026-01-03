@@ -902,6 +902,22 @@ pub async fn policy_check_middleware(
         // Build policy evaluation context
         let policy_context = build_policy_context(ctx, &request);
 
+        // Extract client info for audit
+        let client_ip = request
+            .headers()
+            .get("x-forwarded-for")
+            .or_else(|| request.headers().get("x-real-ip"))
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let user_agent = request
+            .headers()
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let namespace = extract_namespace_from_path(path);
+
         // Get policy service from state
         let policy_set = match state.services.policy.read() {
             Ok(guard) => guard,
@@ -930,8 +946,18 @@ pub async fn policy_check_middleware(
             );
 
             // Log to audit with policy decision
-            log_policy_decision_to_audit(&state, ctx, path, &action, false, &ctx.policy_names)
-                .await;
+            log_policy_decision_to_audit(
+                &state,
+                ctx,
+                path,
+                &action,
+                false,
+                &ctx.policy_names,
+                client_ip.clone(),
+                user_agent.clone(),
+                namespace.clone(),
+            )
+            .await;
 
             return Err((
                 StatusCode::FORBIDDEN,
@@ -952,7 +978,18 @@ pub async fn policy_check_middleware(
         );
 
         // Log successful policy evaluation to audit
-        log_policy_decision_to_audit(&state, ctx, path, &action, true, &ctx.policy_names).await;
+        log_policy_decision_to_audit(
+            &state,
+            ctx,
+            path,
+            &action,
+            true,
+            &ctx.policy_names,
+            client_ip,
+            user_agent,
+            namespace,
+        )
+        .await;
 
         Ok(next.run(request).await)
     } else {
@@ -1038,6 +1075,9 @@ async fn log_policy_decision_to_audit(
     action: &str,
     allowed: bool,
     policy_names: &[String],
+    client_ip: Option<String>,
+    user_agent: Option<String>,
+    namespace: Option<String>,
 ) {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -1068,9 +1108,9 @@ async fn log_policy_decision_to_audit(
         } else {
             AuditStatus::Denied
         },
-        ip: None,         // TODO: Extract from request
-        user_agent: None, // TODO: Extract from request
-        namespace: None,  // TODO: Extract namespace from path
+        ip: client_ip,
+        user_agent,
+        namespace,
         metadata,
     };
 
