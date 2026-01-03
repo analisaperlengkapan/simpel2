@@ -13,7 +13,7 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::{ApiError, middleware::RequestContext};
+use crate::middleware::RequestContext;
 use secreton_core::namespace::AdminLevel;
 
 use chrono::{DateTime, Utc};
