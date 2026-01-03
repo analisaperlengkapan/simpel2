@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
-    helpers::create_audit_log,
+    helpers::create_audit_log, services::vault::SecretMetadata,
 };
 use secreton_core::audit::AuditLog;
 
@@ -194,14 +194,6 @@ pub struct CreateSecretRequest {
     pub data: HashMap<String, String>,
     pub metadata: Option<SecretMetadata>,
     pub ttl: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SecretMetadata {
-    pub description: Option<String>,
-    pub tags: Vec<String>,
-    pub owner: Option<String>,
-    pub classification: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -398,12 +390,7 @@ pub async fn get_secret(
     let secret = SecretResponse {
         path: secret_data.path,
         data: secret_data.data,
-        metadata: SecretMetadata {
-            description: None, // TODO: Add metadata field to SecretData
-            tags: vec![],
-            owner: Some(user.username.clone()),
-            classification: Some("confidential".to_string()),
-        },
+        metadata: secret_data.metadata,
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
@@ -419,10 +406,21 @@ pub async fn create_secret(
     user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    // Prepare metadata with default owner if not provided
+    let mut metadata = request.metadata.clone().unwrap_or_default();
+    if metadata.owner.is_none() {
+        metadata.owner = Some(user.username.clone());
+    }
+
     // Create secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            metadata.clone(),
+            &user.id.to_string(),
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to create secret: {}", e),
@@ -431,7 +429,7 @@ pub async fn create_secret(
     let secret = SecretResponse {
         path: secret_data.path,
         data: secret_data.data,
-        metadata: request.metadata.unwrap_or_default(),
+        metadata,
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
@@ -456,7 +454,12 @@ pub async fn update_secret(
     // Update secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            request.metadata.clone().unwrap_or_default(),
+            &user.id.to_string(),
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to update secret: {}", e),
@@ -803,17 +806,6 @@ pub async fn hash_data(
     Ok(Json(ApiResponse::success(response)))
 }
 
-/// Default implementations for metadata
-impl Default for SecretMetadata {
-    fn default() -> Self {
-        Self {
-            description: None,
-            tags: vec![],
-            owner: None,
-            classification: None,
-        }
-    }
-}
 
 // Key management handlers
 pub async fn update_key(
