@@ -1,6 +1,8 @@
 //! Admin service for system management operations.
 
 use anyhow::Result;
+use async_trait::async_trait;
+use secreton_core::services::lease::{LeaseError, LeaseManager};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,7 +11,7 @@ use thiserror::Error;
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::StorageBackend;
+use secreton_storage::{MemoryBackend, PostgresBackend, StorageBackend};
 
 /// Admin service errors
 #[derive(Error, Debug)]
@@ -32,8 +34,24 @@ pub enum AdminError {
     #[error("Storage error: {0}")]
     Storage(#[from] secreton_storage::StorageError),
 
+    #[error("Lease error: {0}")]
+    Lease(#[from] secreton_core::services::lease::LeaseError),
+
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
+}
+
+/// Trait for lease cleanup operations to allow mocking
+#[async_trait]
+pub trait LeaseCleaner: Send + Sync {
+    async fn cleanup_expired(&self) -> Result<usize, LeaseError>;
+}
+
+#[async_trait]
+impl LeaseCleaner for LeaseManager {
+    async fn cleanup_expired(&self) -> Result<usize, LeaseError> {
+        self.cleanup_expired().await
+    }
 }
 
 /// System statistics
@@ -75,6 +93,7 @@ pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
+    lease_cleaner: Arc<dyn LeaseCleaner>,
     start_time: chrono::DateTime<chrono::Utc>,
 }
 
@@ -84,11 +103,13 @@ impl AdminService {
         storage: Arc<dyn StorageBackend + Send + Sync>,
         auth: Arc<AuthService>,
         audit: Arc<AuditLogger>,
+        lease_cleaner: Arc<dyn LeaseCleaner>,
     ) -> Result<Self> {
         Ok(Self {
             storage,
             auth,
             audit,
+            lease_cleaner,
             start_time: chrono::Utc::now(),
         })
     }
@@ -99,7 +120,7 @@ impl AdminService {
         let storage_stats = self.storage.get_stats().await?;
 
         // Get audit statistics
-        let audit_count = self.audit.count().await;
+        let _audit_count = self.audit.count().await;
 
         // Calculate uptime
         let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds().max(0) as u64;
@@ -186,7 +207,7 @@ impl AdminService {
             "Backup restoration not yet implemented - persistent storage required"
         );
 
-        let duration = start_time.elapsed();
+        let _duration = start_time.elapsed();
         Err(AdminError::NotPermitted(
             "Backup restoration not yet implemented - persistent backup storage required"
                 .to_string(),
@@ -200,18 +221,35 @@ impl AdminService {
         // Get initial storage stats
         let stats_before = self.storage.get_stats().await?;
 
-        // TODO: Implement comprehensive garbage collection:
         // 1. Clean expired leases (requires lease service integration)
-        // 2. Remove soft-deleted secrets past retention period
-        // 3. Clean expired audit logs based on retention policy
-        // 4. Vacuum storage backend if supported
+        let expired_leases_count = self.lease_cleaner.cleanup_expired().await?;
 
-        let cleaned_objects = 0; // Actual count of removed objects
-        let freed_space = 0; // Actual space freed
+        // 2. Remove soft-deleted secrets past retention period
+        // For now, we clean expired secrets (where expires_at < NOW())
+        let expired_secrets_count = self.storage.delete_expired().await?;
+
+        // 3. Clean expired audit logs based on retention policy
+        // Retention: 30 days
+        let retention_period = chrono::Duration::days(30);
+        let cleaned_audit_logs = self
+            .audit
+            .cleanup_expired_events(retention_period.to_std().unwrap_or_default())
+            .await;
+
+        let cleaned_objects =
+            expired_leases_count as u64 + expired_secrets_count + cleaned_audit_logs as u64;
+
+        // Recalculate stats to see freed space (approximate)
+        let stats_after = self.storage.get_stats().await?;
+        let freed_space =
+            stats_before.total_size_bytes.saturating_sub(stats_after.total_size_bytes);
 
         tracing::info!(
             cleaned_objects = cleaned_objects,
             freed_space_bytes = freed_space,
+            expired_leases = expired_leases_count,
+            expired_secrets = expired_secrets_count,
+            cleaned_audit_logs = cleaned_audit_logs,
             "Garbage collection completed"
         );
 
@@ -225,6 +263,18 @@ impl AdminService {
                 details.insert(
                     "cleaned_objects".to_string(),
                     serde_json::Value::Number(cleaned_objects.into()),
+                );
+                details.insert(
+                    "expired_leases".to_string(),
+                    serde_json::Value::Number(expired_leases_count.into()),
+                );
+                details.insert(
+                    "expired_secrets".to_string(),
+                    serde_json::Value::Number(expired_secrets_count.into()),
+                );
+                details.insert(
+                    "cleaned_audit_logs".to_string(),
+                    serde_json::Value::Number(cleaned_audit_logs.into()),
                 );
                 details.insert(
                     "freed_space_bytes".to_string(),
@@ -452,7 +502,7 @@ impl AdminService {
         }
 
         // Check 3: Storage capacity
-        let storage_stats = self.storage.get_stats().await?;
+        let _storage_stats = self.storage.get_stats().await?;
         // Assuming 80% is a warning threshold (adjust based on actual limits)
         // This is a simplified check; real implementation would need actual capacity limits
 
@@ -546,6 +596,18 @@ mod tests {
     use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 
+    // Mock implementation of LeaseCleaner for testing
+    pub struct MockLeaseCleaner {
+        pub expired_count: usize,
+    }
+
+    #[async_trait]
+    impl LeaseCleaner for MockLeaseCleaner {
+        async fn cleanup_expired(&self) -> Result<usize, LeaseError> {
+            Ok(self.expired_count)
+        }
+    }
+
     #[tokio::test]
     async fn test_admin_service_creation() {
         let storage = Arc::new(MemoryBackend::new());
@@ -557,8 +619,9 @@ mod tests {
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
 
-        let admin_service = AdminService::new(storage, auth, audit).await;
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner).await;
         assert!(admin_service.is_ok());
     }
 
@@ -573,7 +636,10 @@ mod tests {
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
-        let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         let stats = admin_service.get_system_stats().await.expect("stats");
@@ -595,7 +661,10 @@ mod tests {
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
-        let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+            .await
+            .unwrap();
 
         let backup = admin_service.create_backup().await.expect("backup");
         assert!(backup.encrypted);
@@ -616,20 +685,44 @@ mod tests {
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
-        let admin_service = AdminService::new(storage, auth, audit).await.unwrap();
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 15 });
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+            .await
+            .unwrap();
 
-        let result = admin_service.run_garbage_collection().await.expect("gc");
+        let result = admin_service
+            .run_garbage_collection()
+            .await
+            .expect("gc failed");
+
         assert_eq!(result.operation, "garbage_collection");
         assert!(result.success);
-        assert!(result.details.contains_key("cleaned_objects"));
-        assert!(result.details.contains_key("freed_space_bytes"));
-        assert!(result.details.contains_key("storage_before_bytes"));
+
+        let details = &result.details;
+
+        // Check expired leases (from mock)
+        let expired_leases = details.get("expired_leases").unwrap().as_u64().unwrap();
+        assert_eq!(expired_leases, 15);
+
+        // Check structure
+        assert!(details.contains_key("cleaned_objects"));
+        assert!(details.contains_key("freed_space_bytes"));
+        assert!(details.contains_key("storage_before_bytes"));
     }
 }
 
 impl AdminService {
     /// Create mock admin service for testing
     pub fn new_mock(storage: Arc<dyn StorageBackend + Send + Sync>) -> Self {
+        // Create a dummy lease cleaner
+        struct DummyLeaseCleaner;
+        #[async_trait]
+        impl LeaseCleaner for DummyLeaseCleaner {
+            async fn cleanup_expired(&self) -> Result<usize, LeaseError> {
+                Ok(0)
+            }
+        }
+
         Self {
             auth: Arc::new(AuthService::new_mock(
                 storage.clone(),
@@ -637,6 +730,7 @@ impl AdminService {
             )),
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
+            lease_cleaner: Arc::new(DummyLeaseCleaner),
             start_time: chrono::Utc::now(),
         }
     }

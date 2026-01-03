@@ -667,6 +667,9 @@ pub trait StorageBackend: Send + Sync {
     /// Run migrations
     async fn migrate(&self) -> StorageResult<()>;
 
+    /// Delete expired entries
+    async fn delete_expired(&self) -> StorageResult<u64>;
+
     /// Downcast to concrete type for specialized operations
     ///
     /// This allows accessing backend-specific functionality like Raft cluster operations.
