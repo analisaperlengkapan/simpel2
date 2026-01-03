@@ -902,19 +902,6 @@ pub async fn policy_check_middleware(
         // Build policy evaluation context
         let policy_context = build_policy_context(ctx, &request);
 
-        // Get policy service from state
-        let policy_set = match state.services.policy.read() {
-            Ok(guard) => guard,
-            Err(e) => {
-                tracing::error!("Failed to acquire policy read lock: {}", e);
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Policy service unavailable",
-                )
-                    .into_response());
-            }
-        };
-
         // Extract IP and User-Agent for audit logging
         let client_ip = request
             .headers()
@@ -933,7 +920,21 @@ pub async fn policy_check_middleware(
 
         // Evaluate policy
         let start_time = Instant::now();
-        let allowed = policy_set.evaluate(user_id, path, &action, Some(&policy_context));
+        let allowed = {
+            // Get policy service from state
+            let policy_set = match state.services.policy.read() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    tracing::error!("Failed to acquire policy read lock: {}", e);
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Policy service unavailable",
+                    )
+                        .into_response());
+                }
+            };
+            policy_set.evaluate(user_id, path, &action, Some(&policy_context))
+        };
         let evaluation_time = start_time.elapsed();
 
         // Record metrics
