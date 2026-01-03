@@ -161,6 +161,48 @@ mod tests {
         assert!(status.uptime > 0, "Uptime should be greater than 0");
         assert!(status.uptime < 86400, "Uptime should not be hardcoded to 1 day");
     }
+
+    #[tokio::test]
+    async fn test_get_user_retrieves_real_data() {
+        // Initialize services
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create a test user via auth service
+        let user = services
+            .auth
+            .create_user(
+                "realuser",
+                "real@example.com",
+                "password123",
+                Some("Real User"),
+                vec!["user".to_string()],
+            )
+            .await
+            .expect("Failed to create user");
+
+        // Start server with these services
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        // Fetch the user via API
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        assert!(body.success);
+        let fetched_user = body.data.expect("user payload");
+
+        assert_eq!(fetched_user.id, user.id.to_string());
+        assert_eq!(fetched_user.username, "realuser");
+        assert_eq!(fetched_user.email, "real@example.com");
+        assert_eq!(fetched_user.full_name, Some("Real User".to_string()));
+        assert!(fetched_user.roles.contains(&"user".to_string()));
+    }
 }
 
 /// User management models
@@ -422,25 +464,39 @@ pub async fn create_user(
 }
 
 pub async fn get_user(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
-    // TODO: Implement user retrieval
-    let user = UserResponse {
-        id: user_id,
-        username: "testuser".to_string(),
-        email: "test@example.com".to_string(),
-        full_name: Some("Test User".to_string()),
-        enabled: true,
-        roles: vec!["user".to_string()],
-        permissions: vec!["read".to_string()],
-        last_login: Some(chrono::Utc::now()),
-        created_at: chrono::Utc::now() - chrono::Duration::days(7),
-        updated_at: chrono::Utc::now(),
-        metadata: HashMap::new(),
+    let user = state.auth.get_user(&user_id).await?;
+
+    // Collect and sort roles
+    let mut roles: Vec<String> = user.roles.into_iter().collect();
+    roles.sort();
+
+    // Calculate permissions
+    let permissions = calculate_permissions_from_roles(&roles);
+
+    // Build metadata
+    let mut metadata = HashMap::new();
+    metadata.insert("namespace".to_string(), user.namespace);
+    metadata.insert("is_superuser".to_string(), user.is_superuser.to_string());
+    metadata.insert("mfa_enabled".to_string(), user.mfa_enabled.to_string());
+
+    let response = UserResponse {
+        id: user.id.to_string(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        enabled: user.is_active,
+        roles,
+        permissions,
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        metadata,
     };
 
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn update_user(
