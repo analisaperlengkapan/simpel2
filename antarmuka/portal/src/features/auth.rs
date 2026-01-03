@@ -348,26 +348,6 @@ impl AuthService {
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;
 
-        // Parse JSON claims
-        #[derive(Deserialize)]
-        struct Claims {
-            sub: String,
-            preferred_username: Option<String>,
-            name: Option<String>,
-            email: Option<String>,
-            realm_access: Option<RealmAccess>,
-            #[serde(default)]
-            mfa_enabled: bool,
-            #[serde(default)]
-            mfa_setup_required: bool,
-            exp: Option<i64>,
-        }
-
-        #[derive(Deserialize)]
-        struct RealmAccess {
-            roles: Vec<String>,
-        }
-
         let claims: Claims =
             serde_json::from_str(&payload_str).map_err(|e| format!("JSON parse error: {}", e))?;
 
@@ -517,13 +497,12 @@ impl AuthService {
 
                 // Make request with credentials to include SSO cookie
                 if let Some(window) = web_sys::window() {
-                    use wasm_bindgen::JsValue;
                     use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
 
-                    let mut opts = RequestInit::new();
-                    opts.method("GET");
-                    opts.mode(RequestMode::Cors);
-                    opts.credentials(RequestCredentials::Include);
+                    let opts = RequestInit::new();
+                    opts.set_method("GET");
+                    opts.set_mode(RequestMode::Cors);
+                    opts.set_credentials(RequestCredentials::Include);
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(
@@ -961,7 +940,7 @@ impl AuthService {
     pub fn update_session_mfa_state(
         mfa_enabled: bool,
         mfa_setup_required: bool,
-        mfa_verification_required: bool,
+        _mfa_verification_required: bool,
     ) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -975,7 +954,7 @@ impl AuthService {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let _ = (mfa_enabled, mfa_setup_required, mfa_verification_required);
+            let _ = (mfa_enabled, mfa_setup_required, _mfa_verification_required);
         }
     }
 }
@@ -1002,4 +981,24 @@ pub struct MfaStatus {
     pub backup_codes_remaining: i32,
     /// Last time MFA was used (ISO 8601 timestamp)
     pub last_used: Option<String>,
+}
+
+// Internal structures for JWT parsing
+#[derive(Deserialize)]
+struct Claims {
+    sub: String,
+    preferred_username: Option<String>,
+    name: Option<String>,
+    email: Option<String>,
+    realm_access: Option<RealmAccess>,
+    #[serde(default)]
+    mfa_enabled: bool,
+    #[serde(default)]
+    mfa_setup_required: bool,
+    exp: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct RealmAccess {
+    roles: Vec<String>,
 }
