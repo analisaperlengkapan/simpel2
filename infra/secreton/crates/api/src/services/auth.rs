@@ -45,6 +45,7 @@ struct StoredUser {
     pub is_locked: bool,
     pub failed_attempts: u32,
     pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
+    pub metadata: HashMap<String, String>,
 }
 
 impl From<&User> for StoredUser {
@@ -66,6 +67,7 @@ impl From<&User> for StoredUser {
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
             locked_until: user.locked_until,
+            metadata: user.metadata.clone(),
         }
     }
 }
@@ -89,6 +91,7 @@ impl From<StoredUser> for User {
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
             locked_until: stored.locked_until,
+            metadata: stored.metadata,
         }
     }
 }
@@ -289,6 +292,7 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(), // Metadata not currently in JWT
         })
     }
 
@@ -311,6 +315,7 @@ impl AuthService {
         password: &str,
         full_name: Option<&str>,
         roles: Vec<String>,
+        metadata: Option<HashMap<String, String>>,
     ) -> Result<User, AuthError> {
         // Check if user already exists
         if self.user_exists(username).await? {
@@ -337,7 +342,38 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: metadata.unwrap_or_default(),
         };
+
+        self.store_user(&user).await?;
+        Ok(user)
+    }
+
+    /// Update user details
+    pub async fn update_user(
+        &self,
+        user_id: &str,
+        email: Option<String>,
+        full_name: Option<String>,
+        is_active: Option<bool>,
+        metadata: Option<HashMap<String, String>>,
+    ) -> Result<User, AuthError> {
+        let mut user = self.get_user(user_id).await?;
+
+        if let Some(email) = email {
+            user.email = email;
+        }
+        if let Some(full_name) = full_name {
+            user.full_name = Some(full_name);
+        }
+        if let Some(is_active) = is_active {
+            user.is_active = is_active;
+        }
+        if let Some(metadata) = metadata {
+            user.metadata = metadata;
+        }
+
+        user.updated_at = chrono::Utc::now();
 
         self.store_user(&user).await?;
         Ok(user)
@@ -821,6 +857,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         auth_service.store_user(&user).await;
@@ -906,6 +943,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         // admin role already initialized in service with "*"
@@ -947,6 +985,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
         let allowed = service
             .has_permission(&user, "vault:read")
@@ -985,6 +1024,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         let session_id = Uuid::new_v4().to_string();
