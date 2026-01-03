@@ -12,7 +12,10 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{
+    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
+    helpers::create_audit_log,
+};
 
 use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
 
@@ -84,25 +87,25 @@ pub struct CredentialData {
 pub async fn generate_database_credentials(
     State(state): State<AppState>,
     Path(role_name): Path<String>,
+    user: AuthenticatedUser,
     Query(params): Query<GenerateCredsRequest>,
 ) -> ApiResult<Json<ApiResponse<GenerateCredsResponse>>> {
-    // Extract user from auth context (TODO: implement proper auth extraction)
-    let user = "system"; // Placeholder
-
     // Get database engine from service container
     let db_engine = &state.database_engine;
     let lease_manager = &state.lease_manager;
 
     // Generate credentials with lease
     let (credentials, lease) = db_engine
-        .generate_credentials_with_lease(&role_name, params.ttl, lease_manager, user)
+        .generate_credentials_with_lease(&role_name, params.ttl, lease_manager, &user.username)
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to generate credentials: {}", e),
         })?;
 
     // Log audit event
-    // TODO: Fix audit logging
+    let audit_entry =
+        create_audit_log("creds_generated", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
 
     // Record metrics
     // TODO: Implement metrics recording
@@ -168,12 +171,12 @@ pub struct RoleResponse {
     pub max_ttl: u32,
 }
 
-/// Create a database role
-pub async fn create_database_role(
-    State(state): State<AppState>,
-    Path(role_name): Path<String>,
-    Json(request): Json<CreateRoleRequest>,
-) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
+/// Internal helper to create/update database role
+async fn create_role_internal(
+    state: &AppState,
+    role_name: String,
+    request: CreateRoleRequest,
+) -> ApiResult<RoleResponse> {
     // Validate role name
     if role_name.is_empty() {
         return Err(ApiError::BadRequest {
@@ -243,15 +246,26 @@ pub async fn create_database_role(
             message: format!("Failed to create role: {}", e),
         })?;
 
-    // Log audit event
-    // TODO: Fix audit logging
-
-    let response = RoleResponse {
+    Ok(RoleResponse {
         name: role_name,
         db_name: request.db_name,
         default_ttl: request.default_ttl,
         max_ttl: request.max_ttl,
-    };
+    })
+}
+
+/// Create a database role
+pub async fn create_database_role(
+    State(state): State<AppState>,
+    Path(role_name): Path<String>,
+    user: AuthenticatedUser,
+    Json(request): Json<CreateRoleRequest>,
+) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
+    let response = create_role_internal(&state, role_name.clone(), request).await?;
+
+    // Log audit event
+    let audit_entry = create_audit_log("role_created", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -280,22 +294,30 @@ pub async fn get_database_role(
 pub async fn update_database_role(
     State(state): State<AppState>,
     Path(role_name): Path<String>,
+    user: AuthenticatedUser,
     Json(request): Json<CreateRoleRequest>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    // Validate and create role (same as create)
-    create_database_role(State(state), Path(role_name), Json(request)).await
+    let response = create_role_internal(&state, role_name.clone(), request).await?;
+
+    // Log audit event
+    let audit_entry = create_audit_log("role_updated", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// Delete database role
 pub async fn delete_database_role(
     State(state): State<AppState>,
     Path(role_name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     // TODO: Implement role deletion in database engine
     // Should also revoke all active credentials for this role
 
     // Log audit event
-    // TODO: Fix audit logging
+    let audit_entry = create_audit_log("role_deleted", &user.username, "dynamic_role", &role_name);
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(serde_json::json!({
         "deleted": true,
@@ -358,6 +380,7 @@ pub struct ConnectionResponse {
 pub async fn configure_database_connection(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    user: AuthenticatedUser,
     Json(request): Json<ConfigureConnectionRequest>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
     // Validate connection name
@@ -413,7 +436,13 @@ pub async fn configure_database_connection(
         })?;
 
     // Log audit event
-    // TODO: Fix audit logging
+    let audit_entry = create_audit_log(
+        "connection_configured",
+        &user.username,
+        "dynamic_connection",
+        &name,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     let response = ConnectionResponse {
         name,
@@ -439,12 +468,19 @@ pub async fn get_database_connection(
 pub async fn delete_database_connection(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     // TODO: Implement connection deletion in database engine
     // Should also delete all roles using this connection
 
     // Log audit event
-    // TODO: Fix audit logging
+    let audit_entry = create_audit_log(
+        "connection_deleted",
+        &user.username,
+        "dynamic_connection",
+        &name,
+    );
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(serde_json::json!({
         "deleted": true,
