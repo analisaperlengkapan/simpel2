@@ -6,10 +6,13 @@
 
 use axum::{
     Router,
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     response::Json,
     routing::{get, post},
 };
+
+use crate::middleware::RequestContext;
+use secreton_core::namespace::AdminLevel;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -30,6 +33,33 @@ pub fn create_routes() -> Router<AppState> {
         .route("/leases/lookup/{lease_id}", get(lookup_lease))
         .route("/leases", get(list_leases))
         .route("/leases/stats", get(get_lease_stats))
+}
+
+/// Helper to extract auth info from request context
+fn extract_auth_info(context: &RequestContext) -> (String, String, bool) {
+    let user = context
+        .user_id
+        .clone()
+        .unwrap_or_else(|| "anonymous".to_string());
+
+    let namespace = context
+        .jwt_claims
+        .as_ref()
+        .and_then(|c| c.satker_code.as_ref().or(c.wilayah_code.as_ref()))
+        .cloned()
+        .unwrap_or_else(|| "default".to_string());
+
+    let is_admin = context
+        .user_roles
+        .iter()
+        .any(|r| r == "admin" || r == "superuser")
+        || context
+            .jwt_claims
+            .as_ref()
+            .map(|c| matches!(c.admin_level, AdminLevel::Pusat))
+            .unwrap_or(false);
+
+    (user, namespace, is_admin)
 }
 
 /// Request to renew a lease
@@ -67,11 +97,11 @@ pub struct RenewLeaseResponse {
 /// Renew a lease by ID
 pub async fn renew_lease(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Json(request): Json<RenewLeaseRequest>,
 ) -> ApiResult<Json<ApiResponse<RenewLeaseResponse>>> {
-    // Extract user from auth context (TODO: implement proper auth extraction)
-    let user = "system"; // Placeholder
-    let namespace = "default"; // Placeholder - should come from JWT
+    // Extract user from auth context
+    let (user, namespace, is_admin) = extract_auth_info(&context);
 
     // Validate lease_id
     if request.lease_id.is_empty() {
@@ -101,7 +131,6 @@ pub async fn renew_lease(
         })?;
 
     // Authorization check: user can only renew their own leases unless admin
-    let is_admin = false; // Placeholder
     if !is_admin && lease.user != user {
         return Err(ApiError::Forbidden);
     }
@@ -207,11 +236,11 @@ pub struct RevokeLeaseResponse {
 /// Revoke a lease by ID (with cascade to children)
 pub async fn revoke_lease(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Json(request): Json<RevokeLeaseRequest>,
 ) -> ApiResult<Json<ApiResponse<RevokeLeaseResponse>>> {
     // Extract user from auth context
-    let user = "system"; // Placeholder
-    let namespace = "default"; // Placeholder
+    let (user, namespace, is_admin) = extract_auth_info(&context);
 
     // Validate lease_id
     if request.lease_id.is_empty() {
@@ -235,7 +264,6 @@ pub async fn revoke_lease(
         })?;
 
     // Authorization check
-    let is_admin = false; // Placeholder
     if !is_admin && lease.user != user {
         return Err(ApiError::Forbidden);
     }
@@ -289,11 +317,11 @@ pub struct RevokePrefixResponse {
 /// Revoke all leases under a path prefix
 pub async fn revoke_lease_prefix(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Json(request): Json<RevokePrefixRequest>,
 ) -> ApiResult<Json<ApiResponse<RevokePrefixResponse>>> {
     // Extract user from auth context
-    let _user = "system"; // Placeholder
-    let namespace = "default"; // Placeholder
+    let (_user, namespace, is_admin) = extract_auth_info(&context);
 
     // Validate prefix
     if request.prefix.is_empty() {
@@ -303,7 +331,6 @@ pub async fn revoke_lease_prefix(
     }
 
     // Authorization check: only admin can revoke by prefix
-    let is_admin = false; // Placeholder - should check JWT claims
     if !is_admin {
         return Err(ApiError::Forbidden);
     }
@@ -440,11 +467,11 @@ impl From<EnhancedLease> for LookupLeaseResponse {
 /// Lookup lease details by ID
 pub async fn lookup_lease(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Path(lease_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<LookupLeaseResponse>>> {
     // Extract user from auth context
-    let user = "system"; // Placeholder
-    let namespace = "default"; // Placeholder
+    let (user, namespace, is_admin) = extract_auth_info(&context);
 
     // Validate lease_id
     if lease_id.is_empty() {
@@ -468,7 +495,6 @@ pub async fn lookup_lease(
         })?;
 
     // Authorization check
-    let is_admin = false; // Placeholder
     if !is_admin && lease.user != user {
         return Err(ApiError::Forbidden);
     }
@@ -517,14 +543,13 @@ fn default_limit() -> i64 {
 /// List leases with filtering and pagination
 pub async fn list_leases(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<ListLeasesQuery>,
 ) -> ApiResult<Json<ApiResponse<PaginatedResponse<LookupLeaseResponse>>>> {
     // Extract user from auth context
-    let user = "system"; // Placeholder
-    let user_namespace = "default"; // Placeholder
+    let (user, user_namespace, is_admin) = extract_auth_info(&context);
 
     // Authorization: non-admin users can only see their own leases in their namespace
-    let is_admin = false; // Placeholder
     let filter_user = if is_admin {
         query.user_id
     } else {
@@ -613,9 +638,10 @@ pub struct LeaseStatsResponse {
 /// Get lease statistics
 pub async fn get_lease_stats(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
 ) -> ApiResult<Json<ApiResponse<LeaseStatsResponse>>> {
     // Extract user from auth context
-    let _user = "system"; // Placeholder
+    let (_user, _namespace, _is_admin) = extract_auth_info(&context);
 
     // Get stats from lease manager
     let stats = state
