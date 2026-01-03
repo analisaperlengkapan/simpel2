@@ -915,6 +915,22 @@ pub async fn policy_check_middleware(
             }
         };
 
+        // Extract IP and User-Agent for audit logging
+        let client_ip = request
+            .headers()
+            .get("x-forwarded-for")
+            .or_else(|| request.headers().get("x-real-ip"))
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let user_agent = request
+            .headers()
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+
         // Evaluate policy
         let start_time = Instant::now();
         let allowed = policy_set.evaluate(user_id, path, &action, Some(&policy_context));
@@ -930,8 +946,17 @@ pub async fn policy_check_middleware(
             );
 
             // Log to audit with policy decision
-            log_policy_decision_to_audit(&state, ctx, path, &action, false, &ctx.policy_names)
-                .await;
+            log_policy_decision_to_audit(
+                &state,
+                ctx,
+                path,
+                &action,
+                false,
+                &ctx.policy_names,
+                Some(client_ip),
+                Some(user_agent),
+            )
+            .await;
 
             return Err((
                 StatusCode::FORBIDDEN,
@@ -952,7 +977,17 @@ pub async fn policy_check_middleware(
         );
 
         // Log successful policy evaluation to audit
-        log_policy_decision_to_audit(&state, ctx, path, &action, true, &ctx.policy_names).await;
+        log_policy_decision_to_audit(
+            &state,
+            ctx,
+            path,
+            &action,
+            true,
+            &ctx.policy_names,
+            Some(client_ip),
+            Some(user_agent),
+        )
+        .await;
 
         Ok(next.run(request).await)
     } else {
@@ -1031,6 +1066,7 @@ fn record_policy_evaluation_metrics(allowed: bool, evaluation_time: std::time::D
 }
 
 /// Log policy decision to audit log
+#[allow(clippy::too_many_arguments)]
 async fn log_policy_decision_to_audit(
     state: &ApiState,
     ctx: &RequestContext,
@@ -1038,6 +1074,8 @@ async fn log_policy_decision_to_audit(
     action: &str,
     allowed: bool,
     policy_names: &[String],
+    client_ip: Option<String>,
+    user_agent: Option<String>,
 ) {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -1068,9 +1106,9 @@ async fn log_policy_decision_to_audit(
         } else {
             AuditStatus::Denied
         },
-        ip: None,         // TODO: Extract from request
-        user_agent: None, // TODO: Extract from request
-        namespace: None,  // TODO: Extract namespace from path
+        ip: client_ip,
+        user_agent,
+        namespace: None, // TODO: Extract namespace from path
         metadata,
     };
 
