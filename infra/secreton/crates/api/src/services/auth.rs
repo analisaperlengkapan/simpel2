@@ -19,6 +19,9 @@ pub use secreton_core::models::User;
 // Use consolidated AuthError from error module
 pub use crate::error::AuthError;
 
+/// Root user ID (nil UUID) used for initial bootstrap and recovery
+pub const ROOT_USER_ID: &str = "00000000-0000-0000-0000-000000000000";
+
 const USER_PATH_PREFIX: &str = "auth/users";
 const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
 
@@ -414,6 +417,11 @@ impl AuthService {
 
     /// Check if user has a specific role
     pub async fn has_role(&self, user_id: &str, role: &str) -> Result<bool, AuthError> {
+        // Special case for root user
+        if user_id == ROOT_USER_ID {
+            return Ok(true);
+        }
+
         let user = self.get_user(user_id).await?;
 
         // Superusers have all roles implicitly
@@ -1096,6 +1104,13 @@ mod tests {
             .await
             .expect("check role");
         assert!(has_random);
+
+        // Check root user
+        let has_admin = auth_service
+            .has_role(ROOT_USER_ID, "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
     }
 }
 

@@ -736,7 +736,7 @@ async fn generate_root_token(state: &AppState) -> Result<String, String> {
 
     let now = chrono::Utc::now();
     let claims = RootTokenClaims {
-        sub: "root".to_string(),
+        sub: crate::services::auth::ROOT_USER_ID.to_string(),
         exp: (now + chrono::Duration::days(365)).timestamp(),
         iat: now.timestamp(),
         policies: vec!["root".to_string()],
