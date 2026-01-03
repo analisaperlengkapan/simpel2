@@ -118,7 +118,10 @@ pub async fn wrap_data(
     Json(request): Json<WrapDataRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
     // Extract namespace from auth context
-    let namespace = get_namespace_from_context(context.as_ref());
+    let namespace = context
+        .as_ref()
+        .map(|ctx| ctx.derive_namespace())
+        .unwrap_or_else(|| "default".to_string());
 
     // Validate TTL
     if request.ttl == 0 {
@@ -233,7 +236,10 @@ pub async fn unwrap_token(
     Json(request): Json<UnwrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UnwrapTokenResponse>>> {
     // Extract namespace from auth context
-    let namespace = get_namespace_from_context(context.as_ref());
+    let namespace = context
+        .as_ref()
+        .map(|ctx| ctx.derive_namespace())
+        .unwrap_or_else(|| "default".to_string());
 
     // Validate token format
     if !request.token.starts_with("wrap_") {
@@ -325,7 +331,10 @@ pub async fn lookup_token(
     Extension(context): Extension<Option<RequestContext>>,
 ) -> ApiResult<Json<ApiResponse<WrappedTokenInfo>>> {
     // Extract namespace from auth context
-    let namespace = get_namespace_from_context(context.as_ref());
+    let namespace = context
+        .as_ref()
+        .map(|ctx| ctx.derive_namespace())
+        .unwrap_or_else(|| "default".to_string());
 
     // Validate token format
     if !token.starts_with("wrap_") {
@@ -403,7 +412,10 @@ pub async fn rewrap_token(
     Json(request): Json<RewrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
     // Extract namespace from auth context
-    let namespace = get_namespace_from_context(context.as_ref());
+    let namespace = context
+        .as_ref()
+        .map(|ctx| ctx.derive_namespace())
+        .unwrap_or_else(|| "default".to_string());
 
     // Validate token format
     if !request.token.starts_with("wrap_") {
@@ -494,24 +506,6 @@ pub async fn rewrap_token(
     Ok(Json(ApiResponse::success(response)))
 }
 
-/// Helper to extract namespace from request context
-fn get_namespace_from_context(context: Option<&RequestContext>) -> String {
-    if let Some(ctx) = context {
-        if let Some(claims) = &ctx.jwt_claims {
-            if let Some(satker) = &claims.satker_code {
-                return format!("satker-{}", satker.to_lowercase());
-            }
-            if let Some(wilayah) = &claims.wilayah_code {
-                return format!("wilayah-{}", wilayah.to_lowercase());
-            }
-            if claims.admin_level == secreton_core::namespace::AdminLevel::Pusat {
-                return "pusat".to_string();
-            }
-        }
-    }
-    "default".to_string()
-}
-
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
@@ -528,14 +522,11 @@ mod tests {
     }
 
     #[test]
-    fn test_get_namespace_from_context() {
+    fn test_derive_namespace_integration() {
         use crate::middleware::RequestContext;
         use secreton_core::namespace::{AdminLevel, JwtClaims};
         use std::collections::HashMap;
         use std::time::Instant;
-
-        // Test default (no context)
-        assert_eq!(get_namespace_from_context(None), "default");
 
         // Test satker
         let mut claims = JwtClaims {
@@ -564,10 +555,7 @@ mod tests {
             policy_names: vec![],
         };
 
-        assert_eq!(
-            get_namespace_from_context(Some(&context)),
-            "satker-kja001"
-        );
+        assert_eq!(context.derive_namespace(), "satker-kja001");
 
         // Test wilayah
         claims.satker_code = None;
@@ -576,10 +564,7 @@ mod tests {
             jwt_claims: Some(claims.clone()),
             ..context
         };
-        assert_eq!(
-            get_namespace_from_context(Some(&context)),
-            "wilayah-sumut"
-        );
+        assert_eq!(context.derive_namespace(), "wilayah-sumut");
 
         // Test pusat
         claims.wilayah_code = None;
@@ -588,14 +573,6 @@ mod tests {
             jwt_claims: Some(claims.clone()),
             ..context
         };
-        assert_eq!(get_namespace_from_context(Some(&context)), "pusat");
-
-        // Test fallback
-        claims.admin_level = AdminLevel::EselonI;
-        let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
-        };
-        assert_eq!(get_namespace_from_context(Some(&context)), "default");
+        assert_eq!(context.derive_namespace(), "pusat");
     }
 }

@@ -295,6 +295,25 @@ pub struct RequestContext {
     pub policy_names: Vec<String>,
 }
 
+impl RequestContext {
+    /// Derive namespace from user context
+    /// Prioritizes explicit satker/wilayah codes from JWT claims
+    pub fn derive_namespace(&self) -> String {
+        if let Some(claims) = &self.jwt_claims {
+            if let Some(satker) = &claims.satker_code {
+                return format!("satker-{}", satker.to_lowercase());
+            }
+            if let Some(wilayah) = &claims.wilayah_code {
+                return format!("wilayah-{}", wilayah.to_lowercase());
+            }
+            if claims.admin_level == secreton_core::namespace::AdminLevel::Pusat {
+                return "pusat".to_string();
+            }
+        }
+        "default".to_string()
+    }
+}
+
 /// Rate limiting state
 #[derive(Debug)]
 pub struct RateLimitState {
