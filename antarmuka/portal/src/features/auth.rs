@@ -341,15 +341,19 @@ impl AuthService {
     #[allow(dead_code)]
     pub(crate) fn parse_jwt_claims_internal(token: &str) -> Result<UserSession, String> {
         // JWT format: header.payload.signature
-        let parts: Vec<&str> = token.split('.').collect();
-        if parts.len() != 3 {
+        let mut parts = token.split('.');
+        let _header = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+        let payload_part = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+        let _signature = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+
+        if parts.next().is_some() {
             return Err("Invalid JWT format".to_string());
         }
 
         // Decode base64 payload (part[1])
         use base64::{engine::general_purpose, Engine as _};
         let payload_bytes = general_purpose::URL_SAFE_NO_PAD
-            .decode(parts[1])
+            .decode(payload_part)
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
@@ -685,8 +689,7 @@ impl AuthService {
 
     /// Validate JWT token structure (basic validation)
     pub fn validate_token_structure(token: &str) -> bool {
-        let parts: Vec<&str> = token.split('.').collect();
-        parts.len() == 3
+        token.split('.').count() == 3
     }
 
     /// Check if user has specific permission
