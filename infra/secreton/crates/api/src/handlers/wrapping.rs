@@ -29,7 +29,7 @@
 //! ```
 
 use axum::{
-    Router,
+    Extension, Router,
     extract::{Path, State},
     response::Json,
     routing::{get, post},
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, middleware::RequestContext};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -114,10 +114,11 @@ pub struct WrapDataResponse {
 #[instrument(skip(state, request), fields(ttl = request.ttl))]
 pub async fn wrap_data(
     State(state): State<AppState>,
+    Extension(context): Extension<Option<RequestContext>>,
     Json(request): Json<WrapDataRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context (TODO: implement proper auth extraction)
-    let namespace = "default"; // Placeholder - should come from JWT
+    // Extract namespace from auth context
+    let namespace = get_namespace_from_context(context.as_ref());
 
     // Validate TTL
     if request.ttl == 0 {
@@ -228,10 +229,11 @@ pub struct UnwrapTokenResponse {
 #[instrument(skip(state, request), fields(token = %request.token))]
 pub async fn unwrap_token(
     State(state): State<AppState>,
+    Extension(context): Extension<Option<RequestContext>>,
     Json(request): Json<UnwrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UnwrapTokenResponse>>> {
     // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
+    let namespace = get_namespace_from_context(context.as_ref());
 
     // Validate token format
     if !request.token.starts_with("wrap_") {
@@ -243,7 +245,7 @@ pub async fn unwrap_token(
     // Lookup token first to get metadata
     let token_info = state
         .wrapping_service
-        .lookup(&request.token, namespace)
+        .lookup(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -258,7 +260,7 @@ pub async fn unwrap_token(
     // Unwrap the token
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -320,9 +322,10 @@ pub async fn unwrap_token(
 pub async fn lookup_token(
     State(state): State<AppState>,
     Path(token): Path<String>,
+    Extension(context): Extension<Option<RequestContext>>,
 ) -> ApiResult<Json<ApiResponse<WrappedTokenInfo>>> {
     // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
+    let namespace = get_namespace_from_context(context.as_ref());
 
     // Validate token format
     if !token.starts_with("wrap_") {
@@ -334,7 +337,7 @@ pub async fn lookup_token(
     // Lookup token metadata
     let token_info = state
         .wrapping_service
-        .lookup(&token, namespace)
+        .lookup(&token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -396,10 +399,11 @@ pub struct RewrapTokenRequest {
 #[instrument(skip(state, request), fields(token = %request.token, new_ttl = request.ttl))]
 pub async fn rewrap_token(
     State(state): State<AppState>,
+    Extension(context): Extension<Option<RequestContext>>,
     Json(request): Json<RewrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
     // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
+    let namespace = get_namespace_from_context(context.as_ref());
 
     // Validate token format
     if !request.token.starts_with("wrap_") {
@@ -424,7 +428,7 @@ pub async fn rewrap_token(
     // Unwrap the original token to get data
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -490,6 +494,24 @@ pub async fn rewrap_token(
     Ok(Json(ApiResponse::success(response)))
 }
 
+/// Helper to extract namespace from request context
+fn get_namespace_from_context(context: Option<&RequestContext>) -> String {
+    if let Some(ctx) = context {
+        if let Some(claims) = &ctx.jwt_claims {
+            if let Some(satker) = &claims.satker_code {
+                return format!("satker-{}", satker.to_lowercase());
+            }
+            if let Some(wilayah) = &claims.wilayah_code {
+                return format!("wilayah-{}", wilayah.to_lowercase());
+            }
+            if claims.admin_level == secreton_core::namespace::AdminLevel::Pusat {
+                return "pusat".to_string();
+            }
+        }
+    }
+    "default".to_string()
+}
+
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
@@ -503,5 +525,77 @@ mod tests {
     fn test_token_format_validation() {
         assert!("wrap_abc123".starts_with("wrap_"));
         assert!(!"invalid_token".starts_with("wrap_"));
+    }
+
+    #[test]
+    fn test_get_namespace_from_context() {
+        use crate::middleware::RequestContext;
+        use secreton_core::namespace::{AdminLevel, JwtClaims};
+        use std::collections::HashMap;
+        use std::time::Instant;
+
+        // Test default (no context)
+        assert_eq!(get_namespace_from_context(None), "default");
+
+        // Test satker
+        let mut claims = JwtClaims {
+            sub: "user".into(),
+            name: "User".into(),
+            email: "user@example.com".into(),
+            satker_code: Some("KJA001".into()),
+            wilayah_code: Some("SUMUT".into()),
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".into(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims.clone()),
+            policy_names: vec![],
+        };
+
+        assert_eq!(
+            get_namespace_from_context(Some(&context)),
+            "satker-kja001"
+        );
+
+        // Test wilayah
+        claims.satker_code = None;
+        claims.admin_level = AdminLevel::Wilayah;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(
+            get_namespace_from_context(Some(&context)),
+            "wilayah-sumut"
+        );
+
+        // Test pusat
+        claims.wilayah_code = None;
+        claims.admin_level = AdminLevel::Pusat;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(get_namespace_from_context(Some(&context)), "pusat");
+
+        // Test fallback
+        claims.admin_level = AdminLevel::EselonI;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(get_namespace_from_context(Some(&context)), "default");
     }
 }
