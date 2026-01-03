@@ -714,10 +714,12 @@ pub async fn namespace_access_middleware(
 
                 use secreton_core::namespace::NamespaceAccessControl;
 
-                let hierarchy = state.services.namespace.hierarchy();
-                let access_control = NamespaceAccessControl::new(hierarchy);
+                // Optimization: Use with_hierarchy to avoid cloning the namespace hierarchy
+                let validation_result = state.services.namespace.with_hierarchy(|hierarchy| {
+                    NamespaceAccessControl::verify_access(hierarchy, claims, &ns_id)
+                });
 
-                match access_control.check_access(claims, &ns_id) {
+                match validation_result {
                     Ok(true) => {
                         // Access allowed
                         debug!("Access granted to namespace {}", ns_id);
