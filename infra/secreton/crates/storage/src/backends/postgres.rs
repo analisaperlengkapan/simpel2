@@ -661,6 +661,30 @@ impl StorageBackend for PostgresBackend {
         Ok(())
     }
 
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| StorageError::ConnectionFailed {
+                source: None,
+                message: format!("Failed to get connection: {}", e),
+            })?;
+
+        let query = "DELETE FROM vault_entries WHERE expires_at < NOW()";
+
+        let rows_affected =
+            client
+                .execute(query, &[])
+                .await
+                .map_err(|e| StorageError::QueryFailed {
+                    source: None,
+                    message: format!("Failed to delete expired entries: {}", e),
+                })?;
+
+        Ok(rows_affected)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
