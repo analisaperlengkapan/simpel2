@@ -78,23 +78,23 @@ pub fn App() -> impl IntoView {
                             }
 
                             // Check if token needs refresh
-                            if AuthService::should_refresh_token(&current_session) {
-                                if let Some(refresh_token) = &current_session.refresh_token {
-                                    // Attempt token refresh
-                                    match AuthService::refresh_token(refresh_token).await {
-                                        Ok(token_response) => {
-                                            // Update session with new token
-                                            AuthService::update_session_token(&token_response);
-                                            // Reload session to update UI
-                                            set_user_session.set(AuthService::load_session());
-                                        }
-                                        Err(_) => {
-                                            // Refresh failed - logout
-                                            AuthService::broadcast_logout();
-                                            AuthService::logout();
-                                            set_user_session.set(None);
-                                            break;
-                                        }
+                            if AuthService::should_refresh_token(&current_session)
+                                && let Some(refresh_token) = &current_session.refresh_token
+                            {
+                                // Attempt token refresh
+                                match AuthService::refresh_token(refresh_token).await {
+                                    Ok(token_response) => {
+                                        // Update session with new token
+                                        AuthService::update_session_token(&token_response);
+                                        // Reload session to update UI
+                                        set_user_session.set(AuthService::load_session());
+                                    }
+                                    Err(_) => {
+                                        // Refresh failed - logout
+                                        AuthService::broadcast_logout();
+                                        AuthService::logout();
+                                        set_user_session.set(None);
+                                        break;
                                     }
                                 }
                             }

@@ -249,10 +249,9 @@ where
     // Handle scroll event
     let handle_scroll = move |ev: web_sys::Event| {
         if let Some(target) = ev.target()
-            && let Ok(element) = target.dyn_into::<Element>()
-        {
-            set_scroll_top.set(element.scroll_top() as f64);
-        }
+            && let Ok(element) = target.dyn_into::<Element>() {
+                set_scroll_top.set(element.scroll_top() as f64);
+            }
     };
 
     view! {
@@ -332,18 +331,17 @@ where
         }
 
         if let Some(target) = ev.target()
-            && let Ok(element) = target.dyn_into::<Element>()
-        {
-            let scroll_top = element.scroll_top() as f64;
-            let scroll_height = element.scroll_height() as f64;
-            let client_height = element.client_height() as f64;
+            && let Ok(element) = target.dyn_into::<Element>() {
+                let scroll_top = element.scroll_top() as f64;
+                let scroll_height = element.scroll_height() as f64;
+                let client_height = element.client_height() as f64;
 
-            let distance_to_bottom = scroll_height - (scroll_top + client_height);
+                let distance_to_bottom = scroll_height - (scroll_top + client_height);
 
-            if distance_to_bottom < threshold {
-                on_load_more.run(());
+                if distance_to_bottom < threshold {
+                    on_load_more.run(());
+                }
             }
-        }
     };
 
     view! {

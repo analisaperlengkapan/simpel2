@@ -142,7 +142,7 @@ pub fn FingerprintCollector(
     on_fingerprint_collected: Option<Callback<ClientFingerprintData>>,
 ) -> impl IntoView {
     let config = config.unwrap_or_default();
-    let (fingerprint_data, set_fingerprint_data) = signal(None::<ClientFingerprintData>);
+    let (_fingerprint_data, set_fingerprint_data) = signal(None::<ClientFingerprintData>);
 
     // Collect fingerprint on mount
     Effect::new(move |_| {
@@ -151,7 +151,7 @@ pub fn FingerprintCollector(
             if let Ok(fingerprint) = collect_fingerprint(&config_clone).await {
                 set_fingerprint_data.set(Some(fingerprint.clone()));
 
-                if let Some(callback) = on_fingerprint_collected {
+                if let Some(_callback) = on_fingerprint_collected {
                     // callback(fingerprint);
                 }
             }

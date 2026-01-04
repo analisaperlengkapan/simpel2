@@ -1,4 +1,5 @@
 use axum::serve;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -52,6 +53,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create KV engine (shared between REST and gRPC)
     let kv_engine = Arc::new(KVEngine::new());
 
+    info!("Initializing metrics recorder...");
+    // Initialize Prometheus recorder
+    let builder = PrometheusBuilder::new();
+    let prometheus_handle = builder
+        .install_recorder()
+        .map_err(|e| {
+            error!("Failed to install metrics recorder: {}", e);
+            e
+        })
+        .ok();
+
+    if prometheus_handle.is_some() {
+        info!("Metrics recorder installed successfully");
+    } else {
+        warn!("Metrics recorder could not be installed");
+    }
+
     info!("Creating API state...");
     // Create API state for REST server (includes ServiceContainer)
     let api_state = ApiState {
@@ -61,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         kv: KVApiState { engine: kv_engine },
         pki: PkiApiState::default(),
         services: Arc::clone(&services),
+        prometheus_handle,
     };
 
     info!("Creating router...");

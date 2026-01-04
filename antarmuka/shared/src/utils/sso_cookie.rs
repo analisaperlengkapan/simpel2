@@ -9,6 +9,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, window};
 
 /// SSO session data (matches backend SsoSession structure)
+///
 /// This structure mirrors the backend implementation in:
 /// `infra/authenc/src/utils/sso_cookie.rs`
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -66,6 +67,7 @@ impl SsoSession {
 }
 
 /// SSO Cookie Reader for frontend
+///
 /// Reads and validates SSO cookies set by the Authenc backend.
 /// Cookie name: AUTHENC_SSO (configurable in backend)
 pub struct SsoCookieReader {
@@ -151,6 +153,7 @@ impl Default for SsoCookieReader {
 }
 
 /// Convert SsoSession to UserSession (for use_auth hook)
+///
 /// This function bridges the SSO cookie data with the existing
 /// authentication system in shared microfrontend.
 impl From<SsoSession> for crate::hooks::use_auth::UserSession {
@@ -194,17 +197,22 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
 }
 
 /// Initialize authentication from SSO cookie
+///
 /// This function should be called during app initialization to
 /// restore session from SSO cookie if available.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::sso_cookie::init_auth_from_sso_cookie;
+/// use leptos::prelude::*;
+///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     // Initialize auth from SSO cookie on mount
-///     create_effect(move |_| {
+///     Effect::new(move |_| {
 ///         init_auth_from_sso_cookie();
 ///     });
+///
 ///     view! {
 ///         // Your app content
 ///     }
@@ -228,10 +236,9 @@ pub fn init_auth_from_sso_cookie() {
 
         // Also save to localStorage for persistence
         if let Some(storage) = window().and_then(|w| w.local_storage().ok()).flatten()
-            && let Ok(json) = serde_json::to_string(&user_session)
-        {
-            let _ = storage.set_item("user_session", &json);
-        }
+            && let Ok(json) = serde_json::to_string(&user_session) {
+                let _ = storage.set_item("user_session", &json);
+            }
 
         // Set in auth context (after localStorage to avoid move issue)
         auth.session.set(Some(user_session));
@@ -239,17 +246,22 @@ pub fn init_auth_from_sso_cookie() {
 }
 
 /// Check SSO session validity periodically
+///
 /// This function sets up a periodic check to validate SSO session
 /// and logout if session expires.
+///
 /// # Example
 /// ```rust
 /// use shared_microfrontend::utils::sso_cookie::setup_sso_session_monitor;
+/// use leptos::prelude::*;
+///
 /// #[component]
 /// pub fn App() -> impl IntoView {
 ///     // Setup SSO session monitoring on mount
-///     create_effect(move |_| {
+///     Effect::new(move |_| {
 ///         setup_sso_session_monitor(60000); // Check every 60 seconds
 ///     });
+///
 ///     view! {
 ///         // Your app content
 ///     }

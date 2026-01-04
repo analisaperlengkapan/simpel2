@@ -1,20 +1,103 @@
 //! Authentication service for user management and token validation.
 
 use anyhow::Result;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::config::AuthConfig;
-use secreton_crypto::CryptoEngine;
-use secreton_storage::StorageBackend;
+use secreton_crypto::{CryptoEngine, AlgorithmId};
+use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use totp_rs::{Algorithm as TotpAlgorithm, Secret, TOTP};
 
 // Use canonical User from core
 pub use secreton_core::models::User;
 
 // Use consolidated AuthError from error module
 pub use crate::error::AuthError;
+
+/// Root user ID (nil UUID) used for initial bootstrap and recovery
+pub const ROOT_USER_ID: &str = "00000000-0000-0000-0000-000000000000";
+
+const USER_PATH_PREFIX: &str = "auth/users";
+const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
+
+/// User Data Transfer Object for storage persistence
+///
+/// This struct mirrors the core `User` model but ensures all fields,
+/// specifically `password_hash`, are serialized for storage.
+/// The core `User` model skips serialization of `password_hash` for API security.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredUser {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub full_name: Option<String>,
+    pub is_active: bool,
+    pub is_superuser: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub last_login: Option<chrono::DateTime<chrono::Utc>>,
+    pub mfa_enabled: bool,
+    pub roles: HashSet<String>,
+    pub namespace: String,
+    pub is_locked: bool,
+    pub failed_attempts: u32,
+    pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
+    pub metadata: HashMap<String, String>,
+}
+
+impl From<&User> for StoredUser {
+    fn from(user: &User) -> Self {
+        Self {
+            id: user.id,
+            username: user.username.clone(),
+            email: user.email.clone(),
+            password_hash: user.password_hash.clone(),
+            full_name: user.full_name.clone(),
+            is_active: user.is_active,
+            is_superuser: user.is_superuser,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+            last_login: user.last_login,
+            mfa_enabled: user.mfa_enabled,
+            roles: user.roles.clone(),
+            namespace: user.namespace.clone(),
+            is_locked: user.is_locked,
+            failed_attempts: user.failed_attempts,
+            locked_until: user.locked_until,
+            metadata: user.metadata.clone(),
+        }
+    }
+}
+
+impl From<StoredUser> for User {
+    fn from(stored: StoredUser) -> Self {
+        Self {
+            id: stored.id,
+            username: stored.username,
+            email: stored.email,
+            password_hash: stored.password_hash,
+            full_name: stored.full_name,
+            is_active: stored.is_active,
+            is_superuser: stored.is_superuser,
+            created_at: stored.created_at,
+            updated_at: stored.updated_at,
+            last_login: stored.last_login,
+            mfa_enabled: stored.mfa_enabled,
+            roles: stored.roles,
+            namespace: stored.namespace,
+            is_locked: stored.is_locked,
+            failed_attempts: stored.failed_attempts,
+            locked_until: stored.locked_until,
+            metadata: stored.metadata,
+        }
+    }
+}
 
 /// Role definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +132,27 @@ pub struct AuthToken {
     pub token_type: String,
     pub expires_in: u64,
     pub user: User,
+}
+
+/// JWT Claims
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+    iss: String,
+    aud: String,
+    exp: usize,
+    iat: usize,
+    jti: String,
+    roles: Vec<String>,
+    token_type: String, // "access" or "refresh"
+    // Extended claims for stateless validation
+    username: String,
+    email: String,
+    full_name: Option<String>,
+    is_superuser: bool,
+    is_active: bool,
+    mfa_enabled: bool,
+    namespace: String,
 }
 
 /// Authentication service
@@ -101,7 +205,7 @@ impl AuthService {
         // Check MFA if enabled
         if user.mfa_enabled {
             if let Some(code) = mfa_code {
-                self.verify_mfa_code(&user, code)?;
+                self.verify_mfa_code(&user, code).await?;
             } else {
                 return Err(AuthError::MfaRequired);
             }
@@ -142,31 +246,56 @@ impl AuthService {
 
     /// Validate access token
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
-        // TODO: Implement JWT token validation
-        // 1. Parse JWT token
-        // 2. Verify signature
-        // 3. Check expiration
-        // 4. Get user from token claims
-        // 5. Verify session still exists
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
-        // For now, return mock user
+        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+            |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
+        )?);
+
+        // Validation requires setting audience and issuer
+        validation.set_audience(&[&self.config.jwt.audience]);
+        validation.set_issuer(&[&self.config.jwt.issuer]);
+
+        // DecodingKey from secret
+        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+
+        let token_data = decode::<Claims>(token, &decoding_key, &validation)
+            .map_err(|e| match e.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                _ => AuthError::InvalidToken,
+            })?;
+
+        let claims = token_data.claims;
+
+        // Enforce token type
+        if claims.token_type != "access" {
+            return Err(AuthError::InvalidToken);
+        }
+
+        // Reconstruct user from claims
+        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AuthError::InvalidToken)?;
+
+        // Note: In a stateful system, we might check session validity or user status in DB here.
+        // For stateless/cached auth, we rely on the token signature and expiration.
+
         Ok(User {
-            id: Uuid::new_v4(),
-            username: "testuser".to_string(),
-            email: "test@example.com".to_string(),
-            password_hash: String::new(),
-            full_name: Some("Test User".to_string()),
-            is_active: true,
-            is_superuser: false,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            last_login: Some(chrono::Utc::now()),
-            mfa_enabled: false,
-            roles: HashSet::new(),
-            namespace: "default".to_string(),
+            id: user_id,
+            username: claims.username,
+            email: claims.email,
+            password_hash: String::new(), // Not present in token
+            full_name: claims.full_name,
+            is_active: claims.is_active,
+            is_superuser: claims.is_superuser,
+            created_at: chrono::Utc::now(), // Approximation
+            updated_at: chrono::Utc::now(), // Approximation
+            last_login: Some(chrono::Utc::now()), // Active now
+            mfa_enabled: claims.mfa_enabled,
+            roles: claims.roles.into_iter().collect(),
+            namespace: claims.namespace,
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(), // Metadata not currently in JWT
         })
     }
 
@@ -189,6 +318,7 @@ impl AuthService {
         password: &str,
         full_name: Option<&str>,
         roles: Vec<String>,
+        metadata: Option<HashMap<String, String>>,
     ) -> Result<User, AuthError> {
         // Check if user already exists
         if self.user_exists(username).await? {
@@ -215,7 +345,38 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: metadata.unwrap_or_default(),
         };
+
+        self.store_user(&user).await?;
+        Ok(user)
+    }
+
+    /// Update user details
+    pub async fn update_user(
+        &self,
+        user_id: &str,
+        email: Option<String>,
+        full_name: Option<String>,
+        is_active: Option<bool>,
+        metadata: Option<HashMap<String, String>>,
+    ) -> Result<User, AuthError> {
+        let mut user = self.get_user(user_id).await?;
+
+        if let Some(email) = email {
+            user.email = email;
+        }
+        if let Some(full_name) = full_name {
+            user.full_name = Some(full_name);
+        }
+        if let Some(is_active) = is_active {
+            user.is_active = is_active;
+        }
+        if let Some(metadata) = metadata {
+            user.metadata = metadata;
+        }
+
+        user.updated_at = chrono::Utc::now();
 
         self.store_user(&user).await?;
         Ok(user)
@@ -223,14 +384,37 @@ impl AuthService {
 
     /// Get user by ID
     pub async fn get_user(&self, user_id: &str) -> Result<User, AuthError> {
-        // TODO: Implement user retrieval from storage
-        Err(AuthError::UserNotFound)
+        let uuid = Uuid::parse_str(user_id)
+            .map_err(|_| AuthError::UserNotFound)?;
+
+        let path = format!("auth/users/{}", uuid);
+        let entry = self.storage.get_by_path(&path).await
+            .map_err(|e| AuthError::Internal(format!("Failed to retrieve user: {}", e)))?;
+
+        match entry {
+            Some(entry) => self.decrypt_user(entry),
+            None => Err(AuthError::UserNotFound),
+        }
     }
 
     /// Get user by username
     pub async fn get_user_by_username(&self, username: &str) -> Result<User, AuthError> {
-        // TODO: Implement user retrieval from storage by username
-        Err(AuthError::UserNotFound)
+        let path = format!("auth/usernames/{}", username);
+        let index_entry = self.storage.get_by_path(&path).await
+            .map_err(|e| AuthError::Internal(format!("Failed to retrieve user index: {}", e)))?;
+
+        match index_entry {
+            Some(entry) => {
+                let uuid_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+                    .map_err(|e| AuthError::Internal(format!("Failed to decrypt user index: {}", e)))?;
+
+                let uuid_str = String::from_utf8(uuid_bytes)
+                    .map_err(|e| AuthError::Internal(format!("Invalid UUID string in index: {}", e)))?;
+
+                self.get_user(&uuid_str).await
+            }
+            None => Err(AuthError::UserNotFound),
+        }
     }
 
     /// Check if user has permission
@@ -265,6 +449,23 @@ impl AuthService {
         }
 
         Ok(false)
+    }
+
+    /// Check if user has a specific role
+    pub async fn has_role(&self, user_id: &str, role: &str) -> Result<bool, AuthError> {
+        // Special case for root user
+        if user_id == ROOT_USER_ID {
+            return Ok(true);
+        }
+
+        let user = self.get_user(user_id).await?;
+
+        // Superusers have all roles implicitly
+        if user.is_superuser {
+            return Ok(true);
+        }
+
+        Ok(user.has_role(role))
     }
 
     /// Get role by name
@@ -351,25 +552,173 @@ impl AuthService {
     }
 
     /// Verify MFA code
-    fn verify_mfa_code(&self, user: &User, code: &str) -> Result<(), AuthError> {
-        // TODO: Implement TOTP verification
-        if code == "123456" {
-            Ok(())
+    async fn verify_mfa_code(&self, user: &User, code: &str) -> Result<(), AuthError> {
+        let secret = self.get_mfa_secret(&user.id.to_string()).await?;
+
+        if let Some(secret_str) = secret {
+            // Check if user has TOTP enabled
+            let totp = TOTP::new(
+                TotpAlgorithm::SHA1,
+                6,
+                1,
+                30,
+                Secret::Raw(secret_str.into_bytes()).to_bytes().unwrap(),
+            ).map_err(|e| AuthError::Internal(format!("Failed to create TOTP instance: {}", e)))?;
+
+            let valid = totp.check_current(code).map_err(|e| AuthError::Internal(format!("Failed to verify code: {}", e)))?;
+            if valid {
+                Ok(())
+            } else {
+                Err(AuthError::InvalidMfaCode)
+            }
         } else {
-            Err(AuthError::InvalidMfaCode)
+            // If MFA is enabled but no secret is found, we cannot verify the code.
+            // This is a system inconsistency or setup issue.
+            Err(AuthError::Internal("MFA enabled but no secret found".to_string()))
         }
+    }
+
+    /// Retrieve and decrypt MFA secret
+    async fn get_mfa_secret(&self, user_id: &str) -> Result<Option<String>, AuthError> {
+        let path = format!("sys/mfa/{}/totp", user_id);
+
+        if let Some(entry) = self.storage.get_by_path(&path).await.map_err(|e| AuthError::Internal(e.to_string()))? {
+            // Derive key using PBKDF2 with user ID as salt
+            let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
+                self.config.jwt.secret.as_bytes(),
+                user_id.as_bytes(),
+                10000,
+                32
+            ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+
+            // Decrypt the secret
+            let encrypted = secreton_crypto::EncryptedData {
+                algorithm: AlgorithmId::Aes256Gcm, // Assuming AES-256-GCM as standard
+                nonce: entry.encryption_metadata["nonce"].as_str()
+                    .and_then(|s| hex::decode(s).ok())
+                    .unwrap_or_default(),
+                ciphertext: entry.encrypted_data,
+                tag: None,
+            };
+
+            let secret_bytes = self.crypto.decrypt(&encrypted, &key)
+                .map_err(|e| AuthError::Internal(format!("Decryption failed: {}", e)))?;
+
+            Ok(Some(String::from_utf8(secret_bytes).map_err(|_| AuthError::Internal("Invalid UTF-8 in secret".to_string()))?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Store MFA secret (helper for setup)
+    pub async fn store_mfa_secret(&self, user_id: &str, secret: &str) -> Result<(), AuthError> {
+        let path = format!("sys/mfa/{}/totp", user_id);
+
+        // Derive key
+        let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
+            self.config.jwt.secret.as_bytes(),
+            user_id.as_bytes(),
+            10000,
+            32
+        ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+
+        // Encrypt secret
+        let encrypted = self.crypto.encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
+            .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            path,
+            encrypted.ciphertext,
+            serde_json::json!({
+                "nonce": hex::encode(encrypted.nonce),
+                "algorithm": "Aes256Gcm"
+            }),
+            SecurityLevel::Secret,
+            "system".to_string(),
+        );
+
+        self.storage.store(&entry).await.map_err(|e| AuthError::Internal(e.to_string()))?;
+        Ok(())
     }
 
     /// Create access token (JWT)
     fn create_access_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
-        // TODO: Implement JWT token creation
-        Ok(format!("access_token_for_{}", user.username))
+        let now = chrono::Utc::now();
+        let expiration = now
+            + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64);
+
+        let mut roles: Vec<String> = user.roles.iter().cloned().collect();
+        roles.sort();
+
+        let claims = Claims {
+            sub: user.id.to_string(),
+            iss: self.config.jwt.issuer.clone(),
+            aud: self.config.jwt.audience.clone(),
+            exp: expiration.timestamp() as usize,
+            iat: now.timestamp() as usize,
+            jti: session_id.to_string(),
+            roles,
+            token_type: "access".to_string(),
+            username: user.username.clone(),
+            email: user.email.clone(),
+            full_name: user.full_name.clone(),
+            is_superuser: user.is_superuser,
+            is_active: user.is_active,
+            mfa_enabled: user.mfa_enabled,
+            namespace: user.namespace.clone(),
+        };
+
+        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+            .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
+
+        let header = Header::new(algorithm);
+
+        encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+        )
+        .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
 
     /// Create refresh token
     fn create_refresh_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
-        // TODO: Implement refresh token creation
-        Ok(format!("refresh_token_for_{}", user.username))
+        let now = chrono::Utc::now();
+        let expiration = now
+            + chrono::Duration::seconds(self.config.jwt.refresh_expiration.as_secs() as i64);
+
+        let mut roles: Vec<String> = user.roles.iter().cloned().collect();
+        roles.sort();
+
+        let claims = Claims {
+            sub: user.id.to_string(),
+            iss: self.config.jwt.issuer.clone(),
+            aud: self.config.jwt.audience.clone(),
+            exp: expiration.timestamp() as usize,
+            iat: now.timestamp() as usize,
+            jti: session_id.to_string(),
+            roles,
+            token_type: "refresh".to_string(),
+            username: user.username.clone(),
+            email: user.email.clone(),
+            full_name: user.full_name.clone(),
+            is_superuser: user.is_superuser,
+            is_active: user.is_active,
+            mfa_enabled: user.mfa_enabled,
+            namespace: user.namespace.clone(),
+        };
+
+        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+            .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
+
+        let header = Header::new(algorithm);
+
+        encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+        )
+        .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
 
     /// Check if user exists
@@ -383,7 +732,26 @@ impl AuthService {
 
     /// Store user in storage
     async fn store_user(&self, user: &User) -> Result<(), AuthError> {
-        // TODO: Implement user storage
+        // Store user entry
+        let entry = self.encrypt_user(user)?;
+        self.storage.store(&entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store user: {}", e)))?;
+
+        // Store username index
+        let uuid_bytes = user.id.to_string().into_bytes();
+        let encrypted_uuid = self.crypto.encrypt_simple(&uuid_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt user index: {}", e)))?;
+
+        let index_entry = VaultEntry::new(
+            format!("auth/usernames/{}", user.username),
+            encrypted_uuid,
+            serde_json::json!({"method": "simple", "target": "user_id"}),
+            SecurityLevel::Internal,
+            "system".to_string(),
+        );
+
+        self.storage.store(&index_entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store user index: {}", e)))?;
         Ok(())
     }
 
@@ -403,6 +771,37 @@ impl AuthService {
     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
         // TODO: Implement last login update
         Ok(())
+    }
+
+    /// Encrypt user for storage
+    fn encrypt_user(&self, user: &User) -> Result<VaultEntry, AuthError> {
+        let stored_user = StoredUser::from(user);
+        let user_bytes = serde_json::to_vec(&stored_user)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize user: {}", e)))?;
+
+        let encrypted_data = self.crypto.encrypt_simple(&user_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt user: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/users/{}", user.id),
+            encrypted_data,
+            serde_json::json!({"method": "simple"}),
+            SecurityLevel::Confidential,
+            user.id.to_string(),
+        );
+
+        Ok(entry)
+    }
+
+    /// Decrypt user from storage
+    fn decrypt_user(&self, entry: VaultEntry) -> Result<User, AuthError> {
+        let decrypted_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+            .map_err(|e| AuthError::Internal(format!("Failed to decrypt user: {}", e)))?;
+
+        let stored_user: StoredUser = serde_json::from_slice(&decrypted_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to deserialize user: {}", e)))?;
+
+        Ok(User::from(stored_user))
     }
 }
 
@@ -459,9 +858,10 @@ mod tests {
             .expect("service");
 
         // Insert a user with MFA enabled by mocking storage behavior via store_user and get_user_by_username
-        let password_hash = auth_service.hash_password("password").unwrap_or_default();
+        let password_hash = auth_service.hash_password("password").expect("hash password failed");
+        let user_id = Uuid::new_v4();
         let user = User {
-            id: Uuid::new_v4(),
+            id: user_id,
             username: "alice".into(),
             email: "alice@example.com".into(),
             password_hash,
@@ -477,20 +877,60 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         auth_service.store_user(&user).await;
 
+        // Test missing code
         let result = auth_service
             .authenticate("alice", "password", None, "127.0.0.1", "test-agent")
             .await;
         assert!(matches!(result, Err(AuthError::MfaRequired)));
 
+        // Test system inconsistency (MFA enabled but no secret)
         let result = auth_service
             .authenticate(
                 "alice",
                 "password",
                 Some("123456"),
+                "127.0.0.1",
+                "test-agent",
+            )
+            .await;
+        assert!(matches!(result, Err(AuthError::Internal(_))));
+
+        // Setup real TOTP
+        let totp_secret = Secret::Raw("JBSWY3DPEHPK3PXP".as_bytes().to_vec()).to_encoded().to_string();
+        auth_service.store_mfa_secret(&user_id.to_string(), &totp_secret).await.expect("store secret");
+
+        // Test invalid code
+        let result = auth_service
+            .authenticate(
+                "alice",
+                "password",
+                Some("000000"),
+                "127.0.0.1",
+                "test-agent",
+            )
+            .await;
+        assert!(matches!(result, Err(AuthError::InvalidMfaCode)));
+
+        // Test valid code
+        let totp = TOTP::new(
+            TotpAlgorithm::SHA1,
+            6,
+            1,
+            30,
+            Secret::Raw(totp_secret.into_bytes()).to_bytes().unwrap(),
+        ).unwrap();
+        let code = totp.generate_current().unwrap();
+
+        let result = auth_service
+            .authenticate(
+                "alice",
+                "password",
+                Some(&code),
                 "127.0.0.1",
                 "test-agent",
             )
@@ -523,6 +963,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         // admin role already initialized in service with "*"
@@ -564,12 +1005,152 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
         let allowed = service
             .has_permission(&user, "vault:read")
             .await
             .expect("permission");
         assert!(allowed);
+    }
+
+    #[tokio::test]
+    async fn test_create_access_token() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let mut config = AuthConfig::default();
+        config.jwt.secret = "test_secret".to_string();
+        config.jwt.issuer = "test_issuer".to_string();
+        config.jwt.audience = "test_audience".to_string();
+
+        let auth_service = AuthService::new(storage, crypto, &config)
+            .await
+            .expect("service");
+
+        let user = User {
+            id: Uuid::new_v4(),
+            username: "test_token".into(),
+            email: "token@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::from(["user".to_string()]),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+            metadata: HashMap::new(),
+        };
+
+        let session_id = Uuid::new_v4().to_string();
+        let token = auth_service
+            .create_access_token(&user, &session_id)
+            .expect("create token");
+
+        assert!(!token.is_empty());
+
+        // Decode to verify
+        use jsonwebtoken::{decode, DecodingKey, Validation};
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.set_audience(&["test_audience"]);
+        validation.set_issuer(&["test_issuer"]);
+
+        let token_data = decode::<Claims>(
+            &token,
+            &DecodingKey::from_secret("test_secret".as_bytes()),
+            &validation,
+        )
+        .expect("decode token");
+
+        assert_eq!(token_data.claims.sub, user.id.to_string());
+        assert_eq!(token_data.claims.jti, session_id);
+        assert_eq!(token_data.claims.token_type, "access");
+        assert!(token_data.claims.roles.contains(&"user".to_string()));
+        assert_eq!(token_data.claims.username, user.username);
+        assert_eq!(token_data.claims.email, user.email);
+
+        // Verify validate_token works
+        let validated_user = auth_service.validate_token(&token).await.expect("validate");
+        assert_eq!(validated_user.id, user.id);
+        assert_eq!(validated_user.username, "test_token");
+        assert!(validated_user.has_role("user"));
+    }
+
+    #[tokio::test]
+    async fn test_has_role() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let auth_service = AuthService::new(storage.clone(), crypto, &AuthConfig::default())
+            .await
+            .expect("service");
+
+        let mut user = User {
+            id: Uuid::new_v4(),
+            username: "test_role".into(),
+            email: "role@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+        };
+
+        // Store user
+        auth_service.store_user(&user).await.expect("store user");
+
+        // Check no role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(!has_admin);
+
+        // Add role
+        user.roles.insert("admin".to_string());
+        auth_service.store_user(&user).await.expect("update user");
+
+        // Check role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+
+        // Check superuser
+        user.is_superuser = true;
+        user.roles.clear();
+        auth_service.store_user(&user).await.expect("update user");
+
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+        let has_random = auth_service
+            .has_role(&user.id.to_string(), "random")
+            .await
+            .expect("check role");
+        assert!(has_random);
+
+        // Check root user
+        let has_admin = auth_service
+            .has_role(ROOT_USER_ID, "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
     }
 }
 

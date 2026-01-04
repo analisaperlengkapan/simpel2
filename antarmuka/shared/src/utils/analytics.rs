@@ -464,15 +464,14 @@ async fn send_event_to_service(event: UserEvent) -> Result<(), JsValue> {
 pub fn track_session_duration() {
     unsafe {
         if let Some(analytics) = (*std::ptr::addr_of!(ANALYTICS)).as_ref()
-            && let Some(duration) = analytics.get_page_duration()
-        {
-            let mut properties = HashMap::new();
-            properties.insert("duration_ms".to_string(), serde_json::json!(duration));
-            track_event(
-                EventType::Custom("session_duration".to_string()),
-                properties,
-            );
-        }
+            && let Some(duration) = analytics.get_page_duration() {
+                let mut properties = HashMap::new();
+                properties.insert("duration_ms".to_string(), serde_json::json!(duration));
+                track_event(
+                    EventType::Custom("session_duration".to_string()),
+                    properties,
+                );
+            }
     }
 }
 

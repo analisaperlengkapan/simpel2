@@ -29,8 +29,9 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (error_message, set_error_message) = signal(String::new());
     let (is_loading, set_is_loading) = signal(false);
     let (is_generating, set_is_generating) = signal(true);
-    let (_captcha_token, set_captcha_token) = signal(None::<String>);
+    let (captcha_token, set_captcha_token) = signal(None::<String>);
     let (show_captcha, set_show_captcha) = signal(false);
+    let _ = captcha_token;
     let (_risk_score, set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
@@ -70,6 +71,9 @@ pub fn MfaSetupPage() -> impl IntoView {
             }
         });
     });
+
+    // Suppress unused warning for captcha_token until it's used
+    let _ = captcha_token;
 
     // Handle CAPTCHA completion for high-risk scenarios
     let handle_captcha_success = move |token: String| {
@@ -344,6 +348,7 @@ pub fn MfaSetupPage() -> impl IntoView {
 
 /// API response structure for MFA setup
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaSetupResponse {
     success: bool,
     data: MfaSetupData,
@@ -352,6 +357,7 @@ struct MfaSetupResponse {
 
 /// API response structure for MFA verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyResponse {
     success: bool,
     data: MfaVerifyData,
@@ -359,6 +365,7 @@ struct MfaVerifyResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct MfaVerifyData {
     mfa_enabled: bool,
     setup_completed_at: String,
@@ -366,18 +373,21 @@ struct MfaVerifyData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiErrorResponse {
     success: bool,
     error: ApiError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct ApiError {
     code: String,
     message: String,
 }
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }
@@ -547,6 +557,7 @@ async fn verify_mfa_setup(code: &str) -> Result<(), Box<dyn std::error::Error>> 
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let _ = code; // Suppress unused warning
         Err("MFA verification not available in non-WASM environment".into())
     }
 }

@@ -4,7 +4,7 @@ use leptos::prelude::*;
 
 /// Military Case Header Component
 #[component]
-fn MilitaryHeader(
+pub fn MilitaryHeader(
     #[prop(into)] title: String,
     #[prop(into)] subtitle: String,
     #[prop(optional)] icon_class: Option<String>,
@@ -26,7 +26,7 @@ fn MilitaryHeader(
 
 /// Case Status Badge Component
 #[component]
-fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
+pub fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
     let (class, text) = match status {
         CaseStatus::Reported => ("bg-blue-100 text-blue-800", "Dilaporkan"),
         CaseStatus::UnderInvestigation => ("bg-yellow-100 text-yellow-800", "Dalam Penyidikan"),
@@ -50,7 +50,7 @@ fn CaseStatusBadge(status: CaseStatus) -> impl IntoView {
 
 /// Priority Badge Component
 #[component]
-fn PriorityBadge(priority: CasePriority) -> impl IntoView {
+pub fn PriorityBadge(priority: CasePriority) -> impl IntoView {
     let (class, text) = match priority {
         CasePriority::Low => ("bg-gray-100 text-gray-800", "Rendah"),
         CasePriority::Medium => ("bg-blue-100 text-blue-800", "Sedang"),
@@ -68,7 +68,7 @@ fn PriorityBadge(priority: CasePriority) -> impl IntoView {
 
 /// Statistics Card Component for Military Dashboard
 #[component]
-fn MilitaryStatCard(
+pub fn MilitaryStatCard(
     #[prop(into)] title: String,
     #[prop(into)] value: String,
     #[prop(into)] icon: String,
@@ -98,7 +98,7 @@ fn MilitaryStatCard(
 
 /// Military Search Input Component
 #[component]
-fn MilitarySearchInput(
+pub fn MilitarySearchInput(
     #[prop(into)] placeholder: String,
     #[prop(optional)] on_search: Option<leptos::callback::Callback<String>>,
 ) -> impl IntoView {
@@ -128,7 +128,7 @@ fn MilitarySearchInput(
 
 /// Action Button Component
 #[component]
-fn MilitaryActionButton(
+pub fn MilitaryActionButton(
     #[prop(into)] label: String,
     #[prop(into)] action: String,
     #[prop(optional)] variant: Option<String>,
@@ -156,7 +156,7 @@ fn MilitaryActionButton(
 
 /// Progress Bar Component
 #[component]
-fn ProgressBar(#[prop()] percentage: u8, #[prop(optional)] color: Option<String>) -> impl IntoView {
+pub fn ProgressBar(#[prop()] percentage: u8, #[prop(optional)] color: Option<String>) -> impl IntoView {
     let color_class = color.unwrap_or_else(|| "red".to_string());
     let progress_class = format!("bg-{color_class}-600");
     let bg_class = format!("bg-{color_class}-200");

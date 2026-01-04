@@ -123,7 +123,7 @@ impl AdminService {
         let _audit_count = self.audit.count().await;
 
         // Calculate uptime
-        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds().max(0) as u64;
+        let uptime_seconds = self.start_time.elapsed().as_secs();
 
         // TODO: Get actual user and session counts from auth service
         // For now, using placeholder values as auth service doesn't expose these stats yet
@@ -137,7 +137,7 @@ impl AdminService {
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
-            cache_hit_rate: 0.0,      // TODO: Implement cache hit rate tracking
+            cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
         })
     }
@@ -648,6 +648,7 @@ mod tests {
         assert_eq!(stats.total_keys, 0);
         assert_eq!(stats.storage_usage_bytes, 0);
         assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
+        assert!(stats.cache_hit_rate >= 0.0);
     }
 
     #[tokio::test]

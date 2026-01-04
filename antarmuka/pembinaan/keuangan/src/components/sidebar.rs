@@ -4,7 +4,7 @@ use leptos::prelude::*;
 #[component]
 pub fn Sidebar(
     /// Sidebar open state signal
-    _sidebar_open: RwSignal<bool>,
+    sidebar_open: RwSignal<bool>,
 ) -> impl IntoView {
     // Reactive signals for collapsible sections
     let dashboard_rw = RwSignal::new(false);
@@ -16,9 +16,15 @@ pub fn Sidebar(
     let bantuan_rw = RwSignal::new(false);
 
     view! {
-        <div class="h-full bg-white border-r border-gray-200 w-64 overflow-y-auto">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
+        <div
+            class=move || format!(
+                "fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 {}",
+                if sidebar_open.get() { "translate-x-0" } else { "-translate-x-full" }
+            )
+        >
+            <div class="h-full overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">
                         "K"
                     </div>
@@ -117,6 +123,14 @@ pub fn Sidebar(
                     ]
                 />
             </nav>
+            </div>
         </div>
+        // Overlay for mobile
+        {move || sidebar_open.get().then(|| view! {
+            <div
+                class="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden"
+                on:click=move |_| sidebar_open.set(false)
+            ></div>
+        })}
     }
 }

@@ -5,7 +5,8 @@ use crate::error::MonsaktiError;
 use serde_json::Value;
 
 /// Strategy untuk menyimpan data
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum StorageStrategy {
     /// Simpan ke file JSON
     JsonFile { base_dir: String },
@@ -82,6 +83,7 @@ impl StorageStrategy {
         Ok(())
     }
 }
+
 
 /// Helper untuk membuat storage strategy dari environment variable
 pub fn storage_from_env() -> StorageStrategy {

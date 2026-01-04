@@ -107,6 +107,7 @@ async fn handle_migrate(direction: String, steps: Option<u32>) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn migrate_sqlx_to_tokio_postgres(_src_path: &str) -> Result<()> {
     println!(
         "{}",
@@ -134,11 +135,8 @@ async fn handle_db_status() -> Result<()> {
     // For now, we'll just show the configuration
     if let Ok(database_url) = std::env::var("DATABASE_URL") {
         println!(
-            "{}",
-            format!(
-                "✅ Database URL configured: {}",
-                database_url.split('@').next_back().unwrap_or("unknown")
-            )
+            "✅ Database URL configured: {}",
+            database_url.split('@').next_back().unwrap_or("unknown")
         );
     } else {
         println!("{}", "⚠️  DATABASE_URL not set".yellow());

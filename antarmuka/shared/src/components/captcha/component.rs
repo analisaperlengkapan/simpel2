@@ -39,7 +39,7 @@ pub fn Captcha(
     // Accessibility state
     let (current_focus, set_current_focus) = signal(None::<String>);
     let (announcements, set_announcements) = signal(Vec::<String>::new());
-    let (show_alternative_inputs, set_show_alternative_inputs) = signal(false);
+    let (show_alternative_inputs, _set_show_alternative_inputs) = signal(false);
 
     // Behavioral analysis state
     let (behavioral_metrics, set_behavioral_metrics) =
@@ -232,7 +232,7 @@ pub fn Captcha(
     ];
 
     // Add announcement helper
-    let announce = move |message: String| {
+    let _announce = move |message: String| {
         set_announcements.update(|announcements| {
             announcements.push(message);
             // Keep only last 3 announcements
@@ -480,11 +480,25 @@ pub fn ChallengeDisplay(
     let (audio_playing, set_audio_playing) = signal(false);
 
     // Handle audio challenge playback
+    let challenge_data_for_audio = challenge_data.clone();
     let play_audio = move |_| {
         set_audio_playing.set(true);
-        // TODO: Implement actual audio playback
+        let challenge_data = challenge_data_for_audio.clone();
+
         spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(2000).await;
+            let mut audio_played = false;
+
+            if let Some(data) = challenge_data {
+                if play_audio_content(data.challenge_data).await.is_ok() {
+                    audio_played = true;
+                }
+            }
+
+            if !audio_played {
+                // Fallback if no audio played
+                gloo_timers::future::TimeoutFuture::new(1000).await;
+            }
+
             set_audio_playing.set(false);
         });
     };
@@ -513,6 +527,7 @@ pub fn ChallengeDisplay(
                 </div>
 
                 {if accessibility_enabled && challenge_type != ChallengeType::Audio {
+                    let play_audio = play_audio.clone();
                     view! {
                         <Button
                             on_click=Box::new(move || {

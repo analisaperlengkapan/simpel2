@@ -26,7 +26,7 @@ pub fn DifficultyIndicator(
     max_attempts: u32,
 ) -> impl IntoView {
     let difficulty_percentage = (current_difficulty as f32 / max_difficulty as f32 * 100.0) as u32;
-    let attempts_percentage = (attempts as f32 / max_attempts as f32 * 100.0) as u32;
+    let _attempts_percentage = (attempts as f32 / max_attempts as f32 * 100.0) as u32;
 
     view! {
         <div class="difficulty-indicator bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4">
@@ -100,10 +100,7 @@ pub fn ValidationStatusIndicator(
         <div class="validation-status">
             {move || {
                 match status.get() {
-                    ValidationStatus::Idle => {
-                        let _: () = view! {};
-                        ().into_any()
-                    },
+                    ValidationStatus::Idle => view! {}.into_any(),
 
                     ValidationStatus::Validating => view! {
                         <div class="validating-indicator bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
@@ -156,7 +153,7 @@ pub fn ValidationStatusIndicator(
                                     <div class="text-xs text-red-700 dark:text-red-300 mb-2">
                                         {message}
                                     </div>
-                                    {if let Some(retry_callback) = on_retry {
+                                    {if let Some(_retry_callback) = on_retry {
                                         view! {
                                             <Button
                                                 // on_click=Some(Box::new(move || retry_callback(())))
@@ -167,8 +164,7 @@ pub fn ValidationStatusIndicator(
                                             </Button>
                                         }.into_any()
                                     } else {
-                                        let _: () = view! {};
-                                        ().into_any()
+                                        view! {}.into_any()
                                     }}
                                 </div>
                             </div>
@@ -232,7 +228,7 @@ pub fn InputValidationFeedback(
                 }
             }
             _ => {
-                if !value.is_empty() {
+                if value.len() >= 1 {
                     ("valid", "Answer received", "text-green-600")
                 } else {
                     ("idle", "Enter your answer", "text-gray-500")
@@ -263,8 +259,7 @@ pub fn InputValidationFeedback(
                                 <div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
                             }.into_any()
                         } else {
-                            let _: () = view! {};
-                            ().into_any()
+                            view! {}.into_any()
                         }}
                     </div>
                 }
@@ -295,7 +290,7 @@ pub fn ChallengeProgressIndicator(
                 {(1..=total_steps).map(|step| {
                     let is_current = step == current_step;
                     let is_completed = step < current_step;
-                    let step_name = step_names.get((step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", step));
+                    let _step_name = step_names.get((step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", step));
 
                     view! {
                         <div class="flex items-center">
@@ -320,8 +315,7 @@ pub fn ChallengeProgressIndicator(
                                     )></div>
                                 }.into_any()
                             } else {
-                                let _: () = view! {};
-                                ().into_any()
+                                view! {}.into_any()
                             }}
                         </div>
                     }
@@ -339,10 +333,10 @@ pub fn ChallengeProgressIndicator(
 #[component]
 pub fn RetryMechanism(
     attempts_remaining: u8,
-    max_attempts: u8,
+    _max_attempts: u8,
     cooldown_seconds: Option<u32>,
-    on_retry: Callback<()>,
-    on_new_challenge: Callback<()>,
+    _on_retry: Callback<()>,
+    _on_new_challenge: Callback<()>,
 ) -> impl IntoView {
     let (countdown, set_countdown) = signal(cooldown_seconds.unwrap_or(0));
 
@@ -351,7 +345,7 @@ pub fn RetryMechanism(
         if let Some(initial_seconds) = cooldown_seconds {
             set_countdown.set(initial_seconds);
 
-            let interval_handle = gloo_timers::callback::Interval::new(1000, move || {
+            let _interval_handle = gloo_timers::callback::Interval::new(1000, move || {
                 set_countdown.update(|count| {
                     if *count > 0 {
                         *count -= 1;
@@ -383,8 +377,7 @@ pub fn RetryMechanism(
                         </div>
                     }.into_any()
                 } else {
-                    let _: () = view! {};
-                    ().into_any()
+                    view! {}.into_any()
                 }}
 
                 <div class="flex justify-center space-x-2">
@@ -399,8 +392,7 @@ pub fn RetryMechanism(
                             </Button>
                         }.into_any()
                     } else {
-                        let _: () = view! {};
-                        ().into_any()
+                        view! {}.into_any()
                     }}
 
                     <Button

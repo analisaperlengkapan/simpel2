@@ -82,7 +82,7 @@ rust-version = "1.90"
 [workspace.dependencies]
 # Axum Backend Dependencies - Latest Stable
 axum = { version = "0.8.6", features = ["macros", "multipart", "ws"] }
-axum-extra = { version = "0.10.3", features = ["typed-header"] }
+axum-extra = { version = "0.12.2", features = ["typed-header"] }
 tokio = { version = "1.47.1", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
@@ -138,7 +138,7 @@ jsonwebtoken = { version = "10.1.0", default-features = false, features = [
     "aws_lc_rs",
 ] } # Updated to v10 with aws_lc_rs backend
 oauth2 = "5.0.0"
-rand = { version = "0.8.5", features = [
+rand = { version = "0.9.2", features = [
     "std",
     "std_rng",
 ] } # Downgraded to 0.8.5 for crypto ecosystem compatibility (rand_core 0.6)
@@ -238,7 +238,7 @@ lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"
 env_logger = "0.11"
-rand_chacha = "0.3"
+rand_chacha = "0.9"
 getrandom = "0.3.3"
 base64ct = "1.8"
 p256 = { version = "0.13", features = ["ecdsa", "jwk"] }
@@ -303,12 +303,12 @@ handlebars = "6.3.2"
 # Additional utilities
 rust-embed = "8.8.0"
 captcha = "1.0"
-ndarray = "0.16"
+ndarray = "0.17"
 ring = "0.17"
 notify = "8.2"
 serde_yaml = "0.9.34-deprecated"
 toml = "0.9.7"
-calamine = "0.31"                # Excel reading
+calamine = "0.32"                # Excel reading
 rust_xlsxwriter = "0.92.2"       # Excel writing
 
 # Utility libraries
@@ -320,7 +320,7 @@ tempfile = "3"
 
 # Dev dependencies (for testing)
 tokio-test = "0.4.4"
-mockall = "0.13"
+mockall = "0.14"
 serial_test = "3"
 assert-json-diff = "2"
 
@@ -343,6 +343,8 @@ web-sys = { version = "0.3.81", features = [
     "HtmlInputElement",
     "Window",
     "Document",
+    "Node",
+    "NodeList",
     "HtmlDocument",
     "Element",
     "HtmlElement",

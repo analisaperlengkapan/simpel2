@@ -6,13 +6,18 @@ use reqwest::Client;
 use serde_json::json;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct PushService {
+    #[allow(dead_code)]
     pub config: AppConfig,
+    #[allow(dead_code)]
     pub pool: Pool,
+    #[allow(dead_code)]
     pub client: Client,
 }
 
 impl PushService {
+    #[allow(dead_code)]
     pub fn new(config: AppConfig, pool: Pool) -> Self {
         Self {
             config,
@@ -21,6 +26,7 @@ impl PushService {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn send_push(
         &self,
         device_token: &str,
@@ -91,6 +97,7 @@ impl PushService {
         Ok(notif)
     }
 
+    #[allow(dead_code)]
     pub async fn send_batch_push(
         &self,
         device_tokens: Vec<String>,
@@ -114,6 +121,7 @@ impl PushService {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub async fn get_status(&self, notification_id: Uuid) -> Result<Notification, AppError> {
         let sql = r#"SELECT id, channel, status, subject, body, created_at, sent_at, error_message FROM notifikasi.notifications WHERE id = $1"#;
         let row = self

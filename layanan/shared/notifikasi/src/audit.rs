@@ -3,6 +3,7 @@ use deadpool_postgres::Pool;
 use serde_json::Value;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub async fn insert_audit_log(
     _pool: &Pool,
     _notification_id: Option<Uuid>,
@@ -16,6 +17,7 @@ pub async fn insert_audit_log(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn query_audit_logs(
     _pool: &Pool,
     _notification_id: Option<Uuid>,

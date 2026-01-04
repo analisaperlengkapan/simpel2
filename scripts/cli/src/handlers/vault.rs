@@ -11,6 +11,7 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct VaultConfig {
     pub address: String,
     pub token: Option<String>,

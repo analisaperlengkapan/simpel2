@@ -35,7 +35,8 @@ pub fn UserMenu(
     /// Menu items
     menu_items: Vec<UserMenuItem>,
     /// Logout callback
-    on_logout: Option<Box<dyn Fn() + Send + Sync>>,
+    #[prop(optional)]
+    _on_logout: Option<Box<dyn Fn() + Send + Sync>>,
 ) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
 
@@ -70,8 +71,6 @@ pub fn UserMenu(
     let user_role_display = user_role.clone();
     let user_avatar_display_main = user_avatar.clone();
     let user_avatar_display_header = user_avatar.clone();
-
-    let on_logout = StoredValue::new(on_logout);
 
     // Get user initial for avatar
     let user_initial = user_name
@@ -183,17 +182,10 @@ pub fn UserMenu(
                                                 let _ = window.location().set_href(&href_val);
                                             }
                                         } else {
-                                            // Logout action
-                                            on_logout.with_value(|logout| {
-                                                if let Some(cb) = logout {
-                                                    cb();
-                                                } else {
-                                                    // Fallback default logout
-                                                    if let Some(window) = web_sys::window() {
-                                                        let _ = window.location().set_href("/portal/logout");
-                                                    }
-                                                }
-                                            });
+                                            // Logout action - redirect to portal logout
+                                            if let Some(window) = web_sys::window() {
+                                                let _ = window.location().set_href("/portal/logout");
+                                            }
                                         }
                                     }
                                 >

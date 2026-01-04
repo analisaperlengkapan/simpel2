@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::env;
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AppConfig {
     pub database_url: String,
     pub redis_url: String,

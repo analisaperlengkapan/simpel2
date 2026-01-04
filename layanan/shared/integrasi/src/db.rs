@@ -22,10 +22,9 @@ pub fn json_to_sql_param(
 
             // Try to parse as UUID for id/parent_id/satker_id columns only
             if (column_name == "id" || column_name.ends_with("_id"))
-                && let Ok(uuid) = Uuid::parse_str(s)
-            {
-                return Box::new(uuid);
-            }
+                && let Ok(uuid) = Uuid::parse_str(s) {
+                    return Box::new(uuid);
+                }
 
             // Everything else is TEXT - keep as string
             Box::new(s.clone())
@@ -126,10 +125,9 @@ pub async fn bulk_insert_postgres(
     // Check if ANY object in the data has a non-null 'id' field
     let has_valid_id = data.iter().any(|item| {
         if let Some(obj) = item.as_object()
-            && let Some(id_val) = obj.get("id").or_else(|| obj.get("ID"))
-        {
-            return !id_val.is_null();
-        }
+            && let Some(id_val) = obj.get("id").or_else(|| obj.get("ID")) {
+                return !id_val.is_null();
+            }
         false
     });
 

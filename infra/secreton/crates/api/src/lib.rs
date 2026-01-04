@@ -27,6 +27,7 @@ pub mod transit;
 // Re-export gRPC from separate crate
 pub use secreton_grpc as grpc;
 
+use axum::extract::State;
 pub use auth::JwtService;
 pub use error::{ApiError, ApiResult};
 pub use kv::{KVApiState, KVEngine, create_kv_router};
@@ -45,6 +46,7 @@ pub struct ApiState {
     pub kv: KVApiState,
     pub pki: PkiApiState,
     pub services: std::sync::Arc<crate::services::ServiceContainer>,
+    pub prometheus_handle: Option<metrics_exporter_prometheus::PrometheusHandle>,
 }
 
 #[derive(Clone)]
@@ -91,9 +93,9 @@ pub struct TlsMetricsResponse {
 pub fn create_api_router(state: ApiState) -> Router {
     // Legacy v1 routers (transit, kv, pki)
     let v1_legacy = Router::new()
-        .nest("/transit", create_transit_router(state.transit))
-        .nest("/kv", create_kv_router(state.kv))
-        .nest("/pki", create_pki_router(state.pki));
+        .nest("/transit", create_transit_router(state.transit.clone()))
+        .nest("/kv", create_kv_router(state.kv.clone()))
+        .nest("/pki", create_pki_router(state.pki.clone()));
 
     // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)
     let v1_handlers = handlers::create_router(
@@ -101,12 +103,29 @@ pub fn create_api_router(state: ApiState) -> Router {
         state.services.clone(),
     );
 
+    // Combine legacy and new handlers into a single Router
+    let v1_router = v1_legacy.merge(v1_handlers);
+
     Router::new()
         .route("/health", get(health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
+        .route("/metrics/prometheus", get(get_prometheus_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
-        .nest("/v1", v1_legacy.merge(v1_handlers))
+        .nest_service("/v1", v1_router)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth_middleware,
+        ))
+        .with_state(state)
+}
+
+pub async fn get_prometheus_metrics(State(state): State<ApiState>) -> String {
+    if let Some(handle) = &state.prometheus_handle {
+        handle.render()
+    } else {
+        "# Prometheus metrics not initialized".to_string()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
