@@ -203,6 +203,63 @@ mod tests {
         assert_eq!(fetched_user.full_name, Some("Real User".to_string()));
         assert!(fetched_user.roles.contains(&"user".to_string()));
     }
+
+    #[tokio::test]
+    async fn test_get_user_with_multiple_roles_and_permissions() {
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create user with multiple roles (admin has "*", user has basic)
+        let user = services
+            .auth
+            .create_user(
+                "poweruser",
+                "power@example.com",
+                "password123",
+                None,
+                vec!["admin".to_string(), "user".to_string()],
+            )
+            .await
+            .expect("Failed to create user");
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        let fetched_user = body.data.expect("user payload");
+
+        // Admin role should grant "*" permission
+        assert!(fetched_user.permissions.contains(&"*".to_string()));
+        // Roles should be sorted
+        assert_eq!(fetched_user.roles, vec!["admin".to_string(), "user".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_found() {
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        // Random UUID
+        let random_id = uuid::Uuid::new_v4();
+        let response = server.get(&format!("/users/{}", random_id)).await;
+
+        // Should return 404
+        response.assert_status_not_found();
+    }
 }
 
 /// User management models
