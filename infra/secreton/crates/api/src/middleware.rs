@@ -1316,3 +1316,31 @@ mod certificate_tests {
         assert!(86401 > 86400); // Invalid
     }
 }
+
+#[cfg(all(test, feature = "enable-inline-tests"))]
+mod namespace_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_namespace_from_path() {
+        // Valid paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/data/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/transit/encrypt/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/dynamic/database/creds/my-ns/role"),
+            Some("my-ns".to_string())
+        );
+
+        // Invalid paths
+        assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
+        assert_eq!(extract_namespace_from_path("/invalid/path"), None);
+        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/my-ns/key"), None); // Only data paths
+        assert_eq!(extract_namespace_from_path("/v1/other/data/my-ns/key"), None);
+    }
+}
