@@ -776,6 +776,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_put_secret_with_expiration() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
+        let service = VaultService::new(storage, crypto, audit)
+            .await
+            .expect("Failed to create VaultService");
+
+        let mut data = HashMap::new();
+        data.insert("key".to_string(), "value".to_string());
+
+        let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
+        let secret = service.put_secret("app/expiring", data, "user1", Some(expires_at)).await;
+
+        assert!(secret.is_ok());
+        let secret = secret.unwrap();
+        assert_eq!(secret.expires_at, Some(expires_at));
+
+        // Verify we can retrieve it with expiration
+        let retrieved = service.get_secret("app/expiring", "user1").await;
+        assert!(retrieved.is_ok());
+        assert_eq!(retrieved.unwrap().expires_at, Some(expires_at));
+    }
+
+    #[tokio::test]
     async fn test_encrypt_placeholder_response() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
