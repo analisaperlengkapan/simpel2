@@ -858,7 +858,7 @@ impl Default for SecretMetadata {
 
 // Key management handlers
 pub async fn update_key(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(key_id): Path<String>,
     Json(_payload): Json<serde_json::Value>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
@@ -926,7 +926,7 @@ pub async fn delete_key(
 }
 
 pub async fn list_key_versions(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
     tracing::debug!(key_id = %key_id, "Listing key versions");
