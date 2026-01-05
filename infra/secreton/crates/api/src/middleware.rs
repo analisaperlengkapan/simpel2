@@ -771,24 +771,37 @@ pub async fn namespace_access_middleware(
 /// - /v1/transit/encrypt/{namespace}/{key}
 /// - /v1/dynamic/database/creds/{namespace}/{role}
 fn extract_namespace_from_path(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    let mut parts = path.split('/').filter(|s| !s.is_empty());
 
-    // Look for namespace after known prefixes
-    if parts.len() >= 4 {
-        // Check for secret paths: /v1/secret/data/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "secret" && parts[2] == "data" {
-            return Some(parts[3].to_string());
-        }
+    // Check first part (v1)
+    if parts.next()? != "v1" {
+        return None;
+    }
 
-        // Check for transit paths: /v1/transit/{operation}/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "transit" && parts.len() >= 4 {
-            return Some(parts[3].to_string());
+    match parts.next()? {
+        "secret" => {
+            // /v1/secret/data/{namespace}/...
+            if parts.next()? == "data" {
+                return parts.next().map(|s| s.to_string());
+            }
         }
-
-        // Check for dynamic secrets: /v1/dynamic/{type}/creds/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "dynamic" && parts.len() >= 5 {
-            return Some(parts[4].to_string());
+        "transit" => {
+            // /v1/transit/{operation}/{namespace}/...
+            // Skip operation
+            let _operation = parts.next()?;
+            // Get namespace
+            return parts.next().map(|s| s.to_string());
         }
+        "dynamic" => {
+            // /v1/dynamic/{type}/creds/{namespace}/...
+            // Skip type
+            let _type = parts.next()?;
+            // Check for creds
+            if parts.next()? == "creds" {
+                return parts.next().map(|s| s.to_string());
+            }
+        }
+        _ => {}
     }
 
     None
