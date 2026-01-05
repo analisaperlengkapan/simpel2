@@ -1188,6 +1188,40 @@ mod tests {
         // Different client should be allowed
         assert!(rate_limiter.check_rate_limit("other-client"));
     }
+
+    #[test]
+    fn test_extract_namespace_from_path() {
+        // Secret paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/data/my-namespace/my-secret"),
+            Some("my-namespace".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/data/ns1/path/to/secret"),
+            Some("ns1".to_string())
+        );
+
+        // Transit paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/transit/encrypt/payment-service/key1"),
+            Some("payment-service".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/transit/decrypt/payment-service/key1"),
+            Some("payment-service".to_string())
+        );
+
+        // Dynamic secrets
+        assert_eq!(
+            extract_namespace_from_path("/v1/dynamic/database/creds/finance-db/readonly"),
+            Some("finance-db".to_string())
+        );
+
+        // Invalid paths
+        assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
+        assert_eq!(extract_namespace_from_path("/health"), None);
+        assert_eq!(extract_namespace_from_path("/v1/secret/metadata"), None);
+    }
 }
 
 /// Response wrapping middleware
