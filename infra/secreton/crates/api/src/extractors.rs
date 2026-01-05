@@ -4,7 +4,29 @@
 //! across handlers by encapsulating common extraction and validation logic.
 
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+
 use crate::{ApiError, middleware::RequestContext};
+
+/// Extracted Namespace from request context
+/// Defaults to "default" if no context or specific claims are found
+#[derive(Debug, Clone)]
+pub struct Namespace(pub String);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for Namespace
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(ctx) = parts.extensions.get::<RequestContext>() {
+            Ok(Namespace(ctx.derive_namespace()))
+        } else {
+            Ok(Namespace("default".to_string()))
+        }
+    }
+}
 
 /// Authenticated user information extracted from JWT token.
 /// This extractor automatically retrieves user information from the RequestContext

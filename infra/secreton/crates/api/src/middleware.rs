@@ -1205,6 +1205,74 @@ mod tests {
         // Different client should be allowed
         assert!(rate_limiter.check_rate_limit("other-client"));
     }
+
+    #[test]
+    fn test_derive_namespace() {
+        use secreton_core::namespace::{AdminLevel, JwtClaims};
+        use std::collections::HashMap;
+
+        // Test satker
+        let mut claims = JwtClaims {
+            sub: "user".into(),
+            name: "User".into(),
+            email: "user@example.com".into(),
+            satker_code: Some("KJA001".into()),
+            wilayah_code: Some("SUMUT".into()),
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".into(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims.clone()),
+            policy_names: vec![],
+        };
+
+        assert_eq!(context.derive_namespace(), "satker-kja001");
+
+        // Test wilayah
+        claims.satker_code = None;
+        claims.admin_level = AdminLevel::Wilayah;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "wilayah-sumut");
+
+        // Test pusat
+        claims.wilayah_code = None;
+        claims.admin_level = AdminLevel::Pusat;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "pusat");
+
+        // Test fallback
+        claims.admin_level = AdminLevel::EselonI;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "default");
+
+        // Test no claims
+        let context = RequestContext {
+            jwt_claims: None,
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "default");
+    }
 }
 
 /// Response wrapping middleware

@@ -29,7 +29,7 @@
 //! ```
 
 use axum::{
-    Extension, Router,
+    Router,
     extract::{Path, State},
     response::Json,
     routing::{get, post},
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, middleware::RequestContext};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, extractors::Namespace};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -114,15 +114,9 @@ pub struct WrapDataResponse {
 #[instrument(skip(state, request), fields(ttl = request.ttl))]
 pub async fn wrap_data(
     State(state): State<AppState>,
-    Extension(context): Extension<Option<RequestContext>>,
+    Namespace(namespace): Namespace,
     Json(request): Json<WrapDataRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context
-    let namespace = context
-        .as_ref()
-        .map(|ctx| ctx.derive_namespace())
-        .unwrap_or_else(|| "default".to_string());
-
     // Validate TTL
     if request.ttl == 0 {
         return Err(ApiError::BadRequest {
@@ -140,7 +134,7 @@ pub async fn wrap_data(
     let wrap_request = WrapRequest {
         data: request.data.clone(),
         ttl: Duration::from_secs(request.ttl),
-        namespace: namespace.to_string(),
+        namespace: namespace.clone(),
     };
 
     // Wrap the data
@@ -232,15 +226,9 @@ pub struct UnwrapTokenResponse {
 #[instrument(skip(state, request), fields(token = %request.token))]
 pub async fn unwrap_token(
     State(state): State<AppState>,
-    Extension(context): Extension<Option<RequestContext>>,
+    Namespace(namespace): Namespace,
     Json(request): Json<UnwrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UnwrapTokenResponse>>> {
-    // Extract namespace from auth context
-    let namespace = context
-        .as_ref()
-        .map(|ctx| ctx.derive_namespace())
-        .unwrap_or_else(|| "default".to_string());
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -328,14 +316,8 @@ pub async fn unwrap_token(
 pub async fn lookup_token(
     State(state): State<AppState>,
     Path(token): Path<String>,
-    Extension(context): Extension<Option<RequestContext>>,
+    Namespace(namespace): Namespace,
 ) -> ApiResult<Json<ApiResponse<WrappedTokenInfo>>> {
-    // Extract namespace from auth context
-    let namespace = context
-        .as_ref()
-        .map(|ctx| ctx.derive_namespace())
-        .unwrap_or_else(|| "default".to_string());
-
     // Validate token format
     if !token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -408,15 +390,9 @@ pub struct RewrapTokenRequest {
 #[instrument(skip(state, request), fields(token = %request.token, new_ttl = request.ttl))]
 pub async fn rewrap_token(
     State(state): State<AppState>,
-    Extension(context): Extension<Option<RequestContext>>,
+    Namespace(namespace): Namespace,
     Json(request): Json<RewrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context
-    let namespace = context
-        .as_ref()
-        .map(|ctx| ctx.derive_namespace())
-        .unwrap_or_else(|| "default".to_string());
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -521,58 +497,4 @@ mod tests {
         assert!(!"invalid_token".starts_with("wrap_"));
     }
 
-    #[test]
-    fn test_derive_namespace_integration() {
-        use crate::middleware::RequestContext;
-        use secreton_core::namespace::{AdminLevel, JwtClaims};
-        use std::collections::HashMap;
-        use std::time::Instant;
-
-        // Test satker
-        let mut claims = JwtClaims {
-            sub: "user".into(),
-            name: "User".into(),
-            email: "user@example.com".into(),
-            satker_code: Some("KJA001".into()),
-            wilayah_code: Some("SUMUT".into()),
-            admin_level: AdminLevel::Satker,
-            roles: vec![],
-            permissions: vec![],
-            exp: 0,
-            iat: 0,
-            iss: "test".into(),
-            metadata: HashMap::new(),
-        };
-
-        let context = RequestContext {
-            request_id: "req".into(),
-            user_id: Some("user".into()),
-            user_email: None,
-            user_roles: vec![],
-            user_permissions: vec![],
-            start_time: Instant::now(),
-            jwt_claims: Some(claims.clone()),
-            policy_names: vec![],
-        };
-
-        assert_eq!(context.derive_namespace(), "satker-kja001");
-
-        // Test wilayah
-        claims.satker_code = None;
-        claims.admin_level = AdminLevel::Wilayah;
-        let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
-        };
-        assert_eq!(context.derive_namespace(), "wilayah-sumut");
-
-        // Test pusat
-        claims.wilayah_code = None;
-        claims.admin_level = AdminLevel::Pusat;
-        let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
-        };
-        assert_eq!(context.derive_namespace(), "pusat");
-    }
 }
