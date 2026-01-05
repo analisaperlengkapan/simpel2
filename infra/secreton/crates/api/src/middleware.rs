@@ -918,6 +918,9 @@ pub async fn policy_check_middleware(
             .unwrap_or("unknown")
             .to_string();
 
+        // Extract namespace if present in path
+        let namespace = extract_namespace_from_path(path);
+
         // Evaluate policy
         let start_time = Instant::now();
         let allowed = {
@@ -956,6 +959,7 @@ pub async fn policy_check_middleware(
                 &ctx.policy_names,
                 Some(client_ip),
                 Some(user_agent),
+                namespace,
             )
             .await;
 
@@ -987,6 +991,7 @@ pub async fn policy_check_middleware(
             &ctx.policy_names,
             Some(client_ip),
             Some(user_agent),
+            namespace,
         )
         .await;
 
@@ -1077,6 +1082,7 @@ async fn log_policy_decision_to_audit(
     policy_names: &[String],
     client_ip: Option<String>,
     user_agent: Option<String>,
+    namespace: Option<String>,
 ) {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -1109,7 +1115,7 @@ async fn log_policy_decision_to_audit(
         },
         ip: client_ip,
         user_agent,
-        namespace: None, // TODO: Extract namespace from path
+        namespace,
         metadata,
     };
 
