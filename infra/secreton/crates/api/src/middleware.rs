@@ -680,7 +680,7 @@ pub async fn seal_check_middleware(
 /// JWT claims and SIMKARI organizational hierarchy (Pusat -> Wilayah -> Satker).
 /// This middleware should be applied to all secret operation endpoints.
 pub async fn namespace_access_middleware(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     request: Request,
     next: Next,
 ) -> Result<Response, Response> {
@@ -707,25 +707,55 @@ pub async fn namespace_access_middleware(
             let namespace_id = extract_namespace_from_path(path);
 
             if let Some(ns_id) = namespace_id {
-                // TODO: Get NamespaceAccessControl from state
-                // For now, log the validation attempt
                 debug!(
                     "Namespace access validation: user {} (level: {:?}) accessing namespace {}",
                     claims.sub, claims.admin_level, ns_id
                 );
 
-                // TODO: Implement actual validation when NamespaceAccessControl is in state
-                // let access_control = state.namespace_access_control;
-                // if !access_control.check_access(claims, &ns_id)? {
-                //     return Err((
-                //         StatusCode::FORBIDDEN,
-                //         Json(serde_json::json!({
-                //             "error": "Access denied to namespace",
-                //             "namespace": ns_id,
-                //             "admin_level": format!("{:?}", claims.admin_level)
-                //         })),
-                //     ));
-                // }
+                use secreton_core::namespace::NamespaceAccessControl;
+
+                // Optimization: Use with_hierarchy to avoid cloning the namespace hierarchy
+                let validation_result = state.services.namespace.with_hierarchy(|hierarchy| {
+                    NamespaceAccessControl::verify_access(hierarchy, claims, &ns_id)
+                });
+
+                match validation_result {
+                    Ok(true) => {
+                        // Access allowed
+                        debug!("Access granted to namespace {}", ns_id);
+                    }
+                    Ok(false) => {
+                        warn!("Access denied to namespace {} for user {}", ns_id, claims.sub);
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            Json(serde_json::json!({
+                                "error": "Access denied to namespace",
+                                "namespace": ns_id,
+                                "admin_level": format!("{:?}", claims.admin_level)
+                            })),
+                        )
+                            .into_response());
+                    }
+                    Err(e) => {
+                        // Namespace not found or other error
+                        warn!("Namespace access check failed: {}", e);
+                        let status = match e {
+                            secreton_core::error::CoreError::NotFound { .. } => {
+                                StatusCode::NOT_FOUND
+                            }
+                            _ => StatusCode::FORBIDDEN,
+                        };
+
+                        return Err((
+                            status,
+                            Json(serde_json::json!({
+                                "error": "Namespace access validation failed",
+                                "details": e.to_string()
+                            })),
+                        )
+                            .into_response());
+                    }
+                }
             }
         } else {
             debug!("No JWT claims in request context for namespace validation");
@@ -741,24 +771,37 @@ pub async fn namespace_access_middleware(
 /// - /v1/transit/encrypt/{namespace}/{key}
 /// - /v1/dynamic/database/creds/{namespace}/{role}
 fn extract_namespace_from_path(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    let mut parts = path.split('/').filter(|s| !s.is_empty());
 
-    // Look for namespace after known prefixes
-    if parts.len() >= 4 {
-        // Check for secret paths: /v1/secret/data/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "secret" && parts[2] == "data" {
-            return Some(parts[3].to_string());
-        }
+    // Check first part (v1)
+    if parts.next()? != "v1" {
+        return None;
+    }
 
-        // Check for transit paths: /v1/transit/{operation}/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "transit" && parts.len() >= 4 {
-            return Some(parts[3].to_string());
+    match parts.next()? {
+        "secret" => {
+            // /v1/secret/data/{namespace}/...
+            if parts.next()? == "data" {
+                return parts.next().map(|s| s.to_string());
+            }
         }
-
-        // Check for dynamic secrets: /v1/dynamic/{type}/creds/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "dynamic" && parts.len() >= 5 {
-            return Some(parts[4].to_string());
+        "transit" => {
+            // /v1/transit/{operation}/{namespace}/...
+            // Skip operation
+            let _operation = parts.next()?;
+            // Get namespace
+            return parts.next().map(|s| s.to_string());
         }
+        "dynamic" => {
+            // /v1/dynamic/{type}/creds/{namespace}/...
+            // Skip type
+            let _type = parts.next()?;
+            // Check for creds
+            if parts.next()? == "creds" {
+                return parts.next().map(|s| s.to_string());
+            }
+        }
+        _ => {}
     }
 
     None
@@ -1271,5 +1314,33 @@ mod certificate_tests {
         assert!(0 == 0 || 0 > 86400); // Invalid
         assert!(300 > 0 && 300 <= 86400); // Valid
         assert!(86401 > 86400); // Invalid
+    }
+}
+
+#[cfg(all(test, feature = "enable-inline-tests"))]
+mod namespace_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_namespace_from_path() {
+        // Valid paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/data/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/transit/encrypt/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/dynamic/database/creds/my-ns/role"),
+            Some("my-ns".to_string())
+        );
+
+        // Invalid paths
+        assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
+        assert_eq!(extract_namespace_from_path("/invalid/path"), None);
+        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/my-ns/key"), None); // Only data paths
+        assert_eq!(extract_namespace_from_path("/v1/other/data/my-ns/key"), None);
     }
 }

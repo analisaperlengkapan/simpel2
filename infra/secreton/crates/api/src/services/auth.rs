@@ -19,6 +19,9 @@ pub use secreton_core::models::User;
 // Use consolidated AuthError from error module
 pub use crate::error::AuthError;
 
+/// Root user ID (nil UUID) used for initial bootstrap and recovery
+pub const ROOT_USER_ID: &str = "00000000-0000-0000-0000-000000000000";
+
 const USER_PATH_PREFIX: &str = "auth/users";
 const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
 
@@ -45,6 +48,7 @@ struct StoredUser {
     pub is_locked: bool,
     pub failed_attempts: u32,
     pub locked_until: Option<chrono::DateTime<chrono::Utc>>,
+    pub metadata: HashMap<String, String>,
 }
 
 impl From<&User> for StoredUser {
@@ -66,6 +70,7 @@ impl From<&User> for StoredUser {
             is_locked: user.is_locked,
             failed_attempts: user.failed_attempts,
             locked_until: user.locked_until,
+            metadata: user.metadata.clone(),
         }
     }
 }
@@ -89,6 +94,7 @@ impl From<StoredUser> for User {
             is_locked: stored.is_locked,
             failed_attempts: stored.failed_attempts,
             locked_until: stored.locked_until,
+            metadata: stored.metadata,
         }
     }
 }
@@ -289,6 +295,7 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(), // Metadata not currently in JWT
         })
     }
 
@@ -311,6 +318,7 @@ impl AuthService {
         password: &str,
         full_name: Option<&str>,
         roles: Vec<String>,
+        metadata: Option<HashMap<String, String>>,
     ) -> Result<User, AuthError> {
         // Check if user already exists
         if self.user_exists(username).await? {
@@ -337,7 +345,38 @@ impl AuthService {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: metadata.unwrap_or_default(),
         };
+
+        self.store_user(&user).await?;
+        Ok(user)
+    }
+
+    /// Update user details
+    pub async fn update_user(
+        &self,
+        user_id: &str,
+        email: Option<String>,
+        full_name: Option<String>,
+        is_active: Option<bool>,
+        metadata: Option<HashMap<String, String>>,
+    ) -> Result<User, AuthError> {
+        let mut user = self.get_user(user_id).await?;
+
+        if let Some(email) = email {
+            user.email = email;
+        }
+        if let Some(full_name) = full_name {
+            user.full_name = Some(full_name);
+        }
+        if let Some(is_active) = is_active {
+            user.is_active = is_active;
+        }
+        if let Some(metadata) = metadata {
+            user.metadata = metadata;
+        }
+
+        user.updated_at = chrono::Utc::now();
 
         self.store_user(&user).await?;
         Ok(user)
@@ -410,6 +449,23 @@ impl AuthService {
         }
 
         Ok(false)
+    }
+
+    /// Check if user has a specific role
+    pub async fn has_role(&self, user_id: &str, role: &str) -> Result<bool, AuthError> {
+        // Special case for root user
+        if user_id == ROOT_USER_ID {
+            return Ok(true);
+        }
+
+        let user = self.get_user(user_id).await?;
+
+        // Superusers have all roles implicitly
+        if user.is_superuser {
+            return Ok(true);
+        }
+
+        Ok(user.has_role(role))
     }
 
     /// Get role by name
@@ -821,6 +877,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         let _ = auth_service.store_user(&user).await;
@@ -906,6 +963,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         // admin role already initialized in service with "*"
@@ -947,6 +1005,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
         let allowed = service
             .has_permission(&user, "vault:read")
@@ -985,6 +1044,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         let session_id = Uuid::new_v4().to_string();
@@ -1019,6 +1079,78 @@ mod tests {
         assert_eq!(validated_user.id, user.id);
         assert_eq!(validated_user.username, "test_token");
         assert!(validated_user.has_role("user"));
+    }
+
+    #[tokio::test]
+    async fn test_has_role() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let auth_service = AuthService::new(storage.clone(), crypto, &AuthConfig::default())
+            .await
+            .expect("service");
+
+        let mut user = User {
+            id: Uuid::new_v4(),
+            username: "test_role".into(),
+            email: "role@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::new(),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+        };
+
+        // Store user
+        auth_service.store_user(&user).await.expect("store user");
+
+        // Check no role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(!has_admin);
+
+        // Add role
+        user.roles.insert("admin".to_string());
+        auth_service.store_user(&user).await.expect("update user");
+
+        // Check role
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+
+        // Check superuser
+        user.is_superuser = true;
+        user.roles.clear();
+        auth_service.store_user(&user).await.expect("update user");
+
+        let has_admin = auth_service
+            .has_role(&user.id.to_string(), "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
+        let has_random = auth_service
+            .has_role(&user.id.to_string(), "random")
+            .await
+            .expect("check role");
+        assert!(has_random);
+
+        // Check root user
+        let has_admin = auth_service
+            .has_role(ROOT_USER_ID, "admin")
+            .await
+            .expect("check role");
+        assert!(has_admin);
     }
 }
 
