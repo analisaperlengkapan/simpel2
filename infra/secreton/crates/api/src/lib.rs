@@ -112,8 +112,12 @@ pub fn create_api_router(state: ApiState) -> Router {
         .route("/metrics", get(get_metrics))
         .route("/metrics/prometheus", get(get_prometheus_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
-        .with_state(state)
         .nest_service("/v1", v1_router)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth_middleware,
+        ))
+        .with_state(state)
 }
 
 pub async fn get_prometheus_metrics(State(state): State<ApiState>) -> String {

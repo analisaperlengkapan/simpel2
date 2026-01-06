@@ -87,4 +87,28 @@ mod tests {
         let role = UserRole::default();
         assert_eq!(role, UserRole::User);
     }
+
+    #[test]
+    fn test_jwt_claims_parsing() {
+        use crate::features::auth::AuthService;
+        use base64::{engine::general_purpose, Engine as _};
+
+        // Create a dummy JWT
+        // Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+        let header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+
+        // Payload: {"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200}
+        let payload_json = r#"{"sub":"123","preferred_username":"testuser","name":"Test User","email":"test@example.com","realm_access":{"roles":["user"]},"exp":1704067200}"#;
+        let payload = general_purpose::URL_SAFE_NO_PAD.encode(payload_json);
+
+        // Signature (dummy)
+        let signature = "signature";
+
+        let token = format!("{}.{}.{}", header, payload, signature);
+
+        let session = AuthService::parse_jwt_claims_internal(&token).unwrap();
+
+        assert_eq!(session.username, "testuser");
+        assert_eq!(session.expires_at, Some(1704067200));
+    }
 }

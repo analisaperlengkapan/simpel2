@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 /// Canonical User structure - use this throughout the project
@@ -55,6 +55,10 @@ pub struct User {
 
     /// Lock expiration time
     pub locked_until: Option<DateTime<Utc>>,
+
+    /// User metadata
+    #[serde(default)]
+    pub metadata: HashMap<String, String>,
 }
 
 impl User {
@@ -78,6 +82,7 @@ impl User {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         }
     }
 

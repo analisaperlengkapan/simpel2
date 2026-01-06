@@ -13,7 +13,7 @@
 
 use axum::{
     Router,
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     response::Json,
     routing::{get, post},
 };
@@ -32,6 +32,7 @@ use secreton_core::{
 use crate::{
     ApiError, ApiResponse, ApiResult,
     handlers::AppState,
+    middleware::RequestContext,
     models::{PaginatedResponse, PaginationQuery},
 };
 
@@ -155,28 +156,12 @@ pub struct ListNamespacesQuery {
 // Helper Functions
 // ============================================================================
 
-/// Extract JWT claims from request (placeholder - integrate with actual auth middleware)
-fn extract_jwt_claims(state: &AppState) -> Result<JwtClaims, CoreError> {
-    // TODO: Extract from actual JWT token in Authorization header
-    // For now, return a placeholder for testing
-    // In production, this should be extracted from the validated JWT token
-    // by the auth middleware and passed through request extensions
-
-    // Placeholder implementation
-    Ok(JwtClaims {
-        sub: "admin".to_string(),
-        name: "Admin User".to_string(),
-        email: "admin@kejaksaan.go.id".to_string(),
-        satker_code: None,
-        wilayah_code: None,
-        admin_level: AdminLevel::Pusat,
-        roles: vec!["admin".to_string()],
-        permissions: vec!["*".to_string()],
-        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
-        iat: chrono::Utc::now().timestamp(),
-        iss: "authenc".to_string(),
-        metadata: HashMap::new(),
-    })
+/// Extract JWT claims from request context
+fn extract_jwt_claims(context: &RequestContext) -> Result<JwtClaims, ApiError> {
+    context
+        .jwt_claims
+        .clone()
+        .ok_or(ApiError::Unauthorized)
 }
 
 /// Convert Namespace to NamespaceResponse
@@ -282,10 +267,11 @@ fn validate_namespace_id(id: &str, namespace_type: NamespaceType) -> Result<(), 
 /// - Satker: Can list only their own satker
 pub async fn list_namespaces(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<ListNamespacesQuery>,
 ) -> ApiResult<Json<ApiResponse<PaginatedResponse<NamespaceResponse>>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Get namespace hierarchy from state
     let hierarchy = state.namespace.hierarchy();
@@ -368,10 +354,11 @@ pub async fn list_namespaces(
 /// - Satker: Cannot create namespaces
 pub async fn create_namespace(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Json(request): Json<CreateNamespaceRequest>,
 ) -> ApiResult<Json<ApiResponse<NamespaceResponse>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Validate namespace ID format
     validate_namespace_id(&request.id, request.namespace_type)?;
@@ -473,10 +460,11 @@ pub async fn create_namespace(
 /// Authorization: User must have access to the namespace
 pub async fn get_namespace(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<NamespaceResponse>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Get namespace hierarchy
     let hierarchy = state.namespace.hierarchy();
@@ -520,11 +508,12 @@ pub async fn get_namespace(
 /// - Satker: Cannot update namespaces
 pub async fn update_namespace(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Path(id): Path<String>,
     Json(request): Json<UpdateNamespaceRequest>,
 ) -> ApiResult<Json<ApiResponse<NamespaceResponse>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Get mutable hierarchy
     let mut hierarchy = state.namespace.hierarchy().clone();
@@ -621,10 +610,11 @@ pub async fn update_namespace(
 /// - Satker: Cannot delete namespaces
 pub async fn delete_namespace(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Cannot delete pusat namespace
     if id == "pusat" {
@@ -720,10 +710,11 @@ pub async fn delete_namespace(
 /// Authorization: User must have access to the namespace
 pub async fn get_namespace_stats(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<NamespaceStatsResponse>>> {
     // Extract JWT claims
-    let claims = extract_jwt_claims(&state)?;
+    let claims = extract_jwt_claims(&context)?;
 
     // Get namespace hierarchy
     let hierarchy = state.namespace.hierarchy();
