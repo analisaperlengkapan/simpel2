@@ -333,47 +333,20 @@ impl AuthService {
     /// Decode JWT token to extract user claims
     #[cfg(target_arch = "wasm32")]
     pub fn decode_jwt_claims(token: &str) -> Result<UserSession, String> {
-        Self::parse_jwt_claims_internal(token)
-    }
-
-    /// Parse JWT claims (internal, platform agnostic)
-    /// Visible for testing and non-WASM usage if needed
-    #[allow(dead_code)]
-    pub(crate) fn parse_jwt_claims_internal(token: &str) -> Result<UserSession, String> {
         // JWT format: header.payload.signature
-        let mut parts = token.split('.');
-        let _header = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
-        let payload_part = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
-        let _signature = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
-
-        if parts.next().is_some() {
+        let parts: Vec<&str> = token.split('.').collect();
+        if parts.len() != 3 {
             return Err("Invalid JWT format".to_string());
         }
 
         // Decode base64 payload (part[1])
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
         let payload_bytes = general_purpose::URL_SAFE_NO_PAD
-            .decode(payload_part)
+            .decode(parts[1])
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;
-
-        // Parse JSON claims
-        #[derive(Deserialize)]
-        struct Claims {
-            sub: String,
-            preferred_username: Option<String>,
-            name: Option<String>,
-            email: Option<String>,
-            realm_access: Option<RealmAccess>,
-            exp: Option<i64>,
-        }
-
-        #[derive(Deserialize)]
-        struct RealmAccess {
-            roles: Vec<String>,
-        }
 
         let claims: Claims =
             serde_json::from_str(&payload_str).map_err(|e| format!("JSON parse error: {}", e))?;
@@ -410,8 +383,8 @@ impl AuthService {
             avatar: None,
             division: "Bagian Umum".to_string(),
             captcha_validated: true, // JWT tokens from authenc indicate successful CAPTCHA validation
-            mfa_enabled: false,      // TODO: Extract from JWT claims when available
-            mfa_setup_required: true, // TODO: Extract from JWT claims when available
+            mfa_enabled: claims.mfa_enabled,
+            mfa_setup_required: claims.mfa_setup_required,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None, // Will be set separately if available
@@ -524,13 +497,12 @@ impl AuthService {
 
                 // Make request with credentials to include SSO cookie
                 if let Some(window) = web_sys::window() {
-                    use wasm_bindgen::JsValue;
                     use web_sys::{Request, RequestCredentials, RequestInit, RequestMode};
 
-                    let mut opts = RequestInit::new();
-                    opts.method("GET");
-                    opts.mode(RequestMode::Cors);
-                    opts.credentials(RequestCredentials::Include);
+                    let opts = RequestInit::new();
+                    opts.set_method("GET");
+                    opts.set_mode(RequestMode::Cors);
+                    opts.set_credentials(RequestCredentials::Include);
 
                     if let Ok(request) = Request::new_with_str_and_init(&logout_url, &opts) {
                         let _ = wasm_bindgen_futures::JsFuture::from(
@@ -689,7 +661,8 @@ impl AuthService {
 
     /// Validate JWT token structure (basic validation)
     pub fn validate_token_structure(token: &str) -> bool {
-        token.split('.').count() == 3
+        let parts: Vec<&str> = token.split('.').collect();
+        parts.len() == 3
     }
 
     /// Check if user has specific permission
@@ -967,7 +940,7 @@ impl AuthService {
     pub fn update_session_mfa_state(
         mfa_enabled: bool,
         mfa_setup_required: bool,
-        mfa_verification_required: bool,
+        _mfa_verification_required: bool,
     ) {
         #[cfg(target_arch = "wasm32")]
         {
@@ -981,7 +954,7 @@ impl AuthService {
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let _ = (mfa_enabled, mfa_setup_required, mfa_verification_required);
+            let _ = (mfa_enabled, mfa_setup_required, _mfa_verification_required);
         }
     }
 }
@@ -1008,4 +981,24 @@ pub struct MfaStatus {
     pub backup_codes_remaining: i32,
     /// Last time MFA was used (ISO 8601 timestamp)
     pub last_used: Option<String>,
+}
+
+// Internal structures for JWT parsing
+#[derive(Deserialize)]
+struct Claims {
+    sub: String,
+    preferred_username: Option<String>,
+    name: Option<String>,
+    email: Option<String>,
+    realm_access: Option<RealmAccess>,
+    #[serde(default)]
+    mfa_enabled: bool,
+    #[serde(default)]
+    mfa_setup_required: bool,
+    exp: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct RealmAccess {
+    roles: Vec<String>,
 }
