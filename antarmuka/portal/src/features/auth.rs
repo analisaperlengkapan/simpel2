@@ -333,16 +333,27 @@ impl AuthService {
     /// Decode JWT token to extract user claims
     #[cfg(target_arch = "wasm32")]
     pub fn decode_jwt_claims(token: &str) -> Result<UserSession, String> {
+        Self::parse_jwt_claims_internal(token)
+    }
+
+    /// Parse JWT claims (internal, platform agnostic)
+    /// Visible for testing and non-WASM usage if needed
+    #[allow(dead_code)]
+    pub(crate) fn parse_jwt_claims_internal(token: &str) -> Result<UserSession, String> {
         // JWT format: header.payload.signature
-        let parts: Vec<&str> = token.split('.').collect();
-        if parts.len() != 3 {
+        let mut parts = token.split('.');
+        let _header = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+        let payload_part = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+        let _signature = parts.next().ok_or_else(|| "Invalid JWT format".to_string())?;
+
+        if parts.next().is_some() {
             return Err("Invalid JWT format".to_string());
         }
 
         // Decode base64 payload (part[1])
-        use base64::{Engine as _, engine::general_purpose};
+        use base64::{engine::general_purpose, Engine as _};
         let payload_bytes = general_purpose::URL_SAFE_NO_PAD
-            .decode(parts[1])
+            .decode(payload_part)
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
@@ -356,6 +367,7 @@ impl AuthService {
             name: Option<String>,
             email: Option<String>,
             realm_access: Option<RealmAccess>,
+            exp: Option<i64>,
         }
 
         #[derive(Deserialize)]
@@ -403,7 +415,7 @@ impl AuthService {
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
             refresh_token: None, // Will be set separately if available
-            expires_at: None,    // TODO: Extract exp claim from JWT
+            expires_at: claims.exp,
             permissions,
         })
     }
@@ -677,8 +689,7 @@ impl AuthService {
 
     /// Validate JWT token structure (basic validation)
     pub fn validate_token_structure(token: &str) -> bool {
-        let parts: Vec<&str> = token.split('.').collect();
-        parts.len() == 3
+        token.split('.').count() == 3
     }
 
     /// Check if user has specific permission
