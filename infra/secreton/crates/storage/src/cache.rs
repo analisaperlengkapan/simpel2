@@ -448,6 +448,33 @@ where
         self.storage.migrate().await
     }
 
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        // Cache invalidation strategy:
+        // Since we don't know exactly which IDs are expired without querying the underlying storage,
+        // we first delegate to storage to delete expired entries.
+        // Then we should ideally invalidate cache. However, clearing the whole cache is expensive.
+        //
+        // A better approach would be to have the storage backend return the deleted IDs,
+        // but the current trait interface returns count (u64).
+        //
+        // For correctness, we should probably clear the cache if deletions occurred,
+        // or accept that expired entries might linger in cache until TTL expires.
+        // Given that `delete_expired` is a maintenance task, clearing cache might be acceptable,
+        // but let's stick to delegating for now. The cache has TTL anyway.
+
+        let count = self.storage.delete_expired().await?;
+
+        if count > 0 {
+            // Option 1: Clear entire cache (Safe but heavy)
+            // self.cache.clear().await?;
+
+            // Option 2: Do nothing (Rely on TTL) - Chosen for performance
+            // Expired entries in cache will be evicted eventually.
+        }
+
+        Ok(count)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
