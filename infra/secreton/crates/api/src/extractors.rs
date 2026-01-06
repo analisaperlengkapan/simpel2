@@ -4,7 +4,29 @@
 //! across handlers by encapsulating common extraction and validation logic.
 
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+
 use crate::{ApiError, middleware::RequestContext};
+
+/// Extracted Namespace from request context
+/// Defaults to "default" if no context or specific claims are found
+#[derive(Debug, Clone)]
+pub struct Namespace(pub String);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for Namespace
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(ctx) = parts.extensions.get::<RequestContext>() {
+            Ok(Namespace(ctx.derive_namespace()))
+        } else {
+            Ok(Namespace("default".to_string()))
+        }
+    }
+}
 
 /// Authenticated user information extracted from JWT token.
 /// This extractor automatically retrieves user information from the RequestContext
@@ -87,5 +109,72 @@ where
             Ok(user) => Ok(OptionalUser(Some(user))),
             Err(_) => Ok(OptionalUser(None)),
         }
+    }
+}
+
+#[cfg(all(test, feature = "enable-inline-tests"))]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request, routing::get, Router};
+    use tower::ServiceExt;
+    use secreton_core::namespace::{AdminLevel, JwtClaims};
+    use std::collections::HashMap;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn test_namespace_extractor_default() {
+        let app = Router::new().route("/", get(|Namespace(ns): Namespace| async move { ns }));
+
+        let response = app
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        assert_eq!(&body[..], b"default");
+    }
+
+    #[tokio::test]
+    async fn test_namespace_extractor_with_context() {
+        use crate::middleware::RequestContext;
+
+        let app = Router::new().route("/", get(|Namespace(ns): Namespace| async move { ns }));
+
+        let claims = JwtClaims {
+            sub: "user".into(),
+            name: "User".into(),
+            email: "user@example.com".into(),
+            satker_code: Some("KJA001".into()),
+            wilayah_code: Some("SUMUT".into()),
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".into(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims),
+            policy_names: vec![],
+        };
+
+        let request = Request::builder()
+            .uri("/")
+            .extension(context)
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        assert_eq!(&body[..], b"satker-kja001");
     }
 }

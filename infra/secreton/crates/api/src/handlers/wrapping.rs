@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, extractors::Namespace};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -114,11 +114,9 @@ pub struct WrapDataResponse {
 #[instrument(skip(state, request), fields(ttl = request.ttl))]
 pub async fn wrap_data(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<WrapDataRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context (TODO: implement proper auth extraction)
-    let namespace = "default"; // Placeholder - should come from JWT
-
     // Validate TTL
     if request.ttl == 0 {
         return Err(ApiError::BadRequest {
@@ -136,7 +134,7 @@ pub async fn wrap_data(
     let wrap_request = WrapRequest {
         data: request.data.clone(),
         ttl: Duration::from_secs(request.ttl),
-        namespace: namespace.to_string(),
+        namespace: namespace.clone(),
     };
 
     // Wrap the data
@@ -228,11 +226,9 @@ pub struct UnwrapTokenResponse {
 #[instrument(skip(state, request), fields(token = %request.token))]
 pub async fn unwrap_token(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<UnwrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UnwrapTokenResponse>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -243,7 +239,7 @@ pub async fn unwrap_token(
     // Lookup token first to get metadata
     let token_info = state
         .wrapping_service
-        .lookup(&request.token, namespace)
+        .lookup(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -258,7 +254,7 @@ pub async fn unwrap_token(
     // Unwrap the token
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -320,10 +316,8 @@ pub async fn unwrap_token(
 pub async fn lookup_token(
     State(state): State<AppState>,
     Path(token): Path<String>,
+    Namespace(namespace): Namespace,
 ) -> ApiResult<Json<ApiResponse<WrappedTokenInfo>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -334,7 +328,7 @@ pub async fn lookup_token(
     // Lookup token metadata
     let token_info = state
         .wrapping_service
-        .lookup(&token, namespace)
+        .lookup(&token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -396,11 +390,9 @@ pub struct RewrapTokenRequest {
 #[instrument(skip(state, request), fields(token = %request.token, new_ttl = request.ttl))]
 pub async fn rewrap_token(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<RewrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -424,7 +416,7 @@ pub async fn rewrap_token(
     // Unwrap the original token to get data
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -504,4 +496,5 @@ mod tests {
         assert!("wrap_abc123".starts_with("wrap_"));
         assert!(!"invalid_token".starts_with("wrap_"));
     }
+
 }
