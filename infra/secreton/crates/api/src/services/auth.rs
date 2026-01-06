@@ -880,7 +880,7 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        auth_service.store_user(&user).await;
+        let _ = auth_service.store_user(&user).await;
 
         // Test missing code
         let result = auth_service
