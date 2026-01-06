@@ -1208,6 +1208,29 @@ mod tests {
         // Different client should be allowed
         assert!(rate_limiter.check_rate_limit("other-client"));
     }
+
+    #[test]
+    fn test_extract_namespace_from_path() {
+        // Secret paths
+        assert_eq!(extract_namespace_from_path("/v1/secret/data/mynamespace/foo"), Some("mynamespace".to_string()));
+        assert_eq!(extract_namespace_from_path("/v1/secret/data/my-namespace/foo/bar"), Some("my-namespace".to_string()));
+        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/mynamespace/foo"), None); // only data is extracted
+
+        // Transit paths
+        assert_eq!(extract_namespace_from_path("/v1/transit/encrypt/mynamespace/key"), Some("mynamespace".to_string()));
+        assert_eq!(extract_namespace_from_path("/v1/transit/decrypt/mynamespace/key"), Some("mynamespace".to_string()));
+
+        // Dynamic paths
+        assert_eq!(extract_namespace_from_path("/v1/dynamic/database/creds/mynamespace/role"), Some("mynamespace".to_string()));
+        assert_eq!(extract_namespace_from_path("/v1/dynamic/aws/creds/my_ns/role"), Some("my_ns".to_string()));
+        assert_eq!(extract_namespace_from_path("/v1/dynamic/aws/config/my_ns/role"), None); // missing creds
+
+        // Invalid paths
+        assert_eq!(extract_namespace_from_path("/"), None);
+        assert_eq!(extract_namespace_from_path("/v1"), None);
+        assert_eq!(extract_namespace_from_path("/v2/secret/data/ns/foo"), None); // wrong version
+        assert_eq!(extract_namespace_from_path("/v1/unknown/data/ns/foo"), None); // unknown backend
+    }
 }
 
 /// Response wrapping middleware
