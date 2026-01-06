@@ -4,12 +4,11 @@
 //! across handlers by encapsulating common extraction and validation logic.
 
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
-
-use crate::ApiError;
+use crate::{ApiError, middleware::RequestContext};
 
 /// Authenticated user information extracted from JWT token.
-/// This extractor automatically validates the JWT token from the Authorization header
-/// and extracts user information. Use this in any handler that requires authentication.
+/// This extractor automatically retrieves user information from the RequestContext
+/// populated by the authentication middleware. Use this in any handler that requires authentication.
 /// # Example
 /// ```rust,no_run
 /// use secreton_api::extractors::AuthenticatedUser;
@@ -33,23 +32,40 @@ where
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        // Extract token from Authorization header
-        let token = parts
-            .headers
-            .get("authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer "))
-            .ok_or_else(|| ApiError::Authentication {
-                message: "Missing or invalid Authorization header".to_string(),
-            })?;
+        // Try to extract from RequestContext (populated by middleware)
+        if let Some(ctx) = parts.extensions.get::<RequestContext>() {
+            let user_id = ctx.user_id.as_deref().unwrap_or_default();
 
-        // For now, create a dummy user since we can't access services from FromRequestParts
-        // In a real implementation, you'd need to validate the token properly
-        Ok(AuthenticatedUser {
-            id: uuid::Uuid::new_v4(),
-            username: "test_user".to_string(),
-            email: Some("test@example.com".to_string()),
-            roles: vec!["user".to_string()],
+            // Parse UUID or generate one if invalid/missing (fallback)
+            let id = uuid::Uuid::parse_str(user_id).unwrap_or_else(|_| uuid::Uuid::nil());
+
+            // Get username from claims or fallback to subject/id
+            let username = ctx.jwt_claims
+                .as_ref()
+                .map(|c| c.name.clone())
+                .or_else(|| ctx.user_id.clone())
+                .unwrap_or_else(|| "anonymous".to_string());
+
+            return Ok(AuthenticatedUser {
+                id,
+                username,
+                email: ctx.user_email.clone(),
+                roles: ctx.user_roles.clone(),
+            });
+        }
+
+        // Fallback: Check for Authorization header but no context
+        // This usually means middleware failed or wasn't applied.
+        // For security, we should probably fail, but legacy behavior was dummy.
+        // Given the requirement for "best practice", we should fail if auth header is present
+        // but context is missing (implying auth middleware didn't validate it).
+
+        // However, if we want to support non-middleware testing, we might keep a minimal fallback.
+        // But the prompt says "optimalkan, sesuai standar".
+        // Standard is: Middleware does auth, handler uses it.
+
+        Err(ApiError::Authentication {
+            message: "Authentication context missing. Ensure authentication middleware is active.".to_string(),
         })
     }
 }

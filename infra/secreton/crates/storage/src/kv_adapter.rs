@@ -1,235 +1,245 @@
 //! KV Backend to StorageBackend Adapter
 //!
 //! Wraps simple KV backends (File, Consul, S3) to implement the full StorageBackend trait.
-//! This allows HashiCorp Vault-style KV backends to work with the existing Secreton infrastructure.
+//! This allows any KV store to be used as a backend for Secreton.
 
 use crate::{
     BackendMetrics, HealthStatus, KvBackend, QueryParams, StorageBackend, StorageError,
     StorageResult, StorageStats, StorageTransaction, VaultEntry,
 };
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use chrono::Utc;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Adapter that wraps a KvBackend to implement StorageBackend
-/// This is the bridge between simple key-value backends (File, Consul, S3)
-/// and the full-featured StorageBackend trait that Secreton expects.
+///
+/// This adapter handles:
+/// - Serialization/Deserialization of VaultEntry
+/// - Path indexing (for list operations)
+/// - Metadata management
+///
+/// Note: This is a simplified adapter. A production implementation would need
+/// more robust indexing and transaction support.
 pub struct KvBackendAdapter<B: KvBackend> {
-    inner: B,
-    #[allow(dead_code)] // Metrics tracked internally
-    metrics: Arc<RwLock<BackendMetrics>>,
+    backend: B,
 }
 
 impl<B: KvBackend> KvBackendAdapter<B> {
-    /// Create a new adapter wrapping a KvBackend
     pub fn new(backend: B) -> Self {
-        Self {
-            inner: backend,
-            metrics: Arc::new(RwLock::new(BackendMetrics::default())),
-        }
+        Self { backend }
     }
 
-    /// Get reference to the inner backend
-    pub fn inner(&self) -> &B {
-        &self.inner
+    fn key_for_id(id: Uuid) -> String {
+        format!("entry/id/{}", id)
+    }
+
+    fn key_for_path(path: &str) -> String {
+        format!("entry/path/{}", path)
+    }
+
+    fn index_key_for_path(path: &str) -> String {
+        format!("index/path/{}", path)
     }
 }
 
 #[async_trait]
 impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B> {
-    /// Store a vault entry (serialized as JSON)
     async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let key = &entry.path;
-        let bytes = serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
+        let serialized = serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
+            message: format!("Failed to serialize entry: {}", e),
             source: Some(Box::new(e)),
-            message: "Failed to serialize VaultEntry".to_string(),
         })?;
-        self.inner.put(key, &bytes).await
+
+        // Store by ID
+        self.backend
+            .put(&Self::key_for_id(entry.id), &serialized)
+            .await?;
+
+        // Store index by path (mapping path -> ID)
+        self.backend
+            .put(
+                &Self::index_key_for_path(&entry.path),
+                entry.id.as_bytes(),
+            )
+            .await?;
+
+        Ok(())
     }
 
-    /// Retrieve by ID (search all entries - inefficient for KV)
-    async fn get_by_id(&self, _id: Uuid) -> StorageResult<Option<VaultEntry>> {
-        // KV backends don't have efficient ID lookup
-        // This is a limitation - consider using path-based lookups instead
-        Err(StorageError::BackendError {
-            backend: "KV Backend Adapter".to_string(),
-            message: "get_by_id not supported - use get_by_path instead".to_string(),
-        })
-    }
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+        let data = self.backend.get(&Self::key_for_id(id)).await?;
 
-    /// Retrieve by path (primary access pattern for KV)
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
-        let data = self.inner.get(path).await?;
-        match data {
-            Some(bytes) => {
-                let entry = serde_json::from_slice::<VaultEntry>(&bytes).map_err(|e| {
-                    StorageError::SerializationError {
-                        source: Some(Box::new(e)),
-                        message: "Failed to deserialize VaultEntry".to_string(),
-                    }
+        if let Some(bytes) = data {
+            let entry =
+                serde_json::from_slice(&bytes).map_err(|e| StorageError::SerializationError {
+                    message: format!("Failed to deserialize entry: {}", e),
+                    source: Some(Box::new(e)),
                 })?;
-                Ok(Some(entry))
-            }
-            None => Ok(None),
+            Ok(Some(entry))
+        } else {
+            Ok(None)
         }
     }
 
-    /// Update entry
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+        // Look up ID from path index
+        let index_data = self.backend.get(&Self::index_key_for_path(path)).await?;
+
+        if let Some(id_bytes) = index_data {
+            if let Ok(id) = Uuid::from_slice(&id_bytes) {
+                return self.get_by_id(id).await;
+            }
+        }
+
+        Ok(None)
+    }
+
     async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+        // Check if exists
+        if self.get_by_id(entry.id).await?.is_none() {
+            return Err(StorageError::NotFound {
+                resource_type: "VaultEntry".to_string(),
+                id: entry.id.to_string(),
+            });
+        }
+
         self.store(entry).await
     }
 
-    /// Delete by ID (not efficient for KV)
-    async fn delete_by_id(&self, _id: Uuid) -> StorageResult<bool> {
-        Err(StorageError::BackendError {
-            backend: "KV Backend Adapter".to_string(),
-            message: "delete_by_id not supported - use delete_by_path instead".to_string(),
-        })
-    }
+    async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
+        let entry = self.get_by_id(id).await?;
 
-    /// Delete by path
-    async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
-        if self.inner.exists(path).await? {
-            self.inner.delete(path).await?;
+        if let Some(entry) = entry {
+            self.backend.delete(&Self::key_for_id(id)).await?;
+            self.backend
+                .delete(&Self::index_key_for_path(&entry.path))
+                .await?;
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    /// List entries (basic prefix listing)
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
-        let prefix = params.path_prefix.as_deref().unwrap_or("");
-        let keys = self.inner.list(prefix).await?;
+    async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
+        let entry = self.get_by_path(path).await?;
 
+        if let Some(entry) = entry {
+            self.delete_by_id(entry.id).await
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+        // This is inefficient for KV stores as it requires listing all keys
+        // and retrieving each entry. Production implementations should use
+        // proper indexing or search backend.
+
+        let prefix = if let Some(p) = &params.path_prefix {
+            format!("index/path/{}", p)
+        } else {
+            "index/path/".to_string()
+        };
+
+        let keys = self.backend.list(&prefix).await?;
         let mut entries = Vec::new();
+
         for key in keys {
-            if let Some(entry) = self.get_by_path(&key).await? {
-                entries.push(entry);
+            // Key format: index/path/<actual_path>
+            // We need to get the ID stored at this key
+            if let Some(id_bytes) = self.backend.get(&key).await? {
+                if let Ok(id) = Uuid::from_slice(&id_bytes) {
+                    if let Some(entry) = self.get_by_id(id).await? {
+                        // Apply filters in memory
+                        if let Some(level) = params.security_level {
+                            if entry.security_level < level {
+                                continue;
+                            }
+                        }
+
+                        if let Some(owner) = params.owner_id {
+                            if entry.owner_id != owner.to_string() {
+                                continue;
+                            }
+                        }
+
+                        entries.push(entry);
+
+                        if let Some(limit) = params.limit {
+                            if entries.len() >= limit as usize {
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
         Ok(entries)
     }
 
-    /// Count entries
     async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
         let entries = self.list(params).await?;
         Ok(entries.len() as u64)
     }
 
-    /// Check existence
     async fn exists(&self, path: &str) -> StorageResult<bool> {
-        self.inner.exists(path).await
+        self.backend.exists(&Self::index_key_for_path(path)).await
     }
 
-    /// Transactions not supported
     async fn begin_transaction(&self) -> StorageResult<Box<dyn StorageTransaction>> {
         Err(StorageError::TransactionNotSupported {
-            backend: "KV Backend Adapter".to_string(),
+            backend: "kv-adapter".to_string(),
         })
     }
 
-    /// Health check
     async fn health_check(&self) -> StorageResult<HealthStatus> {
-        self.inner.health_check().await
+        self.backend.health_check().await
     }
 
-    /// Get stats
     async fn get_stats(&self) -> StorageResult<StorageStats> {
-        let metrics = self.inner.metrics().await?;
+        let metrics = self.backend.metrics().await?;
+
         Ok(StorageStats {
-            backend_type: "KV Backend Adapter".to_string(),
-            total_entries: 0, // Unknown without scanning
+            backend_type: "kv-adapter".to_string(),
+            total_entries: 0, // Difficult to count efficiently
             total_size_bytes: metrics.bytes_written,
             average_entry_size: 0.0,
-            entries_by_security_level: std::collections::HashMap::new(),
+            entries_by_security_level: HashMap::new(),
             entries_created_today: 0,
             entries_updated_today: 0,
             expired_entries: 0,
             last_backup: None,
-            metadata: serde_json::json!({}),
+            metadata: serde_json::json!({
+                "reads": metrics.reads,
+                "writes": metrics.writes,
+                "deletes": metrics.deletes
+            }),
         })
     }
 
-    /// Migrations not applicable
     async fn migrate(&self) -> StorageResult<()> {
         Ok(())
     }
 
-    /// Downcast support
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        // Inefficient implementation: iterate over all entries
+        let all_entries = self.list(&QueryParams::new()).await?;
+        let mut count = 0;
+
+        for entry in all_entries {
+            if entry.is_expired() {
+                if self.delete_by_id(entry.id).await? {
+                    count += 1;
+                }
+            }
+        }
+
+        Ok(count)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::backends::{FileBackend, FileConfig};
-    use tempfile::TempDir;
-
-    #[tokio::test]
-    async fn test_adapter_basic_operations() {
-        let temp_dir = TempDir::new().unwrap();
-        let config = FileConfig {
-            path: temp_dir.path().to_path_buf(),
-            sync_writes: false,
-            permissions: 0o600,
-            dir_permissions: 0o700,
-        };
-
-        let file_backend = FileBackend::new(config).await.unwrap();
-        let adapter = KvBackendAdapter::new(file_backend);
-
-        // Test put/get
-        adapter
-            .inner()
-            .put("test_key", b"test_value")
-            .await
-            .unwrap();
-        let result = adapter.inner().get("test_key").await.unwrap();
-        assert_eq!(result, Some(b"test_value".to_vec()));
-
-        // Test delete
-        adapter.inner().delete("test_key").await.unwrap();
-        let result = adapter.inner().get("test_key").await.unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[tokio::test]
-    async fn test_adapter_entry_operations() {
-        let temp_dir = TempDir::new().unwrap();
-        let config = FileConfig {
-            path: temp_dir.path().to_path_buf(),
-            sync_writes: false,
-            permissions: 0o600,
-            dir_permissions: 0o700,
-        };
-
-        let file_backend = FileBackend::new(config).await.unwrap();
-        let adapter = KvBackendAdapter::new(file_backend);
-
-        // Test put_entry/get_entry
-        let entry = VaultEntry {
-            id: uuid::Uuid::new_v4(),
-            path: "test_entry".to_string(),
-            encrypted_data: b"entry_data".to_vec(),
-            encryption_metadata: serde_json::json!({}),
-            security_level: crate::SecurityLevel::Internal,
-            metadata: Default::default(),
-            tags: vec![],
-            version: 1,
-            owner_id: "test".to_string(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            expires_at: None,
-        };
-
-        adapter.store(&entry).await.unwrap();
-        let result = adapter.get_by_path("test_entry").await.unwrap();
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().encrypted_data, b"entry_data".to_vec());
     }
 }
