@@ -3,6 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{get_system_metrics, SystemMetrics};
 use leptos::prelude::*;
 
 /// Dashboard page component - main user dashboard with statistics
@@ -13,36 +14,47 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
+    // Resource for fetching system metrics - use LocalResource for !Send futures (WASM)
+    let metrics_resource = LocalResource::new(
+        move || async move {
+            get_system_metrics().await.ok()
         },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    );
+
+    let stats = move || {
+        let metrics = metrics_resource.get().flatten();
+
+        vec![
+            StatCardData {
+                title: "Total Sistem".to_string(),
+                value: metrics.as_ref().map(|m| "9".to_string()).unwrap_or_else(|| "-".to_string()),
+                icon: "🖥️".to_string(),
+                color: StatColor::Blue,
+                trend: Some("Semua aktif".to_string()),
+            },
+            StatCardData {
+                title: "Active Sessions".to_string(),
+                value: metrics.as_ref().map(|m| m.vault.active_sessions.to_string()).unwrap_or_else(|| "-".to_string()),
+                icon: "👥".to_string(),
+                color: StatColor::Green,
+                trend: Some("Real-time".to_string()),
+            },
+            StatCardData {
+                title: "Uptime (Detik)".to_string(),
+                value: metrics.as_ref().map(|m| m.uptime.to_string()).unwrap_or_else(|| "-".to_string()),
+                icon: "⏱️".to_string(),
+                color: StatColor::Yellow,
+                trend: Some("Sejak startup".to_string()),
+            },
+            StatCardData {
+                title: "Total Secrets".to_string(),
+                value: metrics.as_ref().map(|m| m.vault.total_secrets.to_string()).unwrap_or_else(|| "-".to_string()),
+                icon: "🔒".to_string(),
+                color: StatColor::Red,
+                trend: Some("Vault Items".to_string()),
+            },
+        ]
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +125,13 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
-                        <div class="transform transition-all duration-300 hover:scale-105">
-                            <StatCard data=stat />
-                        </div>
-                    }).collect_view()}
+                    <Suspense fallback=move || view! { <p>"Loading stats..."</p> }>
+                        {move || stats().into_iter().map(|stat| view! {
+                            <div class="transform transition-all duration-300 hover:scale-105">
+                                <StatCard data=stat />
+                            </div>
+                        }).collect_view()}
+                    </Suspense>
                 </div>
 
                 // Main Content Grid
@@ -188,6 +202,26 @@ pub fn DashboardPage(
                                         </div>
                                     </div>
                                     <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </a>
+
+                            <a
+                                href="/secrets"
+                                class="block p-4 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl hover:shadow-md transition-all group border border-red-200 dark:border-red-800"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                                            <span class="text-xl">"🔒"</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900 dark:text-white">"Secrets"</p>
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola vault secrets"</p>
+                                        </div>
+                                    </div>
+                                    <svg class="w-5 h-5 text-red-600 dark:text-red-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </div>
