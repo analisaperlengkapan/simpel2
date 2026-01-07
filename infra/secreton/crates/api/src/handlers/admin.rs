@@ -43,11 +43,14 @@ pub fn create_routes() -> Router<AppState> {
         // System monitoring
         .route("/metrics", get(get_system_metrics))
         .route("/status", get(get_system_status))
+        .route("/stats", get(get_system_stats)) // New endpoint for dashboard
         .route("/logs", get(get_system_logs))
         // Maintenance operations
         .route("/maintenance/gc", post(run_garbage_collection))
         .route("/maintenance/compact", post(compact_database))
         .route("/maintenance/vacuum", post(vacuum_database))
+        .route("/maintenance/backup", post(create_backup)) // New endpoint
+        .route("/maintenance/backups", get(list_backups)) // New endpoint
         // Security operations
         .route("/security/scan", post(run_security_scan))
         .route("/security/reports", get(get_security_reports))
@@ -691,6 +694,39 @@ pub async fn get_system_status(
     };
 
     Ok(Json(ApiResponse::success(status)))
+}
+
+pub async fn get_system_stats(
+    State(state): State<AppState>,
+) -> ApiResult<Json<crate::services::admin::SystemStats>> {
+    let stats = state
+        .admin
+        .get_system_stats()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(Json(stats))
+}
+
+pub async fn create_backup(
+    State(state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<crate::services::admin::BackupInfo>>> {
+    let backup = state
+        .admin
+        .create_backup()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(Json(ApiResponse::success(backup)))
+}
+
+pub async fn list_backups(
+    State(state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<Vec<crate::services::admin::BackupInfo>>>> {
+    let backups = state
+        .admin
+        .list_backups()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    Ok(Json(ApiResponse::success(backups)))
 }
 
 /// Security endpoints
