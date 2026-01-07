@@ -3,7 +3,8 @@ use gloo_net::http::Request;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-const API_BASE_URL: &str = "http://localhost:8083/api/v1/keuangan";
+// Use relative path for production (via gateway) or dev proxy
+const API_BASE_URL: &str = "/api/v1/keuangan";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateBudgetRequest {

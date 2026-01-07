@@ -1,0 +1,50 @@
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use serde_json::json;
+use thiserror::Error;
+use tracing::error;
+
+#[derive(Debug, Error)]
+#[allow(dead_code)]
+pub enum AppError {
+    #[error("Database error: {0}")]
+    Db(#[from] tokio_postgres::Error),
+    #[error("Database pool error: {0}")]
+    Pool(#[from] deadpool_postgres::PoolError),
+    #[error("Validation error: {0}")]
+    Validation(String),
+    #[error("Not found")]
+    NotFound,
+    #[error("Internal server error")]
+    Internal,
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, message) = match &self {
+            AppError::Db(e) => {
+                error!("Database error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+            },
+            AppError::Pool(e) => {
+                error!("Pool error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database pool error".to_string())
+            },
+            AppError::Validation(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
+            AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+        };
+
+        let body = Json(json!({
+            "error": message
+        }));
+
+        (status, body).into_response()
+    }
+}

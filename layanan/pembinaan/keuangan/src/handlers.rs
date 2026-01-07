@@ -1,27 +1,29 @@
 use axum::{
-    extract::{State, Path},
-    Json, http::StatusCode,
+    extract::State,
+    Json,
 };
 use deadpool_postgres::Pool;
 use uuid::Uuid;
+use garde::Validate;
 use crate::models::{BudgetItem, Transaction, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics};
+use crate::error::AppError;
 
 // Dashboard Metrics
-pub async fn get_metrics(State(pool): State<Pool>) -> Result<Json<FinancialMetrics>, (StatusCode, String)> {
-    let client = pool.get().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+pub async fn get_metrics(State(pool): State<Pool>) -> Result<Json<FinancialMetrics>, AppError> {
+    let client = pool.get().await?;
 
     // Calculate totals
     let budget_row = client.query_one("SELECT COALESCE(SUM(allocated_amount), 0) as total, COALESCE(SUM(realized_amount), 0) as realized FROM keuangan.budgets", &[])
-        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await?;
 
     let total_budget: f64 = budget_row.get("total");
     let total_realization: f64 = budget_row.get("realized");
 
     let pending_count: i64 = client.query_one("SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Pending'", &[])
-        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?.get(0);
+        .await?.get(0);
 
     let approved_count: i64 = client.query_one("SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Approved'", &[])
-        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?.get(0);
+        .await?.get(0);
 
     let metrics = FinancialMetrics {
         total_budget,
@@ -38,11 +40,11 @@ pub async fn get_metrics(State(pool): State<Pool>) -> Result<Json<FinancialMetri
 }
 
 // Budget Handlers
-pub async fn list_budgets(State(pool): State<Pool>) -> Result<Json<Vec<BudgetItem>>, (StatusCode, String)> {
-    let client = pool.get().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+pub async fn list_budgets(State(pool): State<Pool>) -> Result<Json<Vec<BudgetItem>>, AppError> {
+    let client = pool.get().await?;
 
     let rows = client.query("SELECT * FROM keuangan.budgets ORDER BY created_at DESC", &[])
-        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await?;
 
     let budgets: Vec<BudgetItem> = rows.into_iter().map(BudgetItem::from).collect();
     Ok(Json(budgets))
@@ -51,8 +53,11 @@ pub async fn list_budgets(State(pool): State<Pool>) -> Result<Json<Vec<BudgetIte
 pub async fn create_budget(
     State(pool): State<Pool>,
     Json(payload): Json<CreateBudgetRequest>,
-) -> Result<Json<BudgetItem>, (StatusCode, String)> {
-    let client = pool.get().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+) -> Result<Json<BudgetItem>, AppError> {
+    // Validation
+    payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let client = pool.get().await?;
 
     let row = client.query_one(
         r#"
@@ -68,17 +73,17 @@ pub async fn create_budget(
             &payload.priority,
             &payload.responsible_unit
         ],
-    ).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    ).await?;
 
     Ok(Json(BudgetItem::from(row)))
 }
 
 // Transaction Handlers
-pub async fn list_transactions(State(pool): State<Pool>) -> Result<Json<Vec<Transaction>>, (StatusCode, String)> {
-    let client = pool.get().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+pub async fn list_transactions(State(pool): State<Pool>) -> Result<Json<Vec<Transaction>>, AppError> {
+    let client = pool.get().await?;
 
     let rows = client.query("SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT 10", &[])
-        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await?;
 
     let transactions: Vec<Transaction> = rows.into_iter().map(Transaction::from).collect();
     Ok(Json(transactions))
@@ -87,8 +92,11 @@ pub async fn list_transactions(State(pool): State<Pool>) -> Result<Json<Vec<Tran
 pub async fn create_transaction(
     State(pool): State<Pool>,
     Json(payload): Json<CreateTransactionRequest>,
-) -> Result<Json<Transaction>, (StatusCode, String)> {
-    let client = pool.get().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+) -> Result<Json<Transaction>, AppError> {
+    // Validation
+    payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let client = pool.get().await?;
 
     // Transaction code generation (simple)
     let code = format!("TRX-{}", Uuid::new_v4().simple().to_string()[0..8].to_uppercase());
@@ -106,7 +114,7 @@ pub async fn create_transaction(
             &payload.transaction_type,
             &payload.budget_item_id
         ],
-    ).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    ).await?;
 
     // If it's an expense and linked to a budget, update the realized amount
     if payload.transaction_type == "Expense" {

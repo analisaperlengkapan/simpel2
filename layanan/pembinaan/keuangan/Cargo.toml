@@ -21,3 +21,5 @@ tokio-postgres = { workspace = true }
 postgres-types = { workspace = true }
 chrono = { workspace = true }
 dotenvy = { workspace = true }
+thiserror = { workspace = true }
+garde = { workspace = true, features = ["derive"] }

@@ -1,6 +1,5 @@
 use anyhow::Result;
-use deadpool_postgres::{Pool, Runtime};
-use tokio_postgres::NoTls;
+use deadpool_postgres::Pool;
 
 pub async fn init_db(pool: &Pool) -> Result<()> {
     let client = pool.get().await?;

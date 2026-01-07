@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use tokio_postgres::Row;
+use garde::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BudgetItem {
@@ -73,22 +74,40 @@ impl From<Row> for Transaction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreateBudgetRequest {
+    #[garde(length(min = 3))]
     pub category: String,
+    #[garde(length(min = 3))]
     pub subcategory: String,
+    #[garde(length(min = 3))]
     pub budget_code: String,
+    #[garde(range(min = 0.0))]
     pub allocated_amount: f64,
+    #[garde(skip)] // Simple string check in handler or enum later
     pub priority: String,
+    #[garde(length(min = 3))]
     pub responsible_unit: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreateTransactionRequest {
+    #[garde(length(min = 5))]
     pub description: String,
+    #[garde(range(min = 0.0))]
     pub amount: f64,
+    #[garde(custom(validate_transaction_type))]
     pub transaction_type: String, // Income, Expense
+    #[garde(skip)]
     pub budget_item_id: Option<Uuid>,
+}
+
+fn validate_transaction_type(value: &str, _ctx: &()) -> garde::Result {
+    if value == "Income" || value == "Expense" {
+        Ok(())
+    } else {
+        Err(garde::Error::new("must be 'Income' or 'Expense'"))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
