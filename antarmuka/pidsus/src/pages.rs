@@ -1,70 +1,30 @@
 use crate::types::*;
-use chrono::Utc;
+use crate::api::{fetch_dashboard_stats, fetch_recent_cases};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 /// PIDSUS Dashboard Page
 #[component]
 pub fn PidsusDashboard() -> impl IntoView {
-    // Sample statistics data
-    let (stats, _set_stats) = signal(PidsusStatistics {
-        total_cases: 156,
-        active_cases: 23,
-        closed_cases: 133,
-        total_suspects: 89,
-        convicted_suspects: 67,
-        conviction_rate: 85.2,
-        total_evidence: 432,
-        total_recovered_assets: 125_000_000_000.0,
-        average_case_duration: 180,
-        success_rate: 91.5,
-        international_cases: 12,
-    });
+    // Signals for data
+    let (stats, set_stats) = signal::<Option<PidsusStatistics>>(None);
+    let (cases, set_cases) = signal::<Option<Vec<SpecialCase>>>(None);
+    let (error_msg, set_error_msg) = signal::<Option<String>>(None);
 
-    // Sample recent cases
-    let (recent_cases, _set_recent_cases) = signal(vec![
-        SpecialCase {
-            id: "1".to_string(),
-            case_number: "PIDSUS-2024-001".to_string(),
-            crime_type: SpecialCrimeType::MoneyLaundering,
-            title: "Pencucian Uang Lintas Negara".to_string(),
-            description:
-                "Kasus pencucian uang senilai 50 miliar yang melibatkan jaringan internasional"
-                    .to_string(),
-            status: SpecialCaseStatus::Investigation,
-            priority: SpecialCasePriority::High,
-            classification: ClassificationLevel::Secret,
-            created_date: Utc::now(),
-            updated_date: Utc::now(),
-            lead_investigator: "Jaksa Senior A. Rahman".to_string(),
-            team_members: vec!["Tim Khusus PIDSUS".to_string()],
-            related_agencies: vec![RelatedAgency::PPATK, RelatedAgency::Polri],
-            location: "Jakarta".to_string(),
-            estimated_loss: Some(50_000_000_000.0),
-            suspects_count: 5,
-            evidence_count: 23,
-            witnesses_count: 12,
-        },
-        SpecialCase {
-            id: "2".to_string(),
-            case_number: "PIDSUS-2024-002".to_string(),
-            crime_type: SpecialCrimeType::HumanTrafficking,
-            title: "Jaringan Perdagangan Manusia".to_string(),
-            description: "Kasus perdagangan manusia dengan modus kerja ke luar negeri".to_string(),
-            status: SpecialCaseStatus::Prosecution,
-            priority: SpecialCasePriority::Urgent,
-            classification: ClassificationLevel::Confidential,
-            created_date: Utc::now(),
-            updated_date: Utc::now(),
-            lead_investigator: "Jaksa Senior B. Sari".to_string(),
-            team_members: vec!["Tim Lintas Batas".to_string()],
-            related_agencies: vec![RelatedAgency::Polri, RelatedAgency::BNN],
-            location: "Batam".to_string(),
-            estimated_loss: None,
-            suspects_count: 8,
-            evidence_count: 31,
-            witnesses_count: 45,
-        },
-    ]);
+    // Fetch data on mount
+    Effect::new(move |_| {
+        spawn_local(async move {
+            match fetch_dashboard_stats().await {
+                Ok(data) => set_stats.set(Some(data)),
+                Err(e) => set_error_msg.set(Some(format!("Failed to load stats: {}", e))),
+            }
+
+            match fetch_recent_cases().await {
+                Ok(data) => set_cases.set(Some(data)),
+                Err(e) => set_error_msg.set(Some(format!("Failed to load cases: {}", e))),
+            }
+        });
+    });
 
     view! {
         <div class="space-y-6">
@@ -74,37 +34,48 @@ pub fn PidsusDashboard() -> impl IntoView {
                 icon_class="fa-shield-alt".to_string()
             />
 
+            {move || if let Some(err) = error_msg.get() {
+                 view! { <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">{err}</div> }.into_any()
+            } else {
+                 view! {}.into_any()
+            }}
+
             // Quick Statistics
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <SpecialStatCard
-                    title="Total Kasus".to_string()
-                    value=stats.get().total_cases.to_string()
-                    icon="fa-folder".to_string()
-                    color="blue".to_string()
-                    trend="Semua periode".to_string()
-                />
-                <SpecialStatCard
-                    title="Kasus Aktif".to_string()
-                    value=stats.get().active_cases.to_string()
-                    icon="fa-folder-open".to_string()
-                    color="yellow".to_string()
-                    trend="Dalam proses".to_string()
-                />
-                <SpecialStatCard
-                    title="Tersangka".to_string()
-                    value=stats.get().total_suspects.to_string()
-                    icon="fa-user-secret".to_string()
-                    color="red".to_string()
-                    trend=format!("{} terpidana", stats.get().convicted_suspects)
-                />
-                <SpecialStatCard
-                    title="Tingkat Konviksi".to_string()
-                    value=format!("{:.1}%", stats.get().conviction_rate)
-                    icon="fa-gavel".to_string()
-                    color="green".to_string()
-                    trend="Rata-rata tahunan".to_string()
-                />
-            </div>
+            {move || match stats.get() {
+                Some(stats) => view! {
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <SpecialStatCard
+                            title="Total Kasus".to_string()
+                            value=stats.total_cases.to_string()
+                            icon="fa-folder".to_string()
+                            color="blue".to_string()
+                            trend="Semua periode".to_string()
+                        />
+                        <SpecialStatCard
+                            title="Kasus Aktif".to_string()
+                            value=stats.active_cases.to_string()
+                            icon="fa-folder-open".to_string()
+                            color="yellow".to_string()
+                            trend="Dalam proses".to_string()
+                        />
+                        <SpecialStatCard
+                            title="Tersangka".to_string()
+                            value=stats.total_suspects.to_string()
+                            icon="fa-user-secret".to_string()
+                            color="red".to_string()
+                            trend="Total tersangka".to_string()
+                        />
+                        <SpecialStatCard
+                            title="Tingkat Konviksi".to_string()
+                            value=format!("{:.1}%", stats.conviction_rate)
+                            icon="fa-gavel".to_string()
+                            color="green".to_string()
+                            trend="Rata-rata tahunan".to_string()
+                        />
+                    </div>
+                }.into_any(),
+                None => view! { <div class="text-center p-4">"Loading stats..."</div> }.into_any()
+            }}
 
             // Action Buttons
             <div class="flex flex-wrap gap-3">
@@ -115,14 +86,6 @@ pub fn PidsusDashboard() -> impl IntoView {
                 <button class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
                     <i class="fas fa-bullseye mr-2"></i>
                     "Operasi Khusus"
-                </button>
-                <button class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
-                    <i class="fas fa-microscope mr-2"></i>
-                    "Analisis Forensik"
-                </button>
-                <button class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
-                    <i class="fas fa-handshake mr-2"></i>
-                    "Kerjasama Internasional"
                 </button>
             </div>
 
@@ -136,135 +99,51 @@ pub fn PidsusDashboard() -> impl IntoView {
                 </div>
 
                 <div class="space-y-4">
-                    {move || recent_cases.get().into_iter().map(|case| view! {
-                        <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-3">
-                                        <h3 class="font-semibold text-lg text-gray-900">{case.case_number.clone()}</h3>
-                                        <SpecialCaseStatusBadge status=case.status.clone() />
-                                        <SpecialPriorityBadge priority=case.priority.clone() />
-                                        <ClassificationBadge classification=case.classification.clone() />
+                    {move || match cases.get() {
+                        Some(cases_list) => {
+                            if cases_list.is_empty() {
+                                view! { <div class="text-gray-500">"No cases found"</div> }.into_any()
+                            } else {
+                                cases_list.into_iter().map(|case| view! {
+                                    <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-3 mb-3">
+                                                    <h3 class="font-semibold text-lg text-gray-900">{case.case_number}</h3>
+                                                    <SpecialCaseStatusBadge status=case.status.clone() />
+                                                    <SpecialPriorityBadge priority=case.priority.clone() />
+                                                    <ClassificationBadge classification=case.classification.clone() />
+                                                </div>
+                                                <p class="text-gray-700 font-medium mb-2">{case.title}</p>
+                                                <p class="text-gray-600 text-sm mb-4">{case.description}</p>
+                                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500">
+                                                    <div>
+                                                        <span class="font-medium">"Penyidik Utama:"</span><br/>
+                                                        <span class="text-gray-700">{case.lead_investigator}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-medium">"Lokasi:"</span><br/>
+                                                        <span class="text-gray-700">{case.location}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-medium">"Tersangka:"</span><br/>
+                                                        <span class="text-gray-700">{case.suspects_count} " orang"</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="ml-4">
+                                                <button class="inline-flex items-center px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md shadow-sm transition-colors">
+                                                    <i class="fas fa-eye mr-1"></i>
+                                                    "Detail"
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p class="text-gray-700 font-medium mb-2">{case.title.clone()}</p>
-                                    <p class="text-gray-600 text-sm mb-4">{case.description.clone()}</p>
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500">
-                                        <div>
-                                            <span class="font-medium">"Penyidik Utama:"</span><br/>
-                                            <span class="text-gray-700">{case.lead_investigator.clone()}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-medium">"Lokasi:"</span><br/>
-                                            <span class="text-gray-700">{case.location.clone()}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-medium">"Tersangka:"</span><br/>
-                                            <span class="text-gray-700">{case.suspects_count} " orang"</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-medium">"Bukti:"</span><br/>
-                                            <span class="text-gray-700">{case.evidence_count} " item"</span>
-                                        </div>
-                                    </div>
-                                    {case.estimated_loss.map(|loss| view! {
-                                        <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                                            <span class="text-sm font-medium text-red-800">
-                                                "Perkiraan Kerugian: Rp " {format!("{:.0}", loss / 1_000_000.0)} " juta"
-                                            </span>
-                                        </div>
-                                    })}
-                                </div>
-                                <div class="ml-4">
-                                    <button class="inline-flex items-center px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md shadow-sm transition-colors">
-                                        <i class="fas fa-eye mr-1"></i>
-                                        "Detail"
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    }).collect::<Vec<_>>()}
-                </div>
-            </div>
-
-            // Dashboard Overview Grid
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                // Kasus Prioritas Tinggi
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4 flex items-center">
-                        <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
-                        "Kasus Prioritas Tinggi"
-                    </h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600">"PIDSUS-2024-002"</span>
-                            <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">"Mendesak"</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600">"PIDSUS-2024-001"</span>
-                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">"Tinggi"</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600">"PIDSUS-2024-005"</span>
-                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">"Tinggi"</span>
-                        </div>
-                    </div>
-                </div>
-
-                // Progress Operasi Khusus
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4 flex items-center">
-                        <i class="fas fa-bullseye text-blue-500 mr-2"></i>
-                        "Progress Operasi"
-                    </h3>
-                    <div class="space-y-4">
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-sm text-gray-600">"Operasi Anti Pencucian"</span>
-                                <span class="text-sm text-gray-600">"85%"</span>
-                            </div>
-                            <SpecialProgressBar percentage=85 color="green".to_string() />
-                        </div>
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-sm text-gray-600">"Operasi Cyber Crime"</span>
-                                <span class="text-sm text-gray-600">"60%"</span>
-                            </div>
-                            <SpecialProgressBar percentage=60 color="yellow".to_string() />
-                        </div>
-                        <div>
-                            <div class="flex justify-between mb-1">
-                                <span class="text-sm text-gray-600">"Operasi Lintas Batas"</span>
-                                <span class="text-sm text-gray-600">"30%"</span>
-                            </div>
-                            <SpecialProgressBar percentage=30 color="red".to_string() />
-                        </div>
-                    </div>
-                </div>
-
-                // Kerjasama Internasional
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4 flex items-center">
-                        <i class="fas fa-globe text-green-500 mr-2"></i>
-                        "Kerjasama Internasional"
-                    </h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">"Singapura"</span>
-                            <span class="font-semibold text-green-600">"Aktif"</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">"Malaysia"</span>
-                            <span class="font-semibold text-blue-600">"Pending"</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">"Australia"</span>
-                            <span class="font-semibold text-green-600">"Aktif"</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">"Swiss"</span>
-                            <span class="font-semibold text-yellow-600">"Review"</span>
-                        </div>
-                    </div>
+                                }).collect::<Vec<_>>().into_any()
+                            }
+                        },
+                        None => view! { <div class="p-4 text-center">"Loading cases..."</div> }.into_any(),
+                    }}
                 </div>
             </div>
         </div>

@@ -287,6 +287,29 @@ services:
       - postgres
     restart: unless-stopped
 
+  # Pidsus Service
+  layanan-pidsus:
+    build:
+      context: ./layanan/pidsus
+      dockerfile: Dockerfile
+    networks:
+      - simpelv2
+      - internal
+    environment:
+      - SERVER_PORT=3000
+      - DATABASE_URL=postgres://simpelv2_user:secure_password@postgres:5432/simpelv2
+    labels:
+      simpelv2.role: backend
+      simpelv2.name: pidsus
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   # ================================
   # DATABASE SERVICES
   # ================================
