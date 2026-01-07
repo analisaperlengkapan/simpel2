@@ -123,12 +123,11 @@ impl AdminService {
         let _audit_count = self.audit.count().await;
 
         // Calculate uptime
-        let uptime_seconds = self.start_time.elapsed().as_secs();
+        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds() as u64;
 
-        // TODO: Get actual user and session counts from auth service
-        // For now, using placeholder values as auth service doesn't expose these stats yet
-        let total_users = 0;
-        let active_sessions = 0;
+        // Get actual user and session counts from auth service
+        let total_users = self.auth.count_users().await.unwrap_or(0);
+        let active_sessions = self.auth.count_active_sessions().await.unwrap_or(0);
 
         Ok(SystemStats {
             uptime_seconds,
@@ -233,7 +232,7 @@ impl AdminService {
         let retention_period = chrono::Duration::days(30);
         let cleaned_audit_logs = self
             .audit
-            .cleanup_expired_events(retention_period.to_std().unwrap_or_default())
+            .cleanup_expired_events(retention_period)
             .await;
 
         let cleaned_objects =

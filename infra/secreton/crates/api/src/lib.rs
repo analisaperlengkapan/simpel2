@@ -22,6 +22,7 @@ pub mod response;
 // TODO: Re-enable after OpenRaft migration is complete
 // pub mod raft;
 pub mod services;
+pub mod tasks;
 pub mod transit;
 
 // Re-export gRPC from separate crate

@@ -451,6 +451,23 @@ impl AuthService {
         Ok(false)
     }
 
+    /// Count total users
+    pub async fn count_users(&self) -> Result<u64, AuthError> {
+        // This is inefficient for large datasets but sufficient for current architecture
+        // A proper index or count metric in storage backend would be better
+        let params = secreton_storage::QueryParams::new().with_path_prefix("auth/users".to_string());
+        let count = self.storage.count(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))?;
+        Ok(count)
+    }
+
+    /// Count active sessions
+    pub async fn count_active_sessions(&self) -> Result<u64, AuthError> {
+        // Placeholder - Session storage implementation needed
+        // For now, return 0
+        Ok(0)
+    }
+
     /// Check if user has a specific role
     pub async fn has_role(&self, user_id: &str, role: &str) -> Result<bool, AuthError> {
         // Special case for root user

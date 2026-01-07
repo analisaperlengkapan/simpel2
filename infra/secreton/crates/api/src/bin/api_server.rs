@@ -84,7 +84,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Creating router...");
     // Create REST router
-    let app = create_api_router(api_state);
+    let app = create_api_router(api_state.clone());
+
+    // Start background tasks (Garbage Collection, etc.)
+    info!("Starting background tasks...");
+    secreton_api::tasks::start_background_tasks(api_state);
 
     let http_addr: SocketAddr = config.http.bind_address;
     let grpc_addr: SocketAddr = config.grpc.bind_address;

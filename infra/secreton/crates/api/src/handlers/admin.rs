@@ -740,30 +740,31 @@ pub async fn get_security_incidents(
 
 /// Maintenance operations
 pub async fn run_garbage_collection(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement garbage collection
-    let data = serde_json::json!({
-        "message": "Garbage collection completed",
-        "cleaned_objects": 150,
-        "freed_space": "2.5MB"
-    });
+    let result = state
+        .admin
+        .run_garbage_collection()
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Garbage collection failed: {}", e),
+        })?;
 
-    Ok(Json(ApiResponse::success(data)))
+    Ok(Json(ApiResponse::success(serde_json::to_value(result)?)))
 }
 
 pub async fn compact_database(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement database compaction
-    let data = serde_json::json!({
-        "message": "Database compaction completed",
-        "original_size": "1.2GB",
-        "compacted_size": "950MB",
-        "space_saved": "250MB"
-    });
+    let result = state
+        .admin
+        .compact_database()
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Database compaction failed: {}", e),
+        })?;
 
-    Ok(Json(ApiResponse::success(data)))
+    Ok(Json(ApiResponse::success(serde_json::to_value(result)?)))
 }
 
 /// Calculate permissions from roles

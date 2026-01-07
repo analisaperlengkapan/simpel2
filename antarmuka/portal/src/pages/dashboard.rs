@@ -3,7 +3,27 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{fetch_api, ApiError};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use serde::Deserialize;
+
+#[derive(Clone, Debug, Deserialize)]
+struct SystemMetrics {
+    uptime: u64,
+    vault: VaultMetrics,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct VaultMetrics {
+    active_sessions: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ApiResponse<T> {
+    success: bool,
+    data: Option<T>,
+}
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
@@ -13,7 +33,8 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
+    // Reactive stats
+    let (stats, set_stats) = signal(vec![
         StatCardData {
             title: "Total Sistem".to_string(),
             value: "9".to_string(),
@@ -23,17 +44,17 @@ pub fn DashboardPage(
         },
         StatCardData {
             title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
+            value: "Loading...".to_string(),
             icon: "👥".to_string(),
             color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
+            trend: Some("Memuat data...".to_string()),
         },
         StatCardData {
             title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
+            value: "Loading...".to_string(),
             icon: "⏱️".to_string(),
             color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
+            trend: Some("Memuat data...".to_string()),
         },
         StatCardData {
             title: "Keamanan".to_string(),
@@ -42,7 +63,88 @@ pub fn DashboardPage(
             color: StatColor::Red,
             trend: Some("Sangat aman".to_string()),
         },
-    ];
+    ]);
+
+    // Fetch real metrics if user is admin
+    let is_admin = user_session.role.is_admin();
+
+    Effect::new(move |_| {
+        if is_admin {
+            spawn_local(async move {
+                if let Ok(resp) = fetch_api::<()>("GET", "/v1/admin/metrics", None).await {
+                    if let Ok(body) = resp.json::<ApiResponse<SystemMetrics>>().await {
+                        if body.success && body.data.is_some() {
+                            let metrics = body.data.unwrap();
+                            let uptime_hours = metrics.uptime / 3600;
+
+                            set_stats.set(vec![
+                                StatCardData {
+                                    title: "Total Sistem".to_string(),
+                                    value: "9".to_string(),
+                                    icon: "🖥️".to_string(),
+                                    color: StatColor::Blue,
+                                    trend: Some("Semua aktif".to_string()),
+                                },
+                                StatCardData {
+                                    title: "Pengguna Aktif".to_string(),
+                                    value: metrics.vault.active_sessions.to_string(),
+                                    icon: "👥".to_string(),
+                                    color: StatColor::Green,
+                                    trend: Some("Live".to_string()),
+                                },
+                                StatCardData {
+                                    title: "Uptime Sistem".to_string(),
+                                    value: format!("{} Jam", uptime_hours),
+                                    icon: "⏱️".to_string(),
+                                    color: StatColor::Yellow,
+                                    trend: Some("Sejak restart terakhir".to_string()),
+                                },
+                                StatCardData {
+                                    title: "Keamanan".to_string(),
+                                    value: "A+".to_string(),
+                                    icon: "🛡️".to_string(),
+                                    color: StatColor::Red,
+                                    trend: Some("Sistem Terproteksi".to_string()),
+                                },
+                            ]);
+                        }
+                    }
+                }
+            });
+        } else {
+            // Restore default values for non-admins
+            set_stats.set(vec![
+                StatCardData {
+                    title: "Total Sistem".to_string(),
+                    value: "9".to_string(),
+                    icon: "🖥️".to_string(),
+                    color: StatColor::Blue,
+                    trend: Some("Semua aktif".to_string()),
+                },
+                StatCardData {
+                    title: "Pengguna Aktif".to_string(),
+                    value: "1,234".to_string(),
+                    icon: "👥".to_string(),
+                    color: StatColor::Green,
+                    trend: Some("+12% bulan ini".to_string()),
+                },
+                StatCardData {
+                    title: "Uptime Sistem".to_string(),
+                    value: "99.9%".to_string(),
+                    icon: "⏱️".to_string(),
+                    color: StatColor::Yellow,
+                    trend: Some("30 hari terakhir".to_string()),
+                },
+                StatCardData {
+                    title: "Keamanan".to_string(),
+                    value: "A+".to_string(),
+                    icon: "🛡️".to_string(),
+                    color: StatColor::Red,
+                    trend: Some("Sangat aman".to_string()),
+                },
+            ]);
+        }
+    });
 
     // Get current time for greeting
     let greeting = {
@@ -113,7 +215,7 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
+                    {move || stats.get().into_iter().map(|stat| view! {
                         <div class="transform transition-all duration-300 hover:scale-105">
                             <StatCard data=stat />
                         </div>
