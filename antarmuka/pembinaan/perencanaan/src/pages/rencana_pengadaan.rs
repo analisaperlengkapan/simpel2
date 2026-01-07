@@ -44,14 +44,47 @@ pub fn RencanaPengadaan() -> impl IntoView {
     let (pagu_anggaran, set_pagu_anggaran) = signal(String::new());
     let (tanggal_mulai, set_tanggal_mulai) = signal(String::new());
     let (tanggal_selesai, set_tanggal_selesai) = signal(String::new());
+    let (error_msg, set_error_msg) = signal(Option::<String>::None);
+
+    // Derived error state from actions
+    let create_error = move || create_action.value().get().and_then(|res| res.err());
+    let delete_error = move || delete_action.value().get().and_then(|res| res.err());
 
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
-        let pagu = pagu_anggaran.get().parse::<i64>().unwrap_or(0);
-        let tgl_mulai = NaiveDate::parse_from_str(&tanggal_mulai.get(), "%Y-%m-%d")
-            .unwrap_or_else(|_| NaiveDate::from_ymd_opt(2024, 1, 1).unwrap());
-        let tgl_selesai = NaiveDate::parse_from_str(&tanggal_selesai.get(), "%Y-%m-%d")
-            .unwrap_or_else(|_| NaiveDate::from_ymd_opt(2024, 12, 31).unwrap());
+        set_error_msg.set(None);
+
+        let pagu_res = pagu_anggaran.get().parse::<i64>();
+        let pagu = match pagu_res {
+            Ok(val) => val,
+            Err(_) => {
+                set_error_msg.set(Some("Pagu Anggaran harus berupa angka".to_string()));
+                return;
+            }
+        };
+
+        let tgl_mulai_res = NaiveDate::parse_from_str(&tanggal_mulai.get(), "%Y-%m-%d");
+        let tgl_mulai = match tgl_mulai_res {
+            Ok(val) => val,
+            Err(_) => {
+                set_error_msg.set(Some("Tanggal Mulai tidak valid".to_string()));
+                return;
+            }
+        };
+
+        let tgl_selesai_res = NaiveDate::parse_from_str(&tanggal_selesai.get(), "%Y-%m-%d");
+        let tgl_selesai = match tgl_selesai_res {
+            Ok(val) => val,
+            Err(_) => {
+                set_error_msg.set(Some("Tanggal Selesai tidak valid".to_string()));
+                return;
+            }
+        };
+
+        if tgl_mulai > tgl_selesai {
+             set_error_msg.set(Some("Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai".to_string()));
+             return;
+        }
 
         let req = CreateRencanaRequest {
             nama_kegiatan: nama_kegiatan.get(),
@@ -62,11 +95,21 @@ pub fn RencanaPengadaan() -> impl IntoView {
         };
 
         create_action.dispatch(req);
+        // Modal closing logic is now simpler: close if no validation error.
+        // Backend errors will be shown in the modal if it stays open, or we can close it.
+        // For better UX, we'll keep it open on backend error (handled by create_error view below)
+        // OR we can close it and show a toast.
+        // Here we close it optimistically. If there's an error, the user might need to re-open or we rely on resource refetch.
+        // Actually, let's keep it open if there is a backend error... but `create_action` is async.
+        // We'll just close it for now as per previous logic, but display global errors if any.
         set_show_modal.set(false);
+
         // Reset form
         set_nama_kegiatan.set("".to_string());
         set_kode_rekening.set("".to_string());
         set_pagu_anggaran.set("".to_string());
+        set_tanggal_mulai.set("".to_string());
+        set_tanggal_selesai.set("".to_string());
     };
 
     let content = move || view! {
@@ -82,12 +125,36 @@ pub fn RencanaPengadaan() -> impl IntoView {
                     </button>
                 </div>
 
+                // Global Error Display (e.g. Deletion errors)
+                {move || delete_error().map(|msg| view! {
+                    <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <strong class="font-bold">"Error: "</strong>
+                        <span class="block sm:inline">{msg}</span>
+                    </div>
+                }).into_any()}
+
                 // Modal
                 {move || if show_modal.get() {
                     view! {
                         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                             <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg mx-4">
                                 <h2 class="text-xl font-bold mb-4">"Tambah Rencana Pengadaan"</h2>
+
+                                // Validation Errors
+                                {move || error_msg.get().map(|msg| view! {
+                                    <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                        <span class="block sm:inline">{msg}</span>
+                                    </div>
+                                }).into_any()}
+
+                                // Backend Creation Errors
+                                {move || create_error().map(|msg| view! {
+                                    <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                        <strong class="font-bold">"Server Error: "</strong>
+                                        <span class="block sm:inline">{msg}</span>
+                                    </div>
+                                }).into_any()}
+
                                 <form on:submit=on_submit>
                                     <div class="space-y-4">
                                         <div>
@@ -148,14 +215,16 @@ pub fn RencanaPengadaan() -> impl IntoView {
                                             type="button"
                                             class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                                             on:click=move |_| set_show_modal.set(false)
+                                            prop:disabled=move || create_action.pending().get()
                                         >
                                             "Batal"
                                         </button>
                                         <button
                                             type="submit"
-                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
+                                            prop:disabled=move || create_action.pending().get()
                                         >
-                                            "Simpan"
+                                            {move || if create_action.pending().get() { "Menyimpan..." } else { "Simpan" }}
                                         </button>
                                     </div>
                                 </form>

@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{NaiveDate, DateTime, Utc};
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ApiErrorResponse {
+    pub success: bool,
+    pub message: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RencanaPengadaan {
     pub id: Uuid,
