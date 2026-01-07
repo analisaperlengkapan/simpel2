@@ -3,6 +3,7 @@ use crate::features::auth::UserSession;
 use crate::types::AuditLogEntry;
 use crate::utils::api::fetch_audit_logs;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 #[component]
 pub fn MonitoringPage(

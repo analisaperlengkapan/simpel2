@@ -3,8 +3,10 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::types::SystemMetricsResponse;
 use crate::utils::api::fetch_system_metrics;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
