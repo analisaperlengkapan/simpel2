@@ -10,7 +10,6 @@ SHELL := /bin/bash
 # Load configuration and organized modules
 include scripts/makefiles/config.mk     # Configuration and variables
 include scripts/makefiles/dev.mk        # Development environment targets
-include scripts/makefiles/ops.mk        # Operations and deployment targets
 include scripts/makefiles/advanced.mk   # Advanced features and automation
 
 # Rust/Cargo workflow targets
