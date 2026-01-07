@@ -1,27 +1,35 @@
-use axum::{Router, routing::get};
+use layanan_pengawasan::{router::create_router, db};
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tower_http::cors::CorsLayer;
+use dotenvy::dotenv;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    dotenv().ok();
 
-    let app = Router::new()
-        .route("/", get(health_check))
-        .route("/api/v1/pengawasan/health", get(health_check))
-        .route("/api/v1/pengawasan/status", get(status));
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    println!("pengawasan service listening on {}", addr);
+    // Initialize Database
+    let pool = db::create_pool().await.expect("Failed to create database pool");
 
-    let listener = TcpListener::bind(&addr).await.unwrap();
+    // Run Migrations
+    tracing::info!("Running database migrations...");
+    if let Err(e) = db::migrate(&pool).await {
+        tracing::error!("Failed to run migrations: {}", e);
+        // In production, you might want to panic here, but for dev we continue
+    }
+
+    let app = create_router(pool).layer(CorsLayer::permissive());
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3004));
+    tracing::info!("listening on {}", addr);
+
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn health_check() -> &'static str {
-    "pengawasan Service OK"
-}
-
-async fn status() -> &'static str {
-    "pengawasan service is running"
 }
