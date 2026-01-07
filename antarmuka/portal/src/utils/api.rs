@@ -101,6 +101,8 @@ pub struct ApiErrorDetail {
 pub enum ApiError {
     Network(String),
     Api(String),
+    Unauthorized(String),
+    NotFound(String),
     Serialization(String),
 }
 
@@ -109,6 +111,8 @@ impl std::fmt::Display for ApiError {
         match self {
             ApiError::Network(msg) => write!(f, "Network error: {}", msg),
             ApiError::Api(msg) => write!(f, "API error: {}", msg),
+            ApiError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+            ApiError::NotFound(msg) => write!(f, "Not Found: {}", msg),
             ApiError::Serialization(msg) => write!(f, "Serialization error: {}", msg),
         }
     }
@@ -133,7 +137,13 @@ pub async fn get_system_metrics() -> Result<SystemMetrics, ApiError> {
         .map_err(|e| ApiError::Network(e.to_string()))?;
 
     if !resp.ok() {
-        return Err(ApiError::Api(format!("Status {}: {}", resp.status(), resp.status_text())));
+        let status = resp.status();
+        let text = resp.status_text();
+        return match status {
+            401 => Err(ApiError::Unauthorized("Session expired".to_string())),
+            404 => Err(ApiError::NotFound("Metrics not found".to_string())),
+            _ => Err(ApiError::Api(format!("Status {}: {}", status, text))),
+        };
     }
 
     let api_resp: ApiResponse<SystemMetrics> = resp.json().await
@@ -161,7 +171,12 @@ pub async fn get_secrets(filter: Option<String>) -> Result<Vec<SecretListItem>, 
         .map_err(|e| ApiError::Network(e.to_string()))?;
 
     if !resp.ok() {
-        return Err(ApiError::Api(format!("Status {}: {}", resp.status(), resp.status_text())));
+        let status = resp.status();
+        let text = resp.status_text();
+        return match status {
+            401 => Err(ApiError::Unauthorized("Session expired".to_string())),
+            _ => Err(ApiError::Api(format!("Status {}: {}", status, text))),
+        };
     }
 
     let api_resp: ApiResponse<Vec<SecretListItem>> = resp.json().await
@@ -194,8 +209,12 @@ pub async fn create_secret(path: String, req: CreateSecretRequest) -> Result<(),
         .map_err(|e| ApiError::Network(e.to_string()))?;
 
     if !resp.ok() {
+        let status = resp.status();
         let error_text = resp.text().await.unwrap_or_default();
-        return Err(ApiError::Api(format!("Status {}: {}", resp.status(), error_text)));
+        return match status {
+            401 => Err(ApiError::Unauthorized("Session expired".to_string())),
+            _ => Err(ApiError::Api(format!("Status {}: {}", status, error_text))),
+        };
     }
 
     Ok(())

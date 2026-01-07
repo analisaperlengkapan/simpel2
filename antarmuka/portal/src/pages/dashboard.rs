@@ -40,8 +40,13 @@ pub fn DashboardPage(
                 trend: Some("Real-time".to_string()),
             },
             StatCardData {
-                title: "Uptime (Detik)".to_string(),
-                value: metrics.as_ref().map(|m| m.uptime.to_string()).unwrap_or_else(|| "-".to_string()),
+                title: "Uptime".to_string(),
+                value: metrics.as_ref().map(|m| {
+                    let secs = m.uptime;
+                    let hours = secs / 3600;
+                    let mins = (secs % 3600) / 60;
+                    format!("{}h {}m", hours, mins)
+                }).unwrap_or_else(|| "-".to_string()),
                 icon: "⏱️".to_string(),
                 color: StatColor::Yellow,
                 trend: Some("Sejak startup".to_string()),

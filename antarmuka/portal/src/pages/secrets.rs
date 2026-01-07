@@ -57,7 +57,12 @@ pub fn SecretsPage(
                     secrets_resource.refetch();
                 }
                 Err(e) => {
-                    set_error_message.set(Some(format!("Failed to create secret: {}", e)));
+                    let msg = match e {
+                        crate::utils::api::ApiError::Unauthorized(_) => "Session expired. Please login again.".to_string(),
+                        crate::utils::api::ApiError::Api(msg) => format!("API Error: {}", msg),
+                        _ => format!("Failed to create secret: {}", e),
+                    };
+                    set_error_message.set(Some(msg));
                 }
             }
         });
