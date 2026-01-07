@@ -10,6 +10,8 @@ use shared_microfrontend::components::auth::{
 };
 use wasm_bindgen::prelude::*;
 
+mod api;
+
 mod components;
 pub use components::{
     ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader as MilitaryHeaderComponent,
