@@ -15,15 +15,31 @@ pub struct AppState {
 }
 
 // Handler Error type
-pub struct ApiError(anyhow::Error);
+pub enum ApiError {
+    Internal(anyhow::Error),
+    BadRequest(String),
+}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Internal Server Error: {}", self.0),
-        )
-            .into_response()
+        match self {
+            ApiError::Internal(err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "message": format!("Internal Server Error: {}", err)
+                })),
+            )
+                .into_response(),
+            ApiError::BadRequest(msg) => (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "success": false,
+                    "message": msg
+                })),
+            )
+                .into_response(),
+        }
     }
 }
 
@@ -32,7 +48,7 @@ where
     E: Into<anyhow::Error>,
 {
     fn from(err: E) -> Self {
-        Self(err.into())
+        Self::Internal(err.into())
     }
 }
 
@@ -120,7 +136,7 @@ pub async fn update_rencana(
         query.truncate(query.len() - 2);
     } else {
         // No fields to update
-        return Err(ApiError(anyhow::anyhow!("No fields to update")));
+        return Err(ApiError::BadRequest("No fields to update".to_string()));
     }
 
     query.push_str(&format!(" WHERE id = ${} RETURNING *", idx));
