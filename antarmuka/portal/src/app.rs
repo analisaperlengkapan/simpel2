@@ -8,6 +8,7 @@
 
 use crate::features::auth::AuthService;
 use crate::pages::*;
+use crate::pages::secrets::SecretsPage;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use shared_microfrontend::components::BrandingProvider;
@@ -247,6 +248,20 @@ pub fn App() -> impl IntoView {
                     match user_session.get() {
                         Some(session) => view! {
                             <SettingsPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
+
+                <Route path=StaticSegment("secrets") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <SecretsPage
                                 user_session=session
                                 on_logout=Box::new(handle_logout)
                             />

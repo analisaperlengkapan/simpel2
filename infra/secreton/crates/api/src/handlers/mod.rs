@@ -56,7 +56,6 @@
 //!     // Handler logic here
 //!     Ok(Json(ApiResponse::success(
 //!         format!("Processed {}", id),
-//!         None,
 //!     )))
 //! }
 //! ```
