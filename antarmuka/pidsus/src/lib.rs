@@ -20,6 +20,9 @@ pub use types::*;
 
 mod api;
 
+mod components;
+pub use components::*;
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
