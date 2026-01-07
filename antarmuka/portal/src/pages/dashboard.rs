@@ -3,7 +3,9 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{get_system_metrics, SystemMetrics};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
@@ -13,36 +15,85 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
-        },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    // Use signal + effect for fetching to avoid Send bounds with gloo_net
+    let (metrics, set_metrics) = signal(None::<SystemMetrics>);
+    let (loading, set_loading) = signal(true);
+
+    Effect::new(move |_| {
+        spawn_local(async move {
+            match get_system_metrics().await {
+                Ok(data) => set_metrics.set(Some(data)),
+                Err(e) => log::error!("Failed to fetch metrics: {}", e),
+            }
+            set_loading.set(false);
+        });
+    });
+
+    let stats = move || {
+        if let Some(m) = metrics.get() {
+            vec![
+                StatCardData {
+                    title: "Total Secrets".to_string(),
+                    value: m.vault.total_secrets.to_string(),
+                    icon: "🔒".to_string(),
+                    color: StatColor::Blue,
+                    trend: Some("Stored securely".to_string()),
+                },
+                StatCardData {
+                    title: "Active Sessions".to_string(),
+                    value: m.vault.active_sessions.to_string(),
+                    icon: "👥".to_string(),
+                    color: StatColor::Green,
+                    trend: Some("Current users".to_string()),
+                },
+                StatCardData {
+                    title: "Uptime".to_string(),
+                    value: format!("{}s", m.uptime),
+                    icon: "⏱️".to_string(),
+                    color: StatColor::Yellow,
+                    trend: Some("System running".to_string()),
+                },
+                StatCardData {
+                    title: "Storage Used".to_string(),
+                    value: format!("{} MB", m.disk_usage.used / 1024 / 1024),
+                    icon: "💾".to_string(),
+                    color: StatColor::Red,
+                    trend: Some("Data volume".to_string()),
+                },
+            ]
+        } else {
+            vec![
+                StatCardData {
+                    title: "Total Secrets".to_string(),
+                    value: "-".to_string(),
+                    icon: "🔒".to_string(),
+                    color: StatColor::Blue,
+                    trend: Some("Loading...".to_string()),
+                },
+                StatCardData {
+                    title: "Active Sessions".to_string(),
+                    value: "-".to_string(),
+                    icon: "👥".to_string(),
+                    color: StatColor::Green,
+                    trend: Some("Loading...".to_string()),
+                },
+                StatCardData {
+                    title: "Uptime".to_string(),
+                    value: "-".to_string(),
+                    icon: "⏱️".to_string(),
+                    color: StatColor::Yellow,
+                    trend: Some("Loading...".to_string()),
+                },
+                StatCardData {
+                    title: "Storage Used".to_string(),
+                    value: "-".to_string(),
+                    icon: "💾".to_string(),
+                    color: StatColor::Red,
+                    trend: Some("Loading...".to_string()),
+                },
+            ]
+        }
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +164,13 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
-                        <div class="transform transition-all duration-300 hover:scale-105">
-                            <StatCard data=stat />
-                        </div>
-                    }).collect_view()}
+                    <Suspense fallback=move || view! { <p>"Loading stats..."</p> }>
+                        {move || stats().into_iter().map(|stat| view! {
+                            <div class="transform transition-all duration-300 hover:scale-105">
+                                <StatCard data=stat />
+                            </div>
+                        }).collect_view()}
+                    </Suspense>
                 </div>
 
                 // Main Content Grid
@@ -188,6 +241,26 @@ pub fn DashboardPage(
                                         </div>
                                     </div>
                                     <svg class="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </a>
+
+                            <a
+                                href="/secrets"
+                                class="block p-4 bg-gradient-to-r from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl hover:shadow-md transition-all group border border-teal-200 dark:border-teal-800"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-teal-500 rounded-lg flex items-center justify-center">
+                                            <span class="text-xl">"🔒"</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900 dark:text-white">"Secrets"</p>
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Kelola rahasia"</p>
+                                        </div>
+                                    </div>
+                                    <svg class="w-5 h-5 text-teal-600 dark:text-teal-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </div>

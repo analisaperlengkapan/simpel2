@@ -84,6 +84,8 @@ default = []
 raft-consensus = ["secreton-storage/raft-consensus"]
 # Enable inline test modules (currently have compilation issues)
 enable-inline-tests = []
+consul = ["secreton-storage/consul"]
+postgres = ["secreton-storage/postgres"]
 
 [dev-dependencies]
 axum-test.workspace = true

@@ -15,6 +15,7 @@ pub mod not_found;
 pub mod notifications;
 pub mod password_reset;
 pub mod pembinaan;
+pub mod secrets;
 pub mod settings;
 
 pub use apps::*;
@@ -33,4 +34,5 @@ pub use notifications::*;
 // Explicitly export types from password_reset to avoid conflicts if needed
 pub use password_reset::*;
 pub use pembinaan::*;
+pub use secrets::*;
 pub use settings::*;

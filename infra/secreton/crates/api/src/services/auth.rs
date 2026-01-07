@@ -417,6 +417,36 @@ impl AuthService {
         }
     }
 
+    /// Count total users
+    pub async fn count_users(&self) -> Result<u64, AuthError> {
+        // This is an expensive operation as it requires listing all keys
+        // In a production system, we should maintain a counter
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some("auth/users/".to_string()),
+            security_level: None,
+            tags: Vec::new(),
+            owner_id: None,
+            metadata_filters: HashMap::new(),
+            include_expired: false,
+            limit: None,
+            offset: None,
+            sort_by: None,
+            sort_order: None,
+        };
+
+        let users = self.storage.list(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to list users: {}", e)))?;
+
+        Ok(users.len() as u64)
+    }
+
+    /// Count active sessions
+    pub async fn count_active_sessions(&self) -> Result<u64, AuthError> {
+        // TODO: Implement actual session counting from session storage
+        // For now, return a placeholder based on recent logins or active tokens
+        Ok(0)
+    }
+
     /// Check if user has permission
     pub async fn has_permission(&self, user: &User, permission: &str) -> Result<bool, AuthError> {
         // Get user roles and their permissions
