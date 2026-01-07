@@ -407,6 +407,7 @@ pub async fn get_secret(
 
     // Retrieve secret from vault service
     let secret_data = state
+        .services
         .vault
         .get_secret(&path, &user.id.to_string())
         .await
@@ -445,6 +446,7 @@ pub async fn create_secret(
 
     // Create secret using vault service
     let secret_data = state
+        .services
         .vault
         .put_secret(
             &path,
@@ -487,6 +489,7 @@ pub async fn update_secret(
 
     // Update secret using vault service
     let secret_data = state
+        .services
         .vault
         .put_secret(
             &path,
@@ -524,6 +527,7 @@ pub async fn delete_secret(
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     // Delete secret using vault service
     state
+        .services
         .vault
         .delete_secret(&path, &user.id.to_string())
         .await
@@ -550,6 +554,7 @@ pub async fn list_secrets(
 ) -> ApiResult<Json<ApiResponse<Vec<SecretListItem>>>> {
     // List secrets using vault service
     let paths = state
+        .services
         .vault
         .list_secrets(query.filter.as_deref(), &user.id.to_string())
         .await
@@ -580,6 +585,7 @@ pub async fn create_key(
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
     // Create key using vault service
     let key_info = state
+        .services
         .vault
         .create_key(&request.name, &request.key_type, &user.id.to_string())
         .await
@@ -615,6 +621,7 @@ pub async fn get_key(
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
     // Get key using vault service
     let key_info = state
+        .services
         .vault
         .get_key(&key_id, &user.id.to_string())
         .await
@@ -646,6 +653,7 @@ pub async fn list_keys(
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
     // List keys using vault service
     let key_infos = state
+        .services
         .vault
         .list_keys(&user.id.to_string())
         .await
@@ -680,6 +688,7 @@ pub async fn rotate_key(
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
     // Rotate key using vault service
     let key_info = state
+        .services
         .vault
         .rotate_key(&key_id, &user.id.to_string())
         .await
@@ -716,6 +725,7 @@ pub async fn encrypt_data(
 ) -> ApiResult<Json<ApiResponse<EncryptResponse>>> {
     // Encrypt using vault service
     let result = state
+        .services
         .vault
         .encrypt(&request.key_id, &request.plaintext, &user.id.to_string())
         .await
@@ -743,6 +753,7 @@ pub async fn decrypt_data(
 ) -> ApiResult<Json<ApiResponse<DecryptResponse>>> {
     // Decrypt using vault service
     let result = state
+        .services
         .vault
         .decrypt(&request.key_id, &request.ciphertext, &user.id.to_string())
         .await
@@ -769,6 +780,7 @@ pub async fn sign_data(
 ) -> ApiResult<Json<ApiResponse<SignResponse>>> {
     // Sign using vault service
     let result = state
+        .services
         .vault
         .sign(
             &request.key_id,
@@ -797,6 +809,7 @@ pub async fn verify_signature(
 ) -> ApiResult<Json<ApiResponse<VerifyResponse>>> {
     // Verify using vault service
     let result = state
+        .services
         .vault
         .verify(
             &request.key_id,
@@ -824,6 +837,7 @@ pub async fn hash_data(
 ) -> ApiResult<Json<ApiResponse<HashResponse>>> {
     // Hash using vault service
     let result = state
+        .services
         .vault
         .hash(&request.data, &request.algorithm, &user.id.to_string())
         .await
@@ -883,6 +897,7 @@ pub async fn delete_key(
 
     // Delete key using vault service (includes safeguards)
     state
+        .services
         .vault
         .delete_key(&key_id, &user.id.to_string())
         .await
@@ -982,7 +997,7 @@ pub async fn delete_policy(
 
 // Backup management handlers - delegate to admin service
 pub async fn create_backup(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<String>>> {
-    match state.admin.create_backup().await {
+    match state.services.admin.create_backup().await {
         Ok(backup_info) => {
             tracing::info!(backup_id = %backup_info.id, "Backup created");
             Ok(Json(ApiResponse::success(backup_info.id)))
@@ -996,7 +1011,7 @@ pub async fn create_backup(State(state): State<AppState>) -> ApiResult<Json<ApiR
 pub async fn list_backups(
     State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    match state.admin.list_backups().await {
+    match state.services.admin.list_backups().await {
         Ok(backups) => {
             let backup_ids: Vec<String> = backups.into_iter().map(|b| b.id).collect();
             Ok(Json(ApiResponse::success(backup_ids)))
@@ -1012,7 +1027,7 @@ pub async fn get_backup(
     Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
     // Get backup metadata
-    match state.admin.list_backups().await {
+    match state.services.admin.list_backups().await {
         Ok(backups) => {
             if let Some(backup) = backups.into_iter().find(|b| b.id == backup_id) {
                 let backup_json =
@@ -1036,7 +1051,7 @@ pub async fn restore_backup(
     State(state): State<AppState>,
     Path(backup_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    match state.admin.restore_backup(&backup_id).await {
+    match state.services.admin.restore_backup(&backup_id).await {
         Ok(_result) => {
             tracing::info!(backup_id = %backup_id, "Backup restored");
             Ok(Json(ApiResponse::success(())))

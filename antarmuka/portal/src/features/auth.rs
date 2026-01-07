@@ -48,6 +48,9 @@ pub struct UserSession {
     pub expires_at: Option<i64>,
     /// User permissions
     pub permissions: Vec<String>,
+    /// Raw token (optional, for backward compatibility)
+    #[serde(skip)]
+    pub token: String,
 }
 
 /// User role enum
@@ -325,6 +328,7 @@ impl AuthService {
             refresh_token: Some("mock_refresh_token".to_string()),
             expires_at: Some(expires_at.timestamp()),
             permissions,
+            token: "mock_access_token".to_string(),
         };
 
         LoginResult::Success(Box::new(session))
@@ -390,6 +394,7 @@ impl AuthService {
             refresh_token: None, // Will be set separately if available
             expires_at: claims.exp,
             permissions,
+            token: token.to_string(),
         })
     }
 

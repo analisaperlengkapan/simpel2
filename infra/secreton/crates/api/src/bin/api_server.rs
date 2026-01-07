@@ -84,7 +84,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Creating router...");
     // Create REST router
-    let app = create_api_router(api_state);
+    let app = create_api_router(api_state.clone());
+
+    // Spawn background tasks
+    info!("Starting background maintenance tasks...");
+    let admin_service = api_state.services.admin.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600)); // Every hour
+        loop {
+            interval.tick().await;
+            info!("Running scheduled garbage collection...");
+            match admin_service.run_garbage_collection().await {
+                Ok(result) => info!("Garbage collection completed: {:?}", result),
+                Err(e) => error!("Garbage collection failed: {}", e),
+            }
+        }
+    });
 
     let http_addr: SocketAddr = config.http.bind_address;
     let grpc_addr: SocketAddr = config.grpc.bind_address;

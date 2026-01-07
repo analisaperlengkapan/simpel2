@@ -3,7 +3,22 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::fetch_api;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SystemMetrics {
+    pub uptime: u64,
+    pub vault: VaultMetrics,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VaultMetrics {
+    pub total_secrets: u64,
+    pub active_sessions: u64,
+}
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
@@ -13,36 +28,109 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
+    let session_clone = user_session.clone();
+    // Resource to fetch system metrics if admin
+    let metrics_resource = Resource::new(
+        move || session_clone.clone(),
+        move |session| {
+            // Must clone again if needed inside async block, but here we move session in.
+            // However, fetch_api uses gloo-net which is !Send.
+            // Resource::new requires Send future in SSR/hydrate, but in CSR it might differ.
+            // Since we are targeting wasm32, we can use spawn_local_resource if available or ensure Send.
+            // But fetch_api calls gloo_net which is wasm-only and !Send.
+            // Leptos 0.6+ resources usually handle this if feature "csr" is on.
+            // The issue is likely `fetch_api` being !Send.
+            // We can wrap it in a LocalResource if available, or simpler: just use a signal with spawn_local for now
+            // to avoid the Send bound issues common with gloo-net in generic Resources.
+            // BUT Resource::new enforces Send.
+            // Workaround: We will use a create_local_resource equivalent logic manually or LocalResource if exists.
+            // Leptos 0.7/0.8 removed LocalResource in favor of Resource? No, Resource expects Send.
+            // Let's try `Resource::new_blocking` or similar? No.
+            // Actually, we can just use `spawn_local` inside an effect and write to a signal,
+            // or use `create_local_resource` if available.
+            // Checking availability... `create_local_resource` is often what we want for !Send futures.
+            // Wait, this codebase is using `Resource::new`.
+
+            async move {
+                if session.role.is_admin() {
+                    // Send wrapper logic or valid solution needed?
+                    // The easiest fix for "gloo-net is !Send" in Leptos Resources is to use `create_local_resource`
+                    // OR ensure we are not compiling for a target that requires Send (like SSR) when checking.
+                    // But cargo check checks everything.
+                    // We will switch to `spawn_local` updating a signal for dashboard stats to avoid fighting the Resource Send bound.
+                    None::<SystemMetrics> // returning None here to satisfy type, we will use effect below
+                } else {
+                    None::<SystemMetrics>
+                }
+            }
         },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    );
+
+    let (metrics, set_metrics) = signal(None::<SystemMetrics>);
+
+    let effect_session = user_session.clone();
+    Effect::new(move |_| {
+        let session = effect_session.clone();
+        if session.role.is_admin() {
+            spawn_local(async move {
+                if let Ok(response) = fetch_api::<(), crate::utils::api::ApiResponse<SystemMetrics>>(
+                    "GET",
+                    "/v1/admin/metrics",
+                    None,
+                    Some(&session),
+                )
+                .await {
+                   set_metrics.set(response.data);
+                }
+            });
+        }
+    });
+
+    let stats_signal = move || {
+        let metrics = metrics.get();
+
+        // Default values
+        let total_secrets = metrics.as_ref().map(|m| m.vault.total_secrets.to_string()).unwrap_or("0".to_string());
+        let active_sessions = metrics.as_ref().map(|m| m.vault.active_sessions.to_string()).unwrap_or("0".to_string());
+
+        let uptime = if let Some(m) = metrics {
+            let days = m.uptime / 86400;
+            format!("{} Hari", days)
+        } else {
+            "Unknown".to_string()
+        };
+
+        vec![
+            StatCardData {
+                title: "Total Secrets".to_string(),
+                value: total_secrets,
+                icon: "🔐".to_string(),
+                color: StatColor::Blue,
+                trend: Some("Vault Storage".to_string()),
+            },
+            StatCardData {
+                title: "Active Sessions".to_string(),
+                value: active_sessions,
+                icon: "👥".to_string(),
+                color: StatColor::Green,
+                trend: Some("Current Users".to_string()),
+            },
+            StatCardData {
+                title: "System Uptime".to_string(),
+                value: uptime,
+                icon: "⏱️".to_string(),
+                color: StatColor::Yellow,
+                trend: Some("Since Startup".to_string()),
+            },
+            StatCardData {
+                title: "Security Status".to_string(),
+                value: "Protected".to_string(),
+                icon: "🛡️".to_string(),
+                color: StatColor::Red,
+                trend: Some("All Systems Go".to_string()),
+            },
+        ]
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +201,15 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
-                        <div class="transform transition-all duration-300 hover:scale-105">
-                            <StatCard data=stat />
-                        </div>
-                    }).collect_view()}
+                    <Suspense fallback=move || view! { <div>"Loading Stats..."</div> }>
+                        {move || {
+                            stats_signal().into_iter().map(|stat| view! {
+                                <div class="transform transition-all duration-300 hover:scale-105">
+                                    <StatCard data=stat />
+                                </div>
+                            }).collect_view()
+                        }}
+                    </Suspense>
                 </div>
 
                 // Main Content Grid

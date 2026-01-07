@@ -51,6 +51,7 @@ url = { workspace = true }
 urlencoding = "2.1"
 base64 = { workspace = true }
 chrono = { workspace = true }
+thiserror = { workspace = true }
 # Explicitly enable wasm_js feature for getrandom 0.3+ which is pulled transitively
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
 

@@ -125,9 +125,15 @@ impl AdminService {
         // Calculate uptime
         let uptime_seconds = self.start_time.elapsed().as_secs();
 
-        // TODO: Get actual user and session counts from auth service
-        // For now, using placeholder values as auth service doesn't expose these stats yet
-        let total_users = 0;
+        // Count users (iterate over storage with prefix)
+        // This is inefficient for large datasets but acceptable for administrative stats
+        let total_users = match self.storage.list("auth/users/").await {
+            Ok(users) => users.len() as u64,
+            Err(_) => 0,
+        };
+
+        // TODO: Track active sessions in a better way than just tokens issued
+        // For now we'll estimate based on recent activity or just use 0 if not tracked
         let active_sessions = 0;
 
         Ok(SystemStats {

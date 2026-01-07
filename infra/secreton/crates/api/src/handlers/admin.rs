@@ -524,7 +524,7 @@ pub async fn get_user(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
-    let user = state.auth.get_user(&user_id).await?;
+    let user = state.services.auth.get_user(&user_id).await?;
 
     // Collect and sort roles
     let mut roles: Vec<String> = user.roles.into_iter().collect();
@@ -623,6 +623,7 @@ pub async fn get_system_metrics(
 ) -> ApiResult<Json<ApiResponse<SystemMetrics>>> {
     // Get stats from admin service
     let stats = state
+        .services
         .admin
         .get_system_stats()
         .await
@@ -671,6 +672,7 @@ pub async fn get_system_status(
 ) -> ApiResult<Json<ApiResponse<SystemStatus>>> {
     // Get stats from admin service to get actual uptime
     let stats = state
+        .services
         .admin
         .get_system_stats()
         .await
@@ -740,30 +742,33 @@ pub async fn get_security_incidents(
 
 /// Maintenance operations
 pub async fn run_garbage_collection(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement garbage collection
-    let data = serde_json::json!({
-        "message": "Garbage collection completed",
-        "cleaned_objects": 150,
-        "freed_space": "2.5MB"
-    });
+    let result = state
+        .services
+        .admin
+        .run_garbage_collection()
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Garbage collection failed: {}", e),
+        })?;
 
-    Ok(Json(ApiResponse::success(data)))
+    Ok(Json(ApiResponse::success(serde_json::json!(result))))
 }
 
 pub async fn compact_database(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement database compaction
-    let data = serde_json::json!({
-        "message": "Database compaction completed",
-        "original_size": "1.2GB",
-        "compacted_size": "950MB",
-        "space_saved": "250MB"
-    });
+    let result = state
+        .services
+        .admin
+        .compact_database()
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Database compaction failed: {}", e),
+        })?;
 
-    Ok(Json(ApiResponse::success(data)))
+    Ok(Json(ApiResponse::success(serde_json::json!(result))))
 }
 
 /// Calculate permissions from roles
