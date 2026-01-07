@@ -187,6 +187,21 @@ pub fn App() -> impl IntoView {
                     }
                 } />
 
+                // Secrets Management Route
+                <Route path=StaticSegment("secrets") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <SecretsPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
+
                 <Route path=StaticSegment("apps") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
@@ -362,6 +377,15 @@ fn setup_search_providers() {
             category: SearchCategory::Page,
             url: "/dashboard".to_string(),
             icon: "📊".to_string(),
+            module: Some("Portal".to_string()),
+        },
+        SearchResult {
+            id: "secrets".to_string(),
+            title: "Secrets".to_string(),
+            description: "Kelola secrets dan konfigurasi rahasia".to_string(),
+            category: SearchCategory::Page,
+            url: "/secrets".to_string(),
+            icon: "🔒".to_string(),
             module: Some("Portal".to_string()),
         },
         SearchResult {

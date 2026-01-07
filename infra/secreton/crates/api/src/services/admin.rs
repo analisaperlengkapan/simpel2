@@ -3,15 +3,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use secreton_core::services::lease::{LeaseError, LeaseManager};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::fs;
 
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
-use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, PostgresBackend, StorageBackend};
+use secreton_storage::{QueryParams, SecurityLevel, StorageBackend, VaultEntry};
 
 /// Admin service errors
 #[derive(Error, Debug)]
@@ -79,6 +79,14 @@ pub struct BackupInfo {
     pub metadata: HashMap<String, String>,
 }
 
+/// Full backup structure for file storage
+#[derive(Debug, Serialize, Deserialize)]
+struct FullBackup {
+    version: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    entries: Vec<VaultEntry>,
+}
+
 /// Maintenance operation result
 #[derive(Debug, Serialize)]
 pub struct MaintenanceResult {
@@ -95,6 +103,7 @@ pub struct AdminService {
     audit: Arc<AuditLogger>,
     lease_cleaner: Arc<dyn LeaseCleaner>,
     start_time: chrono::DateTime<chrono::Utc>,
+    backup_dir: String,
 }
 
 impl AdminService {
@@ -105,12 +114,16 @@ impl AdminService {
         audit: Arc<AuditLogger>,
         lease_cleaner: Arc<dyn LeaseCleaner>,
     ) -> Result<Self> {
+        let backup_dir = std::env::var("SECRETON_BACKUP_DIR").unwrap_or_else(|_| "tmp/backups".to_string());
+        tokio::fs::create_dir_all(&backup_dir).await.ok(); // Ignore if exists or fails (will fail later if critical)
+
         Ok(Self {
             storage,
             auth,
             audit,
             lease_cleaner,
             start_time: chrono::Utc::now(),
+            backup_dir,
         })
     }
 
@@ -119,11 +132,18 @@ impl AdminService {
         // Get storage statistics
         let storage_stats = self.storage.get_stats().await?;
 
-        // Get audit statistics
-        let _audit_count = self.audit.count().await;
-
         // Calculate uptime
-        let uptime_seconds = self.start_time.elapsed().as_secs();
+        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds() as u64;
+
+        // Get actual counts from storage
+        // Count secrets (everything not starting with "keys/")
+        let secret_params = QueryParams::new().with_path_prefix("".to_string());
+        // Note: Real query would exclude "keys/" but for now we take total - keys
+
+        let key_params = QueryParams::new().with_path_prefix("keys/".to_string());
+        let total_keys = self.storage.count(&key_params).await.unwrap_or(0);
+        let total_entries = storage_stats.total_entries;
+        let total_secrets = total_entries.saturating_sub(total_keys);
 
         // TODO: Get actual user and session counts from auth service
         // For now, using placeholder values as auth service doesn't expose these stats yet
@@ -134,8 +154,8 @@ impl AdminService {
             uptime_seconds,
             total_users,
             active_sessions,
-            total_secrets: storage_stats.total_entries,
-            total_keys: storage_stats.total_entries, // Count of encrypted entries
+            total_secrets,
+            total_keys,
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
@@ -144,37 +164,68 @@ impl AdminService {
 
     /// Create system backup
     pub async fn create_backup(&self) -> Result<BackupInfo, AdminError> {
-        // Get storage statistics for backup size estimation
-        let storage_stats = self.storage.get_stats().await?;
+        let start_time = std::time::Instant::now();
         let backup_id = uuid::Uuid::new_v4().to_string();
         let created_at = chrono::Utc::now();
 
-        // TODO: Implement actual backup export to file/stream
-        // For now, log the backup operation in audit trail
+        // 1. Fetch all data from storage
+        let params = QueryParams::new().with_limit(100000); // Reasonable limit for dump
+        let entries = self.storage.list(&params).await?;
+
+        // 2. Create backup structure
+        let backup_data = FullBackup {
+            version: "1.0.0".to_string(),
+            created_at,
+            entries,
+        };
+
+        // 3. Serialize to JSON
+        let json = serde_json::to_string(&backup_data)
+            .map_err(|e| AdminError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+
+        // 4. Write to file
+        let filename = format!("backup-{}.json", backup_id);
+        let filepath = std::path::Path::new(&self.backup_dir).join(&filename);
+
+        if let Some(parent) = filepath.parent() {
+            fs::create_dir_all(parent).await
+                .map_err(|e| AdminError::Internal(anyhow::anyhow!("Failed to create backup dir: {}", e)))?;
+        }
+
+        fs::write(&filepath, &json).await
+            .map_err(|e| AdminError::Internal(anyhow::anyhow!("Failed to write backup file: {}", e)))?;
+
+        let size_bytes = json.len() as u64;
+
+        // Log the backup operation in audit trail
         tracing::info!(
             backup_id = %backup_id,
-            size_bytes = storage_stats.total_size_bytes,
-            "System backup initiated"
+            size_bytes = size_bytes,
+            path = %filepath.display(),
+            "System backup completed"
         );
 
         // Calculate checksum placeholder (should be actual hash of backup data)
-        let checksum = format!("sha256:{}", hex::encode(&backup_id.as_bytes()[..16]));
+        let checksum = format!("sha256:{}", hex::encode(secreton_crypto::hashing::compute_hash(
+            secreton_crypto::AlgorithmId::Sha256,
+            json.as_bytes()
+        ).unwrap().hash));
 
         Ok(BackupInfo {
             id: backup_id.clone(),
             created_at,
-            size_bytes: storage_stats.total_size_bytes,
-            compressed: true,
-            encrypted: true,
+            size_bytes,
+            compressed: false, // JSON is not compressed
+            encrypted: false, // JSON dump is plaintext (encrypted fields remain encrypted)
             checksum,
             metadata: {
                 let mut metadata = HashMap::new();
                 metadata.insert("version".to_string(), "1.0.0".to_string());
                 metadata.insert("type".to_string(), "full".to_string());
-                metadata.insert("backend".to_string(), storage_stats.backend_type);
+                metadata.insert("filename".to_string(), filename);
                 metadata.insert(
                     "entries_count".to_string(),
-                    storage_stats.total_entries.to_string(),
+                    backup_data.entries.len().to_string(),
                 );
                 metadata
             },
@@ -183,35 +234,80 @@ impl AdminService {
 
     /// List available backups
     pub async fn list_backups(&self) -> Result<Vec<BackupInfo>, AdminError> {
-        // TODO: Implement persistent backup storage and listing
-        // Currently backups are not persisted, so returning empty list
-        // Future implementation should store backup metadata in storage backend
-        tracing::debug!("Listing backups - persistent storage not yet implemented");
-        Ok(vec![])
+        let mut backups = Vec::new();
+        let mut dir = fs::read_dir(&self.backup_dir).await
+            .map_err(|e| AdminError::Internal(anyhow::anyhow!("Failed to read backup dir: {}", e)))?;
+
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            let metadata = entry.metadata().await
+                .map_err(|e| AdminError::Internal(anyhow::anyhow!("Failed to read file metadata: {}", e)))?;
+
+            if metadata.is_file() {
+                let filename = entry.file_name().into_string().unwrap_or_default();
+                if filename.starts_with("backup-") && filename.ends_with(".json") {
+                    let id = filename.trim_start_matches("backup-").trim_end_matches(".json").to_string();
+                    let created_at: chrono::DateTime<chrono::Utc> = metadata.created().unwrap_or(std::time::SystemTime::now()).into();
+
+                    backups.push(BackupInfo {
+                        id,
+                        created_at,
+                        size_bytes: metadata.len(),
+                        compressed: false,
+                        encrypted: false,
+                        checksum: "unknown".to_string(), // Need to read file to calc checksum
+                        metadata: HashMap::new(),
+                    });
+                }
+            }
+        }
+
+        // Sort by date desc
+        backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        Ok(backups)
     }
 
     /// Restore from backup
     pub async fn restore_backup(&self, backup_id: &str) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
 
-        // TODO: Implement actual backup restoration from persistent storage
-        // This requires:
-        // 1. Loading backup data from backup storage
-        // 2. Validating backup integrity (checksum)
-        // 3. Parsing and deserializing backup content
-        // 4. Clearing existing data (with confirmation)
-        // 5. Importing backup data into storage backend
+        // 1. Locate file
+        let filename = format!("backup-{}.json", backup_id);
+        let filepath = std::path::Path::new(&self.backup_dir).join(&filename);
 
-        tracing::warn!(
-            backup_id = %backup_id,
-            "Backup restoration not yet implemented - persistent storage required"
-        );
+        if !filepath.exists() {
+             return Err(AdminError::NotFound(format!("Backup file not found: {}", filename)));
+        }
 
-        let _duration = start_time.elapsed();
-        Err(AdminError::NotPermitted(
-            "Backup restoration not yet implemented - persistent backup storage required"
-                .to_string(),
-        ))
+        // 2. Read file
+        let json = fs::read_to_string(&filepath).await
+             .map_err(|e| AdminError::Internal(anyhow::anyhow!("Failed to read backup file: {}", e)))?;
+
+        // 3. Deserialize
+        let backup: FullBackup = serde_json::from_str(&json)
+             .map_err(|e| AdminError::Internal(anyhow::anyhow!("Invalid backup format: {}", e)))?;
+
+        // 4. Restore entries
+        // Note: This is a simple merge/overwrite strategy.
+        let mut restored_count = 0;
+        for entry in backup.entries {
+            self.storage.store(&entry).await?;
+            restored_count += 1;
+        }
+
+        let duration = start_time.elapsed();
+
+        Ok(MaintenanceResult {
+            operation: "restore_backup".to_string(),
+            success: true,
+            duration_ms: duration.as_millis() as u64,
+            details: {
+                let mut details = HashMap::new();
+                details.insert("backup_id".to_string(), serde_json::Value::String(backup_id.to_string()));
+                details.insert("restored_entries".to_string(), serde_json::Value::Number(restored_count.into()));
+                details
+            },
+        })
     }
 
     /// Run garbage collection
@@ -233,7 +329,7 @@ impl AdminService {
         let retention_period = chrono::Duration::days(30);
         let cleaned_audit_logs = self
             .audit
-            .cleanup_expired_events(retention_period.to_std().unwrap_or_default())
+            .cleanup_expired_events(retention_period)
             .await;
 
         let cleaned_objects =
@@ -668,10 +764,9 @@ mod tests {
             .unwrap();
 
         let backup = admin_service.create_backup().await.expect("backup");
-        assert!(backup.encrypted);
-        assert!(backup.compressed);
+        assert!(!backup.encrypted); // JSON dump is currently plaintext
+        assert!(!backup.compressed);
         assert!(backup.metadata.contains_key("version"));
-        assert!(backup.metadata.contains_key("backend"));
         assert!(!backup.checksum.is_empty());
     }
 
@@ -727,12 +822,13 @@ impl AdminService {
         Self {
             auth: Arc::new(AuthService::new_mock(
                 storage.clone(),
-                Arc::new(CryptoEngine::new()),
+                Arc::new(secreton_crypto::CryptoEngine::new()),
             )),
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
             lease_cleaner: Arc::new(DummyLeaseCleaner),
             start_time: chrono::Utc::now(),
+            backup_dir: "tmp/mock_backups".to_string(),
         }
     }
 }

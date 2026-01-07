@@ -3,6 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{fetch_system_stats, SystemStats};
 use leptos::prelude::*;
 
 /// Dashboard page component - main user dashboard with statistics
@@ -13,36 +14,62 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
-        },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    // Resource to fetch system stats
+    let stats_resource = LocalResource::new(
+        || async move { fetch_system_stats().await }
+    );
+
+    let stats_view = move || {
+        stats_resource.get().map(|result| match result {
+            Ok(data) => vec![
+                StatCardData {
+                    title: "Total Sistem".to_string(),
+                    value: "9".to_string(), // Still hardcoded as it's not in stats yet
+                    icon: "🖥️".to_string(),
+                    color: StatColor::Blue,
+                    trend: Some("Semua aktif".to_string()),
+                },
+                StatCardData {
+                    title: "Secrets".to_string(),
+                    value: format!("{}", data.total_secrets),
+                    icon: "🔒".to_string(),
+                    color: StatColor::Green,
+                    trend: Some(format!("+{} minggu ini", 0)),
+                },
+                StatCardData {
+                    title: "Uptime".to_string(),
+                    value: format_duration(data.uptime_seconds),
+                    icon: "⏱️".to_string(),
+                    color: StatColor::Yellow,
+                    trend: Some("Sejak restart".to_string()),
+                },
+                StatCardData {
+                    title: "Storage".to_string(),
+                    value: format_bytes(data.storage_usage_bytes),
+                    icon: "💾".to_string(),
+                    color: StatColor::Red,
+                    trend: Some("Usage".to_string()),
+                },
+            ],
+            Err(_) => vec![
+                StatCardData {
+                    title: "Error".to_string(),
+                    value: "-".to_string(),
+                    icon: "❌".to_string(),
+                    color: StatColor::Red,
+                    trend: None,
+                }
+            ]
+        }).unwrap_or_else(|| vec![
+            StatCardData {
+                title: "Loading...".to_string(),
+                value: "...".to_string(),
+                icon: "⏳".to_string(),
+                color: StatColor::Blue,
+                trend: None,
+            }
+        ])
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +140,13 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
+                   <Suspense fallback=move || view! { <p>"Loading stats..."</p> }>
+                    {move || stats_view().into_iter().map(|stat| view! {
                         <div class="transform transition-all duration-300 hover:scale-105">
                             <StatCard data=stat />
                         </div>
                     }).collect_view()}
+                   </Suspense>
                 </div>
 
                 // Main Content Grid
@@ -133,6 +162,26 @@ pub fn DashboardPage(
                             "Aksi Cepat"
                         </h3>
                         <div class="space-y-3">
+                             <a
+                                href="/secrets"
+                                class="block p-4 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl hover:shadow-md transition-all group border border-indigo-200 dark:border-indigo-800"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-indigo-500 rounded-lg flex items-center justify-center">
+                                            <span class="text-xl">"🔒"</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900 dark:text-white">"Kelola Secrets"</p>
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">"Simpan data rahasia"</p>
+                                        </div>
+                                    </div>
+                                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </a>
+
                             <a
                                 href="/apps"
                                 class="block p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:shadow-md transition-all group border border-blue-200 dark:border-blue-800"
@@ -286,5 +335,35 @@ pub fn DashboardPage(
                 </div>
             </div>
         </MainLayout>
+    }
+}
+
+fn format_duration(seconds: u64) -> String {
+    let days = seconds / 86400;
+    let hours = (seconds % 86400) / 3600;
+    let minutes = (seconds % 3600) / 60;
+
+    if days > 0 {
+        format!("{}d {}h", days, hours)
+    } else if hours > 0 {
+        format!("{}h {}m", hours, minutes)
+    } else {
+        format!("{}m", minutes)
+    }
+}
+
+fn format_bytes(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+
+    if bytes >= GB {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} B", bytes)
     }
 }

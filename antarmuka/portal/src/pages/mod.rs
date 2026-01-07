@@ -16,6 +16,7 @@ pub mod notifications;
 pub mod password_reset;
 pub mod pembinaan;
 pub mod settings;
+pub mod secrets;
 
 pub use apps::*;
 pub use callback::*;
@@ -34,3 +35,4 @@ pub use notifications::*;
 pub use password_reset::*;
 pub use pembinaan::*;
 pub use settings::*;
+pub use secrets::*;
