@@ -896,11 +896,16 @@ pub async fn reload_config(State(_state): State<AppState>) -> ApiResult<Json<Api
 }
 
 pub async fn get_system_logs(
-    State(_state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    Err(ApiError::NotImplemented(
-        "get_system_logs not yet implemented".to_string(),
-    ))
+    State(state): State<AppState>,
+    Query(query): Query<ListQuery>,
+) -> ApiResult<Json<ApiResponse<Vec<crate::services::admin::AuditLogEntry>>>> {
+    let logs = state
+        .admin
+        .get_audit_logs(None, None, None, None, query.limit)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    Ok(Json(ApiResponse::success(logs)))
 }
 
 pub async fn vacuum_database(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<()>>> {

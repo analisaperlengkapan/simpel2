@@ -2,7 +2,9 @@
 
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::trigger_garbage_collection;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use shared_microfrontend::components::{BrandingEditor, ThemeEditor};
 
 /// Settings page component - user preferences and customization
@@ -18,6 +20,31 @@ pub fn SettingsPage(
 
     // State for showing branding editor modal
     let (show_branding_editor, set_show_branding_editor) = signal(false);
+
+    // State for GC operation
+    let (gc_status, set_gc_status) = signal(Option::<String>::None);
+    let (is_loading, set_is_loading) = signal(false);
+
+    let handle_gc = {
+        let token = user_session.token.clone();
+        move |_| {
+            set_is_loading.set(true);
+            set_gc_status.set(None);
+            let token = token.clone();
+            spawn_local(async move {
+                match trigger_garbage_collection(&token).await {
+                    Ok(result) => {
+                        let msg = format!("GC Success: Operation '{}' completed in {}ms", result.operation, result.duration_ms);
+                        set_gc_status.set(Some(msg));
+                    }
+                    Err(e) => {
+                        set_gc_status.set(Some(format!("GC Failed: {}", e)));
+                    }
+                }
+                set_is_loading.set(false);
+            });
+        }
+    };
 
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
@@ -232,34 +259,38 @@ pub fn SettingsPage(
                             </a>
                         </div>
                     </div>
-
-                    // Notifications Settings
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                        <div class="flex items-center mb-6">
-                            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-4">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                                    "Notifikasi"
-                                </h2>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    "Preferensi pemberitahuan"
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                <p class="text-sm text-gray-600 dark:text-gray-400 text-center">
-                                    "Pengaturan notifikasi akan segera tersedia"
-                                </p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
+
+                // Admin Section - GC Trigger
+                {move || {
+                    if user_session.role.is_admin() {
+                        view! {
+                            <div class="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-4 border-red-500">
+                                <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">"System Maintenance (Admin)"</h2>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    "Trigger system-wide garbage collection to clean up expired sessions and secrets."
+                                </p>
+
+                                <div class="flex items-center gap-4">
+                                    <button
+                                        on:click=handle_gc
+                                        disabled=move || is_loading.get()
+                                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {move || if is_loading.get() { "Running..." } else { "Run Garbage Collection" }}
+                                    </button>
+
+                                    {move || gc_status.get().map(|status| {
+                                        let color = if status.contains("Failed") { "text-red-600" } else { "text-green-600" };
+                                        view! { <span class={format!("text-sm font-medium {}", color)}>{status}</span> }
+                                    })}
+                                </div>
+                            </div>
+                        }.into_any()
+                    } else {
+                        view! {}.into_any()
+                    }
+                }}
             </div>
 
             // Theme Editor Modal

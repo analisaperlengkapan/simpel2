@@ -3,6 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::fetch_system_metrics;
 use leptos::prelude::*;
 
 /// Dashboard page component - main user dashboard with statistics
@@ -13,36 +14,68 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
+    // Resource for system stats
+    let access_token = user_session.token.clone();
+    let stats_resource = Resource::new(
+        move || access_token.clone(),
+        move |token| async move {
+            match fetch_system_metrics(&token).await {
+                Ok(data) => Some(data),
+                Err(_) => None,
+            }
         },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    );
+
+    // Dynamic stats derived from resource
+    let stats_view = move || {
+        let metrics = stats_resource.get().flatten();
+
+        let total_system_value = metrics
+            .as_ref()
+            .map(|m| m.vault.total_secrets.to_string())
+            .unwrap_or_else(|| "-".to_string());
+
+        let active_users_value = metrics
+            .as_ref()
+            .map(|m| m.vault.active_sessions.to_string())
+            .unwrap_or_else(|| "-".to_string());
+
+        let uptime_value = metrics
+            .as_ref()
+            .map(|m| format!("{}h", m.uptime / 3600))
+            .unwrap_or_else(|| "-".to_string());
+
+        vec![
+            StatCardData {
+                title: "Total Secrets".to_string(),
+                value: total_system_value,
+                icon: "🖥️".to_string(),
+                color: StatColor::Blue,
+                trend: Some("Active secrets".to_string()),
+            },
+            StatCardData {
+                title: "Active Sessions".to_string(),
+                value: active_users_value,
+                icon: "👥".to_string(),
+                color: StatColor::Green,
+                trend: Some("Current users".to_string()),
+            },
+            StatCardData {
+                title: "System Uptime".to_string(),
+                value: uptime_value,
+                icon: "⏱️".to_string(),
+                color: StatColor::Yellow,
+                trend: Some("Since restart".to_string()),
+            },
+            StatCardData {
+                title: "Security Status".to_string(),
+                value: "Good".to_string(),
+                icon: "🛡️".to_string(),
+                color: StatColor::Red,
+                trend: Some("No incidents".to_string()),
+            },
+        ]
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -68,9 +101,8 @@ pub fn DashboardPage(
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
             <div class="container mx-auto px-4 py-8">
-                // Welcome Section - Enhanced with gradient and animation
+                // Welcome Section
                 <div class="relative bg-gradient-to-r from-red-600 via-red-500 to-orange-500 dark:from-red-800 dark:to-red-900 rounded-2xl shadow-2xl p-8 mb-8 text-white overflow-hidden">
-                    // Background pattern
                     <div class="absolute inset-0 opacity-10">
                         <div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 40px 40px;"></div>
                     </div>
@@ -111,9 +143,9 @@ pub fn DashboardPage(
                     </div>
                 </div>
 
-                // Stats Grid - Enhanced with animations
+                // Stats Grid
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
+                    {move || stats_view().into_iter().map(|stat| view! {
                         <div class="transform transition-all duration-300 hover:scale-105">
                             <StatCard data=stat />
                         </div>
@@ -122,7 +154,7 @@ pub fn DashboardPage(
 
                 // Main Content Grid
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    // Quick Actions - Enhanced
+                    // Quick Actions
                     <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
                         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
                             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
@@ -215,7 +247,7 @@ pub fn DashboardPage(
                         </div>
                     </div>
 
-                    // Activity Feed - Enhanced
+                    // Activity Feed
                     <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
                         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
                             <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-3">
@@ -236,19 +268,6 @@ pub fn DashboardPage(
                                     <p class="text-sm font-semibold text-gray-900 dark:text-white">"Login Berhasil"</p>
                                     <p class="text-xs text-gray-600 dark:text-gray-400">"Anda berhasil masuk ke sistem"</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">"Baru saja"</p>
-                                </div>
-                            </div>
-
-                            <div class="flex items-start space-x-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                                <div class="bg-gray-400 p-2 rounded-lg flex-shrink-0">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">"Sistem Informasi"</p>
-                                    <p class="text-xs text-gray-600 dark:text-gray-400">"Selamat datang di Portal SIMPelv2"</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">"Hari ini"</p>
                                 </div>
                             </div>
                         </div>

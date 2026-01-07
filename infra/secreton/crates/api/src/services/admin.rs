@@ -125,10 +125,9 @@ impl AdminService {
         // Calculate uptime
         let uptime_seconds = self.start_time.elapsed().as_secs();
 
-        // TODO: Get actual user and session counts from auth service
-        // For now, using placeholder values as auth service doesn't expose these stats yet
-        let total_users = 0;
-        let active_sessions = 0;
+        // Get actual user and session counts
+        let total_users = self.auth.count_users().await?;
+        let active_sessions = self.auth.count_active_sessions().await?;
 
         Ok(SystemStats {
             uptime_seconds,
