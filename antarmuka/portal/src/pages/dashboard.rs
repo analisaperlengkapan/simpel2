@@ -28,44 +28,6 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let session_clone = user_session.clone();
-    // Resource to fetch system metrics if admin
-    let metrics_resource = Resource::new(
-        move || session_clone.clone(),
-        move |session| {
-            // Must clone again if needed inside async block, but here we move session in.
-            // However, fetch_api uses gloo-net which is !Send.
-            // Resource::new requires Send future in SSR/hydrate, but in CSR it might differ.
-            // Since we are targeting wasm32, we can use spawn_local_resource if available or ensure Send.
-            // But fetch_api calls gloo_net which is wasm-only and !Send.
-            // Leptos 0.6+ resources usually handle this if feature "csr" is on.
-            // The issue is likely `fetch_api` being !Send.
-            // We can wrap it in a LocalResource if available, or simpler: just use a signal with spawn_local for now
-            // to avoid the Send bound issues common with gloo-net in generic Resources.
-            // BUT Resource::new enforces Send.
-            // Workaround: We will use a create_local_resource equivalent logic manually or LocalResource if exists.
-            // Leptos 0.7/0.8 removed LocalResource in favor of Resource? No, Resource expects Send.
-            // Let's try `Resource::new_blocking` or similar? No.
-            // Actually, we can just use `spawn_local` inside an effect and write to a signal,
-            // or use `create_local_resource` if available.
-            // Checking availability... `create_local_resource` is often what we want for !Send futures.
-            // Wait, this codebase is using `Resource::new`.
-
-            async move {
-                if session.role.is_admin() {
-                    // Send wrapper logic or valid solution needed?
-                    // The easiest fix for "gloo-net is !Send" in Leptos Resources is to use `create_local_resource`
-                    // OR ensure we are not compiling for a target that requires Send (like SSR) when checking.
-                    // But cargo check checks everything.
-                    // We will switch to `spawn_local` updating a signal for dashboard stats to avoid fighting the Resource Send bound.
-                    None::<SystemMetrics> // returning None here to satisfy type, we will use effect below
-                } else {
-                    None::<SystemMetrics>
-                }
-            }
-        },
-    );
-
     let (metrics, set_metrics) = signal(None::<SystemMetrics>);
 
     let effect_session = user_session.clone();
