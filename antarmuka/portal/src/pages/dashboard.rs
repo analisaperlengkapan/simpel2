@@ -3,7 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
-use crate::utils::api::{get_system_metrics, SystemStats};
+use crate::utils::api::get_system_metrics;
 use leptos::prelude::*;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

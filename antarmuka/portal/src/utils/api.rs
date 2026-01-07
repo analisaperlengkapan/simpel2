@@ -6,9 +6,9 @@ use crate::features::auth::{AuthService, UserSession};
 use serde::{Deserialize, Serialize};
 use gloo_net::http::Request;
 
-/// System stats response
+/// Backend System stats response (flat structure)
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct SystemStats {
+pub struct BackendSystemStats {
     pub uptime_seconds: u64,
     pub total_users: u64,
     pub active_sessions: u64,
@@ -86,17 +86,21 @@ where
     }
 }
 
-/// Fetch system statistics
+/// Fetch system statistics and map to Frontend SystemMetrics
 pub async fn get_system_metrics() -> Result<crate::pages::dashboard::SystemMetrics, String> {
-    // Note: The backend endpoint is /metrics but returns a struct that wraps stats
-    // We'll define a simpler fetch for now that matches the dashboard expectations
-    // The dashboard expects `SystemMetrics` struct which is defined in dashboard.rs or locally
-    // For now let's just use the `SystemStats` struct defined above and map it if needed,
-    // or assume the caller handles it.
+    let backend_stats: BackendSystemStats = fetch_api("/metrics", "GET", None::<&String>).await?;
 
-    // Actually, `dashboard.rs` probably uses its own types or hardcoded values.
-    // We will update dashboard.rs to use the types we define here or imports.
-    fetch_api("/metrics", "GET", None::<&String>).await
+    Ok(crate::pages::dashboard::SystemMetrics {
+        uptime: backend_stats.uptime_seconds,
+        memory_usage: crate::pages::dashboard::MemoryMetrics {
+            total: 16 * 1024 * 1024 * 1024, // 16GB Placeholder (backend doesn't provide total yet)
+            used: backend_stats.storage_usage_bytes, // Using storage as memory proxy or 0
+        },
+        vault: crate::pages::dashboard::VaultMetrics {
+            total_secrets: backend_stats.total_secrets,
+            total_keys: backend_stats.total_keys,
+        },
+    })
 }
 
 /// List secrets

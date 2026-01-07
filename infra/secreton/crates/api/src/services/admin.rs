@@ -169,7 +169,9 @@ impl AdminService {
         let created_at = chrono::Utc::now();
 
         // Ensure backup directory exists
-        let backup_dir = std::path::Path::new("/tmp/secreton_backups");
+        let backup_dir_path = std::env::var("SECRETON_BACKUP_DIR").unwrap_or_else(|_| "/tmp/secreton_backups".to_string());
+        let backup_dir = std::path::Path::new(&backup_dir_path);
+
         if !backup_dir.exists() {
             std::fs::create_dir_all(backup_dir).map_err(|e| {
                 AdminError::Internal(anyhow::anyhow!("Failed to create backup directory: {}", e))
@@ -227,7 +229,9 @@ impl AdminService {
 
     /// List available backups
     pub async fn list_backups(&self) -> Result<Vec<BackupInfo>, AdminError> {
-        let backup_dir = std::path::Path::new("/tmp/secreton_backups");
+        let backup_dir_path = std::env::var("SECRETON_BACKUP_DIR").unwrap_or_else(|_| "/tmp/secreton_backups".to_string());
+        let backup_dir = std::path::Path::new(&backup_dir_path);
+
         if !backup_dir.exists() {
             return Ok(vec![]);
         }
