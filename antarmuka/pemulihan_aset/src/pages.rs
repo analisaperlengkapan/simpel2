@@ -1,6 +1,8 @@
 use leptos::prelude::*;
+use crate::api::*;
+use crate::types::*;
 
-// Simple button component
+// Re-using components from original file
 #[component]
 fn ActionButton(
     #[prop(into)] label: String,
@@ -23,11 +25,10 @@ fn ActionButton(
     }
 }
 
-// Simple stat card component
 #[component]
 fn StatCard(
     #[prop(into)] title: String,
-    #[prop(into)] value: String,
+    #[prop(into)] value: Signal<String>,
     #[prop(optional)] description: Option<String>,
 ) -> impl IntoView {
     view! {
@@ -39,7 +40,6 @@ fn StatCard(
     }
 }
 
-// Simple search box component
 #[component]
 fn SearchBox(
     #[prop(into)] placeholder: String,
@@ -69,33 +69,14 @@ fn SearchBox(
 /// PEMULIHAN ASET Dashboard Page
 #[component]
 pub fn PemulihanAsetDashboard() -> impl IntoView {
-    // Sample statistics data
-    let (stats, _set_stats) = signal(vec![
-        (
-            "Aset Teridentifikasi".to_string(),
-            "127".to_string(),
-            "fa-search".to_string(),
-            "red".to_string(),
-        ),
-        (
-            "Dalam Proses".to_string(),
-            "34".to_string(),
-            "fa-spinner".to_string(),
-            "yellow".to_string(),
-        ),
-        (
-            "Berhasil Dipulihkan".to_string(),
-            "89".to_string(),
-            "fa-check-circle".to_string(),
-            "green".to_string(),
-        ),
-        (
-            "Total Nilai".to_string(),
-            "12.5M".to_string(),
-            "fa-money-bill".to_string(),
-            "blue".to_string(),
-        ),
-    ]);
+    let (cases, set_cases) = signal::<Option<Result<Vec<Case>, String>>>(None);
+
+    Effect::new(move |_| {
+        leptos::task::spawn_local(async move {
+            let res = fetch_cases().await;
+            set_cases.set(Some(res));
+        });
+    });
 
     view! {
         <div class="space-y-6">
@@ -115,40 +96,32 @@ pub fn PemulihanAsetDashboard() -> impl IntoView {
 
             // Statistics cards
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {move || stats.get().into_iter().map(|(title, value, _icon, _color)| view! {
-                    <StatCard
-                        title=title.to_string()
-                        value=value.to_string()
+                 <StatCard
+                        title="Total Cases".to_string()
+                        value=move || {
+                            match cases.get() {
+                                Some(Ok(c)) => c.len().to_string(),
+                                Some(Err(_)) => "Error".to_string(),
+                                None => "...".to_string(),
+                            }
+                        }
                     />
-                }).collect::<Vec<_>>()}
             </div>
 
-            // Quick actions
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-lg shadow border">
-                    <h3 class="text-lg font-semibold mb-4">"Aset Prioritas"</h3>
-                    <div class="space-y-2">
-                        <p class="text-sm text-gray-600">"Tanah Negara di Jakarta - Rp 2.1M"</p>
-                        <p class="text-sm text-gray-600">"Kendaraan Operasional - Rp 890K"</p>
-                        <p class="text-sm text-gray-600">"Peralatan IT - Rp 450K"</p>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border">
-                    <h3 class="text-lg font-semibold mb-4">"Status Proses"</h3>
-                    <div class="space-y-2">
-                        <p class="text-sm text-gray-600">"34 proses eksekusi berjalan"</p>
-                        <p class="text-sm text-gray-600">"12 menunggu verifikasi"</p>
-                        <p class="text-sm text-gray-600">"8 siap eksekusi"</p>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border">
-                    <h3 class="text-lg font-semibold mb-4">"Hasil Pemulihan"</h3>
-                    <div class="space-y-2">
-                        <p class="text-sm text-gray-600">"89 aset berhasil dipulihkan"</p>
-                        <p class="text-sm text-gray-600">"Rp 12.5M total nilai"</p>
-                        <p class="text-sm text-gray-600">"87% tingkat keberhasilan"</p>
-                    </div>
-                </div>
+             <div class="bg-white p-6 rounded-lg shadow border">
+                <h3 class="text-lg font-semibold mb-4">"Recent Cases"</h3>
+                {move || match cases.get() {
+                    Some(Ok(c)) => {
+                            c.into_iter().map(|item| view! {
+                            <div class="border-b py-2">
+                                <p class="font-bold">{item.title}</p>
+                                <p class="text-sm text-gray-600">{item.status}</p>
+                            </div>
+                        }).collect_view().into_any()
+                    },
+                    Some(Err(e)) => view! { <p class="text-red-500">{format!("Error: {}", e)}</p> }.into_any(),
+                    None => view! { <p>"Loading..."</p> }.into_any()
+                }}
             </div>
         </div>
     }
