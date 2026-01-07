@@ -788,14 +788,12 @@ impl AuthService {
     pub async fn count_users(&self) -> Result<u64, AuthError> {
         let params = secreton_storage::QueryParams {
             path_prefix: Some("auth/users/".to_string()),
-            limit: None, // Retrieve all to count
+            limit: None,
             ..Default::default()
         };
 
-        let entries = self.storage.list(&params).await
-            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))?;
-
-        Ok(entries.len() as u64)
+        self.storage.count(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))
     }
 
     /// Count active sessions
@@ -807,10 +805,8 @@ impl AuthService {
             ..Default::default()
         };
 
-        let entries = self.storage.list(&params).await
-            .map_err(|e| AuthError::Internal(format!("Failed to count sessions: {}", e)))?;
-
-        Ok(entries.len() as u64)
+        self.storage.count(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count sessions: {}", e)))
     }
 
     /// Update last login timestamp
