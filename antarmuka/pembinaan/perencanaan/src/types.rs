@@ -1,5 +1,40 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use chrono::{NaiveDate, DateTime, Utc};
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct RencanaPengadaan {
+    pub id: Uuid,
+    pub nama_kegiatan: String,
+    pub kode_rekening: String,
+    pub pagu_anggaran: i64,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateRencanaRequest {
+    pub nama_kegiatan: String,
+    pub kode_rekening: String,
+    pub pagu_anggaran: i64,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UpdateRencanaRequest {
+    pub nama_kegiatan: Option<String>,
+    pub kode_rekening: Option<String>,
+    pub pagu_anggaran: Option<i64>,
+    pub tanggal_mulai: Option<NaiveDate>,
+    pub tanggal_selesai: Option<NaiveDate>,
+    pub status: Option<String>,
+}
+
+// Keeping existing types to avoid breaking other potential usages,
+// though they seem like placeholders.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Barang {
     pub id: String,
@@ -54,4 +89,4 @@ pub struct ApiResponse<T> {
     pub success: bool,
     pub data: Option<T>,
     pub message: String,
-} 
+}

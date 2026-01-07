@@ -12,8 +12,10 @@ use shared_microfrontend::components::auth::{
 };
 use shared_microfrontend::prelude::*;
 
+pub mod api;
 pub mod components;
 pub mod pages;
+pub mod types;
 
 /// Main App Component
 #[component]

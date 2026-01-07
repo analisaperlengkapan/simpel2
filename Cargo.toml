@@ -39,6 +39,7 @@ members = [
 
     # Backend Layanan Pembinaan
     "layanan/pembinaan/perlengkapan",
+    "layanan/pembinaan/perencanaan",
 
     # Backend Shared Layanan
     "layanan/shared/ai",
@@ -64,6 +65,7 @@ default-members = [
     "antarmuka/pembinaan/perencanaan",
     "antarmuka/pembinaan/perlengkapan",
     "layanan/pembinaan/perlengkapan",
+    "layanan/pembinaan/perencanaan",
     "layanan/shared/bantuan",
     "layanan/shared/dasbor",
     "layanan/shared/integrasi",
