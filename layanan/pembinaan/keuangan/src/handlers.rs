@@ -1,11 +1,11 @@
 use axum::{
-    extract::State,
+    extract::{State, Query},
     Json,
 };
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 use garde::Validate;
-use crate::models::{BudgetItem, Transaction, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics};
+use crate::models::{BudgetItem, Transaction, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics, PaginationParams};
 use crate::error::AppError;
 use crate::auth::Claims;
 
@@ -99,12 +99,21 @@ pub async fn create_budget(
 // Transaction Handlers
 pub async fn list_transactions(
     _claims: Claims,
+    Query(pagination): Query<PaginationParams>,
     State(pool): State<Pool>
 ) -> Result<Json<Vec<Transaction>>, AppError> {
     let client = pool.get().await?;
 
-    let rows = client.query("SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT 10", &[])
-        .await?;
+    let limit = pagination.limit.unwrap_or(10);
+    let offset = pagination.page.map(|p| (p - 1) * limit).unwrap_or(0);
+
+    // Ensure limit is reasonable
+    let limit = limit.clamp(1, 100);
+
+    let rows = client.query(
+        "SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT $1 OFFSET $2",
+        &[&limit, &offset]
+    ).await?;
 
     let transactions: Vec<Transaction> = rows.into_iter().map(Transaction::from).collect();
     Ok(Json(transactions))

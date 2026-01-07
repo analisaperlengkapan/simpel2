@@ -121,3 +121,9 @@ pub struct FinancialMetrics {
     pub cash_flow: f64,
     pub budget_variance: f64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PaginationParams {
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+}
