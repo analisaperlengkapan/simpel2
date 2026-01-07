@@ -125,47 +125,91 @@ impl AdminService {
         // Calculate uptime
         let uptime_seconds = self.start_time.elapsed().as_secs();
 
-        // TODO: Get actual user and session counts from auth service
-        // For now, using placeholder values as auth service doesn't expose these stats yet
-        let total_users = 0;
-        let active_sessions = 0;
+        // Calculate real counts from storage
+        let params = secreton_storage::QueryParams {
+            path_prefix: None,
+            security_level: None,
+            tags: Vec::new(),
+            owner_id: None,
+            metadata_filters: HashMap::new(),
+            include_expired: false,
+            limit: None,
+            offset: None,
+            sort_by: None,
+            sort_order: None,
+        };
+
+        // This is expensive but accurate. In production, we'd use counters.
+        let entries = self.storage.list(&params).await?;
+        let total_secrets = entries.len() as u64;
+
+        // Simple heuristic: keys are stored under keys/
+        let total_keys = entries
+            .iter()
+            .filter(|e| e.path.starts_with("keys/"))
+            .count() as u64;
 
         Ok(SystemStats {
             uptime_seconds,
-            total_users,
-            active_sessions,
-            total_secrets: storage_stats.total_entries,
-            total_keys: storage_stats.total_entries, // Count of encrypted entries
+            total_users: 0, // Still placeholder until auth service exposes stats
+            active_sessions: 0,
+            total_secrets,
+            total_keys,
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
-            requests_per_minute: 0.0, // TODO: Implement request rate tracking
+            requests_per_minute: 0.0,
         })
     }
 
     /// Create system backup
     pub async fn create_backup(&self) -> Result<BackupInfo, AdminError> {
-        // Get storage statistics for backup size estimation
+        // Get storage statistics
         let storage_stats = self.storage.get_stats().await?;
         let backup_id = uuid::Uuid::new_v4().to_string();
         let created_at = chrono::Utc::now();
 
-        // TODO: Implement actual backup export to file/stream
-        // For now, log the backup operation in audit trail
+        // Ensure backup directory exists
+        let backup_dir = std::path::Path::new("/tmp/secreton_backups");
+        if !backup_dir.exists() {
+            std::fs::create_dir_all(backup_dir).map_err(|e| {
+                AdminError::Internal(anyhow::anyhow!("Failed to create backup directory: {}", e))
+            })?;
+        }
+
+        // List all entries
+        let params = secreton_storage::QueryParams::default();
+        let entries = self.storage.list(&params).await?;
+
+        // Serialize entries to JSON
+        let backup_data = serde_json::to_vec(&entries).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to serialize backup data: {}", e))
+        })?;
+
+        // Write to file
+        let backup_path = backup_dir.join(format!("{}.json", backup_id));
+        std::fs::write(&backup_path, &backup_data).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to write backup file: {}", e))
+        })?;
+
         tracing::info!(
             backup_id = %backup_id,
-            size_bytes = storage_stats.total_size_bytes,
-            "System backup initiated"
+            size_bytes = backup_data.len(),
+            path = %backup_path.display(),
+            "System backup created successfully"
         );
 
-        // Calculate checksum placeholder (should be actual hash of backup data)
-        let checksum = format!("sha256:{}", hex::encode(&backup_id.as_bytes()[..16]));
+        // Calculate simple checksum
+        let checksum = format!("sha256:{}", hex::encode(secreton_crypto::hashing::compute_hash(
+            secreton_crypto::AlgorithmId::Sha256,
+            &backup_data
+        ).unwrap().hash));
 
         Ok(BackupInfo {
             id: backup_id.clone(),
             created_at,
-            size_bytes: storage_stats.total_size_bytes,
-            compressed: true,
-            encrypted: true,
+            size_bytes: backup_data.len() as u64,
+            compressed: false,
+            encrypted: false, // In a real system, this should be encrypted!
             checksum,
             metadata: {
                 let mut metadata = HashMap::new();
@@ -174,7 +218,7 @@ impl AdminService {
                 metadata.insert("backend".to_string(), storage_stats.backend_type);
                 metadata.insert(
                     "entries_count".to_string(),
-                    storage_stats.total_entries.to_string(),
+                    entries.len().to_string(),
                 );
                 metadata
             },
@@ -183,11 +227,46 @@ impl AdminService {
 
     /// List available backups
     pub async fn list_backups(&self) -> Result<Vec<BackupInfo>, AdminError> {
-        // TODO: Implement persistent backup storage and listing
-        // Currently backups are not persisted, so returning empty list
-        // Future implementation should store backup metadata in storage backend
-        tracing::debug!("Listing backups - persistent storage not yet implemented");
-        Ok(vec![])
+        let backup_dir = std::path::Path::new("/tmp/secreton_backups");
+        if !backup_dir.exists() {
+            return Ok(vec![]);
+        }
+
+        let mut backups = Vec::new();
+        let entries = std::fs::read_dir(backup_dir).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to read backup directory: {}", e))
+        })?;
+
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        let metadata = entry.metadata().ok();
+                        let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                        let created_at = metadata
+                            .and_then(|m| m.created().ok())
+                            .map(|t| chrono::DateTime::<chrono::Utc>::from(t))
+                            .unwrap_or_else(chrono::Utc::now);
+
+                        backups.push(BackupInfo {
+                            id: file_stem.to_string(),
+                            created_at,
+                            size_bytes: size,
+                            compressed: false,
+                            encrypted: false,
+                            checksum: "unknown".to_string(), // Would need to read file to calc
+                            metadata: HashMap::new(),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Sort by creation time desc
+        backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        Ok(backups)
     }
 
     /// Restore from backup

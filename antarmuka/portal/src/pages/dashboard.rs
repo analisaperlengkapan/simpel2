@@ -3,7 +3,27 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{get_system_metrics, SystemStats};
 use leptos::prelude::*;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SystemMetrics {
+    pub uptime: u64,
+    pub memory_usage: MemoryMetrics,
+    pub vault: VaultMetrics,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MemoryMetrics {
+    pub total: u64,
+    pub used: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VaultMetrics {
+    pub total_secrets: u64,
+    pub total_keys: u64,
+}
 
 /// Dashboard page component - main user dashboard with statistics
 #[component]
@@ -13,36 +33,66 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
+    // Resource to fetch system metrics
+    // Note: We use LocalResource because gloo_net types are not Send/Sync (WASM single threaded)
+    let metrics_resource = LocalResource::new(
+        move || async move {
+            get_system_metrics().await
         },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    );
+
+    // Derived signal for stats cards
+    let stats_cards = move || {
+        metrics_resource.get().map(|result: Result<SystemMetrics, String>| {
+            match result {
+                Ok(metrics) => {
+                    let uptime_hours = metrics.uptime / 3600;
+                    vec![
+                        StatCardData {
+                            title: "Total Secrets".to_string(),
+                            value: metrics.vault.total_secrets.to_string(),
+                            icon: "🔐".to_string(),
+                            color: StatColor::Blue,
+                            trend: Some("Stored in Vault".to_string()),
+                        },
+                        StatCardData {
+                            title: "Total Keys".to_string(),
+                            value: metrics.vault.total_keys.to_string(),
+                            icon: "🔑".to_string(),
+                            color: StatColor::Green,
+                            trend: Some("Encryption Keys".to_string()),
+                        },
+                        StatCardData {
+                            title: "Uptime".to_string(),
+                            value: format!("{}h", uptime_hours),
+                            icon: "⏱️".to_string(),
+                            color: StatColor::Yellow,
+                            trend: Some("System Online".to_string()),
+                        },
+                        StatCardData {
+                            title: "Storage".to_string(),
+                            value: format!("{:.1}GB", metrics.memory_usage.used as f64 / 1024.0 / 1024.0 / 1024.0),
+                            icon: "💾".to_string(),
+                            color: StatColor::Red,
+                            trend: Some("Memory Usage".to_string()),
+                        },
+                    ]
+                },
+                Err(_) => {
+                    // Fallback / Loading state
+                     vec![
+                        StatCardData {
+                            title: "Status".to_string(),
+                            value: "Offline".to_string(),
+                            icon: "❌".to_string(),
+                            color: StatColor::Red,
+                            trend: None,
+                        }
+                    ]
+                }
+            }
+        })
+    };
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +163,15 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
-                        <div class="transform transition-all duration-300 hover:scale-105">
-                            <StatCard data=stat />
-                        </div>
-                    }).collect_view()}
+                    <Suspense fallback=move || view! { <p>"Loading stats..."</p> }>
+                        {move || stats_cards().map(|cards| {
+                            cards.into_iter().map(|stat| view! {
+                                <div class="transform transition-all duration-300 hover:scale-105">
+                                    <StatCard data=stat />
+                                </div>
+                            }).collect_view()
+                        })}
+                    </Suspense>
                 </div>
 
                 // Main Content Grid
