@@ -129,7 +129,15 @@ pub fn DatunDashboard(
     view! {
         <div class="space-y-8">
             // Hero Section
-            <div class="text-center py-8 bg-white rounded-lg shadow-sm border-b-4 border-kejaksaan-primary">
+            <div class="text-center py-8 bg-white rounded-lg shadow-sm border-b-4 border-kejaksaan-primary relative">
+                <div class="absolute top-4 right-4">
+                    <Button
+                        variant=ButtonVariant::Secondary
+                        on:click=move |_| { window().location().reload().unwrap(); }
+                        class="text-sm">
+                        "🔄 Refresh Data"
+                    </Button>
+                </div>
                 <div class="text-5xl mb-2">"⚖️"</div>
                 <h1 class="text-3xl font-bold text-kejaksaan-text mb-2">
                     "Datun Center"

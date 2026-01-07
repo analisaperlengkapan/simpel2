@@ -4,6 +4,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tower_http::cors::CorsLayer;
 
 mod handlers;
 mod models;
@@ -26,7 +27,9 @@ async fn main() {
         // Case Management Routes
         .route("/api/v1/datun/cases", get(get_cases).post(create_case))
         .route("/api/v1/datun/cases/:id", get(get_case_by_id).put(update_case))
-        .with_state(state);
+        .with_state(state)
+        // Enable CORS for frontend integration
+        .layer(CorsLayer::permissive());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     println!("Datun service listening on {}", addr);

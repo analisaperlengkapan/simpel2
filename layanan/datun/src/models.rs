@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 
 /// Model data utama untuk Perkara Datun (Perdata dan Tata Usaha Negara)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -93,18 +94,23 @@ pub enum CaseStatus {
 }
 
 /// Request payload untuk membuat kasus baru
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct CreateCaseRequest {
+    #[validate(length(min = 1, message = "Nomor SKK wajib diisi"))]
     pub no_skk: String,
+    #[validate(length(min = 1, message = "Instansi Pemohon wajib diisi"))]
     pub instansi_pemohon: String,
+    #[validate(length(min = 1, message = "Pihak Lawan wajib diisi"))]
     pub pihak_lawan: String,
+    #[validate(length(min = 5, message = "Judul Perkara minimal 5 karakter"))]
     pub judul_perkara: String,
     pub jenis_layanan: ServiceType,
+    #[validate(length(min = 10, message = "Posisi Kasus minimal 10 karakter"))]
     pub posisi_kasus: String,
 }
 
 /// Request payload untuk update kasus
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct UpdateCaseRequest {
     pub status: Option<CaseStatus>,
     pub tim_jpn: Option<Vec<String>>,
