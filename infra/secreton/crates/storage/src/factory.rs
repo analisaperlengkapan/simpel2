@@ -4,9 +4,11 @@
 //! Follows HashiCorp Vault patterns for backend selection and configuration.
 
 use crate::{
-    MemoryBackend, StorageBackend, StorageError, StorageResult,
+    MemoryBackend, StorageBackend, StorageResult,
     backends::{FileBackend, FileConfig},
 };
+#[cfg(any(feature = "consul", feature = "s3", feature = "postgres", feature = "raft-consensus"))]
+use crate::StorageError;
 
 #[cfg(feature = "postgres")]
 use crate::backends::PostgresBackend;

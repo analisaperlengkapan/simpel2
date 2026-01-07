@@ -26,23 +26,26 @@ pub fn SettingsPage(
     let (is_loading, set_is_loading) = signal(false);
 
     let handle_gc = {
-        let token = user_session.token.clone();
+        let token = user_session.access_token.clone();
         move |_| {
-            set_is_loading.set(true);
-            set_gc_status.set(None);
-            let token = token.clone();
-            spawn_local(async move {
-                match trigger_garbage_collection(&token).await {
-                    Ok(result) => {
-                        let msg = format!("GC Success: Operation '{}' completed in {}ms", result.operation, result.duration_ms);
-                        set_gc_status.set(Some(msg));
+            if let Some(token) = token.clone() {
+                set_is_loading.set(true);
+                set_gc_status.set(None);
+                spawn_local(async move {
+                    match trigger_garbage_collection(&token).await {
+                        Ok(result) => {
+                            let msg = format!("GC Success: Operation '{}' completed in {}ms", result.operation, result.duration_ms);
+                            set_gc_status.set(Some(msg));
+                        }
+                        Err(e) => {
+                            set_gc_status.set(Some(format!("GC Failed: {}", e)));
+                        }
                     }
-                    Err(e) => {
-                        set_gc_status.set(Some(format!("GC Failed: {}", e)));
-                    }
-                }
-                set_is_loading.set(false);
-            });
+                    set_is_loading.set(false);
+                });
+            } else {
+                set_gc_status.set(Some("Error: No access token available".to_string()));
+            }
         }
     };
 

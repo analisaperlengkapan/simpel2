@@ -186,6 +186,8 @@
 //! - [`EncryptedStorage`] - Encryption wrapper
 //! - [`CachedStorage`] - Caching wrapper
 
+#![allow(clippy::collapsible_if)]
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

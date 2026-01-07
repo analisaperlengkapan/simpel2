@@ -15,20 +15,24 @@ pub fn DashboardPage(
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
     // Resource for system stats
-    let access_token = user_session.token.clone();
-    let stats_resource = Resource::new(
-        move || access_token.clone(),
-        move |token| async move {
-            match fetch_system_metrics(&token).await {
-                Ok(data) => Some(data),
-                Err(_) => None,
-            }
-        },
-    );
+    let access_token = user_session.access_token.clone();
+    // Using Effect to simulate resource loading for non-Send future
+    let (stats_data, set_stats_data) = signal(Option::<SystemMetricsResponse>::None);
+
+    Effect::new(move |_| {
+        let token = access_token.clone();
+        if let Some(token) = token {
+            spawn_local(async move {
+                if let Ok(data) = fetch_system_metrics(&token).await {
+                    set_stats_data.set(Some(data));
+                }
+            });
+        }
+    });
 
     // Dynamic stats derived from resource
     let stats_view = move || {
-        let metrics = stats_resource.get().flatten();
+        let metrics = stats_data.get();
 
         let total_system_value = metrics
             .as_ref()

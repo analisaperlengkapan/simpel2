@@ -10,16 +10,23 @@ pub fn MonitoringPage(
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
     // Resource for audit logs
-    let access_token = user_session.token.clone();
-    let logs_resource = Resource::new(
-        move || access_token.clone(),
-        move |token| async move {
-            match fetch_audit_logs(&token, Some(50)).await {
-                Ok(data) => Some(data),
-                Err(_) => None,
-            }
-        },
-    );
+    let access_token = user_session.access_token.clone();
+    let (logs_data, set_logs_data) = signal(Option::<Vec<AuditLogEntry>>::None);
+    let (is_loading, set_is_loading) = signal(true);
+
+    Effect::new(move |_| {
+        let token = access_token.clone();
+        if let Some(token) = token {
+            spawn_local(async move {
+                if let Ok(data) = fetch_audit_logs(&token, Some(50)).await {
+                    set_logs_data.set(Some(data));
+                }
+                set_is_loading.set(false);
+            });
+        } else {
+            set_is_loading.set(false);
+        }
+    });
 
     view! {
         <MainLayout user_session=user_session.clone() on_logout=on_logout>
@@ -55,16 +62,12 @@ pub fn MonitoringPage(
                                 </tr>
                             </thead>
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                <Suspense fallback=move || view! {
-                                    <tr><td colspan="5" class="px-6 py-4 text-center">"Loading..."</td></tr>
-                                }>
-                                    {move || {
-                                        logs_resource.get().flatten().map(|logs| {
-                                            if logs.is_empty() {
-                                                view! {
-                                                    <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">"No logs found"</td></tr>
-                                                }.into_any()
-                                            } else {
+                                {move || {
+                                    if is_loading.get() {
+                                        view! { <tr><td colspan="5" class="px-6 py-4 text-center">"Loading..."</td></tr> }.into_any()
+                                    } else {
+                                        match logs_data.get() {
+                                            Some(logs) if !logs.is_empty() => {
                                                 logs.into_iter().map(|log| {
                                                     let status_color = if log.success { "text-green-600" } else { "text-red-600" };
                                                     let status_text = if log.success { "Success" } else { "Failed" };
@@ -92,9 +95,12 @@ pub fn MonitoringPage(
                                                     }
                                                 }).collect_view().into_any()
                                             }
-                                        })
-                                    }}
-                                </Suspense>
+                                            _ => view! {
+                                                <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">"No logs found"</td></tr>
+                                            }.into_any()
+                                        }
+                                    }
+                                }}
                             </tbody>
                         </table>
                     </div>

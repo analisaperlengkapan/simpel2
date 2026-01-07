@@ -44,3 +44,4 @@ pub mod prelude {
     pub use shared_microfrontend::hooks;
     pub use shared_microfrontend::utils;
 }
+pub mod types;

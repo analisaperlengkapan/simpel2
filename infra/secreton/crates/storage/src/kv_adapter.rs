@@ -4,11 +4,11 @@
 //! This allows any KV store to be used as a backend for Secreton.
 
 use crate::{
-    BackendMetrics, HealthStatus, KvBackend, QueryParams, StorageBackend, StorageError,
+    KvBackend, QueryParams, StorageBackend, StorageError,
     StorageResult, StorageStats, StorageTransaction, VaultEntry,
+    HealthStatus,
 };
 use async_trait::async_trait;
-use chrono::Utc;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -34,6 +34,7 @@ impl<B: KvBackend> KvBackendAdapter<B> {
         format!("entry/id/{}", id)
     }
 
+    #[allow(dead_code)]
     fn key_for_path(path: &str) -> String {
         format!("entry/path/{}", path)
     }
