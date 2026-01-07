@@ -26,7 +26,8 @@ pub async fn init_db(pool: &Pool) -> Result<()> {
             end_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             responsible_unit VARCHAR NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            created_by VARCHAR
         )
         "#,
         &[],
@@ -47,7 +48,8 @@ pub async fn init_db(pool: &Pool) -> Result<()> {
             approval_date TIMESTAMPTZ,
             approved_by VARCHAR,
             supporting_documents TEXT[],
-            created_at TIMESTAMPTZ DEFAULT NOW()
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            created_by VARCHAR
         )
         "#,
         &[],

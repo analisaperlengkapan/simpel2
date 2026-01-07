@@ -22,6 +22,10 @@ pub enum AppError {
     Internal,
     #[error("Bad request: {0}")]
     BadRequest(String),
+    #[error("Authentication error: {0}")]
+    Authentication(String),
+    #[error("Authorization error: {0}")]
+    Authorization(String),
 }
 
 impl IntoResponse for AppError {
@@ -39,6 +43,8 @@ impl IntoResponse for AppError {
             AppError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
             AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::Authentication(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
+            AppError::Authorization(msg) => (StatusCode::FORBIDDEN, msg.clone()),
         };
 
         let body = Json(json!({

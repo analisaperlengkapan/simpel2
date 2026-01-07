@@ -7,9 +7,13 @@ use uuid::Uuid;
 use garde::Validate;
 use crate::models::{BudgetItem, Transaction, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics};
 use crate::error::AppError;
+use crate::auth::Claims;
 
 // Dashboard Metrics
-pub async fn get_metrics(State(pool): State<Pool>) -> Result<Json<FinancialMetrics>, AppError> {
+pub async fn get_metrics(
+    _claims: Claims,
+    State(pool): State<Pool>
+) -> Result<Json<FinancialMetrics>, AppError> {
     let client = pool.get().await?;
 
     // Calculate totals
@@ -40,7 +44,10 @@ pub async fn get_metrics(State(pool): State<Pool>) -> Result<Json<FinancialMetri
 }
 
 // Budget Handlers
-pub async fn list_budgets(State(pool): State<Pool>) -> Result<Json<Vec<BudgetItem>>, AppError> {
+pub async fn list_budgets(
+    _claims: Claims,
+    State(pool): State<Pool>
+) -> Result<Json<Vec<BudgetItem>>, AppError> {
     let client = pool.get().await?;
 
     let rows = client.query("SELECT * FROM keuangan.budgets ORDER BY created_at DESC", &[])
@@ -51,6 +58,7 @@ pub async fn list_budgets(State(pool): State<Pool>) -> Result<Json<Vec<BudgetIte
 }
 
 pub async fn create_budget(
+    claims: Claims,
     State(pool): State<Pool>,
     Json(payload): Json<CreateBudgetRequest>,
 ) -> Result<Json<BudgetItem>, AppError> {
@@ -61,8 +69,8 @@ pub async fn create_budget(
 
     let row = client.query_one(
         r#"
-        INSERT INTO keuangan.budgets (category, subcategory, budget_code, allocated_amount, priority, responsible_unit)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO keuangan.budgets (category, subcategory, budget_code, allocated_amount, priority, responsible_unit, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
         "#,
         &[
@@ -71,15 +79,28 @@ pub async fn create_budget(
             &payload.budget_code,
             &payload.allocated_amount,
             &payload.priority,
-            &payload.responsible_unit
+            &payload.responsible_unit,
+            &claims.username // Store who created it (requires DB update)
         ],
-    ).await?;
+    ).await.map_err(|e| {
+        // Handle "column does not exist" gracefully if DB migration isn't run, or log error
+        // But for now, we assume migration adds 'created_by' or we revert to not using it if schema assumes otherwise.
+        // My initial schema didn't have created_by in budgets!
+        // I should update the schema or not use it.
+        // Let's stick to initial schema for safety, or update schema?
+        // The prompt asked for "End to End", so tracking user is good.
+        // I'll update schema.
+        AppError::Db(e)
+    })?;
 
     Ok(Json(BudgetItem::from(row)))
 }
 
 // Transaction Handlers
-pub async fn list_transactions(State(pool): State<Pool>) -> Result<Json<Vec<Transaction>>, AppError> {
+pub async fn list_transactions(
+    _claims: Claims,
+    State(pool): State<Pool>
+) -> Result<Json<Vec<Transaction>>, AppError> {
     let client = pool.get().await?;
 
     let rows = client.query("SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT 10", &[])
@@ -90,6 +111,7 @@ pub async fn list_transactions(State(pool): State<Pool>) -> Result<Json<Vec<Tran
 }
 
 pub async fn create_transaction(
+    claims: Claims,
     State(pool): State<Pool>,
     Json(payload): Json<CreateTransactionRequest>,
 ) -> Result<Json<Transaction>, AppError> {
@@ -103,8 +125,8 @@ pub async fn create_transaction(
 
     let row = client.query_one(
         r#"
-        INSERT INTO keuangan.transactions (transaction_code, description, amount, transaction_type, budget_item_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO keuangan.transactions (transaction_code, description, amount, transaction_type, budget_item_id, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
         "#,
         &[
@@ -112,7 +134,8 @@ pub async fn create_transaction(
             &payload.description,
             &payload.amount,
             &payload.transaction_type,
-            &payload.budget_item_id
+            &payload.budget_item_id,
+            &claims.username
         ],
     ).await?;
 
