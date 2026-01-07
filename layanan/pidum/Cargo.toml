@@ -16,3 +16,9 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 uuid = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+deadpool-postgres = { workspace = true }
+tokio-postgres = { workspace = true, features = ["with-uuid-1", "with-chrono-0_4"] }
+garde = { workspace = true, features = ["derive", "email"] }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
