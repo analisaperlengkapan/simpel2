@@ -6,7 +6,7 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
+use thiserror::Error;
 
 /// System statistics returned by /admin/metrics
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -74,24 +74,15 @@ pub struct ApiErrorDetail {
 }
 
 /// Error type for API operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Error)]
 pub enum ApiError {
+    #[error("Network error: {0}")]
     Network(String),
+    #[error("Server error: {0}")]
     Server(String),
+    #[error("Serialization error: {0}")]
     Serialization(String),
 }
-
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ApiError::Network(msg) => write!(f, "Network error: {}", msg),
-            ApiError::Server(msg) => write!(f, "Server error: {}", msg),
-            ApiError::Serialization(msg) => write!(f, "Serialization error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for ApiError {}
 
 /// Secret list item
 #[derive(Debug, Serialize, Deserialize, Clone)]

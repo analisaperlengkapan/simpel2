@@ -434,17 +434,31 @@ impl AuthService {
             sort_order: None,
         };
 
-        let users = self.storage.list(&params).await
-            .map_err(|e| AuthError::Internal(format!("Failed to list users: {}", e)))?;
+        let count = self.storage.count(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))?;
 
-        Ok(users.len() as u64)
+        Ok(count)
     }
 
     /// Count active sessions
     pub async fn count_active_sessions(&self) -> Result<u64, AuthError> {
-        // TODO: Implement actual session counting from session storage
-        // For now, return a placeholder based on recent logins or active tokens
-        Ok(0)
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some("auth/sessions/".to_string()),
+            security_level: None,
+            tags: Vec::new(),
+            owner_id: None,
+            metadata_filters: HashMap::new(),
+            include_expired: false,
+            limit: None,
+            offset: None,
+            sort_by: None,
+            sort_order: None,
+        };
+
+        let count = self.storage.count(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count sessions: {}", e)))?;
+
+        Ok(count)
     }
 
     /// Check if user has permission
