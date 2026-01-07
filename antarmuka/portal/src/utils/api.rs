@@ -11,8 +11,16 @@ use std::fmt;
 /// Error type for API requests
 #[derive(Debug)]
 pub enum ApiError {
+    /// Network level error (connection refused, timeout, etc)
     Network(String),
-    Response { status: u16, message: String },
+    /// API returned an error status code
+    Response {
+        /// HTTP status code
+        status: u16,
+        /// Error message
+        message: String
+    },
+    /// JSON serialization/deserialization error
     Serialization(String),
 }
 

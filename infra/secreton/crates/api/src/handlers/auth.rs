@@ -724,8 +724,8 @@ pub async fn oauth_login(
 /// OAuth callback handler
 pub async fn oauth_callback(
     State(_state): State<AppState>,
-    Path(provider): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+    Path(_provider): Path<String>,
+    Query(_params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     // TODO: Implement OAuth callback
     // 1. Verify state parameter

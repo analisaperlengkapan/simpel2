@@ -10,45 +10,67 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// List item for secrets
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SecretListItem {
+    /// Path to the secret
     path: String,
+    /// Metadata associated with the secret
     metadata: SecretMetadata,
 }
 
+/// Metadata for a secret
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 struct SecretMetadata {
+    /// Description of the secret
     description: Option<String>,
+    /// Owner of the secret
     owner: Option<String>,
+    /// Security classification
     classification: Option<String>,
 }
 
+/// Request to create a new secret
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct CreateSecretRequest {
+    /// Secret data as key-value pairs
     data: HashMap<String, String>,
+    /// Optional metadata
     metadata: Option<SecretMetadata>,
+    /// Time-to-live in seconds
     ttl: Option<u64>,
 }
 
+/// Secret details response
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SecretResponse {
+    /// Path to the secret
     path: String,
+    /// Secret data
     data: HashMap<String, String>,
+    /// Metadata
     metadata: SecretMetadata,
 }
 
+/// Generic API response wrapper
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct ApiResponse<T> {
+    /// Whether the request was successful
     success: bool,
+    /// Response data
     data: Option<T>,
+    /// Error details if failed
     error: Option<Value>,
 }
 
 use serde_json::Value;
 
+/// Secrets management page component
 #[component]
 pub fn SecretsPage(
+    /// Current user session
     user_session: UserSession,
+    /// Logout callback
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
     // State
