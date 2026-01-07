@@ -106,6 +106,21 @@ pub fn PemulihanAsetDashboard() -> impl IntoView {
                             }
                         }
                     />
+                <StatCard
+                    title="Aset Teridentifikasi".to_string()
+                    value=Signal::derive(move || "127".to_string())
+                    description="Total aset dalam database".to_string()
+                />
+                <StatCard
+                    title="Dalam Proses".to_string()
+                    value=Signal::derive(move || "34".to_string())
+                    description="Sedang berjalan".to_string()
+                />
+                 <StatCard
+                    title="Berhasil Dipulihkan".to_string()
+                    value=Signal::derive(move || "89".to_string())
+                    description="Kasus selesai".to_string()
+                />
             </div>
 
              <div class="bg-white p-6 rounded-lg shadow border">

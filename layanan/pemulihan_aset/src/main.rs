@@ -4,6 +4,7 @@ use tokio::net::TcpListener;
 use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
 use tokio_postgres::NoTls;
 use std::env;
+use tower_http::cors::{CorsLayer, Any};
 
 mod db;
 mod model;
@@ -31,6 +32,11 @@ async fn main() {
     let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Failed to create pool");
     let db = DB::new(pool);
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/", get(health_check))
         .route("/api/v1/pemulihan_aset/health", get(health_check))
@@ -40,6 +46,7 @@ async fn main() {
         // Asset routes
         .route("/api/v1/pemulihan_aset/cases/:case_id/assets", get(handlers::list_assets))
         .route("/api/v1/pemulihan_aset/assets", post(handlers::create_asset))
+        .layer(cors)
         .with_state(db);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));

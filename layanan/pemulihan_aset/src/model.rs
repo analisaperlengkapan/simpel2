@@ -6,6 +6,7 @@ use postgres_types::{ToSql, FromSql};
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "case_status")]
+#[allow(dead_code)]
 pub enum CaseStatus {
     Draft,
     Process,
@@ -14,6 +15,7 @@ pub enum CaseStatus {
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "asset_type")]
+#[allow(dead_code)]
 pub enum AssetType {
     Money,
     Land,
@@ -23,6 +25,7 @@ pub enum AssetType {
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "asset_status")]
+#[allow(dead_code)]
 pub enum AssetStatus {
     Identified,
     Seized,
@@ -76,6 +79,7 @@ pub struct CreateAssetRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql)]
+#[allow(dead_code)]
 pub struct Recovery {
     pub id: Uuid,
     pub asset_id: Uuid,
@@ -86,6 +90,7 @@ pub struct Recovery {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
+#[allow(dead_code)]
 pub struct CreateRecoveryRequest {
     #[garde(skip)]
     pub asset_id: Uuid,

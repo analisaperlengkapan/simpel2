@@ -1,5 +1,4 @@
 use deadpool_postgres::{Pool, Client};
-use tokio_postgres::NoTls;
 use anyhow::Result;
 use uuid::Uuid;
 use crate::model::{Case, Asset, CreateCaseRequest, CreateAssetRequest};
