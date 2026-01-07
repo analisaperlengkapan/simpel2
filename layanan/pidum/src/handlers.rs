@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
@@ -9,26 +9,35 @@ use uuid::Uuid;
 use chrono::Utc;
 use crate::models::{CreatePerkaraRequest, Perkara};
 use garde::Validate;
+use serde::Deserialize;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: Pool,
 }
 
+#[derive(Deserialize)]
+pub struct Pagination {
+    pub page: Option<usize>,
+    pub limit: Option<usize>,
+}
+
 pub async fn list_perkara(
     State(state): State<AppState>,
+    Query(params): Query<Pagination>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
     })?;
 
-    // Since we might not have the table yet, we'll try the query but fallback to empty list or mock if it fails in dev
-    // But for "further development", we assume we should write the correct query.
-    // If the table doesn't exist, this will error.
-    // Ideally we would have migrations, but for this task I will write the query code.
+    let limit = params.limit.unwrap_or(10);
+    let offset = (params.page.unwrap_or(1) - 1) * limit;
 
     let rows = client
-        .query("SELECT * FROM perkara ORDER BY created_at DESC", &[])
+        .query(
+            "SELECT * FROM perkara ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            &[&(limit as i64), &(offset as i64)]
+        )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 

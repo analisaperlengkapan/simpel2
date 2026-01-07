@@ -10,10 +10,46 @@ pub struct Perkara {
     pub nomor_perkara: String,
     pub judul: String,
     pub tanggal_kejadian: DateTime<Utc>,
-    pub status: String,
+    pub status: PerkaraStatus,
     pub deskripsi: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum PerkaraStatus {
+    SPDP,
+    P18,
+    P19,
+    P21,
+    Tahap2,
+    Lainnya(String),
+}
+
+impl From<String> for PerkaraStatus {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "SPDP" => Self::SPDP,
+            "P-18" => Self::P18,
+            "P-19" => Self::P19,
+            "P-21" => Self::P21,
+            "Tahap 2" => Self::Tahap2,
+            _ => Self::Lainnya(s),
+        }
+    }
+}
+
+impl ToString for PerkaraStatus {
+    fn to_string(&self) -> String {
+        match self {
+            Self::SPDP => "SPDP".to_string(),
+            Self::P18 => "P-18".to_string(),
+            Self::P19 => "P-19".to_string(),
+            Self::P21 => "P-21".to_string(),
+            Self::Tahap2 => "Tahap 2".to_string(),
+            Self::Lainnya(s) => s.clone(),
+        }
+    }
 }
 
 impl From<Row> for Perkara {
@@ -23,7 +59,7 @@ impl From<Row> for Perkara {
             nomor_perkara: row.get("nomor_perkara"),
             judul: row.get("judul"),
             tanggal_kejadian: row.get("tanggal_kejadian"),
-            status: row.get("status"),
+            status: PerkaraStatus::from(row.get::<_, String>("status")),
             deskripsi: row.get("deskripsi"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
