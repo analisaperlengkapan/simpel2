@@ -16,3 +16,8 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 uuid = { workspace = true }
+deadpool-postgres = { workspace = true }
+tokio-postgres = { workspace = true }
+postgres-types = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
