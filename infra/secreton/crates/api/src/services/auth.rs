@@ -300,7 +300,7 @@ impl AuthService {
     }
 
     /// Refresh access token
-    pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
+    pub async fn refresh_token(&self, _refresh_token: &str) -> Result<AuthToken, AuthError> {
         // TODO: Implement token refresh logic
         // 1. Validate refresh token
         // 2. Get user from token
@@ -469,7 +469,7 @@ impl AuthService {
     }
 
     /// Get role by name
-    pub async fn get_role(&self, role_name: &str) -> Result<Role, AuthError> {
+    pub async fn get_role(&self, _role_name: &str) -> Result<Role, AuthError> {
         // TODO: Implement role retrieval from storage
         Err(AuthError::Internal("Role not found".to_string()))
     }
@@ -756,20 +756,74 @@ impl AuthService {
     }
 
     /// Store role in storage
-    async fn store_role(&self, role: &Role) -> Result<(), AuthError> {
+    async fn store_role(&self, _role: &Role) -> Result<(), AuthError> {
         // TODO: Implement role storage
         Ok(())
     }
 
     /// Store session
     async fn store_session(&self, session: &Session) -> Result<(), AuthError> {
-        // TODO: Implement session storage
+        let session_bytes = serde_json::to_vec(session)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
+
+        // Encrypt session data
+        let encrypted_data = self.crypto.encrypt_simple(&session_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt session: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/sessions/{}", session.id),
+            encrypted_data,
+            serde_json::json!({"user_id": session.user_id}),
+            SecurityLevel::Internal,
+            "system".to_string(),
+        ).with_expiration(session.expires_at);
+
+        self.storage.store(&entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store session: {}", e)))?;
+
         Ok(())
+    }
+
+    /// Count total users
+    pub async fn count_users(&self) -> Result<u64, AuthError> {
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some("auth/users/".to_string()),
+            limit: None, // Retrieve all to count
+            ..Default::default()
+        };
+
+        let entries = self.storage.list(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))?;
+
+        Ok(entries.len() as u64)
+    }
+
+    /// Count active sessions
+    pub async fn count_active_sessions(&self) -> Result<u64, AuthError> {
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some("auth/sessions/".to_string()),
+            limit: None,
+            include_expired: false, // Only active sessions
+            ..Default::default()
+        };
+
+        let entries = self.storage.list(&params).await
+            .map_err(|e| AuthError::Internal(format!("Failed to count sessions: {}", e)))?;
+
+        Ok(entries.len() as u64)
     }
 
     /// Update last login timestamp
     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
-        // TODO: Implement last login update
+        // Retrieve current user
+        let mut user = self.get_user(user_id).await?;
+
+        // Update timestamp
+        user.last_login = Some(chrono::Utc::now());
+
+        // Store updated user (encrypts and saves)
+        self.store_user(&user).await?;
+
         Ok(())
     }
 

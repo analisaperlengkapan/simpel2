@@ -41,6 +41,7 @@ gloo-net = { workspace = true }
 # Serialization - Compact binary format
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 
 # Utilities & Error Handling - Production ready
 console_error_panic_hook = { workspace = true }

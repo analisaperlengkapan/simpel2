@@ -243,6 +243,20 @@ pub fn App() -> impl IntoView {
                     }
                 } />
 
+                <Route path=StaticSegment("secrets") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <SecretsPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
+
                 <Route path=StaticSegment("settings") view=move || {
                     match user_session.get() {
                         Some(session) => view! {
