@@ -75,32 +75,30 @@ cd antarmuka/portal && trunk build --release
 # Backend services (Rust)
 cargo build --bin layanan-keamanan
 
-# Use Makefile for common tasks
-make build-all-fe        # All microfrontends parallel
-make quick-dev           # Full dev environment
-make rust-test           # All Rust tests
+# Common tasks
+cargo run -p portal-microfrontend  # Run specific frontend
+cargo test --workspace             # Run all tests
+cargo clippy --workspace           # Lint all code
 ```
 
 ### Testing
 
 ```bash
 # Rust unit + integration tests
-cargo test                           # All workspace tests
+cargo test --workspace               # All workspace tests
 cargo test --package layanan-ai      # Specific service
 
 # Frontend tests
 cd antarmuka/portal && trunk test
 
 # Security validation
-./scripts/security_validation.sh
+cargo audit
 ```
 
 ### Key Scripts
 
-- `scripts/makefiles/*.mk` - Modular build system (8 organized modules)
 - `scripts/security_validation.sh` - Comprehensive security checks
 - `scripts/analyze-bundle-sizes.sh` - WASM bundle analysis
-- `make help` - Show all available commands
 
 ## Code Conventions
 
@@ -255,7 +253,6 @@ let secret = secreton_client.get_secret("KJA001/database_password").await?;
 - **Frontend shared components:** `antarmuka/shared/src/components/`
 - **Auth hooks:** `antarmuka/shared/src/hooks/use_auth.rs`
 - **Backend services:** `layanan/{service_name}/`
-- **Build configs:** `scripts/makefiles/*.mk`
 - **CI/CD:** `.gitlab-ci.yml`
 - **Docker configs:** `docker-compose*.yml`
 - **K8s manifests:** `infra/k8s/`
@@ -266,16 +263,16 @@ let secret = secreton_client.get_secret("KJA001/database_password").await?;
 
 ```bash
 # Start dev environment
-make up-dev
+docker compose up -d
 
 # Build everything
-make build-parallel
+cargo build --workspace
 
 # Run tests
-make rust-test
+cargo test --workspace
 
 # Format + lint
-make rust-fmt && make rust-clippy
+cargo fmt --all && cargo clippy --workspace
 
 # Serve portal with hot reload
 cd antarmuka/portal && trunk serve --open
@@ -284,10 +281,10 @@ cd antarmuka/portal && trunk serve --open
 cargo build --bin layanan-dasbor
 
 # Security scan
-make security-audit
+cargo audit
 
 # Deploy to dev
-make deploy-dev
+# Deployment is handled via CI/CD pipelines
 ```
 
 ## Questions to Ask Before Implementation

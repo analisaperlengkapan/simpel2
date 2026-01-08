@@ -3,7 +3,7 @@
 > **Notice to Agents**: This file serves as the **primary source of truth** for AI agents working on this repository. Read this before planning or executing tasks to understand the architecture, conventions, and workflows.
 
 ## 🌍 Project Context
-**SIMPelv2** is a mission-critical **Rust Monorepo** for the Indonesian Attorney General's Office (Kejaksaan RI). It uses a microservices architecture for the backend (`layout/`) and a microfrontend architecture for the frontend (`antarmuka/`).
+**SIMPelv2** is a mission-critical **Rust Monorepo** for the Indonesian Attorney General's Office (Kejaksaan RI). It uses a microservices architecture for the backend (`layanan/`) and a microfrontend architecture for the frontend (`antarmuka/`).
 
 ### 🔑 Key Tech Stack
 -   **Language**: Rust (Edition 2024, Version 1.90+)
@@ -14,27 +14,35 @@
 
 ---
 
-## 🏗️ Workspace Structure
+## 🏗️ Workspace Structure & Naming Conventions
 
+### 1. Structure Overview
 ```bash
 /var/www/simpelv2/
 ├── Cargo.toml          # ROOT WORKSPACE MANIFEST (Single source of truth)
 ├── lib/                # SHARED LIBRARIES (Avoid duplication here)
-│   ├── types/          # Domain types (simpelv2-types -> lib-types)
-│   ├── crypto/         # Cryptography (simpelv2-crypto -> lib-crypto)
-│   ├── storage/        # Database & Raft (simpelv2-storage -> lib-storage)
-│   ├── middleware/     # Axum middlewares (Auth, Tracing)
-│   ├── utils/          # Common utilities (Error, Formatting)
-│   └── ui/             # Shared UI components (formerly shared-microfrontend)
+│   ├── types/          # Domain types (lib-types)
+│   ├── crypto/         # Cryptography (lib-crypto)
+│   ├── storage/        # Database & Raft (lib-storage)
+│   ├── middleware/     # Axum middlewares (lib-middleware)
+│   ├── utils/          # Common utilities (lib-utils)
+│   └── ui/             # Shared UI components (lib-ui)
 ├── infra/              # CORE INFRASTRUCTURE
-│   ├── authenc/        # Identity Provider (IAM)
-│   └── secreton/       # Secret Management (Vault) - Unified Versioning
+│   ├── authenc/        # Identity Provider (authenc)
+│   └── secreton/       # Secret Management (secreton)
 ├── layanan/            # BACKEND MICROSERVICES
-│   └── daskrimti/      # Main domain services (portal, bantuan, etc.)
+│   └── daskrimti/      # Main domain services
 └── antarmuka/          # FRONTEND MICROFRONTENDS
-    ├── portal/         # Main Dashboard
-    └── badiklat/       # Training module
+    └── [domain]/       # Microfrontend implementations
 ```
+
+### 2. Naming & Placement Rules
+| Type | Directory Location | Package Name Schema | Example |
+| :--- | :--- | :--- | :--- |
+| **Microfrontend** | `antarmuka/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
+| **Microservice** | `layanan/daskrimti/[name]/` | `layanan-[name]` | `layanan-portal` |
+| **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-utils` |
+| **Infra** | `infra/[name]/` | `[name]` | `authenc` |
 
 ---
 
@@ -45,48 +53,41 @@
 -   **Inheritance**: Member crates MUST use `dependeny_name = { workspace = true }`. **NEVER** specify versions in member `Cargo.toml` files.
 -   **Versioning**: All internal crates (including `authenc` and `secreton`) inherit `version.workspace = true`. The current workspace version is **0.1.0**.
 
-### 2. 🧱 Code Organization
--   **DRY (Don't Repeat Yourself)**: Before writing a new utility, CHECK `lib/`.
-    -   Need crypto? Use `lib-crypto`.
-    -   Need database/raft? Use `lib-storage`.
-    -   Need shared types? Use `lib-types`.
--   **Path Dependencies**: Use relative paths for internal dependencies (e.g., `path = "../../lib/types"`).
--   **Naming**: Internal libraries are named `lib-*` (e.g., `lib-types`, `lib-crypto`).
+### 2. 🧹 Code Quality & Maintenance Tools
+Use these standard commands instead of `make`:
+-   **Verification**: `cargo check --workspace` (Run frequently!)
+-   **Formatting**: `cargo fmt --all` (Enforce style guides)
+-   **Linting/Fixing**: `cargo fix --workspace --allow-dirty` (Auto-fix warnings)
+-   **Security**: `cargo audit` (Check for vulnerabilities in dependencies)
 
-### 3. 🛡️ Build & Verification
-The workspace is large. Always verify your changes widely.
-
--   **Check Everything**: `cargo check --workspace` (Run this frequently!)
--   **Build Everything**: `cargo build --workspace`
--   **Test Everything**: `cargo test --workspace`
-
-### 4. 🔐 Security & Secrets
--   **Secreton**: This is the internal Vault. It uses `lib-crypto` for quantum-safe algorithms.
--   **Do NOT Hardcode Secrets**: Use configuration or `secreton-agent` for retrieving secrets.
+### 3. 🛡️ System Integration Strategy
+The ecosystem is designed to be tightly integrated:
+-   **Authenc (Identity)**: centralizes user identities. Services should NOT manage users locally.
+-   **Secreton (Vault)**: centralizes secrets/keys. Services retrieve DB credentials/keys from Secreton at startup.
+-   **Lib-Middleware**: The bridge. All `layanan-*` services MUST use `lib-middleware` to transparently integrate:
+    -   JWT Validation (via Authenc public keys)
+    -   Tracing/Logging
+    -   Error Handling
+-   **Portal**: The visual integrator. Consumes `lib-ui` for consistent design system and composes `*-microfrontend` WASM bundles.
 
 ---
 
 ## 🛠️ Common Workflows for Agents
 
-### A. Add a New Dependency
-1.  Add it to `[workspace.dependencies]` in root `Cargo.toml`.
-2.  Run `cargo check --workspace` to ensure no conflicts.
-3.  Add it to the member crate as `name.workspace = true`.
+### A. Add a New Microservice
+1.  Create directory: `layanan/daskrimti/my-feature/`.
+2.  Initialize `Cargo.toml`. Name it `layanan-my-feature`.
+3.  Add to root `members`.
+4.  Add `lib-middleware` and `lib-utils` dependencies.
+5.  Implement Axum router using `lib-middleware` layers.
 
-### B. Create a New Service (`layanan/new-service`)
-1.  Create the directory and `Cargo.toml`.
-2.  Add to `members` in root `Cargo.toml`.
-3.  **Inherit versions**: `version.workspace = true`.
-4.  Depend on `lib-middleware` for standard auth/logging.
+### B. Add a New Microfrontend
+1.  Create directory: `antarmuka/my-feature/`.
+2.  Initialize `Cargo.toml`. Name it `my-feature-microfrontend`.
+3.  Add to root `members`.
+4.  Add `lib-ui` dependency.
+5.  Implement Leptos components.
 
-### C. Debugging Build Errors
--   If `cargo check` fails on a "missing dependency" that exists:
-    -   Check for **Circular Dependencies**.
-    -   Check for **Feature Mismatches** (e.g., `tonic` needs `transport`).
-    -   Check for **Legacy Naming** (e.g., `simpelv2-crypto` vs `lib-crypto`).
-
----
-
-## 🚨 Known Quirks
--   **Missing Makefile**: `CONTRIBUTING.md` references a `Makefile`, but it may be missing in some environments. Use `cargo` commands directly.
--   **Secreton Integration**: Secreton was recently merged from a separate workspace. Ensure its internal paths always point to `lib-*` and not old `crates/*` if you refactor.
+### C. Debugging
+-   **Do NOT look for a Makefile**. It does not exist. Use cargo commands directly.
+-   If `cargo audit` fails, check if the vulnerability affects the specific deployment usage before upgrading.

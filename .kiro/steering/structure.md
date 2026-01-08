@@ -98,7 +98,7 @@ layanan/[service]/
 ```
 scripts/
 ├── cli/                    # CLI tool (Rust)
-├── makefiles/              # Modular Makefiles
+├── scripts/              # Build Scripts
 │   ├── config.mk           # Configuration
 │   ├── dev.mk              # Development targets
 │   ├── ops.mk              # Operations targets

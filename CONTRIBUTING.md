@@ -67,21 +67,21 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
 
 3. **Install Development Tools**
    ```bash
-   cargo install sqlx-cli cargo-audit cargo-watch
+   cargo install sqlx-cli cargo-audit cargo-watch cargo-expand
    ```
 
 4. **Clone & Setup Project**
    ```bash
    git clone https://gitlab.com/analisiskebutuhan/simpelv2_web.git
    cd simpelv2
-   make setup-dev
+   # Setup database environment variable
+   cp .env.example .env
    ```
 
 5. **Start Development Environment**
    ```bash
-   make up-dev                    # Start all services
-   make serve-portal              # Serve portal with hot reload
-   make build-all-fe             # Build all microfrontends
+   docker compose up -d           # Start all services
+   cargo run -p portal-microfrontend  # Run specific service
    ```
 
 #### **🪟 Windows Setup (WSL2)**
@@ -101,9 +101,9 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
    - Documentation: Update README, API docs
 4. **🧪 Testing & Validation**:
    ```bash
-   make test-all                 # Run all tests
-   make lint-all                # Run linting
-   make security-scan           # Security vulnerability check
+   cargo test --workspace        # Run all tests
+   cargo clippy --workspace      # Run linting
+   cargo audit                   # Security vulnerability check
    ```
 5. **📝 Commit** dengan format baku → Push → Buat **Merge Request**
 
@@ -323,19 +323,20 @@ SIMPelv2 menyediakan berbagai kesempatan untuk AI/ML contributions:
 
 ```bash
 # 1. Setup AI development environment
-make setup-ai-dev
+# Ensure Python and Rust-ML tools are installed
 
 # 2. Train/fine-tune models
-make train-model MODEL=document-classifier
+# Use python scripts in layman/ai/models/ scripts
+python3 scripts/train.py --model document-classifier
 
 # 3. Validate model performance
-make validate-model MODEL=document-classifier
+cargo test -p layanan-ai
 
 # 4. Deploy model to AI service
-make deploy-model MODEL=document-classifier
+cargo run -p layanan-ai --release
 
 # 5. Monitor model performance
-make monitor-ai-metrics
+# Check Grafana dashboard
 ```
 
 ---

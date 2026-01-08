@@ -130,7 +130,7 @@ simpelv2/
 │   └── k8s/            # Kubernetes manifests
 ├── scripts/            # Build and automation scripts
 │   ├── cli/            # CLI tool
-│   └── makefiles/      # Modular Makefiles
+│   └── scripts/        # Build Scripts
 └── docs/               # Documentation
 ```
 

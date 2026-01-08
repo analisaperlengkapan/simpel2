@@ -267,7 +267,7 @@ simpelv2/
 │
 ├── 📁 scripts/                      # Build & Automation
 │   ├── 📁 cli/                      # CLI Tool
-│   ├── 📁 makefiles/                # Modular Makefiles
+│   ├── 📁 security_validation/      # Security Scripts
 │   ├── 📁 backup/                   # Backup Scripts
 │   ├── 📁 test/                     # Test Automation
 │   └── 📁 tools/                    # Development Tools
@@ -280,7 +280,7 @@ simpelv2/
 │   └── 📖 layanan-*.md              # Service Documentation
 │
 ├── 📄 Cargo.toml                    # Workspace Configuration
-├── 📄 Makefile                      # Build Commands
+├── 📄 Cargo.toml                  # Workspace Manifest
 ├── 🐳 docker-compose.yml            # Base Docker Config
 ├── 🐳 docker-compose.dev.yml        # Development Override
 ├── 🐳 docker-compose.prod.yml       # Production Override
