@@ -72,7 +72,7 @@ sysinfo = "0.33.1"
 
 # Internal crates
 secreton-core.workspace = true
-secreton-storage.workspace = true
+secreton-storage = { workspace = true, features = ["postgres"] }
 secreton-crypto.workspace = true
 secreton-hsm.workspace = true
 secreton-grpc.workspace = true
