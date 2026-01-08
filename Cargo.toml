@@ -11,6 +11,7 @@ members = [
     "lib/storage",
     "lib/middleware",
     "lib/utils",
+    "lib/hsm",
     "lib/ui-components",
 
     # CLI Tool

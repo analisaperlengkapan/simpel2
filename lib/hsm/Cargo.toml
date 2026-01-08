@@ -1,0 +1,36 @@
+[package]
+name = "simpelv2-hsm"
+version = "0.1.0"
+edition = "2024"
+authors = ["SIMPelv2 Team"]
+license = "Apache-2.0"
+description = "Hardware Security Module (HSM) integration for SIMPelv2 platform"
+keywords = ["hsm", "pkcs11", "cryptography", "hardware-security"]
+
+[dependencies]
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Async runtime
+tokio.workspace = true
+async-trait.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Utilities
+parking_lot.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[features]
+default = []
+pkcs11 = [] # PKCS#11 support (requires external library)
+test-utils = []
