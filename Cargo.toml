@@ -54,10 +54,14 @@ members = [
     "layanan/daskrimti/notifikasi",
     "layanan/daskrimti/portal",
 
-    # Infrastructure
-    # Note: authenc and secreton has its own sub-workspace - managed separately
-    # "infra/secreton" # Independent workspace for secret management system
-    # "infra/authenc" # Independent workspace for IAM system
+    # Infrastructure (now part of main workspace with independent versioning)
+    "infra/authenc",
+    "infra/secreton",
+    "infra/secreton/crates/api",
+    "infra/secreton/crates/core",
+    "infra/secreton/crates/grpc",
+    "infra/secreton/crates/agent",
+    "infra/secreton/crates/cli",
 ]
 
 default-members = [

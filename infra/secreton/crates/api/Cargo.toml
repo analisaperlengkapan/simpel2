@@ -72,9 +72,9 @@ sysinfo = "0.33.1"
 
 # Internal crates
 secreton-core.workspace = true
-secreton-storage = { workspace = true, features = ["postgres"] }
-secreton-crypto.workspace = true
-secreton-hsm.workspace = true
+lib-storage = { path = "../../../../lib/storage", features = ["postgres"] }
+lib-crypto = { path = "../../../../lib/crypto" }
+lib-hsm = { path = "../../../../lib/hsm" }
 secreton-grpc.workspace = true
 totp-rs.workspace = true
 
@@ -82,7 +82,7 @@ totp-rs.workspace = true
 default = []
 # High-availability mode with Raft consensus (experimental)
 # Note: Raft implementation is currently under development
-raft-consensus = ["secreton-storage/raft-consensus"]
+raft-consensus = ["lib-storage/raft-consensus"]
 # Enable inline test modules (currently have compilation issues)
 enable-inline-tests = []
 

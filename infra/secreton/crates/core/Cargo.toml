@@ -83,9 +83,9 @@ ipnetwork.workspace = true
 url.workspace = true
 
 # Internal crates
-secreton-types.workspace = true
-secreton-crypto.workspace = true
-secreton-storage.workspace = true
+lib-types = { path = "../../../../lib/types" }
+lib-crypto = { path = "../../../../lib/crypto" }
+lib-storage = { path = "../../../../lib/storage" }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -8,15 +8,15 @@ rust-version.workspace = true
 
 [features]
 default = []
-raft-consensus = ["secreton-storage/raft-consensus"]
+raft-consensus = ["lib-storage/raft-consensus"]
 enable-inline-tests = []
 metrics = ["dep:metrics"]
 
 [dependencies]
 # Internal dependencies
 secreton-core.workspace = true
-secreton-storage.workspace = true
-secreton-crypto.workspace = true
+lib-storage = { path = "../../../../lib/storage" }
+lib-crypto = { path = "../../../../lib/crypto" }
 
 
 # Async runtime
