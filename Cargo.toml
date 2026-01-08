@@ -12,7 +12,7 @@ members = [
     "lib/middleware",
     "lib/utils",
     "lib/hsm",
-    "lib/ui-components",
+    "lib/ui",
 
     # CLI Tool
     "scripts/cli",
@@ -64,7 +64,7 @@ default-members = [
     "lib/types",
     "lib/crypto",
     "lib/storage",
-    "lib/ui-components",
+    "lib/ui",
     "scripts/cli",
     "antarmuka/portal",
     "antarmuka/pembinaan/keuangan",
@@ -172,7 +172,7 @@ proc-macro2 = "1.0.103"
 # Note: Removed paste/pastey - using inline macros instead (paste is unmaintained)
 
 # Frontend Shared Dependencies
-shared-microfrontend = { path = "lib/ui-components" }
+shared-microfrontend = { path = "lib/ui" }
 regex = "1.11"
 urlencoding = "2.1"
 
