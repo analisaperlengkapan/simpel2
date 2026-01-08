@@ -48,11 +48,11 @@ members = [
     "layanan/pembinaan/perlengkapan",
     "layanan/pembinaan/perencanaan",
 
-    # Backend Shared Layanan
-    "layanan/shared/bantuan",
-    "layanan/shared/integrasi",
-    "layanan/shared/notifikasi",
-    "layanan/shared/portal",
+    # Backend Shared Layanan (daskrimti)
+    "layanan/daskrimti/bantuan",
+    "layanan/daskrimti/integrasi",
+    "layanan/daskrimti/notifikasi",
+    "layanan/daskrimti/portal",
 
     # Infrastructure
     # Note: authenc and secreton has its own sub-workspace - managed separately
