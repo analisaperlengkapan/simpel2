@@ -124,6 +124,15 @@ pub mod shamir;
 pub mod storage_integration;
 pub mod transit;
 
+// Auth crypto modules (from authenc)
+pub mod aes_gcm;
+pub mod ecdsa_keys;
+pub mod ecdsa_p384_keys;
+pub mod ecdsa_p521_keys;
+pub mod ed25519_keys;
+pub mod eddsa_ed448_keys;
+pub mod mtls;
+
 pub use encryption::{
     Aes256GcmCipher, ChaCha20Poly1305Cipher, CryptoEngine, EncryptedData, SymmetricCipher,
 };
