@@ -1,0 +1,78 @@
+[package]
+name = "simpelv2-crypto"
+version = "0.1.0"
+edition = "2024"
+authors = ["SIMPelv2 Team"]
+license = "Apache-2.0"
+description = "Cryptographic primitives and quantum-safe algorithms for SIMPelv2 using Ed25519 for signatures"
+keywords = ["cryptography", "quantum-safe", "post-quantum"]
+
+[dependencies]
+# Core dependencies
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+# Cryptographic dependencies - RustCrypto suite
+ring.workspace = true
+aes.workspace = true
+aes-gcm.workspace = true
+chacha20poly1305.workspace = true
+cbc.workspace = true
+argon2.workspace = true
+sha2.workspace = true
+sha3.workspace = true
+blake3.workspace = true
+hmac.workspace = true
+pbkdf2.workspace = true
+hkdf.workspace = true
+scrypt.workspace = true
+hex.workspace = true
+base64.workspace = true
+rand.workspace = true
+regex.workspace = true
+
+# Elliptic curve cryptography
+p256.workspace = true
+p384.workspace = true
+k256.workspace = true
+x25519-dalek.workspace = true
+ed25519-dalek.workspace = true
+curve25519-dalek.workspace = true
+
+# Cryptographic traits and utilities
+digest.workspace = true
+signature.workspace = true
+elliptic-curve.workspace = true
+generic-array.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
+
+# Post-Quantum Cryptography
+pqcrypto-mldsa.workspace = true
+pqcrypto-mlkem.workspace = true
+pqcrypto-falcon.workspace = true
+pqcrypto-traits.workspace = true
+
+# Shamir Secret Sharing
+num-bigint.workspace = true
+num-traits.workspace = true
+
+# Async utilities
+async-trait.workspace = true
+
+# Compression
+flate2.workspace = true
+
+# Format-Preserving Encryption
+fpe.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true

@@ -1,0 +1,62 @@
+[package]
+name = "shared-microfrontend"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+authors = ["Tim Pengembang SIMPelv2 <dev@kejaksaan.go.id>"]
+description = "Clean, focused, production-ready component library untuk Kejaksaan RI"
+license = "Apache-2.0"
+readme = "README.md"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+ssr = []
+hydrate = []
+
+[dependencies]
+# Core Leptos
+leptos = { workspace = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde-wasm-bindgen = "0.6"
+
+# Date/Time
+chrono = { workspace = true, features = ["serde", "wasm-bindgen"] }
+
+# Validation
+regex = { workspace = true }
+
+# Web APIs
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true }
+js-sys = { workspace = true }
+
+# Utilities
+gloo = { workspace = true, features = ["timers", "net", "storage"] }
+gloo-timers = { workspace = true }
+gloo-storage = { workspace = true }
+urlencoding = "2.1"
+uuid = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+
+[build-dependencies]
+# Build-time optimizations
+cfg_aliases = "0.2"
+
+# Dev dependencies untuk testing dan development
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+console_error_panic_hook = { workspace = true }
+tokio-test = { workspace = true }
+
+# Optimasi compile time dan runtime

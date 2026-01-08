@@ -5,11 +5,14 @@ resolver = "2"
 # It manages its own dependencies and has its own Cargo.lock
 
 members = [
+    # Shared Libraries
+    "lib/types",
+    "lib/crypto",
+    "lib/storage",
+    "lib/ui-components",
+
     # CLI Tool
     "scripts/cli",
-
-    # Frontend Shared Library
-    "antarmuka/shared",
 
     # Frontend Microfrontends (Leptos)
     "antarmuka/badiklat",
@@ -43,14 +46,10 @@ members = [
     "layanan/pembinaan/perencanaan",
 
     # Backend Shared Layanan
-    "layanan/shared/ai",
     "layanan/shared/bantuan",
-    "layanan/shared/dasbor",
-    "layanan/shared/dokumen",
     "layanan/shared/integrasi",
-    "layanan/shared/konfigurasi",
-    "layanan/shared/laporan",
     "layanan/shared/notifikasi",
+    "layanan/shared/portal",
 
     # Infrastructure
     # Note: authenc and secreton has its own sub-workspace - managed separately
@@ -59,8 +58,11 @@ members = [
 ]
 
 default-members = [
+    "lib/types",
+    "lib/crypto",
+    "lib/storage",
+    "lib/ui-components",
     "scripts/cli",
-    "antarmuka/shared",
     "antarmuka/portal",
     "antarmuka/pembinaan/keuangan",
     "antarmuka/pembinaan/perencanaan",
@@ -69,10 +71,7 @@ default-members = [
     "layanan/pembinaan/perlengkapan",
     "layanan/pembinaan/perencanaan",
     "layanan/shared/bantuan",
-    "layanan/shared/dasbor",
     "layanan/shared/integrasi",
-    "layanan/shared/konfigurasi",
-    "layanan/shared/laporan",
     "layanan/shared/notifikasi",
 ]
 
@@ -170,7 +169,7 @@ proc-macro2 = "1.0.103"
 # Note: Removed paste/pastey - using inline macros instead (paste is unmaintained)
 
 # Frontend Shared Dependencies
-shared-microfrontend = { path = "antarmuka/shared" }
+shared-microfrontend = { path = "lib/ui-components" }
 regex = "1.11"
 urlencoding = "2.1"
 
