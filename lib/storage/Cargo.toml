@@ -1,5 +1,5 @@
 [package]
-name = "simpelv2-storage"
+name = "lib-storage"
 version = "0.1.0"
 edition = "2024"
 authors = ["SIMPelv2 Team"]
