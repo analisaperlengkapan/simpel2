@@ -11,7 +11,7 @@ name = "secreton-agent"
 path = "src/main.rs"
 
 [dependencies]
-secreton-core.workspace = true
+secreton-core = { path = "../core" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

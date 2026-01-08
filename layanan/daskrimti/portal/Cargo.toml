@@ -15,8 +15,8 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 
 # Shared Libraries
-lib-middleware = { path = "../../lib/middleware" }
-lib-utils = { path = "../../lib/utils" }
+lib-middleware = { path = "../../../lib/middleware" }
+lib-utils = { path = "../../../lib/utils" }
 
 # Database & Persistence
 tokio-postgres = { workspace = true }

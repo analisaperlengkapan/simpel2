@@ -9,7 +9,7 @@ keywords = ["storage", "database", "vault", "security"]
 
 [dependencies]
 # Internal crates
-simpelv2-types = { path = "../types" }
+lib-types = { path = "../types" }
 
 # Core dependencies
 tokio.workspace = true
@@ -34,7 +34,7 @@ reqwest = { workspace = true, optional = true }
 base64.workspace = true
 
 # Cryptography
-simpelv2-crypto = { path = "../crypto" }
+lib-crypto = { path = "../crypto" }
 zeroize.workspace = true
 
 # Metrics (optional, used when the `metrics` feature is enabled)

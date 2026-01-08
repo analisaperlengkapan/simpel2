@@ -71,11 +71,11 @@ once_cell.workspace = true
 sysinfo = "0.33.1"
 
 # Internal crates
-secreton-core.workspace = true
+secreton-core = { path = "../core" }
 lib-storage = { path = "../../../../lib/storage", features = ["postgres"] }
 lib-crypto = { path = "../../../../lib/crypto" }
 lib-hsm = { path = "../../../../lib/hsm" }
-secreton-grpc.workspace = true
+secreton-grpc = { path = "../grpc" }
 totp-rs.workspace = true
 
 [features]

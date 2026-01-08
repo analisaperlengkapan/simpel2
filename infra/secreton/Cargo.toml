@@ -1,79 +1,5 @@
 # Note: This crate is now part of the main simpelv2 workspace
-# Version is independent (not using workspace = true)
-# Internal crates (secreton-*) still use local path dependencies
-
-[workspace.dependencies]
-# Core async runtime
-tokio = { version = "1.48.0", features = ["full"] }
-async-trait = "0.1.89"
-futures = "0.3.31"
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Error handling
-anyhow = "1.0"
-thiserror = "2.0"
-
-# Logging and tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-log = "0.4"
-
-# Utilities
-uuid = { version = "1.11", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
-zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
-
-# Cryptography
-sha2 = "0.10.9"
-blake3 = "1.5"
-hmac = "0.12"
-argon2 = "0.5"
-ed25519-dalek = { version = "2.2.0", features = ["rand_core", "serde"] }
-x25519-dalek = { version = "2.0", features = ["serde", "static_secrets"] }
-curve25519-dalek = "4.1"
-aes-gcm = "0.10.3"
-chacha20poly1305 = "0.10.1"
-ring = "0.17.14"
-rand = "0.8.5"
-base64 = "0.22"
-hex = "0.4"
-
-# HTTP and networking
-axum = { version = "0.7.9", features = ["macros", "json", "tracing"] }
-hyper = { version = "1.7.0", features = ["full"] }
-tower = { version = "0.5.2", features = ["util", "timeout", "limit"] }
-tower-http = { version = "0.6.6", features = ["trace", "cors", "compression-full", "timeout"] }
-
-# Database
-tokio-postgres = { version = "0.7.15", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
-deadpool-postgres = "0.14.1"
-
-# TLS
-rustls = "0.23.34"
-tokio-rustls = "0.26"
-tokio-postgres-rustls = "0.13.0"
-
-# gRPC
-tonic = { version = "0.12", features = ["channel", "transport", "tls"] }
-tonic-build = "0.12"
-prost = "0.13"
-
-# Inter-crate dependencies (local paths)
-secreton-types = { path = "crates/types" }
-secreton-core = { path = "crates/core" }
-secreton-crypto = { path = "crates/crypto" }
-secreton-storage = { path = "crates/storage" }
-secreton-api = { path = "crates/api" }
-secreton-hsm = { path = "crates/hsm" }
-secreton-grpc = { path = "crates/grpc" }
-
-# Testing
-tempfile = "3.23.0"
-criterion = { version = "0.7.0", features = ["html_reports"] }
-pretty_assertions = "1.4.1"
+# Dependencies are inherited from root
 
 [package]
 name = "secreton"
@@ -89,10 +15,10 @@ categories = ["cryptography", "authentication", "security-tools"]
 rust-version = "1.90"
 
 [dependencies]
-# Core crate dependencies (local)
+# Core Crate Dependencies (Local)
 secreton-core = { path = "crates/core" }
-secreton-crypto = { path = "crates/crypto" }
-secreton-storage = { path = "crates/storage" }
+lib-crypto = { path = "../../lib/crypto" }
+lib-storage = { path = "../../lib/storage" }
 secreton-api = { path = "crates/api" }
 
 # Core dependencies (from workspace)
@@ -198,6 +124,3 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 overflow-checks = true
-
-# Note: Switched from raft to openraft to avoid protobuf 2.x vulnerability
-# openraft is a modern, actively maintained Raft implementation without legacy dependencies
