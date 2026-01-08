@@ -59,7 +59,17 @@ SIMPelv2 menyediakan solusi terintegrasi untuk pengelolaan BMN, mulai dari peren
 
 ### Microfrontend Architecture
 
-SIMPelv2 menggunakan **12 microfrontend independen** yang didukung shared component library:
+SIMPelv2 menggunakan **12 microfrontend independen** yang didukung `lib-ui` (Shared Component Library).
+
+**Naming Convention:**
+- **Microfrontend**: `antarmuka/[nama]` -> `[nama]-microfrontend` (Packet Name)
+- **Microservice**: `layanan/daskrimti/[nama]` -> `layanan-[nama]`
+- **Shared Lib**: `lib/[nama]` -> `lib-[nama]`
+
+**Integration Strategy:**
+1. **Portal**: Gateway utama yang me-render microfrontend lain via WASM.
+2. **Microfrontends**: HANYA berisi logic UI domain spesifik. Menggunakan `lib-ui` untuk komponen visual.
+3. **Backend Services**: Menggunakan `lib-middleware` untuk autentikasi (Authenc) dan secrets (Secreton).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

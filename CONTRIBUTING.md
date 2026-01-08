@@ -111,6 +111,32 @@ Terima kasih atas ketertarikan Anda untuk berkontribusi dalam proyek **SIMPelv2*
 
 ---
 
+### 🧹 **Code Quality Tools**
+Gunakan standard tools Rust untuk menjaga kualitas kode:
+
+```bash
+# 1. Format code (Standard Style)
+cargo fmt --all
+
+# 2. Fix warnings automatically
+cargo fix --workspace --allow-dirty
+
+# 3. Security Audit
+cargo audit
+```
+
+### 🏷️ **Naming & Placement Conventions**
+
+Untuk menjaga konsistensi monorepo, ikuti aturan penamaan ini:
+
+| Tipe | Lokasi Directory | Format Nama Package (`Cargo.toml`) | Contoh |
+| :--- | :--- | :--- | :--- |
+| **Microfrontend** | `antarmuka/[nama]/` | `[nama]-microfrontend` | `portal-microfrontend` |
+| **Microservice** | `layanan/daskrimti/[nama]/` | `layanan-[nama]` | `layanan-portal` |
+| **Shared Lib** | `lib/[nama]/` | `lib-[nama]` | `lib-utils` |
+
+---
+
 ## 🌿 Struktur Branch
 
 ```
