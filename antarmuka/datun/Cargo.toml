@@ -28,6 +28,7 @@ wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
 gloo = { workspace = true, features = ["futures", "timers", "events"] }
+gloo-net = { workspace = true }
 gloo-timers = { workspace = true, features = ["futures"] }
 
 # Serialization - Compact binary format
@@ -40,6 +41,7 @@ console_log = { workspace = true }
 log = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
+chrono = { workspace = true, features = ["serde", "wasmbind"] }
 
 [features]
 default = ["csr"]
