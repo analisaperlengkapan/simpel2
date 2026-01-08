@@ -1,77 +1,55 @@
 use crate::components::{footer::Footer, header::Header};
+use crate::api::{fetch_metrics, fetch_budgets, fetch_transactions};
 use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-// Core Financial Data Structures
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinancialReport {
-    pub id: String,
-    pub title: String,
-    pub report_type: ReportType,
-    pub period: String,
-    pub status: ReportStatus,
+// Re-using types matching backend (and previously defined, but now we sync with API)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FinancialMetrics {
     pub total_budget: f64,
     pub total_realization: f64,
-    pub utilization_rate: f64,
-    pub created_at: DateTime<Utc>,
-    pub last_updated: DateTime<Utc>,
-    pub created_by: String,
+    pub utilization_percentage: f64,
+    pub pending_transactions: i64,
+    pub approved_transactions: i64,
+    pub monthly_variance: f64,
+    pub cash_flow: f64,
+    pub budget_variance: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BudgetItem {
-    pub id: String,
+    pub id: uuid::Uuid,
     pub category: String,
     pub subcategory: String,
     pub budget_code: String,
     pub allocated_amount: f64,
     pub realized_amount: f64,
     pub remaining_amount: f64,
-    pub priority: BudgetPriority,
-    pub status: BudgetStatus,
+    pub priority: String,
+    pub status: String,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
     pub responsible_unit: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Transaction {
-    pub id: String,
+    pub id: uuid::Uuid,
     pub transaction_code: String,
     pub description: String,
     pub amount: f64,
-    pub transaction_type: TransactionType,
-    pub status: TransactionStatus,
-    pub budget_item_id: String,
+    pub transaction_type: String,
+    pub status: String,
+    pub budget_item_id: Option<uuid::Uuid>,
     pub transaction_date: DateTime<Utc>,
     pub approval_date: Option<DateTime<Utc>>,
     pub approved_by: Option<String>,
-    pub supporting_documents: Vec<String>,
+    pub supporting_documents: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinancialMetrics {
-    pub total_budget: f64,
-    pub total_realization: f64,
-    pub utilization_percentage: f64,
-    pub pending_transactions: u32,
-    pub approved_transactions: u32,
-    pub monthly_variance: f64,
-    pub cash_flow: f64,
-    pub budget_variance: f64,
-}
-
-// Financial Management Enums
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum ReportType {
-    Monthly,
-    Quarterly,
-    Annual,
-    Custom,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+// Enums for UI Logic (Mapped from String in backend for now, or just keep string)
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ReportStatus {
     Draft,
     InReview,
@@ -80,7 +58,7 @@ pub enum ReportStatus {
     Archived,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BudgetPriority {
     Low,
     Medium,
@@ -88,7 +66,7 @@ pub enum BudgetPriority {
     Critical,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BudgetStatus {
     Planned,
     Active,
@@ -97,21 +75,17 @@ pub enum BudgetStatus {
     Cancelled,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum TransactionType {
-    Income,
-    Expense,
-    Transfer,
-    Adjustment,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum TransactionStatus {
-    Pending,
-    Approved,
-    Processed,
-    Completed,
-    Rejected,
+// Helper to convert string to enum for display if needed, or just use strings
+impl BudgetPriority {
+    fn from_str(s: &str) -> Self {
+        match s {
+            "Low" => Self::Low,
+            "Medium" => Self::Medium,
+            "High" => Self::High,
+            "Critical" => Self::Critical,
+            _ => Self::Medium,
+        }
+    }
 }
 
 // UI Components for Financial Management
@@ -171,12 +145,13 @@ pub fn ReportStatusBadge(status: ReportStatus) -> impl IntoView {
 }
 
 #[component]
-pub fn BudgetPriorityBadge(priority: BudgetPriority) -> impl IntoView {
-    let (text, color) = match priority {
-        BudgetPriority::Low => ("Low", "bg-gray-100 text-gray-800"),
-        BudgetPriority::Medium => ("Medium", "bg-yellow-100 text-yellow-800"),
-        BudgetPriority::High => ("High", "bg-orange-100 text-orange-800"),
-        BudgetPriority::Critical => ("Critical", "bg-red-100 text-red-800"),
+pub fn BudgetPriorityBadge(priority: String) -> impl IntoView {
+    let (text, color) = match priority.as_str() {
+        "Low" => ("Low", "bg-gray-100 text-gray-800"),
+        "Medium" => ("Medium", "bg-yellow-100 text-yellow-800"),
+        "High" => ("High", "bg-orange-100 text-orange-800"),
+        "Critical" => ("Critical", "bg-red-100 text-red-800"),
+        _ => ("Medium", "bg-yellow-100 text-yellow-800"),
     };
 
     view! {
@@ -248,63 +223,10 @@ pub fn ActionButton(label: String, action: String) -> impl IntoView {
 // Financial Dashboard Implementation
 #[component]
 pub fn KeuanganDashboard() -> impl IntoView {
-    // Sample financial metrics
-    let _financial_metrics = RwSignal::new(FinancialMetrics {
-        total_budget: 125_500_000.0,
-        total_realization: 89_200_000.0,
-        utilization_percentage: 71.1,
-        pending_transactions: 15,
-        approved_transactions: 342,
-        monthly_variance: -2.3,
-        cash_flow: 27_900_000.0,
-        budget_variance: 5.2,
-    });
-
-    // Sample budget items
-    let budget_items = RwSignal::new(vec![
-        BudgetItem {
-            id: "BDG001".to_string(),
-            category: "Operasional".to_string(),
-            subcategory: "Administrasi".to_string(),
-            budget_code: "001.001".to_string(),
-            allocated_amount: 45_200_000.0,
-            realized_amount: 32_400_000.0,
-            remaining_amount: 12_800_000.0,
-            priority: BudgetPriority::High,
-            status: BudgetStatus::Active,
-            start_date: Utc::now(),
-            end_date: Utc::now(),
-            responsible_unit: "Bagian Keuangan".to_string(),
-        },
-        BudgetItem {
-            id: "BDG002".to_string(),
-            category: "Investasi".to_string(),
-            subcategory: "Peralatan".to_string(),
-            budget_code: "002.001".to_string(),
-            allocated_amount: 38_500_000.0,
-            realized_amount: 28_100_000.0,
-            remaining_amount: 10_400_000.0,
-            priority: BudgetPriority::Medium,
-            status: BudgetStatus::Active,
-            start_date: Utc::now(),
-            end_date: Utc::now(),
-            responsible_unit: "Bagian Logistik".to_string(),
-        },
-        BudgetItem {
-            id: "BDG003".to_string(),
-            category: "Pemeliharaan".to_string(),
-            subcategory: "Infrastruktur".to_string(),
-            budget_code: "003.001".to_string(),
-            allocated_amount: 41_800_000.0,
-            realized_amount: 28_700_000.0,
-            remaining_amount: 13_100_000.0,
-            priority: BudgetPriority::Critical,
-            status: BudgetStatus::Active,
-            start_date: Utc::now(),
-            end_date: Utc::now(),
-            responsible_unit: "Bagian Pemeliharaan".to_string(),
-        },
-    ]);
+    // Fetch resources
+    let metrics_resource = Resource::new(|| (), |_| fetch_metrics());
+    let budget_resource = Resource::new(|| (), |_| fetch_budgets());
+    let transactions_resource = Resource::new(|| (), |_| fetch_transactions());
 
     view! {
         <div class="min-h-screen bg-gray-50">
@@ -317,36 +239,45 @@ pub fn KeuanganDashboard() -> impl IntoView {
                 />
 
                 // Key Financial Metrics
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <MetricsCard
-                        title="Total Anggaran".to_string()
-                        value="Rp 125.5M".to_string()
-                        change="+5.2%".to_string()
-                        icon="💰".to_string()
-                        positive=true
-                    />
-                    <MetricsCard
-                        title="Total Realisasi".to_string()
-                        value="Rp 89.2M".to_string()
-                        change="+3.1%".to_string()
-                        icon="📊".to_string()
-                        positive=true
-                    />
-                    <MetricsCard
-                        title="Utilisasi".to_string()
-                        value="71.1%".to_string()
-                        change="-2.3%".to_string()
-                        icon="📈".to_string()
-                        positive=false
-                    />
-                    <MetricsCard
-                        title="Saldo Kas".to_string()
-                        value="Rp 27.9M".to_string()
-                        change="+8.5%".to_string()
-                        icon="🏦".to_string()
-                        positive=true
-                    />
-                </div>
+                <Suspense fallback=move || view! { <div class="p-8 text-center">"Loading Metrics..."</div> }>
+                    {move || {
+                        metrics_resource.get().map(|result| match result {
+                            Ok(metrics) => view! {
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    <MetricsCard
+                                        title="Total Anggaran".to_string()
+                                        value=format!("Rp {:.1}M", metrics.total_budget / 1_000_000.0)
+                                        change="+0.0%".to_string()
+                                        icon="💰".to_string()
+                                        positive=true
+                                    />
+                                    <MetricsCard
+                                        title="Total Realisasi".to_string()
+                                        value=format!("Rp {:.1}M", metrics.total_realization / 1_000_000.0)
+                                        change="+0.0%".to_string()
+                                        icon="📊".to_string()
+                                        positive=true
+                                    />
+                                    <MetricsCard
+                                        title="Utilisasi".to_string()
+                                        value=format!("{:.1}%", metrics.utilization_percentage)
+                                        change=format!("{:.1}%", metrics.monthly_variance)
+                                        icon="📈".to_string()
+                                        positive=metrics.monthly_variance > 0.0
+                                    />
+                                    <MetricsCard
+                                        title="Saldo Kas".to_string()
+                                        value=format!("Rp {:.1}M", metrics.cash_flow / 1_000_000.0)
+                                        change="+0.0%".to_string()
+                                        icon="🏦".to_string()
+                                        positive=true
+                                    />
+                                </div>
+                            }.into_any(),
+                            Err(e) => view! { <div class="text-red-500">{format!("Error loading metrics: {}", e)}</div> }.into_any(),
+                        })
+                    }}
+                </Suspense>
 
                 // Budget Management Section
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -360,25 +291,32 @@ pub fn KeuanganDashboard() -> impl IntoView {
                         </div>
 
                         <div class="space-y-4">
-                            {move || budget_items.get().into_iter().map(|item| view! {
-                                <div class="border border-gray-200 rounded-lg p-4">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h3 class="font-semibold text-gray-900">{item.category}</h3>
-                                        <BudgetPriorityBadge priority=item.priority />
-                                    </div>
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-sm text-gray-600">{item.subcategory}</span>
-                                        <AmountDisplay amount=item.allocated_amount />
-                                    </div>
-                                    <UtilizationBar progress=item.realized_amount / item.allocated_amount * 100.0 />
-                                    <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                        <span>"Realisasi: "
-                                            <AmountDisplay amount=item.realized_amount />
-                                        </span>
-                                        <span>{format!("{:.1}%", item.realized_amount / item.allocated_amount * 100.0)}</span>
-                                    </div>
-                                </div>
-                            }).collect::<Vec<_>>()}
+                            <Suspense fallback=move || view! { <div>"Loading Budgets..."</div> }>
+                                {move || {
+                                    budget_resource.get().map(|result| match result {
+                                        Ok(items) => items.into_iter().map(|item| view! {
+                                            <div class="border border-gray-200 rounded-lg p-4">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <h3 class="font-semibold text-gray-900">{item.category}</h3>
+                                                    <BudgetPriorityBadge priority=item.priority />
+                                                </div>
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span class="text-sm text-gray-600">{item.subcategory}</span>
+                                                    <AmountDisplay amount=item.allocated_amount />
+                                                </div>
+                                                <UtilizationBar progress={if item.allocated_amount > 0.0 { item.realized_amount / item.allocated_amount * 100.0 } else { 0.0 }} />
+                                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                                    <span>"Realisasi: "
+                                                        <AmountDisplay amount=item.realized_amount />
+                                                    </span>
+                                                    <span>{format!("{:.1}%", if item.allocated_amount > 0.0 { item.realized_amount / item.allocated_amount * 100.0 } else { 0.0 })}</span>
+                                                </div>
+                                            </div>
+                                        }).collect_view().into_any(),
+                                        Err(e) => view! { <div class="text-red-500">{format!("Error: {}", e)}</div> }.into_any()
+                                    })
+                                }}
+                            </Suspense>
                         </div>
                     </div>
 
@@ -392,43 +330,32 @@ pub fn KeuanganDashboard() -> impl IntoView {
                         </div>
 
                         <div class="space-y-4">
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-semibold text-gray-900">"Pembayaran Operasional"</h3>
-                                    <span class="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">"Pending"</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-600">"Admin - 15 Jan 2024"</span>
-                                    <span class="text-lg font-semibold text-red-600">"-Rp 2.5M"</span>
-                                </div>
-                            </div>
-
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-semibold text-gray-900">"Penerimaan APBN"</h3>
-                                    <span class="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">"Approved"</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-600">"Keuangan - 14 Jan 2024"</span>
-                                    <span class="text-lg font-semibold text-green-600">"+Rp 25.0M"</span>
-                                </div>
-                            </div>
-
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-semibold text-gray-900">"Pembelian Peralatan"</h3>
-                                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">"Processed"</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-600">"Logistik - 13 Jan 2024"</span>
-                                    <span class="text-lg font-semibold text-red-600">"-Rp 8.2M"</span>
-                                </div>
-                            </div>
+                             <Suspense fallback=move || view! { <div>"Loading Transactions..."</div> }>
+                                {move || {
+                                    transactions_resource.get().map(|result| match result {
+                                        Ok(txs) => txs.into_iter().map(|tx| view! {
+                                            <div class="border border-gray-200 rounded-lg p-4">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <h3 class="font-semibold text-gray-900">{tx.description}</h3>
+                                                    <span class="text-sm bg-gray-100 text-gray-800 px-2 py-1 rounded">{tx.status}</span>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm text-gray-600">{tx.transaction_date.format("%d %b %Y").to_string()}</span>
+                                                    <span class={format!("text-lg font-semibold {}", if tx.transaction_type == "Income" { "text-green-600" } else { "text-red-600" })}>
+                                                        {format!("{}Rp {:.1}M", if tx.transaction_type == "Income" { "+" } else { "-" }, tx.amount / 1_000_000.0)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        }).collect_view().into_any(),
+                                        Err(e) => view! { <div class="text-red-500">{format!("Error: {}", e)}</div> }.into_any()
+                                    })
+                                }}
+                            </Suspense>
                         </div>
                     </div>
                 </div>
 
-                // Financial Reports Section
+                // Financial Reports Section (Static for now)
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-xl font-bold text-gray-900">"Laporan Keuangan"</h2>
@@ -488,7 +415,7 @@ pub fn KeuanganAnggaran() -> impl IntoView {
 
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-6">"Daftar Anggaran"</h2>
-                    <p class="text-gray-600">"Fitur manajemen anggaran akan dikembangkan di sini"</p>
+                    <p class="text-gray-600">"Halaman ini dapat dikembangkan lebih lanjut untuk menampilkan tabel lengkap daftar anggaran dengan fitur edit/delete."</p>
                 </div>
             </main>
 
@@ -520,7 +447,7 @@ pub fn KeuanganRealisasi() -> impl IntoView {
 
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-6">"Realisasi Anggaran"</h2>
-                    <p class="text-gray-600">"Fitur monitoring realisasi akan dikembangkan di sini"</p>
+                    <p class="text-gray-600">"Halaman ini dapat dikembangkan lebih lanjut."</p>
                 </div>
             </main>
 
@@ -552,7 +479,7 @@ pub fn KeuanganLaporan() -> impl IntoView {
 
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-6">"Laporan Keuangan"</h2>
-                    <p class="text-gray-600">"Fitur laporan keuangan akan dikembangkan di sini"</p>
+                    <p class="text-gray-600">"Halaman ini dapat dikembangkan lebih lanjut."</p>
                 </div>
             </main>
 
@@ -584,7 +511,7 @@ pub fn KeuanganAudit() -> impl IntoView {
 
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-6">"Audit Keuangan"</h2>
-                    <p class="text-gray-600">"Fitur audit keuangan akan dikembangkan di sini"</p>
+                    <p class="text-gray-600">"Halaman ini dapat dikembangkan lebih lanjut."</p>
                 </div>
             </main>
 

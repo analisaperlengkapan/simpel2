@@ -38,6 +38,7 @@ members = [
     "layanan/pidum",
 
     # Backend Layanan Pembinaan
+    "layanan/pembinaan/keuangan",
     "layanan/pembinaan/perlengkapan",
 
     # Backend Shared Layanan
@@ -63,6 +64,7 @@ default-members = [
     "antarmuka/pembinaan/keuangan",
     "antarmuka/pembinaan/perencanaan",
     "antarmuka/pembinaan/perlengkapan",
+    "layanan/pembinaan/keuangan",
     "layanan/pembinaan/perlengkapan",
     "layanan/shared/bantuan",
     "layanan/shared/dasbor",
