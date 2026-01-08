@@ -288,9 +288,9 @@ criterion = { version = "0.7.0", features = ["html_reports", "async_tokio"] }
 [build-dependencies]
 tonic-prost-build = "0.14"
 
-[[bench]]
-name = "performance"
-harness = false
+# [[bench]]
+# name = "performance"
+# harness = false
 
 # Performance optimizations
 # Performance optimization profiles
