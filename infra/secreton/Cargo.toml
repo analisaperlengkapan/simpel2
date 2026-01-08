@@ -3,8 +3,8 @@
 
 [package]
 name = "secreton"
-version = "1.0.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 authors = ["Cipherce Security Team <security@cipherce.io>"]
 license = "Apache-2.0"
 repository = "https://github.com/cipherce/secreton-vault"
@@ -12,7 +12,7 @@ homepage = "https://cipherce.io/secreton"
 description = "Advanced Security Vault System with Quantum-Safe Cryptography by Cipherce"
 keywords = ["security", "vault", "cryptography", "zero-trust", "quantum-safe"]
 categories = ["cryptography", "authentication", "security-tools"]
-rust-version = "1.90"
+rust-version.workspace = true
 
 [dependencies]
 # Core Crate Dependencies (Local)

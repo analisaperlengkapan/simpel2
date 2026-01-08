@@ -3,11 +3,11 @@
 
 [package]
 name = "authenc"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.90"
-authors = ["SIMPelv2 Team <security@kejaksaan.go.id>"]
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Enterprise-grade Identity and Access Management (IAM) service for SIMPelv2"
 repository = "https://github.com/analisaperlengkapan/simpel2"
 homepage = "https://simpel.kejaksaan.go.id"
