@@ -30,6 +30,7 @@ web-sys = { workspace = true }
 js-sys = { workspace = true }
 gloo = { workspace = true, features = ["futures", "timers", "events"] }
 gloo-timers = { workspace = true, features = ["futures"] }
+gloo-net = { workspace = true }
 
 # Serialization - Compact binary format
 serde = { workspace = true, features = ["derive"] }
