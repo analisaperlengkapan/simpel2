@@ -1,0 +1,49 @@
+[package]
+name = "simpelv2-middleware"
+version = "0.1.0"
+edition = "2024"
+authors = ["SIMPelv2 Team"]
+license = "Apache-2.0"
+description = "Shared Axum middleware for SIMPelv2 platform (rate limiting, CSRF, CORS, security)"
+keywords = ["middleware", "axum", "security", "rate-limit"]
+
+[lib]
+path = "mod.rs"
+
+[dependencies]
+# Core Axum
+axum = { workspace = true }
+axum-extra = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# HTTP types
+http = { workspace = true }
+http-body = { workspace = true }
+
+# Async utilities
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+
+# Concurrency
+dashmap = { workspace = true }
+parking_lot = { version = "0.12" }
+
+# Metrics
+metrics = { workspace = true, optional = true }
+
+[features]
+default = []
+metrics = ["dep:metrics"]

@@ -1,0 +1,42 @@
+[package]
+name = "simpelv2-utils"
+version = "0.1.0"
+edition = "2024"
+authors = ["SIMPelv2 Team"]
+license = "Apache-2.0"
+description = "Shared utilities for SIMPelv2 platform (validation, sanitization, caching, i18n)"
+keywords = ["utils", "validation", "cache", "i18n"]
+
+[lib]
+path = "mod.rs"
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+
+# HTTP types
+http = { workspace = true }
+
+# Async utilities
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Caching
+dashmap = { workspace = true }
+lru = { version = "0.12" }
+
+# i18n
+fluent-bundle = { workspace = true }
+unic-langid = { workspace = true }
+
+[features]
+default = []

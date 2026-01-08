@@ -9,6 +9,8 @@ members = [
     "lib/types",
     "lib/crypto",
     "lib/storage",
+    "lib/middleware",
+    "lib/utils",
     "lib/ui-components",
 
     # CLI Tool
