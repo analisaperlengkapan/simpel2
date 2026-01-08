@@ -68,6 +68,7 @@ reqwest.workspace = true
 
 # Utilities
 once_cell.workspace = true
+sysinfo = "0.33.1"
 
 # Internal crates
 secreton-core.workspace = true

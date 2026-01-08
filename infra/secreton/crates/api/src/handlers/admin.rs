@@ -628,36 +628,36 @@ pub async fn get_system_metrics(
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 
-    // TODO: Implement actual metrics collection for other fields
+    // Use actual collected metrics
     let metrics = SystemMetrics {
         uptime: stats.uptime_seconds,
         memory_usage: MemoryMetrics {
-            total: 16 * 1024 * 1024 * 1024, // 16GB
-            used: 8 * 1024 * 1024 * 1024,   // 8GB
-            free: 8 * 1024 * 1024 * 1024,   // 8GB
-            cached: 2 * 1024 * 1024 * 1024, // 2GB
+            total: stats.memory.total,
+            used: stats.memory.used,
+            free: stats.memory.free,
+            cached: stats.memory.cached,
         },
         cpu_usage: CpuMetrics {
-            cores: 8,
-            usage_percent: 25.5,
-            load_average: [1.2, 1.5, 1.8],
+            cores: stats.cpu.cores,
+            usage_percent: stats.cpu.usage_percent,
+            load_average: stats.cpu.load_average,
         },
         disk_usage: DiskMetrics {
-            total: 1024 * 1024 * 1024 * 1024, // 1TB
-            used: stats.storage_usage_bytes,  // Use actual storage usage
-            free: 768 * 1024 * 1024 * 1024,   // Placeholder
-            usage_percent: 25.0,              // Placeholder
+            total: stats.disk.total,
+            used: stats.disk.used,
+            free: stats.disk.free,
+            usage_percent: stats.disk.usage_percent,
         },
         network: NetworkMetrics {
-            bytes_sent: 1024 * 1024 * 1024,
-            bytes_received: 2 * 1024 * 1024 * 1024,
-            packets_sent: 1000000,
-            packets_received: 2000000,
+            bytes_sent: stats.network.bytes_sent,
+            bytes_received: stats.network.bytes_received,
+            packets_sent: stats.network.packets_sent,
+            packets_received: stats.network.packets_received,
         },
         vault: VaultMetrics {
             total_secrets: stats.total_secrets,
             total_keys: stats.total_keys,
-            total_policies: 25, // Placeholder
+            total_policies: 25, // Placeholder - policy count not yet in stats
             active_sessions: stats.active_sessions,
             operations_per_second: stats.requests_per_minute / 60.0,
         },

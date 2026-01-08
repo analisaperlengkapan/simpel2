@@ -11,7 +11,9 @@ use thiserror::Error;
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, PostgresBackend, StorageBackend};
+use secreton_storage::{MemoryBackend, StorageBackend};
+use std::sync::Mutex;
+use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Admin service errors
 #[derive(Error, Debug)]
@@ -65,6 +67,41 @@ pub struct SystemStats {
     pub storage_usage_bytes: u64,
     pub cache_hit_rate: f64,
     pub requests_per_minute: f64,
+    pub memory: MemoryStats,
+    pub cpu: CpuStats,
+    pub disk: DiskStats,
+    pub network: NetworkStats,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct MemoryStats {
+    pub total: u64,
+    pub used: u64,
+    pub free: u64,
+    pub cached: u64,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct CpuStats {
+    pub cores: u32,
+    pub usage_percent: f64,
+    pub load_average: [f64; 3],
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct DiskStats {
+    pub total: u64,
+    pub used: u64,
+    pub free: u64,
+    pub usage_percent: f64,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct NetworkStats {
+    pub bytes_sent: u64,
+    pub bytes_received: u64,
+    pub packets_sent: u64,
+    pub packets_received: u64,
 }
 
 /// Backup information
@@ -95,6 +132,7 @@ pub struct AdminService {
     audit: Arc<AuditLogger>,
     lease_cleaner: Arc<dyn LeaseCleaner>,
     start_time: chrono::DateTime<chrono::Utc>,
+    system: Arc<Mutex<System>>,
 }
 
 impl AdminService {
@@ -111,6 +149,7 @@ impl AdminService {
             audit,
             lease_cleaner,
             start_time: chrono::Utc::now(),
+            system: Arc::new(Mutex::new(System::new_all())),
         })
     }
 
@@ -123,12 +162,65 @@ impl AdminService {
         let _audit_count = self.audit.count().await;
 
         // Calculate uptime
-        let uptime_seconds = self.start_time.elapsed().as_secs();
+        let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds() as u64;
 
-        // TODO: Get actual user and session counts from auth service
-        // For now, using placeholder values as auth service doesn't expose these stats yet
-        let total_users = 0;
-        let active_sessions = 0;
+        // Get actual user and session counts from auth service
+        let total_users = self.auth.count_users().await.unwrap_or(0);
+        let active_sessions = self.auth.count_active_sessions().await.unwrap_or(0);
+
+        // Gather system metrics
+        let (memory_stats, cpu_stats, disk_stats, network_stats) = {
+            let mut sys = self.system.lock().unwrap();
+
+            // Refresh specific metrics
+            sys.refresh_specifics(
+                RefreshKind::nothing()
+                    .with_cpu(CpuRefreshKind::everything())
+                    .with_memory(MemoryRefreshKind::everything()),
+            );
+
+            let total_memory = sys.total_memory();
+            let used_memory = sys.used_memory();
+
+            let memory = MemoryStats {
+                total: total_memory,
+                used: used_memory,
+                free: sys.free_memory(),
+                cached: total_memory.saturating_sub(used_memory).saturating_sub(sys.free_memory()), // Approximate
+            };
+
+            let cpu = CpuStats {
+                cores: sys.cpus().len() as u32,
+                usage_percent: sys.global_cpu_usage() as f64,
+                load_average: [0.0, 0.0, 0.0], // sysinfo might not provide load avg portably easily in this struct
+            };
+
+            // Disk usage requires refreshing disks list which can be slow, so maybe do it less often or on separate call
+            // For now, refreshing disks here
+            let disks = Disks::new_with_refreshed_list();
+            let mut total_disk = 0;
+            let mut available_disk = 0;
+            for disk in &disks {
+                total_disk += disk.total_space();
+                available_disk += disk.available_space();
+            }
+
+            let disk = DiskStats {
+                total: total_disk,
+                used: total_disk.saturating_sub(available_disk),
+                free: available_disk,
+                usage_percent: if total_disk > 0 {
+                    (total_disk.saturating_sub(available_disk) as f64 / total_disk as f64) * 100.0
+                } else {
+                    0.0
+                },
+            };
+
+            // Network stats would require tracking differences over time, simplified here
+            let network = NetworkStats::default();
+
+            (memory, cpu, disk, network)
+        };
 
         Ok(SystemStats {
             uptime_seconds,
@@ -139,6 +231,10 @@ impl AdminService {
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
+            memory: memory_stats,
+            cpu: cpu_stats,
+            disk: disk_stats,
+            network: network_stats,
         })
     }
 
@@ -233,7 +329,7 @@ impl AdminService {
         let retention_period = chrono::Duration::days(30);
         let cleaned_audit_logs = self
             .audit
-            .cleanup_expired_events(retention_period.to_std().unwrap_or_default())
+            .cleanup_expired_events(retention_period)
             .await;
 
         let cleaned_objects =
@@ -733,6 +829,7 @@ impl AdminService {
             audit: Arc::new(AuditLogger::new(10000)),
             lease_cleaner: Arc::new(DummyLeaseCleaner),
             start_time: chrono::Utc::now(),
+            system: Arc::new(Mutex::new(System::new_all())),
         }
     }
 }

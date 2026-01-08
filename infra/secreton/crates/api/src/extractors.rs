@@ -33,7 +33,7 @@ where
 /// populated by the authentication middleware. Use this in any handler that requires authentication.
 /// # Example
 /// ```rust,no_run
-/// use secreton_api::extractors::AuthenticatedUser;
+/// use secreton_api::{extractors::AuthenticatedUser, ApiError};
 /// async fn my_handler(user: AuthenticatedUser) -> Result<String, ApiError> {
 ///     Ok(format!("Hello, {}!", user.username))
 /// }

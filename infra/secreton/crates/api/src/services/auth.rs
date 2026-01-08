@@ -773,6 +773,29 @@ impl AuthService {
         Ok(())
     }
 
+    /// Count total users
+    pub async fn count_users(&self) -> Result<u64, AuthError> {
+        use secreton_storage::QueryParams;
+
+        let params = QueryParams::new().with_path_prefix("auth/users/".to_string());
+        self.storage
+            .count(&params)
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to count users: {}", e)))
+    }
+
+    /// Count active sessions
+    pub async fn count_active_sessions(&self) -> Result<u64, AuthError> {
+        use secreton_storage::QueryParams;
+
+        // Assuming sessions are stored under "auth/sessions/"
+        let params = QueryParams::new().with_path_prefix("auth/sessions/".to_string());
+        self.storage
+            .count(&params)
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to count sessions: {}", e)))
+    }
+
     /// Encrypt user for storage
     fn encrypt_user(&self, user: &User) -> Result<VaultEntry, AuthError> {
         let stored_user = StoredUser::from(user);
