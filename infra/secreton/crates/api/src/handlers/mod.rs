@@ -106,14 +106,15 @@ pub type AppState = Arc<ServiceContainer>;
 // Re-export common types
 pub use secret::ListQuery;
 
-/// Create the main application router
-pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
+/// Create the main application router for protected routes
+pub fn create_protected_router(
+    _config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
     let app_state = services.clone();
 
-    // Build system routes
-    #[allow(unused_mut)]
-    let mut sys_routes = seal::create_routes()
-        .merge(namespace::create_routes())
+    // These are all the routes that should be protected by auth and seal checks
+    let protected_sys_routes = namespace::create_routes()
         .merge(lease::create_routes())
         .merge(policy::create_routes())
         .merge(wrapping::create_routes())
@@ -130,20 +131,26 @@ pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Ro
         .merge(rabbitmq::create_routes())
         .merge(kafka::create_routes());
 
-    // Add raft routes if feature is enabled
-    #[cfg(feature = "raft-consensus")]
-    {
-        sys_routes = sys_routes.merge(raft::create_routes());
-    }
-
-    // Create API v1 routes (to be nested by caller, e.g. under /v1)
     Router::new()
         .nest("/auth", auth::create_routes())
         .nest("/secret", secret::create_routes())
         .route("/secrets", get(secret::list_secrets))
         .nest("/admin", admin::create_routes())
-        .nest("/sys", sys_routes)
+        .nest("/sys", protected_sys_routes)
         .nest("/dynamic", dynamic::create_routes())
+        .with_state(app_state)
+}
+
+/// Create a router for unprotected system routes
+pub fn create_unprotected_router(
+    _config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
+    let app_state = services.clone();
+
+    // Routes that must be available even when the vault is sealed
+    Router::new()
+        .nest("/sys", seal::create_routes())
         .route("/health", get(health::health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
