@@ -1,7 +1,9 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_params_map;
 use crate::api::*;
 use crate::types::*;
 use chrono::{DateTime, Utc, TimeZone};
+use uuid::Uuid;
 
 // Re-use ActionButton from previous version (simplified)
 #[component]
@@ -46,6 +48,207 @@ fn StatCard(
                     <i class={format!("fas {} text-xl", icon)}></i>
                 </div>
             </div>
+        </div>
+    }
+}
+
+/// Page: Perkara Detail & Timeline
+#[component]
+pub fn PerkaraDetail() -> impl IntoView {
+    let params = use_params_map();
+    let id_str = move || params.get().get("id").unwrap_or_default();
+
+    let (timeline_update_trigger, set_timeline_update_trigger) = signal(0); // Trigger to reload timeline
+
+    // Resource for fetching details (Static after load)
+    let detail_resource = LocalResource::new(move || {
+        let id_s = id_str();
+        async move {
+            if id_s.is_empty() { return Err("ID Missing".to_string()); }
+            match Uuid::parse_str(&id_s) {
+                Ok(uuid) => fetch_perkara_detail(uuid).await,
+                Err(_) => Err("Invalid UUID".to_string())
+            }
+        }
+    });
+
+    // Resource for fetching timeline (Dynamic, reactive to trigger)
+    let timeline_resource = LocalResource::new(move || {
+        let id_s = id_str();
+        timeline_update_trigger.get(); // Depend on trigger
+        async move {
+            if id_s.is_empty() { return Err("ID Missing".to_string()); }
+            match Uuid::parse_str(&id_s) {
+                Ok(uuid) => fetch_timeline(uuid).await,
+                Err(_) => Err("Invalid UUID".to_string())
+            }
+        }
+    });
+
+    // Comment State
+    let (comment_content, set_comment_content) = signal("".to_string());
+    let (is_submitting, set_is_submitting) = signal(false);
+
+    let on_submit_comment = move |ev: leptos::web_sys::SubmitEvent| {
+        ev.prevent_default();
+        set_is_submitting.set(true);
+        let content = comment_content.get();
+        let id_s = id_str();
+
+        leptos::task::spawn_local(async move {
+             if let Ok(uuid) = Uuid::parse_str(&id_s) {
+                 let req = CreateCommentRequest {
+                     content,
+                     user_name: Some("Petugas Kejaksaan".to_string()),
+                 };
+                 if create_comment(uuid, req).await.is_ok() {
+                     set_comment_content.set("".to_string());
+                     set_timeline_update_trigger.update(|n| *n += 1); // Triggers timeline reload
+                 }
+             }
+             set_is_submitting.set(false);
+        });
+    };
+
+    view! {
+        <div class="max-w-4xl mx-auto space-y-6">
+            <Suspense fallback=|| view! { <div class="text-center p-8">"Memuat detail perkara..."</div> }>
+                {move || {
+                    let detail_res = detail_resource.get();
+                    let timeline_res = timeline_resource.get();
+
+                    match detail_res {
+                        Some(Ok(perkara)) => view! {
+                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                // Left Column: Details
+                                <div class="lg:col-span-2 space-y-6">
+                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h1 class="text-2xl font-bold text-gray-900">{perkara.judul}</h1>
+                                                <p class="text-blue-600 font-medium">{perkara.nomor_perkara}</p>
+                                            </div>
+                                            <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-bold">
+                                                {perkara.status}
+                                            </span>
+                                        </div>
+
+                                        <div class="prose max-w-none text-gray-600 mb-6">
+                                            <p>{perkara.deskripsi.unwrap_or_default()}</p>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p class="text-gray-500">"Tanggal Kejadian"</p>
+                                                <p class="font-medium">{perkara.tanggal_kejadian.format("%d %B %Y").to_string()}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-500">"Terakhir Update"</p>
+                                                <p class="font-medium">{perkara.updated_at.format("%d %B %Y").to_string()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    // Timeline / Activity Stream
+                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <div class="flex justify-between items-center mb-6">
+                                            <h3 class="text-lg font-bold text-gray-900">"Aktivitas & Catatan"</h3>
+                                            // Optional: visual indicator if timeline is reloading
+                                        </div>
+                                        <div class="space-y-6">
+                                            {
+                                                match timeline_res {
+                                                    Some(Ok(timeline)) => {
+                                                        if timeline.is_empty() {
+                                                            view! { <p class="text-gray-500 italic">"Belum ada aktivitas."</p> }.into_any()
+                                                        } else {
+                                                            timeline.into_iter().map(|event| {
+                                                                let is_comment = event.action_type == "COMMENT";
+                                                                let icon = if is_comment { "fa-comment" } else { "fa-history" };
+                                                                let bg_color = if is_comment { "bg-blue-50" } else { "bg-gray-50" };
+
+                                                                view! {
+                                                                    <div class="flex space-x-3">
+                                                                        <div class="flex-shrink-0">
+                                                                            <div class={format!("h-8 w-8 rounded-full flex items-center justify-center {}", if is_comment { "bg-blue-100 text-blue-600" } else { "bg-gray-200 text-gray-500" })}>
+                                                                                <i class={format!("fas {}", icon)}></i>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class={format!("flex-1 p-4 rounded-lg {}", bg_color)}>
+                                                                            <div class="flex justify-between items-start">
+                                                                                <p class="text-sm font-bold text-gray-900">
+                                                                                    {
+                                                                                        if let Some(info) = &event.user_info {
+                                                                                            info.get("name").and_then(|v| v.as_str()).unwrap_or("Sistem").to_string()
+                                                                                        } else {
+                                                                                            "Sistem".to_string()
+                                                                                        }
+                                                                                    }
+                                                                                </p>
+                                                                                <span class="text-xs text-gray-500">
+                                                                                    {event.created_at}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p class="text-gray-700 mt-1">{event.description}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            }).collect_view().into_any()
+                                                        }
+                                                    },
+                                                    Some(Err(e)) => view! { <p class="text-red-500">{format!("Error loading timeline: {}", e)}</p> }.into_any(),
+                                                    None => view! { <p class="text-gray-400">"Memuat aktivitas..."</p> }.into_any(),
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                // Right Column: Actions & Comment Form
+                                <div class="space-y-6">
+                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">"Tambah Catatan"</h3>
+                                        <form on:submit=on_submit_comment>
+                                            <textarea
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm mb-3"
+                                                rows="4"
+                                                placeholder="Tulis catatan atau update perkembangan..."
+                                                required
+                                                on:input=move |ev| set_comment_content.set(event_target_value(&ev))
+                                                prop:value=comment_content
+                                            ></textarea>
+                                            <button
+                                                type="submit"
+                                                disabled=move || is_submitting.get()
+                                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm disabled:opacity-50"
+                                            >
+                                                {move || if is_submitting.get() { "Mengirim..." } else { "Kirim Catatan" }}
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-4">"Aksi Cepat"</h3>
+                                        <div class="space-y-2">
+                                            <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
+                                                <i class="fas fa-edit mr-2 text-gray-400"></i> "Edit Data Perkara"
+                                            </button>
+                                            <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 text-sm font-medium text-gray-700 transition-colors">
+                                                <i class="fas fa-file-export mr-2 text-gray-400"></i> "Cetak Resume"
+                                            </button>
+                                            <button class="w-full text-left px-4 py-2 rounded hover:bg-gray-50 text-sm font-medium text-red-600 transition-colors">
+                                                <i class="fas fa-trash-alt mr-2 text-red-400"></i> "Hapus Perkara"
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }.into_any(),
+                        Some(Err(e)) => view! { <div class="text-red-500 text-center p-8">{format!("Error: {}", e)}</div> }.into_any(),
+                        None => view! { <div class="text-center p-8">"Memuat detail..."</div> }.into_any(),
+                    }
+                }}
+            </Suspense>
         </div>
     }
 }

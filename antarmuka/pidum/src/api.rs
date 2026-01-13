@@ -15,6 +15,28 @@ pub async fn fetch_perkara_list() -> Result<Vec<Perkara>, String> {
         .map_err(|e| e.to_string())
 }
 
+pub async fn fetch_timeline(id: Uuid) -> Result<Vec<PerkaraTimeline>, String> {
+    Request::get(&format!("{}/perkara/{}/timeline", API_BASE_URL, id))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+pub async fn create_comment(id: Uuid, req: CreateCommentRequest) -> Result<PerkaraComment, String> {
+    Request::post(&format!("{}/perkara/{}/comments", API_BASE_URL, id))
+        .json(&req)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub async fn create_perkara(req: CreatePerkaraRequest) -> Result<Perkara, String> {
     Request::post(&format!("{}/perkara", API_BASE_URL))
         .json(&req)
