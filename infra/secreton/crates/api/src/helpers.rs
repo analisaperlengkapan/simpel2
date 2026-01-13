@@ -1,7 +1,29 @@
 //! Helper functions to reduce code duplication across handlers.
 
+use axum::http::HeaderMap;
 use secreton_core::audit::{AuditLog, AuditStatus};
 use std::collections::HashMap;
+
+/// Extract client IP address from request headers.
+/// Prioritizes X-Forwarded-For, then X-Real-IP.
+pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| {
+            s.split(',')
+                .next()
+                .unwrap_or(s)
+                .trim()
+                .to_string()
+        })
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string())
+        })
+}
 
 /// Create an audit log entry with common fields pre-filled.
 /// This helper reduces duplication by providing a consistent way to create
