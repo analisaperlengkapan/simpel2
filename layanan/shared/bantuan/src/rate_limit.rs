@@ -1,12 +1,11 @@
 use crate::error::AppError;
 use axum::{extract::State, http::Request, middleware::Next, response::Response};
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
 
 #[allow(dead_code)]
-pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
+pub type RateLimitState = Arc<DashMap<String, (u32, u64)>>;
 
 #[allow(dead_code)]
 pub async fn rate_limit_middleware(
@@ -25,15 +24,20 @@ pub async fn rate_limit_middleware(
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut map = state.lock().await;
-    let entry = map.entry(ip.clone()).or_insert((0, now));
-    if now - entry.1 > 60 {
-        *entry = (1, now);
+
+    // Use DashMap's entry API which locks only the specific bucket/entry
+    let mut entry = state.entry(ip).or_insert((0, now));
+    let val = entry.value_mut();
+
+    if now - val.1 > 60 {
+        *val = (1, now);
     } else {
-        if entry.0 >= limit {
+        if val.0 >= limit {
             return Err(AppError::RateLimit);
         }
-        entry.0 += 1;
+        val.0 += 1;
     }
+    drop(entry); // Explicitly drop to release the lock early, though NLL handles this usually
+
     Ok(next.run(req).await)
 }
