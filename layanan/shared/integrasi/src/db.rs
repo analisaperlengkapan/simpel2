@@ -176,6 +176,17 @@ pub async fn bulk_insert_postgres(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
+
+    // Optimization: Build query string ONCE outside the loop
+    // Since columns are constant for the entire batch, the query structure is identical
+    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${}", i)).collect();
+    let query = format!(
+        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
@@ -184,16 +195,6 @@ pub async fn bulk_insert_postgres(
         );
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                // Build query dengan placeholders
-                let placeholders: Vec<String> =
-                    (1..=columns.len()).map(|i| format!("${}", i)).collect();
-                let query = format!(
-                    "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-                    table_name,
-                    columns.join(", "),
-                    placeholders.join(", ")
-                );
-
                 // Konversi nilai JSON ke parameter PostgreSQL
                 let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
                     Vec::new();
