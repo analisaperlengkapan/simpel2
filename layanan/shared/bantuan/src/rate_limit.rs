@@ -37,7 +37,7 @@ pub async fn rate_limit_middleware(
         }
         val.0 += 1;
     }
-    drop(entry); // Explicitly drop to release the lock early, though NLL handles this usually
+    drop(entry); // Explicitly drop to release the lock early
 
     Ok(next.run(req).await)
 }
