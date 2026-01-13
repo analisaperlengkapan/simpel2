@@ -451,6 +451,21 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
+/// Extract client IP from headers
+fn extract_ip_from_headers(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("x-forwarded-for")
+        .or_else(|| headers.get("x-real-ip"))
+        .and_then(|v| v.to_str().ok())
+}
+
+/// Extract User-Agent from headers
+fn extract_user_agent_from_headers(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+}
+
 /// Rate limiting middleware
 pub async fn rate_limit(
     headers: HeaderMap,
@@ -458,11 +473,7 @@ pub async fn rate_limit(
     next: Next,
 ) -> Result<Response, impl IntoResponse> {
     // Get client identifier (IP address or user ID)
-    let client_ip = headers
-        .get("x-forwarded-for")
-        .or_else(|| headers.get("x-real-ip"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
+    let client_ip = extract_ip_from_headers(&headers).unwrap_or("unknown");
 
     // Check rate limit
     {
@@ -985,6 +996,11 @@ pub async fn policy_check_middleware(
         // Record metrics
         record_policy_evaluation_metrics(allowed, evaluation_time);
 
+        // Extract context for audit logging
+        let client_ip = extract_ip_from_headers(request.headers()).map(String::from);
+        let user_agent = extract_user_agent_from_headers(request.headers()).map(String::from);
+        let namespace = extract_namespace_from_path(path);
+
         if !allowed {
             warn!(
                 "Policy denied access: user={}, path={}, action={}, evaluation_time={:?}",
@@ -992,8 +1008,18 @@ pub async fn policy_check_middleware(
             );
 
             // Log to audit with policy decision
-            log_policy_decision_to_audit(&state, ctx, path, &action, false, &ctx.policy_names)
-                .await;
+            log_policy_decision_to_audit(
+                &state,
+                ctx,
+                path,
+                &action,
+                false,
+                &ctx.policy_names,
+                client_ip,
+                user_agent,
+                namespace,
+            )
+            .await;
 
             return Err((
                 StatusCode::FORBIDDEN,
@@ -1014,7 +1040,18 @@ pub async fn policy_check_middleware(
         );
 
         // Log successful policy evaluation to audit
-        log_policy_decision_to_audit(&state, ctx, path, &action, true, &ctx.policy_names).await;
+        log_policy_decision_to_audit(
+            &state,
+            ctx,
+            path,
+            &action,
+            true,
+            &ctx.policy_names,
+            client_ip,
+            user_agent,
+            namespace,
+        )
+        .await;
 
         Ok(next.run(request).await)
     } else {
@@ -1051,12 +1088,7 @@ fn map_method_to_action(method: &axum::http::Method) -> String {
 fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::Value {
     use serde_json::json;
 
-    let client_ip = request
-        .headers()
-        .get("x-forwarded-for")
-        .or_else(|| request.headers().get("x-real-ip"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
+    let client_ip = extract_ip_from_headers(request.headers()).unwrap_or("unknown");
 
     json!({
         "user_id": ctx.user_id,
@@ -1093,6 +1125,7 @@ fn record_policy_evaluation_metrics(allowed: bool, evaluation_time: std::time::D
 }
 
 /// Log policy decision to audit log
+#[allow(clippy::too_many_arguments)]
 async fn log_policy_decision_to_audit(
     state: &ApiState,
     ctx: &RequestContext,
@@ -1100,6 +1133,9 @@ async fn log_policy_decision_to_audit(
     action: &str,
     allowed: bool,
     policy_names: &[String],
+    client_ip: Option<String>,
+    user_agent: Option<String>,
+    namespace: Option<String>,
 ) {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -1130,9 +1166,9 @@ async fn log_policy_decision_to_audit(
         } else {
             AuditStatus::Denied
         },
-        ip: None,         // TODO: Extract from request
-        user_agent: None, // TODO: Extract from request
-        namespace: None,  // TODO: Extract namespace from path
+        ip: client_ip,
+        user_agent,
+        namespace,
         metadata,
     };
 
