@@ -181,6 +181,7 @@ mod tests {
                 "password123",
                 Some("Real User"),
                 vec!["user".to_string()],
+                None,
             )
             .await
             .expect("Failed to create user");
@@ -222,6 +223,7 @@ mod tests {
                 "password123",
                 None,
                 vec!["admin".to_string(), "user".to_string()],
+                None,
             )
             .await
             .expect("Failed to create user");
