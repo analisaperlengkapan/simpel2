@@ -5,6 +5,7 @@
 
 pub mod admin;
 pub mod auth;
+pub mod namespace_persistence;
 pub mod seal_adapter;
 pub mod vault;
 
@@ -303,7 +304,22 @@ impl ServiceContainer {
             "Kejaksaan Agung RI".to_string(),
             "system".to_string(),
         ));
-        tracing::info!("✅ Namespace service initialized with root namespace");
+
+        // Load namespace hierarchy from storage
+        match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret).await
+        {
+            Ok(Some(hierarchy)) => {
+                namespace.update_hierarchy(hierarchy);
+                tracing::info!("✅ Namespace hierarchy loaded from storage");
+            }
+            Ok(None) => {
+                tracing::info!("✅ Namespace service initialized with default root namespace");
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to load namespace hierarchy: {:?}", e);
+                panic!("Failed to load namespace hierarchy from storage: {:?}", e);
+            }
+        }
 
         Ok((vault, seal, namespace))
     }
