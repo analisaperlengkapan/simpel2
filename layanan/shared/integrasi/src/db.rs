@@ -1,5 +1,6 @@
 use crate::error::MonsaktiError;
 use serde_json::Value;
+use std::fmt::Write;
 use tokio_postgres::Client;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -176,32 +177,47 @@ pub async fn bulk_insert_postgres(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
-
-    // Optimization: Build query string ONCE outside the loop
-    // Since columns are constant for the entire batch, the query structure is identical
-    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${}", i)).collect();
-    let query = format!(
-        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-        table_name,
-        columns.join(", "),
-        placeholders.join(", ")
-    );
-
-    // Reuse params vector to avoid allocation in loop
-    let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
-        Vec::with_capacity(columns.len());
-
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
             chunk_idx + 1,
             chunk.len()
         );
+
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
+            Vec::with_capacity(chunk.len() * columns.len());
+        let mut param_index = 1;
+
+        // Optimize query construction using a single String buffer
+        // Estimate capacity: "INSERT INTO table (cols) VALUES " + (chunk_len * (cols * 4 chars + 2))
+        let mut query = String::with_capacity(256 + chunk.len() * columns.len() * 5);
+
+        write!(
+            query,
+            "INSERT INTO {} ({}) VALUES ",
+            table_name,
+            columns.join(", ")
+        )
+        .unwrap();
+
+        let mut has_valid_rows = false;
+        let mut row_count = 0;
+
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                // Konversi nilai JSON ke parameter PostgreSQL
-                params.clear();
-                for col in &columns {
+                if row_count > 0 {
+                    query.push_str(", ");
+                }
+                query.push('(');
+
+                for (i, col) in columns.iter().enumerate() {
+                    if i > 0 {
+                        query.push_str(", ");
+                    }
+                    // Use write! to append placeholder directly without String allocation
+                    write!(query, "${}", param_index).unwrap();
+                    param_index += 1;
+
                     // Handle mapping: api_id in DB comes from id in JSON
                     let json_key = if col == "api_id" { "id" } else { col.as_str() };
 
@@ -211,54 +227,51 @@ pub async fn bulk_insert_postgres(
                         .unwrap_or(&Value::Null);
                     params.push(json_to_sql_param(value, col));
                 }
+                query.push(')');
 
-                // Convert to references for execute
-                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-                    .iter()
-                    .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-                    .collect();
+                has_valid_rows = true;
+                row_count += 1;
+            }
+        }
 
-                match db.execute(&query, &param_refs[..]).await {
-                    Ok(rows) => {
-                        if rows > 0 {
-                            count += rows as usize;
-                            debug!("✅ [BULK INSERT] Inserted {} row(s)", rows);
-                        } else {
-                            debug!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
-                        }
-                    }
-                    Err(e) => {
-                        // Log more details for debugging
-                        error!(
-                            "❌ [BULK INSERT] Insert error for table {}: {:?} | Columns: {:?}",
-                            table_name, e, columns
-                        );
-                        error!("❌ [BULK INSERT] Failed query: {}", query);
+        if !has_valid_rows {
+            continue;
+        }
 
-                        // Print the actual data values to debug type issues
-                        for (i, col) in columns.iter().enumerate() {
-                            let value = obj
-                                .get(col)
-                                .or_else(|| obj.get(&col.to_uppercase()))
-                                .unwrap_or(&Value::Null);
-                            let type_str = if value.is_string() {
-                                "string"
-                            } else if value.is_number() {
-                                "number"
-                            } else if value.is_boolean() {
-                                "bool"
-                            } else if value.is_null() {
-                                "null"
-                            } else if value.is_array() {
-                                "array"
-                            } else {
-                                "object"
-                            };
-                            error!("  Column[{}] {}: {:?} (type: {})", i, col, value, type_str);
-                        }
-                        failed += 1;
-                    }
+        query.push_str(" ON CONFLICT DO NOTHING");
+
+        // Convert to references for execute
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        match db.execute(&query, &param_refs[..]).await {
+            Ok(rows) => {
+                if rows > 0 {
+                    count += rows as usize;
+                    debug!(
+                        "✅ [BULK INSERT] Batch {} inserted {} row(s)",
+                        chunk_idx + 1,
+                        rows
+                    );
+                } else {
+                    debug!(
+                        "⚠️  [BULK INSERT] Batch {} inserted 0 rows (possibly duplicates)",
+                        chunk_idx + 1
+                    );
                 }
+            }
+            Err(e) => {
+                // Log more details for debugging
+                error!(
+                    "❌ [BULK INSERT] Batch insert error for table {}: {:?} | Columns: {:?}",
+                    table_name, e, columns
+                );
+                // Only log query if debug enabled to avoid log spam
+                debug!("❌ [BULK INSERT] Failed query: {}", query);
+
+                failed += chunk.len();
             }
         }
     }
