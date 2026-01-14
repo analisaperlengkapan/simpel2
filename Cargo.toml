@@ -207,12 +207,12 @@ reqwest = { version = "0.12", features = [
 ], default-features = false }
 
 # Validation & Serialization - Updated for security (removes idna vulnerability)
-validator = { version = "0.16", features = ["derive"] } # Legacy validator for datun
+validator = { version = "0.16", features = ["derive"] } # Legacy validator (used by datun)
 garde = { version = "0.22", features = [
     "derive",
     "serde",
 ] } # Modern validator replacement (no idna dependency)
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.18", features = ["derive"] } # Legacy validator (kept for datun compatibility)
 nutype = { version = "0.6.2", features = [
     "serde",
     "validate",

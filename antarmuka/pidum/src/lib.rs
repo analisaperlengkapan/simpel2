@@ -39,6 +39,7 @@ pub fn App() -> impl IntoView {
                 <Route path=StaticSegment("dashboard") view=DashboardWithLayout />
                 <Route path=StaticSegment("perkara") view=PerkaraListLayout />
                 <Route path=StaticSegment("perkara/create") view=PerkaraCreateLayout />
+                <Route path=StaticSegment("perkara/:id") view=PerkaraDetailLayout />
             </Routes>
         </Router>
     }
@@ -54,6 +55,24 @@ fn DashboardWithLayout() -> impl IntoView {
                 <main class="flex-1">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                         <PidumDashboard/>
+                    </div>
+                </main>
+            </div>
+        }
+    };
+    view! { <ProtectedRoute children=content /> }
+}
+
+// Layout wrapper for Detail
+#[component]
+fn PerkaraDetailLayout() -> impl IntoView {
+    let content = move || {
+        view! {
+            <div class="min-h-screen bg-gray-50 flex flex-col">
+                <PidumHeaderWithAuth />
+                <main class="flex-1">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <PerkaraDetail/>
                     </div>
                 </main>
             </div>

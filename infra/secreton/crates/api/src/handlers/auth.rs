@@ -17,7 +17,10 @@ use std::collections::HashMap;
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
 
-use crate::{ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState};
+use crate::{
+    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
+    helpers::extract_client_ip,
+};
 
 /// Create authentication routes
 pub fn create_routes() -> Router<AppState> {
@@ -75,6 +78,19 @@ mod tests {
                 .await
                 .expect("Failed to create services"),
         );
+
+        // Create test user 'alice'
+        let _ = services
+            .auth
+            .create_user(
+                "alice",
+                "alice@example.com",
+                "password123",
+                None,
+                vec!["user".to_string()],
+                None,
+            )
+            .await;
 
         let app = create_routes()
             .with_state(services)
@@ -220,10 +236,7 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     // Extract client info for session tracking
-    let ip_address = headers
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("unknown");
+    let ip_address = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
@@ -236,20 +249,26 @@ pub async fn login(
             &request.username,
             &request.password,
             request.mfa_code.as_deref(),
-            ip_address,
+            &ip_address,
             user_agent,
         )
         .await;
 
     match auth_result {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             // Convert User to UserInfo
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()], // TODO: Get actual policies from user
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -271,7 +290,7 @@ pub async fn login(
                 resource_type: "auth".to_string(),
                 resource_id: user_info.username.clone(),
                 status: secreton_core::audit::AuditStatus::Success,
-                ip: Some(ip_address.to_string()),
+                ip: Some(ip_address.clone()),
                 user_agent: Some(user_agent.to_string()),
                 namespace: Some(auth_token.user.namespace),
                 metadata: HashMap::new(),
@@ -309,7 +328,7 @@ pub async fn login(
                 resource_type: "auth".to_string(),
                 resource_id: request.username.clone(),
                 status: secreton_core::audit::AuditStatus::Failure,
-                ip: Some(ip_address.to_string()),
+                ip: Some(ip_address.clone()),
                 user_agent: Some(user_agent.to_string()),
                 namespace: None,
                 metadata: [("error".to_string(), e.to_string())]
@@ -339,10 +358,7 @@ pub async fn logout(
         .unwrap_or("");
 
     // Extract client info
-    let ip_address = headers
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("unknown");
+    let ip_address = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
@@ -373,7 +389,7 @@ pub async fn logout(
         resource_type: "auth".to_string(),
         resource_id: "session".to_string(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: Some(ip_address.to_string()),
+        ip: Some(ip_address.clone()),
         user_agent: Some(user_agent.to_string()),
         namespace: None,
         metadata: HashMap::new(),
@@ -390,17 +406,24 @@ pub async fn logout(
 /// Refresh access token
 pub async fn refresh_token(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(request): Json<RefreshTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     // Use AuthService to refresh token
     match state.auth.refresh_token(&request.refresh_token).await {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -422,7 +445,7 @@ pub async fn refresh_token(
                 resource_type: "auth".to_string(),
                 resource_id: user_info.username.clone(),
                 status: secreton_core::audit::AuditStatus::Success,
-                ip: None,
+                ip: extract_client_ip(&headers),
                 user_agent: None,
                 namespace: Some(auth_token.user.namespace),
                 metadata: HashMap::new(),
@@ -445,12 +468,18 @@ pub async fn verify_token(
     // Validate token using AuthService
     match state.auth.validate_token(&request.token).await {
         Ok(user) => {
+            let policies = state
+                .auth
+                .get_user_policies(&user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: user.username,
                 email: Some(user.email),
                 display_name: user.full_name,
                 groups: user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
             Ok(Json(ApiResponse::success(user_info)))
@@ -558,7 +587,7 @@ pub async fn setup_mfa(
         resource_type: "mfa".to_string(),
         resource_id: request.method.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None, // TODO: Extract from request
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())
@@ -638,7 +667,7 @@ pub async fn verify_mfa(
             resource_type: "mfa".to_string(),
             resource_id: request.method.clone(),
             status: secreton_core::audit::AuditStatus::Failure,
-            ip: None,
+            ip: extract_client_ip(&headers),
             user_agent: headers
                 .get("User-Agent")
                 .and_then(|h| h.to_str().ok())
@@ -662,7 +691,7 @@ pub async fn verify_mfa(
         resource_type: "mfa".to_string(),
         resource_id: request.method.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())
@@ -723,7 +752,7 @@ pub async fn disable_mfa(
         resource_type: "mfa".to_string(),
         resource_id: user_id.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())

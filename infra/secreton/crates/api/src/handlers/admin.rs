@@ -182,6 +182,7 @@ mod tests {
                 Some("Real User"),
                 vec!["user".to_string()],
                 None,
+                true,
             )
             .await
             .expect("Failed to create user");
@@ -224,6 +225,7 @@ mod tests {
                 None,
                 vec!["admin".to_string(), "user".to_string()],
                 None,
+                true,
             )
             .await
             .expect("Failed to create user");
@@ -261,6 +263,34 @@ mod tests {
 
         // Should return 404
         response.assert_status_not_found();
+    }
+
+    #[tokio::test]
+    async fn test_create_user_persists() {
+        let server = server_with_routes().await;
+        let request = CreateUserRequest {
+            username: "newuser".to_string(),
+            email: "new@example.com".to_string(),
+            password: "password123".to_string(),
+            full_name: Some("New User".to_string()),
+            roles: vec!["user".to_string()],
+            enabled: Some(true),
+            metadata: None,
+        };
+
+        let response = server.post("/users").json(&request).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        assert!(body.success);
+        let user = body.data.expect("user payload");
+        assert_eq!(user.username, "newuser");
+
+        // Verify we can fetch it
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+        let body: ApiResponse<UserResponse> = response.json();
+        assert_eq!(body.data.unwrap().username, "newuser");
     }
 }
 
@@ -484,7 +514,7 @@ pub async fn list_users(
 }
 
 pub async fn create_user(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(request): Json<CreateUserRequest>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
     // Validate input
@@ -498,28 +528,42 @@ pub async fn create_user(
         return Err(ApiError::bad_request("Invalid email format"));
     }
 
-    // TODO: Implement using StorageBackend trait instead of direct database access
-    // Placeholder implementation
-    let user_id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now();
-    let enabled = request.enabled.unwrap_or(true);
-    let permissions = calculate_permissions_from_roles(&request.roles);
+    // Use AuthService to create user
+    let user = state
+        .auth
+        .create_user(
+            &request.username,
+            &request.email,
+            &request.password,
+            request.full_name.as_deref(),
+            request.roles,
+            request.metadata,
+            request.enabled.unwrap_or(true),
+        )
+        .await?;
 
-    let user = UserResponse {
-        id: user_id,
-        username: request.username,
-        email: request.email,
-        full_name: request.full_name,
-        enabled,
-        roles: request.roles,
+    // Collect and sort roles
+    let mut roles: Vec<String> = user.roles.into_iter().collect();
+    roles.sort();
+
+    // Calculate permissions
+    let permissions = calculate_permissions_from_roles(&roles);
+
+    let response = UserResponse {
+        id: user.id.to_string(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        enabled: user.is_active,
+        roles,
         permissions,
-        last_login: None,
-        created_at: now,
-        updated_at: now,
-        metadata: request.metadata.unwrap_or_default(),
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        metadata: user.metadata,
     };
 
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn get_user(

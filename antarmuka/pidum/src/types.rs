@@ -14,6 +14,31 @@ pub struct Perkara {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct PerkaraComment {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub content: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct PerkaraTimeline {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub action_type: String,
+    pub description: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CreateCommentRequest {
+    pub content: String,
+    pub user_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatePerkaraRequest {
     pub nomor_perkara: String,

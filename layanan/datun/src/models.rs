@@ -94,7 +94,7 @@ pub enum CaseStatus {
 }
 
 /// Request payload untuk membuat kasus baru
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Deserialize, Validate, Debug)]
 pub struct CreateCaseRequest {
     #[garde(length(min = 1))]
     pub no_skk: String,
@@ -111,7 +111,7 @@ pub struct CreateCaseRequest {
 }
 
 /// Request payload untuk update kasus
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Deserialize, Validate, Debug)]
 pub struct UpdateCaseRequest {
     #[garde(skip)]
     pub status: Option<CaseStatus>,

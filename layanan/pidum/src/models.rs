@@ -81,6 +81,59 @@ pub struct CreatePerkaraRequest {
     pub deskripsi: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PerkaraComment {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub content: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PerkaraTimeline {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub action_type: String,
+    pub description: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateCommentRequest {
+    #[garde(length(min = 1, max = 1000))]
+    pub content: String,
+    // For MVP, we pass user_name manually until auth middleware is fully integrated
+    #[garde(skip)]
+    pub user_name: Option<String>,
+}
+
+impl From<Row> for PerkaraComment {
+    fn from(row: Row) -> Self {
+        Self {
+            id: row.get("id"),
+            perkara_id: row.get("perkara_id"),
+            content: row.get("content"),
+            user_info: row.get("user_info"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
+impl From<Row> for PerkaraTimeline {
+    fn from(row: Row) -> Self {
+        Self {
+            id: row.get("id"),
+            perkara_id: row.get("perkara_id"),
+            action_type: row.get("action_type"),
+            description: row.get("description"),
+            user_info: row.get("user_info"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdatePerkaraRequest {
     #[garde(length(min = 1, max = 200))]
