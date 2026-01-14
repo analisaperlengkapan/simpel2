@@ -316,6 +316,7 @@ impl AuthService {
         full_name: Option<&str>,
         roles: Vec<String>,
         metadata: Option<HashMap<String, String>>,
+        is_active: bool,
     ) -> Result<User, AuthError> {
         // Check if user already exists
         if self.user_exists(username).await? {
@@ -331,7 +332,7 @@ impl AuthService {
             email: email.to_string(),
             password_hash,
             full_name: full_name.map(|s| s.to_string()),
-            is_active: true,
+            is_active,
             is_superuser: false,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
