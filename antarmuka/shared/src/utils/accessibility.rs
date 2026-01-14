@@ -237,6 +237,9 @@ pub fn VisuallyHidden(
 // FOCUS TRAP COMPONENT
 // ============================================================================
 
+/// Selector for all focusable elements
+const FOCUSABLE_ELEMENTS_SELECTOR: &str = "button:not([disabled]), [href], input:not([disabled]):not([type=\"hidden\"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+
 /// Focus trap for modals and dialogs
 #[component]
 pub fn FocusTrap(
@@ -256,9 +259,7 @@ pub fn FocusTrap(
         if active.get()
             && let Some(container) = container_ref.get() {
                 // Focus first focusable element
-                if let Ok(focusable) = container.query_selector(
-                    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-                )
+                if let Ok(focusable) = container.query_selector(FOCUSABLE_ELEMENTS_SELECTOR)
                     && let Some(element) = focusable {
                         let _ = element.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
                     }
@@ -275,15 +276,9 @@ pub fn FocusTrap(
                 }
 
                 if ev.key() == "Tab" {
-                    // TODO: Implement focus trap using proper DOM traversal
-                    // query_selector_all is not available on Element in web-sys
-                    let _ = container_ref;
-                    /*
                     if let Some(container) = container_ref.get() {
                         // Get all focusable elements
-                        if let Ok(elements) = container.query_selector_all(
-                            "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-                        ) {
+                        if let Ok(elements) = container.query_selector_all(FOCUSABLE_ELEMENTS_SELECTOR) {
                             let length = elements.length();
                             if length == 0 {
                                 return;
@@ -297,16 +292,18 @@ pub fn FocusTrap(
                                 .and_then(|d| d.active_element())
                             {
                                 if ev.shift_key() {
-                                    // Shift+Tab: wrap to last element
-                                    if first.as_ref() == Some(&active_element) {
+                                    // Shift+Tab: wrap to last element if current is first
+                                    let is_first = first.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    if is_first {
                                         ev.prevent_default();
                                         if let Some(last_el) = last {
                                             let _ = last_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
                                         }
                                     }
                                 } else {
-                                    // Tab: wrap to first element
-                                    if last.as_ref() == Some(&active_element) {
+                                    // Tab: wrap to first element if current is last
+                                    let is_last = last.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    if is_last {
                                         ev.prevent_default();
                                         if let Some(first_el) = first {
                                             let _ = first_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
@@ -316,7 +313,6 @@ pub fn FocusTrap(
                             }
                         }
                     }
-                    */
                 }
             }
         >
