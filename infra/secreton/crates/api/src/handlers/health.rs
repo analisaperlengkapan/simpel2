@@ -644,7 +644,7 @@ async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
 async fn check_seal_status(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // CRITICAL SECURITY FIX: Get SealService from state and check if unsealed
+    // Get SealService from state and check if unsealed
     let is_unsealed = state.seal.is_unsealed().await;
 
     let response_time = start_time.elapsed().as_millis() as u64;
@@ -691,18 +691,17 @@ mod tests {
     use crate::services::ServiceContainer;
     use std::sync::Arc;
 
-    fn create_state() -> Arc<ServiceContainer> {
+    async fn create_state() -> Arc<ServiceContainer> {
         let config = ApiConfig::default();
-        tokio::runtime::Runtime::new()
-            .expect("Failed to create Tokio runtime")
-            .block_on(ServiceContainer::new(&config))
+        ServiceContainer::new(&config)
+            .await
             .expect("Failed to create services")
             .into()
     }
 
     #[tokio::test]
     async fn test_simple_health_check() {
-        let services = create_state();
+        let services = create_state().await;
 
         let result = simple_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
@@ -713,7 +712,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_liveness_check() {
-        let services = create_state();
+        let services = create_state().await;
 
         let result = liveness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
@@ -724,7 +723,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check_response() {
-        let services = create_state();
+        let services = create_state().await;
         let result = health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
@@ -739,7 +738,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_readiness_check_marks_ready() {
-        let services = create_state();
+        let services = create_state().await;
+
+        // Unseal the vault to make it ready
+        let shares = services
+            .seal
+            .initialize()
+            .await
+            .expect("Failed to initialize");
+        for share in shares.iter().take(3) {
+            let share_bytes = share.to_bytes().unwrap();
+            services
+                .seal
+                .unseal_with_share(&share_bytes)
+                .await
+                .expect("Failed to unseal");
+        }
+
         let result = readiness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
@@ -753,7 +768,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_detailed_health_overall_status() {
-        let services = create_state();
+        let services = create_state().await;
         let result = detailed_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 

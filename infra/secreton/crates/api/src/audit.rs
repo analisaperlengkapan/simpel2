@@ -111,6 +111,7 @@ impl AuditEvent {
 #[derive(Clone)]
 pub struct AuditLogger {
     /// Core audit logger
+    #[allow(dead_code)]
     core_logger: Arc<secreton_core::audit::AuditLogger>,
     /// In-memory event buffer for API-specific events
     events: Arc<RwLock<VecDeque<AuditEvent>>>,
