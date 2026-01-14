@@ -150,7 +150,8 @@ pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Ro
         .with_state(app_state)
 }
 
-/// Root endpoint handler
+/// Root endpoint handler (Used for root path "/" if needed)
+#[allow(dead_code)]
 async fn root_handler() -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     let data = serde_json::json!({
         "service": "Secreton API",

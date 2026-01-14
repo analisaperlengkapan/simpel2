@@ -22,9 +22,6 @@ pub use crate::error::AuthError;
 /// Root user ID (nil UUID) used for initial bootstrap and recovery
 pub const ROOT_USER_ID: &str = "00000000-0000-0000-0000-000000000000";
 
-const USER_PATH_PREFIX: &str = "auth/users";
-const USERNAME_INDEX_PREFIX: &str = "auth/usernames";
-
 /// User Data Transfer Object for storage persistence
 ///
 /// This struct mirrors the core `User` model but ensures all fields,
