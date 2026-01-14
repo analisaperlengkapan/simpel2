@@ -607,47 +607,64 @@ impl MonsaktiClient {
         data: &serde_json::Value,
         filename: P,
     ) -> Result<(), MonsaktiError> {
-        let path = Path::new(&self.config.output_dir).join(filename);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
+        let output_dir = self.config.output_dir.clone();
+        let filename = filename.as_ref().to_path_buf();
+        let data = data.clone();
 
-        if let Some(array) = data.as_array() {
-            if array.is_empty() {
-                warn!("Tidak ada data untuk disimpan");
-                return Ok(());
+        tokio::task::spawn_blocking(move || {
+            let path = Path::new(&output_dir).join(filename);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
             }
 
-            let mut wtr = csv::Writer::from_path(&path)?;
-            if let Some(first) = array.first()
-                && let Some(obj) = first.as_object() {
-                    let headers: Vec<&String> = obj.keys().collect();
-                    wtr.write_record(&headers)?;
+            if let Some(array) = data.as_array() {
+                if array.is_empty() {
+                    warn!("Tidak ada data untuk disimpan");
+                    return Ok(());
+                }
 
-                    for item in array {
-                        if let Some(obj) = item.as_object() {
-                            let row: Vec<String> = headers
-                                .iter()
-                                .map(|h| {
+                let mut wtr = csv::Writer::from_path(&path)?;
+                if let Some(first) = array.first()
+                    && let Some(obj) = first.as_object() {
+                        let headers: Vec<&String> = obj.keys().collect();
+                        wtr.write_record(&headers)?;
+
+                        for item in array {
+                            if let Some(obj) = item.as_object() {
+                                let row_iter = headers.iter().map(|h| {
                                     obj.get(*h)
                                         .map(|v| match v {
-                                            serde_json::Value::String(s) => s.clone(),
-                                            serde_json::Value::Number(n) => n.to_string(),
-                                            serde_json::Value::Bool(b) => b.to_string(),
-                                            serde_json::Value::Null => "".to_string(),
-                                            _ => v.to_string(),
+                                            serde_json::Value::String(s) => {
+                                                std::borrow::Cow::Borrowed(s.as_bytes())
+                                            }
+                                            serde_json::Value::Number(n) => std::borrow::Cow::Owned(
+                                                n.to_string().into_bytes(),
+                                            ),
+                                            serde_json::Value::Bool(b) => {
+                                                std::borrow::Cow::Borrowed(if *b {
+                                                    &b"true"[..]
+                                                } else {
+                                                    &b"false"[..]
+                                                })
+                                            }
+                                            serde_json::Value::Null => {
+                                                std::borrow::Cow::Borrowed(&b""[..])
+                                            }
+                                            _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
                                         })
-                                        .unwrap_or_default()
-                                })
-                                .collect();
-                            wtr.write_record(&row)?;
+                                        .unwrap_or(std::borrow::Cow::Borrowed(&b""[..]))
+                                });
+                                wtr.write_record(row_iter)?;
+                            }
                         }
                     }
-                }
-            wtr.flush()?;
-            info!("CSV disimpan ke: {}", path.display());
-        }
-        Ok(())
+                wtr.flush()?;
+                info!("CSV disimpan ke: {}", path.display());
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| MonsaktiError::ApiError(format!("Task join error: {}", e)))?
     }
 
     /// Simpan data ke database PostgreSQL
