@@ -768,6 +768,8 @@ pub async fn assess_mfa_setup_risk(
     // Extract user_id from JWT token
     let user_id = &auth.sub;
 
+    tracing::debug!("Assessing MFA setup risk for user: {}, IP: {}", user_id, ip);
+
     let risk_service = RiskAssessmentService::default();
 
     let risk_score = risk_service
