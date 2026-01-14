@@ -1,6 +1,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::siman::models::SimanAssetCategory;
+use futures::stream::{self, StreamExt};
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -123,35 +124,56 @@ pub async fn fetch_all_aset_paginated(
         return Ok(vec![]);
     }
 
-    let mut all_data = Vec::new();
+    // Generate ranges
+    let mut ranges = Vec::new();
     let mut start_id = 1u32;
-
     while start_id <= total_count as u32 {
         let end_id = (start_id + chunk_size - 1).min(total_count as u32);
+        ranges.push((start_id, end_id));
+        start_id = end_id + 1;
+    }
 
-        info!(
-            "Fetching {} records {}-{} of {}",
-            category.description(),
-            start_id,
-            end_id,
-            total_count
-        );
+    // Process concurrent requests
+    let results = stream::iter(ranges)
+        .map(|(start_id, end_id)| {
+            let mut client_clone = client.clone();
+            let category_clone = category.clone(); // SimanAssetCategory is Clone/Copy
 
-        match get_aset_by_category(client, category, start_id, end_id).await {
-            Ok(data) => {
-                all_data.extend(data);
-                start_id = end_id + 1;
-            }
-            Err(e) => {
-                warn!(
-                    "Error fetching {}-{} for {}: {}",
+            async move {
+                info!(
+                    "Fetching {} records {}-{} of {}",
+                    category_clone.description(),
                     start_id,
                     end_id,
-                    category.description(),
-                    e
+                    total_count
                 );
-                // Continue with next batch
-                start_id = end_id + 1;
+
+                get_aset_by_category(&mut client_clone, category_clone, start_id, end_id).await
+                    .map_err(|e| {
+                         warn!(
+                            "Error fetching {}-{} for {}: {}",
+                            start_id,
+                            end_id,
+                            category_clone.description(),
+                            e
+                        );
+                        e
+                    })
+            }
+        })
+        .buffered(10) // Concurrent limit
+        .collect::<Vec<Result<Vec<Value>, MonsaktiError>>>()
+        .await;
+
+    // Collect results
+    let mut all_data = Vec::new();
+    for result in results {
+        match result {
+            Ok(data) => all_data.extend(data),
+            Err(_) => {
+                // Warning already logged in stream map
+                // Continue with partial data as per original implementation intent
+                // Original implementation: warn and continue
             }
         }
     }
