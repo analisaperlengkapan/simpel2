@@ -169,8 +169,8 @@ pub async fn wrap_data(
         "Wrapped data with one-time token"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_wraps_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_wraps_total", "namespace" => namespace.clone()).increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
@@ -282,8 +282,8 @@ pub async fn unwrap_token(
         "Successfully unwrapped token (one-time use)"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_unwraps_total", 1, "namespace" => namespace, "status" => "success");
+    // Add metrics
+    metrics::counter!("secreton_wrapping_unwraps_total", "namespace" => namespace.clone(), "status" => "success").increment(1);
 
     let response = UnwrapTokenResponse {
         data,
@@ -348,8 +348,8 @@ pub async fn lookup_token(
         "Looked up wrapping token metadata"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_lookups_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_lookups_total", "namespace" => namespace.clone()).increment(1);
 
     Ok(Json(ApiResponse::success(token_info)))
 }
@@ -468,8 +468,8 @@ pub async fn rewrap_token(
         "Rewrapped token with new TTL"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_rewraps_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_rewraps_total", "namespace" => namespace.clone()).increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
