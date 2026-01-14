@@ -237,6 +237,9 @@ pub fn VisuallyHidden(
 // FOCUS TRAP COMPONENT
 // ============================================================================
 
+/// Selector for all focusable elements
+const FOCUSABLE_ELEMENTS_SELECTOR: &str = "button:not([disabled]), [href], input:not([disabled]):not([type=\"hidden\"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+
 /// Focus trap for modals and dialogs
 #[component]
 pub fn FocusTrap(
@@ -256,9 +259,7 @@ pub fn FocusTrap(
         if active.get()
             && let Some(container) = container_ref.get() {
                 // Focus first focusable element
-                if let Ok(focusable) = container.query_selector(
-                    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-                )
+                if let Ok(focusable) = container.query_selector(FOCUSABLE_ELEMENTS_SELECTOR)
                     && let Some(element) = focusable {
                         let _ = element.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
                     }
@@ -277,9 +278,7 @@ pub fn FocusTrap(
                 if ev.key() == "Tab" {
                     if let Some(container) = container_ref.get() {
                         // Get all focusable elements
-                        if let Ok(elements) = container.query_selector_all(
-                            "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"
-                        ) {
+                        if let Ok(elements) = container.query_selector_all(FOCUSABLE_ELEMENTS_SELECTOR) {
                             let length = elements.length();
                             if length == 0 {
                                 return;
