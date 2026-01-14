@@ -1303,6 +1303,8 @@ pub async fn response_wrapping_middleware(
     request: Request,
     next: Next,
 ) -> Response {
+    const MAX_WRAPPING_SIZE: usize = 10 * 1024 * 1024; // 10MB
+
     // Check for X-Vault-Wrap-TTL header
     let wrap_ttl = headers
         .get("X-Vault-Wrap-TTL")
@@ -1356,8 +1358,8 @@ pub async fn response_wrapping_middleware(
 
     // Buffer the response body
     let (parts, body) = response.into_parts();
-    // 10MB limit
-    let bytes = match axum::body::to_bytes(body, 10 * 1024 * 1024).await {
+
+    let bytes = match axum::body::to_bytes(body, MAX_WRAPPING_SIZE).await {
         Ok(b) => b,
         Err(e) => {
             warn!("Failed to buffer response for wrapping: {}", e);
