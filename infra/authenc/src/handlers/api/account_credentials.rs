@@ -140,23 +140,17 @@ pub async fn remove_account_credential(
     // Verify credential belongs to current user
     match credential_id.as_str() {
         "totp" => {
-            // Check if TOTP is configured for the user
-            let has_secret = state
-                .totp_store
-                .get_secret(&user_id.to_string())
-                .map_err(|e| AuthencError::internal(format!("Failed to check TOTP secret: {}", e)))?
-                .is_some();
-
-            if !has_secret {
-                return Err(AuthencError::resource_not_found("TOTP credential not found"));
-            }
-
-            state
+            // Attempt to remove the secret (atomic check-and-delete)
+            let removed = state
                 .totp_store
                 .remove_secret(&user_id.to_string())
                 .map_err(|e| {
                     AuthencError::internal(format!("Failed to remove TOTP secret: {}", e))
                 })?;
+
+            if !removed {
+                return Err(AuthencError::resource_not_found("TOTP credential not found"));
+            }
         }
         _ => {
             return Err(AuthencError::validation("Unsupported credential type"));
@@ -275,7 +269,7 @@ pub async fn disable_totp(
         .map_err(|_| AuthencError::unauthorized("Invalid user ID in token"))?;
 
     // Remove the TOTP secret
-    state
+    let _ = state
         .totp_store
         .remove_secret(&user_id.to_string())
         .map_err(|e| AuthencError::internal(format!("Failed to remove TOTP secret: {}", e)))?;

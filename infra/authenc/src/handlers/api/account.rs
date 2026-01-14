@@ -379,7 +379,7 @@ pub async fn delete_account(
         .await?;
 
     // Remove TOTP secret
-    totp_store
+    let _ = totp_store
         .remove_secret(&user_id.to_string())
         .map_err(|e| AuthencError::internal(format!("Failed to remove TOTP secret: {}", e)))?;
 
