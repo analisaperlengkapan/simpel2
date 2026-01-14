@@ -207,7 +207,6 @@ reqwest = { version = "0.12", features = [
 ], default-features = false }
 
 # Validation & Serialization - Updated for security (removes idna vulnerability)
-validator = { version = "0.16", features = ["derive"] } # Legacy validator (used by datun)
 garde = { version = "0.22", features = [
     "derive",
     "serde",
@@ -217,7 +216,6 @@ nutype = { version = "0.6.2", features = [
     "serde",
     "validate",
 ] } # Additional validation without idna
-validator = { version = "0.16", features = ["derive"] }
 
 # Monitoring & Observability (Updated to latest)
 opentelemetry = "0.31"

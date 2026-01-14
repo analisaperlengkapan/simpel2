@@ -657,6 +657,30 @@ pub async fn cors_preflight(request: Request, next: Next) -> Response {
 /// CRITICAL SECURITY: This middleware enforces that all API operations
 /// (except whitelisted system endpoints) are blocked when the vault is sealed.
 /// This follows HashiCorp Vault security best practices.
+
+/// Checks if a given request path is whitelisted from the seal check.
+///
+/// Whitelisted endpoints are those required for basic vault operations,
+/// such as health checks, initialization, and unsealing.
+fn is_whitelisted(path: &str) -> bool {
+    // These endpoints allow sub-paths (e.g., /health/live)
+    const WHITELISTED_PREFIXES: &[&str] = &["/health", "/version", "/metrics"];
+    if WHITELISTED_PREFIXES.iter().any(|p| path.starts_with(p)) {
+        return true;
+    }
+
+    // These endpoints must match exactly
+    const WHITELISTED_PATHS: &[&str] = &[
+        "/v1/sys/seal-status",
+        "/api/v1/sys/seal-status",
+        "/v1/sys/unseal",
+        "/api/v1/sys/unseal",
+        "/v1/sys/init",
+        "/api/v1/sys/init",
+    ];
+    WHITELISTED_PATHS.contains(&(&path))
+}
+
 pub async fn seal_check_middleware(
     State(state): State<ApiState>,
     request: Request,
@@ -664,21 +688,7 @@ pub async fn seal_check_middleware(
 ) -> Response {
     let path = request.uri().path();
 
-    // Whitelist: Allow these endpoints even when sealed
-    // - Health checks (for load balancers)
-    // - Seal status (to check if sealed)
-    // - Unseal (to unseal the vault)
-    // - Init (to initialize the vault)
-    if path.starts_with("/health")
-        || path.starts_with("/version")
-        || path.starts_with("/metrics")
-        || path == "/v1/sys/seal-status"
-        || path == "/api/v1/sys/seal-status"
-        || path == "/v1/sys/unseal"
-        || path == "/api/v1/sys/unseal"
-        || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init"
-    {
+    if is_whitelisted(path) {
         return next.run(request).await;
     }
 
@@ -698,7 +708,8 @@ pub async fn seal_check_middleware(
                 "sealed": true,
                 "message": "The vault is sealed. Please unseal it with threshold shares before performing operations."
             })),
-        ).into_response();
+        )
+            .into_response();
     }
 
     tracing::debug!(
@@ -1513,8 +1524,101 @@ mod certificate_tests {
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
-mod namespace_tests {
+mod middleware_tests {
     use super::*;
+    use axum::http::Request;
+    use secreton_core::services::seal::{SealConfig, SealService};
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_blocks_when_sealed() {
+        let state = create_test_api_state(true).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let request = Request::builder()
+            .uri("/v1/secret/data/my-secret")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = middleware.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_allows_when_unsealed() {
+        let state = create_test_api_state(false).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let request = Request::builder()
+            .uri("/v1/secret/data/my-secret")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = middleware.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_allows_whitelisted_endpoints_when_sealed() {
+        let state = create_test_api_state(true).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let whitelisted_paths = [
+            "/health",
+            "/version",
+            "/metrics",
+            "/v1/sys/seal-status",
+            "/api/v1/sys/seal-status",
+            "/v1/sys/unseal",
+            "/api/v1/sys/unseal",
+            "/v1/sys/init",
+            "/api/v1/sys/init",
+        ];
+
+        for path in &whitelisted_paths {
+            let request = Request::builder()
+                .uri(*path)
+                .body(axum::body::Body::empty())
+                .unwrap();
+            let response = middleware.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "Failed for path: {}", path);
+        }
+    }
+
+    async fn create_test_api_state(sealed: bool) -> ApiState {
+        let seal_service = SealService::new(SealConfig::default());
+        if !sealed {
+            // This is a simplified way to unseal for testing purposes.
+            // In a real scenario, you would need to initialize and unseal with shares.
+            let mut state = seal_service.state.write().await;
+            *state = secreton_core::services::seal::SealState::Unsealed;
+        }
+
+        ApiState {
+            services: Arc::new(crate::services::Services {
+                seal: seal_service,
+                // Add other mock services as needed
+            }),
+            ..Default::default() // Use default for other fields
+        }
+    }
+
+    async fn mock_handler(_req: Request<axum::body::Body>) -> Result<Response, std::convert::Infallible> {
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body(axum::body::Body::empty())
+            .unwrap())
+    }
 
     #[test]
     fn test_extract_namespace_from_path() {
