@@ -104,7 +104,16 @@ pub fn create_api_router(state: ApiState) -> Router {
     );
 
     // Combine legacy and new handlers into a single Router
-    let v1_router = v1_legacy.merge(v1_handlers);
+    let v1_router = v1_legacy
+        .merge(v1_handlers)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::seal_check_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth_middleware,
+        ));
 
     Router::new()
         .route("/health", get(health_check))
@@ -113,10 +122,6 @@ pub fn create_api_router(state: ApiState) -> Router {
         .route("/metrics/prometheus", get(get_prometheus_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
         .nest_service("/v1", v1_router)
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            middleware::auth_middleware,
-        ))
         .with_state(state)
 }
 
