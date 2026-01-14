@@ -13,24 +13,22 @@ use uuid::Uuid;
 /// Path where the namespace hierarchy is stored in the backend
 pub const NAMESPACE_STORAGE_PATH: &str = "sys/namespaces/hierarchy";
 
-/// Hardcoded salt for namespace key derivation
+/// Hardcoded salt for namespace key derivation (fallback/legacy)
 const NAMESPACE_KEY_SALT: &[u8] = b"secreton-namespace-persistence-salt";
 
 /// Derive a consistent encryption key for namespace storage
-fn derive_namespace_key(secret: &str) -> Result<Vec<u8>> {
+fn derive_namespace_key(secret: &str, salt: &[u8]) -> Result<Vec<u8>> {
     // Use PBKDF2 to derive a 32-byte key from the secret
     // This ensures we have a valid key length for ChaCha20/AES
     let params = SecurityParams::new(AlgorithmId::Pbkdf2);
 
-    // We use the simpler derive_key helper if available, or just implement it here
-    // checking secreton_crypto docs from memory: derive_key_pbkdf2 is exported
-
     let key = secreton_crypto::derive_key_pbkdf2(
         secret.as_bytes(),
-        NAMESPACE_KEY_SALT,
+        salt,
         params.iterations.unwrap_or(100_000),
         params.key_size,
-    ).context("Failed to derive namespace key")?;
+    )
+    .context("Failed to derive namespace key")?;
 
     Ok(key)
 }
@@ -43,32 +41,29 @@ pub async fn save_hierarchy(
     secret: &str,
 ) -> Result<()> {
     // Serialize hierarchy to JSON
-    let json_bytes = serde_json::to_vec(hierarchy)
-        .context("Failed to serialize namespace hierarchy")?;
+    let json_bytes =
+        serde_json::to_vec(hierarchy).context("Failed to serialize namespace hierarchy")?;
 
-    // Derive encryption key
-    let key = derive_namespace_key(secret)?;
+    // Generate random salt for KDF
+    let salt = secreton_crypto::generate_random_bytes(16)?;
+
+    // Derive encryption key with unique salt
+    let key = derive_namespace_key(secret, &salt)?;
 
     // Encrypt data
-    let encrypted = crypto.encrypt(
-        AlgorithmId::ChaCha20Poly1305,
-        &json_bytes,
-        &key,
-    ).context("Failed to encrypt namespace hierarchy")?;
+    let encrypted = crypto
+        .encrypt(AlgorithmId::ChaCha20Poly1305, &json_bytes, &key)
+        .context("Failed to encrypt namespace hierarchy")?;
 
     // Serialize encrypted data structure
-    let encrypted_bytes = serde_json::to_vec(&encrypted)
-        .context("Failed to serialize encrypted data")?;
+    let encrypted_bytes =
+        serde_json::to_vec(&encrypted).context("Failed to serialize encrypted data")?;
 
-    // Create vault entry
-    // We use a deterministic UUID for the hierarchy entry based on its path
-    // But VaultEntry::new generates a random one. That's fine as long as we retrieve by path.
-    // However, if we update, we might want to keep the same ID if possible, but StorageBackend::store usually works by ID or path?
-    // StorageBackend::store takes &VaultEntry.
-    // If we want to support update, we should check if it exists first to get the ID, or just overwrite (assuming store handles overwrite or we delete/create).
-    // Let's see if we can get existing entry to preserve ID.
-
-    let existing = storage.get_by_path(NAMESPACE_STORAGE_PATH).await.ok().flatten();
+    let existing = storage
+        .get_by_path(NAMESPACE_STORAGE_PATH)
+        .await
+        .ok()
+        .flatten();
     let entry_id = existing.map(|e| e.id).unwrap_or_else(Uuid::new_v4);
 
     let mut entry = VaultEntry::new(
@@ -77,25 +72,31 @@ pub async fn save_hierarchy(
         serde_json::json!({
             "algorithm": "chacha20-poly1305",
             "kdf": "pbkdf2",
-            "type": "namespace_hierarchy"
+            "type": "namespace_hierarchy",
+            "salt": hex::encode(salt)
         }),
         SecurityLevel::Internal, // Namespaces are internal system data
         "system".to_string(),
     );
 
-    // Set the ID to match existing if found (to simulate update behavior if backend relies on ID)
+    // Set the ID to match existing if found
     entry.id = entry_id;
 
     // Persist to storage
-    // Use update if it exists, store if not? StorageBackend has both.
-    // We'll try store, if it fails with Duplicate, we use update?
-    // Or just check existence.
-    // Actually, getting the existing entry above tells us if it exists.
-
-    if storage.exists(NAMESPACE_STORAGE_PATH).await.unwrap_or(false) {
-        storage.update(&entry).await.context("Failed to update namespace hierarchy in storage")?;
+    if storage
+        .exists(NAMESPACE_STORAGE_PATH)
+        .await
+        .unwrap_or(false)
+    {
+        storage
+            .update(&entry)
+            .await
+            .context("Failed to update namespace hierarchy in storage")?;
     } else {
-        storage.store(&entry).await.context("Failed to store namespace hierarchy")?;
+        storage
+            .store(&entry)
+            .await
+            .context("Failed to store namespace hierarchy")?;
     }
 
     Ok(())
@@ -108,7 +109,8 @@ pub async fn load_hierarchy(
     secret: &str,
 ) -> Result<Option<NamespaceHierarchy>> {
     // Retrieve entry
-    let entry = storage.get_by_path(NAMESPACE_STORAGE_PATH)
+    let entry = storage
+        .get_by_path(NAMESPACE_STORAGE_PATH)
         .await
         .context("Failed to retrieve namespace hierarchy from storage")?;
 
@@ -121,11 +123,19 @@ pub async fn load_hierarchy(
     let encrypted: EncryptedData = serde_json::from_slice(&entry.encrypted_data)
         .context("Failed to deserialize encrypted data structure")?;
 
+    // Extract salt from metadata or use fallback
+    let salt = if let Some(salt_hex) = entry.encryption_metadata.get("salt").and_then(|v| v.as_str()) {
+        hex::decode(salt_hex).context("Failed to decode salt hex")?
+    } else {
+        NAMESPACE_KEY_SALT.to_vec()
+    };
+
     // Derive encryption key
-    let key = derive_namespace_key(secret)?;
+    let key = derive_namespace_key(secret, &salt)?;
 
     // Decrypt data
-    let json_bytes = crypto.decrypt(&encrypted, &key)
+    let json_bytes = crypto
+        .decrypt(&encrypted, &key)
         .context("Failed to decrypt namespace hierarchy")?;
 
     // Deserialize hierarchy
