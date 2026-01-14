@@ -94,7 +94,7 @@ pub enum CaseStatus {
 }
 
 /// Request payload untuk membuat kasus baru
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, Debug)]
 pub struct CreateCaseRequest {
     #[validate(length(min = 1, message = "Nomor SKK wajib diisi"))]
     pub no_skk: String,
@@ -110,7 +110,7 @@ pub struct CreateCaseRequest {
 }
 
 /// Request payload untuk update kasus
-#[derive(Deserialize, Validate)]
+#[derive(Deserialize, Validate, Debug)]
 pub struct UpdateCaseRequest {
     pub status: Option<CaseStatus>,
     pub tim_jpn: Option<Vec<String>>,
