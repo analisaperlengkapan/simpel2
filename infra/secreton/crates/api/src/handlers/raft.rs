@@ -179,8 +179,7 @@ pub struct RestoreSnapshotResponse {
 
 fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
     let is_admin = user.roles.iter().any(|role| {
-        let r = role.to_lowercase();
-        r == "admin" || r == "vault-admin"
+        role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("vault-admin")
     });
 
     if is_admin {
@@ -367,10 +366,6 @@ pub async fn add_peer(
 
     ensure_admin(&user)?;
 
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
-
     // Validate request
     if request.address.is_empty() {
         warn!("Attempted to add peer with empty address");
@@ -509,10 +504,6 @@ pub async fn remove_peer(
     info!("Removing peer {}", node_id);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
     let raft_storage = state
@@ -848,10 +839,6 @@ pub async fn download_snapshot(
 
     ensure_admin(&user)?;
 
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
-
     // Get Raft storage backend
     let _raft_storage = state
         .storage
@@ -1021,10 +1008,6 @@ pub async fn list_snapshots(
 
     ensure_admin(&user)?;
 
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
-
     // Get Raft storage backend
     let _raft_storage = state
         .storage
@@ -1111,10 +1094,6 @@ pub async fn restore_snapshot(
     info!("Restoring from snapshot {}", request.snapshot_id);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Validate snapshot ID format
     if request.snapshot_id.is_empty() {
@@ -1472,5 +1451,44 @@ mod tests {
         let json = serde_json::to_string(&metadata).unwrap();
         assert!(json.contains("\"snapshot_id\":\"snapshot-123\""));
         assert!(json.contains("\"encrypted\":true"));
+    }
+
+    #[test]
+    fn test_ensure_admin_security() {
+        // Valid admin
+        let admin_user = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "admin".to_string(),
+            email: None,
+            roles: vec!["admin".to_string()],
+        };
+        assert!(ensure_admin(&admin_user).is_ok());
+
+        // Valid vault-admin
+        let vault_admin = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "vault-admin".to_string(),
+            email: None,
+            roles: vec!["vault-admin".to_string()],
+        };
+        assert!(ensure_admin(&vault_admin).is_ok());
+
+        // Invalid user
+        let regular_user = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "user".to_string(),
+            email: None,
+            roles: vec!["user".to_string()],
+        };
+        assert!(ensure_admin(&regular_user).is_err());
+
+        // Case insensitive
+        let admin_caps = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "ADMIN".to_string(),
+            email: None,
+            roles: vec!["ADMIN".to_string()],
+        };
+        assert!(ensure_admin(&admin_caps).is_ok());
     }
 }
