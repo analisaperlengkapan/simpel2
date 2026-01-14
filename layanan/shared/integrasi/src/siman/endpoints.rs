@@ -1,6 +1,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::siman::models::SimanAssetCategory;
+use futures::stream::{self, StreamExt};
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -368,20 +369,46 @@ pub async fn fetch_all_assets_with_pagination(
     let mut success_count = 0usize;
     let mut failed_count = 0usize;
     let chunk_size = 1000u32; // Batch size per request - increased for faster fetching
-    let mut current_id = 1u32;
 
+    // Prepare ranges
+    let mut ranges = Vec::new();
+    let mut current_id = 1u32;
     while current_id <= total_count as u32 {
         let end_id = (current_id + chunk_size - 1).min(total_count as u32);
+        ranges.push((current_id, end_id));
+        current_id = end_id + 1;
+    }
 
-        info!(
-            "🔄 Fetching records {}-{} of {}",
-            current_id, end_id, total_count
-        );
+    // Prepare tasks with cloned clients to avoid borrow checker issues
+    // We clone the client for each task so we can use the original client for saving
+    let tasks: Vec<_> = ranges
+        .into_iter()
+        .map(|(start_id, end_id)| {
+            let client_clone = client.clone();
+            let category_clone = category.clone();
+            (start_id, end_id, client_clone, category_clone)
+        })
+        .collect();
 
-        match client
-            .fetch_siman_data(category.clone(), current_id, end_id)
-            .await
-        {
+    // Create a stream of futures
+    let mut stream = stream::iter(tasks)
+        .map(|(start_id, end_id, mut client_clone, category_clone)| {
+            async move {
+                info!(
+                    "🔄 Fetching records {}-{} of {}",
+                    start_id, end_id, total_count
+                );
+                let result = client_clone
+                    .fetch_siman_data(category_clone, start_id, end_id)
+                    .await;
+                (start_id, end_id, result)
+            }
+        })
+        .buffer_unordered(5); // Process up to 5 requests concurrently
+
+    // Iterate through completed tasks
+    while let Some((current_id, end_id, result)) = stream.next().await {
+        match result {
             Ok(response) => {
                 if let Some(data) = response.data {
                     // Extract results array
@@ -461,11 +488,6 @@ pub async fn fetch_all_assets_with_pagination(
                 failed_count += (end_id - current_id + 1) as usize;
             }
         }
-
-        current_id = end_id + 1;
-
-        // Rate limiting - small delay between requests
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
     Ok((success_count, failed_count))
