@@ -1,5 +1,6 @@
 use crate::error::MonsaktiError;
 use serde_json::Value;
+use std::fmt::Write;
 use tokio_postgres::Client;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -183,15 +184,38 @@ pub async fn bulk_insert_postgres(
             chunk.len()
         );
 
-        let mut values_placeholders = Vec::new();
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
+            Vec::with_capacity(chunk.len() * columns.len());
         let mut param_index = 1;
+
+        // Optimize query construction using a single String buffer
+        // Estimate capacity: "INSERT INTO table (cols) VALUES " + (chunk_len * (cols * 4 chars + 2))
+        let mut query = String::with_capacity(256 + chunk.len() * columns.len() * 5);
+
+        write!(
+            query,
+            "INSERT INTO {} ({}) VALUES ",
+            table_name,
+            columns.join(", ")
+        )
+        .unwrap();
+
+        let mut has_valid_rows = false;
+        let mut row_count = 0;
 
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                let mut row_placeholders = Vec::with_capacity(columns.len());
-                for col in &columns {
-                    row_placeholders.push(format!("${}", param_index));
+                if row_count > 0 {
+                    query.push_str(", ");
+                }
+                query.push('(');
+
+                for (i, col) in columns.iter().enumerate() {
+                    if i > 0 {
+                        query.push_str(", ");
+                    }
+                    // Use write! to append placeholder directly without String allocation
+                    write!(query, "${}", param_index).unwrap();
                     param_index += 1;
 
                     // Handle mapping: api_id in DB comes from id in JSON
@@ -203,20 +227,18 @@ pub async fn bulk_insert_postgres(
                         .unwrap_or(&Value::Null);
                     params.push(json_to_sql_param(value, col));
                 }
-                values_placeholders.push(format!("({})", row_placeholders.join(", ")));
+                query.push(')');
+
+                has_valid_rows = true;
+                row_count += 1;
             }
         }
 
-        if values_placeholders.is_empty() {
+        if !has_valid_rows {
             continue;
         }
 
-        let query = format!(
-            "INSERT INTO {} ({}) VALUES {} ON CONFLICT DO NOTHING",
-            table_name,
-            columns.join(", "),
-            values_placeholders.join(", ")
-        );
+        query.push_str(" ON CONFLICT DO NOTHING");
 
         // Convert to references for execute
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
