@@ -17,7 +17,7 @@ use std::collections::HashMap;
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState};
 
 /// Create authentication routes
 pub fn create_routes() -> Router<AppState> {
@@ -29,10 +29,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
-        .route("/oauth/{provider}", get(oauth_login))
-        .route("/oauth/{provider}/callback", get(oauth_callback))
+        .route("/oauth/:provider", get(oauth_login))
+        .route("/oauth/:provider/callback", get(oauth_callback))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/{session_id}", delete(revoke_session))
+        .route("/sessions/:session_id", delete(revoke_session))
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -43,6 +43,30 @@ mod tests {
     use axum::http::StatusCode;
     use axum_test::TestServer;
     use std::sync::Arc;
+    use crate::middleware::RequestContext;
+
+    async fn mock_auth_middleware(
+        req: axum::extract::Request,
+        next: axum::middleware::Next,
+    ) -> axum::response::Response {
+        let mut req = req;
+        if let Some(user_id) = req.headers().get("X-Test-User-Id") {
+            if let Ok(user_id_str) = user_id.to_str() {
+                let context = RequestContext {
+                    request_id: "test-req".to_string(),
+                    user_id: Some(user_id_str.to_string()),
+                    user_email: None,
+                    user_roles: vec![],
+                    user_permissions: vec![],
+                    start_time: std::time::Instant::now(),
+                    jwt_claims: None,
+                    policy_names: vec![],
+                };
+                req.extensions_mut().insert(context);
+            }
+        }
+        next.run(req).await
+    }
 
     async fn create_test_server() -> TestServer {
         let config = ApiConfig::default();
@@ -52,13 +76,38 @@ mod tests {
                 .expect("Failed to create services"),
         );
 
-        let app = create_routes().with_state(services);
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
         TestServer::new(app).expect("Failed to create test server")
     }
 
     #[tokio::test]
     async fn test_login_endpoint_returns_tokens() {
-        let server = create_test_server().await;
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create test user
+        services.auth.create_user(
+            "alice",
+            "alice@example.com",
+            "password123",
+            None,
+            vec!["user".to_string()],
+            None,
+        ).await.expect("Failed to create user");
+
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
+        let server = TestServer::new(app).expect("Failed to create test server");
+
         let request = LoginRequest {
             username: "alice".to_string(),
             password: "password123".to_string(),
@@ -86,7 +135,12 @@ mod tests {
             email: None,
         };
 
-        let response = server.post("/mfa/setup").json(&request).await;
+        let response = server
+            .post("/mfa/setup")
+            .add_header("X-Test-User-Id", uuid::Uuid::new_v4().to_string())
+            .json(&request)
+            .await;
+
         response.assert_status(StatusCode::BAD_REQUEST);
         let body: ApiResponse<serde_json::Value> = response.json();
         assert!(!body.success);
@@ -411,15 +465,12 @@ pub async fn verify_token(
 pub async fn setup_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
     Json(request): Json<MfaSetupRequest>,
 ) -> ApiResult<Json<ApiResponse<MfaSetupResponse>>> {
-    // 1. Extract user ID from Authorization header (JWT token)
-    // TODO: Implement proper JWT extraction from middleware
-    // For now, use a placeholder user ID
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser (extracted from JWT by middleware)
+    let user_id = user.id.to_string();
+    let user_label = user.email.unwrap_or_else(|| format!("{}@kejaksaan.go.id", user.username));
 
     // 2. Generate MFA configuration based on method
     let response = match request.method.as_str() {
@@ -428,9 +479,9 @@ pub async fn setup_mfa(
             let totp_config = state
                 .mfa
                 .enable_totp(
-                    user_id,
+                    &user_id,
                     "Secreton Vault".to_string(),
-                    format!("{}@kejaksaan.go.id", user_id),
+                    user_label,
                 )
                 .await
                 .map_err(|e| ApiError::Internal {
@@ -441,7 +492,7 @@ pub async fn setup_mfa(
             let mfa_config =
                 state
                     .mfa
-                    .get_config(user_id)
+                    .get_config(&user_id)
                     .await
                     .ok_or_else(|| ApiError::Internal {
                         message: "Failed to retrieve MFA configuration".to_string(),
@@ -530,13 +581,11 @@ pub async fn setup_mfa(
 pub async fn verify_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
     Json(request): Json<MfaVerifyRequest>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // 1. Extract user ID from Authorization header
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser
+    let user_id = user.id.to_string();
 
     // 2. Verify MFA code based on method
     let is_valid = match request.method.as_str() {
@@ -544,7 +593,7 @@ pub async fn verify_mfa(
             // Verify TOTP code
             state
                 .mfa
-                .verify_totp(user_id, &request.code)
+                .verify_totp(&user_id, &request.code)
                 .await
                 .map_err(|e| ApiError::Authentication {
                     message: format!("Failed to verify TOTP code: {}", e),
@@ -555,7 +604,7 @@ pub async fn verify_mfa(
             if let Some(backup_code) = &request.backup_code {
                 state
                     .mfa
-                    .verify_recovery_code(user_id, backup_code)
+                    .verify_recovery_code(&user_id, backup_code)
                     .await
                     .map_err(|e| ApiError::Authentication {
                         message: format!("Invalid recovery code: {}", e),
@@ -642,15 +691,13 @@ pub async fn verify_mfa(
 pub async fn disable_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // 1. Extract user ID from Authorization header
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser
+    let user_id = user.id.to_string();
 
     // 2. Check if MFA is configured for this user
-    let mfa_config = state.mfa.get_config(user_id).await;
+    let mfa_config = state.mfa.get_config(&user_id).await;
 
     if mfa_config.is_none() {
         return Err(ApiError::NotFound {
@@ -661,7 +708,7 @@ pub async fn disable_mfa(
     // 3. Disable MFA for the user (disable TOTP specifically)
     state
         .mfa
-        .disable_totp(user_id)
+        .disable_totp(&user_id)
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to disable MFA: {}", e),
@@ -672,9 +719,9 @@ pub async fn disable_mfa(
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
         action: "mfa_disabled".to_string(),
-        actor: Some(user_id.to_string()),
+        actor: Some(user_id.clone()),
         resource_type: "mfa".to_string(),
-        resource_id: user_id.to_string(),
+        resource_id: user_id.clone(),
         status: secreton_core::audit::AuditStatus::Success,
         ip: None,
         user_agent: headers

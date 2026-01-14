@@ -217,6 +217,7 @@ nutype = { version = "0.6.2", features = [
     "serde",
     "validate",
 ] } # Additional validation without idna
+validator = { version = "0.16", features = ["derive"] }
 
 # Monitoring & Observability (Updated to latest)
 opentelemetry = "0.31"
