@@ -275,10 +275,6 @@ pub fn FocusTrap(
                 }
 
                 if ev.key() == "Tab" {
-                    // TODO: Implement focus trap using proper DOM traversal
-                    // query_selector_all is not available on Element in web-sys
-                    let _ = container_ref;
-                    /*
                     if let Some(container) = container_ref.get() {
                         // Get all focusable elements
                         if let Ok(elements) = container.query_selector_all(
@@ -297,16 +293,18 @@ pub fn FocusTrap(
                                 .and_then(|d| d.active_element())
                             {
                                 if ev.shift_key() {
-                                    // Shift+Tab: wrap to last element
-                                    if first.as_ref() == Some(&active_element) {
+                                    // Shift+Tab: wrap to last element if current is first
+                                    let is_first = first.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    if is_first {
                                         ev.prevent_default();
                                         if let Some(last_el) = last {
                                             let _ = last_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
                                         }
                                     }
                                 } else {
-                                    // Tab: wrap to first element
-                                    if last.as_ref() == Some(&active_element) {
+                                    // Tab: wrap to first element if current is last
+                                    let is_last = last.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    if is_last {
                                         ev.prevent_default();
                                         if let Some(first_el) = first {
                                             let _ = first_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
@@ -316,7 +314,6 @@ pub fn FocusTrap(
                             }
                         }
                     }
-                    */
                 }
             }
         >
