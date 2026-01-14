@@ -127,6 +127,80 @@ impl MonsaktiClient {
                 );
             }
 
+            // Try dengan ureq untuk data fetch juga
+            info!("Using ureq for data fetch...");
+            let url_clone = url.clone();
+            let token_clone = token.clone();
+
+            let ureq_result = tokio::task::spawn_blocking(move || {
+                Self::fetch_with_ureq_static(&url_clone, &token_clone)
+            })
+            .await;
+
+            match ureq_result {
+                Ok(Ok(json_response)) => {
+                    info!("✓ ureq data fetch SUCCESS!");
+
+                    // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
+                    // Parse as array dan extract token + data
+                    if let Some(arr) = json_response.as_array()
+                        && arr.len() >= 2 {
+                            // Element 0: token array
+                            let mut new_token_opt = None;
+                            if let Some(token_arr) = arr[0].as_array()
+                                && let Some(token_obj) = token_arr.first()
+                                    && let Some(token_str) =
+                                        token_obj.get("TOKEN").and_then(|t| t.as_str())
+                                    {
+                                        new_token_opt = Some(token_str.to_string());
+                                        info!("Memperbarui token untuk modul {}", module);
+                                        self.current_tokens
+                                            .insert(module.to_string(), token_str.to_string());
+
+                                        // Save token baru ke database
+                                        if let Some(db) = &self.db_client {
+                                            match self.save_token_to_db(db, module, token_str).await
+                                            {
+                                                Ok(_) => info!(
+                                                    "✓ Token dari response disimpan ke database (modul: {})",
+                                                    module
+                                                ),
+                                                Err(e) => warn!(
+                                                    "⚠ Gagal simpan token dari response ke database: {:?}",
+                                                    e
+                                                ),
+                                            }
+                                        }
+                                    }
+
+                            // Element 1: data array
+                            let data_value = arr[1].clone();
+
+                            return Ok(MonsaktiResponse {
+                                new_token: new_token_opt,
+                                data: Some(data_value),
+                                error: None,
+                            });
+                        }
+
+                    // Fallback: treat as plain JSON
+                    return Ok(MonsaktiResponse {
+                        new_token: None,
+                        data: Some(json_response),
+                        error: None,
+                    });
+                }
+                Ok(Err(e)) => {
+                    warn!(
+                        "⚠ ureq data fetch failed: {}, trying reqwest fallback...",
+                        e
+                    );
+                }
+                Err(e) => {
+                    warn!("⚠ ureq spawn failed: {:?}, trying reqwest fallback...", e);
+                }
+            }
+
             let response = self
                 .client
                 .get(&url)
@@ -171,144 +245,65 @@ impl MonsaktiClient {
                 )));
             }
 
-            // Parse as plain JSON Value first to handle different formats (Object vs Array)
-            let json_value: serde_json::Value = response.json().await?;
+            let result: MonsaktiResponse = response.json().await?;
 
-            // 1. Handle MonSAKTI Legacy Array Format: [[{"TOKEN":"..."}], [data, ...]]
-            if let Some(arr) = json_value.as_array() {
-                 if arr.len() >= 2 {
-                    // Element 0: token array
-                    let mut new_token_opt = None;
-                    if let Some(token_arr) = arr[0].as_array()
-                        && let Some(token_obj) = token_arr.first()
-                        && let Some(token_str) = token_obj.get("TOKEN").and_then(|t| t.as_str())
-                    {
-                        new_token_opt = Some(token_str.to_string());
-                    }
+            if let Some(error_msg) = &result.error {
+                if error_msg.contains("Token Expired")
+                    || error_msg.contains("token") && error_msg.contains("expired")
+                {
+                    warn!(
+                        "Token kadaluarsa untuk modul {} (attempt {})",
+                        module, retry_count
+                    );
 
-                    // Element 1: data array
-                    let data_value = arr[1].clone();
-
-                    let result = MonsaktiResponse {
-                        new_token: new_token_opt,
-                        data: Some(data_value),
-                        error: None,
-                    };
-
-                    // Handle token update if present
-                    if let Some(new_token) = &result.new_token {
-                        info!("Memperbarui token untuk modul {}", module);
-                        self.current_tokens.insert(module.to_string(), new_token.clone());
-
-                        if let Some(db) = &self.db_client {
-                            if let Err(e) = self.save_token_to_db(db, module, new_token).await {
-                                warn!("⚠ Gagal simpan token dari response ke database: {:?}", e);
-                            } else {
-                                info!("✓ Token dari response disimpan ke database (modul: {})", module);
-                            }
-                        }
-                    }
-
-                    return Ok(result);
-                 } else {
-                     // Array but likely empty or unknown format, wrap as data
-                     return Ok(MonsaktiResponse {
-                         new_token: None,
-                         data: Some(json_value),
-                         error: None,
-                     });
-                 }
-            }
-
-            // 2. Try to parse as MonsaktiResponse (Object format)
-            if let Ok(result) = serde_json::from_value::<MonsaktiResponse>(json_value.clone()) {
-                if let Some(error_msg) = &result.error {
-                    if error_msg.contains("Token Expired")
-                        || error_msg.contains("token") && error_msg.contains("expired")
-                    {
+                    // Auto-retry dengan reset token
+                    if retry_count == 1 {
                         warn!(
-                            "Token kadaluarsa untuk modul {} (attempt {})",
-                            module, retry_count
+                            "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
                         );
-
-                        // Auto-retry dengan reset token
-                        if retry_count == 1 {
-                            warn!(
-                                "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
-                            );
-                            match self.reset_token_auto(module, tipe_data).await {
-                                Ok(_new_token) => {
-                                    info!("✓ Token baru diterima dari resetToken endpoint");
-                                    info!(
-                                        "⟳ Retry request dengan token baru (attempt {})",
-                                        retry_count + 1
-                                    );
-                                    return self
-                                        .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
-                                        .await;
-                                }
-                                Err(e) => {
-                                    error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
-                                    error!(
-                                        "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
-                                    );
-                                }
+                        match self.reset_token_auto(module, tipe_data).await {
+                            Ok(_new_token) => {
+                                info!("✓ Token baru diterima dari resetToken endpoint");
+                                info!(
+                                    "⟳ Retry request dengan token baru (attempt {})",
+                                    retry_count + 1
+                                );
+                                return self
+                                    .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
+                                    .await;
+                            }
+                            Err(e) => {
+                                error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
+                                error!(
+                                    "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
+                                );
                             }
                         }
-
-                        return Err(MonsaktiError::TokenExpired);
                     }
-                    // Only return error if it's explicitly set and we didn't handle it
-                    return Err(MonsaktiError::ApiError(error_msg.clone()));
+
+                    return Err(MonsaktiError::TokenExpired);
                 }
-
-                if let Some(new_token) = &result.new_token {
-                    info!("Memperbarui token untuk modul {}", module);
-                    self.current_tokens
-                        .insert(module.to_string(), new_token.clone());
-
-                    // Save token baru ke database
-                    if let Some(db) = &self.db_client {
-                        match self.save_token_to_db(db, module, new_token).await {
-                            Ok(_) => info!(
-                                "✓ Token dari response disimpan ke database (modul: {})",
-                                module
-                            ),
-                            Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
-                        }
-                    }
-                }
-
-                // If we successfully parsed it as MonsaktiResponse (and it wasn't an error), return it.
-                // Note: serde_json::from_value for struct with Option fields will succeed even for empty object {},
-                // but we checked json_value.as_array() above, so here it is an object (or null/primitive).
-                // If it is an object but doesn't match schema well (e.g. completely different fields),
-                // MonsaktiResponse fields will be None.
-
-                // If data is None and error is None and new_token is None, maybe it was just a raw JSON object that should be treated as data?
-                // But MonsaktiResponse has `data: Option<serde_json::Value>`.
-                // If the response IS the data (e.g. `{"id": 1}`), then `from_value` will result in `data: None`
-                // because it looks for a field named "data".
-
-                // So if the response doesn't have "data", "newToken", or "error" fields, we should treat the whole thing as data.
-                if result.new_token.is_none() && result.data.is_none() && result.error.is_none() {
-                     // It's likely just data payload
-                     return Ok(MonsaktiResponse {
-                         new_token: None,
-                         data: Some(json_value),
-                         error: None,
-                     });
-                }
-
-                return Ok(result);
+                return Err(MonsaktiError::ApiError(error_msg.clone()));
             }
 
-            // Fallback: treat as generic data wrapped in response
-            Ok(MonsaktiResponse {
-                new_token: None,
-                data: Some(json_value),
-                error: None,
-            })
+            if let Some(new_token) = &result.new_token {
+                info!("Memperbarui token untuk modul {}", module);
+                self.current_tokens
+                    .insert(module.to_string(), new_token.clone());
+
+                // Save token baru ke database
+                if let Some(db) = &self.db_client {
+                    match self.save_token_to_db(db, module, new_token).await {
+                        Ok(_) => info!(
+                            "✓ Token dari response disimpan ke database (modul: {})",
+                            module
+                        ),
+                        Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
+                    }
+                }
+            }
+
+            Ok(result)
         })
     }
 
@@ -380,6 +375,46 @@ impl MonsaktiClient {
         );
         info!("Token length: {} bytes", token.len());
 
+        // Try dengan ureq (synchronous client) untuk comparison
+        info!("Testing with ureq (synchronous HTTP client)...");
+        let url_clone = url.clone();
+        let token_clone = token.clone();
+
+        let ureq_result = tokio::task::spawn_blocking(move || {
+            Self::try_reset_with_ureq_static(&url_clone, &token_clone)
+        })
+        .await;
+
+        match ureq_result {
+            Ok(Ok(new_token)) => {
+                info!("✓ ureq SUCCESS! Got token from ureq");
+                info!(
+                    "Token baru (20 karakter): {}...",
+                    &new_token.chars().take(20).collect::<String>()
+                );
+
+                // Update cache
+                self.current_tokens
+                    .insert(module.to_string(), new_token.clone());
+
+                // Save to database
+                if let Some(db) = &self.db_client {
+                    match self.save_token_to_db(db, module, &new_token).await {
+                        Ok(_) => info!("✓ Token baru disimpan ke database (modul: {})", module),
+                        Err(e) => warn!("⚠ Gagal simpan token ke database: {:?}", e),
+                    }
+                }
+
+                return Ok(new_token);
+            }
+            Ok(Err(e)) => {
+                warn!("⚠ ureq failed: {}, falling back to reqwest...", e);
+            }
+            Err(e) => {
+                warn!("⚠ ureq spawn failed: {:?}, falling back to reqwest...", e);
+            }
+        }
+
         let response = self
             .client
             .get(&url)
@@ -447,6 +482,70 @@ impl MonsaktiClient {
         self.reset_token(module, tipe_data, "KL006").await
     }
 
+    /// Fetch data with ureq (synchronous client)
+    fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
+        let mut response = ureq::get(url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Accept", "*/*")
+            .call()
+            .map_err(|e| format!("ureq request error: {}", e))?;
+
+        let status = response.status();
+        tracing::info!("ureq data fetch response status: {}", status);
+
+        if status != 200 {
+            let body = response
+                .body_mut()
+                .read_to_string()
+                .map_err(|e| format!("Read body error: {}", e))?;
+            return Err(format!("ureq HTTP {}: {}", status, body));
+        }
+
+        let json: serde_json::Value = response
+            .body_mut()
+            .read_json()
+            .map_err(|e| format!("JSON parse error: {}", e))?;
+
+        Ok(json)
+    }
+
+    /// Try reset token with ureq (synchronous client) for debugging - static version
+    fn try_reset_with_ureq_static(url: &str, token: &str) -> Result<String, String> {
+        #[derive(serde::Deserialize)]
+        struct TokenItem {
+            #[serde(rename = "TOKEN")]
+            token: String,
+        }
+
+        let mut response = ureq::get(url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .header("Accept", "*/*")
+            .call()
+            .map_err(|e| format!("ureq request error: {}", e))?;
+
+        let status = response.status();
+        tracing::info!("ureq response status: {}", status);
+
+        if status != 200 {
+            let body = response
+                .body_mut()
+                .read_to_string()
+                .map_err(|e| format!("Read body error: {}", e))?;
+            return Err(format!("ureq HTTP {}: {}", status, body));
+        }
+
+        let tokens: Vec<TokenItem> = response
+            .body_mut()
+            .read_json()
+            .map_err(|e| format!("JSON parse error: {}", e))?;
+
+        if tokens.is_empty() {
+            return Err("Empty token array".to_string());
+        }
+
+        Ok(tokens[0].token.clone())
+    }
+
     /// Simpan token baru ke database
     async fn save_token_to_db(
         &self,
@@ -508,64 +607,59 @@ impl MonsaktiClient {
         data: &serde_json::Value,
         filename: P,
     ) -> Result<(), MonsaktiError> {
-        let output_dir = self.config.output_dir.clone();
-        let filename = filename.as_ref().to_path_buf();
-        let data = data.clone();
+        let path = Path::new(&self.config.output_dir).join(filename);
 
-        tokio::task::spawn_blocking(move || {
-            let path = Path::new(&output_dir).join(filename);
+        // Check data validity before spawning blocking task
+        let array = match data.as_array() {
+            Some(arr) if !arr.is_empty() => arr.clone(),
+            Some(_) => {
+                warn!("Tidak ada data untuk disimpan");
+                return Ok(());
+            }
+            None => return Ok(()),
+        };
+
+        // Offload blocking I/O to a blocking thread
+        tokio::task::spawn_blocking(move || -> Result<(), MonsaktiError> {
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
 
-            if let Some(array) = data.as_array() {
-                if array.is_empty() {
-                    warn!("Tidak ada data untuk disimpan");
-                    return Ok(());
-                }
+            let mut wtr = csv::Writer::from_path(&path)?;
+            if let Some(first) = array.first()
+                && let Some(obj) = first.as_object()
+            {
+                let headers: Vec<&String> = obj.keys().collect();
+                wtr.write_record(&headers)?;
 
-                let mut wtr = csv::Writer::from_path(&path)?;
-                if let Some(first) = array.first()
-                    && let Some(obj) = first.as_object() {
-                        let headers: Vec<&String> = obj.keys().collect();
-                        wtr.write_record(&headers)?;
-
-                        for item in array {
-                            if let Some(obj) = item.as_object() {
-                                let row_iter = headers.iter().map(|h| {
-                                    obj.get(*h)
-                                        .map(|v| match v {
-                                            serde_json::Value::String(s) => {
-                                                std::borrow::Cow::Borrowed(s.as_bytes())
-                                            }
-                                            serde_json::Value::Number(n) => std::borrow::Cow::Owned(
-                                                n.to_string().into_bytes(),
-                                            ),
-                                            serde_json::Value::Bool(b) => {
-                                                std::borrow::Cow::Borrowed(if *b {
-                                                    &b"true"[..]
-                                                } else {
-                                                    &b"false"[..]
-                                                })
-                                            }
-                                            serde_json::Value::Null => {
-                                                std::borrow::Cow::Borrowed(&b""[..])
-                                            }
-                                            _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
-                                        })
-                                        .unwrap_or(std::borrow::Cow::Borrowed(&b""[..]))
-                                });
-                                wtr.write_record(row_iter)?;
-                            }
-                        }
+                for item in &array {
+                    if let Some(obj) = item.as_object() {
+                        let row: Vec<String> = headers
+                            .iter()
+                            .map(|h| {
+                                obj.get(*h)
+                                    .map(|v| match v {
+                                        serde_json::Value::String(s) => s.clone(),
+                                        serde_json::Value::Number(n) => n.to_string(),
+                                        serde_json::Value::Bool(b) => b.to_string(),
+                                        serde_json::Value::Null => "".to_string(),
+                                        _ => v.to_string(),
+                                    })
+                                    .unwrap_or_default()
+                            })
+                            .collect();
+                        wtr.write_record(&row)?;
                     }
-                wtr.flush()?;
-                info!("CSV disimpan ke: {}", path.display());
+                }
             }
+            wtr.flush()?;
+            info!("CSV disimpan ke: {}", path.display());
             Ok(())
         })
         .await
-        .map_err(|e| MonsaktiError::ApiError(format!("Task join error: {}", e)))?
+        .map_err(|e| MonsaktiError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+
+        Ok(())
     }
 
     /// Simpan data ke database PostgreSQL
