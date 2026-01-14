@@ -455,8 +455,15 @@ pub async fn auth_middleware(
 fn extract_ip_from_headers(headers: &HeaderMap) -> Option<&str> {
     headers
         .get("x-forwarded-for")
-        .or_else(|| headers.get("x-real-ip"))
         .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.trim())
+        })
 }
 
 /// Extract User-Agent from headers
