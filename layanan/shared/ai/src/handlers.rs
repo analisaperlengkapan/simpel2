@@ -7,6 +7,10 @@ use validator::Validate;
 use crate::models::{ModelRegistry, ModelMetadata};
 use chrono::Utc;
 use reqwest::Client;
+use tokio::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static REGISTRY: Lazy<Mutex<ModelRegistry>> = Lazy::new(|| Mutex::new(ModelRegistry::new()));
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct GenerateTextRequest {
@@ -102,9 +106,7 @@ pub async fn download_model(_: State<AppState>, Path(_): Path<String>) -> (Statu
 
 pub async fn approve_model(State(_): State<AppState>, Path(id): Path<String>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
     let user = payload["user"].as_str().unwrap_or("admin");
-    use once_cell::sync::Lazy;
-    static REGISTRY: Lazy<Mutex<ModelRegistry>> = Lazy::new(|| Mutex::new(ModelRegistry::new()));
-    if REGISTRY.lock().unwrap().approve_model(&id, user) {
+    if REGISTRY.lock().await.approve_model(&id, user) {
         (StatusCode::OK, Json(json!({"model_id": id, "status": "approved", "approved_by": user})))
     } else {
         (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
@@ -225,7 +227,7 @@ mod tests {
     }
 }
 
-pub async fn register_model(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn register_model(State(_): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
     let id = Uuid::new_v4().to_string();
     let meta = ModelMetadata {
         id: id.clone(),
@@ -236,18 +238,20 @@ pub async fn register_model(State(state): State<AppState>, Json(payload): Json<s
         created_at: Utc::now(),
         approved_by: None,
     };
-    // Sementara: registry in-memory global static
-    use once_cell::sync::Lazy;
-    static REGISTRY: Lazy<Mutex<ModelRegistry>> = Lazy::new(|| Mutex::new(ModelRegistry::new()));
-    REGISTRY.lock().unwrap().add_model(meta);
+    REGISTRY.lock().await.add_model(meta);
     (StatusCode::OK, Json(json!({"model_id": id, "status": "draft"})))
 }
 
 pub async fn get_model(State(_): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
-    use once_cell::sync::Lazy;
-    static REGISTRY: Lazy<Mutex<ModelRegistry>> = Lazy::new(|| Mutex::new(ModelRegistry::new()));
-    if let Some(meta) = REGISTRY.lock().unwrap().get_model(&id) {
-        (StatusCode::OK, Json(json!({"id": meta.id, "name": meta.name, "version": meta.version, "status": meta.status, "approved_by": meta.approved_by})))
+    if let Some(meta) = REGISTRY.lock().await.get_model(&id) {
+        let response = json!({
+            "id": meta.id,
+            "name": meta.name,
+            "version": meta.version,
+            "status": meta.status,
+            "approved_by": meta.approved_by
+        });
+        (StatusCode::OK, Json(response))
     } else {
         (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
     }
