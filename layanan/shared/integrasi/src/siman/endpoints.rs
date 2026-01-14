@@ -392,8 +392,8 @@ pub async fn fetch_all_assets_with_pagination(
 
     // Create a stream of futures
     let mut stream = stream::iter(tasks)
-        .map(|(start_id, end_id, mut client_clone, category_clone)| {
-            async move {
+        .map(
+            |(start_id, end_id, mut client_clone, category_clone)| async move {
                 info!(
                     "🔄 Fetching records {}-{} of {}",
                     start_id, end_id, total_count
@@ -402,8 +402,8 @@ pub async fn fetch_all_assets_with_pagination(
                     .fetch_siman_data(category_clone, start_id, end_id)
                     .await;
                 (start_id, end_id, result)
-            }
-        })
+            },
+        )
         .buffer_unordered(5); // Process up to 5 requests concurrently
 
     // Iterate through completed tasks
