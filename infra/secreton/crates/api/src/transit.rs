@@ -15,12 +15,14 @@ use secreton_crypto::transit::{KeyType, TransitEngine, keys::KeyOptions};
 #[derive(Clone)]
 pub struct TransitApiState {
     pub engine: Arc<TransitEngine>,
+    pub config: Option<Arc<crate::config::MtlsConfig>>,
 }
 
 impl Default for TransitApiState {
     fn default() -> Self {
         Self {
             engine: Arc::new(TransitEngine::new()),
+            config: None,
         }
     }
 }

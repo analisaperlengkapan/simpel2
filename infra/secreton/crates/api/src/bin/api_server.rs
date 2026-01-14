@@ -75,6 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_state = ApiState {
         transit: TransitApiState {
             engine: Arc::clone(&transit_engine),
+            config: config.auth.mtls.clone().map(Arc::new),
         },
         kv: KVApiState { engine: kv_engine },
         pki: PkiApiState::default(),
