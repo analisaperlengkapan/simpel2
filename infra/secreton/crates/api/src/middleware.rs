@@ -21,6 +21,7 @@ use x509_parser::prelude::*;
 
 use crate::ApiState;
 use crate::auth::{AuthError, extract_bearer_token};
+use crate::tls_optimization::record_tls_handshake;
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
@@ -251,8 +252,7 @@ pub async fn mtls_auth_middleware(
                 );
 
                 // Record successful authentication metrics
-                // TODO: Re-enable when tls_optimization is updated
-                // record_tls_handshake(true, false, validation_time);
+                record_tls_handshake(true, false, validation_time);
 
                 // Add certificate info to request extensions
                 request.extensions_mut().insert(validation);
@@ -263,12 +263,12 @@ pub async fn mtls_auth_middleware(
                     "mTLS authentication failed for subject: {:?} (validation: {}ms)",
                     validation.subject, validation_time
                 );
-                // record_tls_handshake(false, false, validation_time);
+                record_tls_handshake(false, false, validation_time);
                 return Err(AuthError::InvalidCredentials);
             }
         } else {
             warn!("mTLS required but no client certificate provided");
-            // record_tls_handshake(false, false, 0);
+            record_tls_handshake(false, false, 0);
             return Err(AuthError::MissingCredentials);
         }
     }
