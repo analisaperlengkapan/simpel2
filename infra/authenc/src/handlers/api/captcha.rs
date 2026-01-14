@@ -3,6 +3,7 @@
 //! Provides REST API endpoints for CAPTCHA operations integrated with authenc middleware
 
 use crate::error::AuthencError;
+use crate::handlers::api::auth_bearer::AuthBearer;
 use crate::middleware::{
     csrf_protection_axum::{CsrfConfig, CsrfState},
     rate_limit_axum::{RateLimitConfig, RateLimiterState},
@@ -760,11 +761,14 @@ pub async fn assess_login_risk(
 pub async fn assess_mfa_setup_risk(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(_state): State<Arc<crate::app::AppState>>,
+    AuthBearer(auth): AuthBearer,
 ) -> Result<Json<RiskAssessmentResponse>, AuthencError> {
     let ip = addr.ip().to_string();
 
-    // TODO: Extract user_id from JWT token
-    let user_id = "current_user"; // Placeholder
+    // Extract user_id from JWT token
+    let user_id = &auth.sub;
+
+    tracing::debug!("Assessing MFA setup risk for user: {}, IP: {}", user_id, ip);
 
     let risk_service = RiskAssessmentService::default();
 
