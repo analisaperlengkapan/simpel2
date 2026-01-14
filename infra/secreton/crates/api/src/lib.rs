@@ -22,6 +22,7 @@ pub mod response;
 // TODO: Re-enable after OpenRaft migration is complete
 // pub mod raft;
 pub mod services;
+pub mod tls_optimization;
 pub mod transit;
 
 // Re-export gRPC from separate crate
@@ -172,14 +173,14 @@ pub async fn get_version() -> Json<VersionResponse> {
 }
 
 pub async fn get_tls_metrics() -> Json<TlsMetricsResponse> {
-    // Placeholder metrics - implement when TLS monitoring is needed
+    let metrics = crate::tls_optimization::get_tls_metrics();
     Json(TlsMetricsResponse {
-        total_handshakes: 0,
-        successful_handshakes: 0,
-        session_resumptions: 0,
-        handshake_failures: 0,
-        average_handshake_time_ms: 0,
-        success_rate_percent: 0.0,
-        resumption_rate_percent: 0.0,
+        total_handshakes: metrics.total_handshakes,
+        successful_handshakes: metrics.successful_handshakes,
+        session_resumptions: metrics.session_resumptions,
+        handshake_failures: metrics.handshake_failures,
+        average_handshake_time_ms: metrics.average_handshake_time_ms,
+        success_rate_percent: metrics.get_success_rate(),
+        resumption_rate_percent: metrics.get_resumption_rate(),
     })
 }

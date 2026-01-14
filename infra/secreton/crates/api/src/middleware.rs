@@ -21,6 +21,7 @@ use x509_parser::prelude::*;
 
 use crate::ApiState;
 use crate::auth::{AuthError, extract_bearer_token};
+use crate::tls_optimization::record_tls_handshake;
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
@@ -207,16 +208,14 @@ fn validate_cached_certificate(
 }
 
 /// Extract client certificate from TLS connection
-/// TODO: Re-enable after adding hex dependency
 pub fn extract_client_certificate_from_tls(request: &Request) -> Option<Vec<u8>> {
     // Try to get certificate from request extensions (set by TLS layer)
     if let Some(cert_der) = request.extensions().get::<Vec<u8>>() {
         return Some(cert_der.clone());
     }
 
-    // Temporarily disabled - needs hex dependency
-    // request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
-    None
+    // Try to get certificate from headers (e.g. from reverse proxy)
+    request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
 }
 
 /// Enhanced mTLS authentication middleware with proper TLS integration
@@ -232,9 +231,8 @@ pub async fn mtls_auth_middleware(
         return Ok(next.run(request).await);
     }
 
-    // TODO: Re-enable mTLS when TransitApiState has config field
     // Check if mTLS is configured and required
-    if let Some(mtls_config) = None::<&crate::config::MtlsConfig>
+    if let Some(mtls_config) = &state.transit.config
         && mtls_config.required
     {
         // Extract client certificate from TLS connection
@@ -254,8 +252,7 @@ pub async fn mtls_auth_middleware(
                 );
 
                 // Record successful authentication metrics
-                // TODO: Re-enable when tls_optimization is updated
-                // record_tls_handshake(true, false, validation_time);
+                record_tls_handshake(true, false, validation_time);
 
                 // Add certificate info to request extensions
                 request.extensions_mut().insert(validation);
@@ -266,12 +263,12 @@ pub async fn mtls_auth_middleware(
                     "mTLS authentication failed for subject: {:?} (validation: {}ms)",
                     validation.subject, validation_time
                 );
-                // record_tls_handshake(false, false, validation_time);
+                record_tls_handshake(false, false, validation_time);
                 return Err(AuthError::InvalidCredentials);
             }
         } else {
             warn!("mTLS required but no client certificate provided");
-            // record_tls_handshake(false, false, 0);
+            record_tls_handshake(false, false, 0);
             return Err(AuthError::MissingCredentials);
         }
     }

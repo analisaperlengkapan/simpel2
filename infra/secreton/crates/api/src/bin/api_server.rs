@@ -75,6 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_state = ApiState {
         transit: TransitApiState {
             engine: Arc::clone(&transit_engine),
+            config: config.auth.mtls.clone().map(Arc::new),
         },
         kv: KVApiState { engine: kv_engine },
         pki: PkiApiState::default(),
@@ -214,13 +215,17 @@ async fn serve_rest_with_tls(
         return Err("No private keys found in key file".into());
     }
 
-    // Create TLS configuration
-    let server_config = rustls::ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(
-            cert_chain,
-            rustls::pki_types::PrivateKeyDer::Pkcs8(keys.remove(0)),
-        )?;
+    // Initialize session cache
+    secreton_api::tls_optimization::init_session_cache(1000, 3600);
+
+    // Create optimized TLS configuration
+    let server_config = secreton_api::tls_optimization::create_optimized_tls_config(
+        cert_chain,
+        rustls::pki_types::PrivateKeyDer::Pkcs8(keys.remove(0)),
+        &tls_config.min_version,
+        &tls_config.cipher_suites,
+        &tls_config.alpn_protocols,
+    )?;
 
     info!("Binding REST server to address...");
     let listener = std::net::TcpListener::bind(addr)?;
