@@ -1129,6 +1129,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         // Store user

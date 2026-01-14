@@ -1331,6 +1331,14 @@ pub async fn response_wrapping_middleware(
             .into_response();
     }
 
+    // Capture path and namespace before request is consumed
+    let path = request.uri().path().to_string();
+    let namespace = if let Some(ctx) = request.extensions().get::<RequestContext>() {
+        ctx.derive_namespace()
+    } else {
+        extract_namespace_from_path(&path).unwrap_or_else(|| "default".to_string())
+    };
+
     // Execute the request
     let response = next.run(request).await;
 
@@ -1339,36 +1347,94 @@ pub async fn response_wrapping_middleware(
         return response;
     }
 
-    // Extract response body
-    // Note: This is a simplified implementation. In production, you'd need to:
-    // 1. Extract the response body properly
-    // 2. Parse it as JSON
-    // 3. Wrap it using WrappingService
-    // 4. Return the wrapped response
-    //
-    // For now, we'll just pass through the response and log that wrapping was requested
     info!(
         ttl = wrap_ttl,
+        path = %path,
+        namespace = %namespace,
         "Response wrapping requested via X-Vault-Wrap-TTL header"
     );
 
-    // TODO: Implement actual response wrapping
-    // This requires:
-    // 1. Buffering the response body
-    // 2. Parsing it as JSON
-    // 3. Calling state.wrapping_service.wrap()
-    // 4. Returning the wrapped token response
-    //
-    // For now, return the original response with a warning header
-    let mut response = response;
-    response.headers_mut().insert(
-        "X-Vault-Wrap-Warning",
-        "Response wrapping via middleware not yet fully implemented. Use /v1/sys/wrapping/wrap endpoint instead."
-            .parse()
-            .unwrap(),
-    );
+    // Buffer the response body
+    let (parts, body) = response.into_parts();
+    // 10MB limit
+    let bytes = match axum::body::to_bytes(body, 10 * 1024 * 1024).await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("Failed to buffer response for wrapping: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": {
+                        "code": "WRAPPING_ERROR",
+                        "message": "Failed to buffer response"
+                    }
+                })),
+            )
+                .into_response();
+        }
+    };
 
-    response
+    // Parse as JSON
+    let json_body: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(_) => {
+            // Not JSON, return original response
+            return Response::from_parts(parts, axum::body::Body::from(bytes));
+        }
+    };
+
+    // Prepare wrap request
+    let wrap_req = secreton_core::services::wrapping::WrapRequest {
+        data: json_body,
+        ttl: Duration::from_secs(wrap_ttl),
+        namespace,
+    };
+
+    // Wrap the response
+    match state.services.wrapping_service.wrap(wrap_req).await {
+        Ok(wrap_response) => {
+            // Extract request_id from original headers if possible
+            let request_id = parts
+                .headers
+                .get("x-request-id")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+            let wrapped_data = serde_json::json!({
+                "success": true,
+                "data": {
+                    "token": wrap_response.token,
+                    "created_at": wrap_response.created_at,
+                    "expires_at": wrap_response.expires_at,
+                    "ttl": wrap_response.ttl,
+                    "wrapped_at": chrono::Utc::now(),
+                    "creation_path": path
+                },
+                "metadata": {
+                    "request_id": request_id,
+                    "timestamp": chrono::Utc::now()
+                }
+            });
+
+            Json(wrapped_data).into_response()
+        }
+        Err(e) => {
+            warn!("Failed to wrap response: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": {
+                        "code": "WRAPPING_FAILED",
+                        "message": format!("Failed to wrap response: {}", e)
+                    }
+                })),
+            )
+                .into_response()
+        }
+    }
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
