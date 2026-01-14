@@ -34,6 +34,7 @@ use crate::{
     handlers::AppState,
     middleware::RequestContext,
     models::{PaginatedResponse, PaginationQuery},
+    services::namespace_persistence,
 };
 
 /// Create namespace routes
@@ -434,10 +435,18 @@ pub async fn create_namespace(
         }
     }
 
+    // Persist to database
+    namespace_persistence::save_hierarchy(
+        &hierarchy,
+        &state.storage,
+        &state.crypto,
+        &state.config.auth.jwt.secret,
+    )
+    .await
+    .map_err(|e| ApiError::internal(format!("Failed to persist namespace hierarchy: {}", e)))?;
+
     // Update state with new hierarchy
     state.namespace.update_hierarchy(hierarchy.clone());
-
-    // TODO: Persist to database
 
     let response = namespace_to_response(&namespace, &hierarchy);
 
@@ -577,10 +586,18 @@ pub async fn update_namespace(
     // Clone namespace ID before dropping mutable borrow
     let namespace_id_clone = namespace.id.clone();
 
+    // Persist to database
+    namespace_persistence::save_hierarchy(
+        &hierarchy,
+        &state.storage,
+        &state.crypto,
+        &state.config.auth.jwt.secret,
+    )
+    .await
+    .map_err(|e| ApiError::internal(format!("Failed to persist namespace hierarchy: {}", e)))?;
+
     // Update state
     state.namespace.update_hierarchy(hierarchy.clone());
-
-    // TODO: Persist to database
 
     // Get immutable reference after mutable borrow is dropped
     let namespace = hierarchy
@@ -686,10 +703,19 @@ pub async fn delete_namespace(
     // Remove namespace from hierarchy
     hierarchy.delete_namespace(&id)?;
 
-    // Update state
-    state.namespace.update_hierarchy(hierarchy);
+    // Persist to database
+    namespace_persistence::save_hierarchy(
+        &hierarchy,
+        &state.storage,
+        &state.crypto,
+        &state.config.auth.jwt.secret,
+    )
+    .await
+    .map_err(|e| ApiError::internal(format!("Failed to persist namespace hierarchy: {}", e)))?;
 
-    // TODO: Persist to database
+    // Update state
+    state.namespace.update_hierarchy(hierarchy.clone());
+
     // TODO: Cascade delete related resources (policies, quotas, etc.)
 
     // Audit log
