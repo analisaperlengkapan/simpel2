@@ -79,6 +79,19 @@ mod tests {
                 .expect("Failed to create services"),
         );
 
+        // Create test user 'alice'
+        let _ = services
+            .auth
+            .create_user(
+                "alice",
+                "alice@example.com",
+                "password123",
+                None,
+                vec!["user".to_string()],
+                None,
+            )
+            .await;
+
         let app = create_routes()
             .with_state(services)
             .layer(axum::middleware::from_fn(mock_auth_middleware));
@@ -243,13 +256,19 @@ pub async fn login(
 
     match auth_result {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             // Convert User to UserInfo
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()], // TODO: Get actual policies from user
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -393,12 +412,18 @@ pub async fn refresh_token(
     // Use AuthService to refresh token
     match state.auth.refresh_token(&request.refresh_token).await {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -443,12 +468,18 @@ pub async fn verify_token(
     // Validate token using AuthService
     match state.auth.validate_token(&request.token).await {
         Ok(user) => {
+            let policies = state
+                .auth
+                .get_user_policies(&user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: user.username,
                 email: Some(user.email),
                 display_name: user.full_name,
                 groups: user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
             Ok(Json(ApiResponse::success(user_info)))
