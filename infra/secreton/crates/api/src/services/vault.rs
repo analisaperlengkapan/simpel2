@@ -764,7 +764,10 @@ mod tests {
 
         let mut data = HashMap::new();
         data.insert("key1".to_string(), "value1".to_string());
-        service.put_secret("app/config", data, "user1", None).await.expect("Failed to put secret");
+        service
+            .put_secret("app/config", data, Default::default(), "user1", None)
+            .await
+            .expect("Failed to put secret");
 
         let secret = service.get_secret("app/config", "user1").await;
         assert!(secret.is_ok());
@@ -785,7 +788,9 @@ mod tests {
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
-        let secret = service.put_secret("app/admin", data, "user1", None).await;
+        let secret = service
+            .put_secret("app/admin", data, Default::default(), "user1", None)
+            .await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
         assert_eq!(secret.path, "app/admin");
@@ -806,7 +811,15 @@ mod tests {
         data.insert("key".to_string(), "value".to_string());
 
         let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
-        let secret = service.put_secret("app/expiring", data, "user1", Some(expires_at)).await;
+        let secret = service
+            .put_secret(
+                "app/expiring",
+                data,
+                Default::default(),
+                "user1",
+                Some(expires_at),
+            )
+            .await;
 
         assert!(secret.is_ok());
         let secret = secret.unwrap();

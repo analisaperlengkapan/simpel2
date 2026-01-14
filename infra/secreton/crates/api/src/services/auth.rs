@@ -470,8 +470,50 @@ impl AuthService {
 
     /// Get role by name
     pub async fn get_role(&self, role_name: &str) -> Result<Role, AuthError> {
-        // TODO: Implement role retrieval from storage
-        Err(AuthError::Internal("Role not found".to_string()))
+        let path = format!("auth/roles/{}", role_name);
+
+        match self.storage.get_by_path(&path).await {
+            Ok(Some(entry)) => {
+                let decrypted_bytes = self
+                    .crypto
+                    .decrypt_simple(&entry.encrypted_data)
+                    .map_err(|e| AuthError::Internal(format!("Failed to decrypt role: {}", e)))?;
+
+                let role: Role = serde_json::from_slice(&decrypted_bytes).map_err(|e| {
+                    AuthError::Internal(format!("Failed to deserialize role: {}", e))
+                })?;
+
+                Ok(role)
+            }
+            Ok(None) => Err(AuthError::Internal(format!(
+                "Role '{}' not found",
+                role_name
+            ))),
+            Err(e) => Err(AuthError::Internal(format!("Failed to retrieve role: {}", e))),
+        }
+    }
+
+    /// Get user effective policies (permissions)
+    pub async fn get_user_policies(&self, user: &User) -> Result<Vec<String>, AuthError> {
+        let mut all_permissions = Vec::new();
+
+        for role_name in &user.roles {
+            match self.get_role(role_name).await {
+                Ok(role) => {
+                    all_permissions.extend(role.permissions);
+                }
+                Err(_) => {
+                    // Ignore missing roles to allow partial success
+                    // This can happen if a role was deleted but the user still has it assigned
+                    continue;
+                }
+            }
+        }
+
+        all_permissions.sort();
+        all_permissions.dedup();
+
+        Ok(all_permissions)
     }
 
     /// Create role
@@ -757,7 +799,27 @@ impl AuthService {
 
     /// Store role in storage
     async fn store_role(&self, role: &Role) -> Result<(), AuthError> {
-        // TODO: Implement role storage
+        let role_bytes = serde_json::to_vec(role)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize role: {}", e)))?;
+
+        let encrypted_data = self
+            .crypto
+            .encrypt_simple(&role_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt role: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/roles/{}", role.name),
+            encrypted_data,
+            serde_json::json!({"method": "simple", "type": "role"}),
+            SecurityLevel::Internal,
+            "system".to_string(),
+        );
+
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to store role: {}", e)))?;
+
         Ok(())
     }
 
@@ -981,7 +1043,7 @@ mod tests {
             last_login: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            roles: HashSet::new(),
+            roles: HashSet::from(["admin".to_string()]),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1023,7 +1085,7 @@ mod tests {
             last_login: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            roles: HashSet::new(),
+            roles: HashSet::from(["viewer".to_string()]),
             namespace: "default".into(),
             is_locked: false,
             failed_attempts: 0,
@@ -1129,6 +1191,7 @@ mod tests {
             is_locked: false,
             failed_attempts: 0,
             locked_until: None,
+            metadata: HashMap::new(),
         };
 
         // Store user
@@ -1174,6 +1237,66 @@ mod tests {
             .await
             .expect("check role");
         assert!(has_admin);
+    }
+
+    #[tokio::test]
+    async fn test_role_persistence_and_policy_aggregation() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let auth_service = AuthService::new(storage.clone(), crypto, &AuthConfig::default())
+            .await
+            .expect("service");
+
+        // 1. Create permissions and roles
+        let role1_perms = vec!["perm1".to_string(), "perm2".to_string()];
+        let role2_perms = vec!["perm2".to_string(), "perm3".to_string()];
+
+        let role1 = auth_service
+            .create_role("role1", None, role1_perms.clone())
+            .await
+            .expect("create role1");
+        let _role2 = auth_service
+            .create_role("role2", None, role2_perms.clone())
+            .await
+            .expect("create role2");
+
+        // 2. Verify retrieval
+        let retrieved_role1 = auth_service.get_role("role1").await.expect("get role1");
+        assert_eq!(retrieved_role1.name, "role1");
+        assert_eq!(retrieved_role1.permissions, role1_perms);
+
+        // 3. Create user with these roles
+        let user = User {
+            id: Uuid::new_v4(),
+            username: "policy_user".into(),
+            email: "policy@example.com".into(),
+            password_hash: "".into(),
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::from(["role1".to_string(), "role2".to_string()]),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+            metadata: HashMap::new(),
+        };
+
+        // 4. Test policy aggregation
+        let policies = auth_service
+            .get_user_policies(&user)
+            .await
+            .expect("get user policies");
+
+        // Should contain perm1, perm2, perm3 (deduplicated)
+        assert_eq!(policies.len(), 3);
+        assert!(policies.contains(&"perm1".to_string()));
+        assert!(policies.contains(&"perm2".to_string()));
+        assert!(policies.contains(&"perm3".to_string()));
     }
 }
 
