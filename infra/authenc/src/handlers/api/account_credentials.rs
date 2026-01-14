@@ -137,15 +137,20 @@ pub async fn remove_account_credential(
     let user_id = Uuid::parse_str(&auth_user.id)
         .map_err(|_| AuthencError::unauthorized("Invalid user ID in token"))?;
 
-    // TODO: Verify credential belongs to current user
+    // Verify credential belongs to current user
     match credential_id.as_str() {
         "totp" => {
-            state
+            // Attempt to remove the secret (atomic check-and-delete)
+            let removed = state
                 .totp_store
                 .remove_secret(&user_id.to_string())
                 .map_err(|e| {
                     AuthencError::internal(format!("Failed to remove TOTP secret: {}", e))
                 })?;
+
+            if !removed {
+                return Err(AuthencError::resource_not_found("TOTP credential not found"));
+            }
         }
         _ => {
             return Err(AuthencError::validation("Unsupported credential type"));
@@ -264,7 +269,7 @@ pub async fn disable_totp(
         .map_err(|_| AuthencError::unauthorized("Invalid user ID in token"))?;
 
     // Remove the TOTP secret
-    state
+    let _ = state
         .totp_store
         .remove_secret(&user_id.to_string())
         .map_err(|e| AuthencError::internal(format!("Failed to remove TOTP secret: {}", e)))?;
@@ -342,4 +347,48 @@ pub enum CredentialType {
     WebAuthn,
     /// Backup codes
     BackupCode,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::Database;
+    use crate::middleware::auth_middleware_axum::AuthUser;
+
+    #[tokio::test]
+    async fn test_remove_account_credential_ownership_validation() {
+        // Setup
+        let db = Database::mock().await;
+        let user_store = Arc::new(UserStore::new(Arc::new(db)));
+        let totp_store = Arc::new(TotpStore::new());
+
+        let state = AccountCredentialsState {
+            user_store,
+            totp_store,
+        };
+
+        let user_id = Uuid::new_v4();
+        let auth_user = AuthUser {
+            id: user_id.to_string(),
+            email: "test@example.com".to_string(),
+            roles: vec![],
+        };
+
+        // Act: Try to remove TOTP credential that doesn't exist
+        let result = remove_account_credential(
+            State(state),
+            Extension(auth_user),
+            Path("totp".to_string()),
+        )
+        .await;
+
+        // Assert: Expects 404 Not Found because user has no TOTP secret
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AuthencError::ResourceNotFound { resource } => {
+                assert_eq!(resource, "TOTP credential not found");
+            }
+            e => panic!("Expected ResourceNotFound, got {:?}", e),
+        }
+    }
 }

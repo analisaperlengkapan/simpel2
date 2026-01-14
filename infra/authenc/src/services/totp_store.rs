@@ -77,14 +77,15 @@ impl TotpStore {
     /// * `user_id` - The user identifier
     ///
     /// # Returns
-    /// * `Ok(())` on successful removal
+    /// * `Ok(true)` if the secret existed and was removed
+    /// * `Ok(false)` if the secret did not exist
     /// * `Err(String)` if there's a lock poisoning error
-    pub fn remove_secret(&self, user_id: &str) -> Result<(), String> {
+    pub fn remove_secret(&self, user_id: &str) -> Result<bool, String> {
         let mut secrets = self
             .secrets
             .write()
             .map_err(|e| format!("Lock poisoned: {e}"))?;
-        secrets.remove(user_id);
+        let removed = secrets.remove(user_id).is_some();
 
         // Also remove configured timestamp
         let mut configured_at = self
@@ -93,7 +94,7 @@ impl TotpStore {
             .map_err(|e| format!("Lock poisoned: {e}"))?;
         configured_at.remove(user_id);
 
-        Ok(())
+        Ok(removed)
     }
 
     /// Set backup codes for user (hashed)
