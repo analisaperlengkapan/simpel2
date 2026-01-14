@@ -42,6 +42,8 @@ pub struct LeaseAuth {
     pub user: String,
     pub namespace: String,
     pub is_admin: bool,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[async_trait]
@@ -81,10 +83,25 @@ where
                 .map(|c| matches!(c.admin_level, AdminLevel::Pusat))
                 .unwrap_or(false);
 
+        let ip = parts
+            .headers
+            .get("x-forwarded-for")
+            .or_else(|| parts.headers.get("x-real-ip"))
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let user_agent = parts
+            .headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
         Ok(LeaseAuth {
             user,
             namespace,
             is_admin,
+            ip,
+            user_agent,
         })
     }
 }
@@ -213,8 +230,8 @@ pub async fn renew_lease(
             request.lease_id,
             auth.namespace.clone(),
             AuditStatus::Success,
-            None, // IP address not available in this context
-            None, // User agent not available in this context
+            auth.ip.clone(),
+            auth.user_agent.clone(),
             metadata,
         )
         .await
@@ -304,7 +321,27 @@ pub async fn revoke_lease(
         })?;
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("revoked_count".to_string(), revoked_ids.len().to_string());
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.revoke".to_string(),
+            Some(auth.user.clone()),
+            "lease".to_string(),
+            request.lease_id.clone(),
+            auth.namespace.clone(),
+            AuditStatus::Success,
+            auth.ip.clone(),
+            auth.user_agent.clone(),
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let response = RevokeLeaseResponse {
         lease_id: request.lease_id,
@@ -390,7 +427,31 @@ pub async fn revoke_lease_prefix(
     }
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("prefix".to_string(), request.prefix.clone());
+    metadata.insert(
+        "revoked_count".to_string(),
+        all_revoked_ids.len().to_string(),
+    );
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.revoke_prefix".to_string(),
+            Some(auth.user.clone()),
+            "lease".to_string(),
+            format!("prefix:{}", request.prefix),
+            auth.namespace.clone(),
+            AuditStatus::Success,
+            auth.ip.clone(),
+            auth.user_agent.clone(),
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let response = RevokePrefixResponse {
         prefix: request.prefix,
@@ -520,7 +581,28 @@ pub async fn lookup_lease(
     }
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("status".to_string(), lease.status.clone());
+    metadata.insert("resource_type".to_string(), lease.resource_type.clone());
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.lookup".to_string(),
+            Some(auth.user.clone()),
+            "lease".to_string(),
+            lease.id.clone(),
+            auth.namespace.clone(),
+            AuditStatus::Success,
+            auth.ip.clone(),
+            auth.user_agent.clone(),
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let response = LookupLeaseResponse::from(lease);
 
@@ -563,13 +645,13 @@ pub async fn list_leases(
 ) -> ApiResult<Json<ApiResponse<PaginatedResponse<LookupLeaseResponse>>>> {
     // Authorization: non-admin users can only see their own leases in their namespace
     let filter_user = if auth.is_admin {
-        query.user_id
+        query.user_id.clone()
     } else {
         Some(auth.user.clone())
     };
 
     let filter_namespace = if auth.is_admin {
-        query.namespace
+        query.namespace.clone()
     } else {
         Some(auth.namespace.clone())
     };
@@ -593,8 +675,8 @@ pub async fn list_leases(
         .list_leases(
             filter_user,
             filter_namespace,
-            query.resource_type,
-            query.status,
+            query.resource_type.clone(),
+            query.status.clone(),
             Some(query.limit),
             Some(query.offset),
         )
@@ -612,7 +694,36 @@ pub async fn list_leases(
         leases.into_iter().map(LookupLeaseResponse::from).collect();
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("count".to_string(), items.len().to_string());
+    if let Some(user_id) = &query.user_id {
+        metadata.insert("filter_user_id".to_string(), user_id.clone());
+    }
+    if let Some(resource_type) = &query.resource_type {
+        metadata.insert("filter_resource_type".to_string(), resource_type.clone());
+    }
+    if let Some(status) = &query.status {
+        metadata.insert("filter_status".to_string(), status.clone());
+    }
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.list".to_string(),
+            Some(auth.user.clone()),
+            "lease".to_string(),
+            "list".to_string(),
+            auth.namespace.clone(),
+            AuditStatus::Success,
+            auth.ip.clone(),
+            auth.user_agent.clone(),
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let response = PaginatedResponse::new(items, total, query.limit as u32, query.offset as u32);
 
@@ -650,7 +761,7 @@ pub struct LeaseStatsResponse {
 /// Get lease statistics
 pub async fn get_lease_stats(
     State(state): State<AppState>,
-    _auth: LeaseAuth,
+    auth: LeaseAuth,
 ) -> ApiResult<Json<ApiResponse<LeaseStatsResponse>>> {
     // Get stats from lease manager
     let stats = state
@@ -666,7 +777,29 @@ pub async fn get_lease_stats(
     let by_namespace = HashMap::new();
 
     // Log audit event
-    // TODO: Fix audit logging
+    let mut metadata = HashMap::new();
+    metadata.insert("active_count".to_string(), stats.active_count.to_string());
+    metadata.insert("revoked_count".to_string(), stats.revoked_count.to_string());
+    metadata.insert("expired_count".to_string(), stats.expired_count.to_string());
+
+    if let Err(e) = state
+        .audit
+        .log_with_namespace(
+            "lease.stats".to_string(),
+            Some(auth.user.clone()),
+            "lease".to_string(),
+            "stats".to_string(),
+            auth.namespace.clone(),
+            AuditStatus::Success,
+            auth.ip.clone(),
+            auth.user_agent.clone(),
+            metadata,
+        )
+        .await
+    {
+        tracing::error!("Failed to log audit event: {}", e);
+        // Continue despite audit failure
+    }
 
     let response = LeaseStatsResponse {
         active_count: stats.active_count,
