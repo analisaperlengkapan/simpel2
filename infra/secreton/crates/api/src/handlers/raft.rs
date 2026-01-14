@@ -179,8 +179,7 @@ pub struct RestoreSnapshotResponse {
 
 fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
     let is_admin = user.roles.iter().any(|role| {
-        let r = role.to_lowercase();
-        r == "admin" || r == "vault-admin"
+        role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("vault-admin")
     });
 
     if is_admin {
