@@ -26,13 +26,20 @@ pub async fn fetch_timeline(id: Uuid) -> Result<Vec<PerkaraTimeline>, String> {
 }
 
 pub async fn create_comment(id: Uuid, req: CreateCommentRequest) -> Result<PerkaraComment, String> {
-    Request::post(&format!("{}/perkara/{}/comments", API_BASE_URL, id))
+    let resp = Request::post(&format!("{}/perkara/{}/comments", API_BASE_URL, id))
         .json(&req)
         .map_err(|e| e.to_string())?
         .send()
         .await
-        .map_err(|e| e.to_string())?
-        .json()
+        .map_err(|e| e.to_string())?;
+
+    if !resp.ok() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(format!("Error {}: {}", status, text));
+    }
+
+    resp.json()
         .await
         .map_err(|e| e.to_string())
 }

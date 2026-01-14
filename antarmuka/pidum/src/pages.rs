@@ -4,8 +4,9 @@ use crate::api::*;
 use crate::types::*;
 use chrono::{DateTime, Utc, TimeZone};
 use uuid::Uuid;
+use shared_microfrontend::prelude::*;
 
-// Re-use ActionButton from previous version (simplified)
+// Use shared component for consistency
 #[component]
 fn ActionButton(
     #[prop(into)] label: String,

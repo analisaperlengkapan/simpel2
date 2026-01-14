@@ -178,16 +178,20 @@ pub async fn add_comment(
 pub async fn get_timeline(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    Query(params): Query<Pagination>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
     })?;
 
+    let limit = params.limit.unwrap_or(20).min(100); // Cap at 100
+    let offset = (params.page.unwrap_or(1) - 1) * limit;
+
     // Fetch timeline events
     let rows = client
         .query(
-            "SELECT * FROM perkara_timeline WHERE perkara_id = $1 ORDER BY created_at DESC",
-            &[&id],
+            "SELECT * FROM perkara_timeline WHERE perkara_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+            &[&id, &(limit as i64), &(offset as i64)],
         )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
