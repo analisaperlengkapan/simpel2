@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use validator::Validate;
+use garde::Validate;
 use crate::models::{CreateCaseRequest, DatunCase, UpdateCaseRequest};
 use crate::state::AppState;
 use tracing::{info, instrument, error};
