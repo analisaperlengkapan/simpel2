@@ -1,65 +1,117 @@
 use crate::error::MonsaktiError;
 use serde_json::Value;
-use std::fmt::Write;
 use tokio_postgres::Client;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+use tokio_postgres::types::{IsNull, Type, ToSql};
+use bytes::BytesMut;
+use std::error::Error;
+
+/// Optimized SQL parameter wrapper to avoid allocations
+#[derive(Debug, Clone)]
+pub enum SqlParam<'a> {
+    RefString(&'a str),
+    OwnedString(String),
+    I64(i64),
+    Uuid(Uuid),
+    NullI64,
+    NullString,
+    JsonValue(&'a Value),
+    OwnedJsonString(String),
+}
+
+impl<'a> ToSql for SqlParam<'a> {
+    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+        match self {
+            SqlParam::RefString(s) => s.to_sql(ty, out),
+            SqlParam::OwnedString(s) => s.to_sql(ty, out),
+            SqlParam::I64(n) => n.to_sql(ty, out),
+            SqlParam::Uuid(u) => u.to_sql(ty, out),
+            SqlParam::NullI64 => <Option<i64> as ToSql>::to_sql(&None, ty, out),
+            SqlParam::NullString => <Option<String> as ToSql>::to_sql(&None, ty, out),
+            SqlParam::JsonValue(v) => v.to_sql(ty, out),
+            SqlParam::OwnedJsonString(s) => s.to_sql(ty, out),
+        }
+    }
+
+    fn accepts(ty: &Type) -> bool {
+        matches!(*ty,
+            Type::VARCHAR | Type::TEXT | Type::BPCHAR | Type::NAME | Type::UNKNOWN |
+            Type::INT8 |
+            Type::UUID |
+            Type::JSON | Type::JSONB
+        )
+    }
+
+    fn to_sql_checked(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+         match self {
+            SqlParam::RefString(s) => s.to_sql_checked(ty, out),
+            SqlParam::OwnedString(s) => s.to_sql_checked(ty, out),
+            SqlParam::I64(n) => n.to_sql_checked(ty, out),
+            SqlParam::Uuid(u) => u.to_sql_checked(ty, out),
+            SqlParam::NullI64 => <Option<i64> as ToSql>::to_sql_checked(&None, ty, out),
+            SqlParam::NullString => <Option<String> as ToSql>::to_sql_checked(&None, ty, out),
+            SqlParam::JsonValue(v) => v.to_sql_checked(ty, out),
+            SqlParam::OwnedJsonString(s) => s.to_sql_checked(ty, out),
+        }
+    }
+}
 
 /// Helper untuk konversi JSON value ke PostgreSQL parameter - SIMPLIFIED for TEXT columns
-pub fn json_to_sql_param(
-    value: &Value,
+pub fn json_to_sql_param<'a>(
+    value: &'a Value,
     column_name: &str,
-) -> Box<dyn tokio_postgres::types::ToSql + Sync + Send> {
+) -> SqlParam<'a> {
     match value {
         Value::String(s) => {
             // Special handling for api_id column - convert to i64
             if column_name == "api_id" {
                 if let Ok(num) = s.parse::<i64>() {
-                    return Box::new(Some(num));
+                    return SqlParam::I64(num);
                 }
                 // If parse fails, return NULL - SKIP THIS COLUMN!
-                return Box::new(None::<i64>);
+                return SqlParam::NullI64;
             }
 
             // Try to parse as UUID for id/parent_id/satker_id columns only
             if (column_name == "id" || column_name.ends_with("_id"))
                 && let Ok(uuid) = Uuid::parse_str(s) {
-                    return Box::new(uuid);
+                    return SqlParam::Uuid(uuid);
                 }
 
-            // Everything else is TEXT - keep as string
-            Box::new(s.clone())
+            // Everything else is TEXT - keep as string ref
+            SqlParam::RefString(s.as_str())
         }
         Value::Number(n) => {
             // Special handling for api_id - store as i64
             if column_name == "api_id" {
                 if let Some(num) = n.as_i64() {
-                    return Box::new(Some(num));
+                    return SqlParam::I64(num);
                 }
                 // Return NULL for api_id if not i64
-                return Box::new(None::<i64>);
+                return SqlParam::NullI64;
             }
 
             // For all other numbers, convert to string
             // PostgreSQL TEXT columns accept strings, and NUMERIC can cast from string
             // This avoids complex type matching logic
-            Box::new(n.to_string())
+            SqlParam::OwnedString(n.to_string())
         }
         Value::Bool(b) => {
             // Convert bool to string for TEXT columns
-            Box::new(if *b {
-                "true".to_string()
+            SqlParam::RefString(if *b {
+                "true"
             } else {
-                "false".to_string()
+                "false"
             })
         }
         Value::Null => {
             // For api_id column, return NULL as Option<i64>
             if column_name == "api_id" {
-                return Box::new(None::<i64>);
+                return SqlParam::NullI64;
             }
             // For other columns, return NULL as Option<String>
-            Box::new(None::<String>)
+            SqlParam::NullString
         }
         Value::Array(arr) => {
             // For JSONB columns, pass the value as serde_json::Value directly
@@ -67,10 +119,10 @@ pub fn json_to_sql_param(
                 || column_name.ends_with("_json")
                 || column_name.ends_with("_data")
             {
-                return Box::new(value.clone());
+                return SqlParam::JsonValue(value);
             }
             // Otherwise convert to JSON string for TEXT columns
-            Box::new(serde_json::to_string(arr).unwrap_or_else(|_| "[]".to_string()))
+            SqlParam::OwnedJsonString(serde_json::to_string(arr).unwrap_or_else(|_| "[]".to_string()))
         }
         Value::Object(_) => {
             // For JSONB columns, pass the value as serde_json::Value directly
@@ -78,10 +130,10 @@ pub fn json_to_sql_param(
                 || column_name.ends_with("_json")
                 || column_name.ends_with("_data")
             {
-                return Box::new(value.clone());
+                return SqlParam::JsonValue(value);
             }
             // Otherwise convert to JSON string for TEXT columns
-            Box::new(serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string()))
+            SqlParam::OwnedJsonString(serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string()))
         }
     }
 }
@@ -183,41 +235,21 @@ pub async fn bulk_insert_postgres(
             chunk_idx + 1,
             chunk.len()
         );
-
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
-            Vec::with_capacity(chunk.len() * columns.len());
-        let mut param_index = 1;
-
-        // Optimize query construction using a single String buffer
-        // Estimate capacity: "INSERT INTO table (cols) VALUES " + (chunk_len * (cols * 4 chars + 2))
-        let mut query = String::with_capacity(256 + chunk.len() * columns.len() * 5);
-
-        write!(
-            query,
-            "INSERT INTO {} ({}) VALUES ",
-            table_name,
-            columns.join(", ")
-        )
-        .unwrap();
-
-        let mut has_valid_rows = false;
-        let mut row_count = 0;
-
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                if row_count > 0 {
-                    query.push_str(", ");
-                }
-                query.push('(');
+                // Build query dengan placeholders
+                let placeholders: Vec<String> =
+                    (1..=columns.len()).map(|i| format!("${}", i)).collect();
+                let query = format!(
+                    "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
+                    table_name,
+                    columns.join(", "),
+                    placeholders.join(", ")
+                );
 
-                for (i, col) in columns.iter().enumerate() {
-                    if i > 0 {
-                        query.push_str(", ");
-                    }
-                    // Use write! to append placeholder directly without String allocation
-                    write!(query, "${}", param_index).unwrap();
-                    param_index += 1;
-
+                // Konversi nilai JSON ke parameter PostgreSQL
+                let mut params: Vec<SqlParam> = Vec::new();
+                for col in &columns {
                     // Handle mapping: api_id in DB comes from id in JSON
                     let json_key = if col == "api_id" { "id" } else { col.as_str() };
 
@@ -227,51 +259,54 @@ pub async fn bulk_insert_postgres(
                         .unwrap_or(&Value::Null);
                     params.push(json_to_sql_param(value, col));
                 }
-                query.push(')');
 
-                has_valid_rows = true;
-                row_count += 1;
-            }
-        }
+                // Convert to references for execute
+                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+                    .iter()
+                    .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
+                    .collect();
 
-        if !has_valid_rows {
-            continue;
-        }
+                match db.execute(&query, &param_refs[..]).await {
+                    Ok(rows) => {
+                        if rows > 0 {
+                            count += rows as usize;
+                            debug!("✅ [BULK INSERT] Inserted {} row(s)", rows);
+                        } else {
+                            debug!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
+                        }
+                    }
+                    Err(e) => {
+                        // Log more details for debugging
+                        error!(
+                            "❌ [BULK INSERT] Insert error for table {}: {:?} | Columns: {:?}",
+                            table_name, e, columns
+                        );
+                        error!("❌ [BULK INSERT] Failed query: {}", query);
 
-        query.push_str(" ON CONFLICT DO NOTHING");
-
-        // Convert to references for execute
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-            .iter()
-            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-            .collect();
-
-        match db.execute(&query, &param_refs[..]).await {
-            Ok(rows) => {
-                if rows > 0 {
-                    count += rows as usize;
-                    debug!(
-                        "✅ [BULK INSERT] Batch {} inserted {} row(s)",
-                        chunk_idx + 1,
-                        rows
-                    );
-                } else {
-                    debug!(
-                        "⚠️  [BULK INSERT] Batch {} inserted 0 rows (possibly duplicates)",
-                        chunk_idx + 1
-                    );
+                        // Print the actual data values to debug type issues
+                        for (i, col) in columns.iter().enumerate() {
+                            let value = obj
+                                .get(col)
+                                .or_else(|| obj.get(&col.to_uppercase()))
+                                .unwrap_or(&Value::Null);
+                            let type_str = if value.is_string() {
+                                "string"
+                            } else if value.is_number() {
+                                "number"
+                            } else if value.is_boolean() {
+                                "bool"
+                            } else if value.is_null() {
+                                "null"
+                            } else if value.is_array() {
+                                "array"
+                            } else {
+                                "object"
+                            };
+                            error!("  Column[{}] {}: {:?} (type: {})", i, col, value, type_str);
+                        }
+                        failed += 1;
+                    }
                 }
-            }
-            Err(e) => {
-                // Log more details for debugging
-                error!(
-                    "❌ [BULK INSERT] Batch insert error for table {}: {:?} | Columns: {:?}",
-                    table_name, e, columns
-                );
-                // Only log query if debug enabled to avoid log spam
-                debug!("❌ [BULK INSERT] Failed query: {}", query);
-
-                failed += chunk.len();
             }
         }
     }
@@ -333,5 +368,94 @@ pub async fn save_to_database(
             table_name
         );
         Ok(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_json_to_sql_param_conversions() {
+        // 1. Text conversion
+        let v = json!("hello");
+        let p = json_to_sql_param(&v, "name");
+        if let SqlParam::RefString(s) = p {
+            assert_eq!(s, "hello");
+        } else {
+            panic!("Expected RefString");
+        }
+
+        // 2. api_id as i64 string
+        let v = json!("12345");
+        let p = json_to_sql_param(&v, "api_id");
+        if let SqlParam::I64(n) = p {
+            assert_eq!(n, 12345);
+        } else {
+            panic!("Expected I64");
+        }
+
+        // 3. api_id as number
+        let v = json!(67890);
+        let p = json_to_sql_param(&v, "api_id");
+        if let SqlParam::I64(n) = p {
+            assert_eq!(n, 67890);
+        } else {
+            panic!("Expected I64");
+        }
+
+        // 4. api_id invalid
+        let v = json!("not-a-number");
+        let p = json_to_sql_param(&v, "api_id");
+        match p {
+            SqlParam::NullI64 => {},
+            _ => panic!("Expected NullI64"),
+        }
+
+        // 5. UUID
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
+        let v = json!(uuid_str);
+        let p = json_to_sql_param(&v, "id");
+        if let SqlParam::Uuid(u) = p {
+            assert_eq!(u.to_string(), uuid_str);
+        } else {
+            panic!("Expected Uuid");
+        }
+
+        // 6. Bool
+        let v = json!(true);
+        let p = json_to_sql_param(&v, "is_active");
+        if let SqlParam::RefString(s) = p {
+            assert_eq!(s, "true");
+        } else {
+            panic!("Expected RefString 'true'");
+        }
+
+        // 7. Null
+        let v = json!(null);
+        let p = json_to_sql_param(&v, "description");
+        match p {
+            SqlParam::NullString => {},
+            _ => panic!("Expected NullString"),
+        }
+
+        // 8. JSONB
+        let v = json!({"foo": "bar"});
+        let p = json_to_sql_param(&v, "raw_data");
+        if let SqlParam::JsonValue(val) = p {
+            assert_eq!(val, &v);
+        } else {
+            panic!("Expected JsonValue");
+        }
+
+        // 9. Array as String (for TEXT column)
+        let v = json!([1, 2, 3]);
+        let p = json_to_sql_param(&v, "tags"); // Not ending in _data or _json
+        if let SqlParam::OwnedJsonString(s) = p {
+            assert_eq!(s, "[1,2,3]");
+        } else {
+            panic!("Expected OwnedJsonString");
+        }
     }
 }
