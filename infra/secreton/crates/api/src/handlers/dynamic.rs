@@ -95,20 +95,46 @@ pub async fn generate_database_credentials(
     let lease_manager = &state.lease_manager;
 
     // Generate credentials with lease
-    let (credentials, lease) = db_engine
+    let start_time = std::time::Instant::now();
+    let result = db_engine
         .generate_credentials_with_lease(&role_name, params.ttl, lease_manager, &user.username)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to generate credentials: {}", e),
-        })?;
+        .await;
+
+    // Record metrics
+    let duration = start_time.elapsed().as_secs_f64();
+    match &result {
+        Ok(_) => {
+            metrics::counter!(
+                "secreton_dynamic_credentials_generated_total",
+                "role" => role_name.clone(),
+                "status" => "success"
+            )
+            .increment(1);
+            metrics::histogram!(
+                "secreton_dynamic_credentials_generation_duration_seconds",
+                "role" => role_name.clone()
+            )
+            .record(duration);
+        }
+        Err(_) => {
+            // Use "unknown" role on failure to prevent cardinality explosion from invalid role names
+            metrics::counter!(
+                "secreton_dynamic_credentials_generated_total",
+                "role" => "unknown",
+                "status" => "failure"
+            )
+            .increment(1);
+        }
+    }
+
+    let (credentials, lease) = result.map_err(|e| ApiError::Internal {
+        message: format!("Failed to generate credentials: {}", e),
+    })?;
 
     // Log audit event
     let audit_entry =
         create_audit_log("creds_generated", &user.username, "dynamic_role", &role_name);
     let _ = state.audit.log(audit_entry).await;
-
-    // Record metrics
-    // TODO: Implement metrics recording
 
     let response = GenerateCredsResponse {
         lease_id: lease.id.clone(),
