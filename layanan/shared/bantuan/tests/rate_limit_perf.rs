@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use std::time::{SystemTime, UNIX_EPOCH, Instant};
 use uuid::Uuid;
 
-// Baseline implementation: Mutex<HashMap>
+// Baseline: Mutex<HashMap>
 type MutexState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
 async fn mutex_rate_limit(state: MutexState, ip: String, limit: u32) -> bool {
@@ -26,13 +26,12 @@ async fn mutex_rate_limit(state: MutexState, ip: String, limit: u32) -> bool {
     }
 }
 
-// Optimized implementation: DashMap
-// This matches the existing code in src/rate_limit.rs (before my proposed cleanup changes)
+// Optimization: DashMap
 type DashMapState = Arc<DashMap<String, (u32, u64)>>;
 
 fn dashmap_rate_limit(state: DashMapState, ip: String, limit: u32) -> bool {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    // Use DashMap's entry API which locks only the specific bucket/entry
+    // Use DashMap's entry API
     let mut entry = state.entry(ip).or_insert((0, now));
     let val = entry.value_mut();
 
@@ -50,30 +49,29 @@ fn dashmap_rate_limit(state: DashMapState, ip: String, limit: u32) -> bool {
 }
 
 #[tokio::test]
-async fn benchmark_rate_limiters() {
-    // Parameters for the benchmark
+async fn benchmark_rate_limit_contention() {
     let num_requests = 50_000;
-    let num_ips = 500; // Simulate some contention
-    let limit = 1000;
+    // We spawn all tasks at once to let tokio scheduler handle concurrency
+    let num_ips = 50; // Fewer IPs = Higher Contention on specific buckets/mutex
+    let limit = 10000;
 
-    println!("Benchmarking with {} requests, {} unique IPs...", num_requests, num_ips);
-
-    // Generate random IPs
+    // Generate IPs
     let mut ips = Vec::with_capacity(num_requests);
     for _ in 0..num_requests {
-        // Simple IP generation
         let ip = format!("192.168.1.{}", (Uuid::new_v4().as_u128() % num_ips as u128));
         ips.push(ip);
     }
     let ips = Arc::new(ips);
 
-    // --- Benchmark Mutex ---
-    let state = Arc::new(Mutex::new(HashMap::new()));
-    let start = Instant::now();
-    let mut handles = Vec::new();
+    println!("Starting benchmark with {} requests, {} IPs...", num_requests, num_ips);
 
+    // --- Benchmark Mutex ---
+    let state_mutex = Arc::new(Mutex::new(HashMap::new()));
+    let start_mutex = Instant::now();
+
+    let mut handles = Vec::new();
     for i in 0..num_requests {
-        let state = state.clone();
+        let state = state_mutex.clone();
         let ip = ips[i].clone();
         handles.push(tokio::spawn(async move {
             mutex_rate_limit(state, ip, limit).await
@@ -81,18 +79,18 @@ async fn benchmark_rate_limiters() {
     }
 
     for h in handles {
-        h.await.unwrap();
+        let _ = h.await;
     }
-    let duration_mutex = start.elapsed();
-    println!("Mutex Duration: {:.2?}", duration_mutex);
+    let duration_mutex = start_mutex.elapsed();
+    println!("Mutex Duration: {:?}", duration_mutex);
 
     // --- Benchmark DashMap ---
-    let state = Arc::new(DashMap::new());
-    let start = Instant::now();
-    let mut handles = Vec::new();
+    let state_dashmap = Arc::new(DashMap::new());
+    let start_dashmap = Instant::now();
 
+    let mut handles = Vec::new();
     for i in 0..num_requests {
-        let state = state.clone();
+        let state = state_dashmap.clone();
         let ip = ips[i].clone();
         handles.push(tokio::spawn(async move {
             dashmap_rate_limit(state, ip, limit);
@@ -100,16 +98,13 @@ async fn benchmark_rate_limiters() {
     }
 
     for h in handles {
-        h.await.unwrap();
+        let _ = h.await;
     }
-    let duration_dashmap = start.elapsed();
-    println!("DashMap Duration: {:.2?}", duration_dashmap);
+    let duration_dashmap = start_dashmap.elapsed();
+    println!("DashMap Duration: {:?}", duration_dashmap);
 
-    // Check for improvement
-    if duration_dashmap < duration_mutex {
-        let improvement = duration_mutex.as_secs_f64() / duration_dashmap.as_secs_f64();
-        println!("DashMap is {:.2}x faster", improvement);
-    } else {
-        println!("DashMap is NOT faster (Mutex: {:?}, DashMap: {:?})", duration_mutex, duration_dashmap);
-    }
+    let improvement = duration_mutex.as_secs_f64() / duration_dashmap.as_secs_f64();
+    println!("Improvement: {:.2}x", improvement);
+
+    assert!(duration_dashmap < duration_mutex, "DashMap should be faster than Mutex under contention");
 }
