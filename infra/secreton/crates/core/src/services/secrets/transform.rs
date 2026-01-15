@@ -4,7 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
-use secreton_crypto::{FpeAlphabet, FpeEngine, FpeError, FpeKey};
+use lib_crypto::{FpeAlphabet, FpeEngine, FpeError, FpeKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

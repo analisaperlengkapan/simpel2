@@ -1,15 +1,15 @@
+use crate::models::{CreatePerkaraRequest, Perkara};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
-use deadpool_postgres::Pool;
-use uuid::Uuid;
 use chrono::Utc;
-use crate::models::{CreatePerkaraRequest, Perkara};
+use deadpool_postgres::Pool;
 use garde::Validate;
 use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,7 +27,10 @@ pub async fn list_perkara(
     Query(params): Query<Pagination>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let limit = params.limit.unwrap_or(10);
@@ -36,7 +39,7 @@ pub async fn list_perkara(
     let rows = client
         .query(
             "SELECT * FROM perkara ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-            &[&(limit as i64), &(offset as i64)]
+            &[&(limit as i64), &(offset as i64)],
         )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -55,7 +58,10 @@ pub async fn create_perkara(
     }
 
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let id = Uuid::new_v4();
@@ -90,7 +96,10 @@ pub async fn get_perkara_detail(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let row = client

@@ -199,6 +199,7 @@ impl TotpKey {
 
     /// Generate cryptographically secure random secret (20 bytes = 160 bits)
     fn generate_secret() -> Vec<u8> {
+        use rand::RngCore;
         let mut secret = vec![0u8; 20];
         rand::thread_rng().fill_bytes(&mut secret);
         secret

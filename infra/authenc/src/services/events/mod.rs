@@ -6,9 +6,9 @@ pub mod events_impl;
 pub mod kafka_event_listener;
 pub mod pg_event_store;
 
-pub use events_impl::*;
+pub use event_listeners::*;
 pub use event_publisher::*;
 pub use event_retention::*;
-pub use event_listeners::*;
+pub use events_impl::*;
 pub use kafka_event_listener::*;
 pub use pg_event_store::*;

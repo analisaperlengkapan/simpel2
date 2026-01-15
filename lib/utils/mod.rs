@@ -1,5 +1,9 @@
 // Utility modules
 
+/// Error types and result aliases for lib-utils
+/// Provides standard error types and Result type aliases.
+pub mod error;
+
 /// Cryptographic utilities for secure operations
 /// Provides cryptographic functions including key generation,
 /// encryption/decryption, and secure random number generation.
@@ -90,6 +94,7 @@ pub mod payload_sanitizer;
 pub use auth_context::*;
 pub use cache::*;
 pub use connection_pool::*;
+pub use error::*;
 pub use geolocation::*;
 pub use i18n::*;
 pub use memory::*;

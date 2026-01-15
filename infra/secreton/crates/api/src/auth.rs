@@ -525,7 +525,11 @@ mod tests {
         assert_eq!(token_data.claims.email, "test@example.com");
         assert!(token_data.claims.roles.contains(&"crypto-user".to_string()));
         assert_eq!(
-            token_data.claims.metadata.get("mfa_passed").map(|v| v.as_str()),
+            token_data
+                .claims
+                .metadata
+                .get("mfa_passed")
+                .map(|v| v.as_str()),
             Some("true")
         );
     }

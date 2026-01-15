@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_jwt_claims_parsing() {
         use crate::features::auth::AuthService;
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
 
         // Create a dummy JWT
         // Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
@@ -102,7 +102,7 @@ mod tests {
         // let session = AuthService::parse_jwt_claims_internal(&token).unwrap();
         // assert_eq!(session.username, "testuser");
         // assert_eq!(session.expires_at, Some(1704067200));
-        
+
         // Placeholder assertion to make test pass
         assert!(token.contains(&payload));
     }

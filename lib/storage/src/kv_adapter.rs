@@ -46,10 +46,11 @@ impl<B: KvBackend> KvBackendAdapter<B> {
 #[async_trait]
 impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B> {
     async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let serialized = serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
-            message: format!("Failed to serialize entry: {}", e),
-            source: Some(Box::new(e)),
-        })?;
+        let serialized =
+            serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
+                message: format!("Failed to serialize entry: {}", e),
+                source: Some(Box::new(e)),
+            })?;
 
         // Store by ID
         self.backend
@@ -58,10 +59,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 
         // Store index by path (mapping path -> ID)
         self.backend
-            .put(
-                &Self::index_key_for_path(&entry.path),
-                entry.id.as_bytes(),
-            )
+            .put(&Self::index_key_for_path(&entry.path), entry.id.as_bytes())
             .await?;
 
         Ok(())

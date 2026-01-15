@@ -134,14 +134,16 @@ mod tests {
             "ttl": 3600
         });
 
-        let put_response = server.post("/data/app%2Fconfig")
+        let put_response = server
+            .post("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
         put_response.assert_status_ok();
 
         // Now retrieve it
-        let response = server.get("/data/app%2Fconfig")
+        let response = server
+            .get("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -167,7 +169,8 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/data/app%2Fadmin")
+        let response = server
+            .post("/data/app%2Fadmin")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
@@ -191,7 +194,8 @@ mod tests {
             "exportable": true
         });
 
-        let response = server.post("/keys")
+        let response = server
+            .post("/keys")
             .add_header("Authorization", "Bearer token")
             .json(&request)
             .await;
@@ -436,7 +440,7 @@ pub async fn create_secret(
     let expires_at = request
         .ttl
         .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
-    
+
     // Prepare metadata with default owner if not provided
     let mut metadata = request.metadata.clone().unwrap_or_default();
     if metadata.owner.is_none() {
@@ -838,7 +842,6 @@ pub async fn hash_data(
 
     Ok(Json(ApiResponse::success(response)))
 }
-
 
 // Key management handlers
 pub async fn update_key(

@@ -1,10 +1,10 @@
 //! Storage module - Re-exports from secreton-storage crate
 //!
 //! This module provides a thin compatibility layer and re-exports
-//! storage functionality from the secreton-storage crate.
+//! storage functionality from the lib-storage crate.
 
-// Re-export from secreton-storage crate
-pub use secreton_storage::{
+// Re-export from lib-storage crate
+pub use lib_storage::{
     // Backends
     CacheBackend,
     CachedStorage,
@@ -26,7 +26,7 @@ pub use secreton_storage::{
 
 // Conditional re-exports based on features
 #[cfg(feature = "postgres")]
-pub use secreton_storage::PostgresBackend;
+pub use lib_storage::PostgresBackend;
 
 // Application-specific storage modules
 pub mod mfa;

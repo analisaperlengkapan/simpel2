@@ -12,7 +12,7 @@
 
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Pool;
-use rand::Rng;
+use rand::{Rng, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use std::collections::HashMap;
@@ -247,31 +247,31 @@ impl SshEngine {
         // Generate private key
         #[allow(deprecated)]
         let private_key = match key_type {
-            SshKeyType::Ed25519 => PrivateKey::random(&mut rand::thread_rng(), Algorithm::Ed25519)
+            SshKeyType::Ed25519 => PrivateKey::random(&mut OsRng, Algorithm::Ed25519)
                 .map_err(|e| SshError::KeyGenerationFailed(e.to_string()))?,
             SshKeyType::Rsa2048 => PrivateKey::random(
-                &mut rand::thread_rng(),
+                &mut OsRng,
                 Algorithm::Rsa {
                     hash: Some(HashAlg::Sha512),
                 },
             )
             .map_err(|e| SshError::KeyGenerationFailed(e.to_string()))?,
             SshKeyType::Rsa4096 => PrivateKey::random(
-                &mut rand::thread_rng(),
+                &mut OsRng,
                 Algorithm::Rsa {
                     hash: Some(HashAlg::Sha512),
                 },
             )
             .map_err(|e| SshError::KeyGenerationFailed(e.to_string()))?,
             SshKeyType::EcdsaP256 => PrivateKey::random(
-                &mut rand::thread_rng(),
+                &mut OsRng,
                 Algorithm::Ecdsa {
                     curve: ssh_key::EcdsaCurve::NistP256,
                 },
             )
             .map_err(|e| SshError::KeyGenerationFailed(e.to_string()))?,
             SshKeyType::EcdsaP384 => PrivateKey::random(
-                &mut rand::thread_rng(),
+                &mut OsRng,
                 Algorithm::Ecdsa {
                     curve: ssh_key::EcdsaCurve::NistP384,
                 },

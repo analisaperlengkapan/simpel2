@@ -238,7 +238,9 @@ impl AuthService {
                                         "Security verification required. Please solve the CAPTCHA."
                                             .to_string(),
                                     )
-                                } else if let Some(access_token) = login_resp.access_token.filter(|t| !t.is_empty()) {
+                                } else if let Some(access_token) =
+                                    login_resp.access_token.filter(|t| !t.is_empty())
+                                {
                                     // Full authentication complete
                                     Self::save_token(&access_token);
 
@@ -876,7 +878,8 @@ impl AuthService {
             use gloo_net::http::Request;
 
             // Retrieve cached credentials
-            let credentials = CACHED_CREDENTIALS.with(|c| c.borrow().clone())
+            let credentials = CACHED_CREDENTIALS
+                .with(|c| c.borrow().clone())
                 .ok_or_else(|| "No cached credentials found. Please login again.".to_string())?;
 
             let api_url = Self::get_api_url();
@@ -905,7 +908,7 @@ impl AuthService {
                     .map_err(|e| format!("Failed to parse response: {}", e))?;
 
                 if let Some(access_token) = login_resp.access_token {
-                     // Clear cached credentials
+                    // Clear cached credentials
                     CACHED_CREDENTIALS.with(|c| {
                         *c.borrow_mut() = None;
                     });
@@ -914,7 +917,7 @@ impl AuthService {
                     Err("MFA verification accepted but no access token returned".to_string())
                 }
             } else {
-                 let status = response.status();
+                let status = response.status();
                 let error_text = response
                     .text()
                     .await

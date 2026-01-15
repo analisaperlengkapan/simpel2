@@ -102,8 +102,8 @@
 //! - RFC 8439 (ChaCha20-Poly1305)
 //! - RFC 8032 (Ed25519)
 
-use rand::RngCore;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -123,6 +123,7 @@ pub mod prelude;
 pub mod shamir;
 pub mod storage_integration;
 pub mod transit;
+pub mod utils;
 
 // Auth crypto modules (from authenc)
 pub mod aes_gcm;
@@ -278,8 +279,8 @@ impl SecurityParams {
 /// Generate cryptographically secure random bytes
 pub fn generate_random_bytes(len: usize) -> CryptoResult<Vec<u8>> {
     let mut bytes = vec![0u8; len];
-    OsRng
-        .try_fill_bytes(&mut bytes)
+    let mut rng = OsRng;
+    rng.try_fill_bytes(&mut bytes)
         .map_err(|_| CryptoError::RandomGenerationFailed)?;
     Ok(bytes)
 }

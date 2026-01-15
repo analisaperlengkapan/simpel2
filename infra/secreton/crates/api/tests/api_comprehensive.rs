@@ -12,7 +12,7 @@ use secreton_api::{ApiState, create_api_router};
 
 async fn create_test_app() -> axum::Router {
     // Create a simple test state for basic API testing
-    use secreton_api::{KVApiState, TransitApiState, PkiApiState};
+    use secreton_api::{KVApiState, PkiApiState, TransitApiState};
     let api_state = ApiState {
         transit: TransitApiState {
             engine: std::sync::Arc::new(secreton_api::TransitEngine::default()),
@@ -71,7 +71,7 @@ mod api_tests {
     #[tokio::test]
     async fn test_router_creation() {
         // Test that API server can be initialized without errors
-        use secreton_api::{KVApiState, TransitApiState, PkiApiState};
+        use secreton_api::{KVApiState, PkiApiState, TransitApiState};
         let api_state = ApiState {
             transit: TransitApiState {
                 engine: std::sync::Arc::new(secreton_api::TransitEngine::default()),

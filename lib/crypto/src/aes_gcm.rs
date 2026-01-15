@@ -1,4 +1,4 @@
-use crate::error::{AuthencError, Result};
+use crate::error::{CryptoError, CryptoResult};
 use crate::utils::crypto_monitor::CryptoMonitor;
 use aes_gcm::{
     Aes256Gcm, Key, Nonce,
@@ -58,10 +58,11 @@ impl AesGcmService {
     }
 
     /// Create AES-GCM service with specific key
-    pub fn with_key(key_data: &[u8]) -> Result<Self> {
+    pub fn with_key(key_data: &[u8]) -> CryptoResult<Self> {
         if key_data.len() != 32 {
-            return Err(AuthencError::ValidationError {
-                message: "AES key must be 32 bytes".to_string(),
+            return Err(CryptoError::InvalidKeyLength {
+                expected: 32,
+                actual: key_data.len(),
             });
         }
 
@@ -70,7 +71,7 @@ impl AesGcmService {
     }
 
     /// Encrypt data using AES-GCM
-    pub fn encrypt(&self, plaintext: &[u8]) -> Result<EncryptedData> {
+    pub fn encrypt(&self, plaintext: &[u8]) -> CryptoResult<EncryptedData> {
         CryptoMonitor::monitor_rsa_operation("aes_gcm_encrypt", || {
             let cipher = Aes256Gcm::new(&self.key);
 
@@ -82,7 +83,7 @@ impl AesGcmService {
             // Encrypt the data
             let ciphertext = cipher
                 .encrypt(nonce, plaintext)
-                .map_err(|_| AuthencError::CryptographicError)?;
+                .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
             // Split ciphertext and tag (last 16 bytes)
             let tag_start = ciphertext.len().saturating_sub(16);
@@ -97,41 +98,31 @@ impl AesGcmService {
     }
 
     /// Decrypt data using AES-GCM
-    pub fn decrypt(&self, encrypted_data: &EncryptedData) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, encrypted_data: &EncryptedData) -> CryptoResult<Vec<u8>> {
         CryptoMonitor::monitor_rsa_operation("aes_gcm_decrypt", || {
             let cipher = Aes256Gcm::new(&self.key);
 
             // Decode components
             let ciphertext =
                 Base64UrlUnpadded::decode_vec(&encrypted_data.ciphertext).map_err(|_| {
-                    AuthencError::ValidationError {
-                        message: "Invalid ciphertext encoding".to_string(),
-                    }
+                    CryptoError::InvalidInput("Invalid ciphertext encoding".to_string())
                 })?;
 
             let nonce_bytes =
                 Base64UrlUnpadded::decode_vec(&encrypted_data.nonce).map_err(|_| {
-                    AuthencError::ValidationError {
-                        message: "Invalid nonce encoding".to_string(),
-                    }
+                    CryptoError::InvalidInput("Invalid nonce encoding".to_string())
                 })?;
 
             let tag = Base64UrlUnpadded::decode_vec(&encrypted_data.tag).map_err(|_| {
-                AuthencError::ValidationError {
-                    message: "Invalid tag encoding".to_string(),
-                }
+                CryptoError::InvalidInput("Invalid tag encoding".to_string())
             })?;
 
             if nonce_bytes.len() != 12 {
-                return Err(AuthencError::ValidationError {
-                    message: "Invalid nonce length".to_string(),
-                });
+                return Err(CryptoError::InvalidNonceLength);
             }
 
             if tag.len() != 16 {
-                return Err(AuthencError::ValidationError {
-                    message: "Invalid tag length".to_string(),
-                });
+                return Err(CryptoError::InvalidInput("Invalid tag length".to_string()));
             }
 
             // Reconstruct full ciphertext with tag
@@ -143,18 +134,16 @@ impl AesGcmService {
             // Decrypt
             let plaintext = cipher
                 .decrypt(nonce, full_ciphertext.as_ref())
-                .map_err(|_| AuthencError::CryptographicError)?;
+                .map_err(|e| CryptoError::DecryptionFailed(e.to_string()))?;
 
             Ok(plaintext)
         })
     }
 
     /// Encrypt JSON data
-    pub fn encrypt_json<T: Serialize>(&self, data: &T) -> Result<EncryptedData> {
+    pub fn encrypt_json<T: Serialize>(&self, data: &T) -> CryptoResult<EncryptedData> {
         let json_string =
-            serde_json::to_string(data).map_err(|_| AuthencError::SerializationError {
-                message: "Failed to serialize data".to_string(),
-            })?;
+            serde_json::to_string(data).map_err(|e| CryptoError::SerializationError(e.to_string()))?;
         self.encrypt(json_string.as_bytes())
     }
 
@@ -162,15 +151,11 @@ impl AesGcmService {
     pub fn decrypt_json<T: for<'de> Deserialize<'de>>(
         &self,
         encrypted_data: &EncryptedData,
-    ) -> Result<T> {
+    ) -> CryptoResult<T> {
         let plaintext = self.decrypt(encrypted_data)?;
         let json_string =
-            String::from_utf8(plaintext).map_err(|_| AuthencError::SerializationError {
-                message: "Invalid UTF-8 in decrypted data".to_string(),
-            })?;
-        serde_json::from_str(&json_string).map_err(|_| AuthencError::SerializationError {
-            message: "Failed to deserialize data".to_string(),
-        })
+            String::from_utf8(plaintext).map_err(|_| CryptoError::SerializationError("Invalid UTF-8 in decrypted data".to_string()))?;
+        serde_json::from_str(&json_string).map_err(|e| CryptoError::SerializationError(e.to_string()))
     }
 
     /// Generate a new encryption key
@@ -181,7 +166,7 @@ impl AesGcmService {
     }
 
     /// Derive key from password using Argon2
-    pub fn derive_key_from_password(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
+    pub fn derive_key_from_password(password: &str, salt: &[u8]) -> CryptoResult<[u8; 32]> {
         use argon2::{Argon2, Params};
 
         let mut key = [0u8; 32];
@@ -193,20 +178,20 @@ impl AesGcmService {
 
         argon2
             .hash_password_into(password.as_bytes(), salt, &mut key)
-            .map_err(|_| AuthencError::CryptographicError)?;
+            .map_err(|e| CryptoError::KeyDerivationFailed(e.to_string()))?;
 
         Ok(key)
     }
 
     /// Encrypt large data with streaming
-    pub fn encrypt_stream(&self, data: &[u8], chunk_size: usize) -> Result<Vec<EncryptedData>> {
+    pub fn encrypt_stream(&self, data: &[u8], chunk_size: usize) -> CryptoResult<Vec<EncryptedData>> {
         data.chunks(chunk_size)
             .map(|chunk| self.encrypt(chunk))
             .collect()
     }
 
     /// Decrypt streaming data
-    pub fn decrypt_stream(&self, encrypted_chunks: &[EncryptedData]) -> Result<Vec<u8>> {
+    pub fn decrypt_stream(&self, encrypted_chunks: &[EncryptedData]) -> CryptoResult<Vec<u8>> {
         let mut result = Vec::new();
         for chunk in encrypted_chunks {
             let decrypted = self.decrypt(chunk)?;
@@ -232,12 +217,12 @@ pub struct EncryptionContext<'a> {
 
 impl<'a> EncryptionContext<'a> {
     /// Encrypt with context
-    pub fn encrypt(&self, data: &[u8]) -> Result<EncryptedData> {
+    pub fn encrypt(&self, data: &[u8]) -> CryptoResult<EncryptedData> {
         self.service.encrypt(data)
     }
 
     /// Decrypt with context
-    pub fn decrypt(&self, encrypted_data: &EncryptedData) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, encrypted_data: &EncryptedData) -> CryptoResult<Vec<u8>> {
         self.service.decrypt(encrypted_data)
     }
 
@@ -278,12 +263,12 @@ impl KeyRotationService {
     }
 
     /// Encrypt with current key
-    pub fn encrypt(&self, data: &[u8]) -> Result<EncryptedData> {
+    pub fn encrypt(&self, data: &[u8]) -> CryptoResult<EncryptedData> {
         self.current_key.encrypt(data)
     }
 
     /// Decrypt with key rotation support
-    pub fn decrypt(&self, encrypted_data: &EncryptedData, key_id: Option<&str>) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, encrypted_data: &EncryptedData, key_id: Option<&str>) -> CryptoResult<Vec<u8>> {
         // Try current key first
         match self.current_key.decrypt(encrypted_data) {
             Ok(data) => Ok(data),
@@ -302,7 +287,7 @@ impl KeyRotationService {
                     }
                 }
 
-                Err(AuthencError::CryptographicError)
+                Err(CryptoError::DecryptionFailed("Unable to decrypt with any available key".to_string()))
             }
         }
     }

@@ -1,7 +1,7 @@
 use authenc::app::AppState;
 use authenc::config::AppConfig;
 use authenc::grpc::authenc_service::AuthencGrpcService;
-use authenc::grpc::proto::{AuthenticateRequest, AuthencService};
+use authenc::grpc::proto::{AuthencService, AuthenticateRequest};
 use authenc::models::user::{AccessLevel, SecretonAccessPolicy, SecurityContext, User};
 use chrono::Utc;
 use std::sync::Arc;
@@ -15,13 +15,25 @@ mod test_utils {
     pub async fn create_integration_db_pool() -> deadpool_postgres::Pool {
         let mut cfg = deadpool_postgres::Config::new();
         cfg.host = Some(std::env::var("TEST_DB_HOST").unwrap_or_else(|_| "localhost".to_string()));
-        cfg.port = Some(std::env::var("TEST_DB_PORT").unwrap_or_else(|_| "5432".to_string()).parse().unwrap_or(5432));
-        cfg.dbname = Some(std::env::var("TEST_DB_NAME").unwrap_or_else(|_| "authenc_integration_test".to_string()));
+        cfg.port = Some(
+            std::env::var("TEST_DB_PORT")
+                .unwrap_or_else(|_| "5432".to_string())
+                .parse()
+                .unwrap_or(5432),
+        );
+        cfg.dbname = Some(
+            std::env::var("TEST_DB_NAME")
+                .unwrap_or_else(|_| "authenc_integration_test".to_string()),
+        );
         cfg.user = Some(std::env::var("TEST_DB_USER").unwrap_or_else(|_| "postgres".to_string()));
-        cfg.password = Some(std::env::var("TEST_DB_PASSWORD").unwrap_or_else(|_| "password".to_string()));
+        cfg.password =
+            Some(std::env::var("TEST_DB_PASSWORD").unwrap_or_else(|_| "password".to_string()));
 
-        cfg.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)
-            .expect("Failed to create test database pool")
+        cfg.create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )
+        .expect("Failed to create test database pool")
     }
 
     pub fn create_integration_test_user() -> User {
@@ -38,7 +50,9 @@ mod test_utils {
             satker_code: "001".to_string(),
             phone_number: None,
             phone_verified: false,
-            password_hash: Some("$argon2id$v=19$m=4096,t=3,p=1$c2FsdHNhbHQ$qU8g/Rk/3k...".to_string()), // Dummy hash
+            password_hash: Some(
+                "$argon2id$v=19$m=4096,t=3,p=1$c2FsdHNhbHQ$qU8g/Rk/3k...".to_string(),
+            ), // Dummy hash
             totp_secret: Some("JBSWY3DPEHPK3PXP".to_string()), // valid base32 secret
             totp_backup_codes: None,
             mfa_enabled: true, // ENABLED for this test
@@ -86,11 +100,15 @@ mod test_utils {
     }
 
     pub async fn setup_test_user_in_db(pool: &deadpool_postgres::Pool, user: &User) -> Result<()> {
-        let client = pool.get().await.map_err(|e| AuthencError::database(e.to_string()))?;
+        let client = pool
+            .get()
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Ensure table exists (simplified)
-        client.execute(
-            "CREATE TABLE IF NOT EXISTS users (
+        client
+            .execute(
+                "CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY,
                 username VARCHAR NOT NULL UNIQUE,
                 email VARCHAR NOT NULL,
@@ -105,8 +123,11 @@ mod test_utils {
                 enabled BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 last_login_at TIMESTAMP WITH TIME ZONE
-            )", &[]
-        ).await.map_err(|e| AuthencError::database(e.to_string()))?;
+            )",
+                &[],
+            )
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
 
         client.execute(
             "INSERT INTO users (id, username, email, password_hash, nip, nama, jabatan, satker_code, mfa_enabled, mfa_setup_at, mfa_last_used, enabled)
@@ -121,8 +142,14 @@ mod test_utils {
     }
 
     pub async fn cleanup_test_user(pool: &deadpool_postgres::Pool, user_id: Uuid) -> Result<()> {
-        let client = pool.get().await.map_err(|e| AuthencError::database(e.to_string()))?;
-        client.execute("DELETE FROM users WHERE id = $1", &[&user_id]).await.map_err(|e| AuthencError::database(e.to_string()))?;
+        let client = pool
+            .get()
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
+        client
+            .execute("DELETE FROM users WHERE id = $1", &[&user_id])
+            .await
+            .map_err(|e| AuthencError::database(e.to_string()))?;
         Ok(())
     }
 }
@@ -203,11 +230,21 @@ async fn test_grpc_mfa_required_flow() {
         ..Default::default()
     };
 
-    let created_user = state.user_store.add_user(create_req).await.expect("Failed to create user");
+    let created_user = state
+        .user_store
+        .add_user(create_req)
+        .await
+        .expect("Failed to create user");
 
     // Enable MFA manually in DB because add_user might default to false
     let client = db_pool.get().await.unwrap();
-    client.execute("UPDATE users SET mfa_enabled = TRUE WHERE id = $1", &[&created_user.id]).await.unwrap();
+    client
+        .execute(
+            "UPDATE users SET mfa_enabled = TRUE WHERE id = $1",
+            &[&created_user.id],
+        )
+        .await
+        .unwrap();
 
     // 3. Test MFA Required Flow
     let service = AuthencGrpcService::new(state.clone());
@@ -215,7 +252,7 @@ async fn test_grpc_mfa_required_flow() {
     let req = Request::new(AuthenticateRequest {
         username: created_user.username.clone(),
         password: "password".to_string(), // correct password
-        mfa_code: None, // Missing MFA code
+        mfa_code: None,                   // Missing MFA code
         device_id: None,
         metadata: Default::default(),
         captcha_token: None,
@@ -224,7 +261,9 @@ async fn test_grpc_mfa_required_flow() {
     let result = service.authenticate(req).await;
 
     // Cleanup
-    test_utils::cleanup_test_user(&db_pool, created_user.id).await.ok();
+    test_utils::cleanup_test_user(&db_pool, created_user.id)
+        .await
+        .ok();
 
     match result {
         Ok(resp) => {
@@ -232,11 +271,17 @@ async fn test_grpc_mfa_required_flow() {
             println!("Got response: {:?}", inner);
 
             assert!(inner.mfa_required, "mfa_required should be true");
-            assert!(!inner.temp_token.is_empty(), "temp_token should not be empty");
+            assert!(
+                !inner.temp_token.is_empty(),
+                "temp_token should not be empty"
+            );
             // Access token might be empty or present but effectively useless for full access?
             // The logic sets access_token to "" in this case.
-            assert!(inner.access_token.is_empty(), "access_token should be empty when MFA required");
-        },
+            assert!(
+                inner.access_token.is_empty(),
+                "access_token should be empty when MFA required"
+            );
+        }
         Err(e) => {
             panic!("Authenticate failed with error: {:?}", e);
         }

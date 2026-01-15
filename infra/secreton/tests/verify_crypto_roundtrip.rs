@@ -3,7 +3,7 @@
 //! Tests encryption/decryption roundtrip
 
 use anyhow::Result;
-use secreton_crypto::hybrid::{
+use lib_crypto::hybrid::{
     CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
 };
 

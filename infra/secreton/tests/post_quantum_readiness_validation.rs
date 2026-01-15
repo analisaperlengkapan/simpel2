@@ -3,10 +3,10 @@
 //! This module validates secreton's post-quantum cryptography features.
 
 use anyhow::Result;
-use secreton_crypto::hybrid::{
+use lib_crypto::hybrid::{
     CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
 };
-use secreton_crypto::pq_key_management::PostQuantumKeyManager;
+use lib_crypto::pq_key_management::PostQuantumKeyManager;
 
 #[cfg(test)]
 mod secreton_post_quantum_readiness {

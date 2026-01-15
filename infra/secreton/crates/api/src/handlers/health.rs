@@ -369,7 +369,7 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
     let (status, message, mut details_map) =
         match state
             .crypto
-            .encrypt(secreton_crypto::AlgorithmId::Aes256Gcm, test_data, test_key)
+            .encrypt(lib_crypto::AlgorithmId::Aes256Gcm, test_data, test_key)
         {
             Ok(ciphertext) => {
                 // Test decryption

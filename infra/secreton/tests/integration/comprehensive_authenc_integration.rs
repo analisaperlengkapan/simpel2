@@ -46,7 +46,7 @@ use secreton_core::auth::{AuthencAuthProvider, AuthProvider, Credentials, TokenV
 use secreton_core::error::CoreError;
 use secreton_core::models::secret::{Secret, AccessControl, EncryptedValue, SecretMetadata, EncryptionAlgorithm, TimeBasedAccess, AdminLevel, AuditTrail};
 use secreton_core::SecurityLevel;
-use secreton_crypto::{HybridCrypto, CryptoMode, SecurityRequirements, PerformancePriority};
+use lib_crypto::{HybridCrypto, CryptoMode, SecurityRequirements, PerformancePriority};
 use chrono::Utc;
 
 // Mock types for services not yet implemented

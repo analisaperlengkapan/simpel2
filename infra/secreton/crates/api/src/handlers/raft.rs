@@ -206,7 +206,7 @@ pub async fn get_cluster_status(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -308,7 +308,7 @@ pub async fn list_peers(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -410,7 +410,7 @@ pub async fn add_peer(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -518,7 +518,7 @@ pub async fn remove_peer(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -653,7 +653,7 @@ pub async fn create_snapshot(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -856,7 +856,7 @@ pub async fn download_snapshot(
     let _raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -1029,7 +1029,7 @@ pub async fn list_snapshots(
     let _raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {
@@ -1135,7 +1135,7 @@ pub async fn restore_snapshot(
     let raft_storage = state
         .storage
         .as_any()
-        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .downcast_ref::<lib_storage::raft::RaftCluster>()
         .ok_or_else(|| {
             error!("Storage backend is not a Raft cluster");
             ApiError::Internal {

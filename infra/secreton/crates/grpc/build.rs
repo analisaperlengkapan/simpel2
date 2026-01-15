@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::path::PathBuf;
 
 fn main() {
     // Set build date
@@ -23,20 +24,21 @@ fn main() {
         .unwrap_or_else(|_| "unknown".to_string());
     println!("cargo:rustc-env=RUST_VERSION={}", rust_version);
 
+    // Output directory for generated code
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+
     // Generate gRPC code from proto files
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_server(true)
         .build_client(false)
+        .out_dir(&out_dir)
         .compile_protos(
-            &[
-                "../../../proto/secreton.proto",
-                "../../../proto/common.proto",
-            ],
-            &["../../../proto"],
+            &["../../proto/secreton.proto"],
+            &["../../proto"],
         )
         .expect("Failed to compile proto files");
 
     // Tell cargo to rerun if proto files change
-    println!("cargo:rerun-if-changed=../../../proto/secreton.proto");
-    println!("cargo:rerun-if-changed=../../../proto/common.proto");
+    println!("cargo:rerun-if-changed=../../proto/secreton.proto");
+    println!("cargo:rerun-if-changed=../../proto/common.proto");
 }

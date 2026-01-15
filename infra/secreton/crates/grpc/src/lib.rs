@@ -9,17 +9,17 @@
 //! - Protocol buffer definitions and generated code
 //! - Integration with core vault services
 
-// Generated proto code
+// Generated proto code from OUT_DIR
 pub mod generated {
     pub mod secreton {
         pub mod v1 {
-            include!("generated/secreton.v1.rs");
+            tonic::include_proto!("secreton.v1");
         }
     }
 
     pub mod common {
         pub mod v1 {
-            include!("generated/common.v1.rs");
+            tonic::include_proto!("common.v1");
         }
     }
 }

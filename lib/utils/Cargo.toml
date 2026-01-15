@@ -22,9 +22,31 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
+rand = { workspace = true }
 
 # HTTP types
 http = { workspace = true }
+axum = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Validation
+garde = { workspace = true }
+
+# Cryptography
+argon2 = { workspace = true }
+jsonwebtoken = { workspace = true }
+base64ct = { workspace = true }
+base64 = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+once_cell = { workspace = true }
+zeroize = { workspace = true }
+lib-crypto = { path = "../crypto" }
+
+# Logging
+log = { workspace = true }
 
 # Async utilities
 tokio = { workspace = true }

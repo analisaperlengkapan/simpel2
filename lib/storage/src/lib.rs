@@ -193,8 +193,8 @@ use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
-// Re-export SecurityLevel from secreton-types
-pub use secreton_types::SecurityLevel;
+// Re-export SecurityLevel from lib-types
+pub use lib_types::security::SecurityLevel;
 
 pub mod backends;
 pub mod cache;
@@ -252,7 +252,7 @@ pub struct EncryptionMetadata {
     pub kdf_params: Option<HashMap<String, String>>,
 }
 
-// SecurityLevel is now re-exported from secreton-types (see line 164)
+// SecurityLevel is re-exported from lib-types
 
 /// Vault entry for storing secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]

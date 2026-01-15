@@ -59,7 +59,7 @@ tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 
 [build-dependencies]
-tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 chrono = { workspace = true }
 rustc_version = { workspace = true }
 

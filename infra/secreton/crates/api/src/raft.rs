@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 // TODO: Re-enable after OpenRaft migration is complete
-// use secreton_storage::{RaftCluster, RaftClusterConfig, RaftStatus};
+// use lib_storage::{RaftCluster, RaftClusterConfig, RaftStatus};
 
 // Temporary stub types until OpenRaft migration is complete
 pub struct RaftNode;

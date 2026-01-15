@@ -303,6 +303,7 @@ impl KmipEngine {
 
     /// Generate cryptographic key material
     fn generate_key_material(algorithm: &str, key_length: usize) -> Result<Vec<u8>, KmipError> {
+        use rand::RngCore;
         let byte_length = key_length / 8;
         let mut key_material = vec![0u8; byte_length];
 

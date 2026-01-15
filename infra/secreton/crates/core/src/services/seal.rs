@@ -5,15 +5,14 @@
 //! for secure master key distribution.
 
 use chrono::{DateTime, Utc};
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Import Shamir Secret Sharing from crypto crate
-use secreton_crypto::shamir::{
+use lib_crypto::shamir::{
     Commitment, ShamirConfig, Share, generate_shares_with_commitments, reconstruct_secret_verified,
     validate_shares,
 };
@@ -380,14 +379,14 @@ impl SealService {
     ) -> Result<(Vec<u8>, EncryptionMetadata), SealError> {
         // Generate random salt for key derivation
         let mut salt = vec![0u8; 16];
-        OsRng.fill_bytes(&mut salt);
+        (&mut OsRng).fill_bytes(&mut salt);
 
         // Derive encryption key from seal key
         let encryption_key = Self::derive_encryption_key(seal_key, &salt)?;
 
         // Generate random nonce for AES-GCM
         let mut nonce_bytes = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        (&mut OsRng).fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Create AES-256-GCM cipher
@@ -516,7 +515,7 @@ impl SealService {
 
         // Generate 32-byte master key using cryptographically secure RNG
         let mut master_key_bytes = vec![0u8; 32];
-        OsRng.fill_bytes(&mut master_key_bytes);
+        (&mut OsRng).fill_bytes(&mut master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)
@@ -627,7 +626,7 @@ impl SealService {
         let commitment = commitment_lock.as_ref().ok_or(SealError::NotInitialized)?;
 
         // Verify share against commitment using Feldman VSS
-        secreton_crypto::shamir::verify_share_with_commitment(&share, commitment)
+        lib_crypto::shamir::verify_share_with_commitment(&share, commitment)
             .map_err(|_| SealError::ShareVerificationFailed)?;
 
         drop(commitment_lock);
@@ -859,7 +858,7 @@ impl SealService {
 
         // Generate new 32-byte master key
         let mut new_master_key_bytes = vec![0u8; 32];
-        OsRng.fill_bytes(&mut new_master_key_bytes);
+        (&mut OsRng).fill_bytes(&mut new_master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)

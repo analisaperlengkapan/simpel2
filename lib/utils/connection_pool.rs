@@ -94,9 +94,6 @@ impl HttpConnectionPool {
             .pool_idle_timeout(Duration::from_secs(config.max_idle_seconds))
             .pool_max_idle_per_host(config.max_connections / 4) // 25% of max connections as idle
             .tcp_keepalive(Duration::from_secs(config.keep_alive_timeout_seconds))
-            .http2_keep_alive_interval(Duration::from_secs(30))
-            .http2_keep_alive_timeout(Duration::from_secs(10))
-            .http2_keep_alive_while_idle(true)
             .build()
             .map_err(|e| AuthencError::internal(&format!("Failed to create HTTP client: {}", e)))?;
 

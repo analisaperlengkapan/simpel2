@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use secreton_core::services::seal::{VaultState, VaultStateStorage};
-use secreton_storage::{StorageBackend, VaultEntry, SecurityLevel};
+use lib_storage::{SecurityLevel, StorageBackend, VaultEntry};
 use std::sync::Arc;
 
 const VAULT_STATE_PATH: &str = "sys/seal/state";
@@ -72,9 +72,9 @@ impl VaultStateStorage for SealStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use secreton_core::services::seal::{SealConfig, EncryptionMetadata, KdfParams};
-    use secreton_storage::MemoryBackend;
     use chrono::Utc;
+    use secreton_core::services::seal::{EncryptionMetadata, KdfParams, SealConfig};
+    use lib_storage::MemoryBackend;
 
     fn create_test_vault_state() -> VaultState {
         VaultState {
@@ -111,7 +111,10 @@ mod tests {
         let state = create_test_vault_state();
 
         // Test Store
-        adapter.store_vault_state(&state).await.expect("Failed to store vault state");
+        adapter
+            .store_vault_state(&state)
+            .await
+            .expect("Failed to store vault state");
 
         // Verify storage content directly
         let stored_entry = storage.get_by_path(VAULT_STATE_PATH).await.unwrap();
@@ -121,7 +124,10 @@ mod tests {
         assert_eq!(entry.owner_id, VAULT_STATE_OWNER);
 
         // Test Load
-        let loaded_state = adapter.load_vault_state().await.expect("Failed to load vault state");
+        let loaded_state = adapter
+            .load_vault_state()
+            .await
+            .expect("Failed to load vault state");
         assert!(loaded_state.is_some());
         let loaded = loaded_state.unwrap();
 
@@ -136,7 +142,10 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let adapter = SealStorageAdapter::new(storage);
 
-        let loaded_state = adapter.load_vault_state().await.expect("Failed to load empty state");
+        let loaded_state = adapter
+            .load_vault_state()
+            .await
+            .expect("Failed to load empty state");
         assert!(loaded_state.is_none());
     }
 }

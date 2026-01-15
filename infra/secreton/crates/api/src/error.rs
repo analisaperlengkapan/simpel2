@@ -79,11 +79,11 @@ pub enum AuthError {
 
     /// Storage layer error
     #[error("Storage error: {0}")]
-    Storage(#[from] secreton_storage::StorageError),
+    Storage(#[from] lib_storage::StorageError),
 
     /// Cryptography error
     #[error("Crypto error: {0}")]
-    Crypto(#[from] secreton_crypto::CryptoError),
+    Crypto(#[from] lib_crypto::CryptoError),
 
     /// Internal authentication service error
     #[error("Internal error: {0}")]
@@ -207,10 +207,10 @@ pub enum ApiError {
     Core(#[from] secreton_core::error::CoreError),
 
     #[error("Crypto error: {0}")]
-    Crypto(#[from] secreton_crypto::CryptoError),
+    Crypto(#[from] lib_crypto::CryptoError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] secreton_storage::StorageError),
+    Storage(#[from] lib_storage::StorageError),
 
     #[error("Authentication service error: {0}")]
     Auth(#[from] crate::error::AuthError),

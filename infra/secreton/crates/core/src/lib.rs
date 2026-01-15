@@ -6,8 +6,8 @@
 
 #![allow(async_fn_in_trait)]
 
-// Re-export shared types from secreton-types
-pub use secreton_types::{Metadata, ResourceId, SecurityLevel, Tags};
+// Re-export shared types from lib-types
+pub use lib_types::{Metadata, ResourceId, SecurityLevel, Tags};
 
 pub mod audit;
 pub mod auth;

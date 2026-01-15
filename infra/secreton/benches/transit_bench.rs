@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use secreton_crypto::transit::keys::{KeyOptions, KeyType, TransitKey};
+use lib_crypto::transit::keys::{KeyOptions, KeyType, TransitKey};
 
 /// Benchmark transit engine encryption operations
 fn bench_transit_encrypt(c: &mut Criterion) {
@@ -91,8 +91,8 @@ fn bench_transit_sign(c: &mut Criterion) {
     for (key_name, key_type) in &sign_key_types {
         let mut key_options = KeyOptions::default();
         key_options.usage = vec![
-            secreton_crypto::transit::keys::KeyUsage::Sign,
-            secreton_crypto::transit::keys::KeyUsage::Verify,
+            lib_crypto::transit::keys::KeyUsage::Sign,
+            lib_crypto::transit::keys::KeyUsage::Verify,
         ];
 
         let key =
@@ -114,7 +114,7 @@ fn bench_key_derivation(c: &mut Criterion) {
     let mut group = c.benchmark_group("key_derivation");
 
     let mut key_options = KeyOptions::default();
-    key_options.usage = vec![secreton_crypto::transit::keys::KeyUsage::Derive];
+    key_options.usage = vec![lib_crypto::transit::keys::KeyUsage::Derive];
 
     let key = TransitKey::new("kdf-key".to_string(), KeyType::Aes256Gcm, key_options).unwrap();
 

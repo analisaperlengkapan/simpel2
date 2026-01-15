@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 use shared_microfrontend::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
-
-
 /// MFA Verification page
 #[component]
 pub fn MfaVerificationPage() -> impl IntoView {
@@ -274,5 +272,3 @@ pub fn MfaVerificationPage() -> impl IntoView {
         </AuthLayout>
     }
 }
-
-

@@ -9,10 +9,7 @@ fn main() {
     tonic_prost_build::configure()
         .build_server(false)
         .build_client(false)
-        .compile_protos(
-            &[proto_dir.join("common.proto")],
-            &[proto_dir.clone()],
-        )
+        .compile_protos(&[proto_dir.join("common.proto")], &[proto_dir.clone()])
         .expect("Failed to compile common.proto");
 
     // Compile the main proto files using tonic_prost_build (for tonic 0.14)

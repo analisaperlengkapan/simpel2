@@ -115,7 +115,7 @@ impl UserPassUser {
 
     /// Hash a password using Argon2id via crypto crate
     fn hash_password(password: &str) -> Result<String, UserPassError> {
-        use secreton_crypto::hashing::password::hash_password_argon2;
+        use lib_crypto::hashing::password::hash_password_argon2;
 
         hash_password_argon2(password)
             .map(|result| result.hash)
@@ -124,7 +124,7 @@ impl UserPassUser {
 
     /// Verify a password against the stored hash via crypto crate
     pub fn verify_password(&self, password: &str) -> Result<bool, UserPassError> {
-        use secreton_crypto::hashing::password::verify_password_argon2;
+        use lib_crypto::hashing::password::verify_password_argon2;
 
         verify_password_argon2(&self.password_hash, password)
             .map_err(|e| UserPassError::HashingError(e.to_string()))

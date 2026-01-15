@@ -103,8 +103,12 @@ pub async fn generate_database_credentials(
         })?;
 
     // Log audit event
-    let audit_entry =
-        create_audit_log("creds_generated", &user.username, "dynamic_role", &role_name);
+    let audit_entry = create_audit_log(
+        "creds_generated",
+        &user.username,
+        "dynamic_role",
+        &role_name,
+    );
     let _ = state.audit.log(audit_entry).await;
 
     // Record metrics

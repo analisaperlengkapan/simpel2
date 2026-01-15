@@ -7,8 +7,8 @@
 //! - **Government Branding**: Konsisten dengan identitas Kejaksaan RI
 
 use crate::features::auth::AuthService;
-use crate::pages::*;
 use crate::pages::secrets::SecretsPage;
+use crate::pages::*;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use shared_microfrontend::components::BrandingProvider;

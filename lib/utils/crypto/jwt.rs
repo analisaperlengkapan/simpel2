@@ -2,8 +2,8 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-// Import Ed25519 functions
-use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
+// Import Ed25519 functions from lib-crypto crate
+use lib_crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
 use ed25519_dalek::{Signature, Verifier};
 
 /// JWT claims structure for token payload

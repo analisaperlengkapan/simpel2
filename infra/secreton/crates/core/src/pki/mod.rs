@@ -11,8 +11,8 @@ pub mod pki;
 
 pub use pki::{Certificate, PrivateKey, SignatureAlgorithm};
 
-// Re-export all crypto functionality from secreton-crypto crate
-pub use secreton_crypto::{
+// Re-export all crypto functionality from lib-crypto crate
+pub use lib_crypto::{
     // Core types
     AlgorithmId,
     CryptoError,
@@ -68,5 +68,5 @@ pub use secreton_crypto::{
 };
 
 // Convenience aliases for backward compatibility
-pub use secreton_crypto::encryption::CryptoEngine as CryptoService;
-pub use secreton_crypto::hashing::password::{hash_password_argon2, verify_password_argon2};
+pub use lib_crypto::encryption::CryptoEngine as CryptoService;
+pub use lib_crypto::hashing::password::{hash_password_argon2, verify_password_argon2};

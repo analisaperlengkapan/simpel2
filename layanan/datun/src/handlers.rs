@@ -1,12 +1,12 @@
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    Json,
-};
-use validator::Validate;
 use crate::models::{CreateCaseRequest, DatunCase, UpdateCaseRequest};
 use crate::state::AppState;
-use tracing::{info, instrument, error};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
+use tracing::{error, info, instrument};
+use validator::Validate;
 
 /// Get all cases
 #[instrument(skip(state))]
@@ -26,11 +26,11 @@ pub async fn get_case_by_id(
         Some(case) => {
             info!("Case found: {}", id);
             Ok(Json(case))
-        },
+        }
         None => {
             error!("Case not found: {}", id);
             Err(StatusCode::NOT_FOUND)
-        },
+        }
     }
 }
 
@@ -76,15 +76,20 @@ pub async fn update_case(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    match state.update_case(&id, payload.status, payload.tim_jpn, payload.nilai_pemulihan) {
+    match state.update_case(
+        &id,
+        payload.status,
+        payload.tim_jpn,
+        payload.nilai_pemulihan,
+    ) {
         Some(case) => {
             info!("Updated case: {}", id);
             Ok(Json(case))
-        },
+        }
         None => {
             error!("Case not found for update: {}", id);
             Err(StatusCode::NOT_FOUND)
-        },
+        }
     }
 }
 
@@ -108,7 +113,9 @@ mod tests {
         };
 
         // Create
-        let (status, Json(case)) = create_case(State(state.clone()), Json(payload)).await.unwrap();
+        let (status, Json(case)) = create_case(State(state.clone()), Json(payload))
+            .await
+            .unwrap();
         assert_eq!(status, StatusCode::CREATED);
         assert_eq!(case.judul_perkara, "Test Case Title");
 

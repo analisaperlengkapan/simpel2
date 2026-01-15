@@ -1,8 +1,7 @@
 use argon2::{
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
-    password_hash::SaltString,
+    password_hash::{SaltString, rand_core::OsRng},
 };
-use rand::rngs::OsRng;
 
 /// Hash a password using Argon2 for secure storage with enhanced security parameters
 /// This function generates a cryptographically secure password hash using the

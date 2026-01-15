@@ -1,8 +1,11 @@
+use crate::models::{
+    ClassificationLevel, CreateCaseRequest, DashboardStats, SpecialCase, SpecialCasePriority,
+    SpecialCaseStatus, SpecialCrimeType,
+};
+use chrono::Utc;
 use deadpool_postgres::Pool;
 use std::error::Error;
 use uuid::Uuid;
-use crate::models::{CreateCaseRequest, SpecialCase, DashboardStats, SpecialCrimeType, SpecialCaseStatus, SpecialCasePriority, ClassificationLevel};
-use chrono::Utc;
 
 #[derive(Clone)]
 pub struct Repository {
@@ -27,8 +30,9 @@ impl Repository {
 
         let rows = client.query(stmt, &[]).await?;
 
-        let cases = rows.iter().map(|row| {
-            SpecialCase {
+        let cases = rows
+            .iter()
+            .map(|row| SpecialCase {
                 id: row.get("id"),
                 case_number: row.get("case_number"),
                 crime_type: row.get("crime_type"),
@@ -47,13 +51,16 @@ impl Repository {
                 witnesses_count: row.get("witnesses_count"),
                 team_members: row.get("team_members"),
                 related_agencies: row.get("related_agencies"),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(cases)
     }
 
-    pub async fn get_case(&self, id: Uuid) -> Result<Option<SpecialCase>, Box<dyn Error + Send + Sync>> {
+    pub async fn get_case(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<SpecialCase>, Box<dyn Error + Send + Sync>> {
         let client = self.pool.get().await?;
         let stmt = "
             SELECT
@@ -92,7 +99,10 @@ impl Repository {
         }
     }
 
-    pub async fn create_case(&self, req: CreateCaseRequest) -> Result<SpecialCase, Box<dyn Error + Send + Sync>> {
+    pub async fn create_case(
+        &self,
+        req: CreateCaseRequest,
+    ) -> Result<SpecialCase, Box<dyn Error + Send + Sync>> {
         let client = self.pool.get().await?;
         let stmt = "
             INSERT INTO pidsus.cases (
@@ -106,20 +116,25 @@ impl Repository {
                 suspects_count, evidence_count, witnesses_count, team_members, related_agencies
         ";
 
-        let row = client.query_one(stmt, &[
-            &req.case_number,
-            &req.crime_type,
-            &req.title,
-            &req.description,
-            &req.status,
-            &req.priority,
-            &req.classification,
-            &req.lead_investigator,
-            &req.location,
-            &req.estimated_loss,
-            &req.team_members,
-            &req.related_agencies,
-        ]).await?;
+        let row = client
+            .query_one(
+                stmt,
+                &[
+                    &req.case_number,
+                    &req.crime_type,
+                    &req.title,
+                    &req.description,
+                    &req.status,
+                    &req.priority,
+                    &req.classification,
+                    &req.lead_investigator,
+                    &req.location,
+                    &req.estimated_loss,
+                    &req.team_members,
+                    &req.related_agencies,
+                ],
+            )
+            .await?;
 
         Ok(SpecialCase {
             id: row.get("id"),
@@ -147,20 +162,47 @@ impl Repository {
         let client = self.pool.get().await?;
 
         // Simple aggregate queries
-        let total_cases: i64 = client.query_one("SELECT COUNT(*) FROM pidsus.cases", &[]).await?.get(0);
+        let total_cases: i64 = client
+            .query_one("SELECT COUNT(*) FROM pidsus.cases", &[])
+            .await?
+            .get(0);
 
-        let active_cases: i64 = client.query_one("SELECT COUNT(*) FROM pidsus.cases WHERE status != 'Closed'", &[]).await?.get(0);
+        let active_cases: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM pidsus.cases WHERE status != 'Closed'",
+                &[],
+            )
+            .await?
+            .get(0);
 
-        let closed_cases: i64 = client.query_one("SELECT COUNT(*) FROM pidsus.cases WHERE status = 'Closed'", &[]).await?.get(0);
+        let closed_cases: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM pidsus.cases WHERE status = 'Closed'",
+                &[],
+            )
+            .await?
+            .get(0);
 
-        let total_suspects: i64 = client.query_one("SELECT COALESCE(SUM(suspects_count), 0)::bigint FROM pidsus.cases", &[]).await?.get(0);
+        let total_suspects: i64 = client
+            .query_one(
+                "SELECT COALESCE(SUM(suspects_count), 0)::bigint FROM pidsus.cases",
+                &[],
+            )
+            .await?
+            .get(0);
 
-        let total_evidence: i64 = client.query_one("SELECT COALESCE(SUM(evidence_count), 0)::bigint FROM pidsus.cases", &[]).await?.get(0);
+        let total_evidence: i64 = client
+            .query_one(
+                "SELECT COALESCE(SUM(evidence_count), 0)::bigint FROM pidsus.cases",
+                &[],
+            )
+            .await?
+            .get(0);
 
         let total_recovered_assets: f64 = 0.0; // Placeholder until we have a real transactions/asset table
 
         let conviction_rate = if total_cases > 0 {
-             (closed_cases as f64 / total_cases as f64) * 100.0
+            (closed_cases as f64 / total_cases as f64) * 100.0
         } else {
             0.0
         };

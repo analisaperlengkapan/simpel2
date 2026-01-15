@@ -5,8 +5,7 @@
 //! isolation, authorization, audit logging, and monitoring.
 
 use axum::{
-    Router,
-    async_trait,
+    Router, async_trait,
     extract::{FromRequestParts, Path, Query, State},
     http::request::Parts,
     response::Json,

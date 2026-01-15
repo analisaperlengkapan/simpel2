@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use secreton_storage::{
+use lib_storage::{
     KvBackendAdapter, MemoryBackend, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
     backends::{FileBackend, FileConfig},
 };

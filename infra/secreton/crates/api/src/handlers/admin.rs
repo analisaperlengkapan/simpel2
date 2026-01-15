@@ -141,7 +141,10 @@ mod tests {
         // Uptime should be > 0 since we slept
         assert!(metrics.uptime > 0, "Uptime should be greater than 0");
         // And definitely not the hardcoded 86400 (1 day)
-        assert!(metrics.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+        assert!(
+            metrics.uptime < 86400,
+            "Uptime should not be hardcoded to 1 day"
+        );
     }
 
     #[tokio::test]
@@ -159,7 +162,10 @@ mod tests {
         let status = body.data.expect("status payload");
 
         assert!(status.uptime > 0, "Uptime should be greater than 0");
-        assert!(status.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+        assert!(
+            status.uptime < 86400,
+            "Uptime should not be hardcoded to 1 day"
+        );
     }
 
     #[tokio::test]
@@ -238,7 +244,10 @@ mod tests {
         // Admin role should grant "*" permission
         assert!(fetched_user.permissions.contains(&"*".to_string()));
         // Roles should be sorted
-        assert_eq!(fetched_user.roles, vec!["admin".to_string(), "user".to_string()]);
+        assert_eq!(
+            fetched_user.roles,
+            vec!["admin".to_string(), "user".to_string()]
+        );
     }
 
     #[tokio::test]

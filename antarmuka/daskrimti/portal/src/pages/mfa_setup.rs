@@ -1,5 +1,5 @@
-use crate::features::auth::{AuthService, MfaSetupData};
 use crate::components::layout::AuthLayout;
+use crate::features::auth::{AuthService, MfaSetupData};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use shared_microfrontend::components::captcha::Captcha;
@@ -36,8 +36,7 @@ pub fn MfaSetupPage() -> impl IntoView {
                     set_is_generating.set(false);
                 }
                 Err(e) => {
-                    set_error_message
-                        .set(format!("Failed to generate MFA setup: {}", e));
+                    set_error_message.set(format!("Failed to generate MFA setup: {}", e));
                     set_is_generating.set(false);
                 }
             }
@@ -56,7 +55,7 @@ pub fn MfaSetupPage() -> impl IntoView {
     };
 
     let handle_captcha_failure = move |error: String| {
-         set_error_message.set(format!("CAPTCHA verification failed: {}", error));
+        set_error_message.set(format!("CAPTCHA verification failed: {}", error));
     };
 
     view! {

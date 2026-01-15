@@ -53,12 +53,18 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/.well-known/oauth-authorization-server",
             get(oidc::oauth2_comprehensive::oauth2_discovery),
         )
-        .route("/oauth2/token", post(oidc::oauth2_comprehensive::oauth2_token))
+        .route(
+            "/oauth2/token",
+            post(oidc::oauth2_comprehensive::oauth2_token),
+        )
         .route(
             "/oauth2/introspect",
             post(oidc::oauth2_comprehensive::oauth2_introspect),
         )
-        .route("/oauth2/revoke", post(oidc::oauth2_comprehensive::oauth2_revoke))
+        .route(
+            "/oauth2/revoke",
+            post(oidc::oauth2_comprehensive::oauth2_revoke),
+        )
         .route("/oauth2/jwks", get(oidc::oauth2_comprehensive::oauth2_jwks))
         .route(
             "/oauth2/userinfo",
@@ -77,12 +83,18 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/ready", get(internal::health::ready))
         .route("/live", get(internal::health::live))
         .route("/metrics", get(internal::metrics::metrics))
-        .route("/health/metrics", get(internal::metrics::health_with_metrics))
+        .route(
+            "/health/metrics",
+            get(internal::metrics::health_with_metrics),
+        )
         // OAuth2 authorization endpoint (accessible without auth)
         .nest(
             "/oauth2",
             Router::new()
-                .route("/authorize", get(oidc::oauth2_comprehensive::oauth2_authorize))
+                .route(
+                    "/authorize",
+                    get(oidc::oauth2_comprehensive::oauth2_authorize),
+                )
                 .with_state(oauth2_state.clone()),
         )
         // Legacy OIDC Endpoints with Ed25519 security
@@ -90,12 +102,24 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/.well-known/openid_configuration",
             get(oidc::oidc_ed25519::oidc_discovery_ed25519),
         )
-        .route("/oidc/authorize", get(oidc::oidc_ed25519::oidc_authorize_ed25519))
+        .route(
+            "/oidc/authorize",
+            get(oidc::oidc_ed25519::oidc_authorize_ed25519),
+        )
         .route("/oidc/token", post(oidc::oidc_ed25519::oidc_token_ed25519))
-        .route("/oidc/refresh", post(oidc::oidc_ed25519::oidc_refresh_ed25519))
-        .route("/oidc/revoke", post(oidc::oidc_ed25519::oidc_revoke_ed25519))
+        .route(
+            "/oidc/refresh",
+            post(oidc::oidc_ed25519::oidc_refresh_ed25519),
+        )
+        .route(
+            "/oidc/revoke",
+            post(oidc::oidc_ed25519::oidc_revoke_ed25519),
+        )
         .route("/oidc/jwks", get(oidc::oidc_ed25519::oidc_jwks_ed25519))
-        .route("/oidc/userinfo", get(oidc::oidc_ed25519::oidc_userinfo_ed25519))
+        .route(
+            "/oidc/userinfo",
+            get(oidc::oidc_ed25519::oidc_userinfo_ed25519),
+        )
         // SSO logout route requires different state, so nest it
         .nest(
             "/oidc",
@@ -134,7 +158,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
         .nest(
             "/oauth2",
-            admin::client_registration::create_client_registration_routes().with_state(state.clone()),
+            admin::client_registration::create_client_registration_routes()
+                .with_state(state.clone()),
         )
         // DCR Admin API
         .nest(
@@ -162,7 +187,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // Federation admin routes for identity provider management
         .nest(
             "/api/v1/admin/federation",
-            federation::federation_admin::create_federation_admin_routes().with_state(state.clone()),
+            federation::federation_admin::create_federation_admin_routes()
+                .with_state(state.clone()),
         )
         // SPI management routes for enterprise features
         .nest(
@@ -325,7 +351,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/oid4vc",
             oidc::oid4vc::create_oid4vc_router().with_state(state.clone()),
         )
-        .nest("/vp", oidc::oid4vc::create_vp_router().with_state(state.clone()))
+        .nest(
+            "/vp",
+            oidc::oid4vc::create_vp_router().with_state(state.clone()),
+        )
         // UMA 2.0 (User-Managed Access) fine-grained authorization
         .merge(security::uma::create_uma_routes().with_state(state.clone()))
         // JWKS endpoint at standard location

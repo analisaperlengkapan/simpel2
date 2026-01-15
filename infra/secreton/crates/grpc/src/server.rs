@@ -12,8 +12,8 @@ use tonic::{Request, Response, Status, transport::Server};
 use tracing::error;
 use tracing::{info, instrument, warn};
 
-use secreton_crypto::transit::TransitEngine;
-use secreton_storage::StorageBackend;
+use lib_crypto::transit::TransitEngine;
+use lib_storage::StorageBackend;
 
 use crate::generated::secreton::v1::secreton_service_server;
 use crate::generated::{common::v1::*, secreton::v1::*};
@@ -178,11 +178,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         // Convert security level from proto enum to storage enum
         let security_level = match req.security_level {
-            0 => secreton_storage::SecurityLevel::Public,
-            1 => secreton_storage::SecurityLevel::Internal,
-            2 => secreton_storage::SecurityLevel::Confidential,
-            3 => secreton_storage::SecurityLevel::Secret,
-            4 => secreton_storage::SecurityLevel::TopSecret,
+            0 => lib_storage::SecurityLevel::Public,
+            1 => lib_storage::SecurityLevel::Internal,
+            2 => lib_storage::SecurityLevel::Confidential,
+            3 => lib_storage::SecurityLevel::Secret,
+            4 => lib_storage::SecurityLevel::TopSecret,
             _ => return Err(Status::invalid_argument("Invalid security level")),
         };
 
@@ -198,7 +198,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             .map_err(|e| Status::internal(format!("Failed to serialize secret: {}", e)))?;
 
         // Create vault entry
-        let mut vault_entry = secreton_storage::VaultEntry::new(
+        let mut vault_entry = lib_storage::VaultEntry::new(
             req.path.clone(),
             secret_data,
             encrypted_metadata,
@@ -322,7 +322,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         info!("Listing secrets with prefix: {:?}", req.prefix);
 
         // Build query parameters
-        let mut params = secreton_storage::QueryParams::new();
+        let mut params = lib_storage::QueryParams::new();
         if let Some(prefix) = req.prefix {
             params = params.with_path_prefix(prefix);
         }
@@ -371,7 +371,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             .map_err(|_| Status::invalid_argument("Invalid key type"))?;
 
         // Convert proto KeyType to crypto KeyType
-        use secreton_crypto::transit::KeyType as CryptoKeyType;
+        use lib_crypto::transit::KeyType as CryptoKeyType;
         let crypto_key_type = match proto_key_type {
             KeyType::Aes256Gcm => CryptoKeyType::Aes256Gcm,
             KeyType::Chacha20Poly1305 => CryptoKeyType::ChaCha20Poly1305,
@@ -458,7 +458,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let algorithm = SignatureAlgorithm::try_from(req.algorithm)
             .map_err(|_| Status::invalid_argument("Invalid signature algorithm"))?;
 
-        use secreton_crypto::transit::SignatureAlgorithm as CryptoSigAlg;
+        use lib_crypto::transit::SignatureAlgorithm as CryptoSigAlg;
         let crypto_algorithm = match algorithm {
             SignatureAlgorithm::Ed25519Signature => Some(CryptoSigAlg::Ed25519),
             SignatureAlgorithm::EcdsaP256Sha256 => Some(CryptoSigAlg::EcdsaP256),
@@ -499,7 +499,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let algorithm = SignatureAlgorithm::try_from(req.algorithm)
             .map_err(|_| Status::invalid_argument("Invalid signature algorithm"))?;
 
-        use secreton_crypto::transit::SignatureAlgorithm as CryptoSigAlg;
+        use lib_crypto::transit::SignatureAlgorithm as CryptoSigAlg;
         let crypto_algorithm = match algorithm {
             SignatureAlgorithm::Ed25519Signature => Some(CryptoSigAlg::Ed25519),
             SignatureAlgorithm::EcdsaP256Sha256 => Some(CryptoSigAlg::EcdsaP256),
@@ -565,7 +565,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -648,7 +648,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -744,7 +744,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -797,7 +797,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -1575,7 +1575,7 @@ impl SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -1680,7 +1680,7 @@ impl SecretonGrpcService {
             let _raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")
@@ -1737,7 +1737,7 @@ impl SecretonGrpcService {
             let raft_storage = self
                 .storage
                 .as_any()
-                .downcast_ref::<secreton_storage::raft::RaftCluster>()
+                .downcast_ref::<lib_storage::raft::RaftCluster>()
                 .ok_or_else(|| {
                     error!("Storage backend is not a Raft cluster");
                     Status::failed_precondition("Raft cluster not configured")

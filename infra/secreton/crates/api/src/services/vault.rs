@@ -8,8 +8,8 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use secreton_core::audit::{AuditLog, AuditLogger, AuditStatus};
-use secreton_crypto::{AlgorithmId, CryptoEngine};
-use secreton_storage::{SecurityLevel, StorageBackend};
+use lib_crypto::{AlgorithmId, CryptoEngine};
+use lib_storage::{SecurityLevel, StorageBackend};
 
 /// Vault service errors
 #[derive(Error, Debug)]
@@ -30,10 +30,10 @@ pub enum VaultError {
     PermissionDenied(String),
 
     #[error("Crypto error: {0}")]
-    Crypto(#[from] secreton_crypto::CryptoError),
+    Crypto(#[from] lib_crypto::CryptoError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] secreton_storage::StorageError),
+    Storage(#[from] lib_storage::StorageError),
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
@@ -94,8 +94,8 @@ impl VaultService {
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Extract metadata
-        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
-            .unwrap_or_default();
+        let metadata: SecretMetadata =
+            serde_json::from_value(entry.metadata.clone()).unwrap_or_default();
 
         Ok(SecretData {
             path: path.to_string(),
@@ -148,7 +148,7 @@ impl VaultService {
         let now = chrono::Utc::now();
 
         // Create vault entry
-        let mut entry = secreton_storage::VaultEntry::new(
+        let mut entry = lib_storage::VaultEntry::new(
             path.to_string(),
             serialized,
             serde_json::to_value(&metadata).unwrap_or(serde_json::json!({})),
@@ -228,7 +228,7 @@ impl VaultService {
             .await;
 
         // List from storage
-        let params = secreton_storage::QueryParams {
+        let params = lib_storage::QueryParams {
             path_prefix: prefix.map(|s| s.to_string()),
             security_level: None,
             tags: Vec::new(),
@@ -288,7 +288,7 @@ impl VaultService {
         let metadata = serde_json::to_vec(&key_info)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
-        let entry = secreton_storage::VaultEntry::new(
+        let entry = lib_storage::VaultEntry::new(
             format!("keys/{}", key_name),
             metadata,
             serde_json::json!({}),
@@ -327,7 +327,7 @@ impl VaultService {
             .await;
 
         // Get or generate encryption key
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        let key = lib_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
 
         // Encrypt using crypto service
         let encrypted_data =
@@ -376,11 +376,11 @@ impl VaultService {
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Deserialize encrypted data
-        let encrypted_data: secreton_crypto::EncryptedData = serde_json::from_slice(&json_bytes)
+        let encrypted_data: lib_crypto::EncryptedData = serde_json::from_slice(&json_bytes)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Get decryption key (in production, retrieve from key storage)
-        let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
+        let key = lib_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
 
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;
@@ -447,7 +447,7 @@ impl VaultService {
             .await;
 
         // List keys from storage
-        let params = secreton_storage::QueryParams {
+        let params = lib_storage::QueryParams {
             path_prefix: Some("keys/".to_string()),
             security_level: None,
             tags: Vec::new(),
@@ -501,7 +501,7 @@ impl VaultService {
         let metadata = serde_json::to_vec(&key_info)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
-        let mut entry = secreton_storage::VaultEntry::new(
+        let mut entry = lib_storage::VaultEntry::new(
             format!("keys/{}", key_id),
             metadata,
             serde_json::json!({}),
@@ -571,7 +571,7 @@ impl VaultService {
 
         // Use SHA-256 hash as signature (simplified implementation)
         // In production, use proper Ed25519 or ECDSA signing
-        let hash = secreton_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
+        let hash = lib_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
         let signature = base64::engine::general_purpose::STANDARD.encode(&hash.hash);
 
         Ok(SignResult {
@@ -613,7 +613,7 @@ impl VaultService {
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Compute hash and compare (simplified implementation)
-        let hash = secreton_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
+        let hash = lib_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
         let valid = hash.hash == signature_bytes;
 
         Ok(VerifyResult {
@@ -656,7 +656,7 @@ impl VaultService {
         };
 
         // Hash using crypto service
-        let hash_result = secreton_crypto::hashing::compute_hash(hash_algo, data.as_bytes())?;
+        let hash_result = lib_crypto::hashing::compute_hash(hash_algo, data.as_bytes())?;
         let hash = hex::encode(&hash_result.hash);
 
         Ok(HashResult {
@@ -738,8 +738,8 @@ mod tests {
     use crate::config::AuthConfig;
     use crate::services::auth::AuthService;
     use secreton_core::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
-    use secreton_crypto::SecurityParams;
-    use secreton_storage::MemoryBackend;
+    use lib_crypto::SecurityParams;
+    use lib_storage::MemoryBackend;
 
     #[tokio::test]
     async fn test_vault_service_creation() {
@@ -764,7 +764,10 @@ mod tests {
 
         let mut data = HashMap::new();
         data.insert("key1".to_string(), "value1".to_string());
-        service.put_secret("app/config", data, "user1", None).await.expect("Failed to put secret");
+        service
+            .put_secret("app/config", data, "user1", None)
+            .await
+            .expect("Failed to put secret");
 
         let secret = service.get_secret("app/config", "user1").await;
         assert!(secret.is_ok());
@@ -806,7 +809,9 @@ mod tests {
         data.insert("key".to_string(), "value".to_string());
 
         let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
-        let secret = service.put_secret("app/expiring", data, "user1", Some(expires_at)).await;
+        let secret = service
+            .put_secret("app/expiring", data, "user1", Some(expires_at))
+            .await;
 
         assert!(secret.is_ok());
         let secret = secret.unwrap();

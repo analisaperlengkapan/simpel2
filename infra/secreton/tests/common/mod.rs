@@ -108,12 +108,12 @@ pub mod test_storage {
 /// Test data generators and utilities
 pub mod test_data {
     use super::*;
-    use rand::{Rng, thread_rng};
+    use rand::Rng;
 
     /// Generate test data of specified size
     pub fn generate_test_data(size: usize) -> String {
         (0..size)
-            .map(|_| thread_rng().gen_range(b'A'..=b'Z') as char)
+            .map(|_| rand::rng().gen_range(b'A'..=b'Z') as char)
             .collect()
     }
 

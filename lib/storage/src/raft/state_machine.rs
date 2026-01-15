@@ -12,6 +12,21 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+/// Status of a Raft node in the cluster
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RaftStatus {
+    /// Node is a follower
+    Follower,
+    /// Node is a candidate (during election)
+    Candidate,
+    /// Node is the leader
+    Leader,
+    /// Node is learning (catching up)
+    Learner,
+    /// Node is offline or unreachable
+    Offline,
+}
+
 /// Commands that can be applied to the state machine
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineCommand {

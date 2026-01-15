@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use secreton_core::models::SecurityLevel;
-use secreton_crypto::hybrid::{
+use lib_crypto::hybrid::{
     CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
 };
 

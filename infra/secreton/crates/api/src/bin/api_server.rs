@@ -12,7 +12,7 @@ use secreton_api::{
     ApiState, KVApiState, KVEngine, PkiApiState, TransitApiState, config::ApiConfig,
     create_api_router,
 };
-use secreton_crypto::transit::TransitEngine;
+use lib_crypto::transit::TransitEngine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

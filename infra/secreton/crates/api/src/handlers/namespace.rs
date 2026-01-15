@@ -158,10 +158,7 @@ pub struct ListNamespacesQuery {
 
 /// Extract JWT claims from request context
 fn extract_jwt_claims(context: &RequestContext) -> Result<JwtClaims, ApiError> {
-    context
-        .jwt_claims
-        .clone()
-        .ok_or(ApiError::Unauthorized)
+    context.jwt_claims.clone().ok_or(ApiError::Unauthorized)
 }
 
 /// Convert Namespace to NamespaceResponse

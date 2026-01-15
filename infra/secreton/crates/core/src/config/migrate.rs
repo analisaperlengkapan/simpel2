@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::config::{ApplicationConfig, ConfigMetadata};
 use crate::services::seal::SealService;
-use secreton_storage::StorageBackend;
+use lib_storage::StorageBackend;
 
 /// Migration from legacy TOML files to encrypted storage
 pub struct ConfigMigration;

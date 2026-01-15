@@ -1,7 +1,7 @@
-use leptos::prelude::*;
+use crate::api::{CreateScheduleRequest, create_schedule, fetch_schedules};
 use crate::components::layout::Layout;
-use crate::api::{fetch_schedules, create_schedule, CreateScheduleRequest};
-use chrono::{Utc, TimeZone, NaiveDateTime};
+use chrono::{NaiveDateTime, TimeZone, Utc};
+use leptos::prelude::*;
 
 #[component]
 pub fn Schedules() -> impl IntoView {

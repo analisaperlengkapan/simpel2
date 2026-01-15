@@ -10,7 +10,7 @@
 //!
 //! All tests use actual cryptographic implementations - no mocks.
 
-use secreton_crypto::{
+use lib_crypto::{
     CryptoMode, HybridCrypto, HybridSignatureData, MigrationPhase, MigrationStrategy,
     PerformancePriority, SecurityRequirements,
 };

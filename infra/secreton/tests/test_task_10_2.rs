@@ -7,7 +7,7 @@ use secreton_core::auth::{AuthencAuthProvider, PqSignature};
 use secreton_core::models::secret::{
     AccessControl, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
-use secreton_crypto::HybridCrypto;
+use lib_crypto::HybridCrypto;
 
 #[test]
 fn test_authenc_provider_can_be_created() {

@@ -9,7 +9,7 @@
 
 #[cfg(test)]
 mod storage_backends_integration_tests {
-    use secreton_storage::StorageBackend;
+    use lib_storage::StorageBackend;
     
     /// Test Redis storage backend module
     #[test]

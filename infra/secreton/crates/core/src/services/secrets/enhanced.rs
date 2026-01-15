@@ -19,7 +19,7 @@ use crate::models::secret::{
     AccessControl, AuditTrail, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
 use crate::storage::StorageBackend;
-use secreton_crypto::{
+use lib_crypto::{
     CryptoMode, HybridCrypto, PerformancePriority, PostQuantumKeyManager, SecurityRequirements,
 };
 use serde::{Deserialize, Serialize};
@@ -213,14 +213,14 @@ impl EnhancedSecretEngine {
 
         // Map SecurityLevel
         let security_level = match secret.metadata.security_level {
-            crate::SecurityLevel::Public => secreton_storage::SecurityLevel::Public,
-            crate::SecurityLevel::Internal => secreton_storage::SecurityLevel::Internal,
-            crate::SecurityLevel::Confidential => secreton_storage::SecurityLevel::Confidential,
-            crate::SecurityLevel::Secret => secreton_storage::SecurityLevel::Secret,
-            crate::SecurityLevel::TopSecret => secreton_storage::SecurityLevel::TopSecret,
+            crate::SecurityLevel::Public => lib_storage::SecurityLevel::Public,
+            crate::SecurityLevel::Internal => lib_storage::SecurityLevel::Internal,
+            crate::SecurityLevel::Confidential => lib_storage::SecurityLevel::Confidential,
+            crate::SecurityLevel::Secret => lib_storage::SecurityLevel::Secret,
+            crate::SecurityLevel::TopSecret => lib_storage::SecurityLevel::TopSecret,
         };
 
-        let vault_entry = secreton_storage::VaultEntry::new(
+        let vault_entry = lib_storage::VaultEntry::new(
             path.to_string(),
             encrypted_data,
             encryption_metadata,
@@ -282,11 +282,11 @@ impl EnhancedSecretEngine {
 
         // Map SecurityLevel back
         let security_level = match vault_entry.security_level {
-            secreton_storage::SecurityLevel::Public => crate::SecurityLevel::Public,
-            secreton_storage::SecurityLevel::Internal => crate::SecurityLevel::Internal,
-            secreton_storage::SecurityLevel::Confidential => crate::SecurityLevel::Confidential,
-            secreton_storage::SecurityLevel::Secret => crate::SecurityLevel::Secret,
-            secreton_storage::SecurityLevel::TopSecret => crate::SecurityLevel::TopSecret,
+            lib_storage::SecurityLevel::Public => crate::SecurityLevel::Public,
+            lib_storage::SecurityLevel::Internal => crate::SecurityLevel::Internal,
+            lib_storage::SecurityLevel::Confidential => crate::SecurityLevel::Confidential,
+            lib_storage::SecurityLevel::Secret => crate::SecurityLevel::Secret,
+            lib_storage::SecurityLevel::TopSecret => crate::SecurityLevel::TopSecret,
         };
 
         let secret = Secret {

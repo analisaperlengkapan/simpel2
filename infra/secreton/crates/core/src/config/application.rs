@@ -9,12 +9,11 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
 };
 use chrono::{DateTime, Utc};
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use crate::services::seal::SealService;
-use secreton_storage::StorageBackend;
+use lib_storage::StorageBackend;
 
 /// Application configuration stored encrypted in storage backend
 /// Contains all sensitive application settings
@@ -305,8 +304,8 @@ impl ApplicationConfig {
         let encrypted = Self::encrypt_config(&serialized, &master_key)?;
 
         // Create VaultEntry
-        use secreton_storage::VaultEntry;
-        use secreton_types::SecurityLevel;
+        use lib_storage::VaultEntry;
+        use lib_types::SecurityLevel;
         let entry = VaultEntry {
             id: uuid::Uuid::new_v4(),
             path: "config/system".to_string(),
@@ -341,7 +340,7 @@ impl ApplicationConfig {
     fn encrypt_config(data: &[u8], master_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        (&mut OsRng).fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Create cipher
@@ -493,7 +492,7 @@ mod tests {
 
         // Generate test key
         let mut master_key = [0u8; 32];
-        OsRng.fill_bytes(&mut master_key);
+        (&mut OsRng).fill_bytes(&mut master_key);
 
         // Encrypt
         let encrypted = ApplicationConfig::encrypt_config(&serialized, &master_key).unwrap();

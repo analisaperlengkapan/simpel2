@@ -130,22 +130,24 @@ pub async fn mtls_middleware(
 
 /// Extract client certificate information from headers
 fn extract_client_cert_info(headers: &HeaderMap) -> Result<Option<ClientCertInfo>, StatusCode> {
+    use axum::http::HeaderValue;
+
     // Check for client certificate fingerprint (common in reverse proxy setups)
     if let Some(fingerprint_header) = headers.get("X-SSL-Client-Fingerprint") {
-        let fingerprint = fingerprint_header
+        let fingerprint: String = fingerprint_header
             .to_str()
             .map_err(|_| StatusCode::BAD_REQUEST)?
             .to_string();
 
-        let subject = headers
+        let subject: Option<String> = headers
             .get("X-SSL-Client-Subject")
-            .and_then(|h| h.to_str().ok())
-            .map(|s| s.to_string());
+            .and_then(|h: &HeaderValue| h.to_str().ok())
+            .map(|s: &str| s.to_string());
 
-        let issuer = headers
+        let issuer: Option<String> = headers
             .get("X-SSL-Client-Issuer")
-            .and_then(|h| h.to_str().ok())
-            .map(|s| s.to_string());
+            .and_then(|h: &HeaderValue| h.to_str().ok())
+            .map(|s: &str| s.to_string());
 
         return Ok(Some(ClientCertInfo {
             fingerprint,
@@ -156,7 +158,7 @@ fn extract_client_cert_info(headers: &HeaderMap) -> Result<Option<ClientCertInfo
 
     // Check for base64 encoded certificate
     if let Some(cert_header) = headers.get("X-SSL-Client-Cert") {
-        let cert_b64 = cert_header.to_str().map_err(|_| StatusCode::BAD_REQUEST)?;
+        let cert_b64: &str = cert_header.to_str().map_err(|_| StatusCode::BAD_REQUEST)?;
 
         // Decode certificate and calculate fingerprint
         let cert_der = Base64::decode_vec(cert_b64).map_err(|_| StatusCode::BAD_REQUEST)?;

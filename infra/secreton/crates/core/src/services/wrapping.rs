@@ -455,20 +455,20 @@ impl WrappingService {
     async fn encrypt_data(&self, data: &[u8]) -> Result<(Vec<u8>, JsonValue), WrappingError> {
         use aes_gcm::{
             Aes256Gcm, Nonce,
-            aead::{Aead, KeyInit, OsRng},
+            aead::{Aead, KeyInit},
         };
-        use rand::RngCore;
+        use rand::{rngs::OsRng, RngCore};
 
         // Generate random key for this wrap operation
         let mut key_bytes = [0u8; 32];
-        OsRng.fill_bytes(&mut key_bytes);
+        (&mut OsRng).fill_bytes(&mut key_bytes);
 
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)
             .map_err(|e| WrappingError::EncryptionFailed(format!("Key init failed: {}", e)))?;
 
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        (&mut OsRng).fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt

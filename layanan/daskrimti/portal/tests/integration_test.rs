@@ -15,9 +15,15 @@ mod tests {
             .unwrap();
 
         // 1. Verify Portal Health
-        let resp = client.get(format!("{}/api/v1/health", PORTAL_URL)).send().await;
+        let resp = client
+            .get(format!("{}/api/v1/health", PORTAL_URL))
+            .send()
+            .await;
         assert!(resp.is_ok(), "Portal should be reachable");
-        assert!(resp.unwrap().status().is_success(), "Portal health check failed");
+        assert!(
+            resp.unwrap().status().is_success(),
+            "Portal health check failed"
+        );
 
         // 2. Attempt Login (expect failure or specific response, but verifying connectivity)
         // Using a non-existent user to verify the interaction chain:
@@ -28,7 +34,8 @@ mod tests {
             "password": "wrongpassword"
         });
 
-        let resp = client.post(format!("{}/api/v1/auth/login", PORTAL_URL))
+        let resp = client
+            .post(format!("{}/api/v1/auth/login", PORTAL_URL))
             .json(&login_body)
             .send()
             .await
@@ -47,12 +54,22 @@ mod tests {
 
         // Assert that the response is 401 Unauthorized for invalid credentials
         assert!(
-            status.as_u16() == 401 || status.as_u16() == 400 || body.contains("Authentication error"),
-            "Expected 401/400 or Authentication error, got {}. Body: {}", status, body
+            status.as_u16() == 401
+                || status.as_u16() == 400
+                || body.contains("Authentication error"),
+            "Expected 401/400 or Authentication error, got {}. Body: {}",
+            status,
+            body
         );
 
         // If we get "Authenc gRPC error: transport error", then integration is broken.
-        assert!(!body.to_lowercase().contains("transport error"), "gRPC Transport error detected!");
-        assert!(!body.to_lowercase().contains("connection refused"), "Connection refused detected!");
+        assert!(
+            !body.to_lowercase().contains("transport error"),
+            "gRPC Transport error detected!"
+        );
+        assert!(
+            !body.to_lowercase().contains("connection refused"),
+            "Connection refused detected!"
+        );
     }
 }

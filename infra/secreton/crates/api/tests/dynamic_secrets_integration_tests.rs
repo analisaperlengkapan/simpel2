@@ -16,7 +16,7 @@
 
 use secreton_api::{handlers::dynamic::*, services::ServiceContainer};
 use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
-use secreton_storage::MemoryBackend;
+use lib_storage::MemoryBackend;
 use std::sync::Arc;
 
 /// Helper to create test service container

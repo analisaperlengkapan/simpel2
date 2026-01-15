@@ -73,11 +73,7 @@ impl CertificateCache {
         let hits = self.hits.load(Ordering::Relaxed) as f64;
         let misses = self.misses.load(Ordering::Relaxed) as f64;
         let total = hits + misses;
-        if total == 0.0 {
-            0.0
-        } else {
-            hits / total
-        }
+        if total == 0.0 { 0.0 } else { hits / total }
     }
 }
 
@@ -153,7 +149,7 @@ pub fn validate_client_certificate(
                 cache.insert(cache_key, validation.clone());
             }
             validation
-        },
+        }
         Err(e) => {
             warn!("Failed to parse client certificate: {}", e);
             CertificateValidation {
@@ -744,7 +740,10 @@ pub async fn namespace_access_middleware(
                         debug!("Access granted to namespace {}", ns_id);
                     }
                     Ok(false) => {
-                        warn!("Access denied to namespace {} for user {}", ns_id, claims.sub);
+                        warn!(
+                            "Access denied to namespace {} for user {}",
+                            ns_id, claims.sub
+                        );
                         return Err((
                             StatusCode::FORBIDDEN,
                             Json(serde_json::json!({
@@ -1147,8 +1146,8 @@ mod tests {
 
     #[test]
     fn test_mfa_status_extraction() {
+        use secreton_core::namespace::{AdminLevel, JwtClaims};
         use std::collections::HashMap;
-        use secreton_core::namespace::{JwtClaims, AdminLevel};
 
         // Create claims with MFA passed
         let mut metadata = HashMap::new();
@@ -1180,14 +1179,15 @@ mod tests {
             policy_names: vec![],
         };
 
-        let request = Request::builder()
-            .body(axum::body::Body::empty())
-            .unwrap();
+        let request = Request::builder().body(axum::body::Body::empty()).unwrap();
 
         let policy_context = build_policy_context(&ctx, &request);
 
         // This should be true if implementation is correct
-        assert_eq!(policy_context["mfa_passed"], true, "MFA status should be extracted from claims");
+        assert_eq!(
+            policy_context["mfa_passed"], true,
+            "MFA status should be extracted from claims"
+        );
     }
 
     #[test]
@@ -1427,7 +1427,13 @@ mod namespace_tests {
         // Invalid paths
         assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
         assert_eq!(extract_namespace_from_path("/invalid/path"), None);
-        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/my-ns/key"), None); // Only data paths
-        assert_eq!(extract_namespace_from_path("/v1/other/data/my-ns/key"), None);
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/metadata/my-ns/key"),
+            None
+        ); // Only data paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/other/data/my-ns/key"),
+            None
+        );
     }
 }

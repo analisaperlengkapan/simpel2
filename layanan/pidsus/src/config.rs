@@ -18,8 +18,7 @@ impl Config {
             .parse()
             .unwrap_or(3000);
 
-        let database_url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set");
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
         let database_pool_size = env::var("DATABASE_POOL_SIZE")
             .unwrap_or_else(|_| "10".to_string())

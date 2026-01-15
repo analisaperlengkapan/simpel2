@@ -439,7 +439,7 @@ impl DatabaseSecretsEngine {
                                 abcdefghijklmnopqrstuvwxyz\
                                 0123456789\
                                 !@#$%^&*";
-        let mut rng = OsRng;
+        let mut rng = &mut OsRng;
 
         (0..length)
             .map(|_| {

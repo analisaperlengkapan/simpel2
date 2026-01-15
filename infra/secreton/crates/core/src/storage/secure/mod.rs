@@ -72,13 +72,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use aes_gcm::{
     Aes256Gcm, Key, Nonce,
-    aead::{Aead, KeyInit, OsRng},
+    aead::{Aead, KeyInit},
 };
 use anyhow::{Result, anyhow};
 use argon2::{Argon2, Params};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use rand::RngCore;
+use rand::{rngs::OsRng, RngCore};
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 use tracing::info;
@@ -481,7 +481,7 @@ impl SecureStorage {
     pub fn new(master_key: &[u8]) -> Self {
         // Generate a new random salt
         let mut salt = [0u8; SALT_LENGTH];
-        OsRng.fill_bytes(&mut salt);
+        (&mut OsRng).fill_bytes(&mut salt);
 
         // Derive the key
         let key = Self::derive_key(master_key, &salt).unwrap_or_else(|_| {
@@ -561,7 +561,7 @@ impl SecureStorage {
     ) -> Result<KeyEntry> {
         // Generate a random salt for key derivation
         let mut salt = [0u8; SALT_LENGTH];
-        OsRng.fill_bytes(&mut salt);
+        (&mut OsRng).fill_bytes(&mut salt);
 
         // Derive the encryption key from the master key and salt
         let key = Self::derive_key(master_key, &salt)?;
@@ -724,7 +724,7 @@ impl SecureStorage {
 
         // Generate a random nonce for each encryption
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        (&mut OsRng).fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt the data with the current cipher

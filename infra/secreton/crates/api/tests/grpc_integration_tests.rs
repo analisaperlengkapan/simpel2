@@ -22,8 +22,8 @@ use secreton_api::grpc::{
     SecretonGrpcService, common::v1::*, secreton::v1::secreton_service_server::SecretonService,
     secreton::v1::*,
 };
-use secreton_crypto::transit::TransitEngine;
-use secreton_storage::{MemoryBackend, StorageBackend};
+use lib_crypto::transit::TransitEngine;
+use lib_storage::{MemoryBackend, StorageBackend};
 
 /// Helper function to create a test gRPC service
 fn create_test_service() -> SecretonGrpcService {

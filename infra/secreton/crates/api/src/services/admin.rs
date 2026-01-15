@@ -10,8 +10,8 @@ use thiserror::Error;
 
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
-use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, StorageBackend};
+use lib_crypto::encryption::CryptoEngine;
+use lib_storage::{MemoryBackend, StorageBackend};
 use std::sync::Mutex;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
@@ -34,7 +34,7 @@ pub enum AdminError {
     Auth(#[from] crate::services::auth::AuthError),
 
     #[error("Storage error: {0}")]
-    Storage(#[from] secreton_storage::StorageError),
+    Storage(#[from] lib_storage::StorageError),
 
     #[error("Lease error: {0}")]
     Lease(#[from] secreton_core::services::lease::LeaseError),
@@ -186,7 +186,9 @@ impl AdminService {
                 total: total_memory,
                 used: used_memory,
                 free: sys.free_memory(),
-                cached: total_memory.saturating_sub(used_memory).saturating_sub(sys.free_memory()), // Approximate
+                cached: total_memory
+                    .saturating_sub(used_memory)
+                    .saturating_sub(sys.free_memory()), // Approximate
             };
 
             let cpu = CpuStats {
@@ -327,18 +329,16 @@ impl AdminService {
         // 3. Clean expired audit logs based on retention policy
         // Retention: 30 days
         let retention_period = chrono::Duration::days(30);
-        let cleaned_audit_logs = self
-            .audit
-            .cleanup_expired_events(retention_period)
-            .await;
+        let cleaned_audit_logs = self.audit.cleanup_expired_events(retention_period).await;
 
         let cleaned_objects =
             expired_leases_count as u64 + expired_secrets_count + cleaned_audit_logs as u64;
 
         // Recalculate stats to see freed space (approximate)
         let stats_after = self.storage.get_stats().await?;
-        let freed_space =
-            stats_before.total_size_bytes.saturating_sub(stats_after.total_size_bytes);
+        let freed_space = stats_before
+            .total_size_bytes
+            .saturating_sub(stats_after.total_size_bytes);
 
         tracing::info!(
             cleaned_objects = cleaned_objects,
@@ -689,8 +689,8 @@ mod tests {
     use super::*;
     use crate::audit::AuditLogger;
     use crate::config::AuthConfig;
-    use secreton_crypto::SecurityParams;
-    use secreton_storage::MemoryBackend;
+    use lib_crypto::SecurityParams;
+    use lib_storage::MemoryBackend;
 
     // Mock implementation of LeaseCleaner for testing
     pub struct MockLeaseCleaner {
@@ -707,7 +707,7 @@ mod tests {
     #[tokio::test]
     async fn test_admin_service_creation() {
         let storage = Arc::new(MemoryBackend::new());
-        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let crypto = Arc::new(lib_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
             AuthService::new(storage.clone(), crypto, &config)
@@ -724,7 +724,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_system_stats() {
         let storage = Arc::new(MemoryBackend::new());
-        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let crypto = Arc::new(lib_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
             AuthService::new(storage.clone(), crypto, &config)
@@ -743,14 +743,17 @@ mod tests {
         assert_eq!(stats.total_secrets, 0);
         assert_eq!(stats.total_keys, 0);
         assert_eq!(stats.storage_usage_bytes, 0);
-        assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
+        assert!(
+            stats.uptime_seconds >= 1,
+            "Uptime should be at least 1 second"
+        );
         assert!(stats.cache_hit_rate >= 0.0);
     }
 
     #[tokio::test]
     async fn test_create_backup_returns_metadata() {
         let storage = Arc::new(MemoryBackend::new());
-        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let crypto = Arc::new(lib_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
             AuthService::new(storage.clone(), crypto, &config)
@@ -774,7 +777,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_garbage_collection_returns_details() {
         let storage = Arc::new(MemoryBackend::new());
-        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let crypto = Arc::new(lib_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
             AuthService::new(storage.clone(), crypto, &config)

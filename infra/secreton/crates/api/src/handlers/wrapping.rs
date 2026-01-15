@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, extractors::Namespace};
+use crate::{ApiError, ApiResponse, ApiResult, extractors::Namespace, handlers::AppState};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -496,5 +496,4 @@ mod tests {
         assert!("wrap_abc123".starts_with("wrap_"));
         assert!(!"invalid_token".starts_with("wrap_"));
     }
-
 }

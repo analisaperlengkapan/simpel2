@@ -16,14 +16,14 @@ async fn test_shared_state_between_rest_and_grpc() {
     // In a real deployment, both servers would access the same Transit engine and storage
 
     // Create shared transit engine
-    let transit_engine = Arc::new(secreton_crypto::transit::TransitEngine::new());
+    let transit_engine = Arc::new(lib_crypto::transit::TransitEngine::new());
 
     // Create a key via the transit engine (simulating REST API call)
     let key_name = "test-shared-key";
     let result = transit_engine
         .create_key(
             key_name.to_string(),
-            secreton_crypto::transit::KeyType::Aes256Gcm,
+            lib_crypto::transit::KeyType::Aes256Gcm,
             None,
         )
         .await;
@@ -64,7 +64,7 @@ async fn test_shared_state_between_rest_and_grpc() {
 #[tokio::test]
 async fn test_concurrent_operations() {
     // Test that multiple operations can happen concurrently
-    let transit_engine = Arc::new(secreton_crypto::transit::TransitEngine::new());
+    let transit_engine = Arc::new(lib_crypto::transit::TransitEngine::new());
 
     // Create multiple keys concurrently
     let mut handles = vec![];
@@ -76,7 +76,7 @@ async fn test_concurrent_operations() {
             engine
                 .create_key(
                     key_name.clone(),
-                    secreton_crypto::transit::KeyType::Aes256Gcm,
+                    lib_crypto::transit::KeyType::Aes256Gcm,
                     None,
                 )
                 .await
@@ -101,8 +101,8 @@ async fn test_concurrent_operations() {
 #[tokio::test]
 async fn test_health_check_integration() {
     // Test that health checks work correctly
-    use secreton_storage::MemoryBackend;
-    use secreton_storage::StorageBackend;
+    use lib_storage::MemoryBackend;
+    use lib_storage::StorageBackend;
 
     let storage: Arc<dyn StorageBackend> = Arc::new(MemoryBackend::new());
 
@@ -120,13 +120,13 @@ async fn test_graceful_shutdown() {
     // Test that servers can shutdown gracefully
     // This is a placeholder - in real implementation, we'd test actual server shutdown
 
-    let transit_engine = Arc::new(secreton_crypto::transit::TransitEngine::new());
+    let transit_engine = Arc::new(lib_crypto::transit::TransitEngine::new());
 
     // Simulate some operations
     let _ = transit_engine
         .create_key(
             "shutdown-test-key".to_string(),
-            secreton_crypto::transit::KeyType::Aes256Gcm,
+            lib_crypto::transit::KeyType::Aes256Gcm,
             None,
         )
         .await;

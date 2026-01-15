@@ -90,7 +90,7 @@ mod comprehensive_tests {
     /// Test all storage backends are properly implemented
     #[tokio::test]
     async fn test_all_storage_backends() {
-        use secreton_storage::backends::*;
+        use lib_storage::backends::*;
 
         // Test that all storage backends exist
         let backends = vec![

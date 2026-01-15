@@ -32,9 +32,9 @@ use secreton_core::services::secrets::ssh::SshEngine;
 use secreton_core::services::secrets::totp::TotpEngine;
 use secreton_core::services::secrets::transform::TransformEngine;
 use secreton_core::services::wrapping::WrappingService;
-use secreton_crypto::CryptoEngine;
+use lib_crypto::CryptoEngine;
 use secreton_hsm::HsmBackend;
-use secreton_storage::StorageBackend;
+use lib_storage::StorageBackend;
 use std::sync::RwLock;
 
 // Re-export SealStorageAdapter for backward compatibility
@@ -141,8 +141,13 @@ impl ServiceContainer {
         tracing::info!("✅ Lease manager initialized");
 
         // Initialize authentication services
-        let (auth, admin) =
-            Self::initialize_auth_services(config, storage.clone(), crypto.clone(), lease_manager.clone()).await?;
+        let (auth, admin) = Self::initialize_auth_services(
+            config,
+            storage.clone(),
+            crypto.clone(),
+            lease_manager.clone(),
+        )
+        .await?;
 
         // Initialize vault and seal services
         let (vault, seal, namespace) =
@@ -233,8 +238,10 @@ impl ServiceContainer {
             Arc::new(auth::AuthService::new(storage.clone(), crypto.clone(), &config.auth).await?);
 
         let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
-        let admin =
-            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager).await?);
+        let admin = Arc::new(
+            admin::AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager)
+                .await?,
+        );
 
         Ok((auth, admin))
     }
@@ -445,9 +452,9 @@ impl ServiceContainer {
     async fn create_storage_backend(
         config: &ApiConfig,
     ) -> Result<Arc<dyn StorageBackend + Send + Sync>> {
-        use secreton_storage::MemoryBackend;
+        use lib_storage::MemoryBackend;
         #[cfg(feature = "raft-consensus")]
-        use secreton_storage::{RaftCluster, RaftClusterConfig};
+        use lib_storage::{RaftCluster, RaftClusterConfig};
 
         // Get storage backend type from config or environment
         let backend_type =
@@ -533,7 +540,7 @@ impl ServiceContainer {
                             )
                         })?;
                     tracing::info!("Using PostgreSQL storage backend");
-                    let backend = secreton_storage::StorageFactory::create_postgres(&url, None)
+                    let backend = lib_storage::StorageFactory::create_postgres(&url, None)
                         .await
                         .map_err(|e| {
                             anyhow::anyhow!("Failed to create PostgreSQL storage backend: {}", e)
@@ -558,7 +565,7 @@ impl ServiceContainer {
                 let path = std::env::var("Secreton_STORAGE_FILE_PATH")
                     .unwrap_or_else(|_| "/var/lib/secreton/data".to_string());
                 tracing::info!("Using file storage backend at {}", path);
-                let backend = secreton_storage::StorageFactory::create_file(path)
+                let backend = lib_storage::StorageFactory::create_file(path)
                     .await
                     .map_err(|e| anyhow::anyhow!("Failed to create file storage backend: {}", e))?;
                 Ok(backend)
@@ -576,7 +583,7 @@ impl ServiceContainer {
                         address,
                         path
                     );
-                    let backend = secreton_storage::StorageFactory::create_consul(&address, &path)
+                    let backend = lib_storage::StorageFactory::create_consul(&address, &path)
                         .await
                         .map_err(|e| {
                             anyhow::anyhow!("Failed to create Consul storage backend: {}", e)

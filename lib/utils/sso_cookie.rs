@@ -1,9 +1,82 @@
-use crate::config::SsoCookieConfig;
+//! SSO cookie management utilities
+//!
+//! Provides secure SSO cookie creation, validation, and session management.
+//! Implements secure cookie attributes (Secure, HttpOnly, SameSite) for Portal integration.
+
 use crate::error::{AuthencError, Result};
 use axum::http::{HeaderMap, HeaderValue, header};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// SSO Cookie configuration for secure session management
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SsoCookieConfig {
+    /// Cookie name (default: AUTHENC_SSO)
+    #[serde(default = "default_cookie_name")]
+    pub name: String,
+
+    /// Cookie domain (e.g., simpel.kejaksaan.go.id)
+    pub domain: Option<String>,
+
+    /// Cookie path (default: /)
+    #[serde(default = "default_cookie_path")]
+    pub path: String,
+
+    /// Cookie max age in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_cookie_max_age")]
+    pub max_age: i64,
+
+    /// Enable Secure flag (HTTPS only)
+    #[serde(default = "default_cookie_secure")]
+    pub secure: bool,
+
+    /// Enable HttpOnly flag (prevent JavaScript access)
+    #[serde(default = "default_cookie_http_only")]
+    pub http_only: bool,
+
+    /// SameSite policy (Lax, Strict, None)
+    #[serde(default = "default_cookie_same_site")]
+    pub same_site: String,
+}
+
+fn default_cookie_name() -> String {
+    "AUTHENC_SSO".to_string()
+}
+
+fn default_cookie_path() -> String {
+    "/".to_string()
+}
+
+fn default_cookie_max_age() -> i64 {
+    3600 // 1 hour
+}
+
+fn default_cookie_secure() -> bool {
+    true
+}
+
+fn default_cookie_http_only() -> bool {
+    true
+}
+
+fn default_cookie_same_site() -> String {
+    "Lax".to_string()
+}
+
+impl Default for SsoCookieConfig {
+    fn default() -> Self {
+        Self {
+            name: default_cookie_name(),
+            domain: None,
+            path: default_cookie_path(),
+            max_age: default_cookie_max_age(),
+            secure: default_cookie_secure(),
+            http_only: default_cookie_http_only(),
+            same_site: default_cookie_same_site(),
+        }
+    }
+}
 
 /// SSO session data stored in the cookie
 #[derive(Debug, Clone, Serialize, Deserialize)]
