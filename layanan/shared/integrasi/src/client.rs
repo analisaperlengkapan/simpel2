@@ -127,80 +127,7 @@ impl MonsaktiClient {
                 );
             }
 
-            // Try dengan ureq untuk data fetch juga
-            info!("Using ureq for data fetch...");
-            let url_clone = url.clone();
-            let token_clone = token.clone();
-
-            let ureq_result = tokio::task::spawn_blocking(move || {
-                Self::fetch_with_ureq_static(&url_clone, &token_clone)
-            })
-            .await;
-
-            match ureq_result {
-                Ok(Ok(json_response)) => {
-                    info!("✓ ureq data fetch SUCCESS!");
-
-                    // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
-                    // Parse as array dan extract token + data
-                    if let Some(arr) = json_response.as_array()
-                        && arr.len() >= 2 {
-                            // Element 0: token array
-                            let mut new_token_opt = None;
-                            if let Some(token_arr) = arr[0].as_array()
-                                && let Some(token_obj) = token_arr.first()
-                                    && let Some(token_str) =
-                                        token_obj.get("TOKEN").and_then(|t| t.as_str())
-                                    {
-                                        new_token_opt = Some(token_str.to_string());
-                                        info!("Memperbarui token untuk modul {}", module);
-                                        self.current_tokens
-                                            .insert(module.to_string(), token_str.to_string());
-
-                                        // Save token baru ke database
-                                        if let Some(db) = &self.db_client {
-                                            match self.save_token_to_db(db, module, token_str).await
-                                            {
-                                                Ok(_) => info!(
-                                                    "✓ Token dari response disimpan ke database (modul: {})",
-                                                    module
-                                                ),
-                                                Err(e) => warn!(
-                                                    "⚠ Gagal simpan token dari response ke database: {:?}",
-                                                    e
-                                                ),
-                                            }
-                                        }
-                                    }
-
-                            // Element 1: data array
-                            let data_value = arr[1].clone();
-
-                            return Ok(MonsaktiResponse {
-                                new_token: new_token_opt,
-                                data: Some(data_value),
-                                error: None,
-                            });
-                        }
-
-                    // Fallback: treat as plain JSON
-                    return Ok(MonsaktiResponse {
-                        new_token: None,
-                        data: Some(json_response),
-                        error: None,
-                    });
-                }
-                Ok(Err(e)) => {
-                    warn!(
-                        "⚠ ureq data fetch failed: {}, trying reqwest fallback...",
-                        e
-                    );
-                }
-                Err(e) => {
-                    warn!("⚠ ureq spawn failed: {:?}, trying reqwest fallback...", e);
-                }
-            }
-
+            // Gunakan reqwest (async) untuk data fetch
             let response = self
                 .client
                 .get(&url)
@@ -245,65 +172,122 @@ impl MonsaktiClient {
                 )));
             }
 
-            let result: MonsaktiResponse = response.json().await?;
+            // Parse response sebagai generic JSON value dulu
+            let json_response: serde_json::Value = response.json().await?;
 
-            if let Some(error_msg) = &result.error {
-                if error_msg.contains("Token Expired")
-                    || error_msg.contains("token") && error_msg.contains("expired")
-                {
-                    warn!(
-                        "Token kadaluarsa untuk modul {} (attempt {})",
-                        module, retry_count
-                    );
+            // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
+            // Parse as array dan extract token + data
+            if let Some(arr) = json_response.as_array()
+                && arr.len() >= 2 {
+                    // Element 0: token array
+                    let mut new_token_opt = None;
+                    if let Some(token_arr) = arr[0].as_array()
+                        && let Some(token_obj) = token_arr.first()
+                            && let Some(token_str) =
+                                token_obj.get("TOKEN").and_then(|t| t.as_str())
+                            {
+                                new_token_opt = Some(token_str.to_string());
+                                info!("Memperbarui token untuk modul {}", module);
+                                self.current_tokens
+                                    .insert(module.to_string(), token_str.to_string());
 
-                    // Auto-retry dengan reset token
-                    if retry_count == 1 {
-                        warn!(
-                            "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
-                        );
-                        match self.reset_token_auto(module, tipe_data).await {
-                            Ok(_new_token) => {
-                                info!("✓ Token baru diterima dari resetToken endpoint");
-                                info!(
-                                    "⟳ Retry request dengan token baru (attempt {})",
-                                    retry_count + 1
-                                );
-                                return self
-                                    .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
-                                    .await;
+                                // Save token baru ke database
+                                if let Some(db) = &self.db_client {
+                                    match self.save_token_to_db(db, module, token_str).await
+                                    {
+                                        Ok(_) => info!(
+                                            "✓ Token dari response disimpan ke database (modul: {})",
+                                            module
+                                        ),
+                                        Err(e) => warn!(
+                                            "⚠ Gagal simpan token dari response ke database: {:?}",
+                                            e
+                                        ),
+                                    }
+                                }
                             }
-                            Err(e) => {
-                                error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
-                                error!(
-                                    "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
-                                );
+
+                    // Element 1: data array
+                    let data_value = arr[1].clone();
+
+                    return Ok(MonsaktiResponse {
+                        new_token: new_token_opt,
+                        data: Some(data_value),
+                        error: None,
+                    });
+                }
+
+            // Jika bukan format array, coba perlakukan sebagai MonsaktiResponse normal
+            // atau cek field error di object
+            if let Some(obj) = json_response.as_object() {
+                if let Some(error_msg) = obj.get("error").and_then(|v| v.as_str()) {
+                     if error_msg.contains("Token Expired")
+                        || error_msg.contains("token") && error_msg.contains("expired")
+                    {
+                        warn!(
+                            "Token kadaluarsa untuk modul {} (attempt {})",
+                            module, retry_count
+                        );
+
+                        // Auto-retry dengan reset token
+                        if retry_count == 1 {
+                            warn!(
+                                "⚠ Response error: 'Token Expired', mencoba reset token dengan Bearer token dari .env..."
+                            );
+                            match self.reset_token_auto(module, tipe_data).await {
+                                Ok(_new_token) => {
+                                    info!("✓ Token baru diterima dari resetToken endpoint");
+                                    info!(
+                                        "⟳ Retry request dengan token baru (attempt {})",
+                                        retry_count + 1
+                                    );
+                                    return self
+                                        .fetch_with_retry(module, tipe_data, variables, retry_count + 1)
+                                        .await;
+                                }
+                                Err(e) => {
+                                    error!("✗ Gagal reset token untuk modul {}: {:?}", module, e);
+                                    error!(
+                                        "⚠ Token di .env sudah tidak valid atau expired, perlu regenerasi manual dari portal Kemenkeu"
+                                    );
+                                }
                             }
                         }
-                    }
 
-                    return Err(MonsaktiError::TokenExpired);
+                        return Err(MonsaktiError::TokenExpired);
+                    }
+                    return Err(MonsaktiError::ApiError(error_msg.to_string()));
                 }
-                return Err(MonsaktiError::ApiError(error_msg.clone()));
+
+                // Jika tidak ada error, coba map ke MonsaktiResponse
+                let result: MonsaktiResponse = serde_json::from_value(json_response).map_err(|e| MonsaktiError::ApiError(format!("Failed to parse response: {}", e)))?;
+
+                if let Some(new_token) = &result.new_token {
+                     info!("Memperbarui token untuk modul {}", module);
+                    self.current_tokens
+                        .insert(module.to_string(), new_token.clone());
+
+                    // Save token baru ke database
+                    if let Some(db) = &self.db_client {
+                        match self.save_token_to_db(db, module, new_token).await {
+                            Ok(_) => info!(
+                                "✓ Token dari response disimpan ke database (modul: {})",
+                                module
+                            ),
+                            Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
+                        }
+                    }
+                }
+
+                return Ok(result);
             }
 
-            if let Some(new_token) = &result.new_token {
-                info!("Memperbarui token untuk modul {}", module);
-                self.current_tokens
-                    .insert(module.to_string(), new_token.clone());
-
-                // Save token baru ke database
-                if let Some(db) = &self.db_client {
-                    match self.save_token_to_db(db, module, new_token).await {
-                        Ok(_) => info!(
-                            "✓ Token dari response disimpan ke database (modul: {})",
-                            module
-                        ),
-                        Err(e) => warn!("⚠ Gagal simpan token dari response ke database: {:?}", e),
-                    }
-                }
-            }
-
-            Ok(result)
+            // Fallback: treat as plain JSON wrapping
+             Ok(MonsaktiResponse {
+                new_token: None,
+                data: Some(json_response),
+                error: None,
+            })
         })
     }
 
@@ -375,46 +359,6 @@ impl MonsaktiClient {
         );
         info!("Token length: {} bytes", token.len());
 
-        // Try dengan ureq (synchronous client) untuk comparison
-        info!("Testing with ureq (synchronous HTTP client)...");
-        let url_clone = url.clone();
-        let token_clone = token.clone();
-
-        let ureq_result = tokio::task::spawn_blocking(move || {
-            Self::try_reset_with_ureq_static(&url_clone, &token_clone)
-        })
-        .await;
-
-        match ureq_result {
-            Ok(Ok(new_token)) => {
-                info!("✓ ureq SUCCESS! Got token from ureq");
-                info!(
-                    "Token baru (20 karakter): {}...",
-                    &new_token.chars().take(20).collect::<String>()
-                );
-
-                // Update cache
-                self.current_tokens
-                    .insert(module.to_string(), new_token.clone());
-
-                // Save to database
-                if let Some(db) = &self.db_client {
-                    match self.save_token_to_db(db, module, &new_token).await {
-                        Ok(_) => info!("✓ Token baru disimpan ke database (modul: {})", module),
-                        Err(e) => warn!("⚠ Gagal simpan token ke database: {:?}", e),
-                    }
-                }
-
-                return Ok(new_token);
-            }
-            Ok(Err(e)) => {
-                warn!("⚠ ureq failed: {}, falling back to reqwest...", e);
-            }
-            Err(e) => {
-                warn!("⚠ ureq spawn failed: {:?}, falling back to reqwest...", e);
-            }
-        }
-
         let response = self
             .client
             .get(&url)
@@ -480,70 +424,6 @@ impl MonsaktiClient {
     ) -> Result<String, MonsaktiError> {
         // Default menggunakan KL006 untuk Kejaksaan RI
         self.reset_token(module, tipe_data, "KL006").await
-    }
-
-    /// Fetch data with ureq (synchronous client)
-    fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
-            .call()
-            .map_err(|e| format!("ureq request error: {}", e))?;
-
-        let status = response.status();
-        tracing::info!("ureq data fetch response status: {}", status);
-
-        if status != 200 {
-            let body = response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| format!("Read body error: {}", e))?;
-            return Err(format!("ureq HTTP {}: {}", status, body));
-        }
-
-        let json: serde_json::Value = response
-            .body_mut()
-            .read_json()
-            .map_err(|e| format!("JSON parse error: {}", e))?;
-
-        Ok(json)
-    }
-
-    /// Try reset token with ureq (synchronous client) for debugging - static version
-    fn try_reset_with_ureq_static(url: &str, token: &str) -> Result<String, String> {
-        #[derive(serde::Deserialize)]
-        struct TokenItem {
-            #[serde(rename = "TOKEN")]
-            token: String,
-        }
-
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
-            .call()
-            .map_err(|e| format!("ureq request error: {}", e))?;
-
-        let status = response.status();
-        tracing::info!("ureq response status: {}", status);
-
-        if status != 200 {
-            let body = response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| format!("Read body error: {}", e))?;
-            return Err(format!("ureq HTTP {}: {}", status, body));
-        }
-
-        let tokens: Vec<TokenItem> = response
-            .body_mut()
-            .read_json()
-            .map_err(|e| format!("JSON parse error: {}", e))?;
-
-        if tokens.is_empty() {
-            return Err("Empty token array".to_string());
-        }
-
-        Ok(tokens[0].token.clone())
     }
 
     /// Simpan token baru ke database
