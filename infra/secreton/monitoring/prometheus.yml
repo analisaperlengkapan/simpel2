@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'secreton'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['secreton-server:8200']
+    metrics_path: /v1/sys/metrics
+
+  - job_name: 'authenc'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['host.docker.internal:8088']
+    metrics_path: /metrics

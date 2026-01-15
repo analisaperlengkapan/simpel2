@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  portal-microfrontend:
+    build:
+      context: ../../..
+      dockerfile: antarmuka/daskrimti/portal/Dockerfile
+    container_name: portal-microfrontend
+    ports:
+      - "8090:80"
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  simpelv2-network:
+    external: true

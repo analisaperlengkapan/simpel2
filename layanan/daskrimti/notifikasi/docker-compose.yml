@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  layanan-notifikasi:
+    build:
+      context: ../../../
+      dockerfile: layanan/daskrimti/notifikasi/Dockerfile
+    container_name: simpelv2-layanan-notifikasi
+    ports:
+      - "8084:8084"
+    environment:
+      - RUST_LOG=info
+      - HOST=0.0.0.0
+      - PORT=8084
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/notifikasi
+      - REDIS_URL=redis://redis:6379/4
+      - AUTHENC_URL=http://authenc:8088
+      - JWT_SECRET=${JWT_SECRET:-changeme_is_too_short_so_using_this_long_string_32chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: notifikasi-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=notifikasi
+    ports:
+      - "5436:5432"
+    volumes:
+      - notifikasi_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simpelv2-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: notifikasi-cache
+    ports:
+      - "6386:6379"
+    networks:
+      - simpelv2-network
+
+networks:
+  simpelv2-network:
+    driver: bridge
+    external: true
+
+volumes:
+  notifikasi_db_data:

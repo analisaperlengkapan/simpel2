@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  layanan-portal:
+    build:
+      context: ../../..
+      dockerfile: layanan/daskrimti/portal/Dockerfile
+    container_name: layanan-portal
+    ports:
+      - "8081:8081"
+    environment:
+      - RUST_LOG=info
+      - HOST=0.0.0.0
+      - SERVER_PORT=8081
+      - DATABASE_URL=postgresql://postgres:postgres@portal-db:5432/portal
+      - REDIS_URL=redis://portal-redis:6379/0
+      - AUTHENC_URL=http://authenc:9088
+      - SECRETON_URL=http://secreton-server:8200
+      - JWT_SECRET=${JWT_SECRET:-changeme_is_too_short_so_using_this_long_string_32chars}
+      - API_KEY=dummy_api_key_for_testing_12345
+    depends_on:
+      portal-db:
+        condition: service_healthy
+      portal-redis:
+        condition: service_started
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/api/v1/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  portal-db:
+    image: postgres:17-alpine
+    container_name: layanan-portal-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=portal
+    ports:
+      - "5433:5432"
+    volumes:
+      - portal_db_data:/var/lib/postgresql/data
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  portal-redis:
+    image: redis:7-alpine
+    container_name: layanan-portal-redis
+    ports:
+      - "6383:6379"
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+
+networks:
+  simpelv2-network:
+    external: true
+
+volumes:
+  portal_db_data:

@@ -1,0 +1,162 @@
+
+Running 1 test using 1 worker
+
+BROWSER: cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+BROWSER: The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: using deprecated parameters for the initialization function; pass a single object instead
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to load resource: the server responded with a status of 403 (Forbidden)
+REQ_FAILED: http://localhost:8080/captcha/challenge - net::ERR_ABORTED
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: The resource http://localhost:8090/favicon.png was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+BROWSER: cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+BROWSER: The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: using deprecated parameters for the initialization function; pass a single object instead
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to load resource: the server responded with a status of 403 (Forbidden)
+REQ_FAILED: http://localhost:8080/captcha/challenge - net::ERR_ABORTED
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: The resource http://localhost:8090/favicon.png was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+BROWSER: cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+BROWSER: The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: using deprecated parameters for the initialization function; pass a single object instead
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to load resource: the server responded with a status of 403 (Forbidden)
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+REQ_FAILED: http://localhost:8080/captcha/challenge - net::ERR_ABORTED
+BROWSER: The resource http://localhost:8090/favicon.png was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+BROWSER: cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+BROWSER: The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: using deprecated parameters for the initialization function; pass a single object instead
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to load resource: the server responded with a status of 403 (Forbidden)
+REQ_FAILED: http://localhost:8080/captcha/challenge - net::ERR_ABORTED
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-regular.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-medium.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-semibold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: Failed to decode downloaded font: http://localhost:8090/fonts/inter-bold.woff2
+BROWSER: OTS parsing error: invalid sfntVersion: 1008813135
+BROWSER: The resource http://localhost:8090/favicon.png was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+  ✘  1 [chromium] › integration.spec.ts:6:9 › Portal Frontend Integration › Complete login and secret management flow (30.4s)
+
+
+  1) [chromium] › integration.spec.ts:6:9 › Portal Frontend Integration › Complete login and secret management flow 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('button:has-text("4")')[22m
+    [2m    - waiting for" http://localhost:8090/login" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:8090/login"[22m
+
+
+      22 |         // Wait for the captcha challenge to load
+      23 |         await expect(page.locator('.captcha-container')).toBeVisible();
+    > 24 |         await page.click('button:has-text("4")');
+         |                    ^
+      25 |         await expect(page.locator('text=Verification successful!')).toBeVisible();
+      26 |
+      27 |         // 4. Submit Login
+        at /var/www/simpelv2/tests/e2e/integration.spec.ts:24:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/integration-Portal-Fronten-8bcbf--and-secret-management-flow-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/integration-Portal-Fronten-8bcbf--and-secret-management-flow-chromium/error-context.md
+
+  1 failed
+    [chromium] › integration.spec.ts:6:9 › Portal Frontend Integration › Complete login and secret management flow 

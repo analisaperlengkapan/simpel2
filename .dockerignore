@@ -1,0 +1,14 @@
+target/
+**/target/
+node_modules/
+**/node_modules/
+.git/
+.cargo/
+**/*.log
+**/*.tmp
+.env
+.ipynb_checkpoints/
+**/dist/
+**/build/
+**/frontend.log
+!infra/secreton/api_server_bin

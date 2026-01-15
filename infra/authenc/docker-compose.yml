@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  authenc:
+    build:
+      context: ../../
+      dockerfile: infra/authenc/Dockerfile
+    container_name: authenc
+    ports:
+      - "8080:8088"
+      - "9088:9088"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8088
+      - SERVER__GRPC_ENABLED=true
+      - SERVER__GRPC_PORT=9088
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/authenc
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=default_jwt_secret_change_in_production
+      - RUST_LOG=authenc=debug
+      - ED25519_PRIVATE_KEY_BASE64=MC4CAQAwBQYDK2VwBCIEIL+zL6XG6Y7b6XG6Y7b6XG6Y7b6XG6Y7b6XG6Y7b6XG6 # Placeholder
+    volumes:
+      - ./src/database/migrations/schema.sql:/app/infra/authenc/src/database/migrations/schema.sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - authenc-net
+      - simpelv2-network # Connect to simpelv2 for layanan integration
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: authenc-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=authenc
+    ports:
+      - "5452:5432"
+    volumes:
+      - authenc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - authenc-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: authenc-cache
+    ports:
+      - "6382:6379"
+    networks:
+      - authenc-net
+
+networks:
+  authenc-net:
+    driver: bridge
+  simpelv2-network:
+    external: true
+
+volumes:
+  authenc_db_data:

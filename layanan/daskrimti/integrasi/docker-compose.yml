@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  layanan-integrasi:
+    build:
+      context: ../../../
+      dockerfile: layanan/daskrimti/integrasi/Dockerfile
+    container_name: simpelv2-layanan-integrasi
+    ports:
+      - "8083:8083"
+    environment:
+      - RUST_LOG=info
+      - HOST=0.0.0.0
+      - PORT=8083
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/integrasi
+      - REDIS_URL=redis://redis:6379/3
+      - AUTHENC_URL=http://authenc:8088
+      - JWT_SECRET=${JWT_SECRET:-changeme_is_too_short_so_using_this_long_string_32chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - simpelv2-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: integrasi-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=integrasi
+    ports:
+      - "5435:5432"
+    volumes:
+      - integrasi_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simpelv2-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: integrasi-cache
+    ports:
+      - "6385:6379"
+    networks:
+      - simpelv2-network
+
+networks:
+  simpelv2-network:
+    driver: bridge
+    external: true
+
+volumes:
+  integrasi_db_data:

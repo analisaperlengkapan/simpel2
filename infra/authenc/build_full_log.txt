@@ -1,0 +1,2438 @@
+time="2026-01-14T21:51:33+07:00" level=warning msg="/var/www/simpelv2/infra/authenc/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image authenc-authenc Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 504B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.19kB 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/debian:13.2-slim
+#3 ...
+
+#4 [auth] library/rust:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/rust:latest
+#5 ...
+
+#6 [auth] library/debian:pull token for registry-1.docker.io
+#6 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/rust:latest
+#5 ...
+
+#3 [internal] load metadata for docker.io/library/debian:13.2-slim
+#3 DONE 4.1s
+
+#5 [internal] load metadata for docker.io/library/rust:latest
+#5 DONE 4.5s
+
+#7 [internal] load .dockerignore
+#7 transferring context: 215B 0.0s done
+#7 DONE 0.1s
+
+#8 [builder 1/5] FROM docker.io/library/rust:latest@sha256:bed2d7f8140d73c26f16c298c91ae8487a09f40d3840c0d8d139537e1b51e148
+#8 resolve docker.io/library/rust:latest@sha256:bed2d7f8140d73c26f16c298c91ae8487a09f40d3840c0d8d139537e1b51e148 0.1s done
+#8 DONE 0.1s
+
+#9 [internal] load build context
+#9 DONE 0.0s
+
+#10 [stage-1 1/5] FROM docker.io/library/debian:13.2-slim@sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885
+#10 resolve docker.io/library/debian:13.2-slim@sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885
+#10 resolve docker.io/library/debian:13.2-slim@sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885 0.1s done
+#10 DONE 0.1s
+
+#8 [builder 1/5] FROM docker.io/library/rust:latest@sha256:bed2d7f8140d73c26f16c298c91ae8487a09f40d3840c0d8d139537e1b51e148
+#8 DONE 0.1s
+
+#9 [internal] load build context
+#9 transferring context: 132.89kB 0.5s done
+#9 DONE 0.6s
+
+#11 [builder 2/5] RUN apt-get update &&     apt-get install -y pkg-config libssl-dev protobuf-compiler &&     rm -rf /var/lib/apt/lists/*
+#11 CACHED
+
+#12 [builder 3/5] WORKDIR /app
+#12 CACHED
+
+#13 [builder 4/5] COPY . .
+#13 DONE 2.0s
+
+#14 [builder 5/5] RUN cargo build --release -p authenc
+#14 2.151 warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+#14 2.151 package:   /app/infra/authenc/Cargo.toml
+#14 2.151 workspace: /app/Cargo.toml
+#14 2.151 warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+#14 2.151 package:   /app/infra/secreton/Cargo.toml
+#14 2.151 workspace: /app/Cargo.toml
+#14 2.633     Updating crates.io index
+#14 34.01  Downloading crates ...
+#14 34.54   Downloaded aead v0.5.2
+#14 34.60   Downloaded anstyle-query v1.1.5
+#14 34.65   Downloaded alloc-no-stdlib v2.0.4
+#14 34.69   Downloaded base16ct v0.2.0
+#14 34.73   Downloaded atomic-waker v1.1.2
+#14 34.74   Downloaded async-stream-impl v0.3.6
+#14 34.83   Downloaded base64-simd v0.8.0
+#14 34.86   Downloaded cfg_aliases v0.2.1
+#14 34.89   Downloaded bincode_derive v2.0.1
+#14 34.89   Downloaded clap_lex v0.7.6
+#14 34.91   Downloaded base64urlsafedata v0.5.4
+#14 34.92   Downloaded block-buffer v0.10.4
+#14 34.95   Downloaded castaway v0.2.4
+#14 34.97   Downloaded darling_macro v0.21.3
+#14 35.02   Downloaded foreign-types v0.3.2
+#14 35.06   Downloaded ghash v0.5.1
+#14 35.08   Downloaded futures-macro v0.3.31
+#14 35.13   Downloaded http-body v0.4.6
+#14 35.19   Downloaded heck v0.5.0
+#14 35.24   Downloaded futures-task v0.3.31
+#14 35.28   Downloaded aws-smithy-json v0.61.9
+#14 35.30   Downloaded hex v0.4.3
+#14 35.32   Downloaded byteorder-lite v0.1.0
+#14 35.34   Downloaded fnv v1.0.7
+#14 35.35   Downloaded base64ct v1.8.2
+#14 35.38   Downloaded futures-core v0.3.31
+#14 35.43   Downloaded http-body v1.0.1
+#14 35.47   Downloaded deadpool-postgres v0.14.1
+#14 35.51   Downloaded fallible-iterator v0.2.0
+#14 35.53   Downloaded futures-executor v0.3.31
+#14 35.54   Downloaded group v0.13.0
+#14 35.56   Downloaded http-body-util v0.1.3
+#14 35.59   Downloaded ff v0.13.1
+#14 35.60   Downloaded displaydoc v0.2.5
+#14 35.68   Downloaded home v0.5.12
+#14 35.71   Downloaded either v1.15.0
+#14 35.73   Downloaded digest v0.10.7
+#14 35.75   Downloaded compression-core v0.4.31
+#14 35.76   Downloaded clap_derive v4.5.49
+#14 35.79   Downloaded aws-smithy-xml v0.60.13
+#14 35.81   Downloaded bitflags v2.10.0
+#14 35.85   Downloaded fpe v0.6.1
+#14 35.88   Downloaded blake2 v0.10.6
+#14 35.94   Downloaded hyper-tls v0.6.0
+#14 36.00   Downloaded foldhash v0.2.0
+#14 36.02   Downloaded hmac v0.12.1
+#14 36.05   Downloaded erased-serde v0.4.9
+#14 36.11   Downloaded getrandom v0.2.16
+#14 36.18   Downloaded email_address v0.2.9
+#14 36.23   Downloaded educe v0.6.0
+#14 36.41   Downloaded idna_adapter v1.2.1
+#14 36.49   Downloaded intl_pluralrules v7.0.2
+#14 36.53   Downloaded itoa v1.0.17
+#14 36.59   Downloaded futures v0.3.31
+#14 36.69   Downloaded headers v0.4.1
+#14 36.89   Downloaded lber v0.5.1
+#14 36.93   Downloaded http-range-header v0.4.2
+#14 36.95   Downloaded der v0.7.10
+#14 37.00   Downloaded json-patch v4.1.0
+#14 37.04   Downloaded httpdate v1.0.3
+#14 37.09   Downloaded compact_str v0.8.1
+#14 37.16   Downloaded mime v0.3.17
+#14 37.19   Downloaded multimap v0.10.1
+#14 37.23   Downloaded num-iter v0.1.45
+#14 37.27   Downloaded icu_provider v2.1.1
+#14 37.32   Downloaded ed25519-dalek v2.2.0
+#14 37.41   Downloaded opaque-debug v0.3.1
+#14 37.45   Downloaded openssl-probe v0.2.0
+#14 37.50   Downloaded lru-cache v0.1.2
+#14 37.53   Downloaded keccak v0.1.5
+#14 37.56   Downloaded mime_guess v2.0.5
+#14 37.60   Downloaded ordered-float v2.10.1
+#14 37.61   Downloaded linked-hash-map v0.5.6
+#14 37.62   Downloaded lru v0.12.5
+#14 37.64   Downloaded num-complex v0.4.6
+#14 37.65   Downloaded nu-ansi-term v0.50.3
+#14 37.74   Downloaded multer v3.1.0
+#14 37.77   Downloaded num-rational v0.4.2
+#14 37.78   Downloaded num_enum_derive v0.7.5
+#14 37.79   Downloaded icu_properties v2.1.2
+#14 37.82   Downloaded jsonwebtoken v10.2.0
+#14 37.97   Downloaded opentelemetry-http v0.31.0
+#14 38.02   Downloaded metrics v0.24.3
+#14 38.10   Downloaded matchers v0.2.0
+#14 38.13   Downloaded combine v4.6.7
+#14 38.22   Downloaded num_cpus v1.17.0
+#14 38.31   Downloaded openssl-macros v0.1.1
+#14 38.34   Downloaded phf_shared v0.13.1
+#14 38.37   Downloaded parking v2.2.1
+#14 38.39   Downloaded log v0.4.29
+#14 38.41   Downloaded oid-registry v0.8.1
+#14 38.42   Downloaded outref v0.5.2
+#14 38.43   Downloaded aws-lc-rs v1.15.2
+#14 38.72   Downloaded pest_generator v2.8.5
+#14 38.77   Downloaded powerfmt v0.2.0
+#14 38.83   Downloaded pkg-config v0.3.32
+#14 38.89   Downloaded pastey v0.1.1
+#14 38.93   Downloaded proc-macro-crate v3.4.0
+#14 38.98   Downloaded polyval v0.6.2
+#14 39.02   Downloaded prost v0.14.1
+#14 39.06   Downloaded primeorder v0.13.6
+#14 39.06   Downloaded kube-runtime v2.0.1
+#14 39.10   Downloaded postgres-types v0.2.11
+#14 39.13   Downloaded opentelemetry-proto v0.31.0
+#14 39.15   Downloaded opentelemetry-otlp v0.31.0
+#14 39.19   Downloaded pin-project v1.1.10
+#14 39.51   Downloaded rand_chacha v0.3.1
+#14 39.56   Downloaded ref-cast-impl v1.0.25
+#14 39.58   Downloaded ref-cast v1.0.25
+#14 39.60   Downloaded rfc6979 v0.3.1
+#14 39.62   Downloaded openssl-sys v0.9.111
+#14 39.65   Downloaded hkdf v0.12.4
+#14 39.67   Downloaded pulldown-cmark-to-cmark v21.1.0
+#14 39.68   Downloaded h2 v0.3.27
+#14 39.73   Downloaded rusticata-macros v4.1.0
+#14 39.75   Downloaded rustc-hash v2.1.1
+#14 39.78   Downloaded regex-cache v0.2.1
+#14 39.82   Downloaded pqcrypto-internals v0.2.11
+#14 39.84   Downloaded rust-multipart-rfc7578_2 v0.8.0
+#14 39.85   Downloaded rfc6979 v0.4.0
+#14 39.85   Downloaded proc-macro2 v1.0.105
+#14 39.87   Downloaded icu_properties_data v2.1.2
+#14 39.94   Downloaded scopeguard v1.2.0
+#14 39.96   Downloaded quinn-udp v0.5.14
+#14 39.97   Downloaded rustls-pemfile v2.2.0
+#14 39.99   Downloaded reserve-port v2.3.0
+#14 40.02   Downloaded rustversion v1.0.22
+#14 40.04   Downloaded rand_xoshiro v0.7.0
+#14 40.07   Downloaded schemars_derive v1.2.0
+#14 40.12   Downloaded rand_core v0.6.4
+#14 40.16   Downloaded scrypt v0.11.0
+#14 40.20   Downloaded minimal-lexical v0.2.1
+#14 40.30   Downloaded salsa20 v0.10.2
+#14 40.31   Downloaded rustls-native-certs v0.8.3
+#14 40.33   Downloaded secrecy v0.10.3
+#14 40.35   Downloaded serde_spanned v1.0.4
+#14 40.36   Downloaded serde_urlencoded v0.7.1
+#14 40.38   Downloaded serdect v0.2.0
+#14 40.41   Downloaded idna v1.1.0
+#14 40.43   Downloaded signature v2.2.0
+#14 40.44   Downloaded sha1_smol v1.0.1
+#14 40.46   Downloaded p256 v0.11.1
+#14 40.50   Downloaded sha1 v0.10.6
+#14 40.51   Downloaded serde-value v0.7.0
+#14 40.53   Downloaded siphasher v1.0.1
+#14 40.53   Downloaded opentelemetry v0.31.0
+#14 40.57   Downloaded spki v0.6.0
+#14 40.60   Downloaded rustls-pki-types v1.13.2
+#14 40.61   Downloaded signal-hook-registry v1.4.8
+#14 40.63   Downloaded sec1 v0.7.3
+#14 40.64   Downloaded mio v1.1.1
+#14 40.68   Downloaded num-bigint v0.4.6
+#14 40.72   Downloaded stable_deref_trait v1.2.1
+#14 40.73   Downloaded slab v0.4.11
+#14 40.75   Downloaded serde_derive_internals v0.29.1
+#14 40.78   Downloaded simd-adler32 v0.3.8
+#14 40.78   Downloaded sha2 v0.10.9
+#14 40.80   Downloaded self_cell v1.2.2
+#14 40.80   Downloaded sec1 v0.3.0
+#14 40.82   Downloaded sketches-ddsketch v0.3.0
+#14 40.84   Downloaded spki v0.7.3
+#14 40.84   Downloaded signature v1.6.4
+#14 40.86   Downloaded shlex v1.3.0
+#14 40.87   Downloaded sct v0.7.1
+#14 40.90   Downloaded nom v7.1.3
+#14 40.93   Downloaded iri-string v0.7.10
+#14 41.00   Downloaded serde_cbor_2 v0.13.0
+#14 41.02   Downloaded spin v0.9.8
+#14 41.04   Downloaded smallvec v1.15.1
+#14 41.06   Downloaded ldap3 v0.12.1
+#14 41.10   Downloaded ryu v1.0.22
+#14 41.15   Downloaded itertools v0.14.0
+#14 41.20   Downloaded serde_yaml v0.9.34+deprecated
+#14 41.23   Downloaded kube-client v2.0.1
+#14 41.26   Downloaded moxcms v0.7.11
+#14 41.34   Downloaded strum v0.26.3
+#14 41.35   Downloaded hyper v0.14.32
+#14 41.43   Downloaded sync_wrapper v1.0.2
+#14 41.46   Downloaded semver v1.0.27
+#14 41.52   Downloaded serde_derive v1.0.228
+#14 41.61   Downloaded sharded-slab v0.1.7
+#14 41.67   Downloaded tinyvec_macros v0.1.1
+#14 41.68   Downloaded temp-env v0.3.6
+#14 41.69   Downloaded strsim v0.11.1
+#14 41.71   Downloaded serde_path_to_error v0.1.20
+#14 41.72   Downloaded ed448-goldilocks v0.9.0
+#14 41.76   Downloaded time-macros v0.2.24
+#14 41.80   Downloaded tonic-build v0.14.2
+#14 41.81   Downloaded tokio-tungstenite v0.28.0
+#14 41.83   Downloaded socket2 v0.6.1
+#14 41.85   Downloaded subtle v2.6.1
+#14 41.86   Downloaded serde_core v1.0.228
+#14 41.89   Downloaded tower-layer v0.3.3
+#14 41.92   Downloaded tokio-macros v2.6.0
+#14 41.94   Downloaded tinystr v0.8.2
+#14 41.97   Downloaded strum_macros v0.26.4
+#14 42.02   Downloaded toml_parser v1.0.6+spec-1.1.0
+#14 42.04   Downloaded time-core v0.1.6
+#14 42.05   Downloaded tonic-prost-build v0.14.2
+#14 42.07   Downloaded tonic-prost v0.14.2
+#14 42.08   Downloaded tokio-stream v0.1.18
+#14 42.14   Downloaded typeid v1.0.3
+#14 42.15   Downloaded type-map v0.5.1
+#14 42.17   Downloaded tinyvec v1.10.0
+#14 42.20   Downloaded quinn v0.11.9
+#14 42.27   Downloaded serde_qs v0.15.0
+#14 42.35   Downloaded toml v0.9.10+spec-1.1.0
+#14 42.45   Downloaded typetag-impl v0.2.21
+#14 42.46   Downloaded tower-service v0.3.3
+#14 42.47   Downloaded toml_writer v1.0.6+spec-1.1.0
+#14 42.47   Downloaded tokio-native-tls v0.3.1
+#14 42.54   Downloaded thiserror-impl v2.0.17
+#14 42.57   Downloaded unic-langid v0.9.6
+#14 42.58   Downloaded thiserror-impl v1.0.69
+#14 42.60   Downloaded pest v2.8.5
+#14 42.62   Downloaded thiserror v2.0.17
+#14 42.65   Downloaded thiserror v1.0.69
+#14 42.68   Downloaded rand v0.9.2
+#14 42.71   Downloaded utf-8 v0.7.6
+#14 42.79   Downloaded urlencoding v2.1.3
+#14 42.80   Downloaded typetag v0.2.21
+#14 42.87   Downloaded tracing-serde v0.2.0
+#14 42.91   Downloaded tracing-attributes v0.1.31
+#14 42.93   Downloaded universal-hash v0.5.1
+#14 42.98   Downloaded want v0.3.1
+#14 43.01   Downloaded raw-cpuid v11.6.0
+#14 43.09   Downloaded regex-lite v0.1.8
+#14 43.12   Downloaded version_check v0.9.5
+#14 43.13   Downloaded unicase v2.8.1
+#14 43.14   Downloaded webauthn-attestation-ca v0.5.4
+#14 43.15   Downloaded untrusted v0.9.0
+#14 43.17   Downloaded tracing-log v0.2.0
+#14 43.17   Downloaded serde v1.0.228
+#14 43.20   Downloaded webauthn-rs v0.5.4
+#14 43.23   Downloaded vsimd v0.8.0
+#14 43.27   Downloaded zerofrom v0.1.6
+#14 43.28   Downloaded schemars v1.2.0
+#14 43.57   Downloaded yoke-derive v0.8.1
+#14 43.58   Downloaded whoami v1.6.1
+#14 43.64   Downloaded xmlparser v0.13.6
+#14 43.65   Downloaded zerofrom-derive v0.1.6
+#14 43.66   Downloaded zeroize_derive v1.4.3
+#14 43.67   Downloaded toml_edit v0.23.10+spec-1.0.0
+#14 43.79   Downloaded webauthn-rs-proto v0.5.4
+#14 43.82   Downloaded zmij v1.0.12
+#14 43.87   Downloaded yoke v0.8.1
+#14 43.91   Downloaded unicode-bidi v0.3.18
+#14 43.94   Downloaded zerovec-derive v0.11.2
+#14 43.96   Downloaded uuid v1.19.0
+#14 43.98   Downloaded virtue v0.0.18
+#14 44.00   Downloaded writeable v0.6.2
+#14 44.04   Downloaded utf8parse v0.2.2
+#14 44.07   Downloaded zeroize v1.8.2
+#14 44.11   Downloaded quick-xml v0.37.5
+#14 44.20   Downloaded tracing-core v0.1.36
+#14 44.26   Downloaded openssl v0.10.75
+#14 44.34   Downloaded unsafe-libyaml v0.2.11
+#14 44.37   Downloaded tokio-postgres v0.7.15
+#14 44.45   Downloaded tungstenite v0.28.0
+#14 44.53   Downloaded p384 v0.13.1
+#14 44.55   Downloaded brotli v8.0.2
+#14 44.73   Downloaded tonic v0.14.2
+#14 44.88   Downloaded url v2.5.8
+#14 44.92   Downloaded unic-langid-impl v0.9.6
+#14 44.98   Downloaded unicode-segmentation v1.12.0
+#14 44.99   Downloaded yansi v1.0.1
+#14 45.04   Downloaded rustls v0.21.12
+#14 45.24   Downloaded zerocopy-derive v0.8.31
+#14 45.32   Downloaded unicode-normalization v0.1.25
+#14 45.37   Downloaded tracing-opentelemetry v0.32.0
+#14 45.40   Downloaded x509-parser v0.18.0
+#14 45.46   Downloaded redis v0.32.7
+#14 45.58   Downloaded quinn-proto v0.11.13
+#14 45.63   Downloaded x509-parser v0.16.0
+#14 45.70   Downloaded tower-http v0.6.8
+#14 45.78   Downloaded webauthn-rs-core v0.5.4
+#14 45.81   Downloaded reqwest v0.12.28
+#14 45.87   Downloaded tower v0.5.2
+#14 45.95   Downloaded zerotrie v0.2.3
+#14 45.98   Downloaded x25519-dalek v2.0.1
+#14 46.00   Downloaded fiat-crypto v0.1.20
+#14 46.11   Downloaded winnow v0.7.14
+#14 46.25   Downloaded regex-syntax v0.6.29
+#14 46.29   Downloaded zerovec v0.11.5
+#14 46.39   Downloaded webpki-roots v1.0.5
+#14 46.43   Downloaded regex-syntax v0.8.8
+#14 46.48   Downloaded zerocopy v0.8.31
+#14 46.88   Downloaded rustls v0.23.36
+#14 47.05   Downloaded syn v2.0.113
+#14 47.20   Downloaded vcpkg v0.2.15
+#14 47.92   Downloaded rustix v1.1.3
+#14 48.29   Downloaded tracing-subscriber v0.3.22
+#14 48.36   Downloaded time v0.3.44
+#14 48.52   Downloaded typenum v1.19.0
+#14 48.56   Downloaded tracing v0.1.44
+#14 48.77   Downloaded tokio-util v0.7.18
+#14 48.88   Downloaded regex-automata v0.4.13
+#14 49.04   Downloaded libz-sys v1.1.23
+#14 49.24   Downloaded serde_json v1.0.148
+#14 49.32   Downloaded regex v1.12.2
+#14 49.41   Downloaded jiff v0.2.18
+#14 49.64   Downloaded image v0.25.9
+#14 49.78   Downloaded opentelemetry_sdk v0.31.0
+#14 49.89   Downloaded rustls-webpki v0.101.7
+#14 50.12   Downloaded petgraph v0.7.1
+#14 50.31   Downloaded libc v0.2.179
+#14 50.81   Downloaded pxfm v0.1.27
+#14 51.05   Downloaded hdrhistogram v7.5.4
+#14 51.12   Downloaded quick-xml v0.38.4
+#14 51.21   Downloaded unicode-properties v0.1.4
+#14 51.23   Downloaded tokio v1.49.0
+#14 51.74   Downloaded sha3 v0.10.8
+#14 51.82   Downloaded unicode-ident v1.0.22
+#14 51.86   Downloaded pulldown-cmark v0.13.0
+#14 51.90   Downloaded rdkafka v0.38.0
+#14 51.99   Downloaded rustls-webpki v0.103.8
+#14 52.07   Downloaded utf8_iter v1.0.4
+#14 52.10   Downloaded unty v0.0.4
+#14 52.13   Downloaded untrusted v0.7.1
+#14 52.16   Downloaded ucd-trie v0.1.7
+#14 52.19   Downloaded aws-sdk-s3 v1.119.0
+#14 53.33   Downloaded try-lock v0.2.5
+#14 53.36   Downloaded totp-rs v5.7.0
+#14 53.41   Downloaded tokio-rustls v0.26.4
+#14 53.45   Downloaded tokio-rustls v0.24.1
+#14 53.49   Downloaded thread_local v1.1.9
+#14 53.53   Downloaded socket2 v0.5.10
+#14 53.56   Downloaded qrcode v0.14.1
+#14 53.62   Downloaded libm v0.2.15
+#14 53.70   Downloaded p521 v0.13.3
+#14 53.76   Downloaded curve25519-dalek v4.1.3
+#14 53.91   Downloaded encoding_rs v0.8.35
+#14 54.10   Downloaded rand v0.8.5
+#14 54.14   Downloaded tempfile v3.24.0
+#14 54.19   Downloaded toml_datetime v0.7.5+spec-1.1.0
+#14 54.26   Downloaded stringprep v0.1.5
+#14 54.30   Downloaded synstructure v0.13.2
+#14 54.31   Downloaded static_assertions v1.1.0
+#14 54.33   Downloaded prettyplease v0.2.37
+#14 54.35   Downloaded pretty_assertions v1.4.1
+#14 54.37   Downloaded rustc_version v0.4.1
+#14 54.38   Downloaded kube-core v2.0.1
+#14 54.39   Downloaded hyper v1.8.1
+#14 54.44   Downloaded h2 v0.4.13
+#14 54.54   Downloaded ring v0.17.14
+#14 54.99   Downloaded futures-util v0.3.31
+#14 55.13   Downloaded rand_core v0.9.3
+#14 55.15   Downloaded rand_chacha v0.9.0
+#14 55.16   Downloaded quanta v0.12.6
+#14 55.23   Downloaded memchr v2.7.6
+#14 55.31   Downloaded indexmap v2.12.1
+#14 55.36   Downloaded icu_normalizer_data v2.1.1
+#14 55.40   Downloaded icu_normalizer v2.1.1
+#14 55.45   Downloaded crypto-bigint v0.5.5
+#14 55.52   Downloaded quote v1.0.43
+#14 55.55   Downloaded prost-types v0.14.1
+#14 55.58   Downloaded prost-derive v0.14.1
+#14 55.60   Downloaded prost-build v0.14.1
+#14 55.65   Downloaded phf v0.13.1
+#14 55.68   Downloaded pest_meta v2.8.5
+#14 55.71   Downloaded pest_derive v2.8.5
+#14 55.77   Downloaded k256 v0.13.4
+#14 55.85   Downloaded hyper-util v0.1.19
+#14 55.98   Downloaded p256 v0.13.2
+#14 56.03   Downloaded miniz_oxide v0.8.9
+#14 56.06   Downloaded pin-project-lite v0.2.16
+#14 56.14   Downloaded metrics-util v0.20.1
+#14 56.16   Downloaded crc-fast v1.6.0
+#14 56.24   Downloaded ppv-lite86 v0.2.21
+#14 56.28   Downloaded postgres-protocol v0.6.9
+#14 56.31   Downloaded pkcs8 v0.9.0
+#14 56.35   Downloaded pin-project-internal v1.1.10
+#14 56.37   Downloaded pkcs8 v0.10.2
+#14 56.41   Downloaded pem v3.0.6
+#14 56.42   Downloaded pqcrypto-traits v0.3.5
+#14 56.43   Downloaded potential_utf v0.1.4
+#14 56.44   Downloaded poly1305 v0.8.0
+#14 56.46   Downloaded pin-utils v0.1.0
+#14 56.47   Downloaded pem-rfc7468 v0.7.0
+#14 56.85   Downloaded paste v1.0.15
+#14 56.88   Downloaded password-hash v0.5.0
+#14 56.90   Downloaded parking_lot_core v0.9.12
+#14 56.94   Downloaded hashbrown v0.16.1
+#14 57.00   Downloaded phonenumber v0.3.7+8.13.52
+#14 58.03   Downloaded hashbrown v0.15.5
+#14 58.11   Downloaded hashbrown v0.14.5
+#14 58.13   Downloaded chrono v0.4.42
+#14 58.23   Downloaded brotli-decompressor v5.0.0
+#14 58.27   Downloaded aws-sdk-sts v1.95.0
+#14 58.39   Downloaded percent-encoding v2.3.2
+#14 58.41   Downloaded pbkdf2 v0.12.2
+#14 58.44   Downloaded parking_lot v0.12.5
+#14 58.47   Downloaded once_cell v1.21.3
+#14 58.51   Downloaded num-traits v0.2.19
+#14 58.53   Downloaded metrics-exporter-prometheus v0.17.2
+#14 58.56   Downloaded num-integer v0.1.46
+#14 58.59   Downloaded blake3 v1.8.2
+#14 58.69   Downloaded oncemutex v0.1.1
+#14 58.71   Downloaded oid-registry v0.7.1
+#14 58.74   Downloaded num_enum v0.7.5
+#14 58.84   Downloaded litemap v0.8.1
+#14 58.88   Downloaded num-conv v0.1.0
+#14 58.89   Downloaded k8s-openapi v0.26.1
+#14 61.99   Downloaded matchit v0.8.4
+#14 62.02   Downloaded linux-raw-sys v0.11.0
+#14 62.55   Downloaded kube-derive v2.0.1
+#14 62.57   Downloaded clap_builder v4.5.54
+#14 62.60   Downloaded lock_api v0.4.14
+#14 62.61   Downloaded kube v2.0.1
+#14 62.62   Downloaded jsonpath-rust v0.7.5
+#14 62.67   Downloaded jobserver v0.1.34
+#14 62.70   Downloaded icu_locale_core v2.1.1
+#14 62.79   Downloaded icu_collections v2.1.1
+#14 62.86   Downloaded http v1.4.0
+#14 62.92   Downloaded aws-config v1.8.12
+#14 62.95   Downloaded jsonptr v0.7.1
+#14 62.97   Downloaded native-tls v0.2.14
+#14 62.99   Downloaded axum v0.8.8
+#14 63.04   Downloaded md-5 v0.10.6
+#14 63.06   Downloaded lru-slab v0.1.2
+#14 63.07   Downloaded lazy_static v1.5.0
+#14 63.08   Downloaded aho-corasick v1.1.4
+#14 63.11   Downloaded openssl-probe v0.1.6
+#14 63.14   Downloaded is_terminal_polyfill v1.70.2
+#14 63.15   Downloaded darling v0.21.3
+#14 63.22   Downloaded num v0.4.3
+#14 63.25   Downloaded httparse v1.10.1
+#14 63.28   Downloaded derive_more-impl v2.1.1
+#14 63.37   Downloaded crypto-bigint v0.4.9
+#14 63.43   Downloaded crossbeam-utils v0.8.21
+#14 63.47   Downloaded crossbeam-epoch v0.9.18
+#14 63.50   Downloaded http v0.2.12
+#14 63.56   Downloaded derive_more v2.1.1
+#14 63.73   Downloaded inout v0.1.4
+#14 63.75   Downloaded hyper-rustls v0.24.2
+#14 63.79   Downloaded ctr v0.9.2
+#14 63.85   Downloaded aws-smithy-runtime v1.9.5
+#14 63.96   Downloaded aws-sdk-ssooidc v1.93.0
+#14 64.06   Downloaded der v0.6.1
+#14 64.09   Downloaded curve25519-dalek-derive v0.1.1
+#14 64.10   Downloaded ipnet v2.11.0
+#14 64.15   Downloaded inventory v0.3.21
+#14 64.19   Downloaded iana-time-zone v0.1.64
+#14 64.24   Downloaded hyper-rustls v0.27.7
+#14 64.28   Downloaded der-parser v10.0.0
+#14 64.34   Downloaded crypto-common v0.1.7
+#14 64.36   Downloaded crc32fast v1.5.0
+#14 64.38   Downloaded cookie v0.18.1
+#14 64.39   Downloaded cc v1.2.51
+#14 64.41   Downloaded aws-smithy-http-client v1.1.5
+#14 64.44   Downloaded expect-json v1.8.1
+#14 64.54   Downloaded const-oid v0.9.6
+#14 64.58   Downloaded aes v0.8.4
+#14 64.64   Downloaded flate2 v1.1.5
+#14 64.69   Downloaded darling_core v0.21.3
+#14 64.79   Downloaded base64 v0.21.7
+#14 64.91   Downloaded axum-extra v0.12.5
+#14 64.99   Downloaded aws-smithy-types v1.3.5
+#14 65.07   Downloaded aws-runtime v1.5.17
+#14 65.13   Downloaded async-compression v0.4.36
+#14 65.25   Downloaded elliptic-curve v0.13.8
+#14 65.31   Downloaded der-parser v9.0.0
+#14 65.35   Downloaded crc-catalog v2.4.0
+#14 65.38   Downloaded concurrent-queue v2.5.0
+#14 65.40   Downloaded axum-test v18.5.0
+#14 65.52   Downloaded aws-sigv4 v1.3.7
+#14 66.15   Downloaded aws-sdk-sso v1.91.0
+#14 66.22   Downloaded asn1-rs v0.6.2
+#14 66.29   Downloaded intl-memoizer v0.5.3
+#14 66.31   Downloaded generic-array v1.3.5
+#14 66.33   Downloaded garde v0.22.1
+#14 66.45   Downloaded chacha20poly1305 v0.10.1
+#14 66.48   Downloaded bytes v1.11.0
+#14 66.50   Downloaded bincode v2.0.1
+#14 66.53   Downloaded asn1-rs v0.7.1
+#14 66.75   Downloaded aes-gcm v0.10.3
+#14 66.81   Downloaded ident_case v1.0.1
+#14 66.85   Downloaded hyper-timeout v0.5.2
+#14 66.88   Downloaded half v2.7.1
+#14 66.98   Downloaded getrandom v0.3.4
+#14 67.05   Downloaded fixedbitset v0.5.7
+#14 67.09   Downloaded elliptic-curve v0.12.3
+#14 67.21   Downloaded pqcrypto-falcon v0.4.1
+#14 69.93   Downloaded crc v3.4.0
+#14 69.95   Downloaded cpufeatures v0.2.17
+#14 69.97   Downloaded constant_time_eq v0.3.1
+#14 70.00   Downloaded base64 v0.22.1
+#14 70.08   Downloaded aws-smithy-runtime-api v1.9.3
+#14 70.22   Downloaded allocator-api2 v0.2.21
+#14 70.31   Downloaded deadpool v0.12.3
+#14 70.39   Downloaded clap v4.5.54
+#14 70.52   Downloaded bytemuck v1.24.0
+#14 70.59   Downloaded pqcrypto-mlkem v0.1.1
+#14 72.89   Downloaded pqcrypto-mldsa v0.1.2
+#14 75.83   Downloaded diff v0.1.13
+#14 75.85   Downloaded compression-codecs v0.4.35
+#14 75.91   Downloaded arc-swap v1.8.0
+#14 75.96   Downloaded fluent-syntax v0.12.0
+#14 75.99   Downloaded fluent-bundle v0.16.0
+#14 76.02   Downloaded ecdsa v0.16.9
+#14 76.05   Downloaded find-msvc-tools v0.1.6
+#14 76.07   Downloaded event-listener v5.4.1
+#14 76.11   Downloaded futures-channel v0.3.31
+#14 76.15   Downloaded anyhow v1.0.100
+#14 76.20   Downloaded ahash v0.8.12
+#14 76.24   Downloaded axum-macros v0.5.0
+#14 76.38   Downloaded fs_extra v1.3.0
+#14 76.43   Downloaded backon v1.6.0
+#14 76.46   Downloaded aws-types v1.3.11
+#14 76.48   Downloaded enum-ordinalize v4.3.2
+#14 76.49   Downloaded group v0.12.1
+#14 76.52   Downloaded garde_derive v0.22.1
+#14 76.54   Downloaded glob v0.3.3
+#14 76.58   Downloaded async-trait v0.1.89
+#14 76.60   Downloaded foldhash v0.1.5
+#14 76.61   Downloaded ed25519 v2.2.3
+#14 76.66   Downloaded env_logger v0.11.8
+#14 76.72   Downloaded ecdsa v0.14.8
+#14 76.75   Downloaded deranged v0.5.5
+#14 76.77   Downloaded data-encoding v2.9.0
+#14 76.77   Downloaded dashmap v6.1.0
+#14 76.81   Downloaded cmake v0.1.57
+#14 76.82   Downloaded cipher v0.4.4
+#14 76.85   Downloaded rdkafka-sys v4.9.0+2.10.0
+#14 77.60   Downloaded chacha20 v0.9.1
+#14 77.62   Downloaded cfg-if v1.0.4
+#14 77.64   Downloaded card-validate v2.4.0
+#14 77.67   Downloaded bytesize v2.3.1
+#14 77.70   Downloaded bytes-utils v0.1.4
+#14 77.74   Downloaded blowfish v0.9.1
+#14 77.76   Downloaded aws-smithy-http v0.62.6
+#14 77.83   Downloaded cbc v0.1.2
+#14 77.86   Downloaded bincode v1.3.3
+#14 77.92   Downloaded hostname v0.4.2
+#14 77.96   Downloaded byteorder v1.5.0
+#14 77.99   Downloaded block-padding v0.3.3
+#14 77.99   Downloaded async-broadcast v0.7.2
+#14 78.01   Downloaded form_urlencoded v1.2.2
+#14 78.02   Downloaded fastrand v2.3.0
+#14 78.03   Downloaded errno v0.3.14
+#14 78.04   Downloaded enum-ordinalize-derive v4.3.2
+#14 78.05   Downloaded dunce v1.0.5
+#14 78.05   Downloaded axum-core v0.5.6
+#14 78.06   Downloaded headers-core v0.3.0
+#14 78.07   Downloaded foreign-types-shared v0.1.1
+#14 78.07   Downloaded aws-smithy-eventstream v0.60.14
+#14 78.13   Downloaded autocfg v1.5.0
+#14 78.19   Downloaded generic-array v0.14.7
+#14 78.22   Downloaded futures-sink v0.3.31
+#14 78.26   Downloaded event-listener-strategy v0.5.4
+#14 78.28   Downloaded aws-smithy-async v1.2.7
+#14 78.34   Downloaded arrayvec v0.7.6
+#14 78.38   Downloaded ff v0.12.1
+#14 78.42   Downloaded expect-json-macros v1.8.1
+#14 78.43   Downloaded env_filter v0.1.4
+#14 78.47   Downloaded dyn-clone v1.0.20
+#14 78.52   Downloaded aws-smithy-checksums v0.63.12
+#14 78.56   Downloaded aws-credential-types v1.2.11
+#14 78.59   Downloaded asn1-rs-derive v0.5.1
+#14 78.62   Downloaded anstream v0.6.21
+#14 78.63   Downloaded futures-io v0.3.31
+#14 78.63   Downloaded fluent-langneg v0.13.1
+#14 78.65   Downloaded equivalent v1.0.2
+#14 78.65   Downloaded deadpool-runtime v0.1.4
+#14 78.67   Downloaded colorchoice v1.0.4
+#14 78.67   Downloaded bcrypt v0.17.1
+#14 78.67   Downloaded aws-smithy-observability v0.1.5
+#14 78.69   Downloaded argon2 v0.5.3
+#14 78.73   Downloaded anstyle-parse v0.2.7
+#14 78.74   Downloaded anstyle v1.0.13
+#14 78.76   Downloaded base32 v0.5.1
+#14 78.78   Downloaded base16ct v0.1.1
+#14 78.80   Downloaded async-stream v0.3.6
+#14 78.82   Downloaded aws-smithy-query v0.60.9
+#14 78.83   Downloaded asn1-rs-impl v0.2.0
+#14 78.83   Downloaded asn1-rs-derive v0.6.0
+#14 78.84   Downloaded arrayref v0.3.9
+#14 78.85   Downloaded alloc-stdlib v0.2.2
+#14 78.87   Downloaded adler2 v2.0.1
+#14 79.69   Downloaded aws-lc-sys v0.35.0
+#14 82.71    Compiling proc-macro2 v1.0.105
+#14 82.71    Compiling quote v1.0.43
+#14 82.71    Compiling unicode-ident v1.0.22
+#14 82.71    Compiling libc v0.2.179
+#14 82.71    Compiling cfg-if v1.0.4
+#14 82.71    Compiling serde_core v1.0.228
+#14 82.77    Compiling serde v1.0.228
+#14 82.80    Compiling memchr v2.7.6
+#14 82.80    Compiling version_check v0.9.5
+#14 82.82    Compiling itoa v1.0.17
+#14 83.74    Compiling typenum v1.19.0
+#14 84.25    Compiling pin-project-lite v0.2.16
+#14 85.15    Compiling subtle v2.6.1
+#14 86.03    Compiling shlex v1.3.0
+#14 86.53    Compiling find-msvc-tools v0.1.6
+#14 87.85    Compiling bytes v1.11.0
+#14 88.54    Compiling generic-array v0.14.7
+#14 88.54    Compiling futures-core v0.3.31
+#14 90.16    Compiling once_cell v1.21.3
+#14 90.70    Compiling autocfg v1.5.0
+#14 90.74    Compiling parking_lot_core v0.9.12
+#14 92.50    Compiling scopeguard v1.2.0
+#14 92.95    Compiling log v0.4.29
+#14 93.20    Compiling lock_api v0.4.14
+#14 95.10    Compiling const-oid v0.9.6
+#14 95.92    Compiling num-traits v0.2.19
+#14 97.11    Compiling futures-sink v0.3.31
+#14 97.29    Compiling futures-io v0.3.31
+#14 98.18    Compiling syn v2.0.113
+#14 99.04    Compiling futures-channel v0.3.31
+#14 99.14    Compiling slab v0.4.11
+#14 99.41    Compiling futures-task v0.3.31
+#14 100.9    Compiling pin-utils v0.1.0
+#14 101.0    Compiling equivalent v1.0.2
+#14 101.4    Compiling tracing-core v0.1.36
+#14 101.4    Compiling foldhash v0.1.5
+#14 101.9    Compiling allocator-api2 v0.2.21
+#14 102.4    Compiling http v1.4.0
+#14 103.1    Compiling getrandom v0.3.4
+#14 103.5    Compiling fnv v1.0.7
+#14 104.1    Compiling jobserver v0.1.34
+#14 104.1    Compiling zmij v1.0.12
+#14 105.5    Compiling percent-encoding v2.3.2
+#14 105.9    Compiling getrandom v0.2.16
+#14 106.4    Compiling errno v0.3.14
+#14 107.1    Compiling cc v1.2.51
+#14 107.6    Compiling rand_core v0.6.4
+#14 107.7    Compiling signal-hook-registry v1.4.8
+#14 108.0    Compiling mio v1.1.1
+#14 108.6    Compiling socket2 v0.6.1
+#14 109.7    Compiling hashbrown v0.15.5
+#14 110.3    Compiling cpufeatures v0.2.17
+#14 111.1    Compiling http-body v1.0.1
+#14 111.4    Compiling serde_json v1.0.148
+#14 112.8    Compiling dunce v1.0.5
+#14 113.0    Compiling zerocopy v0.8.31
+#14 113.3    Compiling base64 v0.22.1
+#14 114.2    Compiling foldhash v0.2.0
+#14 114.8    Compiling ryu v1.0.22
+#14 115.4    Compiling hashbrown v0.16.1
+#14 115.7    Compiling http-body-util v0.1.3
+#14 116.5    Compiling num-integer v0.1.46
+#14 117.8    Compiling httparse v1.10.1
+#14 118.0    Compiling time-core v0.1.6
+#14 119.5    Compiling num-conv v0.1.0
+#14 119.6    Compiling powerfmt v0.2.0
+#14 120.1    Compiling thiserror v2.0.17
+#14 121.1    Compiling time-macros v0.2.24
+#14 121.5    Compiling deranged v0.5.5
+#14 121.7    Compiling pkg-config v0.3.32
+#14 123.3    Compiling vcpkg v0.2.15
+#14 123.5    Compiling httpdate v1.0.3
+#14 126.5    Compiling tower-service v0.3.3
+#14 126.9    Compiling indexmap v2.12.1
+#14 127.1    Compiling byteorder v1.5.0
+#14 127.4    Compiling stable_deref_trait v1.2.1
+#14 127.4    Compiling try-lock v0.2.5
+#14 127.9    Compiling ring v0.17.14
+#14 127.9    Compiling form_urlencoded v1.2.2
+#14 128.2    Compiling want v0.3.1
+#14 129.0    Compiling base64ct v1.8.2
+#14 130.6    Compiling untrusted v0.9.0
+#14 130.6    Compiling cmake v0.1.57
+#14 131.2    Compiling atomic-waker v1.1.2
+#14 131.6    Compiling fs_extra v1.3.0
+#14 131.9    Compiling rand_core v0.9.3
+#14 133.4    Compiling ipnet v2.11.0
+#14 134.7    Compiling aws-lc-rs v1.15.2
+#14 134.9    Compiling sync_wrapper v1.0.2
+#14 135.7    Compiling crc32fast v1.5.0
+#14 136.0    Compiling aws-lc-sys v0.35.0
+#14 136.3    Compiling either v1.15.0
+#14 136.9    Compiling time v0.3.44
+#14 137.5    Compiling tower-layer v0.3.3
+#14 139.2    Compiling hdrhistogram v7.5.4
+#14 139.7    Compiling untrusted v0.7.1
+#14 141.1    Compiling http v0.2.12
+#14 141.3    Compiling aho-corasick v1.1.4
+#14 142.9    Compiling regex-syntax v0.8.8
+#14 143.9    Compiling rustls v0.23.36
+#14 143.9    Compiling mime v0.3.17
+#14 145.5    Compiling bitflags v2.10.0
+#14 147.6    Compiling rustversion v1.0.22
+#14 148.2    Compiling synstructure v0.13.2
+#14 153.0    Compiling thiserror v1.0.69
+#14 154.5    Compiling outref v0.5.2
+#14 155.5    Compiling litemap v0.8.1
+#14 157.5    Compiling vsimd v0.8.0
+#14 158.2    Compiling writeable v0.6.2
+#14 160.4    Compiling http-body v0.4.6
+#14 161.2    Compiling anyhow v1.0.100
+#14 164.0    Compiling bytes-utils v0.1.4
+#14 164.3    Compiling base64-simd v0.8.0
+#14 166.5    Compiling icu_normalizer_data v2.1.1
+#14 167.5    Compiling icu_properties_data v2.1.2
+#14 167.8    Compiling openssl-sys v0.9.111
+#14 168.5    Compiling libz-sys v1.1.23
+#14 168.8    Compiling semver v1.0.27
+#14 168.9    Compiling unicase v2.8.1
+#14 171.2    Compiling rustc_version v0.4.1
+#14 172.9    Compiling uuid v1.19.0
+#14 173.2    Compiling minimal-lexical v0.2.1
+#14 173.8    Compiling openssl-probe v0.2.0
+#14 174.5    Compiling data-encoding v2.9.0
+#14 177.0    Compiling serde_derive v1.0.228
+#14 177.4    Compiling zeroize_derive v1.4.3
+#14 177.7    Compiling tokio-macros v2.6.0
+#14 179.9    Compiling futures-macro v0.3.31
+#14 182.0    Compiling zeroize v1.8.2
+#14 185.2    Compiling tracing-attributes v0.1.31
+#14 187.1    Compiling zerocopy-derive v0.8.31
+#14 192.1    Compiling futures-util v0.3.31
+#14 199.1    Compiling crypto-common v0.1.7
+#14 200.8    Compiling block-buffer v0.10.4
+#14 200.9    Compiling displaydoc v0.2.5
+#14 202.7    Compiling digest v0.10.7
+#14 203.8    Compiling tracing v0.1.44
+#14 207.0    Compiling thiserror-impl v2.0.17
+#14 210.1    Compiling zerofrom-derive v0.1.6
+#14 210.8    Compiling yoke-derive v0.8.1
+#14 228.2    Compiling zerovec-derive v0.11.2
+#14 229.2    Compiling hmac v0.12.1
+#14 230.8    Compiling rustls-pki-types v1.13.2
+#14 231.5    Compiling smallvec v1.15.1
+#14 232.4    Compiling zerofrom v0.1.6
+#14 234.1    Compiling yoke v0.8.1
+#14 236.2    Compiling sha2 v0.10.9
+#14 238.2    Compiling ppv-lite86 v0.2.21
+#14 239.0    Compiling parking_lot v0.12.5
+#14 239.5    Compiling zerovec v0.11.5
+#14 239.7    Compiling regex-automata v0.4.13
+#14 239.8    Compiling zerotrie v0.2.3
+#14 243.8    Compiling tokio v1.49.0
+#14 244.0    Compiling rand_chacha v0.9.0
+#14 244.9    Compiling webpki-roots v1.0.5
+#14 245.6    Compiling thiserror-impl v1.0.69
+#14 246.1    Compiling rand v0.9.2
+#14 248.4    Compiling crypto-bigint v0.5.5
+#14 251.8    Compiling rustls-native-certs v0.8.3
+#14 258.9    Compiling tinystr v0.8.2
+#14 259.0    Compiling potential_utf v0.1.4
+#14 259.2    Compiling sha1 v0.10.6
+#14 260.3    Compiling icu_collections v2.1.1
+#14 262.2    Compiling icu_locale_core v2.1.1
+#14 262.3    Compiling block-padding v0.3.3
+#14 262.6    Compiling nom v7.1.3
+#14 264.3    Compiling inout v0.1.4
+#14 264.9    Compiling num-bigint v0.4.6
+#14 267.8    Compiling crossbeam-utils v0.8.21
+#14 269.8    Compiling utf8_iter v1.0.4
+#14 272.2    Compiling cipher v0.4.4
+#14 276.2    Compiling pem-rfc7468 v0.7.0
+#14 277.6    Compiling icu_provider v2.1.1
+#14 277.8    Compiling adler2 v2.0.1
+#14 279.2    Compiling hex v0.4.3
+#14 281.7    Compiling simd-adler32 v0.3.8
+#14 283.1    Compiling icu_properties v2.1.2
+#14 283.6    Compiling icu_normalizer v2.1.1
+#14 284.2    Compiling iana-time-zone v0.1.64
+#14 288.3    Compiling alloc-no-stdlib v2.0.4
+#14 288.9    Compiling chrono v0.4.42
+#14 289.3    Compiling alloc-stdlib v0.2.2
+#14 290.3    Compiling miniz_oxide v0.8.9
+#14 292.1    Compiling der v0.7.10
+#14 297.8    Compiling idna_adapter v1.2.1
+#14 299.7    Compiling idna v1.1.0
+#14 302.5    Compiling der v0.6.1
+#14 305.8    Compiling regex v1.12.2
+#14 307.7    Compiling url v2.5.8
+#14 309.3    Compiling encoding_rs v0.8.35
+#14 319.5    Compiling foreign-types-shared v0.1.1
+#14 321.5    Compiling openssl v0.10.75
+#14 322.8    Compiling itertools v0.14.0
+#14 323.2    Compiling foreign-types v0.3.2
+#14 324.1    Compiling spki v0.6.0
+#14 326.3    Compiling spki v0.7.3
+#14 328.7    Compiling flate2 v1.1.5
+#14 330.1    Compiling brotli-decompressor v5.0.0
+#14 330.4    Compiling serde_urlencoded v0.7.1
+#14 331.9    Compiling openssl-macros v0.1.1
+#14 333.2    Compiling tokio-util v0.7.18
+#14 333.6    Compiling aws-smithy-async v1.2.7
+#14 338.2    Compiling multer v3.1.0
+#14 339.2    Compiling glob v0.3.3
+#14 346.2    Compiling utf-8 v0.7.6
+#14 346.6    Compiling rustls v0.21.12
+#14 348.0    Compiling lazy_static v1.5.0
+#14 348.2    Compiling base16ct v0.2.0
+#14 348.8    Compiling tungstenite v0.28.0
+#14 350.0    Compiling serdect v0.2.0
+#14 352.4    Compiling h2 v0.4.13
+#14 352.5    Compiling tower v0.5.2
+#14 357.6    Compiling aws-smithy-types v1.3.5
+#14 368.9    Compiling aws-smithy-runtime-api v1.9.3
+#14 370.3    Compiling prost-derive v0.14.1
+#14 370.9    Compiling brotli v8.0.2
+#14 381.0    Compiling pkcs8 v0.10.2
+#14 382.9    Compiling pkcs8 v0.9.0
+#14 386.2    Compiling sct v0.7.1
+#14 387.4    Compiling rustls-webpki v0.101.7
+#14 388.2    Compiling signature v2.2.0
+#14 388.8    Compiling crypto-bigint v0.4.9
+#14 390.1    Compiling async-trait v0.1.89
+#14 393.7    Compiling mime_guess v2.0.5
+#14 395.9    Compiling pqcrypto-internals v0.2.11
+#14 398.0    Compiling ff v0.12.1
+#14 398.9    Compiling ff v0.13.1
+#14 399.1    Compiling fastrand v2.3.0
+#14 400.6    Compiling compression-core v0.4.31
+#14 400.7    Compiling spin v0.9.8
+#14 401.5    Compiling heck v0.5.0
+#14 401.6    Compiling base16ct v0.1.1
+#14 402.9    Compiling sec1 v0.3.0
+#14 403.5    Compiling group v0.13.0
+#14 405.4    Compiling hyper v1.8.1
+#14 405.8    Compiling group v0.12.1
+#14 408.7    Compiling sec1 v0.7.3
+#14 409.8    Compiling compression-codecs v0.4.35
+#14 413.7    Compiling aws-smithy-eventstream v0.60.14
+#14 416.9    Compiling tokio-tungstenite v0.28.0
+#14 419.1    Compiling h2 v0.3.27
+#14 419.7    Compiling rusticata-macros v4.1.0
+#14 420.2    Compiling futures-executor v0.3.31
+#14 421.5    Compiling hkdf v0.12.4
+#14 422.5    Compiling axum-core v0.5.6
+#14 422.7    Compiling axum-macros v0.5.0
+#14 438.1    Compiling hyper-util v0.1.19
+#14 439.5    Compiling asn1-rs-impl v0.2.0
+#14 441.6    Compiling serde_path_to_error v0.1.20
+#14 442.8    Compiling socket2 v0.5.10
+#14 446.0    Compiling matchit v0.8.4
+#14 449.7    Compiling tokio-rustls v0.24.1
+#14 449.8    Compiling elliptic-curve v0.13.8
+#14 450.0    Compiling aws-smithy-http v0.62.6
+#14 451.7    Compiling async-compression v0.4.36
+#14 452.7    Compiling elliptic-curve v0.12.3
+#14 455.0    Compiling rfc6979 v0.3.1
+#14 455.0    Compiling signature v1.6.4
+#14 455.6    Compiling http-range-header v0.4.2
+#14 455.7    Compiling iri-string v0.7.10
+#14 456.6    Compiling native-tls v0.2.14
+#14 456.8    Compiling ecdsa v0.14.8
+#14 459.5    Compiling aws-credential-types v1.2.11
+#14 460.5    Compiling axum v0.8.8
+#14 461.8    Compiling rfc6979 v0.4.0
+#14 462.4    Compiling universal-hash v0.5.1
+#14 462.8    Compiling aws-types v1.3.11
+#14 463.7    Compiling hyper v0.14.32
+#14 463.7    Compiling openssl-probe v0.1.6
+#14 464.4    Compiling opaque-debug v0.3.1
+#14 464.8    Compiling ucd-trie v0.1.7
+#14 466.6    Compiling pest v2.8.5
+#14 467.3    Compiling ecdsa v0.16.9
+#14 467.4    Compiling hyper-timeout v0.5.2
+#14 467.6    Compiling p256 v0.11.1
+#14 468.6    Compiling aws-smithy-observability v0.1.5
+#14 469.5    Compiling pin-project-internal v1.1.10
+#14 470.8    Compiling curve25519-dalek v4.1.3
+#14 471.7    Compiling ahash v0.8.12
+#14 472.0    Compiling pulldown-cmark v0.13.0
+#14 472.5    Compiling tinyvec_macros v0.1.1
+#14 472.5    Compiling rustix v1.1.3
+#14 472.8    Compiling prettyplease v0.2.37
+#14 473.4    Compiling k8s-openapi v0.26.1
+#14 474.3    Compiling tower-http v0.6.8
+#14 474.6    Compiling ref-cast v1.0.25
+#14 475.7    Compiling winnow v0.7.14
+#14 476.4    Compiling pin-project v1.1.10
+#14 476.9    Compiling pest_meta v2.8.5
+#14 477.6    Compiling tinyvec v1.10.0
+#14 478.3    Compiling aws-sigv4 v1.3.7
+#14 479.2    Compiling tokio-native-tls v0.3.1
+#14 480.6    Compiling primeorder v0.13.6
+#14 481.6    Compiling unic-langid-impl v0.9.6
+#14 482.7    Compiling md-5 v0.10.6
+#14 483.4    Compiling ref-cast-impl v1.0.25
+#14 484.4    Compiling asn1-rs-derive v0.5.1
+#14 486.0    Compiling curve25519-dalek-derive v0.1.1
+#14 486.7    Compiling serde_derive_internals v0.29.1
+#14 488.7    Compiling typeid v1.0.3
+#14 490.3    Compiling linux-raw-sys v0.11.0
+#14 490.5    Compiling paste v1.0.15
+#14 491.1    Compiling libm v0.2.15
+#14 491.7    Compiling toml_parser v1.0.6+spec-1.1.0
+#14 492.7    Compiling toml_datetime v0.7.5+spec-1.1.0
+#14 494.0    Compiling pqcrypto-traits v0.3.5
+#14 495.0    Compiling schemars_derive v1.2.0
+#14 496.0    Compiling toml_edit v0.23.10+spec-1.0.0
+#14 496.0    Compiling asn1-rs v0.6.2
+#14 497.5    Compiling prost v0.14.1
+#14 498.7    Compiling unic-langid v0.9.6
+#14 499.1    Compiling pest_generator v2.8.5
+#14 500.7    Compiling hyper-rustls v0.24.2
+#14 502.4    Compiling unicode-normalization v0.1.25
+#14 508.1    Compiling polyval v0.6.2
+#14 508.8    Compiling bincode v1.3.3
+#14 509.4    Compiling futures v0.3.31
+#14 509.8    Compiling aws-smithy-json v0.61.9
+#14 509.8    Compiling pqcrypto-falcon v0.4.1
+#14 510.2    Compiling pqcrypto-mldsa v0.1.2
+#14 512.1    Compiling pqcrypto-mlkem v0.1.1
+#14 512.6    Compiling tokio-stream v0.1.18
+#14 513.4    Compiling concurrent-queue v2.5.0
+#14 513.7    Compiling jsonptr v0.7.1
+#14 514.4    Compiling opentelemetry v0.31.0
+#14 514.8    Compiling aead v0.5.2
+#14 514.9    Compiling derive_more-impl v2.1.1
+#14 515.4    Compiling quick-xml v0.37.5
+#14 515.5    Compiling password-hash v0.5.0
+#14 515.8    Compiling blake3 v1.8.2
+#14 515.9    Compiling ordered-float v2.10.1
+#14 517.5    Compiling erased-serde v0.4.9
+#14 518.1    Compiling pastey v0.1.1
+#14 518.3    Compiling oid-registry v0.7.1
+#14 518.7    Compiling constant_time_eq v0.3.1
+#14 518.9    Compiling virtue v0.0.18
+#14 519.9    Compiling regex-lite v0.1.8
+#14 521.1    Compiling ident_case v1.0.1
+#14 521.1    Compiling strsim v0.11.1
+#14 521.2    Compiling base64 v0.21.7
+#14 521.8    Compiling utf8parse v0.2.2
+#14 522.2    Compiling fixedbitset v0.5.7
+#14 522.5    Compiling unicode-bidi v0.3.18
+#14 522.5    Compiling linked-hash-map v0.5.6
+#14 523.5    Compiling parking v2.2.1
+#14 523.9    Compiling dyn-clone v1.0.20
+#14 524.2    Compiling unicode-properties v0.1.4
+#14 524.5    Compiling event-listener v5.4.1
+#14 524.9    Compiling schemars v1.2.0
+#14 525.0    Compiling lru-cache v0.1.2
+#14 525.4    Compiling bincode_derive v2.0.1
+#14 525.9    Compiling petgraph v0.7.1
+#14 526.1    Compiling base64urlsafedata v0.5.4
+#14 526.5    Compiling tempfile v3.24.0
+#14 526.9    Compiling stringprep v0.1.5
+#14 527.3    Compiling derive_more v2.1.1
+#14 527.6    Compiling darling_core v0.21.3
+#14 528.7    Compiling anstyle-parse v0.2.7
+#14 529.9    Compiling phonenumber v0.3.7+8.13.52
+#14 530.4    Compiling serde-value v0.7.0
+#14 532.2    Compiling json-patch v4.1.0
+#14 535.9    Compiling pulldown-cmark-to-cmark v21.1.0
+#14 537.8    Compiling ghash v0.5.1
+#14 538.0    Compiling pest_derive v2.8.5
+#14 538.2    Compiling proc-macro-crate v3.4.0
+#14 538.5    Compiling prost-types v0.14.1
+#14 542.1    Compiling hyper-tls v0.6.0
+#14 543.4    Compiling poly1305 v0.8.0
+#14 546.8    Compiling strum_macros v0.26.4
+#14 547.7    Compiling ed25519 v2.2.3
+#14 548.5    Compiling chacha20 v0.9.1
+#14 549.4    Compiling aes v0.8.4
+#14 550.3    Compiling cbc v0.1.2
+#14 551.3    Compiling salsa20 v0.10.2
+#14 552.1    Compiling ctr v0.9.2
+#14 552.6    Compiling rand_chacha v0.3.1
+#14 553.0    Compiling pbkdf2 v0.12.2
+#14 553.6    Compiling blake2 v0.10.6
+#14 555.0    Compiling enum-ordinalize-derive v4.3.2
+#14 556.2    Compiling asn1-rs-derive v0.6.0
+#14 556.7    Compiling is_terminal_polyfill v1.70.2
+#14 557.0    Compiling regex-syntax v0.6.29
+#14 557.1    Compiling colorchoice v1.0.4
+#14 557.5    Compiling rustc-hash v2.1.1
+#14 557.9    Compiling fallible-iterator v0.2.0
+#14 559.1    Compiling crc-catalog v2.4.0
+#14 559.4    Compiling arrayvec v0.7.6
+#14 559.9    Compiling anstyle-query v1.1.5
+#14 560.3    Compiling urlencoding v2.1.3
+#14 560.9    Compiling oncemutex v0.1.1
+#14 561.3    Compiling unsafe-libyaml v0.2.11
+#14 561.4    Compiling multimap v0.10.1
+#14 562.2    Compiling typetag v0.2.21
+#14 562.5    Compiling xmlparser v0.13.6
+#14 563.2    Compiling arrayref v0.3.9
+#14 563.3    Compiling anstyle v1.0.13
+#14 563.5    Compiling webauthn-attestation-ca v0.5.4
+#14 564.3    Compiling unty v0.0.4
+#14 564.8    Compiling keccak v0.1.5
+#14 564.8    Compiling siphasher v1.0.1
+#14 566.3    Compiling sha3 v0.10.8
+#14 566.5    Compiling phf_shared v0.13.1
+#14 568.6    Compiling serde_yaml v0.9.34+deprecated
+#14 568.6    Compiling aws-smithy-xml v0.60.13
+#14 569.5    Compiling bincode v2.0.1
+#14 571.8    Compiling regex-cache v0.2.1
+#14 573.3    Compiling anstream v0.6.21
+#14 578.1    Compiling prost-build v0.14.1
+#14 579.1    Compiling postgres-protocol v0.6.9
+#14 583.2    Compiling asn1-rs v0.7.1
+#14 585.5    Compiling strum v0.26.3
+#14 586.1    Compiling crc v3.4.0
+#14 587.6    Compiling enum-ordinalize v4.3.2
+#14 587.8    Compiling type-map v0.5.1
+#14 588.9    Compiling argon2 v0.5.3
+#14 589.6    Compiling rand v0.8.5
+#14 589.7    Compiling aes-gcm v0.10.3
+#14 590.3    Compiling scrypt v0.11.0
+#14 590.8    Compiling fpe v0.6.1
+#14 593.0    Compiling chacha20poly1305 v0.10.1
+#14 593.6    Compiling ed25519-dalek v2.2.0
+#14 595.1    Compiling darling_macro v0.21.3
+#14 595.3    Compiling num_enum_derive v0.7.5
+#14 596.0    Compiling jsonpath-rust v0.7.5
+#14 599.6    Compiling event-listener-strategy v0.5.4
+#14 600.2    Compiling opentelemetry_sdk v0.31.0
+#14 600.8    Compiling tonic-build v0.14.2
+#14 600.8    Compiling der-parser v9.0.0
+#14 602.0    Compiling x25519-dalek v2.0.1
+#14 602.9    Compiling p256 v0.13.2
+#14 605.7    Compiling p384 v0.13.1
+#14 606.3    Compiling p521 v0.13.3
+#14 607.0    Compiling k256 v0.13.4
+#14 615.1    Compiling backon v1.6.0
+#14 616.5    Compiling num-rational v0.4.2
+#14 617.6    Compiling half v2.7.1
+#14 620.5    Compiling secrecy v0.10.3
+#14 621.2    Compiling typetag-impl v0.2.21
+#14 622.0    Compiling async-stream-impl v0.3.6
+#14 623.7    Compiling generic-array v1.3.5
+#14 624.0    Compiling castaway v0.2.4
+#14 624.0    Compiling raw-cpuid v11.6.0
+#14 624.4    Compiling rdkafka-sys v4.9.0+2.10.0
+#14 624.9    Compiling num-iter v0.1.45
+#14 625.4    Compiling pem v3.0.6
+#14 625.6    Compiling headers-core v0.3.0
+#14 626.2    Compiling num-complex v0.4.6
+#14 626.6    Compiling pxfm v0.1.27
+#14 629.8    Compiling cookie v0.18.1
+#14 630.2    Compiling inventory v0.3.21
+#14 630.8    Compiling home v0.5.12
+#14 632.0    Compiling webauthn-rs-core v0.5.4
+#14 632.6    Compiling hashbrown v0.14.5
+#14 636.8    Compiling kube-core v2.0.1
+#14 637.1    Compiling oid-registry v0.8.1
+#14 637.7    Compiling static_assertions v1.1.0
+#14 638.0    Compiling compact_str v0.8.1
+#14 638.9    Compiling dashmap v6.1.0
+#14 643.3    Compiling quanta v0.12.6
+#14 646.6    Compiling moxcms v0.7.11
+#14 667.1    Compiling num v0.4.3
+#14 667.4    Compiling headers v0.4.1
+#14 668.8    Compiling async-stream v0.3.6
+#14 669.8    Compiling serde_cbor_2 v0.13.0
+#14 674.9    Compiling x509-parser v0.16.0
+#14 676.4    Compiling tonic-prost-build v0.14.2
+#14 678.5    Compiling num_enum v0.7.5
+#14 679.0    Compiling async-broadcast v0.7.2
+#14 679.4    Compiling darling v0.21.3
+#14 679.8    Compiling intl-memoizer v0.5.3
+#14 679.8    Compiling educe v0.6.0
+#14 681.1    Compiling crc-fast v1.6.0
+#14 681.1    Compiling postgres-types v0.2.11
+#14 690.2    Compiling phf v0.13.1
+#14 691.8    Compiling aws-smithy-query v0.60.9
+#14 693.0    Compiling webauthn-rs-proto v0.5.4
+#14 693.0    Compiling metrics v0.24.3
+#14 693.4    Compiling intl_pluralrules v7.0.2
+#14 697.4    Compiling fluent-langneg v0.13.1
+#14 698.0    Compiling garde_derive v0.22.1
+#14 699.1    Compiling sharded-slab v0.1.7
+#14 701.1    Compiling card-validate v2.4.0
+#14 703.7    Compiling deadpool-runtime v0.1.4
+#14 703.9    Compiling crossbeam-epoch v0.9.18
+#14 704.3    Compiling matchers v0.2.0
+#14 704.5    Compiling email_address v0.2.9
+#14 705.2    Compiling tracing-serde v0.2.0
+#14 706.6    Compiling fluent-syntax v0.12.0
+#14 707.6    Compiling expect-json-macros v1.8.1
+#14 707.8    Compiling rand_xoshiro v0.7.0
+#14 708.5    Compiling lru v0.12.5
+#14 708.5    Compiling tracing-log v0.2.0
+#14 709.7    Compiling num_cpus v1.17.0
+#14 710.0    Compiling hostname v0.4.2
+#14 710.3    Compiling thread_local v1.1.9
+#14 711.4    Compiling diff v0.1.13
+#14 711.5    Compiling clap_lex v0.7.6
+#14 711.8    Compiling nu-ansi-term v0.50.3
+#14 712.4    Compiling yansi v1.0.1
+#14 713.4    Compiling bytemuck v1.24.0
+#14 713.8    Compiling whoami v1.6.1
+#14 714.4    Compiling self_cell v1.2.2
+#14 714.7    Compiling byteorder-lite v0.1.0
+#14 714.9    Compiling unicode-segmentation v1.12.0
+#14 715.0    Compiling sketches-ddsketch v0.3.0
+#14 716.2    Compiling metrics-util v0.20.1
+#14 716.4    Compiling image v0.25.9
+#14 716.5    Compiling tokio-postgres v0.7.15
+#14 718.7    Compiling garde v0.22.1
+#14 720.5    Compiling clap_builder v4.5.54
+#14 723.1    Compiling fluent-bundle v0.16.0
+#14 729.8    Compiling pretty_assertions v1.4.1
+#14 731.2    Compiling tracing-subscriber v0.3.22
+#14 731.9    Compiling aws-smithy-checksums v0.63.12
+#14 737.4    Compiling deadpool v0.12.3
+#14 740.5    Compiling expect-json v1.8.1
+#14 752.2    Compiling authenc v0.1.0 (/app/infra/authenc)
+#14 755.1    Compiling kube-derive v2.0.1
+#14 761.6    Compiling axum-extra v0.12.5
+#14 765.8    Compiling der-parser v10.0.0
+#14 769.5    Compiling clap_derive v4.5.49
+#14 770.1    Compiling combine v4.6.7
+#14 774.4    Compiling env_filter v0.1.4
+#14 778.3    Compiling lber v0.5.1
+#14 780.2    Compiling blowfish v0.9.1
+#14 780.9    Compiling rust-multipart-rfc7578_2 v0.8.0
+#14 781.5    Compiling reserve-port v2.3.0
+#14 782.6    Compiling arc-swap v1.8.0
+#14 782.7    Compiling serde_spanned v1.0.4
+#14 783.9    Compiling jiff v0.2.18
+#14 784.2    Compiling base32 v0.5.1
+#14 785.2    Compiling fiat-crypto v0.1.20
+#14 785.6    Compiling sha1_smol v1.0.1
+#14 787.5    Compiling toml_writer v1.0.6+spec-1.1.0
+#14 788.3    Compiling bytesize v2.3.1
+#14 789.0    Compiling toml v0.9.10+spec-1.1.0
+#14 790.3    Compiling axum-test v18.5.0
+#14 795.0    Compiling totp-rs v5.7.0
+#14 795.0    Compiling clap v4.5.54
+#14 795.4    Compiling bcrypt v0.17.1
+#14 797.8    Compiling ldap3 v0.12.1
+#14 798.0    Compiling x509-parser v0.18.0
+#14 808.1    Compiling redis v0.32.7
+#14 808.6    Compiling webauthn-rs v0.5.4
+#14 817.0    Compiling tracing-opentelemetry v0.32.0
+#14 825.8    Compiling env_logger v0.11.8
+#14 832.4    Compiling deadpool-postgres v0.14.1
+#14 833.3    Compiling qrcode v0.14.1
+#14 837.9    Compiling metrics-exporter-prometheus v0.17.2
+#14 843.4    Compiling temp-env v0.3.6
+#14 844.1    Compiling rustls-pemfile v2.2.0
+#14 846.1    Compiling quick-xml v0.38.4
+#14 848.9    Compiling serde_qs v0.15.0
+#14 862.3    Compiling ed448-goldilocks v0.9.0
+#14 884.9    Compiling rustls-webpki v0.103.8
+#14 885.4    Compiling jsonwebtoken v10.2.0
+#14 930.9    Compiling tokio-rustls v0.26.4
+#14 933.4    Compiling hyper-rustls v0.27.7
+#14 935.7    Compiling aws-smithy-http-client v1.1.5
+#14 937.4    Compiling reqwest v0.12.28
+#14 937.8    Compiling tonic v0.14.2
+#14 937.8    Compiling kube-client v2.0.1
+#14 950.8    Compiling aws-smithy-runtime v1.9.5
+#14 954.2    Compiling lib-crypto v0.1.0 (/app/lib/crypto)
+#14 954.4    Compiling opentelemetry-http v0.31.0
+#14 959.1    Compiling tonic-prost v0.14.2
+#14 960.2    Compiling opentelemetry-proto v0.31.0
+#14 964.5    Compiling kube-runtime v2.0.1
+#14 979.2    Compiling aws-runtime v1.5.17
+#14 980.0    Compiling kube v2.0.1
+#14 980.5    Compiling opentelemetry-otlp v0.31.0
+#14 997.1    Compiling aws-sdk-ssooidc v1.93.0
+#14 997.4    Compiling aws-sdk-sts v1.95.0
+#14 997.9    Compiling aws-sdk-sso v1.91.0
+#14 999.2    Compiling aws-sdk-s3 v1.119.0
+#14 1005.9    Compiling lib-middleware v0.1.0 (/app/lib/middleware)
+#14 1006.0    Compiling lib-utils v0.1.0 (/app/lib/utils)
+#14 1007.4 warning: unused imports: `Next`, `Request`, `body::Body`, and `self`
+#14 1007.4   --> lib/middleware/adaptive_rate_limit_integration.rs:11:28
+#14 1007.4    |
+#14 1007.4 11 |     extract::{ConnectInfo, Request},
+#14 1007.4    |                            ^^^^^^^
+#14 1007.4 12 |     http::StatusCode,
+#14 1007.4 13 |     middleware::{self, Next},
+#14 1007.4    |                  ^^^^  ^^^^
+#14 1007.4 14 |     response::{IntoResponse, Response},
+#14 1007.4 15 |     body::Body,
+#14 1007.4    |     ^^^^^^^^^^
+#14 1007.4    |
+#14 1007.4    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+#14 1007.4 
+#14 1015.5 warning: unused variable: `threat_level`
+#14 1015.5    --> lib/middleware/adaptive_rate_limit.rs:346:17
+#14 1015.5     |
+#14 1015.5 346 |             let threat_level = state.get_threat_level();
+#14 1015.5     |                 ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threat_level`
+#14 1015.5     |
+#14 1015.5     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+#14 1015.5 
+#14 1015.7 warning: type `AllocationInfo` is more private than the item `MemoryStats::allocations`
+#14 1015.7    --> lib/utils/memory.rs:381:5
+#14 1015.7     |
+#14 1015.7 381 |     pub allocations: Vec<AllocationInfo>,
+#14 1015.7     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `MemoryStats::allocations` is reachable at visibility `pub`
+#14 1015.7     |
+#14 1015.7 note: but type `AllocationInfo` is only usable at visibility `pub(self)`
+#14 1015.7    --> lib/utils/memory.rs:277:1
+#14 1015.7     |
+#14 1015.7 277 | struct AllocationInfo {
+#14 1015.7     | ^^^^^^^^^^^^^^^^^^^^^
+#14 1015.7     = note: `#[warn(private_interfaces)]` on by default
+#14 1015.7 
+#14 1015.7 warning: function `get_jwt_secret` is never used
+#14 1015.7   --> lib/utils/crypto/jwt.rs:42:4
+#14 1015.7    |
+#14 1015.7 42 | fn get_jwt_secret() -> Result<Vec<u8>, String> {
+#14 1015.7    |    ^^^^^^^^^^^^^^
+#14 1015.7    |
+#14 1015.7    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+#14 1015.7 
+#14 1015.8 warning: fields `size` and `tag` are never read
+#14 1015.8    --> lib/utils/memory.rs:278:5
+#14 1015.8     |
+#14 1015.8 277 | struct AllocationInfo {
+#14 1015.8     |        -------------- fields in this struct
+#14 1015.8 278 |     size: usize,
+#14 1015.8     |     ^^^^
+#14 1015.8 279 |     timestamp: Instant,
+#14 1015.8 280 |     tag: String,
+#14 1015.8     |     ^^^
+#14 1015.8     |
+#14 1015.8     = note: `AllocationInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+#14 1015.8 
+#14 1017.6 warning: methods `get_count` and `get_failed_count` are never used
+#14 1017.6    --> lib/middleware/mfa_rate_limit.rs:96:8
+#14 1017.6     |
+#14 1017.6  71 | impl RateLimitCounter {
+#14 1017.6     | --------------------- methods in this implementation
+#14 1017.6 ...
+#14 1017.6  96 |     fn get_count(&self) -> u32 {
+#14 1017.6     |        ^^^^^^^^^
+#14 1017.6 ...
+#14 1017.6 100 |     fn get_failed_count(&self) -> u32 {
+#14 1017.6     |        ^^^^^^^^^^^^^^^^
+#14 1017.6     |
+#14 1017.6     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+#14 1017.6 
+#14 1033.8    Compiling aws-config v1.8.12
+#14 1040.9 warning: `lib-utils` (lib) generated 3 warnings
+#14 1046.5 warning: `lib-middleware` (lib) generated 3 warnings (run `cargo fix --lib -p lib-middleware` to apply 2 suggestions)
+#14 1046.5    Compiling rdkafka v0.38.0
+#14 1179.8 warning: unused import: `std::path::Path`
+#14 1179.8  --> infra/authenc/src/database/migrations/mod.rs:3:5
+#14 1179.8   |
+#14 1179.8 3 | use std::path::Path;
+#14 1179.8   |     ^^^^^^^^^^^^^^^
+#14 1179.8   |
+#14 1179.8   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+#14 1179.8 
+#14 1179.8 warning: unused import: `tokio::fs`
+#14 1179.8  --> infra/authenc/src/database/migrations/mod.rs:4:5
+#14 1179.8   |
+#14 1179.8 4 | use tokio::fs;
+#14 1179.8   |     ^^^^^^^^^
+#14 1179.8 
+#14 1179.9 warning: unused import: `CaptchaService`
+#14 1179.9   --> infra/authenc/src/handlers/api/captcha.rs:16:38
+#14 1179.9    |
+#14 1179.9 16 |     BehavioralMetrics, CaptchaError, CaptchaService, CaptchaServiceTrait, ChallengeType,
+#14 1179.9    |                                      ^^^^^^^^^^^^^^
+#14 1179.9 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2  --> infra/authenc/src/services/security/forever_unknown_secrets.rs:8:7
+#14 1180.2   |
+#14 1180.2 8 | #[cfg(feature = "tpm")]
+#14 1180.2   |       ^^^^^^^^^^^^^^^
+#14 1180.2   |
+#14 1180.2   = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2   = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2   = note: `#[warn(unexpected_cfgs)]` on by default
+#14 1180.2 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2   --> infra/authenc/src/services/security/forever_unknown_secrets.rs:24:11
+#14 1180.2    |
+#14 1180.2 24 |     #[cfg(feature = "tpm")]
+#14 1180.2    |           ^^^^^^^^^^^^^^^
+#14 1180.2    |
+#14 1180.2    = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2    = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2   --> infra/authenc/src/services/security/forever_unknown_secrets.rs:55:11
+#14 1180.2    |
+#14 1180.2 55 |     #[cfg(feature = "tpm")]
+#14 1180.2    |           ^^^^^^^^^^^^^^^
+#14 1180.2    |
+#14 1180.2    = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2    = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2   --> infra/authenc/src/services/security/forever_unknown_secrets.rs:32:15
+#14 1180.2    |
+#14 1180.2 32 |         #[cfg(feature = "tpm")]
+#14 1180.2    |               ^^^^^^^^^^^^^^^
+#14 1180.2    |
+#14 1180.2    = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2    = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2   --> infra/authenc/src/services/security/forever_unknown_secrets.rs:46:19
+#14 1180.2    |
+#14 1180.2 46 |         #[cfg(not(feature = "tpm"))]
+#14 1180.2    |                   ^^^^^^^^^^^^^^^
+#14 1180.2    |
+#14 1180.2    = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2    = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2 
+#14 1180.2 warning: unexpected `cfg` condition value: `tpm`
+#14 1180.2   --> infra/authenc/src/services/security/forever_unknown_secrets.rs:77:15
+#14 1180.2    |
+#14 1180.2 77 |         #[cfg(feature = "tpm")]
+#14 1180.2    |               ^^^^^^^^^^^^^^^
+#14 1180.2    |
+#14 1180.2    = note: expected values for `feature` are: `admin_console`, `auth`, `axum`, `db`, `default`, `dev`, `flate2`, `grpc`, `metrics`, `oidc`, `quantum`, `rbac`, `rdkafka`, `test`, and `totp-rs`
+#14 1180.2    = help: consider adding `tpm` as a feature in `Cargo.toml`
+#14 1180.2    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+#14 1180.2 
+#14 1180.3 warning: unused import: `crate::services::mfa_service::MfaService`
+#14 1180.3   --> infra/authenc/src/grpc/authenc_service.rs:15:5
+#14 1180.3    |
+#14 1180.3 15 | use crate::services::mfa_service::MfaService;
+#14 1180.3    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#14 1180.3 
+#14 1180.3 warning: unused import: `crate::services::events::EventBuilder`
+#14 1180.3   --> infra/authenc/src/grpc/authenc_service.rs:16:5
+#14 1180.3    |
+#14 1180.3 16 | use crate::services::events::EventBuilder;
+#14 1180.3    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#14 1180.3 
+#14 1196.5 error[E0308]: mismatched types
+#14 1196.5    --> infra/authenc/src/app.rs:581:79
+#14 1196.5     |
+#14 1196.5 581 |         let captcha_db_ops = Arc::new(crate::database::CaptchaOperations::new(database.clone()));
+#14 1196.5     |                                       --------------------------------------- ^^^^^^^^^^^^^^^^ expected `Database`, found `Arc<Database>`
+#14 1196.5     |                                       |
+#14 1196.5     |                                       arguments to this function are incorrect
+#14 1196.5     |
+#14 1196.5     = note: expected struct `database::Database`
+#14 1196.5                found struct `std::sync::Arc<database::Database>`
+#14 1196.5 note: associated function defined here
+#14 1196.5    --> infra/authenc/src/database/captcha_operations.rs:26:12
+#14 1196.5     |
+#14 1196.5  26 |     pub fn new(db: Database) -> Self {
+#14 1196.5     |            ^^^ ------------
+#14 1196.5 
+#14 1304.4 warning: use of deprecated method `jsonwebtoken::Validation::insecure_disable_signature_validation`: Use `jsonwebtoken::dangerous::insecure_decode` if you require this functionality.
+#14 1304.4    --> infra/authenc/src/services/federation/software_statement_validator.rs:229:25
+#14 1304.4     |
+#14 1304.4 229 |         temp_validation.insecure_disable_signature_validation();
+#14 1304.4     |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#14 1304.4     |
+#14 1304.4     = note: `#[warn(deprecated)]` on by default
+#14 1304.4 
+#14 1338.1 warning: unused import: `subtle::ConstantTimeEq`
+#14 1338.1   --> infra/authenc/src/crypto/shamir.rs:33:5
+#14 1338.1    |
+#14 1338.1 33 | use subtle::ConstantTimeEq;
+#14 1338.1    |     ^^^^^^^^^^^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `sha2::Digest`
+#14 1338.1   --> infra/authenc/src/handlers/api/account.rs:10:5
+#14 1338.1    |
+#14 1338.1 10 | use sha2::Digest;
+#14 1338.1    |     ^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `ClientPolicyCondition`
+#14 1338.1   --> infra/authenc/src/services/client_policy/enforcer.rs:10:19
+#14 1338.1    |
+#14 1338.1 10 |     ClientPolicy, ClientPolicyCondition, ClientPolicyContext, ClientPolicyExecutor,
+#14 1338.1    |                   ^^^^^^^^^^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `ClientPolicyExecutor`
+#14 1338.1   --> infra/authenc/src/services/client_policy/enforcer.rs:10:63
+#14 1338.1    |
+#14 1338.1 10 |     ClientPolicy, ClientPolicyCondition, ClientPolicyContext, ClientPolicyExecutor,
+#14 1338.1    |                                                               ^^^^^^^^^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `sha2::Digest`
+#14 1338.1  --> infra/authenc/src/services/captcha/fallback.rs:9:5
+#14 1338.1   |
+#14 1338.1 9 | use sha2::Digest;
+#14 1338.1   |     ^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `crate::secreton_client::SecretonClientTrait`
+#14 1338.1  --> infra/authenc/src/services/captcha/secreton_integration.rs:7:5
+#14 1338.1   |
+#14 1338.1 7 | use crate::secreton_client::SecretonClientTrait;
+#14 1338.1   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `crate::spi::ldap_federation::LdapFederationProvider`
+#14 1338.1   --> infra/authenc/src/services/core/user_sync_service.rs:13:5
+#14 1338.1    |
+#14 1338.1 13 | use crate::spi::ldap_federation::LdapFederationProvider;
+#14 1338.1    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `Cache`
+#14 1338.1  --> infra/authenc/src/services/mfa/mfa_service.rs:9:30
+#14 1338.1   |
+#14 1338.1 9 | use crate::services::cache::{Cache, MfaCache};
+#14 1338.1   |                              ^^^^^
+#14 1338.1 
+#14 1338.1 warning: unused import: `sha2::Digest`
+#14 1338.1  --> infra/authenc/src/services/mfa/totp_store.rs:7:5
+#14 1338.1   |
+#14 1338.1 7 | use sha2::Digest;
+#14 1338.1   |     ^^^^^^^^^^^^
+#14 1338.1 
+#14 1341.9 warning: value assigned to `in_signature` is never read
+#14 1341.9    --> infra/authenc/src/crypto/xmldsig.rs:332:29
+#14 1341.9     |
+#14 1341.9 332 | ...                   in_signature = false;
+#14 1341.9     |                       ^^^^^^^^^^^^^^^^^^^^
+#14 1341.9     |
+#14 1341.9     = help: maybe it is overwritten before being read?
+#14 1341.9     = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+#14 1341.9 
+#14 1342.3 warning: unused variable: `message`
+#14 1342.3    --> infra/authenc/src/error.rs:707:47
+#14 1342.3     |
+#14 1342.3 707 |     pub fn too_many_requests<T: Into<String>>(message: T) -> Self {
+#14 1342.3     |                                               ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_message`
+#14 1342.3     |
+#14 1342.3     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+#14 1342.3 
+#14 1351.2 warning: unused variable: `removed_role`
+#14 1351.2     --> infra/authenc/src/models/user.rs:1162:17
+#14 1351.2      |
+#14 1351.2 1162 |             let removed_role = self.roles.remove(pos);
+#14 1351.2      |                 ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_removed_role`
+#14 1351.2 
+#14 1353.3 warning: unused variable: `skip_blacklist_check`
+#14 1353.3    --> infra/authenc/src/utils/crypto/jwt.rs:195:37
+#14 1353.3     |
+#14 1353.3 195 | fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
+#14 1353.3     |                                     ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skip_blacklist_check`
+#14 1353.3 
+#14 1354.6 warning: unused variable: `config_json`
+#14 1354.6    --> infra/authenc/src/database/operations/protocol_mappers_ops.rs:189:17
+#14 1354.6     |
+#14 1354.6 189 |             let config_json = serde_json::to_value(config).map_err(|e| {
+#14 1354.6     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_config_json`
+#14 1354.6 
+#14 1354.6 warning: unused variable: `query`
+#14 1354.6    --> infra/authenc/src/database/operations/protocol_mappers_ops.rs:209:13
+#14 1354.6     |
+#14 1354.6 209 |         let query = format!(
+#14 1354.6     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+#14 1354.6 
+#14 1354.6 warning: unused variable: `config_json`
+#14 1354.6    --> infra/authenc/src/database/operations/protocol_mappers_ops.rs:217:17
+#14 1354.6     |
+#14 1354.6 217 |             let config_json =
+#14 1354.6     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_config_json`
+#14 1354.6 
+#14 1356.1 warning: unused variable: `name_pattern`
+#14 1356.1    --> infra/authenc/src/database/operations/legacy/permission_tickets.rs:170:29
+#14 1356.1     |
+#14 1356.1 170 |     let query = if let Some(name_pattern) = name_filter {
+#14 1356.1     |                             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_name_pattern`
+#14 1356.1 
+#14 1356.1 warning: unused variable: `granted_filter`
+#14 1356.1    --> infra/authenc/src/database/operations/legacy/permission_tickets.rs:239:29
+#14 1356.1     |
+#14 1356.1 239 |     let query = if let Some(granted_filter) = granted {
+#14 1356.1     |                             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_granted_filter`
+#14 1356.1 
+#14 1356.1 warning: unused variable: `granted_filter`
+#14 1356.1    --> infra/authenc/src/database/operations/legacy/permission_tickets.rs:277:29
+#14 1356.1     |
+#14 1356.1 277 |     let query = if let Some(granted_filter) = granted {
+#14 1356.1     |                             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_granted_filter`
+#14 1356.1 
+#14 1356.1 warning: value assigned to `param_idx` is never read
+#14 1356.1   --> infra/authenc/src/database/operations/legacy/protocol_mappers.rs:66:9
+#14 1356.1    |
+#14 1356.1 66 |         param_idx += 1;
+#14 1356.1    |         ^^^^^^^^^^^^^^
+#14 1356.1    |
+#14 1356.1    = help: maybe it is overwritten before being read?
+#14 1356.1 
+#14 1356.1 warning: value assigned to `param_idx` is never read
+#14 1356.1    --> infra/authenc/src/database/operations/legacy/protocol_mappers.rs:113:9
+#14 1356.1     |
+#14 1356.1 113 |         param_idx += 1;
+#14 1356.1     |         ^^^^^^^^^^^^^^
+#14 1356.1     |
+#14 1356.1     = help: maybe it is overwritten before being read?
+#14 1356.1 
+#14 1357.9 warning: value assigned to `param_count` is never read
+#14 1357.9    --> infra/authenc/src/services/client_policy/store.rs:187:13
+#14 1357.9     |
+#14 1357.9 187 |             param_count += 1;
+#14 1357.9     |             ^^^^^^^^^^^^^^^^
+#14 1357.9     |
+#14 1357.9     = help: maybe it is overwritten before being read?
+#14 1357.9 
+#14 1358.0 warning: value assigned to `param_count` is never read
+#14 1358.0    --> infra/authenc/src/services/client_policy/store.rs:426:13
+#14 1358.0     |
+#14 1358.0 426 |             param_count += 1;
+#14 1358.0     |             ^^^^^^^^^^^^^^^^
+#14 1358.0     |
+#14 1358.0     = help: maybe it is overwritten before being read?
+#14 1358.0 
+#14 1360.3 warning: unused variable: `user`
+#14 1360.3    --> infra/authenc/src/handlers/api/auth.rs:290:29
+#14 1360.3     |
+#14 1360.3 290 | async fn should_require_mfa(user: &crate::models::user::User) -> Result<bool, AuthencError> {
+#14 1360.3     |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_user`
+#14 1360.3 
+#14 1360.4 warning: unused variable: `user_id`
+#14 1360.4    --> infra/authenc/src/services/mfa/mfa_security_monitor.rs:396:52
+#14 1360.4     |
+#14 1360.4 396 |     pub async fn record_mfa_setup(&self, ip: &str, user_id: Uuid) -> Result<(), AuthencError> {
+#14 1360.4     |                                                    ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_id`
+#14 1360.4 
+#14 1360.5 warning: unused variable: `ip`
+#14 1360.5    --> infra/authenc/src/services/mfa/mfa_security_monitor.rs:335:9
+#14 1360.5     |
+#14 1360.5 335 |         ip: &str,
+#14 1360.5     |         ^^ help: if this is intentional, prefix it with an underscore: `_ip`
+#14 1360.5 
+#14 1362.3 warning: unused variable: `user`
+#14 1362.3    --> infra/authenc/src/handlers/api/account.rs:583:9
+#14 1362.3     |
+#14 1362.3 583 |     let user = user_store
+#14 1362.3     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_user`
+#14 1362.3 
+#14 1362.3 warning: unused variable: `user_store`
+#14 1362.3    --> infra/authenc/src/handlers/api/account.rs:604:12
+#14 1362.3     |
+#14 1362.3 604 |     State((user_store, _, _, _, audit_log_store, social_account_store)): State<(
+#14 1362.3     |            ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_store`
+#14 1362.3 
+#14 1362.9 warning: unused variable: `security_monitoring_config`
+#14 1362.9   --> infra/authenc/src/handlers/api/captcha.rs:55:9
+#14 1362.9    |
+#14 1362.9 55 |     let security_monitoring_config = SecurityMonitoringConfig {
+#14 1362.9    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_security_monitoring_config`
+#14 1362.9 
+#14 1363.0 warning: unused variable: `ip`
+#14 1363.0    --> infra/authenc/src/handlers/api/captcha.rs:307:9
+#14 1363.0     |
+#14 1363.0 307 |     let ip = addr.ip().to_string();
+#14 1363.0     |         ^^ help: if this is intentional, prefix it with an underscore: `_ip`
+#14 1363.0 
+#14 1363.0 warning: unused variable: `ip`
+#14 1363.0    --> infra/authenc/src/handlers/api/captcha.rs:364:9
+#14 1363.0     |
+#14 1363.0 364 |     let ip = addr.ip().to_string();
+#14 1363.0     |         ^^ help: if this is intentional, prefix it with an underscore: `_ip`
+#14 1363.0 
+#14 1363.0 warning: unused variable: `state`
+#14 1363.0    --> infra/authenc/src/handlers/api/captcha.rs:406:11
+#14 1363.0     |
+#14 1363.0 406 |     State(state): State<Arc<crate::app::AppState>>,
+#14 1363.0     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1363.0 
+#14 1363.1 warning: unused variable: `summary`
+#14 1363.1    --> infra/authenc/src/services/captcha/dashboard.rs:398:13
+#14 1363.1     |
+#14 1363.1 398 |         let summary = self.metrics_collector.generate_summary(24 * 60).await?;
+#14 1363.1     |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_summary`
+#14 1363.1 
+#14 1363.2 warning: unused variable: `headers`
+#14 1363.2    --> infra/authenc/src/services/captcha/alerting.rs:633:9
+#14 1363.2     |
+#14 1363.2 633 |         headers: &HashMap<String, String>,
+#14 1363.2     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_headers`
+#14 1363.2 
+#14 1363.5 warning: unused variable: `old_representation`
+#14 1363.5    --> infra/authenc/src/handlers/api/client.rs:184:9
+#14 1363.5     |
+#14 1363.5 184 |     let old_representation = serde_json::to_string(&client).unwrap_or_default();
+#14 1363.5     |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_old_representation`
+#14 1363.5 
+#14 1364.5 warning: unused variable: `updated`
+#14 1364.5    --> infra/authenc/src/services/service_account_store.rs:209:13
+#14 1364.5     |
+#14 1364.5 209 |         let updated = crate::database::operations::service_accounts::update_service_account(
+#14 1364.5     |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_updated`
+#14 1364.5 
+#14 1367.4 warning: unused variable: `satker`
+#14 1367.4    --> infra/authenc/src/services/mfa/mfa_service.rs:534:33
+#14 1367.4     |
+#14 1367.4 534 |         let query = if let Some(satker) = satker_code {
+#14 1367.4     |                                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_satker`
+#14 1367.4 
+#14 1367.4 warning: unused variable: `status`
+#14 1367.4    --> infra/authenc/src/services/mfa/mfa_service.rs:348:13
+#14 1367.4     |
+#14 1367.4 348 |         let status = self
+#14 1367.4     |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_status`
+#14 1367.4 
+#14 1367.4 warning: unused variable: `query`
+#14 1367.4     --> infra/authenc/src/handlers/api/mfa_management.rs:1374:11
+#14 1367.4      |
+#14 1367.4 1374 |     Query(query): Query<serde_json::Value>,
+#14 1367.4      |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+#14 1367.4 
+#14 1367.4 warning: unused variable: `query`
+#14 1367.4     --> infra/authenc/src/handlers/api/mfa_management.rs:1528:11
+#14 1367.4      |
+#14 1367.4 1528 |     Query(query): Query<serde_json::Value>,
+#14 1367.4      |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+#14 1367.4 
+#14 1367.5 warning: unused variable: `query`
+#14 1367.5     --> infra/authenc/src/handlers/api/mfa_management.rs:1694:11
+#14 1367.5      |
+#14 1367.5 1694 |     Query(query): Query<serde_json::Value>,
+#14 1367.5      |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+#14 1367.5 
+#14 1367.5 warning: unused variable: `state`
+#14 1367.5   --> infra/authenc/src/handlers/api/mfa_performance.rs:76:11
+#14 1367.5    |
+#14 1367.5 76 |     State(state): State<Arc<AppState>>,
+#14 1367.5    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.5 
+#14 1367.6 warning: unused variable: `state`
+#14 1367.6    --> infra/authenc/src/handlers/api/mfa_performance.rs:156:11
+#14 1367.6     |
+#14 1367.6 156 |     State(state): State<Arc<AppState>>,
+#14 1367.6     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.6 
+#14 1367.6 warning: unused variable: `state`
+#14 1367.6    --> infra/authenc/src/handlers/api/mfa_performance.rs:171:11
+#14 1367.6     |
+#14 1367.6 171 |     State(state): State<Arc<AppState>>,
+#14 1367.6     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.6 
+#14 1367.6 warning: unused variable: `state`
+#14 1367.6    --> infra/authenc/src/handlers/api/mfa_performance.rs:188:11
+#14 1367.6     |
+#14 1367.6 188 |     State(state): State<Arc<AppState>>,
+#14 1367.6     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.6 
+#14 1367.6 warning: unused variable: `state`
+#14 1367.6    --> infra/authenc/src/handlers/api/mfa_performance.rs:207:11
+#14 1367.6     |
+#14 1367.6 207 |     State(state): State<Arc<AppState>>,
+#14 1367.6     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.6 
+#14 1367.6 warning: unused variable: `state`
+#14 1367.6    --> infra/authenc/src/handlers/api/mfa_performance.rs:324:11
+#14 1367.6     |
+#14 1367.6 324 |     State(state): State<Arc<AppState>>,
+#14 1367.6     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1367.6 
+#14 1369.5 warning: unused variable: `state`
+#14 1369.5    --> infra/authenc/src/handlers/federation/federated_login.rs:427:5
+#14 1369.5     |
+#14 1369.5 427 |     state: &Arc<AppState>,
+#14 1369.5     |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1369.5 
+#14 1369.5 warning: unused variable: `user`
+#14 1369.5    --> infra/authenc/src/handlers/federation/federated_login.rs:428:5
+#14 1369.5     |
+#14 1369.5 428 |     user: &crate::models::User,
+#14 1369.5     |     ^^^^ help: if this is intentional, prefix it with an underscore: `_user`
+#14 1369.5 
+#14 1369.5 warning: unused variable: `realm_id`
+#14 1369.5    --> infra/authenc/src/handlers/federation/federated_login.rs:429:5
+#14 1369.5     |
+#14 1369.5 429 |     realm_id: Uuid,
+#14 1369.5     |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_realm_id`
+#14 1369.5 
+#14 1369.6 warning: unused variable: `updated_link`
+#14 1369.6    --> infra/authenc/src/services/federation/federation_manager.rs:351:25
+#14 1369.6     |
+#14 1369.6 351 |             if let Some(updated_link) = self.get_identity_link(&link.id).await? {
+#14 1369.6     |                         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_updated_link`
+#14 1369.6 
+#14 1370.1 warning: unused variable: `params`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:333:9
+#14 1370.1     |
+#14 1370.1 333 |     let params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![&id];
+#14 1370.1     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_params`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `display_name`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:335:17
+#14 1370.1     |
+#14 1370.1 335 |     if let Some(ref display_name) = request.display_name {
+#14 1370.1     |                 ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_display_name`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `enabled`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:339:17
+#14 1370.1     |
+#14 1370.1 339 |     if let Some(enabled) = request.enabled {
+#14 1370.1     |                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_enabled`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `trust_email`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:343:17
+#14 1370.1     |
+#14 1370.1 343 |     if let Some(trust_email) = request.trust_email {
+#14 1370.1     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_trust_email`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `store_token`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:347:17
+#14 1370.1     |
+#14 1370.1 347 |     if let Some(store_token) = request.store_token {
+#14 1370.1     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_store_token`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `link_only`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:351:17
+#14 1370.1     |
+#14 1370.1 351 |     if let Some(link_only) = request.link_only {
+#14 1370.1     |                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_link_only`
+#14 1370.1 
+#14 1370.1 warning: unused variable: `config`
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:355:17
+#14 1370.1     |
+#14 1370.1 355 |     if let Some(ref config) = request.config {
+#14 1370.1     |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+#14 1370.1 
+#14 1370.1 warning: value assigned to `param_index` is never read
+#14 1370.1    --> infra/authenc/src/handlers/federation/federation_admin.rs:357:9
+#14 1370.1     |
+#14 1370.1 357 |         param_index += 1;
+#14 1370.1     |         ^^^^^^^^^^^^^^^^
+#14 1370.1     |
+#14 1370.1     = help: maybe it is overwritten before being read?
+#14 1370.1 
+#14 1370.2 warning: unused variable: `provider_alias`
+#14 1370.2    --> infra/authenc/src/services/core/user_sync_service.rs:437:9
+#14 1370.2     |
+#14 1370.2 437 |         provider_alias: &str,
+#14 1370.2     |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_provider_alias`
+#14 1370.2 
+#14 1370.2 warning: unused variable: `realm_id`
+#14 1370.2    --> infra/authenc/src/services/core/user_sync_service.rs:438:9
+#14 1370.2     |
+#14 1370.2 438 |         realm_id: Uuid,
+#14 1370.2     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_realm_id`
+#14 1370.2 
+#14 1370.2 warning: unused variable: `limit`
+#14 1370.2    --> infra/authenc/src/services/core/user_sync_service.rs:439:9
+#14 1370.2     |
+#14 1370.2 439 |         limit: i64,
+#14 1370.2     |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_limit`
+#14 1370.2 
+#14 1371.2 warning: unused variable: `provider_type`
+#14 1371.2    --> infra/authenc/src/handlers/federation/spi_federation.rs:291:9
+#14 1371.2     |
+#14 1371.2 291 |     let provider_type = match request.provider.as_str() {
+#14 1371.2     |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_provider_type`
+#14 1371.2 
+#14 1371.3 warning: unused variable: `state`
+#14 1371.3   --> infra/authenc/src/handlers/federation/social.rs:59:11
+#14 1371.3    |
+#14 1371.3 59 |     State(state): State<Arc<AppState>>,
+#14 1371.3    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1371.3 
+#14 1371.3 warning: unused variable: `state`
+#14 1371.3    --> infra/authenc/src/handlers/federation/social.rs:138:11
+#14 1371.3     |
+#14 1371.3 138 |     State(state): State<Arc<AppState>>,
+#14 1371.3     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+#14 1371.3 
+#14 1374.1 warning: unused variable: `expires_at`
+#14 1374.1    --> infra/authenc/src/services/uma/permission_endpoint.rs:123:13
+#14 1374.1     |
+#14 1374.1 123 |         let expires_at = Utc::now().timestamp() + self.ticket_lifetime;
+#14 1374.1     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_expires_at`
+#14 1374.1 
+#14 1374.1 warning: unused variable: `scope`
+#14 1374.1    --> infra/authenc/src/services/uma/permission_endpoint.rs:128:17
+#14 1374.1     |
+#14 1374.1 128 |             for scope in &req.resource_scopes {
+#14 1374.1     |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_scope`
+#14 1374.1 
+#14 1374.2 warning: unused variable: `context`
+#14 1374.2    --> infra/authenc/src/services/uma/policy_engine.rs:552:9
+#14 1374.2     |
+#14 1374.2 552 |         context: &PolicyEvaluationContext,
+#14 1374.2     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+#14 1374.2 
+#14 1374.2 warning: unused variable: `config`
+#14 1374.2    --> infra/authenc/src/services/uma/policy_engine.rs:553:9
+#14 1374.2     |
+#14 1374.2 553 |         config: &PolicyConfig,
+#14 1374.2     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+#14 1374.2 
+#14 1375.2 warning: variable does not need to be mutable
+#14 1375.2   --> infra/authenc/src/handlers/mod.rs:90:9
+#14 1375.2    |
+#14 1375.2 90 |     let mut router = Router::new()
+#14 1375.2    |         ----^^^^^^
+#14 1375.2    |         |
+#14 1375.2    |         help: remove this `mut`
+#14 1375.2    |
+#14 1375.2    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+#14 1375.2 
+#14 1375.6 warning: unused variable: `threat_level`
+#14 1375.6    --> infra/authenc/src/middleware/adaptive_rate_limit.rs:354:17
+#14 1375.6     |
+#14 1375.6 354 |             let threat_level = state.get_threat_level();
+#14 1375.6     |                 ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threat_level`
+#14 1375.6 
+#14 1377.4 warning: unused variable: `session_id`
+#14 1377.4    --> infra/authenc/src/services/managers/authentication.rs:188:13
+#14 1377.4     |
+#14 1377.4 188 |         let session_id = self
+#14 1377.4     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session_id`
+#14 1377.4 
+#14 1380.4 warning: unused variable: `user`
+#14 1380.4    --> infra/authenc/src/services/protocol_mapper_service.rs:306:9
+#14 1380.4     |
+#14 1380.4 306 |         user: &User,
+#14 1380.4     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_user`
+#14 1380.4 
+#14 1383.8 warning: unused variable: `now`
+#14 1383.8   --> infra/authenc/src/services/cache/in_memory_cache.rs:81:13
+#14 1383.8    |
+#14 1383.8 81 |         let now = Instant::now();
+#14 1383.8    |             ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+#14 1383.8 
+#14 1387.4 warning: unused variable: `term`
+#14 1387.4    --> infra/authenc/src/services/clustering/mod.rs:425:13
+#14 1387.4     |
+#14 1387.4 425 |         let term = *current_term;
+#14 1387.4     |             ^^^^ help: if this is intentional, prefix it with an underscore: `_term`
+#14 1387.4 
+#14 1387.4 warning: unused variable: `key`
+#14 1387.4    --> infra/authenc/src/services/clustering/mod.rs:453:29
+#14 1387.4     |
+#14 1387.4 453 |     async fn propose(&self, key: &str, value: &[u8]) -> Result<bool> {
+#14 1387.4     |                             ^^^ help: if this is intentional, prefix it with an underscore: `_key`
+#14 1387.4 
+#14 1387.4 warning: unused variable: `key`
+#14 1387.4    --> infra/authenc/src/services/clustering/mod.rs:470:41
+#14 1387.4     |
+#14 1387.4 470 |     async fn get_consensus_value(&self, key: &str) -> Result<Option<Vec<u8>>> {
+#14 1387.4     |                                         ^^^ help: if this is intentional, prefix it with an underscore: `_key`
+#14 1387.4 
+#14 1387.8 warning: unused variable: `node_id`
+#14 1387.8     --> infra/authenc/src/services/clustering/mod.rs:1216:22
+#14 1387.8      |
+#14 1387.8 1216 |                 for (node_id, status) in health.iter_mut() {
+#14 1387.8      |                      ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_node_id`
+#14 1387.8 
+#14 1389.0 warning: unused variable: `ip_address`
+#14 1389.0    --> infra/authenc/src/services/captcha/metrics.rs:310:9
+#14 1389.0     |
+#14 1389.0 310 |         ip_address: &str,
+#14 1389.0     |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ip_address`
+#14 1389.0 
+#14 1390.4 warning: unused variable: `current_score`
+#14 1390.4    --> infra/authenc/src/services/captcha/bot_detection.rs:625:9
+#14 1390.4     |
+#14 1390.4 625 |         current_score: f64,
+#14 1390.4     |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_current_score`
+#14 1390.4 
+#14 1390.5 warning: unused variable: `label`
+#14 1390.5    --> infra/authenc/src/services/captcha/bot_detection.rs:711:9
+#14 1390.5     |
+#14 1390.5 711 |         label: bool,
+#14 1390.5     |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_label`
+#14 1390.5 
+#14 1391.7 warning: unused variable: `now`
+#14 1391.7    --> infra/authenc/src/services/captcha/fallback.rs:355:13
+#14 1391.7     |
+#14 1391.7 355 |         let now = SystemTime::now();
+#14 1391.7     |             ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+#14 1391.7 
+#14 1391.7 warning: unused variable: `now`
+#14 1391.7    --> infra/authenc/src/services/captcha/fallback.rs:290:13
+#14 1391.7     |
+#14 1391.7 290 |         let now = SystemTime::now();
+#14 1391.7     |             ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+#14 1391.7 
+#14 1395.1 warning: unused variable: `context`
+#14 1395.1    --> infra/authenc/src/services/captcha/error.rs:535:9
+#14 1395.1     |
+#14 1395.1 535 |         context: ErrorContext,
+#14 1395.1     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+#14 1395.1 
+#14 1396.2 warning: unused variable: `difficulty`
+#14 1396.2    --> infra/authenc/src/services/captcha/generator.rs:360:9
+#14 1396.2     |
+#14 1396.2 360 |         difficulty: u8,
+#14 1396.2     |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_difficulty`
+#14 1396.2 
+#14 1398.1 warning: unused variable: `challenge_type`
+#14 1398.1    --> infra/authenc/src/services/captcha/metrics.rs:157:9
+#14 1398.1     |
+#14 1398.1 157 |         challenge_type: &ChallengeType,
+#14 1398.1     |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenge_type`
+#14 1398.1 
+#14 1398.1 warning: unused variable: `is_suspicious`
+#14 1398.1    --> infra/authenc/src/services/captcha/metrics.rs:216:13
+#14 1398.1     |
+#14 1398.1 216 |         let is_suspicious = matches!(
+#14 1398.1     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_suspicious`
+#14 1398.1 
+#14 1399.3 warning: unused variable: `context`
+#14 1399.3    --> infra/authenc/src/services/captcha/secreton_integration.rs:138:9
+#14 1399.3     |
+#14 1399.3 138 |         context: &SecurityContext,
+#14 1399.3     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+#14 1399.3 
+#14 1400.1 warning: unused variable: `alert_data`
+#14 1400.1    --> infra/authenc/src/services/captcha/security_monitoring.rs:387:21
+#14 1400.1     |
+#14 1400.1 387 |                 let alert_data = CaptchaSecurityEventData::new(
+#14 1400.1     |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_alert_data`
+#14 1400.1 
+#14 1400.1 warning: unused variable: `alert_data`
+#14 1400.1    --> infra/authenc/src/services/captcha/security_monitoring.rs:415:25
+#14 1400.1     |
+#14 1400.1 415 |                     let alert_data = CaptchaSecurityEventData::new(
+#14 1400.1     |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_alert_data`
+#14 1400.1 
+#14 1400.1 warning: unused variable: `start_time`
+#14 1400.1    --> infra/authenc/src/services/captcha/security_monitoring.rs:482:9
+#14 1400.1     |
+#14 1400.1 482 |     let start_time = SystemTime::now();
+#14 1400.1     |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_start_time`
+#14 1400.1 
+#14 1402.6 warning: unused variable: `answer`
+#14 1402.6    --> infra/authenc/src/services/captcha/validator.rs:272:9
+#14 1402.6     |
+#14 1402.6 272 |         answer: &str,
+#14 1402.6     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_answer`
+#14 1402.6 
+#14 1402.6 warning: unused variable: `validation_success`
+#14 1402.6    --> infra/authenc/src/services/captcha/validator.rs:344:9
+#14 1402.6     |
+#14 1402.6 344 |         validation_success: bool,
+#14 1402.6     |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_validation_success`
+#14 1402.6 
+#14 1403.1 warning: unused variable: `challenge`
+#14 1403.1    --> infra/authenc/src/services/captcha/validator.rs:647:9
+#14 1403.1     |
+#14 1403.1 647 |         challenge: &Challenge,
+#14 1403.1     |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_challenge`
+#14 1403.1 
+#14 1403.1 warning: unused variable: `answer`
+#14 1403.1    --> infra/authenc/src/services/captcha/validator.rs:648:9
+#14 1403.1     |
+#14 1403.1 648 |         answer: &str,
+#14 1403.1     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_answer`
+#14 1403.1 
+#14 1415.2 warning: unused variable: `ocsp_client`
+#14 1415.2    --> infra/authenc/src/services/federation/saml_security.rs:286:25
+#14 1415.2     |
+#14 1415.2 286 |             && let Some(ocsp_client) = &self.ocsp_client
+#14 1415.2     |                         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ocsp_client`
+#14 1415.2 
+#14 1419.2 warning: unused variable: `e`
+#14 1419.2    --> infra/authenc/src/services/federation/software_statement_validator.rs:273:27
+#14 1419.2     |
+#14 1419.2 273 |                 .map_err(|e| AuthencError::AuthenticationFailed)?;
+#14 1419.2     |                           ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1419.2 
+#14 1422.6 warning: unused variable: `client_id`
+#14 1422.6    --> infra/authenc/src/services/uma/permission_endpoint.rs:369:9
+#14 1422.6     |
+#14 1422.6 369 |         client_id: &str,
+#14 1422.6     |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_client_id`
+#14 1422.6 
+#14 1423.7 warning: unused variable: `owner_id`
+#14 1423.7    --> infra/authenc/src/services/uma/resource_owner_auth.rs:331:50
+#14 1423.7     |
+#14 1423.7 331 |     pub async fn revoke_delegation_policy(&self, owner_id: &str, policy_id: &Uuid) -> Result<()> {
+#14 1423.7     |                                                  ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_owner_id`
+#14 1423.7 
+#14 1423.7 warning: unused variable: `policy_id`
+#14 1423.7    --> infra/authenc/src/services/uma/resource_owner_auth.rs:331:66
+#14 1423.7     |
+#14 1423.7 331 |     pub async fn revoke_delegation_policy(&self, owner_id: &str, policy_id: &Uuid) -> Result<()> {
+#14 1423.7     |                                                                  ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_policy_id`
+#14 1423.7 
+#14 1423.7 warning: unused variable: `owner_id`
+#14 1423.7    --> infra/authenc/src/services/uma/resource_owner_auth.rs:344:9
+#14 1423.7     |
+#14 1423.7 344 |         owner_id: &str,
+#14 1423.7     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_owner_id`
+#14 1423.7 
+#14 1423.7 warning: unused variable: `realm_id`
+#14 1423.7    --> infra/authenc/src/services/uma/resource_owner_auth.rs:345:9
+#14 1423.7     |
+#14 1423.7 345 |         realm_id: &str,
+#14 1423.7     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_realm_id`
+#14 1423.7 
+#14 1437.7 warning: unused variable: `session`
+#14 1437.7    --> infra/authenc/src/services/sso/service.rs:291:13
+#14 1437.7     |
+#14 1437.7 291 |         let session = self
+#14 1437.7     |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+#14 1437.7 
+#14 1440.7 warning: unused variable: `ninety_days_ago`
+#14 1440.7    --> infra/authenc/src/services/compliance/mod.rs:441:25
+#14 1440.7     |
+#14 1440.7 441 |                     let ninety_days_ago = (Utc::now() - Duration::days(90))
+#14 1440.7     |                         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ninety_days_ago`
+#14 1440.7 
+#14 1440.9 warning: unused variable: `consent_store`
+#14 1440.9    --> infra/authenc/src/services/compliance/mod.rs:566:21
+#14 1440.9     |
+#14 1440.9 566 |         if let Some(consent_store) = &self.consent_store {
+#14 1440.9     |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_consent_store`
+#14 1440.9 
+#14 1442.5 warning: unused variable: `gdpr_checks`
+#14 1442.5    --> infra/authenc/src/services/compliance_mode.rs:307:17
+#14 1442.5     |
+#14 1442.5 307 |             let gdpr_checks = GDPRComplianceChecks::new();
+#14 1442.5     |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gdpr_checks`
+#14 1442.5 
+#14 1445.3 warning: unused variable: `session`
+#14 1445.3    --> infra/authenc/src/services/core/auth_flow.rs:548:9
+#14 1445.3     |
+#14 1445.3 548 |         session: &AuthenticationSessionModel,
+#14 1445.3     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
+#14 1445.3 
+#14 1445.4 warning: unused variable: `client_secret`
+#14 1445.5    --> infra/authenc/src/services/core/client_registration_v2.rs:307:9
+#14 1445.5     |
+#14 1445.5 307 |         client_secret: &str,
+#14 1445.5     |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_client_secret`
+#14 1445.5 
+#14 1451.4 warning: unused variable: `injection_patterns`
+#14 1451.4   --> infra/authenc/src/services/security/security_testing.rs:55:17
+#14 1451.4    |
+#14 1451.4 55 |             let injection_patterns = vec![
+#14 1451.4    |                 ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_injection_patterns`
+#14 1451.4 
+#14 1451.4 warning: variable `all_passed` is assigned to, but never used
+#14 1451.4   --> infra/authenc/src/services/security/security_testing.rs:86:17
+#14 1451.4    |
+#14 1451.4 86 |             let mut all_passed = true;
+#14 1451.4    |                 ^^^^^^^^^^^^^^
+#14 1451.4    |
+#14 1451.4    = note: consider using `_all_passed` instead
+#14 1451.4 
+#14 1451.4 warning: value assigned to `all_passed` is never read
+#14 1451.4   --> infra/authenc/src/services/security/security_testing.rs:89:21
+#14 1451.4    |
+#14 1451.4 89 |                     all_passed = false;
+#14 1451.4    |                     ^^^^^^^^^^^^^^^^^^
+#14 1451.4    |
+#14 1451.4    = help: maybe it is overwritten before being read?
+#14 1451.4 
+#14 1451.4 warning: unused variable: `max_variance`
+#14 1451.4    --> infra/authenc/src/services/security/security_testing.rs:129:17
+#14 1451.4     |
+#14 1451.4 129 |             let max_variance = timings
+#14 1451.4     |                 ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_max_variance`
+#14 1451.4 
+#14 1452.0 warning: unused variable: `setup_data`
+#14 1452.0    --> infra/authenc/src/services/mfa/mfa_fallback_client.rs:134:13
+#14 1452.0     |
+#14 1452.0 134 |         let setup_data = MfaSetupData {
+#14 1452.0     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_setup_data`
+#14 1452.0 
+#14 1452.8 warning: unused variable: `totp`
+#14 1452.8    --> infra/authenc/src/services/mfa/mfa_fallback_client.rs:224:21
+#14 1452.8     |
+#14 1452.8 224 |                 let totp = TOTP::new(Algorithm::SHA1, 6, 1, 30, secret_bytes)
+#14 1452.8     |                     ^^^^ help: if this is intentional, prefix it with an underscore: `_totp`
+#14 1452.8 
+#14 1456.0 warning: unused variable: `user_patterns`
+#14 1456.0    --> infra/authenc/src/services/mfa/mfa_security_monitor.rs:657:13
+#14 1456.0     |
+#14 1456.0 657 |         let user_patterns = self.user_patterns.clone();
+#14 1456.0     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_patterns`
+#14 1456.0 
+#14 1456.8 warning: unused variable: `e`
+#14 1456.8    --> infra/authenc/src/services/mfa/mfa_service.rs:659:23
+#14 1456.8     |
+#14 1456.8 659 |             .map_err(|e| AuthencError::ExternalServiceError {
+#14 1456.8     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1456.8 
+#14 1457.3 warning: unused variable: `e`
+#14 1457.3    --> infra/authenc/src/services/mfa/mfa_service.rs:667:23
+#14 1457.3     |
+#14 1457.3 667 |             .map_err(|e| AuthencError::ExternalServiceError {
+#14 1457.3     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1457.3 
+#14 1457.4 warning: unused variable: `e`
+#14 1457.4    --> infra/authenc/src/services/mfa/mfa_service.rs:675:23
+#14 1457.4     |
+#14 1457.4 675 |             .map_err(|e| AuthencError::ExternalServiceError {
+#14 1457.4     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1457.4 
+#14 1457.5 warning: unused variable: `e`
+#14 1457.5    --> infra/authenc/src/services/mfa/mfa_service.rs:685:65
+#14 1457.5     |
+#14 1457.5 685 |         self.disable_mfa(user_id, admin_context).await.map_err(|e| {
+#14 1457.5     |                                                                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1457.5 
+#14 1458.1 warning: unused variable: `e`
+#14 1458.1    --> infra/authenc/src/services/mfa/mfa_service.rs:695:23
+#14 1458.1     |
+#14 1458.1 695 |             .map_err(|e| AuthencError::ExternalServiceError {
+#14 1458.1     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1458.1 
+#14 1458.2 warning: unused variable: `e`
+#14 1458.2    --> infra/authenc/src/services/mfa/mfa_service.rs:703:23
+#14 1458.2     |
+#14 1458.2 703 |             .map_err(|e| AuthencError::ExternalServiceError {
+#14 1458.2     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1458.2 
+#14 1458.3 warning: unused variable: `e`
+#14 1458.3    --> infra/authenc/src/services/mfa/mfa_service.rs:709:64
+#14 1458.3     |
+#14 1458.3 709 |         self.regenerate_recovery_codes(user_id).await.map_err(|e| {
+#14 1458.3     |                                                                ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1458.3 
+#14 1470.8 warning: unused variable: `key_size`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1937:9
+#14 1470.8      |
+#14 1470.8 1937 |         key_size: u32,
+#14 1470.8      |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_key_size`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `usage`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1938:9
+#14 1470.8      |
+#14 1470.8 1938 |         usage: Vec<String>,
+#14 1470.8      |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_usage`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `key_id`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1935:9
+#14 1470.8      |
+#14 1470.8 1935 |         key_id: &str,
+#14 1470.8      |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_key_id`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `algorithm`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1936:9
+#14 1470.8      |
+#14 1470.8 1936 |         algorithm: &str,
+#14 1470.8      |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_algorithm`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `key_id`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1950:9
+#14 1470.8      |
+#14 1470.8 1950 |         key_id: &str,
+#14 1470.8      |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_key_id`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `data`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1951:9
+#14 1470.8      |
+#14 1470.8 1951 |         data: &[u8],
+#14 1470.8      |         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+#14 1470.8 
+#14 1470.8 warning: unused variable: `algorithm`
+#14 1470.8     --> infra/authenc/src/secreton_client/secreton_client.rs:1952:9
+#14 1470.8      |
+#14 1470.8 1952 |         algorithm: &str,
+#14 1470.8      |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_algorithm`
+#14 1470.8 
+#14 1471.3 warning: unused variable: `key_id`
+#14 1471.3     --> infra/authenc/src/secreton_client/secreton_client.rs:2099:36
+#14 1471.3      |
+#14 1471.3 2099 |     async fn delete_hsm_key(&self, key_id: &str) -> Result<(), SecretonError> {
+#14 1471.3      |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_key_id`
+#14 1471.3 
+#14 1474.6 warning: unused variable: `app_config`
+#14 1474.6    --> infra/authenc/src/spi/admin_console.rs:212:25
+#14 1474.6     |
+#14 1474.6 212 |             if let Some(app_config) = global_config.downcast_ref::<crate::config::AppConfig>() {
+#14 1474.6     |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_app_config`
+#14 1474.6 
+#14 1474.7 warning: unused variable: `username`
+#14 1474.7    --> infra/authenc/src/spi/authenticator.rs:152:22
+#14 1474.7     |
+#14 1474.7 152 |         if let (Some(username), Some(password)) = (username, password) {
+#14 1474.7     |                      ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_username`
+#14 1474.7 
+#14 1474.7 warning: unused variable: `password`
+#14 1474.7    --> infra/authenc/src/spi/authenticator.rs:152:38
+#14 1474.7     |
+#14 1474.7 152 |         if let (Some(username), Some(password)) = (username, password) {
+#14 1474.7     |                                      ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_password`
+#14 1474.7 
+#14 1474.8 warning: unused variable: `code`
+#14 1474.8    --> infra/authenc/src/spi/authenticator.rs:214:21
+#14 1474.8     |
+#14 1474.8 214 |         if let Some(code) = code {
+#14 1474.8     |                     ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+#14 1474.8 
+#14 1474.8 warning: unused variable: `context`
+#14 1474.8    --> infra/authenc/src/spi/authenticator.rs:235:33
+#14 1474.8     |
+#14 1474.8 235 |     fn is_configured_for(&self, context: &AuthenticationContext) -> bool {
+#14 1474.8     |                                 ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+#14 1474.8 
+#14 1474.8 warning: unused variable: `flow_type`
+#14 1474.8    --> infra/authenc/src/spi/authenticator.rs:356:9
+#14 1474.8     |
+#14 1474.8 356 |         flow_type: AuthenticationFlowType,
+#14 1474.8     |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_flow_type`
+#14 1474.8 
+#14 1475.0 warning: unused variable: `model`
+#14 1475.0    --> infra/authenc/src/spi/component.rs:177:44
+#14 1475.0     |
+#14 1475.0 177 |     async fn validate_configuration(&self, model: &ComponentModel) -> Result<()> {
+#14 1475.0     |                                            ^^^^^ help: if this is intentional, prefix it with an underscore: `_model`
+#14 1475.0 
+#14 1475.5 warning: unused variable: `user_id_bytes`
+#14 1475.5    --> infra/authenc/src/spi/credential/webauthn.rs:235:13
+#14 1475.5     |
+#14 1475.5 235 |         let user_id_bytes = user_uuid.as_bytes().to_vec();
+#14 1475.5     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_id_bytes`
+#14 1475.5 
+#14 1475.5 warning: unused variable: `auth_attachment`
+#14 1475.5    --> infra/authenc/src/spi/credential/webauthn.rs:238:13
+#14 1475.5     |
+#14 1475.5 238 |         let auth_attachment = match (
+#14 1475.5     |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_auth_attachment`
+#14 1475.5 
+#14 1475.5 warning: unused variable: `user_verification`
+#14 1475.5    --> infra/authenc/src/spi/credential/webauthn.rs:251:13
+#14 1475.5     |
+#14 1475.5 251 |         let user_verification = if self.require_user_verification {
+#14 1475.5     |             ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_verification`
+#14 1475.5 
+#14 1475.6 warning: unused variable: `response`
+#14 1475.6    --> infra/authenc/src/spi/credential/webauthn.rs:322:9
+#14 1475.6     |
+#14 1475.6 322 |         response: &RegisterPublicKeyCredential,
+#14 1475.6     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_response`
+#14 1475.6 
+#14 1482.9 warning: unused variable: `context`
+#14 1482.9    --> infra/authenc/src/spi/protocol_mappers.rs:267:9
+#14 1482.9     |
+#14 1482.9 267 |         context: &ProtocolMapperContext,
+#14 1482.9     |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_context`
+#14 1482.9 
+#14 1483.5 warning: unused variable: `totp_code`
+#14 1483.5    --> infra/authenc/src/spi/required_actions.rs:524:13
+#14 1483.5     |
+#14 1483.5 524 |         let totp_code = response_data
+#14 1483.5     |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_totp_code`
+#14 1483.5 
+#14 1485.0 warning: unused variable: `e`
+#14 1485.0    --> infra/authenc/src/spi/social.rs:279:23
+#14 1485.0     |
+#14 1485.0 279 |             .map_err(|e| Error::ExternalServiceError {
+#14 1485.0     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1485.0 
+#14 1485.6 warning: unused variable: `e`
+#14 1485.6    --> infra/authenc/src/spi/social.rs:336:23
+#14 1485.6     |
+#14 1485.6 336 |             .map_err(|e| Error::ExternalServiceError {
+#14 1485.6     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1485.6 
+#14 1485.7 warning: unused variable: `e`
+#14 1485.7    --> infra/authenc/src/spi/social.rs:381:23
+#14 1485.7     |
+#14 1485.7 381 |             .map_err(|e| Error::ExternalServiceError {
+#14 1485.7     |                       ^ help: if this is intentional, prefix it with an underscore: `_e`
+#14 1485.7 
+#14 1485.8 warning: unused variable: `token`
+#14 1485.8    --> infra/authenc/src/spi/social.rs:448:34
+#14 1485.8     |
+#14 1485.8 448 |     async fn revoke_token(&self, token: &str) -> Result<()> {
+#14 1485.8     |                                  ^^^^^ help: if this is intentional, prefix it with an underscore: `_token`
+#14 1485.8 
+#14 1488.3 warning: unused variable: `config`
+#14 1488.3    --> infra/authenc/src/spi/mod.rs:169:24
+#14 1488.3     |
+#14 1488.3 169 |     fn init(&mut self, config: &ProviderConfig) -> Result<(), SpiError> {
+#14 1488.3     |                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+#14 1488.3 
+#14 1488.3 warning: unused variable: `config`
+#14 1488.3    --> infra/authenc/src/spi/mod.rs:423:34
+#14 1488.3     |
+#14 1488.3 423 |     pub async fn init(&mut self, config: &ProviderConfig) -> Result<(), SpiError> {
+#14 1488.3     |                                  ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+#14 1488.3 
+#14 1488.3 warning: unused variable: `spi`
+#14 1488.3    --> infra/authenc/src/spi/mod.rs:424:13
+#14 1488.3     |
+#14 1488.3 424 |         for spi in self.spis.values_mut() {
+#14 1488.3     |             ^^^ help: if this is intentional, prefix it with an underscore: `_spi`
+#14 1488.3 
+#14 1501.1 warning: unused variable: `ip`
+#14 1501.1    --> infra/authenc/src/grpc/authenc_service.rs:119:13
+#14 1501.1     |
+#14 1501.1 119 |         let ip = "0.0.0.0".to_string(); // Placeholder
+#14 1501.1     |             ^^ help: if this is intentional, prefix it with an underscore: `_ip`
+#14 1501.1 
+#14 1503.1 warning: unused variable: `code`
+#14 1503.1     --> infra/authenc/src/grpc/authenc_service.rs:1255:21
+#14 1503.1      |
+#14 1503.1 1255 |                 let code = req
+#14 1503.1      |                     ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+#14 1503.1 
+#14 1503.1 warning: unused variable: `client_secret`
+#14 1503.1     --> infra/authenc/src/grpc/authenc_service.rs:1320:21
+#14 1503.1      |
+#14 1503.1 1320 |                 let client_secret = req
+#14 1503.1      |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_client_secret`
+#14 1503.1 
+#14 1503.5 warning: unused variable: `provider_access_token`
+#14 1503.5     --> infra/authenc/src/grpc/authenc_service.rs:1562:14
+#14 1503.5      |
+#14 1503.5 1562 |         let (provider_access_token, provider_user_info) = match req.provider.as_str() {
+#14 1503.5      |              ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_provider_access_token`
+#14 1503.5 
+#14 1503.6 warning: unused variable: `start_time`
+#14 1503.6     --> infra/authenc/src/grpc/authenc_service.rs:1703:13
+#14 1503.6      |
+#14 1503.6 1703 |         let start_time = req
+#14 1503.6      |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_start_time`
+#14 1503.6 
+#14 1503.6 warning: unused variable: `end_time`
+#14 1503.6     --> infra/authenc/src/grpc/authenc_service.rs:1706:13
+#14 1503.6      |
+#14 1503.6 1706 |         let end_time = req
+#14 1503.6      |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_end_time`
+#14 1503.6 
+#14 1503.8 warning: unused variable: `start_time`
+#14 1503.8     --> infra/authenc/src/grpc/authenc_service.rs:1770:13
+#14 1503.8      |
+#14 1503.8 1770 |         let start_time = chrono::DateTime::from_timestamp(req.start_time, 0)
+#14 1503.8      |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_start_time`
+#14 1503.8 
+#14 1503.8 warning: unused variable: `end_time`
+#14 1503.8     --> infra/authenc/src/grpc/authenc_service.rs:1772:13
+#14 1503.8      |
+#14 1503.8 1772 |         let end_time =
+#14 1503.8      |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_end_time`
+#14 1503.8 
+#14 1503.8 warning: unused variable: `request`
+#14 1503.8     --> infra/authenc/src/grpc/authenc_service.rs:1901:9
+#14 1503.8      |
+#14 1503.8 1901 |         request: Request<common::v1::HealthCheckRequest>,
+#14 1503.8      |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_request`
+#14 1503.8 
+#14 1506.3 warning: unused variable: `shutdown_rx`
+#14 1506.3    --> infra/authenc/src/server.rs:154:5
+#14 1506.3     |
+#14 1506.3 154 |     shutdown_rx: broadcast::Receiver<()>,
+#14 1506.3     |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shutdown_rx`
+#14 1506.3 
+#14 1520.1 For more information about this error, try `rustc --explain E0308`.
+#14 1523.9 warning: `authenc` (lib) generated 172 warnings
+#14 1523.9 error: could not compile `authenc` (lib) due to 1 previous error; 172 warnings emitted
+#14 ERROR: process "/bin/sh -c cargo build --release -p authenc" did not complete successfully: exit code: 101
+------
+ > [builder 5/5] RUN cargo build --release -p authenc:
+1503.8 
+1506.3 warning: unused variable: `shutdown_rx`
+1506.3    --> infra/authenc/src/server.rs:154:5
+1506.3     |
+1506.3 154 |     shutdown_rx: broadcast::Receiver<()>,
+1506.3     |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shutdown_rx`
+1506.3 
+1520.1 For more information about this error, try `rustc --explain E0308`.
+: `authenc` (lib) generated 172 warnings
+1523.9 error: could not compile `authenc` (lib) due to 1 previous error; 172 warnings emitted
+------
+Dockerfile:18
+
+--------------------
+
+  16 |     
+
+  17 |     # Build the application in release mode
+
+  18 | >>> RUN cargo build --release -p authenc
+
+  19 |     
+
+  20 |     # Final runtime image
+
+--------------------
+
+failed to solve: process "/bin/sh -c cargo build --release -p authenc" did not complete successfully: exit code: 101
+

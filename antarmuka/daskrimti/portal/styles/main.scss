@@ -1,0 +1,204 @@
+body {
+	font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	background: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
+	color: #222;
+	margin: 0;
+	padding: 0;
+	transition: background 0.5s, color 0.5s;
+}
+
+:root {
+	--kejaksaan-green: #145a32;
+	--kejaksaan-gold: #e1b800;
+	--kejaksaan-dark: #0b3d1c;
+	--kejaksaan-light: #f8f9fa;
+	--kejaksaan-shadow: 0 4px 24px rgba(20,90,50,0.08);
+	--background: linear-gradient(120deg, #f8f9fa 0%, #e9ecef 100%);
+	--text: #222;
+	--header-bg: linear-gradient(135deg, var(--kejaksaan-green) 0%, var(--kejaksaan-gold) 100%);
+	--main-bg: white;
+}
+
+/* Dark mode: otomatis jika preferensi user/browser, atau manual dengan .dark-mode */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--background: linear-gradient(120deg, #232a2e 0%, #1a1f22 100%);
+		--text: #f8f9fa;
+		--header-bg: linear-gradient(135deg, #0b3d1c 0%, #bfa100 100%);
+		--main-bg: #232a2e;
+		--kejaksaan-shadow: 0 4px 24px rgba(20,90,50,0.25);
+	}
+}
+body.dark-mode {
+	--background: linear-gradient(120deg, #232a2e 0%, #1a1f22 100%);
+	--text: #f8f9fa;
+	--header-bg: linear-gradient(135deg, #0b3d1c 0%, #bfa100 100%);
+	--main-bg: #232a2e;
+	--kejaksaan-shadow: 0 4px 24px rgba(20,90,50,0.25);
+}
+
+header, .header {
+	background: var(--header-bg);
+	color: var(--text);
+	padding: 1.2rem 0;
+	box-shadow: var(--kejaksaan-shadow);
+	position: relative;
+	text-align: left;
+	animation: fadeInDown 0.8s cubic-bezier(.4,2,.3,1);
+}
+
+.header-logo {
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+	font-size: 1.7rem;
+	font-weight: 700;
+	letter-spacing: 1px;
+}
+
+.header-logo::before {
+	content: '';
+	display: inline-block;
+	width: 40px;
+	height: 40px;
+	background: url('/assets/kejaksaan-badge.png') no-repeat center/contain;
+	margin-right: 0.7em;
+	vertical-align: middle;
+}
+
+nav, .nav {
+	display: flex;
+	gap: 2rem;
+	justify-content: center;
+	margin: 1rem 0;
+}
+
+.nav-link, nav a {
+	color: white;
+	text-decoration: none;
+	padding: 0.5rem 1.2rem;
+	border-radius: 6px;
+	font-weight: 500;
+	transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+.nav-link:hover, nav a:hover, .nav-link.active {
+	background: var(--kejaksaan-gold);
+	color: var(--kejaksaan-dark);
+	box-shadow: 0 2px 8px rgba(225,184,0,0.12);
+}
+
+button, .btn {
+	padding: 0.75rem 1.5rem;
+	border: none;
+	border-radius: 6px;
+	font-size: 1rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: linear-gradient(135deg, var(--kejaksaan-green) 0%, var(--kejaksaan-gold) 100%);
+	color: white;
+}
+
+button:hover, .btn:hover {
+	background: var(--kejaksaan-gold);
+	color: var(--kejaksaan-dark);
+	box-shadow: 0 4px 16px rgba(225,184,0,0.18);
+}
+
+main {
+	max-width: 1200px;
+	margin: 2rem auto;
+	padding: 2rem;
+	background: var(--main-bg);
+	border-radius: 16px;
+	box-shadow: var(--kejaksaan-shadow);
+	animation: fadeIn 1.2s cubic-bezier(.4,2,.3,1);
+}
+
+h1, h2, h3 {
+	font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	font-weight: 700;
+	color: var(--kejaksaan-green);
+	margin-bottom: 1rem;
+}
+
+input, select {
+	padding: 0.75rem;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	font-size: 1rem;
+	margin-bottom: 1rem;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.stat-card, .btn, .nav-link, .logout-button {
+	transition: all 0.2s cubic-bezier(.4,2,.3,1);
+	animation: fadeInUp 0.8s cubic-bezier(.4,2,.3,1);
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; transform: translateY(30px); }
+	to { opacity: 1; transform: none; }
+}
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(20px); }
+	to { opacity: 1; transform: none; }
+}
+@keyframes fadeInDown {
+	from { opacity: 0; transform: translateY(-20px); }
+	to { opacity: 1; transform: none; }
+}
+
+/* Dark mode overrides for elements */
+body.dark-mode main, body.dark-mode .main {
+	background: #232a2e;
+	color: #f8f9fa;
+}
+body.dark-mode .header, body.dark-mode header {
+	background: linear-gradient(135deg, #0b3d1c 0%, #bfa100 100%);
+	color: #f8f9fa;
+}
+body.dark-mode .nav-link, body.dark-mode nav a {
+	color: #f8f9fa;
+}
+body.dark-mode .nav-link:hover, body.dark-mode nav a:hover {
+	background: #bfa100;
+	color: #0b3d1c;
+}
+body.dark-mode .btn, body.dark-mode button {
+	background: linear-gradient(135deg, #0b3d1c 0%, #bfa100 100%);
+	color: #f8f9fa;
+}
+body.dark-mode .btn:hover, body.dark-mode button:hover {
+	background: #bfa100;
+	color: #0b3d1c;
+}
+
+@media (max-width: 800px) {
+	main {
+		padding: 1rem;
+	}
+	.header-logo {
+		font-size: 1.1rem;
+	}
+	nav, .nav {
+		gap: 1rem;
+	}
+}
+
+@media (max-width: 600px) {
+	main {
+		padding: 0.5rem;
+	}
+	.header-logo {
+		font-size: 1rem;
+	}
+	.header, header {
+		padding: 0.7rem 0;
+	}
+}

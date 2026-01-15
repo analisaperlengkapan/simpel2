@@ -1,0 +1,119 @@
+# Authenc Unified Configuration
+# This file consolidates default, production, and captcha settings.
+# Use environment variables to override sensitive values.
+
+[server]
+host = "0.0.0.0"
+port = 8088
+grpc_port = 9088
+grpc_enabled = true
+keep_alive = 75
+client_timeout = 30
+max_connections = 200
+tls_enabled = false # Enable via env var TLS_ENABLED=true if needed
+# cors_allowed_origins = ["https://simpel.kejaksaan.go.id"] # Overridden by env or specific deployments
+
+[database]
+host = "authenc-db" # Match container_name in docker-compose.yml
+port = 5432
+username = "postgres"
+password = "postgres"
+database = "authenc"
+max_connections = 50
+min_connections = 10
+connection_timeout = 30
+connection_timeout_seconds = 30
+
+[security]
+# JWT_SECRET and ED25519_PRIVATE_KEY_BASE64 must be set via env vars
+jwt_secret = "placeholder_secret_overridden_by_env"
+jwt_expiry = 3600
+password_min_length = 12
+password_salt_rounds = 12
+
+[observability]
+log_level = "info"
+enable_metrics = true
+enable_tracing = true
+structured_logging = true
+
+[features]
+enable_registration = true
+enable_password_reset = true
+enable_email_verification = true
+enable_multi_factor_auth = true
+enable_api_docs = false
+enable_metrics = true
+enable_health_checks = true
+enable_rate_limiting = true
+
+[rate_limit]
+enabled = true
+requests_per_minute = 100
+excluded_paths = ["/health", "/metrics"]
+progressive_delays = true
+base_delay_ms = 1000
+max_delay_ms = 10000
+
+[adaptive_rate_limit]
+enabled = true
+excluded_paths = ["/health", "/metrics"]
+failed_attempts_threshold = 5
+failed_attempts_window_secs = 300
+threat_level_decay_secs = 600
+max_threat_level = 10
+
+[sso_cookie]
+name = "AUTHENC_SSO"
+domain = ".kejaksaan.go.id"
+path = "/"
+max_age = 3600
+secure = true
+http_only = true
+same_site = "Strict"
+
+[events]
+enabled = true
+user_event_retention_days = 90
+admin_event_retention_days = 365
+archive_before_delete = true
+
+[clustering]
+enabled = true
+cluster_name = "authenc-prod-cluster"
+session_replication_enabled = true
+
+[captcha]
+enabled = true
+default_difficulty = 3
+max_difficulty = 10
+failed_attempts_threshold = 2
+max_attempts = 5
+behavioral_analysis_enabled = true
+accessibility_enabled = true
+
+[captcha.challenge_types]
+visual = true
+audio = true
+logical = true
+behavioral = true
+hybrid = true
+
+[captcha.integration]
+authenc_enabled = true
+authenc_url = "${AUTHENC_API_URL}"
+authenc_realm = "simpel"
+secreton_enabled = true
+secreton_url = "${SECRETON_API_URL}"
+
+[redis]
+enabled = true
+url = "redis://authenc-cache:6379" # Match container_name in docker-compose.yml
+pool_size = 10
+connection_timeout = 5
+default_ttl = 3600
+
+[captcha.monitoring]
+metrics_enabled = true
+prometheus_enabled = true
+tracing_enabled = true
