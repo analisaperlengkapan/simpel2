@@ -1,12 +1,37 @@
-warning: unused import: `StorageError`
- --> crates/storage/src/factory.rs:7:36
+warning: unused import: `BackendMetrics`
+ --> crates/storage/src/kv_adapter.rs:7:5
   |
-7 |     MemoryBackend, StorageBackend, StorageError, StorageResult,
-  |                                    ^^^^^^^^^^^^
+7 |     BackendMetrics, HealthStatus, KvBackend, QueryParams, StorageBackend, StorageError,
+  |     ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-warning: `secreton-storage` (lib) generated 1 warning (run `cargo fix --lib -p secreton-storage` to apply 1 suggestion)
+warning: unused import: `chrono::Utc`
+  --> crates/storage/src/kv_adapter.rs:11:5
+   |
+11 | use chrono::Utc;
+   |     ^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> crates/storage/src/backends/postgres.rs:745:8
+    |
+744 | impl PostgresTransaction {
+    | ------------------------ associated function in this implementation
+745 |     fn new(transaction: tokio_postgres::Transaction<'static>) -> Self {
+    |        ^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `key_for_path` is never used
+  --> crates/storage/src/kv_adapter.rs:37:8
+   |
+28 | impl<B: KvBackend> KvBackendAdapter<B> {
+   | -------------------------------------- associated function in this implementation
+...
+37 |     fn key_for_path(path: &str) -> String {
+   |        ^^^^^^^^^^^^
+
+warning: `secreton-storage` (lib) generated 4 warnings (run `cargo fix --lib -p secreton-storage` to apply 2 suggestions)
 warning: ambiguous glob re-exports
    --> crates/core/src/config/mod.rs:233:9
     |
@@ -666,32 +691,24 @@ warning: unused variable: `request`
 
 warning: `secreton-grpc` (lib) generated 1 warning
     Checking secreton-api v0.1.0 (/app/infra/secreton/crates/api)
-error[E0252]: the name `ApiError` is defined multiple times
-  --> crates/api/src/handlers/lease.rs:23:13
-   |
-16 | use crate::{ApiError, middleware::RequestContext};
-   |             -------- previous import of the type `ApiError` here
-...
-23 | use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, models::PaginatedResponse};
-   |             ^^^^^^^^--
-   |             |
-   |             `ApiError` reimported here
-   |             help: remove unnecessary import
-   |
-   = note: `ApiError` must be defined only once in the type namespace of this module
+error[E0425]: cannot find function `create_router` in module `handlers`
+   --> crates/api/src/lib.rs:102:33
+    |
+102 |     let v1_handlers = handlers::create_router(
+    |                                 ^^^^^^^^^^^^^ not found in `handlers`
 
-warning: unused import: `ApiError`
-  --> crates/api/src/handlers/lease.rs:23:13
+warning: unused import: `MemoryBackend`
+  --> crates/api/src/services/admin.rs:14:24
    |
-23 | use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, models::PaginatedResponse};
-   |             ^^^^^^^^
+14 | use secreton_storage::{MemoryBackend, StorageBackend};
+   |                        ^^^^^^^^^^^^^
    |
    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
 warning: unexpected `cfg` condition value: `postgres`
-   --> crates/api/src/services/mod.rs:527:23
+   --> crates/api/src/services/mod.rs:542:23
     |
-527 |                 #[cfg(feature = "postgres")]
+542 |                 #[cfg(feature = "postgres")]
     |                       ^^^^^^^^^^^^^^^^^^^^
     |
     = note: expected values for `feature` are: `default`, `enable-inline-tests`, and `raft-consensus`
@@ -700,9 +717,9 @@ warning: unexpected `cfg` condition value: `postgres`
     = note: `#[warn(unexpected_cfgs)]` on by default
 
 warning: unexpected `cfg` condition value: `postgres`
-   --> crates/api/src/services/mod.rs:544:27
+   --> crates/api/src/services/mod.rs:559:27
     |
-544 |                 #[cfg(not(feature = "postgres"))]
+559 |                 #[cfg(not(feature = "postgres"))]
     |                           ^^^^^^^^^^^^^^^^^^^^
     |
     = note: expected values for `feature` are: `default`, `enable-inline-tests`, and `raft-consensus`
@@ -710,9 +727,9 @@ warning: unexpected `cfg` condition value: `postgres`
     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
 
 warning: unexpected `cfg` condition value: `consul`
-   --> crates/api/src/services/mod.rs:569:23
+   --> crates/api/src/services/mod.rs:584:23
     |
-569 |                 #[cfg(feature = "consul")]
+584 |                 #[cfg(feature = "consul")]
     |                       ^^^^^^^^^^^^^^^^^^
     |
     = note: expected values for `feature` are: `default`, `enable-inline-tests`, and `raft-consensus`
@@ -720,9 +737,9 @@ warning: unexpected `cfg` condition value: `consul`
     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
 
 warning: unexpected `cfg` condition value: `consul`
-   --> crates/api/src/services/mod.rs:587:27
+   --> crates/api/src/services/mod.rs:602:27
     |
-587 |                 #[cfg(not(feature = "consul"))]
+602 |                 #[cfg(not(feature = "consul"))]
     |                           ^^^^^^^^^^^^^^^^^^
     |
     = note: expected values for `feature` are: `default`, `enable-inline-tests`, and `raft-consensus`
@@ -730,53 +747,41 @@ warning: unexpected `cfg` condition value: `consul`
     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
 
 warning: unused variable: `query`
-   --> crates/api/src/handlers/admin.rs:609:11
+   --> crates/api/src/handlers/admin.rs:768:11
     |
-609 |     Query(query): Query<ListQuery>,
+768 |     Query(query): Query<ListQuery>,
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
     |
     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused variable: `provider`
-   --> crates/api/src/handlers/auth.rs:727:10
+   --> crates/api/src/handlers/auth.rs:803:10
     |
-727 |     Path(provider): Path<String>,
+803 |     Path(provider): Path<String>,
     |          ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_provider`
 
 warning: unused variable: `params`
-   --> crates/api/src/handlers/auth.rs:728:11
+   --> crates/api/src/handlers/auth.rs:804:11
     |
-728 |     Query(params): Query<HashMap<String, String>>,
+804 |     Query(params): Query<HashMap<String, String>>,
     |           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_params`
 
 warning: unused variable: `state`
-   --> crates/api/src/handlers/dynamic.rs:261:11
+   --> crates/api/src/handlers/dynamic.rs:301:11
     |
-261 |     State(state): State<AppState>,
+301 |     State(state): State<AppState>,
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `state`
-   --> crates/api/src/handlers/dynamic.rs:270:11
+   --> crates/api/src/handlers/dynamic.rs:310:11
     |
-270 |     State(state): State<AppState>,
+310 |     State(state): State<AppState>,
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `state`
-   --> crates/api/src/handlers/dynamic.rs:291:11
+   --> crates/api/src/handlers/dynamic.rs:484:11
     |
-291 |     State(state): State<AppState>,
-    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
-warning: unused variable: `state`
-   --> crates/api/src/handlers/dynamic.rs:429:11
-    |
-429 |     State(state): State<AppState>,
-    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
-warning: unused variable: `state`
-   --> crates/api/src/handlers/dynamic.rs:440:11
-    |
-440 |     State(state): State<AppState>,
+484 |     State(state): State<AppState>,
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `details`
@@ -823,39 +828,27 @@ warning: unused variable: `state`
     |                              ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `e`
-   --> crates/api/src/handlers/secret.rs:394:19
+   --> crates/api/src/handlers/secret.rs:413:19
     |
-394 |         .map_err(|e| ApiError::NotFound {
+413 |         .map_err(|e| ApiError::NotFound {
     |                   ^ help: if this is intentional, prefix it with an underscore: `_e`
 
 warning: unused variable: `e`
-   --> crates/api/src/handlers/secret.rs:585:19
+   --> crates/api/src/handlers/secret.rs:621:19
     |
-585 |         .map_err(|e| ApiError::NotFound {
+621 |         .map_err(|e| ApiError::NotFound {
     |                   ^ help: if this is intentional, prefix it with an underscore: `_e`
 
 warning: unused variable: `query`
-   --> crates/api/src/handlers/secret.rs:608:11
+   --> crates/api/src/handlers/secret.rs:644:11
     |
-608 |     Query(query): Query<ListQuery>,
+644 |     Query(query): Query<ListQuery>,
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
 
 warning: unused variable: `state`
-   --> crates/api/src/handlers/secret.rs:820:11
-    |
-820 |     State(state): State<AppState>,
-    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
-warning: unused variable: `state`
-   --> crates/api/src/handlers/secret.rs:888:11
-    |
-888 |     State(state): State<AppState>,
-    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
-warning: unused variable: `state`
-    --> crates/api/src/handlers/secret.rs:1026:11
+    --> crates/api/src/handlers/secret.rs:1051:11
      |
-1026 |     State(state): State<AppState>,
+1051 |     State(state): State<AppState>,
      |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `state`
@@ -865,115 +858,57 @@ warning: unused variable: `state`
     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `msg`
-   --> crates/api/src/handlers/wrapping.rs:252:45
+   --> crates/api/src/handlers/wrapping.rs:248:45
     |
-252 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+248 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
     |                                             ^^^ help: if this is intentional, prefix it with an underscore: `_msg`
 
 warning: unused variable: `msg`
-   --> crates/api/src/handlers/wrapping.rs:273:45
+   --> crates/api/src/handlers/wrapping.rs:269:45
     |
-273 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+269 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
     |                                             ^^^ help: if this is intentional, prefix it with an underscore: `_msg`
 
 warning: unused variable: `msg`
-   --> crates/api/src/handlers/wrapping.rs:343:45
+   --> crates/api/src/handlers/wrapping.rs:337:45
     |
-343 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+337 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
     |                                             ^^^ help: if this is intentional, prefix it with an underscore: `_msg`
 
 warning: unused variable: `msg`
-   --> crates/api/src/handlers/wrapping.rs:439:45
+   --> crates/api/src/handlers/wrapping.rs:431:45
     |
-439 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+431 |             WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
     |                                             ^^^ help: if this is intentional, prefix it with an underscore: `_msg`
-
-warning: unused variable: `state`
-   --> crates/api/src/middleware.rs:224:11
-    |
-224 |     State(state): State<ApiState>,
-    |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
 
 warning: unused variable: `headers`
-   --> crates/api/src/middleware.rs:225:5
+   --> crates/api/src/middleware.rs:224:5
     |
-225 |     headers: HeaderMap,
+224 |     headers: HeaderMap,
     |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_headers`
 
-warning: unused variable: `state`
-    --> crates/api/src/middleware.rs:1171:11
-     |
-1171 |     State(state): State<ApiState>,
-     |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
-warning: unused variable: `audit_count`
-   --> crates/api/src/services/admin.rs:102:13
-    |
-102 |         let audit_count = self.audit.count().await;
-    |             ^^^^^^^^^^^
-    |
-help: if this is intentional, prefix it with an underscore
-    |
-102 |         let _audit_count = self.audit.count().await;
-    |             +
-help: you might have meant to pattern match on the similarly named constant `MAX_REQUEST_SIZE`
-    |
-102 -         let audit_count = self.audit.count().await;
-102 +         let middleware::request_size_limit::{closure#0}::MAX_REQUEST_SIZE = self.audit.count().await;
-    |
-
-warning: unused variable: `duration`
-   --> crates/api/src/services/admin.rs:189:13
-    |
-189 |         let duration = start_time.elapsed();
-    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_duration`
-
-warning: unused variable: `storage_stats`
-   --> crates/api/src/services/admin.rs:455:13
-    |
-455 |         let storage_stats = self.storage.get_stats().await?;
-    |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_storage_stats`
-
 warning: unused variable: `refresh_token`
-   --> crates/api/src/services/auth.rs:296:39
+   --> crates/api/src/services/auth.rs:300:39
     |
-296 |     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
+300 |     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
     |                                       ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_refresh_token`
 
-warning: unused variable: `role_name`
-   --> crates/api/src/services/auth.rs:416:34
-    |
-416 |     pub async fn get_role(&self, role_name: &str) -> Result<Role, AuthError> {
-    |                                  ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_role_name`
-
-warning: unused variable: `role`
-   --> crates/api/src/services/auth.rs:703:32
-    |
-703 |     async fn store_role(&self, role: &Role) -> Result<(), AuthError> {
-    |                                ^^^^ help: if this is intentional, prefix it with an underscore: `_role`
-
 warning: unused variable: `session`
-   --> crates/api/src/services/auth.rs:709:35
+   --> crates/api/src/services/auth.rs:825:35
     |
-709 |     async fn store_session(&self, session: &Session) -> Result<(), AuthError> {
+825 |     async fn store_session(&self, session: &Session) -> Result<(), AuthError> {
     |                                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session`
 
 warning: unused variable: `user_id`
-   --> crates/api/src/services/auth.rs:715:39
+   --> crates/api/src/services/auth.rs:831:39
     |
-715 |     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
+831 |     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
     |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_id`
 
 warning: unused variable: `config`
-   --> crates/api/src/services/mod.rs:240:9
+   --> crates/api/src/services/mod.rs:462:9
     |
-240 |         config: &ApiConfig,
-    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
-
-warning: unused variable: `config`
-   --> crates/api/src/services/mod.rs:447:9
-    |
-447 |         config: &ApiConfig,
+462 |         config: &ApiConfig,
     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
 
 warning: unused variable: `x`
@@ -988,18 +923,6 @@ warning: unused variable: `y`
 278 | fn format_ec_public_key_pem(x: &str, y: &str) -> Result<String, AuthError> {
     |                                      ^ help: if this is intentional, prefix it with an underscore: `_y`
 
-warning: unused variable: `token`
-  --> crates/api/src/extractors.rs:37:13
-   |
-37 |         let token = parts
-   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_token`
-
-warning: unused variable: `state`
-   --> crates/api/src/handlers/namespace.rs:159:23
-    |
-159 | fn extract_jwt_claims(state: &AppState) -> Result<JwtClaims, CoreError> {
-    |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
-
 warning: unused variable: `rule_idx`
    --> crates/api/src/handlers/policy.rs:239:42
     |
@@ -1010,12 +933,12 @@ help: if this is intentional, prefix it with an underscore
     |
 239 | fn validate_condition(condition: &Value, _rule_idx: usize) -> Result<(), CoreError> {
     |                                          +
-help: you might have meant to pattern match on the similarly named constant `MAX_REQUEST_SIZE`
+help: you might have meant to pattern match on the similarly named constant `MAX_WRAPPING_SIZE`
     |
 239 - fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreError> {
-239 + fn validate_condition(condition: &Value, middleware::request_size_limit::{closure#0}::MAX_REQUEST_SIZE: usize) -> Result<(), CoreError> {
+239 + fn validate_condition(condition: &Value, middleware::response_wrapping_middleware::{closure#0}::MAX_WRAPPING_SIZE: usize) -> Result<(), CoreError> {
     |
 
-For more information about this error, try `rustc --explain E0252`.
-warning: `secreton-api` (lib) generated 48 warnings
-error: could not compile `secreton-api` (lib) due to 1 previous error; 48 warnings emitted
+For more information about this error, try `rustc --explain E0425`.
+warning: `secreton-api` (lib) generated 34 warnings
+error: could not compile `secreton-api` (lib) due to 1 previous error; 34 warnings emitted
