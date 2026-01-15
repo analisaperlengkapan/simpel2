@@ -26,7 +26,7 @@ members = [
     "antarmuka/pidmil",
     "antarmuka/pidsus",
     "antarmuka/pidum",
-    "antarmuka/portal",
+    "antarmuka/daskrimti/portal",
 
     # Pembinaan Microfrontends
     "antarmuka/pembinaan/keuangan",
@@ -70,7 +70,7 @@ default-members = [
     "lib/storage",
     "lib/ui",
     # "scripts/cli",
-    "antarmuka/portal",
+    "antarmuka/daskrimti/portal",
     "antarmuka/pembinaan/keuangan",
     "antarmuka/pembinaan/perencanaan",
     "antarmuka/pembinaan/perlengkapan",
