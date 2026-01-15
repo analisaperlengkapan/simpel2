@@ -391,10 +391,6 @@ pub async fn fetch_all_assets_with_pagination(
     let mut failed_count = 0usize;
     let chunk_size = 1000u32; // Batch size per request - increased for faster fetching
 
-    // Constants for concurrency control
-    const CHANNEL_BUFFER_SIZE: usize = 10;
-    const CONCURRENT_REQUESTS: usize = 5;
-
     // Prepare ranges
     let mut ranges = Vec::new();
     let mut current_id = 1u32;
@@ -415,37 +411,24 @@ pub async fn fetch_all_assets_with_pagination(
         })
         .collect();
 
-    // Create a channel to decouple fetching from saving
-    // Buffer size to allow fetcher to get ahead of saver
-    let (tx, mut rx) = tokio::sync::mpsc::channel(CHANNEL_BUFFER_SIZE);
+    // Create a stream of futures
+    let mut stream = stream::iter(tasks)
+        .map(
+            |(start_id, end_id, mut client_clone, category_clone)| async move {
+                info!(
+                    "🔄 Fetching records {}-{} of {}",
+                    start_id, end_id, total_count
+                );
+                let result = client_clone
+                    .fetch_siman_data(category_clone, start_id, end_id)
+                    .await;
+                (start_id, end_id, result)
+            },
+        )
+        .buffer_unordered(10); // Process up to 10 requests concurrently
 
-    // Spawn fetching task
-    tokio::spawn(async move {
-        let mut stream = stream::iter(tasks)
-            .map(
-                |(start_id, end_id, mut client_clone, category_clone)| async move {
-                    info!(
-                        "🔄 Fetching records {}-{} of {}",
-                        start_id, end_id, total_count
-                    );
-                    let result = client_clone
-                        .fetch_siman_data(category_clone, start_id, end_id)
-                        .await;
-                    (start_id, end_id, result)
-                },
-            )
-            .buffer_unordered(CONCURRENT_REQUESTS); // Process concurrent requests
-
-        while let Some(item) = stream.next().await {
-            if tx.send(item).await.is_err() {
-                // Receiver dropped
-                break;
-            }
-        }
-    });
-
-    // Iterate through completed tasks from channel
-    while let Some((current_id, end_id, result)) = rx.recv().await {
+    // Iterate through completed tasks
+    while let Some((current_id, end_id, result)) = stream.next().await {
         match result {
             Ok(response) => {
                 if let Some(data) = response.data {
