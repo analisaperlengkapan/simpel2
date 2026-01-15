@@ -138,6 +138,51 @@ pub fn json_to_sql_param<'a>(
     }
 }
 
+/// Helper to build a bulk INSERT query for a chunk of data.
+/// Returns the query string and a flat vector of parameters.
+fn build_bulk_insert_query<'a>(
+    table_name: &str,
+    columns: &[String],
+    chunk: &'a [Value],
+) -> Option<(String, Vec<SqlParam<'a>>)> {
+    let mut params = Vec::new();
+    let mut placeholder_groups = Vec::new();
+    let mut param_counter = 1;
+
+    for item in chunk {
+        if let Some(obj) = item.as_object() {
+            let mut row_placeholders = Vec::new();
+            for col in columns {
+                // Logic to extract value (same as previously in bulk_insert_postgres)
+                let json_key = if col == "api_id" { "id" } else { col.as_str() };
+
+                let value = obj
+                    .get(json_key)
+                    .or_else(|| obj.get(&json_key.to_uppercase()))
+                    .unwrap_or(&Value::Null);
+
+                params.push(json_to_sql_param(value, col));
+                row_placeholders.push(format!("${}", param_counter));
+                param_counter += 1;
+            }
+            placeholder_groups.push(format!("({})", row_placeholders.join(", ")));
+        }
+    }
+
+    if placeholder_groups.is_empty() {
+        return None;
+    }
+
+    let query = format!(
+        "INSERT INTO {} ({}) VALUES {} ON CONFLICT DO NOTHING",
+        table_name,
+        columns.join(", "),
+        placeholder_groups.join(", ")
+    );
+
+    Some((query, params))
+}
+
 /// Bulk insert data ke PostgreSQL dengan batch processing
 pub async fn bulk_insert_postgres(
     db: &Client,
@@ -222,105 +267,61 @@ pub async fn bulk_insert_postgres(
     info!("📝 [BULK INSERT] Columns to insert: {:?}", columns);
 
     let mut count = 0;
-    let mut failed = 0;
+    let mut failed_chunks = 0;
 
     // Batch insert untuk performa lebih baik (100 rows per batch)
     info!(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
+
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
             chunk_idx + 1,
             chunk.len()
         );
-        for item in chunk {
-            if let Some(obj) = item.as_object() {
-                // Build query dengan placeholders
-                let placeholders: Vec<String> =
-                    (1..=columns.len()).map(|i| format!("${}", i)).collect();
-                let query = format!(
-                    "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-                    table_name,
-                    columns.join(", "),
-                    placeholders.join(", ")
-                );
 
-                // Konversi nilai JSON ke parameter PostgreSQL
-                let mut params: Vec<SqlParam> = Vec::new();
-                for col in &columns {
-                    // Handle mapping: api_id in DB comes from id in JSON
-                    let json_key = if col == "api_id" { "id" } else { col.as_str() };
+        if let Some((query, params)) = build_bulk_insert_query(table_name, &columns, chunk) {
+            // Convert to references for execute
+            let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+                .iter()
+                .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
+                .collect();
 
-                    let value = obj
-                        .get(json_key)
-                        .or_else(|| obj.get(&json_key.to_uppercase()))
-                        .unwrap_or(&Value::Null);
-                    params.push(json_to_sql_param(value, col));
+            match db.execute(&query, &param_refs[..]).await {
+                Ok(rows) => {
+                    if rows > 0 {
+                        count += rows as usize;
+                        debug!("✅ [BULK INSERT] Chunk {} inserted {} row(s)", chunk_idx + 1, rows);
+                    } else {
+                        debug!("⚠️  [BULK INSERT] Chunk {} inserted 0 rows (possibly duplicate)", chunk_idx + 1);
+                    }
                 }
-
-                // Convert to references for execute
-                let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-                    .iter()
-                    .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
-                    .collect();
-
-                match db.execute(&query, &param_refs[..]).await {
-                    Ok(rows) => {
-                        if rows > 0 {
-                            count += rows as usize;
-                            debug!("✅ [BULK INSERT] Inserted {} row(s)", rows);
-                        } else {
-                            debug!("⚠️  [BULK INSERT] 0 rows inserted (possibly duplicate)");
-                        }
-                    }
-                    Err(e) => {
-                        // Log more details for debugging
-                        error!(
-                            "❌ [BULK INSERT] Insert error for table {}: {:?} | Columns: {:?}",
-                            table_name, e, columns
-                        );
-                        error!("❌ [BULK INSERT] Failed query: {}", query);
-
-                        // Print the actual data values to debug type issues
-                        for (i, col) in columns.iter().enumerate() {
-                            let value = obj
-                                .get(col)
-                                .or_else(|| obj.get(&col.to_uppercase()))
-                                .unwrap_or(&Value::Null);
-                            let type_str = if value.is_string() {
-                                "string"
-                            } else if value.is_number() {
-                                "number"
-                            } else if value.is_boolean() {
-                                "bool"
-                            } else if value.is_null() {
-                                "null"
-                            } else if value.is_array() {
-                                "array"
-                            } else {
-                                "object"
-                            };
-                            error!("  Column[{}] {}: {:?} (type: {})", i, col, value, type_str);
-                        }
-                        failed += 1;
-                    }
+                Err(e) => {
+                    // Log more details for debugging
+                    error!(
+                        "❌ [BULK INSERT] Insert error for chunk {} of table {}: {:?}",
+                        chunk_idx + 1, table_name, e
+                    );
+                    // For massive queries, maybe truncate logging or just log length
+                    debug!("❌ [BULK INSERT] Failed query: {}", query);
+                    failed_chunks += 1;
                 }
             }
         }
     }
 
-    if failed > 0 {
+    if failed_chunks > 0 {
         warn!(
-            "⚠️  [BULK INSERT] {} baris gagal diinsert ke tabel {}",
-            failed, table_name
+            "⚠️  [BULK INSERT] {} chunks gagal diinsert ke tabel {}",
+            failed_chunks, table_name
         );
     }
 
     info!(
-        "✅ [BULK INSERT] Completed: {} rows inserted, {} failed for table {}",
-        count, failed, table_name
+        "✅ [BULK INSERT] Completed: {} rows inserted. Failed chunks: {} for table {}",
+        count, failed_chunks, table_name
     );
 
     Ok(count)
@@ -456,6 +457,59 @@ mod tests {
             assert_eq!(s, "[1,2,3]");
         } else {
             panic!("Expected OwnedJsonString");
+        }
+    }
+
+    #[test]
+    fn test_build_bulk_insert_query() {
+        let table_name = "test_table";
+        let columns = vec!["id".to_string(), "name".to_string()];
+
+        let chunk = vec![
+            json!({"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Item 1"}),
+            json!({"id": "550e8400-e29b-41d4-a716-446655440001", "name": "Item 2"}),
+        ];
+
+        let result = build_bulk_insert_query(table_name, &columns, &chunk);
+        assert!(result.is_some());
+
+        let (query, params) = result.unwrap();
+
+        // Check query structure
+        assert!(query.starts_with("INSERT INTO test_table (id, name) VALUES"));
+        assert!(query.contains("($1, $2)"));
+        assert!(query.contains("($3, $4)"));
+        assert!(query.ends_with("ON CONFLICT DO NOTHING"));
+
+        // Check params
+        assert_eq!(params.len(), 4);
+
+        // Param 1: UUID (id)
+        if let SqlParam::Uuid(u) = &params[0] {
+            assert_eq!(u.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        } else {
+            panic!("Expected Uuid for param 1");
+        }
+
+        // Param 2: String (name)
+        if let SqlParam::RefString(s) = &params[1] {
+            assert_eq!(*s, "Item 1");
+        } else {
+            panic!("Expected RefString for param 2");
+        }
+
+        // Param 3: UUID (id)
+        if let SqlParam::Uuid(u) = &params[2] {
+            assert_eq!(u.to_string(), "550e8400-e29b-41d4-a716-446655440001");
+        } else {
+            panic!("Expected Uuid for param 3");
+        }
+
+        // Param 4: String (name)
+        if let SqlParam::RefString(s) = &params[3] {
+            assert_eq!(*s, "Item 2");
+        } else {
+            panic!("Expected RefString for param 4");
         }
     }
 }
