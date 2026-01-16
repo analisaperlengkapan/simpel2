@@ -157,6 +157,15 @@ pub fn create_unprotected_router(
         .with_state(app_state)
 }
 
+/// Create the complete API router
+pub fn create_router(
+    config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
+    create_unprotected_router(config, services.clone())
+        .merge(create_protected_router(config, services))
+}
+
 /// Root endpoint handler (Used for root path "/" if needed)
 #[allow(dead_code)]
 async fn root_handler() -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
