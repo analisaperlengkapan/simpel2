@@ -1,12 +1,11 @@
 use crate::config::AppConfig;
 use crate::error::AppError;
 use axum::{extract::State, http::Request, middleware::Next, response::Response};
-use std::collections::HashMap;
+use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
 
-pub type RateLimitState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
+pub type RateLimitState = Arc<DashMap<String, (u32, u64)>>;
 
 #[allow(dead_code)]
 pub async fn api_key_middleware(
@@ -38,8 +37,7 @@ pub async fn rate_limit_middleware(
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let mut map = state.lock().await;
-    let entry = map.entry(ip.clone()).or_insert((0, now));
+    let mut entry = state.entry(ip).or_insert((0, now));
     if now - entry.1 > 60 {
         *entry = (1, now);
     } else {
@@ -48,5 +46,7 @@ pub async fn rate_limit_middleware(
         }
         entry.0 += 1;
     }
+    drop(entry); // Release the lock before await
+
     Ok(next.run(req).await)
 }
