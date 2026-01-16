@@ -6,11 +6,53 @@ use super::types::*;
 use leptos::prelude::*;
 use std::collections::VecDeque;
 use gloo_timers::callback::Interval;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 /// Wrapper to make types Send + Sync for StoredValue in WASM
 struct SendWrapper<T>(T);
 unsafe impl<T> Send for SendWrapper<T> {}
 unsafe impl<T> Sync for SendWrapper<T> {}
+
+/// Window event listener wrapper for manual event management
+struct WindowListener {
+    event_name: &'static str,
+    closure: Option<Closure<dyn FnMut(web_sys::MouseEvent)>>,
+}
+
+impl WindowListener {
+    fn new(event_name: &'static str, callback: impl FnMut(web_sys::MouseEvent) + 'static) -> Self {
+        let closure = Closure::wrap(Box::new(callback) as Box<dyn FnMut(_)>);
+        if let Some(window) = web_sys::window() {
+            let _ = window.add_event_listener_with_callback(
+                event_name,
+                closure.as_ref().unchecked_ref(),
+            );
+        }
+
+        Self {
+            event_name,
+            closure: Some(closure),
+        }
+    }
+}
+
+impl Drop for WindowListener {
+    fn drop(&mut self) {
+        if let Some(closure) = &self.closure {
+            if let Some(window) = web_sys::window() {
+                let _ = window.remove_event_listener_with_callback(
+                    self.event_name,
+                    closure.as_ref().unchecked_ref(),
+                );
+            }
+        }
+    }
+}
+
+struct SendWindowListener(WindowListener);
+unsafe impl Send for SendWindowListener {}
+unsafe impl Sync for SendWindowListener {}
 
 /// Helper to collect browser fingerprint
 fn collect_fingerprint() -> Option<String> {
@@ -151,60 +193,57 @@ pub fn use_behavioral_collector() -> (ReadSignal<BehavioralData>, WriteSignal<Be
 /// Mouse tracking component
 #[component]
 pub fn MouseTracker(on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoView {
-    let mouse_events = StoredValue::new(VecDeque::<MouseEvent>::new());
-    let last_update = StoredValue::new(0u64);
+    let (_mouse_events, set_mouse_events) = signal(Vec::<MouseEvent>::new());
 
     Effect::new(move |_| {
-        let _ = window_event_listener(leptos::ev::mousemove, move |ev| {
-            let now = js_sys::Date::now() as u64;
-            let mut should_update = false;
+        // Mouse move handler
+        let set_mouse_events_clone = set_mouse_events;
+        let on_data_collected_clone = on_data_collected;
+        let listener_move = SendWindowListener(WindowListener::new(
+            "mousemove",
+            move |e: web_sys::MouseEvent| {
+                let event = MouseEvent {
+                    x: e.client_x() as f64,
+                    y: e.client_y() as f64,
+                    timestamp: js_sys::Date::now() as u64,
+                    event_type: "mousemove".to_string(),
+                };
 
-            last_update.update_value(|last| {
-                if now - *last > 50 {
-                    *last = now;
-                    should_update = true;
-                }
-            });
-
-            if should_update {
-                mouse_events.update_value(|events| {
-                    events.push_back(MouseEvent {
-                        x: ev.client_x() as f64,
-                        y: ev.client_y() as f64,
-                        timestamp: now,
-                        event_type: "mousemove".to_string(),
-                    });
-                    if events.len() > 100 {
-                        events.pop_front();
+                set_mouse_events_clone.update(|events| {
+                    if events.len() >= 100 {
+                        events.remove(0);
                     }
+                    events.push(event);
+                    on_data_collected_clone.run(events.clone());
                 });
-            }
-        });
+            },
+        ));
 
-        let _ = window_event_listener(leptos::ev::click, move |ev| {
-            mouse_events.update_value(|events| {
-                events.push_back(MouseEvent {
-                    x: ev.client_x() as f64,
-                    y: ev.client_y() as f64,
+        // Click handler
+        let listener_click = SendWindowListener(WindowListener::new(
+            "click",
+            move |e: web_sys::MouseEvent| {
+                let event = MouseEvent {
+                    x: e.client_x() as f64,
+                    y: e.client_y() as f64,
                     timestamp: js_sys::Date::now() as u64,
                     event_type: "click".to_string(),
-                });
-                 if events.len() > 100 {
-                    events.pop_front();
-                }
-            });
-        });
-    });
+                };
 
-    // Periodically report data
-    Effect::new(move |_| {
-        let _handle = StoredValue::new(SendWrapper(Interval::new(1000, move || {
-            mouse_events.with_value(|events| {
-                if !events.is_empty() {
-                    on_data_collected.run(events.iter().cloned().collect());
-                }
-            });
-        })));
+                set_mouse_events.update(|events| {
+                    if events.len() >= 100 {
+                        events.remove(0);
+                    }
+                    events.push(event);
+                    on_data_collected.run(events.clone());
+                });
+            },
+        ));
+
+        on_cleanup(move || {
+            drop(listener_move);
+            drop(listener_click);
+        });
     });
 
     view! {
