@@ -1,11 +1,12 @@
 use crate::error::MonsaktiError;
-use serde_json::Value;
+use serde_json::{Value, Number};
 use tokio_postgres::Client;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use tokio_postgres::types::{IsNull, Type, ToSql};
-use bytes::BytesMut;
+use bytes::{BytesMut, BufMut};
 use std::error::Error;
+use std::io::{BufWriter, Write}; // Added BufWriter, Write
 
 /// Optimized SQL parameter wrapper to avoid allocations
 #[derive(Debug, Clone)]
@@ -18,6 +19,9 @@ pub enum SqlParam<'a> {
     NullString,
     JsonValue(&'a Value),
     OwnedJsonString(String),
+    // New variants for lazy serialization
+    JsonToText(&'a Value),
+    NumberText(&'a Number),
 }
 
 impl<'a> ToSql for SqlParam<'a> {
@@ -31,6 +35,20 @@ impl<'a> ToSql for SqlParam<'a> {
             SqlParam::NullString => <Option<String> as ToSql>::to_sql(&None, ty, out),
             SqlParam::JsonValue(v) => v.to_sql(ty, out),
             SqlParam::OwnedJsonString(s) => s.to_sql(ty, out),
+            SqlParam::JsonToText(v) => {
+                // Write JSON directly to buffer as string (for TEXT column)
+                // Use BufWriter to reduce overhead of many small writes to BytesMut
+                let mut writer = BufWriter::new(out.writer());
+                serde_json::to_writer(&mut writer, v)?;
+                writer.flush()?;
+                Ok(IsNull::No)
+            }
+            SqlParam::NumberText(n) => {
+                 // Write number directly to buffer as string (for TEXT column)
+                 // Numbers are small, direct write is fine
+                serde_json::to_writer(out.writer(), n)?;
+                Ok(IsNull::No)
+            }
         }
     }
 
@@ -53,6 +71,12 @@ impl<'a> ToSql for SqlParam<'a> {
             SqlParam::NullString => <Option<String> as ToSql>::to_sql_checked(&None, ty, out),
             SqlParam::JsonValue(v) => v.to_sql_checked(ty, out),
             SqlParam::OwnedJsonString(s) => s.to_sql_checked(ty, out),
+            SqlParam::JsonToText(_) | SqlParam::NumberText(_) => {
+                if !<SqlParam as ToSql>::accepts(ty) {
+                     return Err(Box::new(MonsaktiError::ApiError("Type not accepted".into())));
+                }
+                self.to_sql(ty, out)
+            }
         }
     }
 }
@@ -92,10 +116,10 @@ pub fn json_to_sql_param<'a>(
                 return SqlParam::NullI64;
             }
 
-            // For all other numbers, convert to string
+            // For all other numbers, convert to string (lazy)
             // PostgreSQL TEXT columns accept strings, and NUMERIC can cast from string
-            // This avoids complex type matching logic
-            SqlParam::OwnedString(n.to_string())
+            // This avoids complex type matching logic and allocation
+            SqlParam::NumberText(n)
         }
         Value::Bool(b) => {
             // Convert bool to string for TEXT columns
@@ -113,7 +137,7 @@ pub fn json_to_sql_param<'a>(
             // For other columns, return NULL as Option<String>
             SqlParam::NullString
         }
-        Value::Array(arr) => {
+        Value::Array(_) => {
             // For JSONB columns, pass the value as serde_json::Value directly
             if column_name == "raw_data"
                 || column_name.ends_with("_json")
@@ -121,8 +145,8 @@ pub fn json_to_sql_param<'a>(
             {
                 return SqlParam::JsonValue(value);
             }
-            // Otherwise convert to JSON string for TEXT columns
-            SqlParam::OwnedJsonString(serde_json::to_string(arr).unwrap_or_else(|_| "[]".to_string()))
+            // Otherwise convert to JSON string for TEXT columns (lazy)
+            SqlParam::JsonToText(value)
         }
         Value::Object(_) => {
             // For JSONB columns, pass the value as serde_json::Value directly
@@ -132,8 +156,8 @@ pub fn json_to_sql_param<'a>(
             {
                 return SqlParam::JsonValue(value);
             }
-            // Otherwise convert to JSON string for TEXT columns
-            SqlParam::OwnedJsonString(serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string()))
+            // Otherwise convert to JSON string for TEXT columns (lazy)
+            SqlParam::JsonToText(value)
         }
     }
 }
@@ -452,10 +476,10 @@ mod tests {
         // 9. Array as String (for TEXT column)
         let v = json!([1, 2, 3]);
         let p = json_to_sql_param(&v, "tags"); // Not ending in _data or _json
-        if let SqlParam::OwnedJsonString(s) = p {
-            assert_eq!(s, "[1,2,3]");
+        if let SqlParam::JsonToText(val) = p {
+            assert_eq!(val, &v);
         } else {
-            panic!("Expected OwnedJsonString");
+            panic!("Expected JsonToText");
         }
     }
 }
