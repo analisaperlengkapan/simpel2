@@ -393,22 +393,27 @@ impl AdminService {
         let stats_before = self.storage.get_stats().await?;
         let original_size = stats_before.total_size_bytes;
 
-        // Database compaction is backend-specific
-        // For PostgreSQL: VACUUM FULL
-        // For file-based: Rewrite without fragmentation
-        // For in-memory: No compaction needed
-
         tracing::info!(
             backend_type = %stats_before.backend_type,
             original_size_bytes = original_size,
             "Database compaction requested"
         );
 
-        // TODO: Implement backend-specific compaction
-        // This requires adding a compact() method to StorageBackend trait
+        // Perform compaction
+        self.storage.compact().await?;
 
-        let compacted_size = original_size; // No actual compaction yet
-        let space_saved = 0;
+        // Get storage stats after compaction to calculate savings
+        let stats_after = self.storage.get_stats().await?;
+        let compacted_size = stats_after.total_size_bytes;
+        let space_saved = original_size.saturating_sub(compacted_size);
+
+        tracing::info!(
+            backend_type = %stats_before.backend_type,
+            original_size_bytes = original_size,
+            compacted_size_bytes = compacted_size,
+            space_saved_bytes = space_saved,
+            "Database compaction completed"
+        );
 
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {

@@ -142,6 +142,16 @@ impl StorageBackend for MemoryBackend {
         Ok(deleted_count)
     }
 
+    async fn compact(&self) -> StorageResult<()> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+
+        store.shrink_to_fit();
+        path_index.shrink_to_fit();
+
+        Ok(())
+    }
+
     async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
         let store = self.store.read().await;
 

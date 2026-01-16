@@ -239,6 +239,11 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         Ok(count)
     }
 
+    async fn compact(&self) -> StorageResult<()> {
+        // No-op for KV adapter as underlying KV backends don't expose compaction
+        Ok(())
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

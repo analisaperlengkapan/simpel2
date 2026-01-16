@@ -170,6 +170,19 @@ impl StorageBackend for RaftCluster {
         Ok(count)
     }
 
+    async fn compact(&self) -> StorageResult<()> {
+        // Trigger a snapshot to compact the Raft log
+        self.raft
+            .trigger_snapshot()
+            .await
+            .map_err(|e| StorageError::BackendError {
+                backend: "raft".to_string(),
+                message: format!("Failed to trigger snapshot: {}", e),
+            })?;
+
+        Ok(())
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
