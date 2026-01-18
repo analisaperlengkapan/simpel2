@@ -6,6 +6,56 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+#[derive(Serialize, Deserialize)]
+pub struct MetricsResponse {
+    pub rest_requests_total: u64,
+    pub grpc_requests_total: u64,
+    pub transit_operations_total: u64,
+    pub kv_operations_total: u64,
+    pub active_connections: u64,
+    pub uptime_seconds: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalMetrics {
+    pub rest_requests_total: Arc<AtomicU64>,
+    pub grpc_requests_total: Arc<AtomicU64>,
+    pub transit_operations_total: Arc<AtomicU64>,
+    pub kv_operations_total: Arc<AtomicU64>,
+    pub active_connections: Arc<AtomicU64>,
+    pub start_time: Instant,
+}
+
+impl Default for GlobalMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GlobalMetrics {
+    pub fn new() -> Self {
+        Self {
+            rest_requests_total: Arc::new(AtomicU64::new(0)),
+            grpc_requests_total: Arc::new(AtomicU64::new(0)),
+            transit_operations_total: Arc::new(AtomicU64::new(0)),
+            kv_operations_total: Arc::new(AtomicU64::new(0)),
+            active_connections: Arc::new(AtomicU64::new(0)),
+            start_time: Instant::now(),
+        }
+    }
+
+    pub fn snapshot(&self) -> MetricsResponse {
+        MetricsResponse {
+            rest_requests_total: self.rest_requests_total.load(Ordering::Relaxed),
+            grpc_requests_total: self.grpc_requests_total.load(Ordering::Relaxed),
+            transit_operations_total: self.transit_operations_total.load(Ordering::Relaxed),
+            kv_operations_total: self.kv_operations_total.load(Ordering::Relaxed),
+            active_connections: self.active_connections.load(Ordering::Relaxed),
+            uptime_seconds: self.start_time.elapsed().as_secs(),
+        }
+    }
+}
+
 /// Metrics for vault operations
 #[derive(Debug, Clone)]
 pub struct VaultMetrics {

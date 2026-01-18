@@ -767,6 +767,37 @@ fn is_whitelisted(path: &str) -> bool {
     WHITELISTED_PATHS.contains(&(&path))
 }
 
+/// Metrics middleware
+/// Tracks request counts and active connections
+pub async fn metrics_middleware(
+    State(state): State<ApiState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // Increment active connections
+    state
+        .metrics
+        .active_connections
+        .fetch_add(1, Ordering::Relaxed);
+
+    // Increment total requests
+    state
+        .metrics
+        .rest_requests_total
+        .fetch_add(1, Ordering::Relaxed);
+
+    // Process request
+    let response = next.run(request).await;
+
+    // Decrement active connections
+    state
+        .metrics
+        .active_connections
+        .fetch_sub(1, Ordering::Relaxed);
+
+    response
+}
+
 pub async fn seal_check_middleware(
     State(state): State<ApiState>,
     request: Request,

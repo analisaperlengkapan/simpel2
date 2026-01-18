@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tracing::{info, warn};
 
 // Import the actual transit engine from the main crypto crate
@@ -16,6 +17,7 @@ use secreton_crypto::transit::{KeyType, TransitEngine, keys::KeyOptions};
 pub struct TransitApiState {
     pub engine: Arc<TransitEngine>,
     pub config: Option<Arc<crate::config::MtlsConfig>>,
+    pub metrics: Arc<crate::metrics::GlobalMetrics>,
 }
 
 impl Default for TransitApiState {
@@ -23,6 +25,7 @@ impl Default for TransitApiState {
         Self {
             engine: Arc::new(TransitEngine::new()),
             config: None,
+            metrics: Arc::new(crate::metrics::GlobalMetrics::new()),
         }
     }
 }
@@ -107,6 +110,10 @@ pub async fn create_key(
         .await
     {
         Ok(_) => {
+            state
+                .metrics
+                .transit_operations_total
+                .fetch_add(1, Ordering::Relaxed);
             info!("Created key: {}", key_name);
             Ok(Json(CreateKeyResponse {
                 success: true,
@@ -150,6 +157,10 @@ pub async fn encrypt_data(
         .await
     {
         Ok(ciphertext) => {
+            state
+                .metrics
+                .transit_operations_total
+                .fetch_add(1, Ordering::Relaxed);
             info!("Encrypted data with key: {}", key_name);
             Ok(Json(EncryptResponse { ciphertext }))
         }
@@ -184,6 +195,10 @@ pub async fn decrypt_data(
         .await
     {
         Ok(plaintext_bytes) => {
+            state
+                .metrics
+                .transit_operations_total
+                .fetch_add(1, Ordering::Relaxed);
             info!("Decrypted data with key: {}", key_name);
             Ok(Json(DecryptResponse {
                 plaintext: BASE64.encode(&plaintext_bytes),
