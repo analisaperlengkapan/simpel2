@@ -221,7 +221,7 @@ pub fn extract_client_certificate_from_tls(request: &Request) -> Option<Vec<u8>>
 /// Enhanced mTLS authentication middleware with proper TLS integration
 pub async fn mtls_auth_middleware(
     State(state): State<ApiState>,
-    headers: HeaderMap,
+    _headers: HeaderMap,
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
@@ -498,6 +498,20 @@ pub async fn rate_limit(
     } // Guard is dropped here
 
     Ok(next.run(request).await)
+}
+
+/// Request rate tracking middleware
+/// Tracks request counts for calculating system load metrics (RPM)
+pub async fn request_rate_middleware(
+    State(state): State<ApiState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // Increment request counter in AdminService
+    state.services.admin.track_request();
+
+    // Continue processing
+    next.run(request).await
 }
 
 /// Request logging middleware
