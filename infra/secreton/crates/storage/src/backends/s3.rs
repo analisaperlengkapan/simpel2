@@ -38,11 +38,14 @@
 
 use crate::{BackendMetrics, KvBackend, StorageError, StorageResult};
 use async_trait::async_trait;
-use reqwest::Client;
+use aws_config::BehaviorVersion;
+use aws_sdk_s3::Client;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::error::SdkError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, error};
 
 /// S3 storage backend configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,13 +112,32 @@ pub struct S3Backend {
 impl S3Backend {
     /// Create a new S3 storage backend
     pub async fn new(config: S3Config) -> StorageResult<Self> {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(config.timeout_secs))
-            .build()
-            .map_err(|e| StorageError::ConnectionFailed {
-                message: format!("S3: Failed to create HTTP client: {}", e),
-                source: None,
-            })?;
+        let mut sdk_config_loader = aws_config::defaults(BehaviorVersion::latest())
+            .region(aws_config::Region::new(config.region.clone()));
+
+        if !config.access_key.is_empty() && !config.secret_key.is_empty() {
+            let credentials = aws_sdk_s3::config::Credentials::new(
+                config.access_key.clone(),
+                config.secret_key.clone(),
+                None,
+                None,
+                "static",
+            );
+            sdk_config_loader = sdk_config_loader.credentials_provider(
+                aws_sdk_s3::config::SharedCredentialsProvider::new(credentials)
+            );
+        }
+
+        if let Some(ref endpoint) = config.endpoint {
+            sdk_config_loader = sdk_config_loader.endpoint_url(endpoint);
+        }
+
+        let sdk_config = sdk_config_loader.load().await;
+
+        let client_config_builder = aws_sdk_s3::config::Builder::from(&sdk_config)
+             .force_path_style(true); // Useful for MinIO/testing
+
+        let client = Client::from_conf(client_config_builder.build());
 
         let backend = Self {
             config: config.clone(),
@@ -140,22 +162,22 @@ impl S3Backend {
 
     /// Verify bucket exists and is accessible
     async fn verify_bucket(&self) -> StorageResult<()> {
-        // Use AWS SDK to verify bucket
-        // For now, we'll implement a simple HEAD request
         debug!("Verifying S3 bucket access: {}", self.config.bucket);
 
-        // TODO: Implement actual S3 SDK verification
-        // This is a placeholder for the actual implementation
+        self.client
+            .head_bucket()
+            .bucket(&self.config.bucket)
+            .send()
+            .await
+            .map_err(|e| {
+                 error!("Failed to verify S3 bucket: {}", e);
+                 StorageError::ConnectionFailed {
+                    message: format!("Failed to verify S3 bucket '{}': {}", self.config.bucket, e),
+                    source: Some(Box::new(e)),
+                }
+            })?;
 
         Ok(())
-    }
-
-    /// Sign S3 request with AWS Signature V4
-    fn sign_request(&self, _method: &str, _path: &str) -> String {
-        // TODO: Implement AWS Signature V4
-        // This is a complex process requiring HMAC-SHA256
-        // Use aws-sdk-rust crate in production
-        String::new()
     }
 }
 
@@ -163,71 +185,162 @@ impl S3Backend {
 impl KvBackend for S3Backend {
     async fn get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> {
         let object_key = self.object_key(key);
-
-        // TODO: Implement actual S3 GetObject API call
-        // Use aws-sdk-s3 crate for production implementation
-
         debug!("S3 GET: {}/{}", self.config.bucket, object_key);
 
-        // Placeholder implementation
-        Err(StorageError::BackendError {
-            backend: "s3".to_string(),
-            message: "S3 backend requires aws-sdk-s3 crate - add as dependency".to_string(),
-        })
+        let result = self.client
+            .get_object()
+            .bucket(&self.config.bucket)
+            .key(&object_key)
+            .send()
+            .await;
+
+        match result {
+            Ok(output) => {
+                let bytes = output.body.collect().await
+                    .map_err(|e| StorageError::BackendError {
+                        backend: "s3".to_string(),
+                        message: format!("Failed to read object body: {}", e),
+                    })?
+                    .into_bytes();
+                Ok(Some(bytes.to_vec()))
+            },
+            Err(e) => {
+                 let is_not_found = matches!(&e, SdkError::ServiceError(context) if context.err().is_no_such_key());
+
+                 if is_not_found {
+                     return Ok(None);
+                 }
+
+                 Err(StorageError::BackendError {
+                    backend: "s3".to_string(),
+                    message: format!("S3 GetObject failed: {}", e),
+                 })
+            }
+        }
     }
 
     async fn put(&self, key: &str, value: &[u8]) -> StorageResult<()> {
         let object_key = self.object_key(key);
-
-        // TODO: Implement actual S3 PutObject API call
-        // Use aws-sdk-s3 crate for production implementation
-
         debug!("S3 PUT: {}/{}", self.config.bucket, object_key);
+
+        let body = ByteStream::from(value.to_vec());
+
+        let mut builder = self.client
+            .put_object()
+            .bucket(&self.config.bucket)
+            .key(&object_key)
+            .body(body);
+
+        if let Some(ref kms_key) = self.config.sse_kms_key_id {
+            builder = builder.server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::AwsKms)
+                             .ssekms_key_id(kms_key);
+        } else if self.config.sse_s3 {
+             builder = builder.server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::Aes256);
+        }
+
+        builder
+            .send()
+            .await
+            .map_err(|e| StorageError::BackendError {
+                backend: "s3".to_string(),
+                message: format!("S3 PutObject failed: {}", e),
+            })?;
 
         let mut metrics = self.metrics.write().await;
         metrics.writes += 1;
         metrics.bytes_written += value.len() as u64;
 
-        // Placeholder implementation
-        Err(StorageError::BackendError {
-            backend: "s3".to_string(),
-            message: "S3 backend requires aws-sdk-s3 crate - add as dependency".to_string(),
-        })
+        Ok(())
     }
 
     async fn delete(&self, key: &str) -> StorageResult<()> {
         let object_key = self.object_key(key);
-
-        // TODO: Implement actual S3 DeleteObject API call
-
         debug!("S3 DELETE: {}/{}", self.config.bucket, object_key);
+
+        self.client
+            .delete_object()
+            .bucket(&self.config.bucket)
+            .key(&object_key)
+            .send()
+            .await
+            .map_err(|e| StorageError::BackendError {
+                backend: "s3".to_string(),
+                message: format!("S3 DeleteObject failed: {}", e),
+            })?;
 
         let mut metrics = self.metrics.write().await;
         metrics.deletes += 1;
 
-        // Placeholder implementation
-        Err(StorageError::BackendError {
-            backend: "s3".to_string(),
-            message: "S3 backend requires aws-sdk-s3 crate - add as dependency".to_string(),
-        })
+        Ok(())
     }
 
     async fn list(&self, prefix: &str) -> StorageResult<Vec<String>> {
         let list_prefix = self.object_key(prefix);
-
-        // TODO: Implement actual S3 ListObjectsV2 API call
-
         debug!("S3 LIST: {}/{}", self.config.bucket, list_prefix);
 
-        // Placeholder implementation
-        Err(StorageError::BackendError {
-            backend: "s3".to_string(),
-            message: "S3 backend requires aws-sdk-s3 crate - add as dependency".to_string(),
-        })
+        let mut keys = Vec::new();
+        let mut continuation_token = None;
+
+        loop {
+            let resp = self.client
+                .list_objects_v2()
+                .bucket(&self.config.bucket)
+                .prefix(&list_prefix)
+                .set_continuation_token(continuation_token)
+                .send()
+                .await
+                .map_err(|e| StorageError::BackendError {
+                    backend: "s3".to_string(),
+                    message: format!("S3 ListObjectsV2 failed: {}", e),
+                })?;
+
+            if let Some(contents) = resp.contents {
+                for object in contents {
+                     if let Some(key) = object.key {
+                         // Strip the global prefix to return relative keys
+                         if let Some(stripped) = key.strip_prefix(&self.config.prefix) {
+                             keys.push(stripped.to_string());
+                         } else {
+                             keys.push(key);
+                         }
+                     }
+                }
+            }
+
+            if resp.is_truncated == Some(true) {
+                continuation_token = resp.next_continuation_token;
+            } else {
+                break;
+            }
+        }
+
+        Ok(keys)
     }
 
     async fn exists(&self, key: &str) -> StorageResult<bool> {
-        Ok(self.get(key).await?.is_some())
+        let object_key = self.object_key(key);
+
+        match self.client
+            .head_object()
+            .bucket(&self.config.bucket)
+            .key(&object_key)
+            .send()
+            .await
+        {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                let is_not_found = matches!(&e, SdkError::ServiceError(context) if context.err().is_not_found());
+
+                if is_not_found {
+                    Ok(false)
+                } else {
+                    Err(StorageError::BackendError {
+                        backend: "s3".to_string(),
+                        message: format!("S3 HeadObject failed: {}", e),
+                    })
+                }
+            }
+        }
     }
 
     async fn metrics(&self) -> StorageResult<BackendMetrics> {
@@ -235,17 +348,29 @@ impl KvBackend for S3Backend {
     }
 
     async fn health_check(&self) -> StorageResult<crate::HealthStatus> {
-        // S3 backend is placeholder - return unhealthy with clear message
-        Ok(crate::HealthStatus {
-            is_healthy: false,
-            response_time_ms: 0.0,
-            connections_active: 0,
-            connections_idle: 0,
-            last_error: Some(
-                "S3 backend not implemented - requires aws-sdk-s3 dependency".to_string(),
-            ),
-            uptime_seconds: 0,
-        })
+        let start = std::time::Instant::now();
+        match self.verify_bucket().await {
+            Ok(_) => {
+                 Ok(crate::HealthStatus {
+                    is_healthy: true,
+                    response_time_ms: start.elapsed().as_millis() as f64,
+                    connections_active: 1,
+                    connections_idle: 0,
+                    last_error: None,
+                    uptime_seconds: 0, // Not tracked in this simple backend
+                })
+            }
+            Err(e) => {
+                Ok(crate::HealthStatus {
+                    is_healthy: false,
+                    response_time_ms: start.elapsed().as_millis() as f64,
+                    connections_active: 0,
+                    connections_idle: 0,
+                    last_error: Some(e.to_string()),
+                    uptime_seconds: 0,
+                })
+            }
+        }
     }
 }
 
@@ -264,8 +389,9 @@ mod tests {
             ..Default::default()
         };
 
-        // This will fail without aws-sdk-s3
+        // This will fail without real S3
         let result = S3Backend::new(config).await;
-        assert!(result.is_ok() || result.is_err()); // Placeholder
+        // Just ensuring it compiles and runs up to the network call
+        assert!(result.is_err());
     }
 }

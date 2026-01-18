@@ -33,6 +33,10 @@ rustls-native-certs = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 base64.workspace = true
 
+# AWS SDK
+aws-sdk-s3 = { workspace = true, optional = true }
+aws-config = { workspace = true, optional = true }
+
 # Cryptography
 secreton-crypto.workspace = true
 zeroize.workspace = true
@@ -57,7 +61,7 @@ default = ["file"]
 file = []
 consul = ["reqwest"]
 raft-consensus = ["openraft", "tonic", "prost", "slog", "slog-term", "slog-async"]
-s3 = ["reqwest"]
+s3 = ["aws-sdk-s3", "aws-config"]
 postgres = [
     "tokio-postgres",
     "deadpool-postgres",
