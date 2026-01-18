@@ -619,36 +619,39 @@ impl MonsaktiClient {
             None => return Ok(()),
         };
 
-        if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
         // Offload blocking I/O to a blocking thread
         tokio::task::spawn_blocking(move || -> Result<(), MonsaktiError> {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
             let mut wtr = csv::Writer::from_path(&path)?;
             if let Some(first) = array.first()
                 && let Some(obj) = first.as_object()
             {
                 let headers: Vec<&String> = obj.keys().collect();
-                wtr.write_record(&headers)?;
 
-                // Reuse vector to avoid allocation per row
-                let mut row = Vec::with_capacity(headers.len());
+                // Write headers using ByteRecord
+                let mut record = csv::ByteRecord::new();
+                for h in &headers {
+                    record.push_field(h.as_bytes());
+                }
+                wtr.write_byte_record(&record)?;
 
                 for item in &array {
                     if let Some(obj) = item.as_object() {
-                        row.clear();
+                        record.clear();
                         for h in &headers {
-                            // Use Cow to avoid cloning strings
-                            let val = match obj.get(*h) {
-                                Some(serde_json::Value::String(s)) => std::borrow::Cow::Borrowed(s.as_str()),
-                                Some(serde_json::Value::Null) => std::borrow::Cow::Borrowed(""),
-                                Some(v) => std::borrow::Cow::Owned(v.to_string()),
-                                None => std::borrow::Cow::Borrowed(""),
-                            };
-                            row.push(val);
+                            let value = obj.get(*h).unwrap_or(&serde_json::Value::Null);
+                            match value {
+                                serde_json::Value::String(s) => record.push_field(s.as_bytes()),
+                                serde_json::Value::Number(n) => record.push_field(n.to_string().as_bytes()),
+                                serde_json::Value::Bool(b) => record.push_field(b.to_string().as_bytes()),
+                                serde_json::Value::Null => record.push_field(b""),
+                                _ => record.push_field(value.to_string().as_bytes()),
+                            }
                         }
-                        wtr.write_record(row.iter().map(|c| c.as_bytes()))?;
+                        wtr.write_byte_record(&record)?;
                     }
                 }
             }
