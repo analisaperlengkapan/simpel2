@@ -411,24 +411,36 @@ pub async fn fetch_all_assets_with_pagination(
         })
         .collect();
 
-    // Create a stream of futures
-    let mut stream = stream::iter(tasks)
-        .map(
-            |(start_id, end_id, mut client_clone, category_clone)| async move {
-                info!(
-                    "🔄 Fetching records {}-{} of {}",
-                    start_id, end_id, total_count
-                );
-                let result = client_clone
-                    .fetch_siman_data(category_clone, start_id, end_id)
-                    .await;
-                (start_id, end_id, result)
-            },
-        )
-        .buffer_unordered(10); // Process up to 10 requests concurrently
+    // Create a channel to decouple fetching from saving
+    let (tx, mut rx) = tokio::sync::mpsc::channel(10); // Buffer size 10 to allow fetching to get ahead of saving
 
-    // Iterate through completed tasks
-    while let Some((current_id, end_id, result)) = stream.next().await {
+    // Spawn the fetching task
+    tokio::spawn(async move {
+        let mut stream = stream::iter(tasks)
+            .map(
+                |(start_id, end_id, mut client_clone, category_clone)| async move {
+                    info!(
+                        "🔄 Fetching records {}-{} of {}",
+                        start_id, end_id, total_count
+                    );
+                    let result = client_clone
+                        .fetch_siman_data(category_clone, start_id, end_id)
+                        .await;
+                    (start_id, end_id, result)
+                },
+            )
+            .buffer_unordered(5); // Process up to 5 requests concurrently
+
+        while let Some(item) = stream.next().await {
+            if tx.send(item).await.is_err() {
+                // Receiver dropped, stop fetching
+                break;
+            }
+        }
+    });
+
+    // Iterate through completed tasks received from channel
+    while let Some((current_id, end_id, result)) = rx.recv().await {
         match result {
             Ok(response) => {
                 if let Some(data) = response.data {
