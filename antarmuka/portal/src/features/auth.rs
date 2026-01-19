@@ -331,7 +331,6 @@ impl AuthService {
     }
 
     /// Decode JWT token to extract user claims
-    #[cfg(target_arch = "wasm32")]
     pub fn decode_jwt_claims(token: &str) -> Result<UserSession, String> {
         // JWT format: header.payload.signature
         let parts: Vec<&str> = token.split('.').collect();
@@ -405,13 +404,19 @@ impl AuthService {
     }
 
     /// Get stored authentication token
-    #[cfg(target_arch = "wasm32")]
     pub fn get_token() -> Option<String> {
-        web_sys::window()
-            .and_then(|w| w.local_storage().ok())
-            .flatten()
-            .and_then(|storage| storage.get_item("auth_token").ok())
-            .flatten()
+        #[cfg(target_arch = "wasm32")]
+        {
+            web_sys::window()
+                .and_then(|w| w.local_storage().ok())
+                .flatten()
+                .and_then(|storage| storage.get_item("auth_token").ok())
+                .flatten()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            None
+        }
     }
 
     /// Save temporary token to localStorage (for MFA flow)

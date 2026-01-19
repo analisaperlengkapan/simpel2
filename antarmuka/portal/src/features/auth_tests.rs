@@ -97,13 +97,9 @@ mod tests {
 
         let token = format!("{}.{}.{}", header, payload, signature);
 
-        // TODO: parse_jwt_claims_internal was refactored - this test needs updating
-        // For now, skip this test
-        // let session = AuthService::parse_jwt_claims_internal(&token).unwrap();
-        // assert_eq!(session.username, "testuser");
-        // assert_eq!(session.expires_at, Some(1704067200));
-        
-        // Placeholder assertion to make test pass
-        assert!(token.contains(&payload));
+        // Test parsing with decode_jwt_claims
+        let session = AuthService::decode_jwt_claims(&token).expect("Failed to decode JWT claims");
+        assert_eq!(session.username, "testuser");
+        assert_eq!(session.expires_at, Some(1704067200));
     }
 }
