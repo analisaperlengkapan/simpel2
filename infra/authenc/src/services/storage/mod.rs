@@ -441,6 +441,7 @@ pub struct InMemoryUserRepository {
 
 /// Fungsi `new(storage`.
 impl InMemoryUserRepository {
+/// Fungsi `new`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
     }
@@ -557,6 +558,7 @@ pub struct InMemoryClientRepository {
 }
 /// Fungsi `new(storage`.
 
+/// Fungsi `new`.
 impl InMemoryClientRepository {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
@@ -661,6 +663,7 @@ pub struct InMemoryRealmRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
 }
+/// Fungsi `new`.
 
 impl InMemoryRealmRepository {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
@@ -791,6 +794,7 @@ mod tests {
         assert!(manager.is_ok());
 /// Modul `postgresql`.
     }
+/// Modul `postgresql`.
 }
 
 // Module declarations
@@ -885,6 +889,7 @@ pub trait RealmStorageRepository: StorageRepository<crate::models::realm::Realm>
 /// Fungsi `new(`.
 /// In-Memory Storage Provider
 pub struct InMemoryStorageProvider {
+/// Fungsi `new`.
     data: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
 
@@ -1567,6 +1572,7 @@ mod tests {
         assert!(client_repo.save(&client).await.is_ok());
         let found_client = client_repo.find_by_client_id("test-client").await.unwrap();
         assert!(found_client.is_some());
+/// Modul `postgresql`.
         assert_eq!(found_client.unwrap().client_name, "Test Client");
     }
 }

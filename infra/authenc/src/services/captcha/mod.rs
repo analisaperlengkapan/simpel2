@@ -42,6 +42,7 @@ pub mod secreton_integration;
 pub mod security_monitoring;
 /// Modul `service`.
 pub mod service;
+/// Modul `types`.
 pub mod types;
 /// Modul `tests`.
 pub mod validator;
