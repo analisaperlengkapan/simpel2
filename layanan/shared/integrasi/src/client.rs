@@ -619,12 +619,12 @@ impl MonsaktiClient {
             None => return Ok(()),
         };
 
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
         // Offload blocking I/O to a blocking thread
         tokio::task::spawn_blocking(move || -> Result<(), MonsaktiError> {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
             let mut wtr = csv::Writer::from_path(&path)?;
             if let Some(first) = array.first()
                 && let Some(obj) = first.as_object()
