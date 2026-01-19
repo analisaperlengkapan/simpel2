@@ -816,7 +816,7 @@ pub async fn create_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_created")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
@@ -977,7 +977,7 @@ pub async fn download_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_downloaded")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
