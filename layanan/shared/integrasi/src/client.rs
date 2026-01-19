@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_postgres::NoTls;
 use tracing::{error, info, warn};
@@ -23,7 +24,7 @@ pub struct MonsaktiClient {
     /// Token SIMAN OAuth2 dan waktu expire
     siman_token: Option<(String, u64)>,
     /// Klien database opsional
-    db_client: Option<tokio_postgres::Client>,
+    db_client: Option<Arc<tokio_postgres::Client>>,
 }
 
 impl MonsaktiClient {
@@ -57,7 +58,7 @@ impl MonsaktiClient {
                 info!("Database search_path set to: integrasi, public");
             }
 
-            Some(client)
+            Some(Arc::new(client))
         } else {
             None
         };
@@ -71,14 +72,14 @@ impl MonsaktiClient {
         })
     }
 
-    /// Clone untuk parallel processing - Token tidak di-share
+    /// Clone untuk parallel processing
     pub fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
             config: self.config.clone(),
             current_tokens: self.current_tokens.clone(),
             siman_token: self.siman_token.clone(),
-            db_client: None, // DB client tidak di-clone untuk keamanan
+            db_client: self.db_client.clone(),
         }
     }
 

@@ -400,115 +400,134 @@ pub async fn fetch_all_assets_with_pagination(
         current_id = end_id + 1;
     }
 
-    // Prepare tasks with cloned clients to avoid borrow checker issues
-    // We clone the client for each task so we can use the original client for saving
+    // Prepare tasks with cloned clients and storage
     let tasks: Vec<_> = ranges
         .into_iter()
         .map(|(start_id, end_id)| {
             let client_clone = client.clone();
             let category_clone = category.clone();
-            (start_id, end_id, client_clone, category_clone)
+            let storage_clone = storage.clone();
+            (start_id, end_id, client_clone, category_clone, storage_clone)
         })
         .collect();
 
-    // Create a stream of futures
+    // Create a stream of futures pipeline: Fetch -> Save
     let mut stream = stream::iter(tasks)
         .map(
-            |(start_id, end_id, mut client_clone, category_clone)| async move {
+            |(start_id, end_id, mut client_clone, category_clone, storage_clone)| async move {
                 info!(
                     "🔄 Fetching records {}-{} of {}",
                     start_id, end_id, total_count
                 );
                 let result = client_clone
-                    .fetch_siman_data(category_clone, start_id, end_id)
+                    .fetch_siman_data(category_clone.clone(), start_id, end_id)
                     .await;
-                (start_id, end_id, result)
+                (
+                    start_id,
+                    end_id,
+                    result,
+                    client_clone,
+                    category_clone,
+                    storage_clone,
+                )
             },
         )
-        .buffer_unordered(5); // Process up to 5 requests concurrently
+        .buffer_unordered(10) // Increased fetch concurrency to 10
+        .map(
+            |(start_id, end_id, result, client_clone, category_clone, storage_clone)| async move {
+                match result {
+                    Ok(response) => {
+                        if let Some(data) = response.data {
+                            // Extract results array
+                            let records = if let Some(results) =
+                                data.get("results").and_then(|r| r.as_array())
+                            {
+                                results.clone()
+                            } else if let Some(results_array) = data.as_array() {
+                                results_array.clone()
+                            } else {
+                                vec![]
+                            };
 
-    // Iterate through completed tasks
-    while let Some((current_id, end_id, result)) = stream.next().await {
-        match result {
-            Ok(response) => {
-                if let Some(data) = response.data {
-                    // Extract results array
-                    let records =
-                        if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
-                            results.clone()
-                        } else if let Some(results_array) = data.as_array() {
-                            results_array.clone()
-                        } else {
-                            vec![]
-                        };
+                            if records.is_empty() {
+                                warn!("⚠️  No records in response for {}-{}", start_id, end_id);
+                                return (0, (end_id - start_id + 1) as usize);
+                            } else {
+                                // Inject required fields for SIMAN database schema
+                                let category_name = category_clone.description().to_string();
+                                let enhanced_records: Vec<serde_json::Value> = records
+                                    .iter()
+                                    .map(|record| {
+                                        if let Some(mut obj) = record.as_object().cloned() {
+                                            // Add kategori_aset field (REQUIRED by DB)
+                                            obj.insert(
+                                                "kategori_aset".to_string(),
+                                                serde_json::Value::String(category_name.clone()),
+                                            );
+                                            // Add raw_data field (store complete API response)
+                                            obj.insert(
+                                                "raw_data".to_string(),
+                                                record.clone(),
+                                            );
+                                            serde_json::Value::Object(obj)
+                                        } else {
+                                            record.clone()
+                                        }
+                                    })
+                                    .collect();
 
-                    if records.is_empty() {
-                        warn!("⚠️  No records in response for {}-{}", current_id, end_id);
-                        failed_count += (end_id - current_id + 1) as usize;
-                    } else {
-                        // Inject required fields for SIMAN database schema
-                        let category_name = category.description().to_string(); // "Alat Besar", etc
-                        let enhanced_records: Vec<serde_json::Value> = records
-                            .iter()
-                            .map(|record| {
-                                if let Some(mut obj) = record.as_object().cloned() {
-                                    // Add kategori_aset field (REQUIRED by DB)
-                                    obj.insert(
-                                        "kategori_aset".to_string(),
-                                        serde_json::Value::String(category_name.clone()),
-                                    );
-                                    // Add raw_data field (store complete API response)
-                                    obj.insert("raw_data".to_string(), record.clone());
-                                    serde_json::Value::Object(obj)
-                                } else {
-                                    record.clone()
+                                let json_data = serde_json::Value::Array(enhanced_records);
+
+                                // Use storage strategy to save
+                                // module = "siman", endpoint = "aset" (unified table), context = batch range
+                                let context = format!("{}-{}", start_id, end_id);
+
+                                match storage_clone
+                                    .save(&client_clone, "siman", "aset", &json_data, &context)
+                                    .await
+                                {
+                                    Ok(saved_count) => {
+                                        if saved_count > 0 {
+                                            info!(
+                                                "💾 Saved {} records ({}-{})",
+                                                saved_count, start_id, end_id
+                                            );
+                                            return (saved_count, 0);
+                                        } else {
+                                            warn!(
+                                                "⚠️  0 records inserted ({}-{}) - check for errors above",
+                                                start_id, end_id
+                                            );
+                                            return (0, records.len());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!(
+                                            "❌ Storage save failed for {}-{}: {}",
+                                            start_id,
+                                            end_id,
+                                            e
+                                        );
+                                        return (0, records.len());
+                                    }
                                 }
-                            })
-                            .collect();
-
-                        let json_data = serde_json::Value::Array(enhanced_records);
-
-                        // Use storage strategy to save
-                        // module = "siman", endpoint = "aset" (unified table), context = batch range
-                        let context = format!("{}-{}", current_id, end_id);
-
-                        match storage
-                            .save(client, "siman", "aset", &json_data, &context)
-                            .await
-                        {
-                            Ok(saved_count) => {
-                                success_count += saved_count;
-                                if saved_count > 0 {
-                                    info!(
-                                        "💾 Saved {} records ({}-{})",
-                                        saved_count, current_id, end_id
-                                    );
-                                } else {
-                                    warn!(
-                                        "⚠️  0 records inserted ({}-{}) - check for errors above",
-                                        current_id, end_id
-                                    );
-                                    failed_count += records.len();
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "❌ Storage save failed for {}-{}: {}",
-                                    current_id,
-                                    end_id,
-                                    e
-                                );
-                                failed_count += records.len();
                             }
                         }
+                        (0, 0)
+                    }
+                    Err(e) => {
+                        tracing::error!("❌ API fetch failed for {}-{}: {}", start_id, end_id, e);
+                        (0, (end_id - start_id + 1) as usize)
                     }
                 }
-            }
-            Err(e) => {
-                tracing::error!("❌ API fetch failed for {}-{}: {}", current_id, end_id, e);
-                failed_count += (end_id - current_id + 1) as usize;
-            }
-        }
+            },
+        )
+        .buffer_unordered(5); // Save concurrency
+
+    // Iterate through completed tasks
+    while let Some((success, failed)) = stream.next().await {
+        success_count += success;
+        failed_count += failed;
     }
 
     Ok((success_count, failed_count))
