@@ -391,6 +391,10 @@ pub async fn fetch_all_assets_with_pagination(
     let mut failed_count = 0usize;
     let chunk_size = 1000u32; // Batch size per request - increased for faster fetching
 
+    // Constants for concurrency control
+    const CHANNEL_BUFFER_SIZE: usize = 10;
+    const CONCURRENT_REQUESTS: usize = 5;
+
     // Prepare ranges
     let mut ranges = Vec::new();
     let mut current_id = 1u32;
@@ -412,8 +416,8 @@ pub async fn fetch_all_assets_with_pagination(
         .collect();
 
     // Create a channel to decouple fetching from saving
-    // Buffer size 10 to allow fetcher to get ahead of saver
-    let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+    // Buffer size to allow fetcher to get ahead of saver
+    let (tx, mut rx) = tokio::sync::mpsc::channel(CHANNEL_BUFFER_SIZE);
 
     // Spawn fetching task
     tokio::spawn(async move {
@@ -430,7 +434,7 @@ pub async fn fetch_all_assets_with_pagination(
                     (start_id, end_id, result)
                 },
             )
-            .buffer_unordered(5); // Process up to 5 requests concurrently
+            .buffer_unordered(CONCURRENT_REQUESTS); // Process concurrent requests
 
         while let Some(item) = stream.next().await {
             if tx.send(item).await.is_err() {
