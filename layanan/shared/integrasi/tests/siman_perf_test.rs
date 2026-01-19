@@ -1,13 +1,13 @@
+use layanan_integrasi::StorageStrategy;
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::endpoints::fetch_all_assets_with_pagination;
 use layanan_integrasi::siman::SimanAssetCategory;
-use layanan_integrasi::StorageStrategy;
-use wiremock::matchers::{method, path, path_regex};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use std::time::Instant;
+use layanan_integrasi::siman::endpoints::fetch_all_assets_with_pagination;
 use std::collections::HashMap;
 use std::fs;
+use std::time::Instant;
+use wiremock::matchers::{method, path, path_regex};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn test_siman_pagination_pipeline_perf() {
@@ -27,7 +27,9 @@ async fn test_siman_pagination_pipeline_perf() {
     // Mock Row Count Endpoint
     // Return 5000 items. Chunk size is 1000, so 5 batches.
     Mock::given(method("GET"))
-        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*"))
+        .and(path_regex(
+            r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
              "results": [
                 { "RCOUNT": 5000 }
@@ -46,9 +48,10 @@ async fn test_siman_pagination_pipeline_perf() {
 
     Mock::given(method("POST"))
         .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getAset.*"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(response_body)
-            .set_delay(response_delay)
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(response_body)
+                .set_delay(response_delay),
         )
         .mount(&mock_server)
         .await;
@@ -71,10 +74,14 @@ async fn test_siman_pagination_pipeline_perf() {
         db_config: None,
     };
 
-    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     // Use JsonFile storage strategy
-    let storage = StorageStrategy::JsonFile { base_dir: output_dir.clone() };
+    let storage = StorageStrategy::JsonFile {
+        base_dir: output_dir.clone(),
+    };
 
     println!("Starting performance test (pipeline)...");
     let start = Instant::now();
@@ -84,12 +91,17 @@ async fn test_siman_pagination_pipeline_perf() {
     // Concurrency 5.
     // If save is fast: time should be around 100ms + overhead.
     // If save is slow (implicit in file IO, but might be fast on tmpfs): we will see.
-    let result = fetch_all_assets_with_pagination(&mut client, &storage, SimanAssetCategory::AlatBesar).await;
+    let result =
+        fetch_all_assets_with_pagination(&mut client, &storage, SimanAssetCategory::AlatBesar)
+            .await;
     let duration = start.elapsed();
 
     assert!(result.is_ok(), "Fetching failed: {:?}", result.err());
     let (success, failed) = result.unwrap();
-    println!("Fetched: {} success, {} failed in {:?}", success, failed, duration);
+    println!(
+        "Fetched: {} success, {} failed in {:?}",
+        success, failed, duration
+    );
     println!("PERFORMANCE_RESULT: {} ms", duration.as_millis());
 
     // Cleanup

@@ -137,7 +137,7 @@ pub async fn fetch_all_aset_paginated(
     let results = stream::iter(ranges)
         .map(|(start_id, end_id)| {
             let mut client_clone = client.clone();
-            let category_clone = category.clone(); // SimanAssetCategory is Clone/Copy
+            let category_clone = category; // SimanAssetCategory is Clone/Copy
 
             async move {
                 info!(
@@ -148,9 +148,10 @@ pub async fn fetch_all_aset_paginated(
                     total_count
                 );
 
-                get_aset_by_category(&mut client_clone, category_clone, start_id, end_id).await
+                get_aset_by_category(&mut client_clone, category_clone, start_id, end_id)
+                    .await
                     .map_err(|e| {
-                         warn!(
+                        warn!(
                             "Error fetching {}-{} for {}: {}",
                             start_id,
                             end_id,
@@ -360,7 +361,7 @@ pub async fn fetch_all_assets_with_pagination(
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
-    let response = client.fetch_siman_row_count(category.clone()).await?;
+    let response = client.fetch_siman_row_count(category).await?;
 
     let total_count = if let Some(data) = response.data {
         if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
@@ -406,7 +407,7 @@ pub async fn fetch_all_assets_with_pagination(
         .into_iter()
         .map(|(start_id, end_id)| {
             let client_clone = client.clone();
-            let category_clone = category.clone();
+            let category_clone = category;
             (start_id, end_id, client_clone, category_clone)
         })
         .collect();

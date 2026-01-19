@@ -55,10 +55,12 @@ pub async fn get_satker_list(
         for item in array {
             if let Some(obj) = item.as_object()
                 && let Some(kdsatker) = obj.get("KDSATKER")
-                    && let Some(kdsatker_str) = kdsatker.as_str()
-                        && !kdsatker_str.is_empty() && kdsatker_str != "000000" {
-                            satker_list.push(kdsatker_str.to_string());
-                        }
+                && let Some(kdsatker_str) = kdsatker.as_str()
+                && !kdsatker_str.is_empty()
+                && kdsatker_str != "000000"
+            {
+                satker_list.push(kdsatker_str.to_string());
+            }
         }
     }
 

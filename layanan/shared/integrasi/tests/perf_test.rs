@@ -1,10 +1,10 @@
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::{fetch_all_aset_paginated, SimanAssetCategory};
+use layanan_integrasi::siman::{SimanAssetCategory, fetch_all_aset_paginated};
+use std::collections::HashMap;
+use std::time::Instant;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use std::time::Instant;
-use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_siman_pagination_performance() {
@@ -23,7 +23,9 @@ async fn test_siman_pagination_performance() {
 
     // Mock Row Count Endpoint (Using SimanAssetCategory::AlatBesar which maps to SIMAN2_M_ASET_ALAT_BESAR)
     Mock::given(method("GET"))
-        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*"))
+        .and(path_regex(
+            r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             { "row_count": 5000 }
         ])))
@@ -37,9 +39,10 @@ async fn test_siman_pagination_performance() {
 
     Mock::given(method("POST"))
         .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getAset.*"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(serde_json::json!(items))
-            .set_delay(response_delay)
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!(items))
+                .set_delay(response_delay),
         )
         .mount(&mock_server)
         .await;
@@ -58,7 +61,9 @@ async fn test_siman_pagination_performance() {
         db_config: None,
     };
 
-    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     println!("Starting performance test...");
     let start = Instant::now();
