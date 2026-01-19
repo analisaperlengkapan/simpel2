@@ -475,8 +475,18 @@ pub async fn add_peer(
     metrics::counter!("secreton_raft_peers_added").increment(1);
     metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
-    // TODO: Add audit logging
-    // audit_log.log_peer_added(request.node_id, request.address, user_id);
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("peer_added")
+        .actor(user.id.to_string())
+        .resource_type("raft_peer")
+        .resource_id(request.node_id.to_string())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("address", request.address.clone())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let response = AddPeerResponse {
         success: true,
@@ -606,8 +616,17 @@ pub async fn remove_peer(
     metrics::counter!("secreton_raft_peers_removed").increment(1);
     metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
-    // TODO: Add audit logging
-    // audit_log.log_peer_removed(node_id, user_id);
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("peer_removed")
+        .actor(user.id.to_string())
+        .resource_type("raft_peer")
+        .resource_id(node_id.to_string())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let response = RemovePeerResponse {
         success: true,
@@ -797,7 +816,7 @@ pub async fn create_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_created")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
@@ -958,7 +977,7 @@ pub async fn download_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_downloaded")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
@@ -1289,19 +1308,21 @@ pub async fn restore_snapshot(
     metrics::counter!("secreton_raft_restores_performed").increment(1);
     metrics::gauge!("secreton_raft_restored_snapshot_size_bytes").set(size_bytes as f64);
 
-    // Audit logging (commented out - method not available)
-    // state.audit.log_event(
-    //     "snapshot_restored",
-    //     &format!("Snapshot {} restored", request.snapshot_id),
-    //     serde_json::json!({
-    //         "snapshot_id": request.snapshot_id,
-    //         "size_bytes": size_bytes,
-    //         "compressed_size_bytes": compressed_size_bytes,
-    //         "last_included_index": last_included_index,
-    //         "last_included_term": last_included_term,
-    //         "created_at": created_at.to_rfc3339(),
-    //     }),
-    // ).await;
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("snapshot_restored")
+        .actor(user.id.to_string())
+        .resource_type("snapshot")
+        .resource_id(request.snapshot_id.clone())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("size_bytes", size_bytes.to_string())
+        .metadata("compressed_size_bytes", compressed_size_bytes.to_string())
+        .metadata("last_included_index", last_included_index.to_string())
+        .metadata("last_included_term", last_included_term.to_string())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let snapshot_metadata = SnapshotMetadata {
         snapshot_id: request.snapshot_id.clone(),

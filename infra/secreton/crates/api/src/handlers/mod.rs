@@ -141,6 +141,17 @@ pub fn create_protected_router(
         .with_state(app_state)
 }
 
+/// Create the complete API router (merging protected and unprotected routes)
+pub fn create_router(
+    config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
+    let protected = create_protected_router(config, services.clone());
+    let unprotected = create_unprotected_router(config, services);
+
+    unprotected.merge(protected)
+}
+
 /// Create a router for unprotected system routes
 pub fn create_unprotected_router(
     _config: &ApiConfig,
