@@ -624,6 +624,7 @@ impl AdminService {
     ) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
         let mut updated_keys = Vec::new();
+        let mut errors = Vec::new();
 
         // 1. Update Rate Limiting
         if let Some(rate_limit_value) = config_updates.get("rate_limit") {
@@ -639,7 +640,11 @@ impl AdminService {
                 if let Some(requests) = global.get("requests").and_then(|v| v.as_u64()) {
                     crate::middleware::update_rate_limiting(requests as u32);
                     updated_keys.push("rate_limit.global.requests".to_string());
+                } else {
+                    errors.push("Invalid rate_limit structure: missing global.requests".to_string());
                 }
+            } else {
+                errors.push("Invalid rate_limit structure: parsing failed".to_string());
             }
         }
 
@@ -651,23 +656,28 @@ impl AdminService {
                 self.auth.update_config(auth_config);
                 updated_keys.push("auth".to_string());
             } else {
-                tracing::warn!("Failed to parse auth config update");
+                let msg = "Failed to parse auth config update".to_string();
+                tracing::warn!("{}", msg);
+                errors.push(msg);
             }
         }
 
         // 3. Update TLS Certificate Cache (if provided)
-        if let Some(tls_cache_ttl) = config_updates
-            .get("tls_cache_ttl")
-            .and_then(|v| v.as_u64())
-        {
-            crate::middleware::update_certificate_cache_ttl(tls_cache_ttl);
-            updated_keys.push("tls_cache_ttl".to_string());
+        if let Some(value) = config_updates.get("tls_cache_ttl") {
+            if let Some(tls_cache_ttl) = value.as_u64() {
+                crate::middleware::update_certificate_cache_ttl(tls_cache_ttl);
+                updated_keys.push("tls_cache_ttl".to_string());
+            } else {
+                errors.push("Invalid tls_cache_ttl: must be a positive integer".to_string());
+            }
         }
 
         let duration = start_time.elapsed();
+        let success = errors.is_empty();
+
         Ok(MaintenanceResult {
             operation: "update_config".to_string(),
-            success: true,
+            success,
             duration_ms: duration.as_millis() as u64,
             details: {
                 let mut details = HashMap::new();
@@ -680,6 +690,17 @@ impl AdminService {
                             .collect(),
                     ),
                 );
+                if !errors.is_empty() {
+                    details.insert(
+                        "errors".to_string(),
+                        serde_json::Value::Array(
+                            errors
+                                .into_iter()
+                                .map(serde_json::Value::String)
+                                .collect(),
+                        ),
+                    );
+                }
                 details
             },
         })
