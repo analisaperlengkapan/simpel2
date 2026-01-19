@@ -70,12 +70,14 @@ pub struct Share {
 mod serde_bytes {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+/// Fungsi `serialize`.
     pub fn serialize<S>(v: &Vec<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         v.serialize(serializer)
     }
+/// Fungsi `deserialize`.
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Vec<u8>>, D::Error>
     where

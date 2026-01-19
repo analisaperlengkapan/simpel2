@@ -66,6 +66,7 @@ pub enum IntegrityCheckStatus {
 }
 
 impl IntegrityCheckStatus {
+/// Fungsi `as_str(`.
     pub fn as_str(&self) -> &'static str {
         match self {
             IntegrityCheckStatus::Success => "success",

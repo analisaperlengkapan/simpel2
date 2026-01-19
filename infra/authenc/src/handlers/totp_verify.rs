@@ -4,6 +4,7 @@ use crate::services::totp_store::TotpStore;
 use serde::Deserialize;
 use totp_rs::{Algorithm, TOTP};
 
+/// Mewakili struktur data `VerifyTotpRequest`.
 #[derive(Deserialize)]
 pub struct VerifyTotpRequest {
     pub user_id: String,

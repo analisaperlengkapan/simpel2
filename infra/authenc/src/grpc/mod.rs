@@ -51,6 +51,7 @@ pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimize
 // Include common proto types
 /// Modul `common`.
 pub mod common {
+/// Modul `v1`.
     pub mod v1 {
         tonic::include_proto!("common.v1");
     }

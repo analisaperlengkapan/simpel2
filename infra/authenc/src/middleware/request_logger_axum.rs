@@ -149,6 +149,7 @@ pub struct ResponseBody<B> {
 
 /// Fungsi `new(`.
 impl<B> ResponseBody<B> {
+/// Fungsi `new(`.
     pub fn new(
         inner: B,
         request_id: Uuid,

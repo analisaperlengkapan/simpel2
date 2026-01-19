@@ -3,6 +3,7 @@ use crate::services::session_store::SessionStore;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
+/// Mewakili struktur data `Claims`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,

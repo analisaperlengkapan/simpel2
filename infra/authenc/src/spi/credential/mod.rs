@@ -9,6 +9,7 @@ use crate::utils::crypto::password::{hash_password, verify_password};
 
 /// Modul `otp`.
 pub mod otp;
+/// Modul `webauthn`.
 pub mod webauthn;
 
 /// Credential input for authentication attempts

@@ -35,6 +35,7 @@ pub async fn list_client_scopes(
     Ok(Json(responses))
 }
 
+/// Mewakili struktur data `ListScopesQuery`.
 #[derive(Debug, Deserialize)]
 pub struct ListScopesQuery {
     pub enabled_only: Option<bool>,
@@ -145,6 +146,7 @@ pub async fn get_client_scopes(
         optional_scopes,
     }))
 }
+/// Mewakili struktur data `ClientScopesResponse`.
 
 #[derive(Debug, Serialize)]
 pub struct ClientScopesResponse {
@@ -222,6 +224,7 @@ pub async fn check_user_consent(
         .await?;
 
     Ok(Json(result))
+/// Mewakili struktur data `CheckConsentRequest`.
 }
 
 #[derive(Debug, Deserialize)]
@@ -256,10 +259,12 @@ pub async fn grant_user_consent(
         )
         .await?;
 
+/// Mewakili struktur data `GrantConsentQuery`.
     Ok(StatusCode::CREATED)
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili struktur data `GrantConsentRequestBody`.
 pub struct GrantConsentQuery {
     pub realm_id: Option<Uuid>,
 }
@@ -301,6 +306,7 @@ pub async fn revoke_user_consent(
     app_state
         .client_scope_service
         .revoke_consent(user_id, client_id, scope_names)
+/// Mewakili struktur data `RevokeConsentRequest`.
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
@@ -331,10 +337,12 @@ pub async fn validate_scopes(
 
     let result = app_state
         .client_scope_service
+/// Mewakili struktur data `ValidateScopesQuery`.
         .validate_requested_scopes(client_id, realm_id, &request.scopes)
         .await?;
 
     Ok(Json(result))
+/// Mewakili struktur data `ValidateScopesRequest`.
 }
 
 #[derive(Debug, Deserialize)]

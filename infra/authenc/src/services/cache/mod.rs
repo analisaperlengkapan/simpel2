@@ -4,8 +4,11 @@
 //! to improve performance and reduce database load.
 
 pub mod event_consumer;
+/// Modul `in_memory_cache`.
 pub mod in_memory_cache;
+/// Modul `metrics`.
 pub mod invalidation;
+/// Modul `multi_layer_cache`.
 pub mod metrics;
 pub mod mfa_cache;
 pub mod multi_layer_cache;

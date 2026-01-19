@@ -8,8 +8,11 @@ pub mod oauth2_authz_code;
 pub mod oauth2_comprehensive;
 /// Modul `oidc_sso`.
 pub mod oid4vc;
+/// Modul `oidc_ed25519`.
 pub mod oidc_ed25519;
+/// Modul `oidc_keys`.
 pub mod oidc_jwt;
+/// Modul `token_exchange`.
 pub mod oidc_keys;
 pub mod oidc_sso;
 pub mod token_exchange;

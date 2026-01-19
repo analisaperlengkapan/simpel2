@@ -1352,6 +1352,7 @@ mod log_level_serde {
 /// Fungsi `deserialize`.
     }
 
+/// Fungsi `deserialize`.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Level, D::Error>
     where
         D: Deserializer<'de>,

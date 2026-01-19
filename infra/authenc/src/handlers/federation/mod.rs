@@ -1,3 +1,4 @@
+/// Modul `broker`.
 pub mod broker;
 /// Modul `federated_auth`.
 pub mod federated_auth;
@@ -7,8 +8,10 @@ pub mod federated_login;
 pub mod federation_admin;
 /// Modul `jit_admin_service`.
 pub mod jit_admin_service;
+/// Modul `social`.
 pub mod saml;
 pub mod social;
+/// Modul `sso`.
 /// Modul `spi_federation`.
 pub mod spi_federation;
 pub mod sso;

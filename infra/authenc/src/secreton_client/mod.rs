@@ -159,8 +159,10 @@ impl std::error::Error for SecretonError {}
 // Type aliases for backward compatibility during migration
 /// Alias tipe `Vault`.
 pub type Vault = dyn SecretonClientTrait;
+/// Alias tipe `VaultError`.
 pub type VaultError = SecretonError;
 
+/// Modul `grpc_client`.
 // Secreton client (custom Rust-based secret manager) - primary integration
 pub mod grpc_client;
 pub mod secreton_client;

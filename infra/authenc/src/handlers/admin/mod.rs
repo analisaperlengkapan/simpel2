@@ -4,6 +4,8 @@ pub mod admin;
 pub mod client_policy;
 /// Modul `satker`.
 pub mod client_registration;
+/// Modul `dcr_admin`.
 pub mod dcr_admin;
+/// Modul `spi_management`.
 pub mod satker;
 pub mod spi_management;

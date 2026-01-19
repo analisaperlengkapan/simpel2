@@ -2,6 +2,7 @@ use crate::services::totp_store::TotpStore;
 // TODO: Migrate to Axum - temporarily commented out
 use serde::Deserialize;
 
+/// Mewakili struktur data `EnableTotpRequest`.
 #[derive(Deserialize)]
 pub struct EnableTotpRequest {
     pub user_id: String,

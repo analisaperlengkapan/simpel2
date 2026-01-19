@@ -4,5 +4,6 @@ pub mod consent_ui;
 pub mod device;
 /// Modul `zero_trust`.
 pub mod uma;
+/// Modul `webauthn`.
 pub mod webauthn;
 pub mod zero_trust;

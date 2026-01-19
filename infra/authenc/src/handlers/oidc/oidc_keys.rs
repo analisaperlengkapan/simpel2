@@ -70,6 +70,7 @@ pub fn get_public_pem() -> Result<String, String> {
     note = "Use Ed25519 signing functions instead - RSA is insecure"
 /// Fungsi `get_private_pem(`.
 )]
+/// Fungsi `get_private_pem(`.
 pub fn get_private_pem() -> Result<String, String> {
     log::error!("SECURITY: Attempted to use legacy RSA private PEM - use Ed25519 implementation");
     Err(

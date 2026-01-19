@@ -16,6 +16,7 @@ use crate::health::checks::{
 // Include common proto for health check types
 /// Modul `common`.
 pub mod common {
+/// Modul `v1`.
     pub mod v1 {
         tonic::include_proto!("common.v1");
     }
