@@ -11,6 +11,7 @@ use thiserror::Error;
 
 /// Path resolution error
 #[derive(Error, Debug)]
+/// Mewakili pub `PathResolutionError`.
 pub enum PathResolutionError {
     #[error("Invalid path format: {0}")]
     InvalidFormat(String),
@@ -44,6 +45,7 @@ impl From<PathResolutionError> for CoreError {
 
 /// Parsed namespace path
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Mewakili pub `NamespacePath`.
 pub struct NamespacePath {
     /// Namespace ID (e.g., "satker-kja001")
     pub namespace_id: String,

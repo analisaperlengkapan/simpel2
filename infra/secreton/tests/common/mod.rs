@@ -55,12 +55,14 @@ pub mod test_storage {
 
     /// Simple in-memory storage for testing
     #[derive(Debug, Clone, Default)]
+    /// Mewakili pub `InMemoryStorage`.
     pub struct InMemoryStorage {
         data: Arc<RwLock<HashMap<String, Vec<u8>>>>,
         metadata: Arc<RwLock<HashMap<String, serde_json::Value>>>,
     }
 
     impl InMemoryStorage {
+        /// Mewakili pub `new(`.
         pub fn new() -> Self {
             Self::default()
         }
@@ -269,6 +271,7 @@ pub mod performance_utils {
     }
 
     #[derive(Debug, Clone)]
+    /// Mewakili pub `BenchmarkResult`.
     pub struct BenchmarkResult {
         pub operation_name: String,
         pub total_iterations: usize,
@@ -283,6 +286,7 @@ pub mod performance_utils {
     }
 
     impl BenchmarkResult {
+        /// Mewakili pub `print_summary(`.
         pub fn print_summary(&self) {
             println!("\n=== {} Benchmark Results ===", self.operation_name);
             println!("Total iterations: {}", self.total_iterations);

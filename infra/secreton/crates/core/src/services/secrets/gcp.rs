@@ -15,11 +15,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 /// GCP Secrets Engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `GcpError`.
 pub enum GcpError {
     #[error("GCP configuration not found")]
     ConfigNotFound,
@@ -55,12 +56,14 @@ pub enum GcpError {
 /// GCP credential type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `GcpCredentialType`.
 pub enum GcpCredentialType {
     ServiceAccount,
     AccessToken,
 }
 
 impl GcpCredentialType {
+    /// Mewakili pub `from_str(s`.
     pub fn from_str(s: &str) -> Result<Self, GcpError> {
         match s.to_lowercase().as_str() {
             "service_account" => Ok(Self::ServiceAccount),
@@ -69,6 +72,7 @@ impl GcpCredentialType {
         }
     }
 
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::ServiceAccount => "service_account",
@@ -79,6 +83,7 @@ impl GcpCredentialType {
 
 /// GCP root configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpConfig`.
 pub struct GcpConfig {
     /// GCP Project ID
     pub project_id: String,
@@ -107,6 +112,7 @@ impl Default for GcpConfig {
 
 /// GCP role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpRole`.
 pub struct GcpRole {
     /// Role name
     pub name: String,
@@ -134,6 +140,7 @@ pub struct GcpRole {
 }
 
 impl GcpRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, credential_type: GcpCredentialType) -> Self {
         Self {
             name,
@@ -150,6 +157,7 @@ impl GcpRole {
 
 /// GCP role creation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpRoleCreateRequest`.
 pub struct GcpRoleCreateRequest {
     pub name: String,
     pub credential_type: GcpCredentialType,
@@ -162,6 +170,7 @@ pub struct GcpRoleCreateRequest {
 
 /// GCP role response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpRoleResponse`.
 pub struct GcpRoleResponse {
     pub name: String,
     pub credential_type: GcpCredentialType,
@@ -190,6 +199,7 @@ impl From<GcpRole> for GcpRoleResponse {
 
 /// GCP credentials request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpCredentialsRequest`.
 pub struct GcpCredentialsRequest {
     pub role_name: String,
     pub ttl: Option<u32>,
@@ -197,6 +207,7 @@ pub struct GcpCredentialsRequest {
 
 /// GCP credentials response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpCredentials`.
 pub struct GcpCredentials {
     /// Credential type
     pub credential_type: GcpCredentialType,

@@ -53,6 +53,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to create a new policy
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreatePolicyRequest`.
 pub struct CreatePolicyRequest {
     /// Policy description
     pub description: Option<String>,
@@ -67,6 +68,7 @@ pub struct CreatePolicyRequest {
 
 /// Request to update a policy
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `UpdatePolicyRequest`.
 pub struct UpdatePolicyRequest {
     /// Updated description
     pub description: Option<String>,
@@ -80,6 +82,7 @@ pub struct UpdatePolicyRequest {
 
 /// Policy response DTO
 #[derive(Debug, Serialize)]
+/// Mewakili pub `PolicyResponse`.
 pub struct PolicyResponse {
     pub id: i64,
     pub name: String,
@@ -97,6 +100,7 @@ pub struct PolicyResponse {
 
 /// Policy evaluation statistics
 #[derive(Debug, Serialize)]
+/// Mewakili pub `PolicyStats`.
 pub struct PolicyStats {
     pub evaluations_total: i64,
     pub evaluations_allowed: i64,
@@ -108,6 +112,7 @@ pub struct PolicyStats {
 
 /// Request to test policy evaluation
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `TestPolicyRequest`.
 pub struct TestPolicyRequest {
     /// User to test
     pub user: String,
@@ -124,6 +129,7 @@ pub struct TestPolicyRequest {
 
 /// Test policy response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `TestPolicyResponse`.
 pub struct TestPolicyResponse {
     pub allowed: bool,
     pub matched_rules: Vec<String>,
@@ -132,6 +138,7 @@ pub struct TestPolicyResponse {
 
 /// List policies query parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ListPoliciesQuery`.
 pub struct ListPoliciesQuery {
     /// Filter by namespace
     pub namespace: Option<String>,

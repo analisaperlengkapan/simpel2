@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// Error types for Kafka secrets engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `KafkaError`.
 pub enum KafkaError {
     #[error("Kafka configuration not found")]
     ConfigNotFound,
@@ -51,6 +52,7 @@ pub enum KafkaError {
 /// Kafka ACL operation type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
+/// Mewakili pub `KafkaAclOperation`.
 pub enum KafkaAclOperation {
     Read,
     Write,
@@ -66,6 +68,7 @@ pub enum KafkaAclOperation {
 }
 
 impl KafkaAclOperation {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::Read => "READ",
@@ -86,6 +89,7 @@ impl KafkaAclOperation {
 /// Kafka resource type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
+/// Mewakili pub `KafkaResourceType`.
 pub enum KafkaResourceType {
     Topic,
     Group,
@@ -95,6 +99,7 @@ pub enum KafkaResourceType {
 }
 
 impl KafkaResourceType {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::Topic => "TOPIC",
@@ -109,12 +114,14 @@ impl KafkaResourceType {
 /// Kafka ACL permission type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
+/// Mewakili pub `KafkaPermissionType`.
 pub enum KafkaPermissionType {
     Allow,
     Deny,
 }
 
 impl KafkaPermissionType {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::Allow => "ALLOW",
@@ -125,6 +132,7 @@ impl KafkaPermissionType {
 
 /// Kafka ACL entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KafkaAcl`.
 pub struct KafkaAcl {
     pub resource_type: KafkaResourceType,
     pub resource_name: String,
@@ -152,12 +160,14 @@ impl Default for KafkaAcl {
 /// Kafka SCRAM mechanism
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+/// Mewakili pub `KafkaScramMechanism`.
 pub enum KafkaScramMechanism {
     ScramSha256,
     ScramSha512,
 }
 
 impl KafkaScramMechanism {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::ScramSha256 => "SCRAM-SHA-256",
@@ -168,6 +178,7 @@ impl KafkaScramMechanism {
 
 /// Kafka configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KafkaConfig`.
 pub struct KafkaConfig {
     pub bootstrap_servers: String,
     pub admin_username: String,
@@ -196,6 +207,7 @@ impl Default for KafkaConfig {
 }
 
 impl KafkaConfig {
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), KafkaError> {
         if self.bootstrap_servers.is_empty() {
             return Err(KafkaError::InvalidConfig(
@@ -233,6 +245,7 @@ impl KafkaConfig {
 
 /// Kafka role
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KafkaRole`.
 pub struct KafkaRole {
     pub name: String,
     pub acls: Vec<KafkaAcl>,
@@ -243,6 +256,7 @@ pub struct KafkaRole {
 }
 
 impl KafkaRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -254,6 +268,7 @@ impl KafkaRole {
         }
     }
 
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), KafkaError> {
         if self.name.is_empty() {
             return Err(KafkaError::InvalidConfig(
@@ -286,6 +301,7 @@ impl KafkaRole {
 
 /// Kafka credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KafkaCredentials`.
 pub struct KafkaCredentials {
     pub username: String,
     pub password: String,
@@ -299,6 +315,7 @@ pub struct KafkaCredentials {
 
 /// Kafka credential info (without password)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KafkaCredentialInfo`.
 pub struct KafkaCredentialInfo {
     pub username: String,
     pub bootstrap_servers: String,
@@ -344,7 +361,7 @@ impl KafkaAdminClient {
     async fn create_scram_user(
         &self,
         username: &str,
-        password: &str,
+        _password: &str,
         mechanism: &KafkaScramMechanism,
     ) -> Result<(), KafkaError> {
         info!(
@@ -408,6 +425,7 @@ pub struct KafkaEngine {
 }
 
 impl KafkaEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(None)),
@@ -418,6 +436,7 @@ impl KafkaEngine {
         }
     }
 
+    /// Mewakili pub `with_storage(pool`.
     pub fn with_storage(pool: Pool) -> Self {
         Self {
             config: Arc::new(RwLock::new(None)),

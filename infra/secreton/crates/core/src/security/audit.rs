@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 /// Audit event severity levels
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+/// Mewakili pub `AuditSeverity`.
 pub enum AuditSeverity {
     Debug = 0,
     Info = 1,
@@ -35,6 +36,7 @@ pub enum AuditSeverity {
 
 /// Audit event categories for compliance mapping
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+/// Mewakili pub `AuditCategory`.
 pub enum AuditCategory {
     Authentication,
     Authorization,
@@ -52,6 +54,7 @@ pub enum AuditCategory {
 
 /// Comprehensive audit event structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditEvent`.
 pub struct AuditEvent {
     /// Unique event identifier
     pub event_id: Uuid,
@@ -94,6 +97,7 @@ pub struct AuditEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GeoLocation`.
 pub struct GeoLocation {
     pub country: Option<String>,
     pub region: Option<String>,
@@ -103,6 +107,7 @@ pub struct GeoLocation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditResult`.
 pub enum AuditResult {
     Success,
     Failure(String),
@@ -112,6 +117,7 @@ pub enum AuditResult {
 
 /// Cryptographically signed audit log entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SignedAuditEntry`.
 pub struct SignedAuditEntry {
     /// The audit event
     pub event: AuditEvent,
@@ -129,6 +135,7 @@ pub struct SignedAuditEntry {
 
 /// Behavioral pattern for anomaly detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `BehavioralPattern`.
 pub struct BehavioralPattern {
     pub user_id: String,
     pub typical_access_hours: Vec<u8>, // 0-23 hours
@@ -142,6 +149,7 @@ pub struct BehavioralPattern {
 
 /// Anomaly detection result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AnomalyResult`.
 pub struct AnomalyResult {
     pub event_id: Uuid,
     pub anomaly_type: AnomalyType,
@@ -153,6 +161,7 @@ pub struct AnomalyResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AnomalyType`.
 pub enum AnomalyType {
     UnusualTimeAccess,
     UnusualLocationAccess,
@@ -165,6 +174,7 @@ pub enum AnomalyType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RecommendedAction`.
 pub enum RecommendedAction {
     Monitor,
     Alert,
@@ -176,6 +186,7 @@ pub enum RecommendedAction {
 
 /// SIEM integration configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SiemConfig`.
 pub struct SiemConfig {
     pub enabled: bool,
     pub endpoint: String,
@@ -189,6 +200,7 @@ pub struct SiemConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SiemAuth`.
 pub enum SiemAuth {
     None,
     ApiKey(String),
@@ -199,6 +211,7 @@ pub enum SiemAuth {
 
 /// Compliance reporting configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `ComplianceConfig`.
 pub struct ComplianceConfig {
     pub standards: Vec<ComplianceStandard>,
     pub report_schedule: ReportSchedule,
@@ -209,6 +222,7 @@ pub struct ComplianceConfig {
 
 /// Audit system health metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditSystemHealth`.
 pub struct AuditSystemHealth {
     pub system_health_score: f64,
     pub events_processed_last_hour: u64,
@@ -233,6 +247,7 @@ impl Default for AuditSystemHealth {
 
 /// Performance and usage metrics for audit system
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditMetrics`.
 pub struct AuditMetrics {
     pub events_logged: u64,
     pub events_processed: u64,
@@ -246,6 +261,7 @@ pub struct AuditMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceStandard`.
 pub enum ComplianceStandard {
     PciDss,
     Sox,
@@ -258,6 +274,7 @@ pub enum ComplianceStandard {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `ReportSchedule`.
 pub enum ReportSchedule {
     #[default]
     Daily,
@@ -269,6 +286,7 @@ pub enum ReportSchedule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `RetentionPolicy`.
 pub struct RetentionPolicy {
     pub default_retention: Duration,
     pub category_specific: HashMap<AuditCategory, Duration>,
@@ -282,6 +300,7 @@ pub struct RetentionPolicy {
 /// This error type is for advanced security features like SIEM integration,
 /// compliance validation, and anomaly detection.
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `SecurityAuditError`.
 pub enum SecurityAuditError {
     #[error("Audit storage error: {message}")]
     StorageError { message: String },
@@ -313,6 +332,7 @@ pub enum SecurityAuditError {
 
 /// Trait for audit storage backends
 #[async_trait]
+/// Mewakili pub `AuditStorage`.
 pub trait AuditStorage: Send + Sync {
     async fn store_entry(&self, entry: &SignedAuditEntry) -> Result<(), SecurityAuditError>;
     async fn retrieve_entries(
@@ -337,6 +357,7 @@ pub trait AuditStorage: Send + Sync {
 
 /// Query structure for audit log searches
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditQuery`.
 pub struct AuditQuery {
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
@@ -368,6 +389,7 @@ pub struct AdvancedAuditSystem {
 
 /// Trait for anomaly detection engines
 #[async_trait]
+/// Mewakili pub `AnomalyDetector`.
 pub trait AnomalyDetector: Send + Sync {
     async fn detect_anomalies(
         &self,
@@ -984,6 +1006,7 @@ impl ProcessingAuditSystem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceReport`.
 pub struct ComplianceReport {
     pub standard: ComplianceStandard,
     pub period_start: DateTime<Utc>,

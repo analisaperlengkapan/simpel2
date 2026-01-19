@@ -20,6 +20,7 @@ use std::error::Error;
 /// - `Config`: Engine-specific configuration
 /// - `Error`: Engine-specific error type
 #[async_trait]
+/// Mewakili pub `SecretEngine`.
 pub trait SecretEngine: Send + Sync {
     /// Configuration type for this engine
     type Config;
@@ -88,23 +89,41 @@ pub trait SecretEngine: Send + Sync {
     }
 }
 
+/// Mewakili pub `aws`.
 pub mod aws;
+/// Mewakili pub `azure`.
 pub mod azure;
+/// Mewakili pub `cubbyhole`.
 pub mod cubbyhole;
+/// Mewakili pub `database`.
 pub mod database;
+/// Mewakili pub `enhanced`.
 pub mod enhanced;
+/// Mewakili pub `gcp`.
 pub mod gcp;
+/// Mewakili pub `identity`.
 pub mod identity;
+/// Mewakili pub `kafka`.
 pub mod kafka;
+/// Mewakili pub `kmip`.
 pub mod kmip;
+/// Mewakili pub `kvv2`.
 pub mod kvv2;
+/// Mewakili pub `ldap`.
 pub mod ldap;
+/// Mewakili pub `lease_integration`.
 pub mod lease_integration;
+/// Mewakili pub `pki`.
 pub mod pki;
+/// Mewakili pub `rabbitmq`.
 pub mod rabbitmq;
+/// Mewakili pub `ssh`.
 pub mod ssh;
+/// Mewakili pub `totp`.
 pub mod totp;
+/// Mewakili pub `transform`.
 pub mod transform;
+/// Mewakili pub `transit`.
 pub mod transit;
 
 pub use aws::*;

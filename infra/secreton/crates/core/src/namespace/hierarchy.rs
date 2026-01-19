@@ -16,6 +16,7 @@ use crate::error::CoreError;
 
 /// Namespace hierarchy manager for SIMKARI organizational structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `NamespaceHierarchy`.
 pub struct NamespaceHierarchy {
     /// Root namespace (Pusat/Central)
     pub root: Namespace,
@@ -32,6 +33,7 @@ pub struct NamespaceHierarchy {
 
 /// Individual namespace representing an organizational unit
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `Namespace`.
 pub struct Namespace {
     /// Unique namespace identifier (e.g., "pusat", "wilayah-sumut", "satker-kja001")
     pub id: String,
@@ -72,6 +74,7 @@ pub struct Namespace {
 
 /// Type of namespace in the hierarchy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Mewakili pub `NamespaceType`.
 pub enum NamespaceType {
     /// Central/National level (Kejaksaan Agung)
     Pusat,
@@ -85,6 +88,7 @@ pub enum NamespaceType {
 
 /// Resource quotas for namespace
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `NamespaceQuotas`.
 pub struct NamespaceQuotas {
     /// Maximum number of secrets
     pub max_secrets: Option<u64>,
@@ -104,6 +108,7 @@ pub struct NamespaceQuotas {
 
 /// Current quota usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+/// Mewakili pub `QuotaUsage`.
 pub struct QuotaUsage {
     /// Current number of secrets
     pub secrets_count: u64,

@@ -30,6 +30,7 @@ pub fn extract_correlation_id_from_headers(headers: &reqwest::header::HeaderMap)
 
 /// Correlation context for request tracking
 #[derive(Debug, Clone)]
+/// Mewakili pub `CorrelationContext`.
 pub struct CorrelationContext {
     /// Correlation ID for the entire flow
     pub correlation_id: String,
@@ -76,6 +77,7 @@ impl CorrelationContext {
 
     /// Convert to gRPC metadata entries
     #[cfg(feature = "grpc")]
+    /// Mewakili pub `to_grpc_metadata(`.
     pub fn to_grpc_metadata(&self) -> Vec<(String, String)> {
         vec![
             (

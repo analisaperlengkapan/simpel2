@@ -265,11 +265,13 @@ async fn list_entities(
 /// Request/Response types
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `IntrospectRequest`.
 pub struct IntrospectRequest {
     pub token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcConfigResponse`.
 pub struct OidcConfigResponse {
     pub issuer: String,
     pub scopes_supported: Vec<String>,
@@ -278,11 +280,13 @@ pub struct OidcConfigResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CreateEntityRequest`.
 pub struct CreateEntityRequest {
     pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EntityResponse`.
 pub struct EntityResponse {
     pub id: String,
     pub name: String,

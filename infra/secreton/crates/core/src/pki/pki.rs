@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PrivateKey`.
 pub struct PrivateKey {
     pub key_type: String,
     pub key_bits: u32,
@@ -9,6 +10,7 @@ pub struct PrivateKey {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Certificate`.
 pub struct Certificate {
     pub pem_data: String,
     pub serial_number: String,
@@ -17,6 +19,7 @@ pub struct Certificate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SignatureAlgorithm`.
 pub enum SignatureAlgorithm {
     Sha256WithRsa,
     Sha384WithRsa,
@@ -38,6 +41,7 @@ impl fmt::Display for SignatureAlgorithm {
 }
 
 impl PrivateKey {
+    /// Mewakili pub `generate_rsa(key_bits`.
     pub fn generate_rsa(key_bits: u32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Placeholder implementation - in production, use actual crypto library
         Ok(PrivateKey {
@@ -50,6 +54,7 @@ impl PrivateKey {
         })
     }
 
+    /// Mewakili pub `generate_ec(key_bits`.
     pub fn generate_ec(key_bits: u32) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Placeholder implementation - in production, use actual crypto library
         Ok(PrivateKey {
@@ -62,6 +67,7 @@ impl PrivateKey {
         })
     }
 
+    /// Mewakili pub `generate_ed25519(`.
     pub fn generate_ed25519() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Placeholder implementation - in production, use actual crypto library
         Ok(PrivateKey {
@@ -71,6 +77,7 @@ impl PrivateKey {
         })
     }
 
+    /// Mewakili pub `public_key(`.
     pub fn public_key(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         // Extract public key from private key (placeholder implementation)
         Ok(format!(
@@ -79,25 +86,30 @@ impl PrivateKey {
         ))
     }
 
+    /// Mewakili pub `to_pem(`.
     pub fn to_pem(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         Ok(self.pem_data.clone())
     }
 }
 
 impl Certificate {
+    /// Mewakili pub `builder(`.
     pub fn builder() -> Result<CertificateBuilder, Box<dyn std::error::Error + Send + Sync>> {
         Ok(CertificateBuilder::new())
     }
 
+    /// Mewakili pub `serial_number(`.
     pub fn serial_number(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         Ok(self.serial_number.clone())
     }
 
+    /// Mewakili pub `to_pem(`.
     pub fn to_pem(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         Ok(self.pem_data.clone())
     }
 }
 
+/// Mewakili pub `CertificateBuilder`.
 pub struct CertificateBuilder {
     common_name: Option<String>,
     alt_names: Vec<String>,
@@ -111,6 +123,7 @@ impl Default for CertificateBuilder {
 }
 
 impl CertificateBuilder {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             common_name: None,
@@ -119,21 +132,25 @@ impl CertificateBuilder {
         }
     }
 
+    /// Mewakili pub `common_name(`.
     pub fn common_name(&mut self, cn: &str) -> &mut Self {
         self.common_name = Some(cn.to_string());
         self
     }
 
+    /// Mewakili pub `add_alt_name(`.
     pub fn add_alt_name(&mut self, alt_name: &str) -> &mut Self {
         self.alt_names.push(alt_name.to_string());
         self
     }
 
+    /// Mewakili pub `serial_number(`.
     pub fn serial_number(&mut self, serial: &str) -> &mut Self {
         self.serial_number = Some(serial.to_string());
         self
     }
 
+    /// Mewakili pub `subject_common_name(`.
     pub fn subject_common_name(
         &mut self,
         cn: &str,
@@ -142,6 +159,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `subject_organization(`.
     pub fn subject_organization(
         &mut self,
         _org: &[String],
@@ -150,6 +168,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `subject_country(`.
     pub fn subject_country(
         &mut self,
         _country: &[String],
@@ -158,6 +177,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `validity_period(`.
     pub fn validity_period(
         &mut self,
         _not_before: &str,
@@ -167,6 +187,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `public_key(`.
     pub fn public_key(
         &mut self,
         _public_key: &str,
@@ -175,6 +196,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `key_usage_server(`.
     pub fn key_usage_server(
         &mut self,
     ) -> Result<&mut Self, Box<dyn std::error::Error + Send + Sync>> {
@@ -182,6 +204,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `key_usage_client(`.
     pub fn key_usage_client(
         &mut self,
     ) -> Result<&mut Self, Box<dyn std::error::Error + Send + Sync>> {
@@ -189,6 +212,7 @@ impl CertificateBuilder {
         Ok(self)
     }
 
+    /// Mewakili pub `sign(`.
     pub fn sign(
         &mut self,
         _ca_private_key: &str,
@@ -210,6 +234,7 @@ impl CertificateBuilder {
         })
     }
 
+    /// Mewakili pub `build(`.
     pub fn build(
         &self,
         _private_key: &PrivateKey,

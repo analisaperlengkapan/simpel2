@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 /// Error types for token service
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `TokenError`.
 pub enum TokenError {
     #[error("Token not found: {0}")]
     TokenNotFound(String),
@@ -37,6 +38,7 @@ pub enum TokenError {
 
 /// Token type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `TokenType`.
 pub enum TokenType {
     /// Service token (no expiration, can be renewed)
     Service,
@@ -50,6 +52,7 @@ pub enum TokenType {
 
 /// Token metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Token`.
 pub struct Token {
     /// Token ID (accessor)
     pub id: String,
@@ -411,6 +414,7 @@ impl Default for TokenService {
 }
 
 // Legacy compatibility function
+/// Mewakili pub `verify_token(token`.
 pub fn verify_token(token: &str) -> bool {
     token == "admin-token"
 }

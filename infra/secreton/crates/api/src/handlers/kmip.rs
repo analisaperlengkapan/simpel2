@@ -284,6 +284,7 @@ async fn get_role(
 // Request/Response types
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateKeyRequest`.
 pub struct CreateKeyRequest {
     pub algorithm: String,
     pub key_length: usize,
@@ -291,6 +292,7 @@ pub struct CreateKeyRequest {
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RegisterKeyRequest`.
 pub struct RegisterKeyRequest {
     pub algorithm: String,
     pub key_material: Vec<u8>,
@@ -298,6 +300,7 @@ pub struct RegisterKeyRequest {
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `KmipConfigResponse`.
 pub struct KmipConfigResponse {
     pub host: String,
     pub port: u16,
@@ -307,6 +310,7 @@ pub struct KmipConfigResponse {
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `KmipKeyResponse`.
 pub struct KmipKeyResponse {
     pub key_id: String,
     pub key_format: String,

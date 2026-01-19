@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 /// Lease information to include in secret responses
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Mewakili pub `LeaseInfo`.
 pub struct LeaseInfo {
     /// Lease ID
     pub lease_id: String,

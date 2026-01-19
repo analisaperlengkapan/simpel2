@@ -9,11 +9,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// Transform engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `TransformError`.
 pub enum TransformError {
     #[error("Transformation not found: {0}")]
     TransformationNotFound(String),
@@ -44,6 +45,7 @@ pub enum TransformError {
 /// Transformation type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `TransformationType`.
 pub enum TransformationType {
     FPE,
     Tokenization,
@@ -53,6 +55,7 @@ pub enum TransformationType {
 /// Alphabet for FPE
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `Alphabet`.
 pub enum Alphabet {
     Numeric,
     Alphanumeric,
@@ -61,6 +64,7 @@ pub enum Alphabet {
 }
 
 impl Alphabet {
+    /// Mewakili pub `to_fpe_alphabet(`.
     pub fn to_fpe_alphabet(&self) -> FpeAlphabet {
         match self {
             Alphabet::Numeric => FpeAlphabet::Numeric,
@@ -73,6 +77,7 @@ impl Alphabet {
 
 /// Transformation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Transformation`.
 pub struct Transformation {
     pub name: String,
     pub transformation_type: TransformationType,
@@ -84,6 +89,7 @@ pub struct Transformation {
 }
 
 impl Transformation {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, transformation_type: TransformationType) -> Self {
         Self {
             name,
@@ -99,6 +105,7 @@ impl Transformation {
 
 /// Transform role
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TransformRole`.
 pub struct TransformRole {
     pub name: String,
     pub transformations: Vec<String>,
@@ -106,6 +113,7 @@ pub struct TransformRole {
 }
 
 impl TransformRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, transformations: Vec<String>) -> Self {
         Self {
             name,
@@ -114,6 +122,7 @@ impl TransformRole {
         }
     }
 
+    /// Mewakili pub `can_use(`.
     pub fn can_use(&self, transformation_name: &str) -> bool {
         self.transformations
             .contains(&transformation_name.to_string())
@@ -146,6 +155,7 @@ pub struct TransformEngine {
 }
 
 impl TransformEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             pool: None,
@@ -157,6 +167,7 @@ impl TransformEngine {
         }
     }
 
+    /// Mewakili pub `with_storage(pool`.
     pub fn with_storage(pool: Pool) -> Self {
         Self {
             pool: Some(pool),

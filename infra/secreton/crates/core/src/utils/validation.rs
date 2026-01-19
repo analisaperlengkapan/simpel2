@@ -15,6 +15,7 @@ pub type ValidationResult<T> = Result<T, CoreError>;
 /// # Returns
 /// Ok(()) if valid, Err with descriptive message if empty
 #[inline]
+/// Mewakili pub `validate_not_empty(value`.
 pub fn validate_not_empty(value: &str, field_name: &str) -> ValidationResult<()> {
     if value.is_empty() {
         Err(CoreError::Validation {
@@ -30,6 +31,7 @@ pub fn validate_not_empty(value: &str, field_name: &str) -> ValidationResult<()>
 /// * `collection` - Collection to validate
 /// * `field_name` - Name of the field for error messages
 #[inline]
+/// Mewakili pub `validate_collection_not_empty`.
 pub fn validate_collection_not_empty<T>(
     collection: &[T],
     field_name: &str,

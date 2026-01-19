@@ -37,6 +37,7 @@ pub struct SecurityManager {
 
 /// Security policies configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityPolicies`.
 pub struct SecurityPolicies {
     /// Minimum security level required
     pub min_security_level: SecurityLevel,
@@ -57,6 +58,7 @@ pub struct SecurityPolicies {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MFARequirements`.
 pub struct MFARequirements {
     pub required_methods: u8,
     pub mandatory_methods: Vec<MFAMethod>,
@@ -65,6 +67,7 @@ pub struct MFARequirements {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KeyRotationPolicy`.
 pub struct KeyRotationPolicy {
     pub automatic_rotation: bool,
     pub rotation_interval: chrono::Duration,
@@ -73,6 +76,7 @@ pub struct KeyRotationPolicy {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RiskTolerance`.
 pub struct RiskTolerance {
     pub max_risk_score: f64,
     pub auto_block_threshold: f64,
@@ -81,6 +85,7 @@ pub struct RiskTolerance {
 
 /// Security session with comprehensive context
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecuritySession`.
 pub struct SecuritySession {
     pub id: String,
     pub user_id: String,
@@ -95,6 +100,7 @@ pub struct SecuritySession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ClientInfo`.
 pub struct ClientInfo {
     pub ip_address: String,
     pub user_agent: Option<String>,
@@ -104,6 +110,7 @@ pub struct ClientInfo {
 
 /// Security operation request with full context
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityRequest`.
 pub struct SecurityRequest {
     pub operation: SecurityOperation,
     pub session_id: String,
@@ -114,6 +121,7 @@ pub struct SecurityRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityOperation`.
 pub enum SecurityOperation {
     /// Cryptographic operations
     GenerateKey { algorithm: String, key_size: u32 },
@@ -140,6 +148,7 @@ pub enum SecurityOperation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityResponse`.
 pub struct SecurityResponse {
     pub success: bool,
     pub result: Option<serde_json::Value>,
@@ -149,6 +158,7 @@ pub struct SecurityResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RiskAssessment`.
 pub struct RiskAssessment {
     pub risk_score: f64,
     pub risk_factors: Vec<String>,
@@ -157,6 +167,7 @@ pub struct RiskAssessment {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceStatus`.
 pub struct ComplianceStatus {
     pub compliant: bool,
     pub standards_met: Vec<ComplianceStandard>,

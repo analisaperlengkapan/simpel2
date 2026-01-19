@@ -19,6 +19,7 @@ use std::error::Error;
 /// - `Response`: Authentication response with user info and metadata
 /// - `Error`: Method-specific error type
 #[async_trait]
+/// Mewakili pub `AuthMethod`.
 pub trait AuthMethod: Send + Sync {
     /// Authentication request type (method-specific)
     type Request;
@@ -62,13 +63,20 @@ pub trait AuthMethod: Send + Sync {
 }
 
 pub mod approle;
+/// Mewakili pub `kubernetes`.
 pub mod kubernetes;
+/// Mewakili pub `ldap`.
 pub mod ldap;
+/// Mewakili pub `oidc`.
 pub mod oidc;
 // pub mod token;  // Missing file
+/// Mewakili pub `aws`.
 pub mod aws;
+/// Mewakili pub `certificate`.
 pub mod certificate;
+/// Mewakili pub `github`.
 pub mod github;
 // pub mod okta;  // Missing file
 // pub mod radius;  // Missing file
+/// Mewakili pub `userpass`.
 pub mod userpass;

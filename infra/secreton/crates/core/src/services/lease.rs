@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 /// Lease error types
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `LeaseError`.
 pub enum LeaseError {
     #[error("Lease not found: {0}")]
     LeaseNotFound(String),
@@ -38,6 +39,7 @@ pub enum LeaseError {
 
 /// Enhanced lease with additional metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EnhancedLease`.
 pub struct EnhancedLease {
     /// Lease ID
     pub id: String,
@@ -132,6 +134,7 @@ impl From<EnhancedLease> for Lease {
 
 /// Lease scheduler configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LeaseSchedulerConfig`.
 pub struct LeaseSchedulerConfig {
     /// Check interval in seconds (default: 60)
     pub check_interval_secs: u64,
@@ -1080,6 +1083,7 @@ impl LeaseManager {
 
 /// Statistics from an expiration check cycle
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Mewakili pub `ExpirationCheckStats`.
 pub struct ExpirationCheckStats {
     /// Number of expired leases found
     pub expired_count: usize,
@@ -1096,6 +1100,7 @@ pub struct ExpirationCheckStats {
 
 /// Lease statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LeaseStats`.
 pub struct LeaseStats {
     pub active_count: usize,
     pub revoked_count: usize,

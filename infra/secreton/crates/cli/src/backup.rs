@@ -16,6 +16,7 @@ use std::path::Path;
 use crate::config::CliConfig;
 
 #[derive(Subcommand)]
+/// Mewakili pub `BackupCommand`.
 pub enum BackupCommand {
     /// Create a backup of vault data
     Create {
@@ -109,6 +110,7 @@ pub enum BackupCommand {
 /// Backup manifest containing metadata about the backup
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
+/// Mewakili pub `BackupManifest`.
 pub struct BackupManifest {
     pub backup_id: String,
     pub created_at: DateTime<Utc>,
@@ -127,6 +129,7 @@ pub struct BackupManifest {
 
 /// Type of backup
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `BackupType`.
 pub enum BackupType {
     Full,
     Incremental,
@@ -562,6 +565,7 @@ async fn list_backups(directory: &str, detailed: bool) -> Result<()> {
 }
 
 /// Restore vault data from a backup
+#[allow(clippy::too_many_arguments)]
 async fn restore_backup(
     config: &CliConfig,
     file_path: &str,

@@ -29,6 +29,7 @@ use tokio::sync::RwLock;
 
 /// Configuration for EnhancedSecretEngine
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EnhancedSecretEngineConfig`.
 pub struct EnhancedSecretEngineConfig {
     /// Enable caching for frequently accessed secrets
     pub enable_cache: bool,
@@ -84,6 +85,7 @@ pub struct EnhancedSecretEngine {
 
 /// Encryption information for a secret
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EncryptionInfo`.
 pub struct EncryptionInfo {
     pub algorithm: String,
     pub quantum_safe: bool,
@@ -93,6 +95,7 @@ pub struct EncryptionInfo {
 
 /// Post-quantum operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PqResult`.
 pub struct PqResult {
     pub is_post_quantum: bool,
     pub algorithm: String,
@@ -102,6 +105,7 @@ pub struct PqResult {
 
 /// User credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Credentials`.
 pub struct Credentials {
     pub username: String,
     pub password: String,
@@ -338,7 +342,7 @@ impl EnhancedSecretEngine {
     /// Store secret with post-quantum encryption
     pub async fn store_secret_with_pq_encryption(
         &self,
-        secret: &Secret,
+        _secret: &Secret,
         mode: CryptoMode,
     ) -> Result<(), CoreError> {
         // Update crypto mode

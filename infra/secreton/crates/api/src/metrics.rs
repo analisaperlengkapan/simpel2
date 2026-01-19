@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 /// Metrics for vault operations
 #[derive(Debug, Clone)]
+/// Mewakili pub `VaultMetrics`.
 pub struct VaultMetrics {
     // Operation counters
     secret_creates: Arc<AtomicU64>,
@@ -214,6 +215,7 @@ vault_total_operations {}
 
 /// Metrics snapshot for reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MetricsSnapshot`.
 pub struct MetricsSnapshot {
     pub secret_creates: u64,
     pub secret_reads: u64,
@@ -258,12 +260,14 @@ impl Default for OperationTimer {
 }
 
 impl OperationTimer {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             start: Instant::now(),
         }
     }
 
+    /// Mewakili pub `elapsed(`.
     pub fn elapsed(&self) -> Duration {
         self.start.elapsed()
     }
@@ -271,6 +275,7 @@ impl OperationTimer {
 
 /// gRPC TLS metrics
 #[derive(Debug, Clone)]
+/// Mewakili pub `GrpcTlsMetrics`.
 pub struct GrpcTlsMetrics {
     // Connection counters
     total_connections: Arc<AtomicU64>,
@@ -373,6 +378,7 @@ grpc_tls_success_rate {}
 
 /// gRPC TLS metrics snapshot
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GrpcTlsMetricsSnapshot`.
 pub struct GrpcTlsMetricsSnapshot {
     pub total_connections: u64,
     pub successful_handshakes: u64,

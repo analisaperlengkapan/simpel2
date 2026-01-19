@@ -18,6 +18,7 @@ pub fn check_policy_with_policyset(
 */
 
 // Update check_policy agar bisa fallback ke policy as code jika ada
+/// Mewakili pub `check_policy(`.
 pub fn check_policy(
     roles: &[String],
     policies: &[crate::models::policy::Policy],

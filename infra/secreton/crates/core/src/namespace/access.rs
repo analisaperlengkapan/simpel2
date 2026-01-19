@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 /// JWT claims extracted from Authenc tokens
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `JwtClaims`.
 pub struct JwtClaims {
     /// Standard JWT subject (user ID)
     pub sub: String,
@@ -55,6 +56,7 @@ pub struct JwtClaims {
 
 /// Administrative level in Kejaksaan RI hierarchy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Mewakili pub `AdminLevel`.
 pub enum AdminLevel {
     /// Central/National level (Kejaksaan Agung)
     /// Full access to all namespaces
@@ -75,6 +77,7 @@ pub enum AdminLevel {
 
 /// Access control result
 #[derive(Debug, Clone)]
+/// Mewakili pub `AccessCheckResult`.
 pub struct AccessCheckResult {
     /// Whether access is allowed
     pub allowed: bool,
@@ -88,6 +91,7 @@ pub struct AccessCheckResult {
 
 /// Namespace access controller
 #[derive(Debug)]
+/// Mewakili pub `NamespaceAccessControl`.
 pub struct NamespaceAccessControl {
     /// Namespace hierarchy
     hierarchy: NamespaceHierarchy,
@@ -372,6 +376,7 @@ impl std::fmt::Display for AdminLevel {
 impl JwtClaims {
     /// Create JWT claims for testing
     #[cfg(test)]
+    /// Mewakili pub `new_test(`.
     pub fn new_test(
         sub: String,
         admin_level: AdminLevel,

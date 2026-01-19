@@ -37,6 +37,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to create transformation
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateTransformationRequest`.
 pub struct CreateTransformationRequest {
     pub name: String,
     pub transformation_type: TransformationType,
@@ -48,6 +49,7 @@ pub struct CreateTransformationRequest {
 
 /// Request to create role
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateRoleRequest`.
 pub struct CreateRoleRequest {
     pub name: String,
     pub transformations: Vec<String>,
@@ -55,6 +57,7 @@ pub struct CreateRoleRequest {
 
 /// Request to encode/decode
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `EncodeDecodeRequest`.
 pub struct EncodeDecodeRequest {
     pub value: String,
     pub tweak: Option<String>,
@@ -62,6 +65,7 @@ pub struct EncodeDecodeRequest {
 
 /// Response for encode/decode
 #[derive(Debug, Serialize)]
+/// Mewakili pub `EncodeDecodeResponse`.
 pub struct EncodeDecodeResponse {
     pub result: String,
 }

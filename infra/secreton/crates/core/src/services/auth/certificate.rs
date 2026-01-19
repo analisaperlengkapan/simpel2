@@ -14,6 +14,7 @@ use crate::models::auth::UserInfo;
 
 /// Error types for Certificate authentication
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `CertError`.
 pub enum CertError {
     #[error("Certificate parse error: {0}")]
     ParseError(String),
@@ -42,6 +43,7 @@ pub enum CertError {
 
 /// Certificate authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CertConfig`.
 pub struct CertConfig {
     /// Trusted CA certificates (PEM format)
     pub trusted_cas: Vec<String>,
@@ -88,6 +90,7 @@ impl Default for CertConfig {
 
 /// Certificate subject information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CertificateSubject`.
 pub struct CertificateSubject {
     /// Common Name (CN)
     pub common_name: String,

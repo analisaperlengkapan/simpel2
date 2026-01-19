@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 /// AppRole authentication errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `AppRoleError`.
 pub enum AppRoleError {
     #[error("Role not found: {0}")]
     RoleNotFound(String),
@@ -37,6 +38,7 @@ pub enum AppRoleError {
 
 /// AppRole configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AppRoleConfig`.
 pub struct AppRoleConfig {
     /// Role name
     pub name: String,
@@ -97,6 +99,7 @@ impl AppRoleConfig {
 
 /// Secret ID
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecretId`.
 pub struct SecretId {
     pub secret_id: String,
     pub secret_id_accessor: String,
@@ -110,6 +113,7 @@ pub struct SecretId {
 }
 
 impl SecretId {
+    /// Mewakili pub `new(role_name`.
     pub fn new(role_name: String, ttl: u64, num_uses: u32) -> Self {
         let expiration = if ttl > 0 {
             Some(Utc::now() + Duration::seconds(ttl as i64))
@@ -132,14 +136,17 @@ impl SecretId {
         }
     }
 
+    /// Mewakili pub `is_expired(`.
     pub fn is_expired(&self) -> bool {
         self.expiration.map(|exp| Utc::now() > exp).unwrap_or(false)
     }
 
+    /// Mewakili pub `is_uses_exhausted(`.
     pub fn is_uses_exhausted(&self) -> bool {
         self.num_uses.map(|uses| uses == 0).unwrap_or(false)
     }
 
+    /// Mewakili pub `consume_use(`.
     pub fn consume_use(&mut self) {
         if let Some(ref mut uses) = self.num_uses
             && *uses > 0
@@ -149,6 +156,7 @@ impl SecretId {
         self.last_used_at = Some(Utc::now());
     }
 
+    /// Mewakili pub `check_cidr(`.
     pub fn check_cidr(&self, client_ip: &str) -> bool {
         if self.cidr_list.is_empty() {
             return true;
@@ -172,6 +180,7 @@ pub struct AppRoleAuth {
 }
 
 impl AppRoleAuth {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             roles: Arc::new(RwLock::new(HashMap::new())),
@@ -309,6 +318,7 @@ impl Default for AppRoleAuth {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AppRoleLoginResponse`.
 pub struct AppRoleLoginResponse {
     pub role_name: String,
     pub policies: Vec<String>,

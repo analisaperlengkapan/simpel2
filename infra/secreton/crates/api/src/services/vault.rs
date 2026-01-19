@@ -13,6 +13,7 @@ use secreton_core::audit::{AuditLog, AuditLogger, AuditStatus};
 
 /// Vault service errors
 #[derive(Error, Debug)]
+/// Mewakili pub `VaultError`.
 pub enum VaultError {
     #[error("Secret not found: {path}")]
     SecretNotFound { path: String },
@@ -668,6 +669,7 @@ impl VaultService {
 
 /// Secret metadata
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
+/// Mewakili pub `SecretMetadata`.
 pub struct SecretMetadata {
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -677,6 +679,7 @@ pub struct SecretMetadata {
 
 /// Secret data structure
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SecretData`.
 pub struct SecretData {
     pub path: String,
     pub data: HashMap<String, String>,
@@ -689,6 +692,7 @@ pub struct SecretData {
 
 /// Key information
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `KeyInfo`.
 pub struct KeyInfo {
     pub id: String,
     pub name: String,
@@ -699,6 +703,7 @@ pub struct KeyInfo {
 
 /// Encryption result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `EncryptResult`.
 pub struct EncryptResult {
     pub ciphertext: String,
     pub key_version: u32,
@@ -706,12 +711,14 @@ pub struct EncryptResult {
 
 /// Decryption result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `DecryptResult`.
 pub struct DecryptResult {
     pub plaintext: String,
 }
 
 /// Sign result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SignResult`.
 pub struct SignResult {
     pub signature: String,
     pub key_version: u32,
@@ -720,6 +727,7 @@ pub struct SignResult {
 
 /// Verify result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `VerifyResult`.
 pub struct VerifyResult {
     pub valid: bool,
     pub key_version: u32,
@@ -727,6 +735,7 @@ pub struct VerifyResult {
 
 /// Hash result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `HashResult`.
 pub struct HashResult {
     pub hash: String,
     pub algorithm: String,

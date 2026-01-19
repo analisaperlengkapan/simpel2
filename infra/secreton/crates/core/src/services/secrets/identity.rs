@@ -15,11 +15,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 /// Identity engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `IdentityError`.
 pub enum IdentityError {
     #[error("Entity not found: {0}")]
     EntityNotFound(String),
@@ -48,6 +49,7 @@ pub enum IdentityError {
 
 /// OIDC Provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcProviderConfig`.
 pub struct OidcProviderConfig {
     /// Issuer URL (e.g., https://secreton.example.com)
     pub issuer: String,
@@ -99,6 +101,7 @@ impl Default for OidcProviderConfig {
 
 /// OIDC Discovery document
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcDiscovery`.
 pub struct OidcDiscovery {
     pub issuer: String,
     pub authorization_endpoint: String,
@@ -116,6 +119,7 @@ pub struct OidcDiscovery {
 
 /// JSON Web Key (JWK)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Jwk`.
 pub struct Jwk {
     pub kty: String,  // Key type (RSA, EC)
     pub use_: String, // Usage (sig, enc)
@@ -132,12 +136,14 @@ pub struct Jwk {
 
 /// JSON Web Key Set
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Jwks`.
 pub struct Jwks {
     pub keys: Vec<Jwk>,
 }
 
 /// Identity token (ID Token)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `IdentityToken`.
 pub struct IdentityToken {
     /// Issuer
     pub iss: String,
@@ -179,6 +185,7 @@ pub struct IdentityToken {
 
 /// Token introspection response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TokenIntrospection`.
 pub struct TokenIntrospection {
     pub active: bool,
     pub scope: Option<String>,
@@ -194,6 +201,7 @@ pub struct TokenIntrospection {
 
 /// UserInfo response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `UserInfo`.
 pub struct UserInfo {
     pub sub: String,
     pub name: Option<String>,
@@ -205,6 +213,7 @@ pub struct UserInfo {
 
 /// Token request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TokenRequest`.
 pub struct TokenRequest {
     pub grant_type: String,
     pub code: Option<String>,
@@ -216,6 +225,7 @@ pub struct TokenRequest {
 
 /// Token response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TokenResponse`.
 pub struct TokenResponse {
     pub access_token: String,
     pub token_type: String,

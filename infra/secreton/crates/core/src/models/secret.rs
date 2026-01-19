@@ -6,6 +6,7 @@ use crate::{Metadata, SecurityLevel};
 
 /// Enhanced Secret model for SIMKARI operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Secret`.
 pub struct Secret {
     pub id: i64,
     pub path: String,
@@ -24,6 +25,7 @@ pub struct Secret {
 
 /// Encrypted value with algorithm information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EncryptedValue`.
 pub struct EncryptedValue {
     pub data: serde_json::Value,
     pub encryption_algorithm: EncryptionAlgorithm,
@@ -33,6 +35,7 @@ pub struct EncryptedValue {
 
 /// Supported encryption algorithms
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EncryptionAlgorithm`.
 pub enum EncryptionAlgorithm {
     /// AES-256-GCM (classical)
     Aes256Gcm,
@@ -49,6 +52,7 @@ pub enum EncryptionAlgorithm {
 
 /// Flexible metadata system for secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecretMetadata`.
 pub struct SecretMetadata {
     pub security_level: SecurityLevel,
     pub tags: Vec<String>,
@@ -60,6 +64,7 @@ pub struct SecretMetadata {
 
 /// Role-based access control for secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AccessControl`.
 pub struct AccessControl {
     pub required_roles: Vec<String>,  // Role yang diperlukan (fleksibel)
     pub required_satker: Vec<String>, // Satker yang diizinkan
@@ -72,6 +77,7 @@ pub struct AccessControl {
 
 /// Time-based access restrictions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TimeBasedAccess`.
 pub struct TimeBasedAccess {
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_until: Option<DateTime<Utc>>,
@@ -82,6 +88,7 @@ pub struct TimeBasedAccess {
 
 /// Admin levels for hierarchical access control
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AdminLevel`.
 pub enum AdminLevel {
     AdminSatker(String),  // Admin satker tertentu
     AdminWilayah(String), // Admin wilayah tertentu
@@ -91,6 +98,7 @@ pub enum AdminLevel {
 
 /// Audit trail for secret operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditTrail`.
 pub struct AuditTrail {
     pub creation_event: AuditEvent,
     pub access_events: Vec<AuditEvent>,
@@ -100,6 +108,7 @@ pub struct AuditTrail {
 
 /// Individual audit event
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditEvent`.
 pub struct AuditEvent {
     pub event_id: Uuid,
     pub timestamp: DateTime<Utc>,
@@ -118,6 +127,7 @@ pub struct AuditEvent {
 
 /// Types of audit events
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditEventType`.
 pub enum AuditEventType {
     Create,
     Read,
@@ -133,6 +143,7 @@ pub enum AuditEventType {
 
 /// Operations performed on secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Operation`.
 pub enum Operation {
     Create,
     Read,
@@ -151,6 +162,7 @@ pub enum Operation {
 
 /// Result of operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OperationResult`.
 pub enum OperationResult {
     Success,
     Failure(String),

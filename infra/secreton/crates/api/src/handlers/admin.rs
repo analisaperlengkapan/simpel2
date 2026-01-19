@@ -273,6 +273,7 @@ mod tests {
 
 /// User management models
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `CreateUserRequest`.
 pub struct CreateUserRequest {
     pub username: String,
     pub email: String,
@@ -284,6 +285,7 @@ pub struct CreateUserRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `UpdateUserRequest`.
 pub struct UpdateUserRequest {
     pub email: Option<String>,
     pub full_name: Option<String>,
@@ -292,6 +294,7 @@ pub struct UpdateUserRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `UserResponse`.
 pub struct UserResponse {
     pub id: String,
     pub username: String,
@@ -307,12 +310,14 @@ pub struct UserResponse {
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `AssignRolesRequest`.
 pub struct AssignRolesRequest {
     pub roles: Vec<String>,
 }
 
 /// Role management models
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `CreateRoleRequest`.
 pub struct CreateRoleRequest {
     pub name: String,
     pub description: Option<String>,
@@ -321,6 +326,7 @@ pub struct CreateRoleRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `RoleResponse`.
 pub struct RoleResponse {
     pub name: String,
     pub description: Option<String>,
@@ -333,6 +339,7 @@ pub struct RoleResponse {
 
 /// System configuration models
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SystemConfig`.
 pub struct SystemConfig {
     pub api: ApiConfigInfo,
     pub security: SecurityConfigInfo,
@@ -341,6 +348,7 @@ pub struct SystemConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ApiConfigInfo`.
 pub struct ApiConfigInfo {
     pub version: String,
     pub bind_address: String,
@@ -349,6 +357,7 @@ pub struct ApiConfigInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecurityConfigInfo`.
 pub struct SecurityConfigInfo {
     pub mfa_enabled: bool,
     pub password_policy: PasswordPolicyInfo,
@@ -356,6 +365,7 @@ pub struct SecurityConfigInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `PasswordPolicyInfo`.
 pub struct PasswordPolicyInfo {
     pub min_length: u8,
     pub require_uppercase: bool,
@@ -365,6 +375,7 @@ pub struct PasswordPolicyInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `StorageConfigInfo`.
 pub struct StorageConfigInfo {
     pub backend: String,
     pub encryption_enabled: bool,
@@ -372,6 +383,7 @@ pub struct StorageConfigInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MonitoringConfigInfo`.
 pub struct MonitoringConfigInfo {
     pub metrics_enabled: bool,
     pub tracing_enabled: bool,
@@ -380,6 +392,7 @@ pub struct MonitoringConfigInfo {
 
 /// System monitoring models
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SystemMetrics`.
 pub struct SystemMetrics {
     pub uptime: u64,
     pub memory_usage: MemoryMetrics,
@@ -390,6 +403,7 @@ pub struct SystemMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MemoryMetrics`.
 pub struct MemoryMetrics {
     pub total: u64,
     pub used: u64,
@@ -398,6 +412,7 @@ pub struct MemoryMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `CpuMetrics`.
 pub struct CpuMetrics {
     pub cores: u32,
     pub usage_percent: f64,
@@ -405,6 +420,7 @@ pub struct CpuMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `DiskMetrics`.
 pub struct DiskMetrics {
     pub total: u64,
     pub used: u64,
@@ -413,6 +429,7 @@ pub struct DiskMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `NetworkMetrics`.
 pub struct NetworkMetrics {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -421,6 +438,7 @@ pub struct NetworkMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `VaultMetrics`.
 pub struct VaultMetrics {
     pub total_secrets: u64,
     pub total_keys: u64,
@@ -430,6 +448,7 @@ pub struct VaultMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SystemStatus`.
 pub struct SystemStatus {
     pub status: String,
     pub version: String,
@@ -439,6 +458,7 @@ pub struct SystemStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ComponentStatus`.
 pub struct ComponentStatus {
     pub database: String,
     pub cache: String,
@@ -449,6 +469,7 @@ pub struct ComponentStatus {
 
 /// Security models
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecurityScanResult`.
 pub struct SecurityScanResult {
     pub scan_id: String,
     pub status: String,
@@ -458,6 +479,7 @@ pub struct SecurityScanResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecurityFinding`.
 pub struct SecurityFinding {
     pub severity: String,
     pub category: String,
@@ -468,6 +490,7 @@ pub struct SecurityFinding {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecurityIncident`.
 pub struct SecurityIncident {
     pub id: String,
     pub severity: String,

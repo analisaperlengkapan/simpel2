@@ -47,6 +47,7 @@ pub fn auth_interceptor(req: Request<()>) -> Result<Request<()>, Status> {
 
 /// Configuration for authentication interceptor
 #[derive(Debug, Clone, Default)]
+/// Mewakili pub `AuthConfig`.
 pub struct AuthConfig {
     /// Whether authentication is required
     pub require_auth: bool,

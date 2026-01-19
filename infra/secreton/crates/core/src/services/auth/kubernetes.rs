@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 /// Kubernetes authentication errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `K8sError`.
 pub enum K8sError {
     #[error("Invalid token: {0}")]
     InvalidToken(String),
@@ -33,6 +34,7 @@ pub enum K8sError {
 
 /// Kubernetes JWT claims
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `K8sJwtClaims`.
 pub struct K8sJwtClaims {
     /// Issuer
     pub iss: String,
@@ -55,6 +57,7 @@ pub struct K8sJwtClaims {
 
 /// Kubernetes specific claims
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `K8sClaims`.
 pub struct K8sClaims {
     /// Namespace
     pub namespace: String,
@@ -69,6 +72,7 @@ pub struct K8sClaims {
 
 /// Service account information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ServiceAccountInfo`.
 pub struct ServiceAccountInfo {
     /// Service account name
     pub name: String,
@@ -79,6 +83,7 @@ pub struct ServiceAccountInfo {
 
 /// Pod information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PodInfo`.
 pub struct PodInfo {
     /// Pod name
     pub name: String,
@@ -89,6 +94,7 @@ pub struct PodInfo {
 
 /// Kubernetes role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `K8sRole`.
 pub struct K8sRole {
     /// Role name
     pub name: String,
@@ -157,6 +163,7 @@ impl K8sRole {
 
 /// Kubernetes authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `K8sConfig`.
 pub struct K8sConfig {
     /// Kubernetes API server URL
     pub kubernetes_host: String,
@@ -320,6 +327,7 @@ impl K8sAuth {
 
 /// Kubernetes authentication response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `K8sAuthResponse`.
 pub struct K8sAuthResponse {
     pub namespace: String,
     pub service_account_name: String,

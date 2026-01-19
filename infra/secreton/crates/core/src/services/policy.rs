@@ -15,6 +15,7 @@ use wasmtime::{Engine, Instance, Module, Store};
 /// Capability types for fine-grained access control
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `Capability`.
 pub enum Capability {
     Read,
     Create,
@@ -41,6 +42,7 @@ impl Capability {
 
 /// Policy evaluation result
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Mewakili pub `PolicyDecision`.
 pub enum PolicyDecision {
     Allow,
     Deny,
@@ -56,6 +58,7 @@ struct CachedEvaluation {
 
 /// Enhanced policy set with caching and comprehensive evaluation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PolicySet`.
 pub struct PolicySet {
     pub rules: Vec<PolicyRule>,
     #[serde(skip)]

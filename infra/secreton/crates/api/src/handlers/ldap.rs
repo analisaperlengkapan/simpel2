@@ -259,11 +259,13 @@ async fn get_credential_info(
 // Request/Response types
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `GenerateCredentialsRequest`.
 pub struct GenerateCredentialsRequest {
     pub ttl: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `LdapConfigResponse`.
 pub struct LdapConfigResponse {
     pub url: String,
     pub bind_dn: String,

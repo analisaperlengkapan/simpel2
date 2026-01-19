@@ -69,29 +69,51 @@
 //! - Audit trail for all mutations
 
 pub mod admin;
+/// Mewakili pub `auth`.
 pub mod auth;
+/// Mewakili pub `aws`.
 pub mod aws;
+/// Mewakili pub `azure`.
 pub mod azure;
+/// Mewakili pub `dynamic`.
 pub mod dynamic;
+/// Mewakili pub `gcp`.
 pub mod gcp;
+/// Mewakili pub `health`.
 pub mod health;
+/// Mewakili pub `identity`.
 pub mod identity;
+/// Mewakili pub `kafka`.
 pub mod kafka;
+/// Mewakili pub `kmip`.
 pub mod kmip;
+/// Mewakili pub `ldap`.
 pub mod ldap;
+/// Mewakili pub `lease`.
 pub mod lease;
+/// Mewakili pub `namespace`.
 pub mod namespace;
+/// Mewakili pub `policy`.
 pub mod policy;
+/// Mewakili pub `rabbitmq`.
 pub mod rabbitmq;
+/// Mewakili pub `rotation`.
 pub mod rotation;
+/// Mewakili pub `seal`.
 pub mod seal;
+/// Mewakili pub `secret`.
 pub mod secret;
+/// Mewakili pub `ssh`.
 pub mod ssh;
+/// Mewakili pub `totp`.
 pub mod totp;
+/// Mewakili pub `transform`.
 pub mod transform;
+/// Mewakili pub `wrapping`.
 pub mod wrapping;
 
 #[cfg(feature = "raft-consensus")]
+/// Mewakili pub `raft`.
 pub mod raft;
 
 use axum::{Router, extract::State, http::StatusCode, response::Json, routing::get};
@@ -182,6 +204,7 @@ async fn get_metrics(State(_state): State<AppState>) -> Result<String, StatusCod
 
 /// Version information
 #[derive(serde::Serialize, serde::Deserialize)]
+/// Mewakili pub `VersionInfo`.
 pub struct VersionInfo {
     pub version: String,
     pub build_date: String,

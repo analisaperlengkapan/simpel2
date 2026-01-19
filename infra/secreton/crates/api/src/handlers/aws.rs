@@ -205,6 +205,7 @@ async fn generate_sts_credentials(
 
 /// AWS configuration response (without sensitive data)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsConfigResponse`.
 pub struct AwsConfigResponse {
     pub region: String,
     pub sts_endpoint: Option<String>,
@@ -215,6 +216,7 @@ pub struct AwsConfigResponse {
 
 /// AWS role list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsRoleListResponse`.
 pub struct AwsRoleListResponse {
     pub roles: Vec<String>,
 }

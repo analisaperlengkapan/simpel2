@@ -17,18 +17,23 @@ use tracing::{error, info};
 // use lib_storage::{RaftCluster, RaftClusterConfig, RaftStatus};
 
 // Temporary stub types until OpenRaft migration is complete
+/// Mewakili pub `RaftNode`.
 pub struct RaftNode;
+/// Mewakili pub `RaftNodeConfig`.
 pub struct RaftNodeConfig;
+/// Mewakili pub `RaftStatus`.
 pub struct RaftStatus;
 
 /// Raft API state
 #[derive(Clone)]
+/// Mewakili pub `RaftApiState`.
 pub struct RaftApiState {
     pub node: Arc<RaftNode>,
 }
 
 /// Raft cluster status response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `RaftStatusResponse`.
 pub struct RaftStatusResponse {
     pub node_id: u64,
     pub state: String,
@@ -41,6 +46,7 @@ pub struct RaftStatusResponse {
 
 /// Add peer request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `AddPeerRequest`.
 pub struct AddPeerRequest {
     pub node_id: u64,
     pub address: String,
@@ -48,6 +54,7 @@ pub struct AddPeerRequest {
 
 /// Remove peer request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RemovePeerRequest`.
 pub struct RemovePeerRequest {
     pub node_id: u64,
 }

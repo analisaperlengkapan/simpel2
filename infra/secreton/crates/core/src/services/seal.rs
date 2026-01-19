@@ -29,6 +29,7 @@ use tracing::instrument;
 
 /// Seal errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `SealError`.
 pub enum SealError {
     #[error("Already sealed")]
     AlreadySealed,
@@ -84,6 +85,7 @@ pub enum SealError {
 
 /// Seal status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `SealState`.
 pub enum SealState {
     /// Sealed
     Sealed,
@@ -97,6 +99,7 @@ pub enum SealState {
 
 /// Seal configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealConfig`.
 pub struct SealConfig {
     /// Seal type ("shamir" or "auto")
     pub seal_type: String,
@@ -113,6 +116,7 @@ pub struct SealConfig {
 
 /// Vault state stored in database
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `VaultState`.
 pub struct VaultState {
     /// Encrypted master key
     pub encrypted_master_key: Vec<u8>,
@@ -138,6 +142,7 @@ pub struct VaultState {
 
 /// Encryption metadata for master key
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EncryptionMetadata`.
 pub struct EncryptionMetadata {
     /// Algorithm used (aes-256-gcm)
     pub algorithm: String,
@@ -157,6 +162,7 @@ pub struct EncryptionMetadata {
 
 /// Key derivation function parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KdfParams`.
 pub struct KdfParams {
     /// Memory cost in KiB
     pub memory_cost: u32,
@@ -181,6 +187,7 @@ impl Default for SealConfig {
 
 /// Seal status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealStatus`.
 pub struct SealStatus {
     /// Current state
     pub state: SealState,
@@ -224,6 +231,7 @@ impl SealStatus {
 
 /// Rekey operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RekeyOperation`.
 pub struct RekeyOperation {
     /// New shares
     pub new_shares: usize,
@@ -282,6 +290,7 @@ pub struct SealService {
 /// Storage backend trait for vault state persistence
 /// This is a minimal trait to avoid circular dependencies
 #[async_trait::async_trait]
+/// Mewakili pub `VaultStateStorage`.
 pub trait VaultStateStorage: Send + Sync {
     /// Store vault state
     async fn store_vault_state(&self, state: &VaultState) -> Result<(), String>;
@@ -302,6 +311,7 @@ impl Default for InMemoryVaultStateStorage {
 }
 
 impl InMemoryVaultStateStorage {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(None)),
@@ -379,14 +389,14 @@ impl SealService {
     ) -> Result<(Vec<u8>, EncryptionMetadata), SealError> {
         // Generate random salt for key derivation
         let mut salt = vec![0u8; 16];
-        (&mut OsRng).fill_bytes(&mut salt);
+        OsRng.fill_bytes(&mut salt);
 
         // Derive encryption key from seal key
         let encryption_key = Self::derive_encryption_key(seal_key, &salt)?;
 
         // Generate random nonce for AES-GCM
         let mut nonce_bytes = [0u8; 12];
-        (&mut OsRng).fill_bytes(&mut nonce_bytes);
+        OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Create AES-256-GCM cipher
@@ -515,7 +525,7 @@ impl SealService {
 
         // Generate 32-byte master key using cryptographically secure RNG
         let mut master_key_bytes = vec![0u8; 32];
-        (&mut OsRng).fill_bytes(&mut master_key_bytes);
+        OsRng.fill_bytes(&mut master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)
@@ -858,7 +868,7 @@ impl SealService {
 
         // Generate new 32-byte master key
         let mut new_master_key_bytes = vec![0u8; 32];
-        (&mut OsRng).fill_bytes(&mut new_master_key_bytes);
+        OsRng.fill_bytes(&mut new_master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)

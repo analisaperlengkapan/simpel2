@@ -34,6 +34,7 @@ pub struct SealWrappingEngine {
 
 /// Seal Provider with Priority
 #[derive(Clone)]
+/// Mewakili pub `SealProviderWithPriority`.
 pub struct SealProviderWithPriority {
     pub provider_id: String,
     pub priority: u8,
@@ -89,6 +90,7 @@ pub trait SealProvider: Send + Sync {
 
 /// Seal Algorithms - Quantum-Resistant and Classical
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Mewakili pub `SealAlgorithm`.
 pub enum SealAlgorithm {
     // Classical Algorithms
     Aes256Gcm,
@@ -115,6 +117,7 @@ pub enum SealAlgorithm {
 
 /// Data Types for Seal Wrapping
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Mewakili pub `DataType`.
 pub enum DataType {
     // Core Vault Data
     RootKey,
@@ -148,6 +151,7 @@ pub enum DataType {
 
 /// Wrap Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrapConfig`.
 pub struct WrapConfig {
     /// Algorithm to use for wrapping
     pub algorithm: SealAlgorithm,
@@ -167,6 +171,7 @@ pub struct WrapConfig {
 
 /// Multi-Seal Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MultiSealConfig`.
 pub struct MultiSealConfig {
     /// Enable multi-seal mode
     pub enabled: bool,
@@ -182,6 +187,7 @@ pub struct MultiSealConfig {
 
 /// Seal Combination Strategies
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealCombinationStrategy`.
 pub enum SealCombinationStrategy {
     /// Use all available seals
     All,
@@ -199,6 +205,7 @@ pub enum SealCombinationStrategy {
 
 /// Failover Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `FailoverConfig`.
 pub struct FailoverConfig {
     /// Enable automatic failover
     pub enabled: bool,
@@ -212,6 +219,7 @@ pub struct FailoverConfig {
 
 /// Circuit Breaker Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CircuitBreakerConfig`.
 pub struct CircuitBreakerConfig {
     /// Error threshold to open circuit
     pub error_threshold: u32,
@@ -223,6 +231,7 @@ pub struct CircuitBreakerConfig {
 
 /// Wrapped Data Structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrappedData`.
 pub struct WrappedData {
     /// Unique identifier for wrapped data
     pub id: String,
@@ -248,6 +257,7 @@ pub struct WrappedData {
 
 /// Wrap Metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrapMetadata`.
 pub struct WrapMetadata {
     /// Timestamp when wrapped
     pub wrapped_at: chrono::DateTime<chrono::Utc>,
@@ -263,6 +273,7 @@ pub struct WrapMetadata {
 
 /// Wrap Context
 #[derive(Debug, Clone)]
+/// Mewakili pub `WrapContext`.
 pub struct WrapContext {
     /// Request ID for audit
     pub request_id: String,
@@ -278,6 +289,7 @@ pub struct WrapContext {
 
 /// Unwrap Context
 #[derive(Debug, Clone)]
+/// Mewakili pub `UnwrapContext`.
 pub struct UnwrapContext {
     /// Request ID for audit
     pub request_id: String,
@@ -294,6 +306,7 @@ pub type SealKeyId = String;
 
 /// Seal Provider Health Status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealProviderHealth`.
 pub struct SealProviderHealth {
     /// Provider is available
     pub available: bool,
@@ -309,6 +322,7 @@ pub struct SealProviderHealth {
 
 /// Seal Provider Metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealProviderMetadata`.
 pub struct SealProviderMetadata {
     /// Provider name
     pub name: String,
@@ -322,6 +336,7 @@ pub struct SealProviderMetadata {
 
 /// Seal Provider Information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealProviderInfo`.
 pub struct SealProviderInfo {
     /// Provider ID
     pub id: String,
@@ -335,6 +350,7 @@ pub struct SealProviderInfo {
 
 /// Seal Provider Types
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealProviderType`.
 pub enum SealProviderType {
     // Cloud Providers
     AwsKms,
@@ -363,6 +379,7 @@ pub enum SealProviderType {
 
 /// Seal Provider Capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealProviderCapabilities`.
 pub struct SealProviderCapabilities {
     /// Supported algorithms
     pub algorithms: HashSet<SealAlgorithm>,
@@ -380,6 +397,7 @@ pub struct SealProviderCapabilities {
 
 /// Performance Characteristics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PerformanceCharacteristics`.
 pub struct PerformanceCharacteristics {
     /// Operations per second
     pub ops_per_second: u32,
@@ -410,6 +428,7 @@ pub trait QuantumSealWrapper: Send + Sync {
 
 /// Quantum Resistance Levels
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Mewakili pub `QuantumResistanceLevel`.
 pub enum QuantumResistanceLevel {
     /// No quantum resistance
     None,
@@ -458,6 +477,7 @@ pub trait SealAuditLogger: Send + Sync {
 
 /// Seal Metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SealMetrics`.
 pub struct SealMetrics {
     /// Total wrap operations
     pub total_wraps: u64,
@@ -475,6 +495,7 @@ pub struct SealMetrics {
 
 /// Provider Statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ProviderStats`.
 pub struct ProviderStats {
     /// Operations count
     pub operations: u64,

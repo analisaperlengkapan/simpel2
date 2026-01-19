@@ -18,6 +18,7 @@ use lib_storage::StorageBackend;
 /// Application configuration stored encrypted in storage backend
 /// Contains all sensitive application settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ApplicationConfig`.
 pub struct ApplicationConfig {
     pub auth: AuthConfig,
     pub database: DatabaseConfig,
@@ -33,6 +34,7 @@ pub struct ApplicationConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ConfigMetadata`.
 pub struct ConfigMetadata {
     pub version: u32,
     pub created_at: DateTime<Utc>,
@@ -56,6 +58,7 @@ impl Default for ConfigMetadata {
 // ================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthConfig`.
 pub struct AuthConfig {
     pub require_auth: bool,
     pub jwt_expiration_hours: u32,
@@ -86,6 +89,7 @@ impl Default for AuthConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DatabaseConfig`.
 pub struct DatabaseConfig {
     // Connection URL from environment or encrypted storage
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,6 +112,7 @@ impl Default for DatabaseConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaConfig`.
 pub struct MfaConfig {
     pub enabled: bool,
     pub require_for_admin: bool,
@@ -133,6 +138,7 @@ impl Default for MfaConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitConfig`.
 pub struct RateLimitConfig {
     pub enabled: bool,
     pub max_requests_per_minute: u32,
@@ -152,6 +158,7 @@ impl Default for RateLimitConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CorsConfig`.
 pub struct CorsConfig {
     pub enabled: bool,
     pub allowed_origins: Vec<String>,
@@ -178,6 +185,7 @@ impl Default for CorsConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LoggingConfig`.
 pub struct LoggingConfig {
     pub level: String,
     pub format: String,
@@ -195,6 +203,7 @@ impl Default for LoggingConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditConfig`.
 pub struct AuditConfig {
     pub enabled: bool,
     pub log_path: String,
@@ -216,6 +225,7 @@ impl Default for AuditConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `BackupConfig`.
 pub struct BackupConfig {
     pub enabled: bool,
     pub schedule: String,
@@ -340,7 +350,7 @@ impl ApplicationConfig {
     fn encrypt_config(data: &[u8], master_key: &[u8]) -> anyhow::Result<Vec<u8>> {
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
-        (&mut OsRng).fill_bytes(&mut nonce_bytes);
+        OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Create cipher

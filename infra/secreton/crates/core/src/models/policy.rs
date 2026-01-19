@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Policy`.
 pub struct Policy {
     pub id: i64,
     pub role: String,
@@ -12,12 +13,14 @@ pub struct Policy {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ControlGroup`.
 pub struct ControlGroup {
     pub required_approvals: u32,
     pub approved_by: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PolicyRule`.
 pub struct PolicyRule {
     pub effect: String,                       // "allow" atau "deny"
     pub action: String,                       // misal "read", "write"

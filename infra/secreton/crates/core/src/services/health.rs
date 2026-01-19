@@ -13,6 +13,7 @@ use tracing::instrument;
 
 /// Health status
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `HealthStatus`.
 pub enum HealthStatus {
     /// Component is healthy
     Healthy,
@@ -36,6 +37,7 @@ impl HealthStatus {
 
 /// Health check result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HealthCheckResult`.
 pub struct HealthCheckResult {
     /// Component name
     pub component: String,
@@ -96,6 +98,7 @@ impl HealthCheckResult {
 
 /// Aggregated health status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AggregatedHealth`.
 pub struct AggregatedHealth {
     /// Overall status
     pub status: HealthStatus,
@@ -112,6 +115,7 @@ pub struct AggregatedHealth {
 
 /// Health check trait
 #[async_trait::async_trait]
+/// Mewakili pub `HealthCheck`.
 pub trait HealthCheck: Send + Sync {
     /// Component name
     fn name(&self) -> &str;
@@ -137,6 +141,7 @@ impl Default for StorageHealthCheck {
 }
 
 impl StorageHealthCheck {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             name: "storage".to_string(),
@@ -173,6 +178,7 @@ impl Default for DatabaseHealthCheck {
 }
 
 impl DatabaseHealthCheck {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             name: "database".to_string(),
@@ -218,6 +224,7 @@ impl Default for ClusterHealthCheck {
 }
 
 impl ClusterHealthCheck {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             name: "cluster".to_string(),

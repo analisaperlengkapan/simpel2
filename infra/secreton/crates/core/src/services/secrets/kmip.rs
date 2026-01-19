@@ -9,13 +9,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 // use tokio_rustls::{TlsConnector, rustls}; // TODO: Add tokio-rustls dependency
 use deadpool_postgres::Pool;
 use std::io::{self};
 
 /// KMIP errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `KmipError`.
 pub enum KmipError {
     #[error("Key not found: {0}")]
     KeyNotFound(String),
@@ -65,6 +66,7 @@ pub enum KmipError {
 
 /// KMIP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KmipServerConfig`.
 pub struct KmipServerConfig {
     /// KMIP server host
     pub host: String,
@@ -87,6 +89,7 @@ pub struct KmipServerConfig {
 
 /// KMIP operation types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `KmipOperation`.
 pub enum KmipOperation {
     /// Create new key
     Create,
@@ -112,6 +115,7 @@ pub enum KmipOperation {
 
 /// Key state in KMIP lifecycle
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `KmipKeyState`.
 pub enum KmipKeyState {
     /// Pre-activation state
     PreActive,
@@ -131,6 +135,7 @@ pub enum KmipKeyState {
 
 /// Key format types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `KmipKeyFormat`.
 pub enum KmipKeyFormat {
     /// Raw binary format
     Raw,
@@ -147,6 +152,7 @@ pub enum KmipKeyFormat {
 
 /// KMIP key object
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KmipKeyObject`.
 pub struct KmipKeyObject {
     /// Unique key identifier
     pub key_id: String,
@@ -181,6 +187,7 @@ pub struct KmipKeyObject {
 
 /// KMIP role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KmipRole`.
 pub struct KmipRole {
     /// Role name
     pub name: String,
@@ -200,6 +207,7 @@ pub struct KmipRole {
 
 /// KMIP request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KmipRequest`.
 pub struct KmipRequest {
     /// Operation type
     pub operation: KmipOperation,
@@ -222,6 +230,7 @@ pub struct KmipRequest {
 
 /// KMIP response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KmipResponse`.
 pub struct KmipResponse {
     /// Success status
     pub success: bool,

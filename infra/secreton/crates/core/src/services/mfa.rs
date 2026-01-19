@@ -19,6 +19,7 @@ use crate::services::secrets::totp::{TotpEngine, TotpKeyCreateRequest, TotpValid
 
 /// Error types for MFA
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `MfaError`.
 pub enum MfaError {
     #[error("Invalid TOTP code")]
     InvalidTotp,
@@ -47,6 +48,7 @@ pub enum MfaError {
 
 /// MFA method type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `MfaMethodType`.
 pub enum MfaMethodType {
     /// TOTP (Google Authenticator, Authy, etc.)
     TOTP,
@@ -63,6 +65,7 @@ pub enum MfaMethodType {
 
 /// TOTP setup response (returned from TotpEngine)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpSetupResponse`.
 pub struct TotpSetupResponse {
     /// Secret key (base32 encoded)
     pub secret: String,
@@ -82,6 +85,7 @@ pub struct TotpSetupResponse {
 
 /// MFA configuration for a user
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaConfig`.
 pub struct MfaConfig {
     /// User ID
     pub user_id: String,
@@ -203,7 +207,7 @@ impl MfaService {
             .totp_engine
             .create_key(request)
             .await
-            .map_err(|e| MfaError::InvalidSecret)?;
+            .map_err(|_e| MfaError::InvalidSecret)?;
 
         // Update MFA config
         config.totp_key_name = Some(key_name);

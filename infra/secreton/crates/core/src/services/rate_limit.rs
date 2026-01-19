@@ -12,6 +12,7 @@ use tracing::instrument;
 
 /// Rate limit error
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `RateLimitError`.
 pub enum RateLimitError {
     #[error("Rate limit exceeded for {0}")]
     LimitExceeded(String),
@@ -22,6 +23,7 @@ pub enum RateLimitError {
 
 /// Rate limit strategy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitStrategy`.
 pub enum RateLimitStrategy {
     /// Token bucket algorithm
     TokenBucket {
@@ -50,6 +52,7 @@ pub enum RateLimitStrategy {
 
 /// Rate limiter configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitConfig`.
 pub struct RateLimitConfig {
     /// Strategy
     pub strategy: RateLimitStrategy,

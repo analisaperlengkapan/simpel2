@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PkiCa`.
 pub struct PkiCa {
     pub id: i64,
     pub namespace: String,
@@ -12,6 +13,7 @@ pub struct PkiCa {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PkiCert`.
 pub struct PkiCert {
     pub id: i64,
     pub namespace: String,

@@ -237,11 +237,13 @@ async fn get_credential_info(
 // Request/Response types
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `GenerateCredentialsRequest`.
 pub struct GenerateCredentialsRequest {
     pub ttl: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RabbitMqConfigResponse`.
 pub struct RabbitMqConfigResponse {
     pub connection_uri: String,
     pub management_uri: String,

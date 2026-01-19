@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PluginCatalogEntry`.
 pub struct PluginCatalogEntry {
     pub name: String,
     pub version: String,

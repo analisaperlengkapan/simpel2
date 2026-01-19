@@ -175,6 +175,7 @@ async fn generate_gcp_credentials(
 
 /// GCP configuration response (without sensitive data)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpConfigResponse`.
 pub struct GcpConfigResponse {
     pub project_id: String,
     pub max_ttl: u32,
@@ -183,6 +184,7 @@ pub struct GcpConfigResponse {
 
 /// GCP role list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GcpRoleListResponse`.
 pub struct GcpRoleListResponse {
     pub roles: Vec<String>,
 }

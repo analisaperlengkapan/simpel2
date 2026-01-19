@@ -16,11 +16,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 /// Azure Secrets Engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `AzureError`.
 pub enum AzureError {
     #[error("Azure configuration not found")]
     ConfigNotFound,
@@ -56,12 +57,14 @@ pub enum AzureError {
 /// Azure credential type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `AzureCredentialType`.
 pub enum AzureCredentialType {
     ServicePrincipal,
     AccessToken,
 }
 
 impl AzureCredentialType {
+    /// Mewakili pub `from_str(s`.
     pub fn from_str(s: &str) -> Result<Self, AzureError> {
         match s.to_lowercase().as_str() {
             "service_principal" => Ok(Self::ServicePrincipal),
@@ -70,6 +73,7 @@ impl AzureCredentialType {
         }
     }
 
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::ServicePrincipal => "service_principal",
@@ -80,6 +84,7 @@ impl AzureCredentialType {
 
 /// Azure root configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureConfig`.
 pub struct AzureConfig {
     /// Azure Subscription ID
     pub subscription_id: String,
@@ -120,6 +125,7 @@ impl Default for AzureConfig {
 
 /// Azure role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureRole`.
 pub struct AzureRole {
     /// Role name
     pub name: String,
@@ -151,6 +157,7 @@ pub struct AzureRole {
 
 /// Azure role assignment
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureRoleAssignment`.
 pub struct AzureRoleAssignment {
     /// Role name (e.g., "Contributor", "Reader", "Owner")
     pub role: String,
@@ -160,6 +167,7 @@ pub struct AzureRoleAssignment {
 }
 
 impl AzureRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, credential_type: AzureCredentialType) -> Self {
         Self {
             name,
@@ -177,6 +185,7 @@ impl AzureRole {
 
 /// Azure role creation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureRoleCreateRequest`.
 pub struct AzureRoleCreateRequest {
     pub name: String,
     pub credential_type: AzureCredentialType,
@@ -190,6 +199,7 @@ pub struct AzureRoleCreateRequest {
 
 /// Azure role response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureRoleResponse`.
 pub struct AzureRoleResponse {
     pub name: String,
     pub credential_type: AzureCredentialType,
@@ -220,6 +230,7 @@ impl From<AzureRole> for AzureRoleResponse {
 
 /// Azure credentials request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureCredentialsRequest`.
 pub struct AzureCredentialsRequest {
     pub role_name: String,
     pub ttl: Option<u32>,
@@ -227,6 +238,7 @@ pub struct AzureCredentialsRequest {
 
 /// Azure credentials response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureCredentials`.
 pub struct AzureCredentials {
     /// Credential type
     pub credential_type: AzureCredentialType,

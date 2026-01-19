@@ -56,6 +56,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to create a new namespace
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateNamespaceRequest`.
 pub struct CreateNamespaceRequest {
     /// Namespace ID (e.g., "wilayah-sumut", "satker-kja001")
     pub id: String,
@@ -83,6 +84,7 @@ pub struct CreateNamespaceRequest {
 
 /// Request to update namespace
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `UpdateNamespaceRequest`.
 pub struct UpdateNamespaceRequest {
     /// Display name
     pub name: Option<String>,
@@ -102,6 +104,7 @@ pub struct UpdateNamespaceRequest {
 
 /// Namespace response DTO
 #[derive(Debug, Serialize)]
+/// Mewakili pub `NamespaceResponse`.
 pub struct NamespaceResponse {
     pub id: String,
     pub path: String,
@@ -121,6 +124,7 @@ pub struct NamespaceResponse {
 
 /// Namespace statistics response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `NamespaceStatsResponse`.
 pub struct NamespaceStatsResponse {
     pub namespace_id: String,
     pub quota_usage: QuotaUsage,
@@ -135,6 +139,7 @@ pub struct NamespaceStatsResponse {
 
 /// List namespaces query parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ListNamespacesQuery`.
 pub struct ListNamespacesQuery {
     /// Filter by namespace type
     pub namespace_type: Option<NamespaceType>,

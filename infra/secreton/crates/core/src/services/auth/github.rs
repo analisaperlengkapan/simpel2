@@ -21,6 +21,7 @@ use tokio::sync::RwLock;
 
 /// GitHub auth errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `GitHubAuthError`.
 pub enum GitHubAuthError {
     #[error("Invalid token")]
     InvalidToken,
@@ -43,6 +44,7 @@ pub enum GitHubAuthError {
 
 /// GitHub configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubConfig`.
 pub struct GitHubConfig {
     /// GitHub organization name
     pub organization: String,
@@ -74,6 +76,7 @@ impl Default for GitHubConfig {
 
 /// GitHub team configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubTeam`.
 pub struct GitHubTeam {
     /// Team name or slug
     pub name: String,
@@ -87,6 +90,7 @@ pub struct GitHubTeam {
 
 /// GitHub user info (from API)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubUser`.
 pub struct GitHubUser {
     /// Username
     pub login: String,
@@ -103,6 +107,7 @@ pub struct GitHubUser {
 
 /// GitHub organization membership
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubOrgMembership`.
 pub struct GitHubOrgMembership {
     /// Organization name
     pub organization: String,
@@ -116,6 +121,7 @@ pub struct GitHubOrgMembership {
 
 /// GitHub team membership
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubTeamMembership`.
 pub struct GitHubTeamMembership {
     /// Team name
     pub team_name: String,
@@ -129,6 +135,7 @@ pub struct GitHubTeamMembership {
 
 /// Authentication result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GitHubAuthResult`.
 pub struct GitHubAuthResult {
     /// Authenticated user
     pub user: GitHubUser,

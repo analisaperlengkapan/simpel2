@@ -5,23 +5,39 @@
 use axum::{Json, Router, routing::get};
 use serde::{Deserialize, Serialize};
 
+/// Mewakili pub `audit`.
 pub mod audit;
+/// Mewakili pub `auth`.
 pub mod auth;
+/// Mewakili pub `config`.
 pub mod config;
+/// Mewakili pub `error`.
 pub mod error;
+/// Mewakili pub `extractors`.
 pub mod extractors;
+/// Mewakili pub `handlers`.
 pub mod handlers;
+/// Mewakili pub `helpers`.
 pub mod helpers;
+/// Mewakili pub `kv`.
 pub mod kv;
+/// Mewakili pub `metrics`.
 pub mod metrics;
+/// Mewakili pub `middleware`.
 pub mod middleware;
+/// Mewakili pub `models`.
 pub mod models;
+/// Mewakili pub `pki`.
 pub mod pki;
+/// Mewakili pub `prelude`.
 pub mod prelude;
+/// Mewakili pub `response`.
 pub mod response;
 // TODO: Re-enable after OpenRaft migration is complete
 // pub mod raft;
+/// Mewakili pub `services`.
 pub mod services;
+/// Mewakili pub `transit`.
 pub mod transit;
 
 // Re-export gRPC from separate crate
@@ -41,6 +57,7 @@ pub use response::{
 // pub use raft::{create_raft_router, RaftApiState};
 pub use transit::{TransitApiState, create_transit_router};
 #[derive(Clone)]
+/// Mewakili pub `ApiState`.
 pub struct ApiState {
     pub transit: TransitApiState,
     pub kv: KVApiState,
@@ -50,6 +67,7 @@ pub struct ApiState {
 }
 
 #[derive(Clone)]
+/// Mewakili pub `ApiConfig`.
 pub struct ApiConfig {
     pub host: String,
     pub port: u16,
@@ -65,6 +83,7 @@ impl Default for ApiConfig {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Mewakili pub `HealthResponse`.
 pub struct HealthResponse {
     pub status: String,
     pub timestamp: String,
@@ -72,6 +91,7 @@ pub struct HealthResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Mewakili pub `VersionResponse`.
 pub struct VersionResponse {
     pub version: String,
     pub build_date: String,
@@ -79,6 +99,7 @@ pub struct VersionResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Mewakili pub `TlsMetricsResponse`.
 pub struct TlsMetricsResponse {
     pub total_handshakes: u64,
     pub successful_handshakes: u64,
@@ -129,6 +150,7 @@ pub async fn get_prometheus_metrics(State(state): State<ApiState>) -> String {
 }
 
 #[derive(Serialize, Deserialize)]
+/// Mewakili pub `MetricsResponse`.
 pub struct MetricsResponse {
     pub rest_requests_total: u64,
     pub grpc_requests_total: u64,

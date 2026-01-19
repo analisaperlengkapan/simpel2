@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 /// Version information structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Version`.
 pub struct Version {
     pub major: u32,
     pub minor: u32,
@@ -118,6 +119,7 @@ impl fmt::Display for Version {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
+/// Mewakili pub `HealthStatus`.
 pub enum HealthStatus {
     Healthy,
     Degraded,
@@ -165,6 +167,7 @@ impl fmt::Display for HealthStatus {
 
 /// Time range structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TimeRange`.
 pub struct TimeRange {
     pub start: chrono::DateTime<chrono::Utc>,
     pub end: chrono::DateTime<chrono::Utc>,
@@ -233,6 +236,7 @@ impl TimeRange {
 
 /// Pagination helper
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Pagination`.
 pub struct Pagination {
     pub limit: u32,
     pub offset: u32,
@@ -322,6 +326,7 @@ impl Pagination {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
+/// Mewakili pub `Environment`.
 pub enum Environment {
     #[default]
     Development,

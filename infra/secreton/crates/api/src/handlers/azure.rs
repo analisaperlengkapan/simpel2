@@ -178,6 +178,7 @@ async fn generate_azure_credentials(
 
 /// Azure configuration response (without sensitive data)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureConfigResponse`.
 pub struct AzureConfigResponse {
     pub subscription_id: String,
     pub tenant_id: String,
@@ -188,6 +189,7 @@ pub struct AzureConfigResponse {
 
 /// Azure role list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AzureRoleListResponse`.
 pub struct AzureRoleListResponse {
     pub roles: Vec<String>,
 }

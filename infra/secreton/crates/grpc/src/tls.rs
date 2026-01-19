@@ -7,6 +7,7 @@ use tracing::{error, info};
 
 /// TLS configuration for gRPC server
 #[derive(Debug, Clone)]
+/// Mewakili pub `GrpcTlsConfig`.
 pub struct GrpcTlsConfig {
     /// Path to TLS certificate
     pub cert_path: PathBuf,
@@ -23,6 +24,7 @@ pub struct GrpcTlsConfig {
 
 /// TLS certificate and key data
 #[derive(Debug, Clone)]
+/// Mewakili pub `TlsIdentity`.
 pub struct TlsIdentity {
     pub cert: Vec<u8>,
     pub key: Vec<u8>,
@@ -125,6 +127,7 @@ impl GrpcTlsConfig {
 
 /// TLS metrics for gRPC connections
 #[derive(Debug, Default, Clone)]
+/// Mewakili pub `GrpcTlsMetrics`.
 pub struct GrpcTlsMetrics {
     /// Total TLS handshakes
     pub total_handshakes: u64,

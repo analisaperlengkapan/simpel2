@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AgentConfig`.
 pub struct AgentConfig {
     /// Vault server URL
     pub server_url: String,
@@ -81,6 +82,7 @@ impl AgentConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TemplateConfig`.
 pub struct TemplateConfig {
     /// Secret path in vault
     pub source: String,
@@ -96,6 +98,7 @@ pub struct TemplateConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SinkConfig`.
 pub struct SinkConfig {
     /// Sink types: file, env, child
     pub types: Vec<String>,

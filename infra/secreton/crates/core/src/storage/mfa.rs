@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 /// Represents an MFA secret in the database
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaSecret`.
 pub struct MfaSecret {
     pub user_id: String,
     pub secret: String,
@@ -15,6 +16,7 @@ pub struct MfaSecret {
 
 /// Represents MFA recovery codes for a user
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaRecoveryCodes`.
 pub struct MfaRecoveryCodes {
     pub user_id: String,
     pub codes: Vec<String>,
@@ -24,6 +26,7 @@ pub struct MfaRecoveryCodes {
 
 /// MFA storage operations
 #[async_trait::async_trait]
+/// Mewakili pub `MfaStorage`.
 pub trait MfaStorage: Send + Sync + 'static {
     /// Store an MFA secret for a user
     async fn store_mfa_secret(&self, user_id: &str, secret: &str, method: MfaMethod) -> Result<()>;

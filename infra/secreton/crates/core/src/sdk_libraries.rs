@@ -316,6 +316,7 @@ use std::collections::HashMap;
 
 /// Common SDK configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SdkConfig`.
 pub struct SdkConfig {
     /// Server URL
     pub server_url: String,
@@ -343,6 +344,7 @@ impl Default for SdkConfig {
 
 /// SDK response wrapper
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SdkResponse`.
 pub struct SdkResponse<T> {
     /// Success status
     pub success: bool,
@@ -356,6 +358,7 @@ pub struct SdkResponse<T> {
 
 /// Secret data for SDK operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SdkSecret`.
 pub struct SdkSecret {
     /// Secret path
     pub path: String,
@@ -369,6 +372,7 @@ pub struct SdkSecret {
 
 /// SDK operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SdkOperationResult`.
 pub struct SdkOperationResult {
     /// Operation success
     pub success: bool,
@@ -887,6 +891,7 @@ pub mod terraform_provider {
 
     /// Terraform provider configuration
     #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Mewakili pub `TerraformProviderConfig`.
     pub struct TerraformProviderConfig {
         /// Server URL
         pub server_url: String,
@@ -958,6 +963,7 @@ pub mod kubernetes_operator {
 
     /// Kubernetes operator configuration
     #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Mewakili pub `KubernetesOperatorConfig`.
     pub struct KubernetesOperatorConfig {
         /// Kubernetes namespace
         pub namespace: String,

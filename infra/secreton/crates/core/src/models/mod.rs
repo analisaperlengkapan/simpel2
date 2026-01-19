@@ -251,15 +251,25 @@
 //! - `crate::grpc` - gRPC service definitions
 
 pub mod approle;
+/// Mewakili pub `audit`.
 pub mod audit;
+/// Mewakili pub `auth`.
 pub mod auth;
+/// Mewakili pub `lease`.
 pub mod lease;
+/// Mewakili pub `mfa`.
 pub mod mfa;
+/// Mewakili pub `pki`.
 pub mod pki;
+/// Mewakili pub `plugin`.
 pub mod plugin;
+/// Mewakili pub `policy`.
 pub mod policy;
+/// Mewakili pub `secret`.
 pub mod secret;
+/// Mewakili pub `sentinel`.
 pub mod sentinel;
+/// Mewakili pub `user`.
 pub mod user;
 
 // Re-export commonly used types

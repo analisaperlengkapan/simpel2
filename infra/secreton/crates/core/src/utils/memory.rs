@@ -11,6 +11,7 @@ type Result<T> = std::result::Result<T, CoreError>;
 
 /// Secure memory container for secrets that automatically zeroizes on drop
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecureSecretMemory`.
 pub struct SecureSecretMemory<T: Zeroize> {
     data: T,
     created_at: Instant,
@@ -26,6 +27,7 @@ impl<T: Zeroize> Drop for SecureSecretMemory<T> {
 
 /// Sensitivity level for memory management
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Mewakili pub `SensitivityLevel`.
 pub enum SensitivityLevel {
     /// Low sensitivity - standard memory management
     Low,
@@ -93,6 +95,7 @@ impl<T: Zeroize> SecureSecretMemory<T> {
 
 /// Secure string for secrets that zeroizes on drop
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecureSecretString`.
 pub struct SecureSecretString {
     data: String,
     sensitivity_level: SensitivityLevel,
@@ -150,6 +153,7 @@ impl Zeroize for SecureSecretString {
 
 /// Secure byte array for secret data that zeroizes on drop
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecureSecretBytes`.
 pub struct SecureSecretBytes {
     data: Vec<u8>,
     sensitivity_level: SensitivityLevel,
@@ -500,6 +504,7 @@ impl Default for SecretMemoryTracker {
 
 /// Memory usage statistics for secret operations
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecretMemoryStats`.
 pub struct SecretMemoryStats {
     pub current_usage: usize,
     pub peak_usage: usize,
@@ -594,6 +599,7 @@ impl Default for SecretMemoryOptimizer {
 
 /// Combined memory optimizer statistics for secret operations
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecretMemoryOptimizerStats`.
 pub struct SecretMemoryOptimizerStats {
     pub memory_stats: SecretMemoryStats,
     pub string_pool_size: usize,

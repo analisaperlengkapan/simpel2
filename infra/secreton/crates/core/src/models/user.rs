@@ -6,6 +6,7 @@ use uuid::Uuid;
 /// Canonical User structure - use this throughout the project
 /// All other User definitions should be removed and import this one
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `User`.
 pub struct User {
     /// Unique user ID (UUID for consistency)
     pub id: Uuid,
@@ -121,6 +122,7 @@ impl User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Token`.
 pub struct Token {
     pub token: String,
     pub user: String,

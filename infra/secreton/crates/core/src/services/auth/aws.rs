@@ -24,6 +24,7 @@ use crate::models::auth::UserInfo;
 
 /// Error types for AWS authentication
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `AwsError`.
 pub enum AwsError {
     #[error("AWS credentials invalid: {0}")]
     InvalidCredentials(String),
@@ -52,6 +53,7 @@ pub enum AwsError {
 
 /// AWS authentication method type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `AwsAuthType`.
 pub enum AwsAuthType {
     /// IAM authentication using AWS access keys
     IAM,
@@ -62,6 +64,7 @@ pub enum AwsAuthType {
 
 /// AWS authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsAuthConfig`.
 pub struct AwsAuthConfig {
     /// AWS access key ID (for IAM auth validation)
     pub access_key: Option<String>,
@@ -117,6 +120,7 @@ impl Default for AwsAuthConfig {
 
 /// AWS IAM role binding to Secreton policies
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsRoleBinding`.
 pub struct AwsRoleBinding {
     /// AWS IAM role ARN
     pub role_arn: String,
@@ -164,6 +168,7 @@ impl Default for AwsRoleBinding {
 
 /// AWS IAM request for authentication
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsIamRequest`.
 pub struct AwsIamRequest {
     /// IAM HTTP request method
     pub iam_http_request_method: String,
@@ -183,6 +188,7 @@ pub struct AwsIamRequest {
 
 /// AWS EC2 instance identity document
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Ec2InstanceIdentity`.
 pub struct Ec2InstanceIdentity {
     /// Instance ID
     pub instance_id: String,
@@ -214,6 +220,7 @@ pub struct Ec2InstanceIdentity {
 
 /// AWS EC2 authentication request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsEc2Request`.
 pub struct AwsEc2Request {
     /// PKCS7 signature of instance identity document
     pub pkcs7: String,
@@ -431,7 +438,7 @@ impl AwsAuth {
     ///
     /// Currently returns mock identity for development/testing
     /// TODO: Integrate with AWS PKCS7 verification and EC2 API
-    async fn verify_ec2_identity(&self, pkcs7: &str) -> Result<Ec2InstanceIdentity, AwsError> {
+    async fn verify_ec2_identity(&self, _pkcs7: &str) -> Result<Ec2InstanceIdentity, AwsError> {
         // In production, this would:
         // 1. Decode PKCS7 signature
         // 2. Verify signature against AWS public certificate

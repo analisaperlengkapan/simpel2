@@ -11,6 +11,7 @@ use tracing::{info, warn};
 
 /// Session cache for TLS session resumption
 #[derive(Debug)]
+/// Mewakili pub `SessionCache`.
 pub struct SessionCache {
     sessions: Mutex<HashMap<Vec<u8>, (Vec<u8>, Instant)>>,
     max_entries: usize,
@@ -18,6 +19,7 @@ pub struct SessionCache {
 }
 
 impl SessionCache {
+    /// Mewakili pub `new(max_entries`.
     pub fn new(max_entries: usize, ttl_seconds: u64) -> Self {
         Self {
             sessions: Mutex::new(HashMap::new()),
@@ -26,6 +28,7 @@ impl SessionCache {
         }
     }
 
+    /// Mewakili pub `get(`.
     pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         let mut sessions = self.sessions.lock();
         if let Some((session, timestamp)) = sessions.get(key) {
@@ -38,6 +41,7 @@ impl SessionCache {
         None
     }
 
+    /// Mewakili pub `insert(`.
     pub fn insert(&self, key: Vec<u8>, session: Vec<u8>) {
         let mut sessions = self.sessions.lock();
 
@@ -195,6 +199,7 @@ pub fn validate_tls_performance(config: &ServerConfig) -> Result<(), String> {
 
 /// Performance metrics for TLS connections
 #[derive(Debug, Default)]
+/// Mewakili pub `TlsMetrics`.
 pub struct TlsMetrics {
     pub total_handshakes: u64,
     pub successful_handshakes: u64,
@@ -204,6 +209,7 @@ pub struct TlsMetrics {
 }
 
 impl TlsMetrics {
+    /// Mewakili pub `record_handshake(`.
     pub fn record_handshake(&mut self, success: bool, resumption: bool, duration_ms: u64) {
         self.total_handshakes += 1;
         if success {
@@ -220,6 +226,7 @@ impl TlsMetrics {
             (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms) / self.total_handshakes;
     }
 
+    /// Mewakili pub `get_success_rate(`.
     pub fn get_success_rate(&self) -> f64 {
         if self.total_handshakes == 0 {
             0.0
@@ -228,6 +235,7 @@ impl TlsMetrics {
         }
     }
 
+    /// Mewakili pub `get_resumption_rate(`.
     pub fn get_resumption_rate(&self) -> f64 {
         if self.total_handshakes == 0 {
             0.0

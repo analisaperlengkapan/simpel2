@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CliConfig`.
 pub struct CliConfig {
     pub server_url: String,
 }

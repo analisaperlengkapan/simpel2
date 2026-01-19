@@ -29,7 +29,9 @@ pub use lib_storage::{
 pub use lib_storage::PostgresBackend;
 
 // Application-specific storage modules
+/// Mewakili pub `mfa`.
 pub mod mfa;
+/// Mewakili pub `secure`.
 pub mod secure;
 
 pub use mfa::{MfaRecoveryCodes, MfaSecret, MfaStorage};

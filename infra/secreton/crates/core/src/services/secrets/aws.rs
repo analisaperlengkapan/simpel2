@@ -15,6 +15,7 @@ use tracing::{debug, info, warn};
 
 /// Error types for AWS secrets engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `AwsError`.
 pub enum AwsError {
     #[error("AWS configuration not found")]
     ConfigNotFound,
@@ -50,6 +51,7 @@ pub enum AwsError {
 /// AWS credential type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `AwsCredentialType`.
 pub enum AwsCredentialType {
     IamUser,
     AssumeRole,
@@ -57,6 +59,7 @@ pub enum AwsCredentialType {
 }
 
 impl AwsCredentialType {
+    /// Mewakili pub `from_str(s`.
     pub fn from_str(s: &str) -> Result<Self, AwsError> {
         match s.to_lowercase().as_str() {
             "iam_user" => Ok(Self::IamUser),
@@ -66,6 +69,7 @@ impl AwsCredentialType {
         }
     }
 
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::IamUser => "iam_user",
@@ -77,6 +81,7 @@ impl AwsCredentialType {
 
 /// AWS root configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsConfig`.
 pub struct AwsConfig {
     pub access_key: String,
     #[serde(skip_serializing)]
@@ -104,6 +109,7 @@ impl Default for AwsConfig {
 
 /// AWS role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsRole`.
 pub struct AwsRole {
     pub name: String,
     pub credential_type: AwsCredentialType,
@@ -117,6 +123,7 @@ pub struct AwsRole {
 }
 
 impl AwsRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, credential_type: AwsCredentialType) -> Self {
         Self {
             name,
@@ -131,6 +138,7 @@ impl AwsRole {
         }
     }
 
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), AwsError> {
         if self.default_ttl < 900 {
             return Err(AwsError::InvalidTtl(
@@ -171,6 +179,7 @@ impl AwsRole {
 
 /// AWS credentials response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsCredentials`.
 pub struct AwsCredentials {
     pub access_key_id: String,
     pub secret_access_key: String,
@@ -183,6 +192,7 @@ pub struct AwsCredentials {
 
 /// AWS role creation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsRoleCreateRequest`.
 pub struct AwsRoleCreateRequest {
     pub name: String,
     pub credential_type: AwsCredentialType,
@@ -196,6 +206,7 @@ pub struct AwsRoleCreateRequest {
 
 /// AWS role response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsRoleResponse`.
 pub struct AwsRoleResponse {
     pub name: String,
     pub credential_type: String,
@@ -226,6 +237,7 @@ impl From<&AwsRole> for AwsRoleResponse {
 
 /// AWS credentials generation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AwsCredentialsRequest`.
 pub struct AwsCredentialsRequest {
     pub role_name: String,
     pub ttl: Option<u32>,
@@ -251,6 +263,7 @@ pub struct AwsEngine {
 }
 
 impl AwsEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(None)),

@@ -10,6 +10,7 @@ use crate::{ApiError, middleware::RequestContext};
 /// Extracted Namespace from request context
 /// Defaults to "default" if no context or specific claims are found
 #[derive(Debug, Clone)]
+/// Mewakili pub `Namespace(pub`.
 pub struct Namespace(pub String);
 
 impl<S> FromRequestParts<S> for Namespace
@@ -43,6 +44,7 @@ where
 /// }
 /// ```
 #[derive(Debug, Clone)]
+/// Mewakili pub `AuthenticatedUser`.
 pub struct AuthenticatedUser {
     pub id: uuid::Uuid,
     pub username: String,
@@ -102,6 +104,7 @@ where
 /// Optional authenticated user - does not fail if token is missing/invalid.
 /// Use this for endpoints that work differently for authenticated vs anonymous users.
 #[derive(Debug, Clone)]
+/// Mewakili pub `OptionalUser(pub`.
 pub struct OptionalUser(pub Option<AuthenticatedUser>);
 
 impl<S> FromRequestParts<S> for OptionalUser

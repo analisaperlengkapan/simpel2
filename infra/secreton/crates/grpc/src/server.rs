@@ -23,6 +23,7 @@ use crate::tls::GrpcTlsConfig;
 
 /// gRPC service implementation
 #[derive(Clone)]
+/// Mewakili pub `SecretonGrpcService`.
 pub struct SecretonGrpcService {
     /// Storage backend
     storage: Arc<dyn StorageBackend>,

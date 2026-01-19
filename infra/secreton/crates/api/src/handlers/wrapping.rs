@@ -56,6 +56,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to wrap data
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `WrapDataRequest`.
 pub struct WrapDataRequest {
     /// Data to wrap (any JSON value)
     pub data: serde_json::Value,
@@ -71,6 +72,7 @@ fn default_ttl() -> u64 {
 
 /// Response for wrap operation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `WrapDataResponse`.
 pub struct WrapDataResponse {
     /// Wrapping token (one-time use)
     pub token: String,
@@ -185,6 +187,7 @@ pub async fn wrap_data(
 
 /// Request to unwrap token
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `UnwrapTokenRequest`.
 pub struct UnwrapTokenRequest {
     /// Wrapping token to unwrap
     pub token: String,
@@ -192,6 +195,7 @@ pub struct UnwrapTokenRequest {
 
 /// Response for unwrap operation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `UnwrapTokenResponse`.
 pub struct UnwrapTokenResponse {
     /// Original wrapped data
     pub data: serde_json::Value,
@@ -356,6 +360,7 @@ pub async fn lookup_token(
 
 /// Request to rewrap token with new TTL
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RewrapTokenRequest`.
 pub struct RewrapTokenRequest {
     /// Original wrapping token
     pub token: String,

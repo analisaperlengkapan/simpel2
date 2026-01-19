@@ -3,9 +3,13 @@
 //! Auto-authentication, token renewal, and template rendering agent for Secreton vault.
 
 pub mod auth;
+/// Mewakili pub `config`.
 pub mod config;
+/// Mewakili pub `health`.
 pub mod health;
+/// Mewakili pub `sink`.
 pub mod sink;
+/// Mewakili pub `template`.
 pub mod template;
 
 pub use config::AgentConfig;

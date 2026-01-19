@@ -223,10 +223,15 @@ use config;
 use serde::Deserialize;
 use std::path::Path;
 
+/// Mewakili pub `application`.
 pub mod application;
+/// Mewakili pub `bootstrap`.
 pub mod bootstrap;
+/// Mewakili pub `dynamic`.
 pub mod dynamic;
+/// Mewakili pub `mfa_policy_loader`.
 pub mod mfa_policy_loader;
+/// Mewakili pub `migrate`.
 pub mod migrate;
 
 pub use application::*;
@@ -236,6 +241,7 @@ pub use mfa_policy_loader::*;
 pub use migrate::*;
 
 #[derive(Debug, Deserialize, Clone)]
+/// Mewakili pub `ServerConfig`.
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
@@ -244,12 +250,14 @@ pub struct ServerConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+/// Mewakili pub `DatabaseConfig`.
 pub struct DatabaseConfig {
     pub url: String,
     pub max_connections: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
+/// Mewakili pub `AuthConfig`.
 pub struct AuthConfig {
     #[serde(default = "default_token_ttl")]
     pub token_ttl: i64, // in seconds
@@ -271,6 +279,7 @@ pub struct AuthConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+/// Mewakili pub `LeaseConfig`.
 pub struct LeaseConfig {
     /// Lease expiration check interval in seconds (default: 60)
     #[serde(default = "default_lease_check_interval")]
@@ -322,6 +331,7 @@ fn default_lease_notifications_enabled() -> bool {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+/// Mewakili pub `Config`.
 pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
@@ -342,6 +352,7 @@ impl Default for LeaseConfig {
 }
 
 impl Config {
+    /// Mewakili pub `from_file`.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let config = config::Config::builder()
             .add_source(config::File::from(path.as_ref()))
@@ -354,6 +365,7 @@ impl Config {
             .map_err(|e| CoreError::configuration(format!("Failed to deserialize config: {}", e)))
     }
 
+    /// Mewakili pub `from_env(`.
     pub fn from_env() -> Result<Self> {
         let config = config::Config::builder()
             .add_source(config::Environment::with_prefix("Secreton").separator("__"))

@@ -14,6 +14,7 @@ pub use lib_hsm::HsmConfig;
 
 /// Main API configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `ApiConfig`.
 pub struct ApiConfig {
     /// HTTP server configuration
     pub http: HttpConfig,
@@ -50,6 +51,7 @@ pub struct ApiConfig {
 
 /// HTTP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HttpConfig`.
 pub struct HttpConfig {
     /// Address to bind HTTP server
     pub bind_address: SocketAddr,
@@ -72,6 +74,7 @@ pub struct HttpConfig {
 
 /// gRPC server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GrpcConfig`.
 pub struct GrpcConfig {
     /// Enable gRPC server
     pub enabled: bool,
@@ -94,6 +97,7 @@ pub struct GrpcConfig {
 
 /// Authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `AuthConfig`.
 pub struct AuthConfig {
     /// JWT configuration
     pub jwt: JwtConfig,
@@ -113,6 +117,7 @@ pub struct AuthConfig {
 
 /// JWT configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `JwtConfig`.
 pub struct JwtConfig {
     /// JWT signing secret
     pub secret: String,
@@ -135,6 +140,7 @@ pub struct JwtConfig {
 
 /// OAuth2 configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OAuth2Config`.
 pub struct OAuth2Config {
     /// OAuth2 provider URLs
     pub providers: Vec<OAuth2Provider>,
@@ -148,6 +154,7 @@ pub struct OAuth2Config {
 
 /// OAuth2 provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OAuth2Provider`.
 pub struct OAuth2Provider {
     /// Provider name
     pub name: String,
@@ -170,6 +177,7 @@ pub struct OAuth2Provider {
 
 /// mTLS configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MtlsConfig`.
 pub struct MtlsConfig {
     /// Require client certificates
     pub required: bool,
@@ -186,6 +194,7 @@ pub struct MtlsConfig {
 
 /// Session configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SessionConfig`.
 pub struct SessionConfig {
     /// Session timeout
     pub timeout: Duration,
@@ -200,6 +209,7 @@ pub struct SessionConfig {
 /// Session store types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
+/// Mewakili pub `SessionStore`.
 pub enum SessionStore {
     Memory,
     Redis { url: String },
@@ -208,6 +218,7 @@ pub enum SessionStore {
 
 /// Cookie configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CookieConfig`.
 pub struct CookieConfig {
     /// Cookie name
     pub name: String,
@@ -230,6 +241,7 @@ pub struct CookieConfig {
 
 /// Multi-factor authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `MfaConfig`.
 pub struct MfaConfig {
     /// Enable MFA
     pub enabled: bool,
@@ -282,6 +294,7 @@ pub struct MfaConfig {
 
 /// TOTP configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpConfig`.
 pub struct TotpConfig {
     /// Issuer name
     pub issuer: String,
@@ -301,6 +314,7 @@ pub struct TotpConfig {
 
 /// SMS configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SmsConfig`.
 pub struct SmsConfig {
     /// SMS provider
     pub provider: String,
@@ -314,6 +328,7 @@ pub struct SmsConfig {
 
 /// Email configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EmailConfig`.
 pub struct EmailConfig {
     /// SMTP server
     pub smtp_server: String,
@@ -336,6 +351,7 @@ pub struct EmailConfig {
 
 /// WebAuthn configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WebAuthnConfig`.
 pub struct WebAuthnConfig {
     /// Relying party name
     pub rp_name: String,
@@ -349,6 +365,7 @@ pub struct WebAuthnConfig {
 
 /// MFA enforcement policies for government employees
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaPoliciesConfig`.
 pub struct MfaPoliciesConfig {
     /// Require MFA for all government employees
     pub enforce_for_all: bool,
@@ -374,6 +391,7 @@ pub struct MfaPoliciesConfig {
 
 /// Role-based MFA requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaRolePoliciesConfig`.
 pub struct MfaRolePoliciesConfig {
     /// Administrative roles require immediate MFA setup
     pub admin_immediate_setup: Vec<String>,
@@ -387,6 +405,7 @@ pub struct MfaRolePoliciesConfig {
 
 /// Satker-specific MFA policies
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaSatkerPoliciesConfig`.
 pub struct MfaSatkerPoliciesConfig {
     /// High-security satkers require immediate MFA setup
     pub high_security_satkers: Vec<String>,
@@ -397,6 +416,7 @@ pub struct MfaSatkerPoliciesConfig {
 
 /// Recovery codes configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaRecoveryCodesConfig`.
 pub struct MfaRecoveryCodesConfig {
     /// Number of recovery codes to generate
     pub count: u32,
@@ -413,6 +433,7 @@ pub struct MfaRecoveryCodesConfig {
 
 /// Rate limiting for MFA operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaRateLimitingConfig`.
 pub struct MfaRateLimitingConfig {
     /// Maximum MFA verification attempts per minute
     pub max_attempts_per_minute: u32,
@@ -429,6 +450,7 @@ pub struct MfaRateLimitingConfig {
 
 /// Audit logging for MFA operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaAuditConfig`.
 pub struct MfaAuditConfig {
     /// Enable comprehensive MFA audit logging
     pub enabled: bool,
@@ -451,6 +473,7 @@ pub struct MfaAuditConfig {
 
 /// Security settings for MFA secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaSecurityConfig`.
 pub struct MfaSecurityConfig {
     /// Encryption algorithm for MFA secrets
     pub secret_encryption: String,
@@ -476,6 +499,7 @@ pub struct MfaSecurityConfig {
 
 /// Backup and disaster recovery for MFA data
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaBackupConfig`.
 pub struct MfaBackupConfig {
     /// Enable automatic backup of MFA configurations
     pub enabled: bool,
@@ -495,6 +519,7 @@ pub struct MfaBackupConfig {
 
 /// Monitoring and alerting for MFA operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaMonitoringConfig`.
 pub struct MfaMonitoringConfig {
     /// Enable MFA metrics collection
     pub metrics_enabled: bool,
@@ -517,6 +542,7 @@ pub struct MfaMonitoringConfig {
 
 /// Government compliance settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaComplianceConfig`.
 pub struct MfaComplianceConfig {
     /// Enable FIPS 140-2 compliance mode
     pub fips_mode: bool,
@@ -536,6 +562,7 @@ pub struct MfaComplianceConfig {
 
 /// Access control for MFA operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaAccessControlConfig`.
 pub struct MfaAccessControlConfig {
     /// Require specific permissions for MFA operations
     pub setup_permission: String,
@@ -552,6 +579,7 @@ pub struct MfaAccessControlConfig {
 
 /// Network security settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaNetworkConfig`.
 pub struct MfaNetworkConfig {
     /// Allowed IP ranges for MFA operations (government networks)
     pub allowed_ip_ranges: Vec<String>,
@@ -565,6 +593,7 @@ pub struct MfaNetworkConfig {
 
 /// Session management for MFA
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaSessionConfig`.
 pub struct MfaSessionConfig {
     /// MFA session timeout (in minutes)
     pub session_timeout: u32,
@@ -578,6 +607,7 @@ pub struct MfaSessionConfig {
 
 /// Rate limiting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitConfig`.
 pub struct RateLimitConfig {
     /// Enable rate limiting
     pub enabled: bool,
@@ -597,6 +627,7 @@ pub struct RateLimitConfig {
 
 /// Rate limit rule
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitRule`.
 pub struct RateLimitRule {
     /// Requests per time window
     pub requests: u32,
@@ -610,6 +641,7 @@ pub struct RateLimitRule {
 
 /// Endpoint-specific rate limiting
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EndpointRateLimit`.
 pub struct EndpointRateLimit {
     /// Endpoint pattern
     pub pattern: String,
@@ -620,6 +652,7 @@ pub struct EndpointRateLimit {
 
 /// TLS configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TlsConfig`.
 pub struct TlsConfig {
     /// Certificate file path
     pub cert_file: PathBuf,
@@ -642,6 +675,7 @@ pub struct TlsConfig {
 
 /// Jaeger tracing configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `JaegerConfig`.
 pub struct JaegerConfig {
     /// Jaeger endpoint URL
     pub endpoint: String,
@@ -655,6 +689,7 @@ pub struct JaegerConfig {
 
 /// Monitoring configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MonitoringConfig`.
 pub struct MonitoringConfig {
     /// Enable metrics
     pub metrics: bool,
@@ -674,6 +709,7 @@ pub struct MonitoringConfig {
 
 /// CORS configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CorsConfig`.
 pub struct CorsConfig {
     /// Enable CORS
     pub enabled: bool,
@@ -699,6 +735,7 @@ pub struct CorsConfig {
 
 /// Static files configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `StaticFilesConfig`.
 pub struct StaticFilesConfig {
     /// Static files directory
     pub directory: PathBuf,
@@ -715,6 +752,7 @@ pub struct StaticFilesConfig {
 
 /// Logging configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LoggingConfig`.
 pub struct LoggingConfig {
     /// Log level
     pub level: String,
@@ -734,6 +772,7 @@ pub struct LoggingConfig {
 
 /// Log rotation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LogRotationConfig`.
 pub struct LogRotationConfig {
     /// Maximum file size
     pub max_size: u64,
@@ -747,6 +786,7 @@ pub struct LogRotationConfig {
 
 /// Database configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DatabaseConfig`.
 pub struct DatabaseConfig {
     /// Database host
     pub host: String,

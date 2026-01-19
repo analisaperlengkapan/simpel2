@@ -70,6 +70,7 @@ use uuid::Uuid;
 
 // Placeholder until auth module is implemented
 #[derive(Debug, Clone)]
+/// Mewakili pub `Claims`.
 pub struct Claims {
     pub sub: String,
 }
@@ -78,6 +79,7 @@ use super::*;
 
 /// Extension trait for adding audit logging to requests
 #[async_trait::async_trait]
+/// Mewakili pub `AuditExt`.
 pub trait AuditExt {
     /// Log an audit event for this request
     async fn audit_log(

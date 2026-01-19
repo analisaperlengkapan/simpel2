@@ -10,6 +10,7 @@ use tracing::{info, warn};
 
 /// Audit event type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `AuditEventType`.
 pub enum AuditEventType {
     /// Secret created
     SecretCreated,
@@ -33,6 +34,7 @@ pub enum AuditEventType {
 
 /// Audit event entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditEvent`.
 pub struct AuditEvent {
     /// Event timestamp
     pub timestamp: DateTime<Utc>,
@@ -109,6 +111,7 @@ impl AuditEvent {
 
 /// Audit logger for vault operations (API-specific wrapper)
 #[derive(Clone)]
+/// Mewakili pub `AuditLogger`.
 pub struct AuditLogger {
     /// Core audit logger
     core_logger: Arc<secreton_core::audit::AuditLogger>,

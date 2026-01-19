@@ -18,6 +18,7 @@ use crate::services::seal::SealConfig;
 
 /// Bootstrap configuration loaded from secreton.toml
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `BootstrapConfig`.
 pub struct BootstrapConfig {
     pub storage: StorageConfig,
     pub listener: ListenerConfig,
@@ -79,6 +80,7 @@ fn default_log_format() -> String {
 // ================================
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `StorageConfig`.
 pub struct StorageConfig {
     pub backend: StorageBackend,
 
@@ -87,6 +89,7 @@ pub struct StorageConfig {
 }
 
 impl StorageConfig {
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> anyhow::Result<()> {
         match (&self.backend, &self.config) {
             (StorageBackend::Raft, StorageBackendConfig::Raft(cfg)) => cfg.validate(),
@@ -100,6 +103,7 @@ impl StorageConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `StorageBackend`.
 pub enum StorageBackend {
     Raft,
     File,
@@ -120,6 +124,7 @@ impl ToString for StorageBackend {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
+/// Mewakili pub `StorageBackendConfig`.
 pub enum StorageBackendConfig {
     Raft(RaftStorageConfig),
     File(FileStorageConfig),
@@ -128,6 +133,7 @@ pub enum StorageBackendConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `RaftStorageConfig`.
 pub struct RaftStorageConfig {
     pub path: PathBuf,
     pub node_id: String,
@@ -149,12 +155,14 @@ impl RaftStorageConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `RaftRetryJoin`.
 pub struct RaftRetryJoin {
     pub leader_api_addr: String,
     pub leader_ca_cert_file: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `RaftPerformanceConfig`.
 pub struct RaftPerformanceConfig {
     #[serde(default = "default_election_timeout_ms")]
     pub election_timeout_ms: u64,
@@ -194,6 +202,7 @@ fn default_max_appending_entries() -> u64 {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `FileStorageConfig`.
 pub struct FileStorageConfig {
     pub path: PathBuf,
 
@@ -213,6 +222,7 @@ fn default_sync_writes() -> bool {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `PostgresStorageConfig`.
 pub struct PostgresStorageConfig {
     // Connection URL from environment variable SECRETON_STORAGE_URL
     #[serde(default = "default_max_connections")]
@@ -237,6 +247,7 @@ fn default_max_connections() -> u32 {
 // ================================
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `ListenerConfig`.
 pub struct ListenerConfig {
     pub http: HttpListenerConfig,
 
@@ -253,6 +264,7 @@ impl ListenerConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `HttpListenerConfig`.
 pub struct HttpListenerConfig {
     pub address: String,
 
@@ -278,6 +290,7 @@ impl HttpListenerConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `TlsConfig`.
 pub struct TlsConfig {
     pub cert_file: PathBuf,
     pub key_file: PathBuf,
@@ -294,6 +307,7 @@ fn default_tls_min_version() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `GrpcListenerConfig`.
 pub struct GrpcListenerConfig {
     #[serde(default = "default_grpc_enabled")]
     pub enabled: bool,
@@ -332,6 +346,7 @@ fn default_grpc_address() -> String {
 // ================================
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `SealConfigBootstrap`.
 pub struct SealConfigBootstrap {
     #[serde(rename = "type")]
     pub seal_type: SealType,
@@ -351,6 +366,7 @@ impl SealConfigBootstrap {
         }
     }
 
+    /// Mewakili pub `get_shares(`.
     pub fn get_shares(&self) -> usize {
         match &self.config {
             SealTypeConfig::Shamir(cfg) => cfg.shares,
@@ -358,6 +374,7 @@ impl SealConfigBootstrap {
         }
     }
 
+    /// Mewakili pub `get_threshold(`.
     pub fn get_threshold(&self) -> usize {
         match &self.config {
             SealTypeConfig::Shamir(cfg) => cfg.threshold,
@@ -368,6 +385,7 @@ impl SealConfigBootstrap {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
+/// Mewakili pub `SealType`.
 pub enum SealType {
     Shamir,
     AwsKms,
@@ -388,6 +406,7 @@ impl ToString for SealType {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
+/// Mewakili pub `SealTypeConfig`.
 pub enum SealTypeConfig {
     Shamir(ShamirSealConfig),
     AwsKms(AwsKmsSealConfig),
@@ -396,6 +415,7 @@ pub enum SealTypeConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `ShamirSealConfig`.
 pub struct ShamirSealConfig {
     #[serde(default = "default_shamir_shares")]
     pub shares: usize,
@@ -431,6 +451,7 @@ fn default_shamir_threshold() -> usize {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `AwsKmsSealConfig`.
 pub struct AwsKmsSealConfig {
     pub region: String,
     pub kms_key_id: String,
@@ -449,6 +470,7 @@ impl AwsKmsSealConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `GcpKmsSealConfig`.
 pub struct GcpKmsSealConfig {
     pub project: String,
     pub region: String,
@@ -472,6 +494,7 @@ impl GcpKmsSealConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `AzureKvSealConfig`.
 pub struct AzureKvSealConfig {
     pub vault_name: String,
     pub key_name: String,
@@ -494,6 +517,7 @@ impl AzureKvSealConfig {
 // ================================
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Mewakili pub `TelemetryConfig`.
 pub struct TelemetryConfig {
     #[serde(default = "default_prometheus_enabled")]
     pub prometheus_enabled: bool,

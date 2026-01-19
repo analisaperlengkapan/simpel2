@@ -23,6 +23,7 @@ use tokio::sync::RwLock;
 
 /// LDAP authentication errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `LdapError`.
 pub enum LdapError {
     #[error("LDAP bind failed: {0}")]
     BindFailed(String),
@@ -42,6 +43,7 @@ pub enum LdapError {
 
 /// LDAP configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapConfig`.
 pub struct LdapConfig {
     /// LDAP server URL (ldap:// or ldaps://)
     pub url: String,
@@ -101,6 +103,7 @@ impl Default for LdapConfig {
 
 /// LDAP user information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapUser`.
 pub struct LdapUser {
     /// Username
     pub username: String,
@@ -123,6 +126,7 @@ pub struct LdapUser {
 
 /// LDAP group mapping
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapGroupMapping`.
 pub struct LdapGroupMapping {
     /// LDAP group name
     pub ldap_group: String,
@@ -155,7 +159,7 @@ impl LdapConnection {
         }
     }
 
-    async fn bind(&mut self, dn: &str, password: &str) -> Result<(), LdapError> {
+    async fn bind(&mut self, _dn: &str, password: &str) -> Result<(), LdapError> {
         self.last_used = Utc::now();
 
         // Simulate LDAP bind operation
@@ -189,8 +193,8 @@ impl LdapConnection {
 
     async fn search_groups(
         &mut self,
-        base_dn: &str,
-        user_dn: &str,
+        _base_dn: &str,
+        _user_dn: &str,
         nested: bool,
     ) -> Result<Vec<String>, LdapError> {
         self.last_used = Utc::now();

@@ -16,6 +16,7 @@ use secreton_core::services::seal::{SealError, SealStatus};
 
 /// Rate limiter for unseal attempts to prevent brute force attacks
 #[derive(Clone)]
+/// Mewakili pub `UnsealRateLimiter`.
 pub struct UnsealRateLimiter {
     attempts: Arc<Mutex<HashMap<String, Vec<Instant>>>>,
     max_attempts: usize,
@@ -23,6 +24,7 @@ pub struct UnsealRateLimiter {
 }
 
 impl UnsealRateLimiter {
+    /// Mewakili pub `new(max_attempts`.
     pub fn new(max_attempts: usize, window_seconds: u64) -> Self {
         Self {
             attempts: Arc::new(Mutex::new(HashMap::new())),
@@ -69,6 +71,7 @@ impl UnsealRateLimiter {
 
 /// Initialize vault request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `InitializeRequest`.
 pub struct InitializeRequest {
     /// Number of secret shares to generate
     pub secret_shares: usize,
@@ -79,6 +82,7 @@ pub struct InitializeRequest {
 
 /// Initialize vault response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `InitializeResponse`.
 pub struct InitializeResponse {
     /// Base64-encoded Shamir shares (must be distributed securely)
     pub keys: Vec<String>,
@@ -89,6 +93,7 @@ pub struct InitializeResponse {
 
 /// Unseal request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `UnsealRequest`.
 pub struct UnsealRequest {
     /// Base64-encoded unseal key (Shamir share)
     pub key: String,
@@ -100,6 +105,7 @@ pub struct UnsealRequest {
 
 /// Seal status response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SealStatusResponse`.
 pub struct SealStatusResponse {
     /// Seal type (e.g., "shamir")
     pub seal_type: String,
@@ -145,6 +151,7 @@ impl From<SealStatus> for SealStatusResponse {
 
 /// Rekey init request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RekeyInitRequest`.
 pub struct RekeyInitRequest {
     /// New number of secret shares
     pub secret_shares: usize,
@@ -155,6 +162,7 @@ pub struct RekeyInitRequest {
 
 /// Rekey update request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RekeyUpdateRequest`.
 pub struct RekeyUpdateRequest {
     /// Unseal key for authorization
     pub key: String,
@@ -165,6 +173,7 @@ pub struct RekeyUpdateRequest {
 
 /// Rekey status response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RekeyStatusResponse`.
 pub struct RekeyStatusResponse {
     /// Whether rekey is in progress
     pub started: bool,

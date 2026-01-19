@@ -24,6 +24,7 @@ use crate::auth::{AuthError, extract_bearer_token};
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
+/// Mewakili pub `CertificateCache`.
 pub struct CertificateCache {
     cache: Mutex<HashMap<String, (CertificateValidation, Instant)>>,
     ttl: Duration,
@@ -32,6 +33,7 @@ pub struct CertificateCache {
 }
 
 impl CertificateCache {
+    /// Mewakili pub `new(ttl_seconds`.
     pub fn new(ttl_seconds: u64) -> Self {
         Self {
             cache: Mutex::new(HashMap::new()),
@@ -41,6 +43,7 @@ impl CertificateCache {
         }
     }
 
+    /// Mewakili pub `get(`.
     pub fn get(&self, cache_key: &str) -> Option<CertificateValidation> {
         // Handle lock poisoning gracefully
         let mut cache = match self.cache.lock() {
@@ -63,12 +66,14 @@ impl CertificateCache {
         None
     }
 
+    /// Mewakili pub `insert(`.
     pub fn insert(&self, cache_key: String, validation: CertificateValidation) {
         if let Ok(mut cache) = self.cache.lock() {
             cache.insert(cache_key, (validation, Instant::now()));
         }
     }
 
+    /// Mewakili pub `hit_rate(`.
     pub fn hit_rate(&self) -> f64 {
         let hits = self.hits.load(Ordering::Relaxed) as f64;
         let misses = self.misses.load(Ordering::Relaxed) as f64;
@@ -103,6 +108,7 @@ pub fn get_cache_hit_rate() -> f64 {
 
 /// Certificate validation result
 #[derive(Debug, Clone)]
+/// Mewakili pub `CertificateValidation`.
 pub struct CertificateValidation {
     pub valid: bool,
     pub subject: Option<String>,
@@ -278,6 +284,7 @@ pub async fn mtls_auth_middleware(
 
 /// Request context passed through middleware
 #[derive(Debug, Clone)]
+/// Mewakili pub `RequestContext`.
 pub struct RequestContext {
     pub request_id: String,
     pub user_id: Option<String>,
@@ -312,12 +319,14 @@ impl RequestContext {
 
 /// Rate limiting state
 #[derive(Debug)]
+/// Mewakili pub `RateLimitState`.
 pub struct RateLimitState {
     requests: HashMap<String, Vec<Instant>>,
     max_requests_per_minute: u32,
 }
 
 impl RateLimitState {
+    /// Mewakili pub `new(max_requests_per_minute`.
     pub fn new(max_requests_per_minute: u32) -> Self {
         Self {
             requests: HashMap::new(),
@@ -325,6 +334,7 @@ impl RateLimitState {
         }
     }
 
+    /// Mewakili pub `check_rate_limit(`.
     pub fn check_rate_limit(&mut self, identifier: &str) -> bool {
         let now = Instant::now();
         let one_minute_ago = now - Duration::from_secs(60);

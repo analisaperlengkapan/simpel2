@@ -1,7 +1,9 @@
 //! Authentication methods
 
 pub mod approle;
+/// Mewakili pub `kubernetes`.
 pub mod kubernetes;
+/// Mewakili pub `userpass`.
 pub mod userpass;
 
 use anyhow::Result;

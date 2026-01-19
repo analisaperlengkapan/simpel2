@@ -10,10 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// LDAP secrets engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `LdapError`.
 pub enum LdapError {
     #[error("Configuration not found")]
     ConfigNotFound,
@@ -48,6 +49,7 @@ pub enum LdapError {
 
 /// LDAP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapConfig`.
 pub struct LdapConfig {
     /// LDAP server URL (ldap:// or ldaps://)
     pub url: String,
@@ -83,19 +85,17 @@ pub struct LdapConfig {
 /// LDAP schema type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
+/// Mewakili pub `LdapSchema`.
 pub enum LdapSchema {
+    #[default]
     OpenLdap,
     ActiveDirectory,
 }
 
-impl Default for LdapSchema {
-    fn default() -> Self {
-        Self::OpenLdap
-    }
-}
-
 /// LDAP role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapRole`.
 pub struct LdapRole {
     /// Role name
     pub name: String,
@@ -123,6 +123,7 @@ pub struct LdapRole {
 }
 
 impl LdapRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -136,6 +137,7 @@ impl LdapRole {
         }
     }
 
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), LdapError> {
         if self.name.is_empty() {
             return Err(LdapError::InvalidConfig(
@@ -167,6 +169,7 @@ impl LdapRole {
 
 /// Dynamic LDAP credential
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapCredential`.
 pub struct LdapCredential {
     /// Username
     pub username: String,
@@ -222,9 +225,9 @@ impl LdapConnection {
         &self,
         dn: &str,
         username: &str,
-        password: &str,
-        object_class: &str,
-        attributes: &HashMap<String, String>,
+        _password: &str,
+        _object_class: &str,
+        _attributes: &HashMap<String, String>,
     ) -> Result<(), LdapError> {
         if !self.connected {
             return Err(LdapError::ConnectionFailed("Not connected".to_string()));
@@ -235,7 +238,7 @@ impl LdapConnection {
         Ok(())
     }
 
-    async fn modify_password(&self, dn: &str, new_password: &str) -> Result<(), LdapError> {
+    async fn modify_password(&self, dn: &str, _new_password: &str) -> Result<(), LdapError> {
         if !self.connected {
             return Err(LdapError::ConnectionFailed("Not connected".to_string()));
         }
@@ -550,6 +553,7 @@ impl LdapEngine {
 
 /// Credential info without password
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LdapCredentialInfo`.
 pub struct LdapCredentialInfo {
     pub username: String,
     pub dn: String,

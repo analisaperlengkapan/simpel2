@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 /// Auto-Rotation Engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `RotationError`.
 pub enum RotationError {
     #[error("Rotation policy not found: {0}")]
     PolicyNotFound(String),
@@ -51,6 +52,7 @@ pub enum RotationError {
 /// Rotation strategy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `RotationStrategy`.
 pub enum RotationStrategy {
     /// Immediate rotation (may cause brief downtime)
     Immediate,
@@ -65,6 +67,7 @@ pub enum RotationStrategy {
 /// Secret type for rotation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `SecretType`.
 pub enum SecretType {
     DatabasePassword,
     ApiKey,
@@ -77,6 +80,7 @@ pub enum SecretType {
 
 /// Rotation policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RotationPolicy`.
 pub struct RotationPolicy {
     /// Policy ID
     pub id: String,
@@ -125,6 +129,7 @@ pub struct RotationPolicy {
 }
 
 impl RotationPolicy {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, secret_path: String, secret_type: SecretType) -> Self {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
@@ -151,6 +156,7 @@ impl RotationPolicy {
 
 /// Webhook configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WebhookConfig`.
 pub struct WebhookConfig {
     /// Pre-rotation webhooks
     pub pre_rotation: Vec<WebhookEndpoint>,
@@ -182,6 +188,7 @@ impl Default for WebhookConfig {
 
 /// Webhook endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WebhookEndpoint`.
 pub struct WebhookEndpoint {
     /// Endpoint URL
     pub url: String,
@@ -198,6 +205,7 @@ pub struct WebhookEndpoint {
 
 /// Rotation history entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RotationHistory`.
 pub struct RotationHistory {
     /// History ID
     pub id: String,
@@ -245,6 +253,7 @@ pub struct RotationHistory {
 /// Rotation status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+/// Mewakili pub `RotationStatus`.
 pub enum RotationStatus {
     Scheduled,
     InProgress,
@@ -255,6 +264,7 @@ pub enum RotationStatus {
 
 /// Rotation statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RotationStatistics`.
 pub struct RotationStatistics {
     pub total_rotations: u64,
     pub successful_rotations: u64,
@@ -617,7 +627,7 @@ impl AutoRotationEngine {
     async fn send_webhooks(
         &self,
         endpoints: &[WebhookEndpoint],
-        policy: &RotationPolicy,
+        _policy: &RotationPolicy,
         event_type: &str,
     ) -> Result<(), RotationError> {
         for endpoint in endpoints {

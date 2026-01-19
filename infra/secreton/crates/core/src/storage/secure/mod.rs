@@ -111,6 +111,7 @@ const KEY_VERSION_LENGTH: usize = 8; // First 8 bytes of key ID
 /// };
 /// ```
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Mewakili pub `KeyEntry`.
 pub struct KeyEntry {
     /// Unique identifier for this key (UUID v4)
     pub id: String,
@@ -163,6 +164,7 @@ pub struct KeyEntry {
 /// };
 /// ```
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Mewakili pub `KeyConfig`.
 pub struct KeyConfig {
     /// How often to rotate keys (in seconds).
     ///
@@ -245,6 +247,7 @@ impl Default for KeyConfig {
 /// }
 /// ```
 #[async_trait]
+/// Mewakili pub `KeyStore`.
 pub trait KeyStore: Send + Sync {
     /// Load all keys from the underlying storage
     ///
@@ -478,10 +481,11 @@ impl SecureStorage {
         since = "0.2.0",
         note = "Use `SecureStorage::new_with_keystore` for key rotation support"
     )]
+    /// Mewakili pub `new(master_key`.
     pub fn new(master_key: &[u8]) -> Self {
         // Generate a new random salt
         let mut salt = [0u8; SALT_LENGTH];
-        (&mut OsRng).fill_bytes(&mut salt);
+        OsRng.fill_bytes(&mut salt);
 
         // Derive the key
         let key = Self::derive_key(master_key, &salt).unwrap_or_else(|_| {
@@ -561,7 +565,7 @@ impl SecureStorage {
     ) -> Result<KeyEntry> {
         // Generate a random salt for key derivation
         let mut salt = [0u8; SALT_LENGTH];
-        (&mut OsRng).fill_bytes(&mut salt);
+        OsRng.fill_bytes(&mut salt);
 
         // Derive the encryption key from the master key and salt
         let key = Self::derive_key(master_key, &salt)?;
@@ -724,7 +728,7 @@ impl SecureStorage {
 
         // Generate a random nonce for each encryption
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
-        (&mut OsRng).fill_bytes(&mut nonce_bytes);
+        OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt the data with the current cipher
@@ -975,6 +979,7 @@ impl SecureStorage {
 
 /// A wrapper that provides thread-safe access to SecureStorage with key rotation support
 #[derive(Clone)]
+/// Mewakili pub `SharedSecureStorage`.
 pub struct SharedSecureStorage {
     inner: Arc<SecureStorage>,
 }

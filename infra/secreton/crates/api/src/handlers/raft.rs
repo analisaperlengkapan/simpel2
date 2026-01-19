@@ -35,6 +35,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Cluster status response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ClusterStatusResponse`.
 pub struct ClusterStatusResponse {
     /// Current node ID
     pub node_id: u64,
@@ -59,6 +60,7 @@ pub struct ClusterStatusResponse {
 /// Node health status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `NodeHealthStatus`.
 pub enum NodeHealthStatus {
     /// Node is healthy and operational
     Healthy,
@@ -70,6 +72,7 @@ pub enum NodeHealthStatus {
 
 /// Peer information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PeerInfo`.
 pub struct PeerInfo {
     /// Node ID
     pub node_id: u64,
@@ -87,6 +90,7 @@ pub struct PeerInfo {
 
 /// Add peer request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AddPeerRequest`.
 pub struct AddPeerRequest {
     /// Node ID to add
     pub node_id: u64,
@@ -96,6 +100,7 @@ pub struct AddPeerRequest {
 
 /// Add peer response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AddPeerResponse`.
 pub struct AddPeerResponse {
     /// Success status
     pub success: bool,
@@ -107,6 +112,7 @@ pub struct AddPeerResponse {
 
 /// Remove peer response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RemovePeerResponse`.
 pub struct RemovePeerResponse {
     /// Success status
     pub success: bool,
@@ -118,6 +124,7 @@ pub struct RemovePeerResponse {
 
 /// Snapshot metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SnapshotMetadata`.
 pub struct SnapshotMetadata {
     /// Snapshot ID
     pub snapshot_id: String,
@@ -141,6 +148,7 @@ pub struct SnapshotMetadata {
 
 /// Create snapshot response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CreateSnapshotResponse`.
 pub struct CreateSnapshotResponse {
     /// Success status
     pub success: bool,
@@ -152,6 +160,7 @@ pub struct CreateSnapshotResponse {
 
 /// List snapshots response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ListSnapshotsResponse`.
 pub struct ListSnapshotsResponse {
     /// Available snapshots
     pub snapshots: Vec<SnapshotMetadata>,
@@ -161,6 +170,7 @@ pub struct ListSnapshotsResponse {
 
 /// Restore snapshot request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RestoreSnapshotRequest`.
 pub struct RestoreSnapshotRequest {
     /// Snapshot ID to restore
     pub snapshot_id: String,
@@ -168,6 +178,7 @@ pub struct RestoreSnapshotRequest {
 
 /// Restore snapshot response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RestoreSnapshotResponse`.
 pub struct RestoreSnapshotResponse {
     /// Success status
     pub success: bool,
@@ -1004,6 +1015,7 @@ pub async fn download_snapshot(
 
 /// Query parameters for snapshot download
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `DownloadSnapshotQuery`.
 pub struct DownloadSnapshotQuery {
     /// Optional snapshot ID (if not provided, downloads latest)
     pub snapshot_id: Option<String>,

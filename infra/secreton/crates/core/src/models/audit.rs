@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 /// Enhanced audit event for SIMKARI operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditEvent`.
 pub struct AuditEvent {
     /// Unique event identifier
     pub event_id: Uuid,
@@ -51,6 +52,7 @@ pub struct AuditEvent {
 
 /// Types of audit events in SIMKARI system
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+/// Mewakili pub `AuditEventType`.
 pub enum AuditEventType {
     /// Authentication events (login, logout, token refresh)
     Authentication,
@@ -80,6 +82,7 @@ pub enum AuditEventType {
 
 /// Administrative levels in the Attorney General's Office hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `AdminLevel`.
 pub enum AdminLevel {
     /// Administrator for a specific satker (satuan kerja)
     AdminSatker(String),
@@ -95,6 +98,7 @@ pub enum AdminLevel {
 
 /// Operations that can be performed on resources
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `Operation`.
 pub enum Operation {
     /// Read operation (view, list, search)
     Read,
@@ -120,6 +124,7 @@ pub enum Operation {
 
 /// Result of an operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `OperationResult`.
 pub enum OperationResult {
     /// Operation completed successfully
     Success,
@@ -137,6 +142,7 @@ pub enum OperationResult {
 
 /// Security context for audit events
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityContext`.
 pub struct SecurityContext {
     /// Authentication method used
     pub auth_method: Option<String>,
@@ -156,6 +162,7 @@ pub struct SecurityContext {
 
 /// Security levels for operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `SecurityLevel`.
 pub enum SecurityLevel {
     /// Public information, no special security required
     Public,
@@ -171,6 +178,7 @@ pub enum SecurityLevel {
 
 /// Compliance flags for kejaksaan operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+/// Mewakili pub `ComplianceFlag`.
 pub enum ComplianceFlag {
     /// Requires approval from higher authority
     RequiresApproval,
@@ -198,6 +206,7 @@ pub enum ComplianceFlag {
 
 /// Geolocation information for audit events
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `GeoLocation`.
 pub struct GeoLocation {
     /// Country code (ISO 3166-1 alpha-2)
     pub country: Option<String>,
@@ -215,6 +224,7 @@ pub struct GeoLocation {
 
 /// Audit trail entry with cryptographic integrity
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditTrailEntry`.
 pub struct AuditTrailEntry {
     /// The audit event
     pub event: AuditEvent,
@@ -234,6 +244,7 @@ pub struct AuditTrailEntry {
 
 /// Hierarchical audit summary for different organizational levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HierarchicalAuditSummary`.
 pub struct HierarchicalAuditSummary {
     /// Summary identifier
     pub summary_id: Uuid,
@@ -264,6 +275,7 @@ pub struct HierarchicalAuditSummary {
 
 /// Organizational levels in the hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+/// Mewakili pub `OrganizationalLevel`.
 pub enum OrganizationalLevel {
     /// National/central level
     Pusat,
@@ -277,6 +289,7 @@ pub enum OrganizationalLevel {
 
 /// User activity summary for audit reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `UserActivitySummary`.
 pub struct UserActivitySummary {
     /// NIP of the user
     pub nip: String,
@@ -298,6 +311,7 @@ pub struct UserActivitySummary {
 
 /// Resource access summary for audit reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ResourceAccessSummary`.
 pub struct ResourceAccessSummary {
     /// Resource path or identifier
     pub resource_path: String,
@@ -317,6 +331,7 @@ pub struct ResourceAccessSummary {
 
 /// Compliance status for reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceStatus`.
 pub struct ComplianceStatus {
     /// Total events with this compliance flag
     pub total_events: u64,
@@ -332,6 +347,7 @@ pub struct ComplianceStatus {
 
 /// Audit query parameters for searching audit logs
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditQuery`.
 pub struct AuditQuery {
     /// Start time for the query range
     pub start_time: Option<DateTime<Utc>>,
@@ -371,6 +387,7 @@ pub struct AuditQuery {
 
 /// Audit configuration for SIMKARI system
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditConfig`.
 pub struct AuditConfig {
     /// Whether audit logging is enabled
     pub enabled: bool,
@@ -394,6 +411,7 @@ pub struct AuditConfig {
 
 /// Audit log retention policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditRetentionPolicy`.
 pub struct AuditRetentionPolicy {
     /// Default retention period in days
     pub default_retention_days: u32,
@@ -411,6 +429,7 @@ pub struct AuditRetentionPolicy {
 
 /// SIEM integration configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SiemIntegrationConfig`.
 pub struct SiemIntegrationConfig {
     /// SIEM endpoint URL
     pub endpoint: String,
@@ -428,6 +447,7 @@ pub struct SiemIntegrationConfig {
 
 /// SIEM authentication methods
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SiemAuthMethod`.
 pub enum SiemAuthMethod {
     /// No authentication
     None,
@@ -443,6 +463,7 @@ pub enum SiemAuthMethod {
 
 /// Hierarchical reporting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HierarchicalReportingConfig`.
 pub struct HierarchicalReportingConfig {
     /// Whether to enable hierarchical reporting
     pub enabled: bool,
@@ -456,6 +477,7 @@ pub struct HierarchicalReportingConfig {
 
 /// Reporting intervals
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ReportingInterval`.
 pub enum ReportingInterval {
     /// Real-time reporting
     RealTime,
@@ -475,6 +497,7 @@ pub enum ReportingInterval {
 
 /// Report formats
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ReportFormat`.
 pub enum ReportFormat {
     /// JSON format
     Json,

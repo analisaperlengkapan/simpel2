@@ -117,12 +117,14 @@ mod tests {
 
 /// Token verification request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `VerifyTokenRequest`.
 pub struct VerifyTokenRequest {
     pub token: String,
 }
 
 /// MFA setup request
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaSetupRequest`.
 pub struct MfaSetupRequest {
     pub method: String, // "totp", "sms", "email", "webauthn"
     pub phone_number: Option<String>,
@@ -131,6 +133,7 @@ pub struct MfaSetupRequest {
 
 /// MFA setup response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `MfaSetupResponse`.
 pub struct MfaSetupResponse {
     pub method: String,
     pub secret: Option<String>,  // For TOTP
@@ -140,6 +143,7 @@ pub struct MfaSetupResponse {
 
 /// MFA verification request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `MfaVerifyRequest`.
 pub struct MfaVerifyRequest {
     pub method: String,
     pub code: String,
@@ -148,6 +152,7 @@ pub struct MfaVerifyRequest {
 
 /// Session information
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SessionInfo`.
 pub struct SessionInfo {
     pub id: String,
     pub user_id: String,

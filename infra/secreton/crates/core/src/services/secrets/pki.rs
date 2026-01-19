@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 /// PKI Engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `PkiError`.
 pub enum PkiError {
     #[error("Certificate generation failed: {0}")]
     GenerationFailed(String),
@@ -31,6 +32,7 @@ pub enum PkiError {
 
 /// Key algorithm types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `KeyAlgorithm`.
 pub enum KeyAlgorithm {
     EcdsaP256,
     Ed25519,
@@ -38,12 +40,14 @@ pub enum KeyAlgorithm {
 
 /// Certificate Authority type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `CaType`.
 pub enum CaType {
     Root,
 }
 
 /// CA Certificate storage
 #[derive(Debug, Clone)]
+/// Mewakili pub `CertificateAuthority`.
 pub struct CertificateAuthority {
     pub name: String,
     pub ca_type: CaType,
@@ -56,6 +60,7 @@ pub struct CertificateAuthority {
 
 /// PKI Role (certificate template)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PkiRole`.
 pub struct PkiRole {
     pub name: String,
     pub ttl: Duration,
@@ -78,6 +83,7 @@ impl Default for PkiRole {
 
 /// Issued certificate response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `IssuedCertificate`.
 pub struct IssuedCertificate {
     pub serial_number: String,
     pub certificate_pem: String,
@@ -88,6 +94,7 @@ pub struct IssuedCertificate {
 
 /// Certificate issue request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `IssueCertificateRequest`.
 pub struct IssueCertificateRequest {
     pub common_name: String,
     pub alt_names: Vec<String>,
@@ -96,6 +103,7 @@ pub struct IssueCertificateRequest {
 
 /// Revoked certificate entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RevokedCertificate`.
 pub struct RevokedCertificate {
     pub serial_number: String,
     pub revoked_at: DateTime<Utc>,

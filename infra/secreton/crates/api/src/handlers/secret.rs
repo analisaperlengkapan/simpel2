@@ -63,6 +63,7 @@ pub fn create_routes() -> Router<AppState> {
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `AuditQuery`.
 pub struct AuditQuery {
     pub user_id: Option<String>,
     pub action: Option<String>,
@@ -82,6 +83,7 @@ pub async fn get_audit_logs(
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `AuditExportQuery`.
 pub struct AuditExportQuery {
     pub format: Option<String>,
     pub user_id: Option<String>,
@@ -212,6 +214,7 @@ mod tests {
 
 /// Query parameters for listing operations
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ListQuery`.
 pub struct ListQuery {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -221,6 +224,7 @@ pub struct ListQuery {
 
 /// Secret request/response models
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateSecretRequest`.
 pub struct CreateSecretRequest {
     pub data: HashMap<String, String>,
     pub metadata: Option<SecretMetadata>,
@@ -228,6 +232,7 @@ pub struct CreateSecretRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecretResponse`.
 pub struct SecretResponse {
     pub path: String,
     pub data: HashMap<String, String>,
@@ -239,6 +244,7 @@ pub struct SecretResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SecretListItem`.
 pub struct SecretListItem {
     pub path: String,
     pub metadata: SecretMetadata,
@@ -249,6 +255,7 @@ pub struct SecretListItem {
 
 /// Key request/response models
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateKeyRequest`.
 pub struct CreateKeyRequest {
     pub name: String,
     pub key_type: String,
@@ -260,6 +267,7 @@ pub struct CreateKeyRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+/// Mewakili pub `KeyMetadata`.
 pub struct KeyMetadata {
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -268,6 +276,7 @@ pub struct KeyMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `KeyResponse`.
 pub struct KeyResponse {
     pub id: String,
     pub name: String,
@@ -284,6 +293,7 @@ pub struct KeyResponse {
 
 /// Cryptographic operation models
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `EncryptRequest`.
 pub struct EncryptRequest {
     pub key_id: String,
     pub plaintext: String,
@@ -292,6 +302,7 @@ pub struct EncryptRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `EncryptResponse`.
 pub struct EncryptResponse {
     pub ciphertext: String,
     pub key_version: u32,
@@ -299,6 +310,7 @@ pub struct EncryptResponse {
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `DecryptRequest`.
 pub struct DecryptRequest {
     pub key_id: String,
     pub ciphertext: String,
@@ -306,12 +318,14 @@ pub struct DecryptRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `DecryptResponse`.
 pub struct DecryptResponse {
     pub plaintext: String,
     pub key_version: u32,
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `SignRequest`.
 pub struct SignRequest {
     pub key_id: String,
     pub data: String,
@@ -320,6 +334,7 @@ pub struct SignRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SignResponse`.
 pub struct SignResponse {
     pub signature: String,
     pub key_version: u32,
@@ -327,6 +342,7 @@ pub struct SignResponse {
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `VerifyRequest`.
 pub struct VerifyRequest {
     pub key_id: String,
     pub data: String,
@@ -335,18 +351,21 @@ pub struct VerifyRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `VerifyResponse`.
 pub struct VerifyResponse {
     pub valid: bool,
     pub key_version: u32,
 }
 
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `HashRequest`.
 pub struct HashRequest {
     pub data: String,
     pub algorithm: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `HashResponse`.
 pub struct HashResponse {
     pub hash: String,
     pub algorithm: String,
@@ -354,6 +373,7 @@ pub struct HashResponse {
 
 /// Policy models
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreatePolicyRequest`.
 pub struct CreatePolicyRequest {
     pub name: String,
     pub rules: Vec<PolicyRule>,
@@ -365,6 +385,7 @@ pub use secreton_core::models::PolicyRule;
 
 // API-specific extension if capabilities needed
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ApiPolicyRule`.
 pub struct ApiPolicyRule {
     pub path: String,
     pub capabilities: Vec<String>,
@@ -372,6 +393,7 @@ pub struct ApiPolicyRule {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `PolicyMetadata`.
 pub struct PolicyMetadata {
     pub description: Option<String>,
     pub tags: Vec<String>,
@@ -379,6 +401,7 @@ pub struct PolicyMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `PolicyResponse`.
 pub struct PolicyResponse {
     pub name: String,
     pub rules: Vec<PolicyRule>,

@@ -23,6 +23,7 @@ use tokio::sync::RwLock;
 
 /// OIDC/JWT authentication errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `OidcError`.
 pub enum OidcError {
     #[error("Invalid token: {0}")]
     InvalidToken(String),
@@ -45,6 +46,7 @@ pub enum OidcError {
 
 /// OIDC configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcConfig`.
 pub struct OidcConfig {
     /// OIDC issuer URL
     pub issuer_url: String,
@@ -88,6 +90,7 @@ impl Default for OidcConfig {
 
 /// JWT claims
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `JwtClaims`.
 pub struct JwtClaims {
     /// Subject (user identifier)
     pub sub: String,
@@ -140,6 +143,7 @@ impl JwtClaims {
 
 /// OIDC role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcRole`.
 pub struct OidcRole {
     /// Role name
     pub name: String,
@@ -408,6 +412,7 @@ impl Default for OidcAuth {
 
 /// OIDC authentication response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OidcAuthResponse`.
 pub struct OidcAuthResponse {
     pub username: String,
     pub email: Option<String>,
@@ -476,6 +481,7 @@ mod tests {
 
 // TODO: Implement Ed25519-based OAuth2 authorization URL
 // Temporarily disabled due to RSA vulnerability migration
+/// Mewakili pub `build_authorize_url(`.
 pub fn build_authorize_url() -> Option<String> {
     None
     /*

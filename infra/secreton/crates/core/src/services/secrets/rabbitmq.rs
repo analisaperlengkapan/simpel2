@@ -9,10 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// Error types for RabbitMQ secrets engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `RabbitMqError`.
 pub enum RabbitMqError {
     #[error("RabbitMQ configuration not found")]
     ConfigNotFound,
@@ -48,6 +49,7 @@ pub enum RabbitMqError {
 /// RabbitMQ permission level
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `RabbitMqPermissionLevel`.
 pub enum RabbitMqPermissionLevel {
     Read,
     Write,
@@ -56,6 +58,7 @@ pub enum RabbitMqPermissionLevel {
 }
 
 impl RabbitMqPermissionLevel {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             Self::Read => "read",
@@ -65,6 +68,7 @@ impl RabbitMqPermissionLevel {
         }
     }
 
+    /// Mewakili pub `to_tags(`.
     pub fn to_tags(&self) -> Vec<String> {
         match self {
             Self::Read => vec![],
@@ -77,6 +81,7 @@ impl RabbitMqPermissionLevel {
 
 /// RabbitMQ vhost permissions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RabbitMqVhostPermission`.
 pub struct RabbitMqVhostPermission {
     pub vhost: String,
     pub configure: String, // Regex pattern for configure permission
@@ -97,6 +102,7 @@ impl Default for RabbitMqVhostPermission {
 
 /// RabbitMQ configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RabbitMqConfig`.
 pub struct RabbitMqConfig {
     pub connection_uri: String,
     pub management_uri: String,
@@ -123,6 +129,7 @@ impl Default for RabbitMqConfig {
 }
 
 impl RabbitMqConfig {
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), RabbitMqError> {
         if self.connection_uri.is_empty() {
             return Err(RabbitMqError::InvalidConfig(
@@ -165,6 +172,7 @@ impl RabbitMqConfig {
 
 /// RabbitMQ role
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RabbitMqRole`.
 pub struct RabbitMqRole {
     pub name: String,
     pub vhosts: Vec<RabbitMqVhostPermission>,
@@ -175,6 +183,7 @@ pub struct RabbitMqRole {
 }
 
 impl RabbitMqRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -186,6 +195,7 @@ impl RabbitMqRole {
         }
     }
 
+    /// Mewakili pub `validate(`.
     pub fn validate(&self) -> Result<(), RabbitMqError> {
         if self.name.is_empty() {
             return Err(RabbitMqError::InvalidConfig(
@@ -218,6 +228,7 @@ impl RabbitMqRole {
 
 /// RabbitMQ credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RabbitMqCredentials`.
 pub struct RabbitMqCredentials {
     pub username: String,
     pub password: String,
@@ -231,6 +242,7 @@ pub struct RabbitMqCredentials {
 
 /// RabbitMQ credential info (without password)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RabbitMqCredentialInfo`.
 pub struct RabbitMqCredentialInfo {
     pub username: String,
     pub connection_uri: String,
@@ -329,6 +341,7 @@ pub struct RabbitMqEngine {
 }
 
 impl RabbitMqEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(None)),
@@ -339,6 +352,7 @@ impl RabbitMqEngine {
         }
     }
 
+    /// Mewakili pub `with_storage(pool`.
     pub fn with_storage(pool: Pool) -> Self {
         Self {
             config: Arc::new(RwLock::new(None)),

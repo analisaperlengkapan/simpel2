@@ -17,6 +17,7 @@ use std::time::{Duration, SystemTime};
 /// Memory-based audit storage implementation
 /// Production systems should use persistent storage (PostgreSQL, etc.)
 #[derive(Debug, Clone, Default)]
+/// Mewakili pub `MemoryAuditStorage`.
 pub struct MemoryAuditStorage {
     entries: Arc<Mutex<Vec<SignedAuditEntry>>>,
     sequence_counter: Arc<Mutex<u64>>,
@@ -87,6 +88,7 @@ impl AuditStorage for MemoryAuditStorage {
 /// Simple anomaly detection implementation
 /// Production systems would use ML/AI models
 #[derive(Debug, Clone, Default)]
+/// Mewakili pub `SimpleAnomalyDetector`.
 pub struct SimpleAnomalyDetector {
     baseline_metrics: Arc<Mutex<HashMap<String, HashMap<String, f64>>>>,
 }
@@ -128,6 +130,7 @@ impl AnomalyDetector for SimpleAnomalyDetector {
 
 /// Concrete risk assessment engine implementation
 #[derive(Debug, Clone, Default)]
+/// Mewakili pub `ConcreteRiskAssessmentEngine`.
 pub struct ConcreteRiskAssessmentEngine;
 
 #[async_trait]
@@ -183,6 +186,7 @@ impl RiskAssessmentEngine for ConcreteRiskAssessmentEngine {
 
 /// Concrete MFA risk assessor implementation
 #[derive(Debug, Clone, Default)]
+/// Mewakili pub `ConcreteMfaRiskAssessor`.
 pub struct ConcreteMfaRiskAssessor;
 
 #[async_trait]
@@ -248,18 +252,21 @@ impl MemoryAuditStorage {
 }
 
 impl SimpleAnomalyDetector {
+    /// Mewakili pub `create(`.
     pub fn create() -> Arc<dyn AnomalyDetector> {
         Arc::new(Self::default())
     }
 }
 
 impl ConcreteRiskAssessmentEngine {
+    /// Mewakili pub `create(`.
     pub fn create() -> Arc<dyn RiskAssessmentEngine> {
         Arc::new(Self)
     }
 }
 
 impl ConcreteMfaRiskAssessor {
+    /// Mewakili pub `create(`.
     pub fn create() -> Arc<dyn MfaRiskAssessor> {
         Arc::new(Self)
     }

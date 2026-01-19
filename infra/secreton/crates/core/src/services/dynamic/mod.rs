@@ -4,6 +4,7 @@ use rand::{Rng, distributions::Alphanumeric};
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicDbCredential`.
 pub struct DynamicDbCredential {
     pub username: String,
     pub password: String,
@@ -11,6 +12,7 @@ pub struct DynamicDbCredential {
 }
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicMysqlCredential`.
 pub struct DynamicMysqlCredential {
     pub username: String,
     pub password: String,
@@ -18,6 +20,7 @@ pub struct DynamicMysqlCredential {
 }
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicMongoCredential`.
 pub struct DynamicMongoCredential {
     pub username: String,
     pub password: String,
@@ -25,6 +28,7 @@ pub struct DynamicMongoCredential {
 }
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicAwsCredential`.
 pub struct DynamicAwsCredential {
     pub access_key: String,
     pub secret_key: String,
@@ -32,12 +36,14 @@ pub struct DynamicAwsCredential {
 }
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicGcpCredential`.
 pub struct DynamicGcpCredential {
     pub service_account_key: String,
     pub expires_at: String,
 }
 
 #[derive(Serialize, Clone, Debug)]
+/// Mewakili pub `DynamicAzureCredential`.
 pub struct DynamicAzureCredential {
     pub client_id: String,
     pub client_secret: String,
@@ -45,6 +51,7 @@ pub struct DynamicAzureCredential {
     pub expires_at: String,
 }
 
+/// Mewakili pub `RevocableCredential`.
 pub trait RevocableCredential {
     fn revoke(&self) -> impl std::future::Future<Output = Result<(), String>> + Send;
 }
@@ -178,7 +185,7 @@ pub async fn generate_mongo_credential(role: &str) -> DynamicMongoCredential {
     }
 }
 pub async fn generate_aws_credential(role: &str) -> DynamicAwsCredential {
-    let username = format!("secreton-{}-{}", role, Utc::now().timestamp());
+    let _username = format!("secreton-{}-{}", role, Utc::now().timestamp());
     let access_key = format!(
         "AKIA{}",
         &uuid::Uuid::new_v4()
@@ -262,4 +269,5 @@ pub async fn generate_azure_credential(role: &str) -> DynamicAzureCredential {
     }
 }
 
+/// Mewakili pub `aws`.
 pub mod aws;

@@ -5,12 +5,14 @@ use anyhow::Result;
 use tracing::{info, error, instrument};
 
 #[derive(Clone)]
+/// Mewakili pub `KeyManager`.
 pub struct KeyManager {
     storage: Arc<dyn StorageBackend>,
     rotation_interval: Duration,
 }
 
 impl KeyManager {
+    /// Mewakili pub `new(storage`.
     pub fn new(storage: Arc<dyn StorageBackend>, rotation_interval: Duration) -> Self {
         Self {
             storage,

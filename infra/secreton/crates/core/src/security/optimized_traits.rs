@@ -8,6 +8,7 @@ use std::pin::Pin;
 
 /// Key Usage Tracker for monitoring key access patterns
 #[derive(Debug, Default, Clone)]
+/// Mewakili pub `KeyUsageTracker`.
 pub struct KeyUsageTracker {
     pub usage_counts: std::collections::HashMap<String, u64>,
     pub last_access: std::collections::HashMap<String, std::time::SystemTime>,
@@ -16,6 +17,7 @@ pub struct KeyUsageTracker {
 
 /// Access event for tracking key usage
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AccessEvent`.
 pub struct AccessEvent {
     pub timestamp: std::time::SystemTime,
     pub operation: String,
@@ -129,6 +131,7 @@ pub trait PerformanceMonitor: Send + Sync {
 
 /// Scheduled rotation information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ScheduledRotation`.
 pub struct ScheduledRotation {
     pub key_id: String,
     pub scheduled_time: chrono::DateTime<chrono::Utc>,
@@ -138,6 +141,7 @@ pub struct ScheduledRotation {
 
 /// Compliance report
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceReport`.
 pub struct ComplianceReport {
     pub total_operations: u64,
     pub compliant_operations: u64,
@@ -146,6 +150,7 @@ pub struct ComplianceReport {
 
 /// Key metadata for tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `KeyMetadata`.
 pub struct KeyMetadata {
     pub key_id: String,
     pub key_type: String,
@@ -156,6 +161,7 @@ pub struct KeyMetadata {
 
 /// Operation result for audit logging
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `OperationResult`.
 pub struct OperationResult {
     pub success: bool,
     pub operation_id: String,
@@ -165,6 +171,7 @@ pub struct OperationResult {
 
 /// Rotation result for audit logging
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RotationResult`.
 pub struct RotationResult {
     pub key_id: String,
     pub old_version: u32,
@@ -175,6 +182,7 @@ pub struct RotationResult {
 
 /// Policy violation for audit logging
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PolicyViolation`.
 pub struct PolicyViolation {
     pub violation_id: String,
     pub policy_name: String,
@@ -184,6 +192,7 @@ pub struct PolicyViolation {
 
 /// Cache statistics
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `CacheStats`.
 pub struct CacheStats {
     pub hits: u64,
     pub misses: u64,
@@ -193,6 +202,7 @@ pub struct CacheStats {
 
 /// Performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `PerformanceMetrics`.
 pub struct PerformanceMetrics {
     pub total_operations: u64,
     pub average_latency_ms: f64,
@@ -205,6 +215,7 @@ pub struct PerformanceMetrics {
 
 /// Health status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HealthStatus`.
 pub enum HealthStatus {
     Healthy,
     Degraded,
@@ -213,6 +224,7 @@ pub enum HealthStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `SystemMetrics`.
 pub struct SystemMetrics {
     pub cpu_percent: f64,
     pub memory_used_bytes: u64,
@@ -222,6 +234,7 @@ pub struct SystemMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `ApplicationMetrics`.
 pub struct ApplicationMetrics {
     pub requests_per_second: f64,
     pub average_latency_ms: f64,
@@ -230,6 +243,7 @@ pub struct ApplicationMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Mewakili pub `NetworkMetrics`.
 pub struct NetworkMetrics {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -238,6 +252,7 @@ pub struct NetworkMetrics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TimeRange`.
 pub struct TimeRange {
     pub start: chrono::DateTime<chrono::Utc>,
     pub end: chrono::DateTime<chrono::Utc>,

@@ -170,6 +170,7 @@ pub use middleware::*;
 
 /// Audit log entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditLog`.
 pub struct AuditLog {
     pub id: Uuid,
     pub timestamp: chrono::DateTime<Utc>,
@@ -187,6 +188,7 @@ pub struct AuditLog {
 
 /// Status of an audited action
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+/// Mewakili pub `AuditStatus`.
 pub enum AuditStatus {
     Success,
     Failure,
@@ -195,6 +197,7 @@ pub enum AuditStatus {
 
 /// Audit error type
 #[derive(Error, Debug)]
+/// Mewakili pub `AuditError`.
 pub enum AuditError {
     #[error("Audit logging failed: {0}")]
     LoggingError(String),
@@ -202,12 +205,14 @@ pub enum AuditError {
 
 /// Trait for audit log backends
 #[async_trait::async_trait]
+/// Mewakili pub `AuditBackend`.
 pub trait AuditBackend: Send + Sync + 'static {
     async fn log(&self, entry: AuditLog) -> Result<(), AuditError>;
 }
 
 /// In-memory audit log backend (for testing/demo)
 #[derive(Default)]
+/// Mewakili pub `MemoryBackend`.
 pub struct MemoryBackend {
     logs: Arc<parking_lot::RwLock<Vec<AuditLog>>>,
 }
@@ -229,6 +234,7 @@ impl MemoryBackend {
 
 /// Main audit logger
 #[derive(Clone)]
+/// Mewakili pub `AuditLogger`.
 pub struct AuditLogger {
     backends: Vec<Arc<dyn AuditBackend>>,
 }
@@ -295,6 +301,7 @@ impl AuditLog {
 
 /// Builder for audit log entries
 #[derive(Default)]
+/// Mewakili pub `AuditLogBuilder`.
 pub struct AuditLogBuilder {
     action: Option<String>,
     actor: Option<String>,
@@ -308,51 +315,61 @@ pub struct AuditLogBuilder {
 }
 
 impl AuditLogBuilder {
+    /// Mewakili pub `action(mut`.
     pub fn action(mut self, action: impl Into<String>) -> Self {
         self.action = Some(action.into());
         self
     }
 
+    /// Mewakili pub `actor(mut`.
     pub fn actor(mut self, actor: impl Into<String>) -> Self {
         self.actor = Some(actor.into());
         self
     }
 
+    /// Mewakili pub `resource_type(mut`.
     pub fn resource_type(mut self, resource_type: impl Into<String>) -> Self {
         self.resource_type = Some(resource_type.into());
         self
     }
 
+    /// Mewakili pub `resource_id(mut`.
     pub fn resource_id(mut self, resource_id: impl Into<String>) -> Self {
         self.resource_id = Some(resource_id.into());
         self
     }
 
+    /// Mewakili pub `status(mut`.
     pub fn status(mut self, status: AuditStatus) -> Self {
         self.status = Some(status);
         self
     }
 
+    /// Mewakili pub `ip(mut`.
     pub fn ip(mut self, ip: impl Into<String>) -> Self {
         self.ip = Some(ip.into());
         self
     }
 
+    /// Mewakili pub `user_agent(mut`.
     pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
         self.user_agent = Some(user_agent.into());
         self
     }
 
+    /// Mewakili pub `namespace(mut`.
     pub fn namespace(mut self, namespace: impl Into<String>) -> Self {
         self.namespace = Some(namespace.into());
         self
     }
 
+    /// Mewakili pub `metadata(mut`.
     pub fn metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
 
+    /// Mewakili pub `build(self`.
     pub fn build(self) -> Result<AuditLog, AuditError> {
         Ok(AuditLog {
             id: Uuid::new_v4(),

@@ -10,6 +10,7 @@ use super::hierarchy::NamespaceHierarchy;
 
 /// Thread-safe namespace service
 #[derive(Debug, Clone)]
+/// Mewakili pub `NamespaceService`.
 pub struct NamespaceService {
     /// Namespace hierarchy protected by RwLock for concurrent access
     hierarchy: Arc<RwLock<NamespaceHierarchy>>,

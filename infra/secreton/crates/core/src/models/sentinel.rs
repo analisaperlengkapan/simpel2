@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SentinelPolicy`.
 pub struct SentinelPolicy {
     pub id: i64,
     pub namespace: String,

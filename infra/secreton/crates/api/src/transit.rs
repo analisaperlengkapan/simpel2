@@ -13,6 +13,7 @@ use tracing::{info, warn};
 use lib_crypto::transit::{KeyType, TransitEngine, keys::KeyOptions};
 
 #[derive(Clone)]
+/// Mewakili pub `TransitApiState`.
 pub struct TransitApiState {
     pub engine: Arc<TransitEngine>,
 }
@@ -26,43 +27,51 @@ impl Default for TransitApiState {
 }
 
 #[derive(Serialize)]
+/// Mewakili pub `ListKeysResponse`.
 pub struct ListKeysResponse {
     pub keys: Vec<String>,
 }
 
 #[derive(Deserialize)]
+/// Mewakili pub `CreateKeyRequest`.
 pub struct CreateKeyRequest {
     pub key_type: Option<String>,
 }
 
 #[derive(Serialize)]
+/// Mewakili pub `CreateKeyResponse`.
 pub struct CreateKeyResponse {
     pub success: bool,
     pub message: String,
 }
 
 #[derive(Deserialize)]
+/// Mewakili pub `EncryptRequest`.
 pub struct EncryptRequest {
     pub plaintext: String,       // base64 encoded
     pub context: Option<String>, // base64 encoded
 }
 
 #[derive(Serialize)]
+/// Mewakili pub `EncryptResponse`.
 pub struct EncryptResponse {
     pub ciphertext: String,
 }
 
 #[derive(Deserialize)]
+/// Mewakili pub `DecryptRequest`.
 pub struct DecryptRequest {
     pub ciphertext: String,
     pub context: Option<String>, // base64 encoded
 }
 
 #[derive(Serialize)]
+/// Mewakili pub `DecryptResponse`.
 pub struct DecryptResponse {
     pub plaintext: String, // base64 encoded
 }
 
+/// Mewakili pub `create_transit_router(state`.
 pub fn create_transit_router(state: TransitApiState) -> Router {
     Router::new()
         .route("/keys", get(list_keys))

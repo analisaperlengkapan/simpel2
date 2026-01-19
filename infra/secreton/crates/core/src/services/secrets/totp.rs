@@ -33,6 +33,7 @@ use tracing::{debug, info, warn};
 
 /// Error types for TOTP engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `TotpError`.
 pub enum TotpError {
     #[error("Key not found: {0}")]
     KeyNotFound(String),
@@ -64,6 +65,7 @@ pub enum TotpError {
 
 /// TOTP algorithm
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+/// Mewakili pub `TotpAlgorithm`.
 pub enum TotpAlgorithm {
     /// SHA1 (most compatible, default for Google Authenticator)
     #[default]
@@ -83,6 +85,7 @@ impl TotpAlgorithm {
         }
     }
 
+    /// Mewakili pub `from_str(s`.
     pub fn from_str(s: &str) -> Result<Self, TotpError> {
         match s.to_uppercase().as_str() {
             "SHA1" => Ok(TotpAlgorithm::SHA1),
@@ -95,6 +98,7 @@ impl TotpAlgorithm {
 
 /// TOTP key configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpKey`.
 pub struct TotpKey {
     /// Key name (unique identifier)
     pub name: String,
@@ -309,6 +313,7 @@ struct ValidationHistory {
 
 /// TOTP code generation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpCodeRequest`.
 pub struct TotpCodeRequest {
     /// Key name
     pub key_name: String,
@@ -316,6 +321,7 @@ pub struct TotpCodeRequest {
 
 /// TOTP code generation response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpCodeResponse`.
 pub struct TotpCodeResponse {
     /// Generated code
     pub code: String,
@@ -326,6 +332,7 @@ pub struct TotpCodeResponse {
 
 /// TOTP validation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpValidationRequest`.
 pub struct TotpValidationRequest {
     /// Key name
     pub key_name: String,
@@ -339,6 +346,7 @@ pub struct TotpValidationRequest {
 
 /// TOTP validation response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpValidationResponse`.
 pub struct TotpValidationResponse {
     /// Whether the code is valid
     pub valid: bool,
@@ -349,6 +357,7 @@ pub struct TotpValidationResponse {
 
 /// TOTP key creation request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpKeyCreateRequest`.
 pub struct TotpKeyCreateRequest {
     /// Key name (unique identifier)
     pub name: String,
@@ -374,6 +383,7 @@ pub struct TotpKeyCreateRequest {
 
 /// TOTP key response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpKeyResponse`.
 pub struct TotpKeyResponse {
     /// Key name
     pub name: String,
@@ -618,6 +628,7 @@ mod serde_bytes {
     use data_encoding::BASE32;
     use serde::{Deserialize, Deserializer, Serializer};
 
+    /// Mewakili pub `serialize`.
     pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -625,6 +636,7 @@ mod serde_bytes {
         serializer.serialize_str(&BASE32.encode(bytes))
     }
 
+    /// Mewakili pub `deserialize`.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
         D: Deserializer<'de>,

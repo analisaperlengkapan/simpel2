@@ -40,6 +40,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to create role
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateRoleRequest`.
 pub struct CreateRoleRequest {
     pub name: String,
     pub key_type: SshKeyType,
@@ -51,6 +52,7 @@ pub struct CreateRoleRequest {
 
 /// Request to create CA
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateCaRequest`.
 pub struct CreateCaRequest {
     pub name: String,
     pub key_type: SshKeyType,
@@ -58,6 +60,7 @@ pub struct CreateCaRequest {
 
 /// Request to generate OTP
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `GenerateOtpRequest`.
 pub struct GenerateOtpRequest {
     pub username: String,
     pub ip: String,
@@ -66,12 +69,14 @@ pub struct GenerateOtpRequest {
 
 /// Response for OTP generation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GenerateOtpResponse`.
 pub struct GenerateOtpResponse {
     pub otp: String,
 }
 
 /// Request to verify OTP
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `VerifyOtpRequest`.
 pub struct VerifyOtpRequest {
     pub otp: String,
     pub username: String,
@@ -80,6 +85,7 @@ pub struct VerifyOtpRequest {
 
 /// Response for OTP verification
 #[derive(Debug, Serialize)]
+/// Mewakili pub `VerifyOtpResponse`.
 pub struct VerifyOtpResponse {
     pub valid: bool,
 }

@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Core system errors
 #[derive(Error, Debug)]
+/// Mewakili pub `CoreError`.
 pub enum CoreError {
     #[error("Invalid configuration: {message}")]
     Configuration { message: String },
@@ -84,6 +85,7 @@ pub enum CoreError {
 
 /// Secreton-specific errors
 #[derive(Error, Debug)]
+/// Mewakili pub `SecretonError`.
 pub enum SecretonError {
     #[error("Core error: {0}")]
     Core(#[from] CoreError),
@@ -122,6 +124,7 @@ pub enum SecretonError {
     IoError(String),
 }
 
+/// Mewakili pub `SecretonResult`.
 pub type SecretonResult<T> = std::result::Result<T, SecretonError>;
 
 impl From<std::io::Error> for SecretonError {
@@ -398,6 +401,7 @@ impl CoreError {
 
 /// Error categories for grouping and handling
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Mewakili pub `ErrorCategory`.
 pub enum ErrorCategory {
     /// Security-related errors (authentication, authorization)
     Security,

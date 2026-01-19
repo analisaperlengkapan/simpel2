@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Standard API response wrapper
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ApiResponse`.
 pub struct ApiResponse<T> {
     pub success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,6 +38,7 @@ impl<T> ApiResponse<T> {
 
 /// Error details in API response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ErrorDetails`.
 pub struct ErrorDetails {
     pub code: String,
     pub message: String,
@@ -46,6 +48,7 @@ pub struct ErrorDetails {
 
 /// Response metadata
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ResponseMetadata`.
 pub struct ResponseMetadata {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub request_id: String,
@@ -54,6 +57,7 @@ pub struct ResponseMetadata {
 }
 
 impl ResponseMetadata {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             timestamp: chrono::Utc::now(),
@@ -62,6 +66,7 @@ impl ResponseMetadata {
         }
     }
 
+    /// Mewakili pub `with_trace_id(mut`.
     pub fn with_trace_id(mut self, trace_id: String) -> Self {
         self.trace_id = Some(trace_id);
         self
@@ -76,6 +81,7 @@ impl Default for ResponseMetadata {
 
 /// Health check response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `HealthCheckResponse`.
 pub struct HealthCheckResponse {
     pub status: String,
     pub version: String,
@@ -85,6 +91,7 @@ pub struct HealthCheckResponse {
 
 /// Health check dependencies status
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `HealthCheckDependencies`.
 pub struct HealthCheckDependencies {
     pub storage: DependencyStatus,
     pub crypto: DependencyStatus,
@@ -93,6 +100,7 @@ pub struct HealthCheckDependencies {
 
 /// Individual dependency status
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `DependencyStatus`.
 pub struct DependencyStatus {
     pub healthy: bool,
     pub message: Option<String>,
@@ -100,6 +108,7 @@ pub struct DependencyStatus {
 }
 
 impl DependencyStatus {
+    /// Mewakili pub `healthy(`.
     pub fn healthy() -> Self {
         Self {
             healthy: true,
@@ -108,6 +117,7 @@ impl DependencyStatus {
         }
     }
 
+    /// Mewakili pub `unhealthy(message`.
     pub fn unhealthy(message: String) -> Self {
         Self {
             healthy: false,

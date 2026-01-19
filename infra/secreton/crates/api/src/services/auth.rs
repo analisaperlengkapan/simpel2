@@ -101,6 +101,7 @@ impl From<StoredUser> for User {
 
 /// Role definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Role`.
 pub struct Role {
     pub name: String,
     pub description: Option<String>,
@@ -112,6 +113,7 @@ pub struct Role {
 
 /// Session information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Session`.
 pub struct Session {
     pub id: String,
     pub user_id: String,
@@ -126,6 +128,7 @@ pub struct Session {
 
 /// Authentication token
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthToken`.
 pub struct AuthToken {
     pub access_token: String,
     pub refresh_token: String,

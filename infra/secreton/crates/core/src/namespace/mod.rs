@@ -228,9 +228,13 @@
 //! - `crate::policy` - Namespace-scoped policies
 
 pub mod access;
+/// Mewakili pub `hierarchy`.
 pub mod hierarchy;
+/// Mewakili pub `path`.
 pub mod path;
+/// Mewakili pub `service`.
 pub mod service;
+/// Mewakili pub `validation`.
 pub mod validation;
 
 pub use access::{AccessCheckResult, AdminLevel, JwtClaims, NamespaceAccessControl};

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 /// Canonical LoginRequest - use this throughout the project
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LoginRequest`.
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
@@ -12,6 +13,7 @@ pub struct LoginRequest {
 
 /// Canonical LoginResponse - use this throughout the project
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LoginResponse`.
 pub struct LoginResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -23,11 +25,13 @@ pub struct LoginResponse {
 
 /// Canonical RefreshTokenRequest
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RefreshTokenRequest`.
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthRequest`.
 pub enum AuthRequest {
     Token { token: String },
     UserPass { username: String, password: String },
@@ -41,6 +45,7 @@ pub enum AuthRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthResponse`.
 pub struct AuthResponse {
     pub authenticated: bool,
     pub user_info: UserInfo,
@@ -53,6 +58,7 @@ pub struct AuthResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `UserInfo`.
 pub struct UserInfo {
     pub username: String,
     pub email: Option<String>,
@@ -63,6 +69,7 @@ pub struct UserInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthMethod`.
 pub struct AuthMethod {
     pub name: String,
     pub method_type: AuthMethodType,
@@ -71,6 +78,7 @@ pub struct AuthMethod {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthMethodType`.
 pub enum AuthMethodType {
     Token,
     UserPass,
@@ -84,6 +92,7 @@ pub enum AuthMethodType {
 }
 
 impl AuthMethod {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, method_type: AuthMethodType) -> Self {
         Self {
             name,
@@ -93,16 +102,19 @@ impl AuthMethod {
         }
     }
 
+    /// Mewakili pub `with_config(mut`.
     pub fn with_config(mut self, key: String, value: String) -> Self {
         self.config.insert(key, value);
         self
     }
 
+    /// Mewakili pub `enable(mut`.
     pub fn enable(mut self) -> Self {
         self.enabled = true;
         self
     }
 
+    /// Mewakili pub `disable(mut`.
     pub fn disable(mut self) -> Self {
         self.enabled = false;
         self

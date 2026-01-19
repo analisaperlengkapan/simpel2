@@ -15,6 +15,7 @@ use crate::{
 
 /// Basic health check response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `SimpleHealthResponse`.
 pub struct SimpleHealthResponse {
     pub status: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -22,6 +23,7 @@ pub struct SimpleHealthResponse {
 
 /// Detailed health check response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `DetailedHealthResponse`.
 pub struct DetailedHealthResponse {
     pub status: String,
     pub version: String,
@@ -32,6 +34,7 @@ pub struct DetailedHealthResponse {
 
 /// Individual health check result
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `HealthCheck`.
 pub struct HealthCheck {
     pub status: String,
     pub message: Option<String>,
@@ -42,6 +45,7 @@ pub struct HealthCheck {
 
 /// Readiness check response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `ReadinessResponse`.
 pub struct ReadinessResponse {
     pub ready: bool,
     pub version: String,
@@ -51,6 +55,7 @@ pub struct ReadinessResponse {
 
 /// Liveness check response
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `LivenessResponse`.
 pub struct LivenessResponse {
     pub alive: bool,
     pub uptime: u64,

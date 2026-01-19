@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Config`.
 pub struct Config {
     pub database_url: String,
     pub backend: Option<String>,
@@ -33,12 +34,14 @@ pub struct Config {
 }
 
 impl Config {
+    /// Mewakili pub `load(path`.
     pub fn load(path: &str) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     }
 
+    /// Mewakili pub `default(`.
     pub fn default() -> Self {
         Self {
             database_url: "sqlite:vault.db".to_string(),
@@ -70,6 +73,7 @@ impl Config {
         }
     }
 
+    /// Mewakili pub `from_env(`.
     pub fn from_env() -> Self {
         Self {
             database_url: std::env::var("VAULT_DATABASE_URL")

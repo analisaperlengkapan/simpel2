@@ -22,6 +22,7 @@ struct CacheEntry<V> {
 
 /// Sensitivity level for cached data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Mewakili pub `SensitivityLevel`.
 pub enum SensitivityLevel {
     /// Low sensitivity - can be cached longer
     Low,
@@ -241,6 +242,7 @@ where
 
 /// Cache statistics for secrets
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecretCacheStats`.
 pub struct SecretCacheStats {
     pub size: usize,
     pub capacity: usize,
@@ -404,8 +406,11 @@ impl<K, V> Clone for AsyncSecretCache<K, V> {
 
 /// Specialized cache types for different secret operations
 pub type SecretValueCache = AsyncSecretCache<String, Vec<u8>>;
+/// Mewakili pub `TokenValidationCache`.
 pub type TokenValidationCache = AsyncSecretCache<String, bool>;
+/// Mewakili pub `UserPermissionCache`.
 pub type UserPermissionCache = AsyncSecretCache<String, Vec<String>>;
+/// Mewakili pub `EncryptionKeyCache`.
 pub type EncryptionKeyCache = AsyncSecretCache<String, Vec<u8>>;
 
 /// Secret cache manager for coordinating multiple caches
@@ -504,6 +509,7 @@ impl Default for SecretCacheManager {
 
 /// Combined cache statistics for secret operations
 #[derive(Debug, Clone)]
+/// Mewakili pub `SecretCacheManagerStats`.
 pub struct SecretCacheManagerStats {
     pub secret_cache: SecretCacheStats,
     pub token_cache: SecretCacheStats,

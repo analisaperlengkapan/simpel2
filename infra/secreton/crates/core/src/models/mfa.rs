@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, Hash, PartialEq)]
+/// Mewakili pub `MfaMethod`.
 pub enum MfaMethod {
     Totp,
     Email,
@@ -35,12 +36,14 @@ impl std::fmt::Display for MfaMethod {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaSetupRequest`.
 pub struct MfaSetupRequest {
     pub method: MfaMethod,
     pub email: Option<String>, // Required if method is Email
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaSetupResponse`.
 pub struct MfaSetupResponse {
     pub qr_code_url: Option<String>,                          // For TOTP
     pub secret: Option<String>,                               // For TOTP
@@ -48,11 +51,13 @@ pub struct MfaSetupResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaVerifyRequest`.
 pub struct MfaVerifyRequest {
     pub code: String, // TOTP code or recovery code
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaStatusResponse`.
 pub struct MfaStatusResponse {
     pub is_enabled: bool,
     pub method: Option<String>,
@@ -61,6 +66,7 @@ pub struct MfaStatusResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaLoginRequest`.
 pub struct MfaLoginRequest {
     pub username: String,
     pub password: String,
@@ -68,11 +74,13 @@ pub struct MfaLoginRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaRecoveryCodesResponse`.
 pub struct MfaRecoveryCodesResponse {
     pub recovery_codes: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `MfaVerificationResult`.
 pub struct MfaVerificationResult {
     pub is_valid: bool,
     pub method: MfaMethod,

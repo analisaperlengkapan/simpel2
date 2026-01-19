@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 /// Pagination parameters for list operations
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `PaginationQuery`.
 pub struct PaginationQuery {
     #[serde(default = "default_limit")]
     pub limit: u32,
@@ -22,6 +23,7 @@ pub struct PaginationQuery {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
+/// Mewakili pub `SortOrder`.
 pub enum SortOrder {
     #[default]
     Asc,
@@ -34,6 +36,7 @@ fn default_limit() -> u32 {
 
 /// Paginated response wrapper
 #[derive(Debug, Serialize)]
+/// Mewakili pub `PaginatedResponse`.
 pub struct PaginatedResponse<T> {
     pub items: Vec<T>,
     pub pagination: PaginationInfo,
@@ -41,6 +44,7 @@ pub struct PaginatedResponse<T> {
 
 /// Pagination metadata
 #[derive(Debug, Serialize)]
+/// Mewakili pub `PaginationInfo`.
 pub struct PaginationInfo {
     pub total: u64,
     pub limit: u32,
@@ -70,18 +74,21 @@ impl<T> PaginatedResponse<T> {
 
 /// Generic ID wrapper for request parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `IdParam`.
 pub struct IdParam {
     pub id: String,
 }
 
 /// Generic name wrapper for request parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `NameParam`.
 pub struct NameParam {
     pub name: String,
 }
 
 /// Bulk operation request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `BulkOperationRequest`.
 pub struct BulkOperationRequest<T> {
     pub items: Vec<T>,
     #[serde(default)]
@@ -90,6 +97,7 @@ pub struct BulkOperationRequest<T> {
 
 /// Bulk operation response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BulkOperationResponse`.
 pub struct BulkOperationResponse<T> {
     pub results: Vec<BulkOperationResult<T>>,
     pub summary: BulkOperationSummary,
@@ -97,6 +105,7 @@ pub struct BulkOperationResponse<T> {
 
 /// Individual bulk operation result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BulkOperationResult`.
 pub struct BulkOperationResult<T> {
     pub success: bool,
     pub data: Option<T>,
@@ -106,6 +115,7 @@ pub struct BulkOperationResult<T> {
 
 /// Bulk operation summary
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BulkOperationSummary`.
 pub struct BulkOperationSummary {
     pub total: usize,
     pub successful: usize,
@@ -115,6 +125,7 @@ pub struct BulkOperationSummary {
 
 /// Search request parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `SearchQuery`.
 pub struct SearchQuery {
     pub q: String,
 
@@ -137,6 +148,7 @@ pub struct SearchQuery {
 
 /// Search response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SearchResponse`.
 pub struct SearchResponse<T> {
     pub results: Vec<SearchResult<T>>,
     pub total: u64,
@@ -147,6 +159,7 @@ pub struct SearchResponse<T> {
 
 /// Individual search result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SearchResult`.
 pub struct SearchResult<T> {
     pub item: T,
     pub score: f64,
@@ -155,6 +168,7 @@ pub struct SearchResult<T> {
 
 /// Export request parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ExportQuery`.
 pub struct ExportQuery {
     pub format: ExportFormat,
     pub fields: Option<Vec<String>>,
@@ -165,6 +179,7 @@ pub struct ExportQuery {
 /// Export formats
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `ExportFormat`.
 pub enum ExportFormat {
     Json,
     Csv,
@@ -176,6 +191,7 @@ pub enum ExportFormat {
 /// Compression types
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `CompressionType`.
 pub enum CompressionType {
     Gzip,
     Zip,
@@ -184,6 +200,7 @@ pub enum CompressionType {
 
 /// Import request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ImportRequest`.
 pub struct ImportRequest {
     pub format: ExportFormat,
     pub data: String,
@@ -199,6 +216,7 @@ pub struct ImportRequest {
 
 /// Import response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ImportResponse`.
 pub struct ImportResponse {
     pub success: bool,
     pub imported: u32,
@@ -209,6 +227,7 @@ pub struct ImportResponse {
 
 /// Import error details
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ImportError`.
 pub struct ImportError {
     pub row: u32,
     pub field: Option<String>,
@@ -219,6 +238,7 @@ pub struct ImportError {
 /// Health check status levels
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `HealthStatus`.
 pub enum HealthStatus {
     Healthy,
     Degraded,
@@ -228,6 +248,7 @@ pub enum HealthStatus {
 
 /// Metrics data point
 #[derive(Debug, Serialize)]
+/// Mewakili pub `MetricDataPoint`.
 pub struct MetricDataPoint {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub value: f64,
@@ -236,6 +257,7 @@ pub struct MetricDataPoint {
 
 /// Time series metrics
 #[derive(Debug, Serialize)]
+/// Mewakili pub `TimeSeriesMetric`.
 pub struct TimeSeriesMetric {
     pub name: String,
     pub description: Option<String>,
@@ -245,6 +267,7 @@ pub struct TimeSeriesMetric {
 
 /// Metrics query parameters
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `MetricsQuery`.
 pub struct MetricsQuery {
     pub start: chrono::DateTime<chrono::Utc>,
     pub end: chrono::DateTime<chrono::Utc>,
@@ -255,6 +278,7 @@ pub struct MetricsQuery {
 
 /// Configuration validation request
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ValidateConfigRequest`.
 pub struct ValidateConfigRequest {
     pub config: serde_json::Value,
     pub strict: Option<bool>,
@@ -263,6 +287,7 @@ pub struct ValidateConfigRequest {
 
 /// Configuration validation response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ValidateConfigResponse`.
 pub struct ValidateConfigResponse {
     pub valid: bool,
     pub errors: Vec<ValidationError>,
@@ -272,6 +297,7 @@ pub struct ValidateConfigResponse {
 
 /// Configuration validation error
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ValidationError`.
 pub struct ValidationError {
     pub path: String,
     pub message: String,
@@ -280,6 +306,7 @@ pub struct ValidationError {
 
 /// Configuration validation warning
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ValidationWarning`.
 pub struct ValidationWarning {
     pub path: String,
     pub message: String,
@@ -288,6 +315,7 @@ pub struct ValidationWarning {
 
 /// Configuration suggestion
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ConfigSuggestion`.
 pub struct ConfigSuggestion {
     pub path: String,
     pub current_value: Option<serde_json::Value>,
@@ -298,6 +326,7 @@ pub struct ConfigSuggestion {
 /// Validation severity levels
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `ValidationSeverity`.
 pub enum ValidationSeverity {
     Error,
     Warning,
@@ -306,6 +335,7 @@ pub enum ValidationSeverity {
 
 /// Generic status response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `StatusResponse`.
 pub struct StatusResponse {
     pub status: String,
     pub message: Option<String>,
@@ -315,6 +345,7 @@ pub struct StatusResponse {
 
 /// Operation result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `OperationResult`.
 pub struct OperationResult<T = ()> {
     pub success: bool,
     pub data: Option<T>,
@@ -384,6 +415,7 @@ impl OperationResult<()> {
 
 /// Audit trail entry
 #[derive(Debug, Serialize)]
+/// Mewakili pub `AuditTrailEntry`.
 pub struct AuditTrailEntry {
     pub id: String,
     pub user_id: String,
@@ -399,6 +431,7 @@ pub struct AuditTrailEntry {
 
 /// Batch processing job status
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BatchJobStatus`.
 pub struct BatchJobStatus {
     pub job_id: String,
     pub status: BatchJobState,
@@ -413,6 +446,7 @@ pub struct BatchJobStatus {
 /// Batch job states
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `BatchJobState`.
 pub enum BatchJobState {
     Pending,
     Running,
@@ -423,6 +457,7 @@ pub enum BatchJobState {
 
 /// Batch job progress information
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BatchJobProgress`.
 pub struct BatchJobProgress {
     pub total: u64,
     pub processed: u64,
@@ -433,6 +468,7 @@ pub struct BatchJobProgress {
 
 /// Lease information attached to secret responses
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Mewakili pub `LeaseInfo`.
 pub struct LeaseInfo {
     /// Lease ID
     pub lease_id: String,

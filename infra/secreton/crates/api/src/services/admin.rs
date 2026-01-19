@@ -17,6 +17,7 @@ use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Admin service errors
 #[derive(Error, Debug)]
+/// Mewakili pub `AdminError`.
 pub enum AdminError {
     #[error("Operation not permitted: {0}")]
     NotPermitted(String),
@@ -45,6 +46,7 @@ pub enum AdminError {
 
 /// Trait for lease cleanup operations to allow mocking
 #[async_trait]
+/// Mewakili pub `LeaseCleaner`.
 pub trait LeaseCleaner: Send + Sync {
     async fn cleanup_expired(&self) -> Result<usize, LeaseError>;
 }
@@ -58,6 +60,7 @@ impl LeaseCleaner for LeaseManager {
 
 /// System statistics
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SystemStats`.
 pub struct SystemStats {
     pub uptime_seconds: u64,
     pub total_users: u64,
@@ -74,6 +77,7 @@ pub struct SystemStats {
 }
 
 #[derive(Debug, Serialize, Default)]
+/// Mewakili pub `MemoryStats`.
 pub struct MemoryStats {
     pub total: u64,
     pub used: u64,
@@ -82,6 +86,7 @@ pub struct MemoryStats {
 }
 
 #[derive(Debug, Serialize, Default)]
+/// Mewakili pub `CpuStats`.
 pub struct CpuStats {
     pub cores: u32,
     pub usage_percent: f64,
@@ -89,6 +94,7 @@ pub struct CpuStats {
 }
 
 #[derive(Debug, Serialize, Default)]
+/// Mewakili pub `DiskStats`.
 pub struct DiskStats {
     pub total: u64,
     pub used: u64,
@@ -97,6 +103,7 @@ pub struct DiskStats {
 }
 
 #[derive(Debug, Serialize, Default)]
+/// Mewakili pub `NetworkStats`.
 pub struct NetworkStats {
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -106,6 +113,7 @@ pub struct NetworkStats {
 
 /// Backup information
 #[derive(Debug, Serialize)]
+/// Mewakili pub `BackupInfo`.
 pub struct BackupInfo {
     pub id: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -118,6 +126,7 @@ pub struct BackupInfo {
 
 /// Maintenance operation result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `MaintenanceResult`.
 pub struct MaintenanceResult {
     pub operation: String,
     pub success: bool,
@@ -650,6 +659,7 @@ impl AdminService {
 
 /// Audit log entry
 #[derive(Debug, Serialize)]
+/// Mewakili pub `AuditLogEntry`.
 pub struct AuditLogEntry {
     pub id: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -665,6 +675,7 @@ pub struct AuditLogEntry {
 
 /// Security scan result
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SecurityScanResult`.
 pub struct SecurityScanResult {
     pub scan_id: String,
     pub status: String,
@@ -675,6 +686,7 @@ pub struct SecurityScanResult {
 
 /// Security finding
 #[derive(Debug, Serialize)]
+/// Mewakili pub `SecurityFinding`.
 pub struct SecurityFinding {
     pub severity: String,
     pub category: String,
@@ -693,6 +705,7 @@ mod tests {
     use lib_storage::MemoryBackend;
 
     // Mock implementation of LeaseCleaner for testing
+    /// Mewakili pub `MockLeaseCleaner`.
     pub struct MockLeaseCleaner {
         pub expired_count: usize,
     }

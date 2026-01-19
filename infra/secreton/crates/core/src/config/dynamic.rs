@@ -8,6 +8,7 @@ use crate::error::{CoreError, Result};
 
 /// Performance metrics for load-based configuration adjustment
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `LoadMetrics`.
 pub struct LoadMetrics {
     /// CPU usage percentage (0.0 to 1.0)
     pub cpu_usage: f64,
@@ -41,6 +42,7 @@ impl Default for LoadMetrics {
 
 /// Security threat levels for adaptive security posture
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// Mewakili pub `ThreatLevel`.
 pub enum ThreatLevel {
     /// Normal operations - standard security measures
     #[default]
@@ -55,6 +57,7 @@ pub enum ThreatLevel {
 
 /// Cryptographic modes for post-quantum transition
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// Mewakili pub `CryptoMode`.
 pub enum CryptoMode {
     /// Classical cryptography (AES-256-GCM, Ed25519)
     #[default]
@@ -67,6 +70,7 @@ pub enum CryptoMode {
 
 /// Performance profiles for different operational modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+/// Mewakili pub `PerformanceProfile`.
 pub enum PerformanceProfile {
     /// Optimized for low latency secret retrieval
     LowLatency,
@@ -81,6 +85,7 @@ pub enum PerformanceProfile {
 
 /// Cache configuration with adaptive TTL for secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CacheConfig`.
 pub struct CacheConfig {
     /// Maximum cache size in entries
     pub max_size: usize,
@@ -111,6 +116,7 @@ impl Default for CacheConfig {
 
 /// Security configuration that adapts to threat levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecurityConfig`.
 pub struct SecurityConfig {
     /// Rate limit operations per minute
     pub rate_limit_opm: u32,
@@ -141,6 +147,7 @@ impl Default for SecurityConfig {
 
 /// Storage configuration that adapts to load
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `StorageConfig`.
 pub struct StorageConfig {
     /// Connection pool size
     pub connection_pool_size: u32,
@@ -168,6 +175,7 @@ impl Default for StorageConfig {
 
 /// Dynamic configuration that adapts to runtime conditions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DynamicConfig`.
 pub struct DynamicConfig {
     /// Current cryptographic mode
     pub crypto_mode: CryptoMode,

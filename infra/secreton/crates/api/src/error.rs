@@ -20,6 +20,7 @@ use crate::{ApiResponse, ErrorDetails, ResponseMetadata};
 /// - Provides automatic error conversion from Storage and Crypto errors
 /// - Implements IntoResponse for direct use in Axum handlers
 #[derive(Error, Debug)]
+/// Mewakili pub `AuthError`.
 pub enum AuthError {
     /// Invalid username or password
     #[error("Invalid credentials")]
@@ -156,6 +157,7 @@ impl AuthError {
 
 /// API error types
 #[derive(Error, Debug)]
+/// Mewakili pub `ApiError`.
 pub enum ApiError {
     #[error("Authentication failed: {message}")]
     Authentication { message: String },

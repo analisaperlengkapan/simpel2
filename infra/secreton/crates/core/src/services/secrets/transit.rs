@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 
 /// Error types for transit engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `TransitError`.
 pub enum TransitError {
     #[error("Key not found: {0}")]
     KeyNotFound(String),
@@ -45,6 +46,7 @@ pub enum TransitError {
 
 /// Cipher type for encryption
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `CipherType`.
 pub enum CipherType {
     /// AES-256-GCM
     AES256GCM,
@@ -69,6 +71,7 @@ impl CipherType {
         }
     }
 
+    /// Mewakili pub `key_size(`.
     pub fn key_size(&self) -> usize {
         match self {
             CipherType::AES256GCM => 32,
@@ -81,6 +84,7 @@ impl CipherType {
 
 /// Key type for signing
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `KeyType`.
 pub enum KeyType {
     /// ECDSA P-256
     EcdsaP256,
@@ -100,6 +104,7 @@ pub enum KeyType {
 
 /// Transit key configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TransitKey`.
 pub struct TransitKey {
     /// Key name
     pub name: String,
@@ -183,6 +188,7 @@ impl TransitKey {
 
 /// Encrypted data result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `EncryptedData`.
 pub struct EncryptedData {
     /// Ciphertext in vault format: vault:v{version}:{base64_ciphertext}
     pub ciphertext: String,
@@ -193,6 +199,7 @@ pub struct EncryptedData {
 
 /// Decrypted data result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DecryptedData`.
 pub struct DecryptedData {
     /// Plaintext (base64 encoded)
     pub plaintext: String,
@@ -203,6 +210,7 @@ pub struct DecryptedData {
 
 /// Generated data key
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DataKey`.
 pub struct DataKey {
     /// Plaintext key (base64 encoded)
     pub plaintext: String,
@@ -216,6 +224,7 @@ pub struct DataKey {
 
 /// HMAC result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HmacResult`.
 pub struct HmacResult {
     /// HMAC value (hex encoded)
     pub hmac: String,
@@ -226,6 +235,7 @@ pub struct HmacResult {
 
 /// Signature result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SignatureResult`.
 pub struct SignatureResult {
     /// Signature (base64 encoded)
     pub signature: String,

@@ -94,6 +94,7 @@ where
 
 /// Request to renew a lease
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RenewLeaseRequest`.
 pub struct RenewLeaseRequest {
     /// Lease ID to renew
     pub lease_id: String,
@@ -104,6 +105,7 @@ pub struct RenewLeaseRequest {
 
 /// Response for lease renewal
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RenewLeaseResponse`.
 pub struct RenewLeaseResponse {
     /// Lease ID
     pub lease_id: String,
@@ -242,6 +244,7 @@ pub async fn renew_lease(
 
 /// Request to revoke a lease
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RevokeLeaseRequest`.
 pub struct RevokeLeaseRequest {
     /// Lease ID to revoke
     pub lease_id: String,
@@ -249,6 +252,7 @@ pub struct RevokeLeaseRequest {
 
 /// Response for lease revocation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RevokeLeaseResponse`.
 pub struct RevokeLeaseResponse {
     /// Lease ID that was revoked
     pub lease_id: String,
@@ -320,6 +324,7 @@ pub async fn revoke_lease(
 
 /// Request to revoke leases by prefix
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RevokePrefixRequest`.
 pub struct RevokePrefixRequest {
     /// Resource path prefix
     pub prefix: String,
@@ -327,6 +332,7 @@ pub struct RevokePrefixRequest {
 
 /// Response for prefix revocation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RevokePrefixResponse`.
 pub struct RevokePrefixResponse {
     /// Path prefix that was revoked
     pub prefix: String,
@@ -406,6 +412,7 @@ pub async fn revoke_lease_prefix(
 
 /// Response for lease lookup
 #[derive(Debug, Serialize)]
+/// Mewakili pub `LookupLeaseResponse`.
 pub struct LookupLeaseResponse {
     /// Lease ID
     pub lease_id: String,
@@ -532,6 +539,7 @@ pub async fn lookup_lease(
 
 /// Query parameters for listing leases
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ListLeasesQuery`.
 pub struct ListLeasesQuery {
     /// Filter by user ID
     pub user_id: Option<String>,
@@ -624,6 +632,7 @@ pub async fn list_leases(
 
 /// Lease statistics response
 #[derive(Debug, Serialize)]
+/// Mewakili pub `LeaseStatsResponse`.
 pub struct LeaseStatsResponse {
     /// Number of active leases
     pub active_count: usize,

@@ -4,8 +4,11 @@
 //! including storage, crypto, authentication, and business logic.
 
 pub mod admin;
+/// Mewakili pub `auth`.
 pub mod auth;
+/// Mewakili pub `seal_adapter`.
 pub mod seal_adapter;
+/// Mewakili pub `vault`.
 pub mod vault;
 
 use anyhow::Result;

@@ -9,25 +9,41 @@
 // Re-export shared types from lib-types
 pub use lib_types::{Metadata, ResourceId, SecurityLevel, Tags};
 
+/// Mewakili pub `audit`.
 pub mod audit;
+/// Mewakili pub `auth`.
 pub mod auth;
+/// Mewakili pub `config`.
 pub mod config;
+/// Mewakili pub `error`.
 pub mod error;
 // pub mod hsm; // MOVED: Extracted to secreton-hsm crate
+/// Mewakili pub `models`.
 pub mod models;
+/// Mewakili pub `namespace`.
 pub mod namespace;
+/// Mewakili pub `pki`.
 pub mod pki; // Renamed from 'crypto' - contains PKI/certificate code only
+/// Mewakili pub `prelude`.
 pub mod prelude;
+/// Mewakili pub `resilience`.
 pub mod resilience; // Resilience patterns (circuit breaker, retry)
+/// Mewakili pub `sdk_libraries`.
 pub mod sdk_libraries;
+/// Mewakili pub `security`.
 pub mod security;
+/// Mewakili pub `services`.
 pub mod services;
+/// Mewakili pub `storage`.
 pub mod storage;
+/// Mewakili pub `types`.
 pub mod types;
+/// Mewakili pub `utils`.
 pub mod utils;
 
 // Alias for engines module (points to services::secrets::enhanced)
 // This provides backward compatibility with test expectations
+/// Mewakili pub `engines`.
 pub mod engines {
     pub use crate::services::secrets::enhanced::*;
 }

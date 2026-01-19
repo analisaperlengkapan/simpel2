@@ -44,6 +44,7 @@ pub fn create_routes() -> Router<AppState> {
 
 /// Request to generate database credentials
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `GenerateCredsRequest`.
 pub struct GenerateCredsRequest {
     /// Optional TTL in seconds
     pub ttl: Option<u32>,
@@ -51,6 +52,7 @@ pub struct GenerateCredsRequest {
 
 /// Response with generated credentials and lease
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GenerateCredsResponse`.
 pub struct GenerateCredsResponse {
     /// Lease ID
     pub lease_id: String,
@@ -66,6 +68,7 @@ pub struct GenerateCredsResponse {
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `CredentialData`.
 pub struct CredentialData {
     /// Database username
     pub username: String,
@@ -132,6 +135,7 @@ pub async fn generate_database_credentials(
 
 /// Request to create a database role
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateRoleRequest`.
 pub struct CreateRoleRequest {
     /// Database connection name
     pub db_name: String,
@@ -168,6 +172,7 @@ fn default_max_ttl() -> u32 {
 
 /// Response for role operations
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RoleResponse`.
 pub struct RoleResponse {
     pub name: String,
     pub db_name: String,
@@ -331,6 +336,7 @@ pub async fn delete_database_role(
 
 /// Request to configure database connection
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `ConfigureConnectionRequest`.
 pub struct ConfigureConnectionRequest {
     /// Database type
     pub db_type: String,
@@ -374,6 +380,7 @@ fn default_verify() -> bool {
 
 /// Response for connection operations
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ConnectionResponse`.
 pub struct ConnectionResponse {
     pub name: String,
     pub db_type: String,

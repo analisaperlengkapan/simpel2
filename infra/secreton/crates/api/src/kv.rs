@@ -13,6 +13,7 @@ use tracing::{info, warn};
 
 /// Secret metadata for versioning
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecretMetadata`.
 pub struct SecretMetadata {
     pub created_time: chrono::DateTime<chrono::Utc>,
     pub updated_time: chrono::DateTime<chrono::Utc>,
@@ -33,6 +34,7 @@ struct SecretVersion {
 }
 
 #[derive(Clone)]
+/// Mewakili pub `KVEngine`.
 pub struct KVEngine {
     // In-memory storage: path -> Vec<versions>
     store: std::sync::Arc<tokio::sync::RwLock<HashMap<String, Vec<SecretVersion>>>>,
@@ -47,6 +49,7 @@ impl Default for KVEngine {
 }
 
 impl KVEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             store: std::sync::Arc::new(tokio::sync::RwLock::new(HashMap::new())),
@@ -213,6 +216,7 @@ impl KVEngine {
 
 /// API state for KV engine
 #[derive(Clone)]
+/// Mewakili pub `KVApiState`.
 pub struct KVApiState {
     pub engine: std::sync::Arc<KVEngine>,
 }
@@ -227,12 +231,14 @@ impl Default for KVApiState {
 
 /// Request to create/update a secret
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateSecretRequest`.
 pub struct CreateSecretRequest {
     pub data: serde_json::Value,
 }
 
 /// Response for secret creation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `CreateSecretResponse`.
 pub struct CreateSecretResponse {
     pub version: SecretMetadata,
     pub created_time: String,
@@ -240,6 +246,7 @@ pub struct CreateSecretResponse {
 
 /// Response for secret retrieval
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GetSecretResponse`.
 pub struct GetSecretResponse {
     pub data: HashMap<String, String>,
     pub metadata: SecretMetadata,
@@ -247,18 +254,21 @@ pub struct GetSecretResponse {
 
 /// Response for listing secrets
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ListSecretsResponse`.
 pub struct ListSecretsResponse {
     pub keys: Vec<String>,
 }
 
 /// Response for metadata
 #[derive(Debug, Serialize)]
+/// Mewakili pub `MetadataResponse`.
 pub struct MetadataResponse {
     pub versions: HashMap<u32, SecretMetadata>,
 }
 
 /// Response for delete operations
 #[derive(Debug, Serialize)]
+/// Mewakili pub `DeleteResponse`.
 pub struct DeleteResponse {
     pub success: bool,
     pub message: String,

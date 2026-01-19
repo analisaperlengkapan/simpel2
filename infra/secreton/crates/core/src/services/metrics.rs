@@ -12,6 +12,7 @@ use tracing::instrument;
 
 /// Metric type
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Mewakili pub `MetricType`.
 pub enum MetricType {
     /// Counter (monotonically increasing)
     Counter,
@@ -25,6 +26,7 @@ pub enum MetricType {
 
 /// Metric value
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MetricValue`.
 pub enum MetricValue {
     Counter(u64),
     Gauge(f64),
@@ -33,6 +35,7 @@ pub enum MetricValue {
 
 /// Metric metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Metric`.
 pub struct Metric {
     /// Metric name
     pub name: String,

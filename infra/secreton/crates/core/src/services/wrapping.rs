@@ -41,7 +41,7 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 /// Maximum size for wrapped data (1MB)
@@ -55,6 +55,7 @@ const MAX_TTL_SECONDS: i64 = 86400;
 
 /// Wrapping service errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `WrappingError`.
 pub enum WrappingError {
     #[error("Token not found: {0}")]
     TokenNotFound(String),
@@ -89,6 +90,7 @@ pub enum WrappingError {
 
 /// Wrap request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrapRequest`.
 pub struct WrapRequest {
     /// Data to wrap (will be encrypted)
     pub data: JsonValue,
@@ -102,6 +104,7 @@ pub struct WrapRequest {
 
 /// Wrap response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrapResponse`.
 pub struct WrapResponse {
     /// Wrapping token (one-time use)
     pub token: String,
@@ -118,6 +121,7 @@ pub struct WrapResponse {
 
 /// Wrapped token metadata (without revealing data)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `WrappedTokenInfo`.
 pub struct WrappedTokenInfo {
     /// Token ID
     pub token: String,
@@ -143,6 +147,7 @@ pub struct WrappedTokenInfo {
 
 /// Token status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `TokenStatus`.
 pub enum TokenStatus {
     /// Active and can be unwrapped
     Active,
@@ -461,14 +466,14 @@ impl WrappingService {
 
         // Generate random key for this wrap operation
         let mut key_bytes = [0u8; 32];
-        (&mut OsRng).fill_bytes(&mut key_bytes);
+        OsRng.fill_bytes(&mut key_bytes);
 
         let cipher = Aes256Gcm::new_from_slice(&key_bytes)
             .map_err(|e| WrappingError::EncryptionFailed(format!("Key init failed: {}", e)))?;
 
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
-        (&mut OsRng).fill_bytes(&mut nonce_bytes);
+        OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt

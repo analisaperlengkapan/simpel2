@@ -13,6 +13,7 @@ use tracing::{debug, error, warn};
 
 /// JSON Web Key (from JWKS endpoint)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Jwk`.
 pub struct Jwk {
     /// Key type (e.g., "RSA", "EC")
     pub kty: String,
@@ -46,12 +47,14 @@ pub struct Jwk {
 
 /// JSON Web Key Set
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `JwkSet`.
 pub struct JwkSet {
     pub keys: Vec<Jwk>,
 }
 
 /// OIDC verifier configuration
 #[derive(Debug, Clone)]
+/// Mewakili pub `OidcVerifierConfig`.
 pub struct OidcVerifierConfig {
     /// JWKS endpoint URL (e.g., "https://authenc.local/.well-known/jwks.json")
     pub jwks_url: String,
@@ -295,6 +298,7 @@ pub struct MultiVerifier {
 }
 
 impl MultiVerifier {
+    /// Mewakili pub `new(verifiers`.
     pub fn new(verifiers: Vec<Box<dyn TokenVerifier>>) -> Self {
         Self { verifiers }
     }

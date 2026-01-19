@@ -16,6 +16,7 @@ use std::io::{self, Write};
 use crate::config::CliConfig;
 
 #[derive(Subcommand)]
+/// Mewakili pub `SealCommand`.
 pub enum SealCommand {
     /// Initialize vault and generate Shamir shares
     Init {
@@ -57,6 +58,7 @@ pub enum SealCommand {
 }
 
 #[derive(Subcommand)]
+/// Mewakili pub `RekeyCommand`.
 pub enum RekeyCommand {
     /// Start rekey operation
     Init {

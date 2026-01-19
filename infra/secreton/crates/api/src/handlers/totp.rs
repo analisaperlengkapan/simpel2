@@ -261,6 +261,7 @@ async fn validate_totp_code(
 
 /// TOTP key list response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpKeyListResponse`.
 pub struct TotpKeyListResponse {
     pub keys: Vec<String>,
 }

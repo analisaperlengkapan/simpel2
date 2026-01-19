@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 /// Error types for database secrets engine
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `DatabaseError`.
 pub enum DatabaseError {
     #[error("Connection error: {0}")]
     ConnectionError(String),
@@ -43,6 +44,7 @@ pub enum DatabaseError {
 
 /// Database type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Mewakili pub `DatabaseType`.
 pub enum DatabaseType {
     MySQL,
     PostgreSQL,
@@ -53,6 +55,7 @@ pub enum DatabaseType {
 }
 
 impl DatabaseType {
+    /// Mewakili pub `as_str(`.
     pub fn as_str(&self) -> &str {
         match self {
             DatabaseType::MySQL => "mysql",
@@ -67,6 +70,7 @@ impl DatabaseType {
 
 /// Database connection configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DatabaseConnection`.
 pub struct DatabaseConnection {
     /// Connection name
     pub name: String,
@@ -116,6 +120,7 @@ impl Default for DatabaseConnection {
 
 /// Database role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DatabaseRole`.
 pub struct DatabaseRole {
     /// Role name
     pub name: String,
@@ -159,6 +164,7 @@ impl Default for DatabaseRole {
 
 /// Generated database credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `DatabaseCredentials`.
 pub struct DatabaseCredentials {
     /// Unique credential ID
     pub id: String,
@@ -252,7 +258,7 @@ impl DatabaseSecretsEngine {
                 let tls_mode =
                     std::env::var("SECRETON_DB_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
 
-                let client = if tls_mode.eq_ignore_ascii_case("disable") {
+                let _client = if tls_mode.eq_ignore_ascii_case("disable") {
                     let (client, connection) =
                         tokio_postgres::connect(&config.connection_url, NoTls)
                             .await
@@ -439,7 +445,7 @@ impl DatabaseSecretsEngine {
                                 abcdefghijklmnopqrstuvwxyz\
                                 0123456789\
                                 !@#$%^&*";
-        let mut rng = &mut OsRng;
+        let rng = &mut OsRng;
 
         (0..length)
             .map(|_| {

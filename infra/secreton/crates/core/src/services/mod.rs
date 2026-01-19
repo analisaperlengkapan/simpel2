@@ -52,25 +52,39 @@
 
 // Core services (essential)
 pub mod health;
+/// Mewakili pub `identity`.
 pub mod identity;
 // TODO: key_manager needs refactoring to use proper StorageBackend API
 // pub mod key_manager;
+/// Mewakili pub `lease`.
 pub mod lease;
+/// Mewakili pub `metrics`.
 pub mod metrics;
+/// Mewakili pub `mfa`.
 pub mod mfa;
+/// Mewakili pub `policy`.
 pub mod policy;
+/// Mewakili pub `rate_limit`.
 pub mod rate_limit;
+/// Mewakili pub `rbac`.
 pub mod rbac;
+/// Mewakili pub `rotation`.
 pub mod rotation;
+/// Mewakili pub `seal`.
 pub mod seal;
+/// Mewakili pub `token`.
 pub mod token;
+/// Mewakili pub `wrapping`.
 pub mod wrapping;
 
 // Auth services
+/// Mewakili pub `auth`.
 pub mod auth;
 
 // Dynamic secrets
+/// Mewakili pub `dynamic`.
 pub mod dynamic;
 
 // Secrets management
+/// Mewakili pub `secrets`.
 pub mod secrets;

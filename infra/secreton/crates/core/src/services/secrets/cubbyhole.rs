@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 /// Cubbyhole errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `CubbyholeError`.
 pub enum CubbyholeError {
     #[error("Path not found: {0}")]
     PathNotFound(String),
@@ -25,6 +26,7 @@ pub enum CubbyholeError {
 
 /// Cubbyhole entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `CubbyholeEntry`.
 pub struct CubbyholeEntry {
     /// Token ID that owns this entry
     pub token_id: String,

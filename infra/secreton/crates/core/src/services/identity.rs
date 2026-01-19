@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 /// Error types for identity
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `IdentityError`.
 pub enum IdentityError {
     #[error("Entity not found: {0}")]
     EntityNotFound(String),
@@ -32,6 +33,7 @@ pub enum IdentityError {
 
 /// Entity represents a unique identity
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Entity`.
 pub struct Entity {
     /// Entity ID
     pub id: String,
@@ -100,6 +102,7 @@ impl Entity {
 
 /// Alias represents an authentication source mapping
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Alias`.
 pub struct Alias {
     /// Alias ID
     pub id: String,
@@ -140,6 +143,7 @@ impl Alias {
 
 /// Group represents a collection of entities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Group`.
 pub struct Group {
     /// Group ID
     pub id: String,

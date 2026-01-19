@@ -23,6 +23,7 @@ use secreton_core::services::secrets::pki::{
 
 /// PKI API State wrapper
 #[derive(Clone)]
+/// Mewakili pub `PkiApiState`.
 pub struct PkiApiState {
     pub engine: Arc<PkiEngine>,
 }
@@ -53,6 +54,7 @@ impl PkiApiState {
 
 /// Request to generate root CA
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `GenerateRootCARequest`.
 pub struct GenerateRootCARequest {
     /// Common Name for the root CA
     pub common_name: String,
@@ -67,6 +69,7 @@ fn default_root_ca_ttl() -> i64 {
 
 /// Response for root CA generation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GenerateRootCAResponse`.
 pub struct GenerateRootCAResponse {
     pub success: bool,
     pub message: String,
@@ -77,6 +80,7 @@ pub struct GenerateRootCAResponse {
 
 /// Request to create PKI role
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `CreateRoleRequest`.
 pub struct CreateRoleRequest {
     /// Role TTL in days (default: 90)
     #[serde(default = "default_role_ttl")]
@@ -102,6 +106,7 @@ fn default_max_ttl() -> i64 {
 
 /// Response for role creation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `CreateRoleResponse`.
 pub struct CreateRoleResponse {
     pub success: bool,
     pub message: String,
@@ -110,12 +115,14 @@ pub struct CreateRoleResponse {
 
 /// Response for listing roles
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ListRolesResponse`.
 pub struct ListRolesResponse {
     pub roles: Vec<String>,
 }
 
 /// Request to issue certificate
 #[derive(Debug, Serialize, Deserialize)]
+/// Mewakili pub `IssueCertificateRequest`.
 pub struct IssueCertificateRequest {
     /// Common Name (e.g., simpel.kejaksaan.go.id)
     pub common_name: String,
@@ -128,6 +135,7 @@ pub struct IssueCertificateRequest {
 
 /// Response for certificate issuance
 #[derive(Debug, Serialize)]
+/// Mewakili pub `IssueCertificateResponse`.
 pub struct IssueCertificateResponse {
     pub success: bool,
     pub message: String,
@@ -140,6 +148,7 @@ pub struct IssueCertificateResponse {
 
 /// Request to revoke certificate
 #[derive(Debug, Deserialize)]
+/// Mewakili pub `RevokeCertificateRequest`.
 pub struct RevokeCertificateRequest {
     /// Serial number of certificate to revoke
     pub serial_number: String,
@@ -147,6 +156,7 @@ pub struct RevokeCertificateRequest {
 
 /// Response for certificate revocation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RevokeCertificateResponse`.
 pub struct RevokeCertificateResponse {
     pub success: bool,
     pub message: String,
@@ -156,6 +166,7 @@ pub struct RevokeCertificateResponse {
 
 /// Response for certificate lookup
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GetCertificateResponse`.
 pub struct GetCertificateResponse {
     pub success: bool,
     pub serial_number: String,
@@ -167,6 +178,7 @@ pub struct GetCertificateResponse {
 
 /// Response for CRL generation
 #[derive(Debug, Serialize)]
+/// Mewakili pub `GetCRLResponse`.
 pub struct GetCRLResponse {
     pub success: bool,
     pub revoked_certificates: Vec<RevokedCertInfo>,
@@ -174,6 +186,7 @@ pub struct GetCRLResponse {
 }
 
 #[derive(Debug, Serialize)]
+/// Mewakili pub `RevokedCertInfo`.
 pub struct RevokedCertInfo {
     pub serial_number: String,
     pub revoked_at: String,
@@ -181,6 +194,7 @@ pub struct RevokedCertInfo {
 
 /// Response for listing CAs
 #[derive(Debug, Serialize)]
+/// Mewakili pub `ListCAsResponse`.
 pub struct ListCAsResponse {
     pub cas: Vec<String>,
 }

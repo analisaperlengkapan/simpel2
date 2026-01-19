@@ -22,6 +22,7 @@ pub use oidc_verifier::{MultiVerifier, OidcVerifier, OidcVerifierConfig};
 /// - SharedSecretVerifier: Uses HS256 with a shared secret (existing behavior)
 /// - OidcVerifier: Uses RS256/ES256 with JWKS from Authenc (new integration)
 #[async_trait::async_trait]
+/// Mewakili pub `TokenVerifier`.
 pub trait TokenVerifier: Send + Sync {
     /// Verify and decode a JWT token
     async fn verify_token(&self, token: &str) -> Result<TokenData<Claims>, AuthError>;
@@ -35,6 +36,7 @@ pub trait TokenVerifier: Send + Sync {
 
 /// JWT claims structure
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Mewakili pub `Claims`.
 pub struct Claims {
     pub sub: String,              // Subject (user ID)
     pub name: String,             // User name
@@ -55,6 +57,7 @@ pub struct Claims {
 /// For comprehensive API authentication configuration including OAuth2, mTLS, and MFA,
 /// see `crate::config::AuthConfig`.
 #[derive(Debug, Clone)]
+/// Mewakili pub `JwtAuthConfig`.
 pub struct JwtAuthConfig {
     pub jwt_secret: String,
     pub jwt_expiration_hours: i64,
@@ -194,6 +197,7 @@ impl Default for JwtAuthConfig {
 
 /// User roles for RBAC
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Mewakili pub `UserRole`.
 pub enum UserRole {
     Admin,
     VaultAdmin,
@@ -203,6 +207,7 @@ pub enum UserRole {
 }
 
 impl UserRole {
+    /// Mewakili pub `as_string(`.
     pub fn as_string(&self) -> String {
         match self {
             UserRole::Admin => "admin".to_string(),
@@ -213,6 +218,7 @@ impl UserRole {
         }
     }
 
+    /// Mewakili pub `from_string(s`.
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
             "admin" => Some(UserRole::Admin),
@@ -227,6 +233,7 @@ impl UserRole {
 
 /// Permissions for fine-grained access control
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Mewakili pub `Permission`.
 pub enum Permission {
     // Key management permissions
     CreateKey,
@@ -254,6 +261,7 @@ pub enum Permission {
 }
 
 impl Permission {
+    /// Mewakili pub `as_string(`.
     pub fn as_string(&self) -> String {
         match self {
             Permission::CreateKey => "create-key".to_string(),
@@ -280,6 +288,7 @@ impl Permission {
 /// This service focuses solely on JWT operations. For full authentication
 /// with user management, sessions, and roles, see `crate::services::auth::AuthService`.
 #[derive(Clone)]
+/// Mewakili pub `JwtService`.
 pub struct JwtService {
     config: JwtAuthConfig,
     encoding_key: EncodingKey,
@@ -287,6 +296,7 @@ pub struct JwtService {
 }
 
 impl JwtService {
+    /// Mewakili pub `new(config`.
     pub fn new(config: JwtAuthConfig) -> Self {
         let encoding_key = EncodingKey::from_secret(config.jwt_secret.as_bytes());
         let decoding_key = DecodingKey::from_secret(config.jwt_secret.as_bytes());
@@ -454,12 +464,14 @@ pub struct SharedSecretVerifier {
 }
 
 impl SharedSecretVerifier {
+    /// Mewakili pub `new(config`.
     pub fn new(config: JwtAuthConfig) -> Self {
         Self {
             jwt_service: JwtService::new(config),
         }
     }
 
+    /// Mewakili pub `jwt_service(`.
     pub fn jwt_service(&self) -> &JwtService {
         &self.jwt_service
     }

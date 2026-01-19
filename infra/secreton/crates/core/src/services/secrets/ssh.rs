@@ -18,10 +18,11 @@ use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// SSH engine errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `SshError`.
 pub enum SshError {
     #[error("Role not found: {0}")]
     RoleNotFound(String),
@@ -61,6 +62,7 @@ pub enum SshError {
 ///   See RUSTSEC-2023-0071 for RSA timing vulnerability information.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+/// Mewakili pub `SshKeyType`.
 pub enum SshKeyType {
     /// Ed25519 - RECOMMENDED for all new keys
     Ed25519,
@@ -84,6 +86,7 @@ pub enum SshKeyType {
 
 #[allow(deprecated)]
 impl SshKeyType {
+    /// Mewakili pub `to_algorithm(`.
     pub fn to_algorithm(&self) -> Algorithm {
         match self {
             SshKeyType::Ed25519 => Algorithm::Ed25519,
@@ -99,6 +102,7 @@ impl SshKeyType {
         }
     }
 
+    /// Mewakili pub `key_bits(`.
     pub fn key_bits(&self) -> Option<usize> {
         match self {
             SshKeyType::Rsa2048 => Some(2048),
@@ -110,6 +114,7 @@ impl SshKeyType {
 
 /// SSH role configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SshRole`.
 pub struct SshRole {
     pub name: String,
     pub key_type: SshKeyType,
@@ -124,6 +129,7 @@ pub struct SshRole {
 }
 
 impl SshRole {
+    /// Mewakili pub `new(name`.
     pub fn new(name: String, key_type: SshKeyType, default_user: String) -> Self {
         Self {
             name,
@@ -142,6 +148,7 @@ impl SshRole {
 
 /// SSH CA configuration
 #[derive(Debug, Clone)]
+/// Mewakili pub `SshCa`.
 pub struct SshCa {
     pub name: String,
     pub private_key: PrivateKey,
@@ -152,6 +159,7 @@ pub struct SshCa {
 
 /// SSH OTP entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SshOtp`.
 pub struct SshOtp {
     pub otp: String,
     pub username: String,
@@ -163,6 +171,7 @@ pub struct SshOtp {
 
 /// SSH key pair response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SshKeyPair`.
 pub struct SshKeyPair {
     pub private_key: String,
     pub public_key: String,
@@ -171,6 +180,7 @@ pub struct SshKeyPair {
 
 /// SSH certificate request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SshCertificateRequest`.
 pub struct SshCertificateRequest {
     pub public_key: String,
     pub cert_type: String,
@@ -181,6 +191,7 @@ pub struct SshCertificateRequest {
 
 /// SSH certificate response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SshCertificate`.
 pub struct SshCertificate {
     pub signed_key: String,
     pub serial_number: String,
@@ -196,6 +207,7 @@ pub struct SshEngine {
 }
 
 impl SshEngine {
+    /// Mewakili pub `new(`.
     pub fn new() -> Self {
         Self {
             pool: None,
@@ -205,6 +217,7 @@ impl SshEngine {
         }
     }
 
+    /// Mewakili pub `with_storage(pool`.
     pub fn with_storage(pool: Pool) -> Self {
         Self {
             pool: Some(pool),

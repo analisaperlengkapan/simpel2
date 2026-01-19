@@ -236,26 +236,31 @@ async fn stop_scheduler(
 /// Request/Response types
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PoliciesListResponse`.
 pub struct PoliciesListResponse {
     pub policies: Vec<RotationPolicy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ExecuteRotationRequest`.
 pub struct ExecuteRotationRequest {
     pub triggered_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HistoryQueryParams`.
 pub struct HistoryQueryParams {
     pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `HistoryResponse`.
 pub struct HistoryResponse {
     pub history: Vec<RotationHistory>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SchedulerStatusResponse`.
 pub struct SchedulerStatusResponse {
     pub running: bool,
     pub message: String,

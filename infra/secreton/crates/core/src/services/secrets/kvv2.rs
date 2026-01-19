@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 /// KV v2 errors
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `Kvv2Error`.
 pub enum Kvv2Error {
     #[error("Secret not found: {0}")]
     SecretNotFound(String),
@@ -34,6 +35,7 @@ pub enum Kvv2Error {
 
 /// Secret version data
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecretVersion`.
 pub struct SecretVersion {
     /// Version number
     pub version: u64,
@@ -93,6 +95,7 @@ impl SecretVersion {
 
 /// Secret metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecretMetadata`.
 pub struct SecretMetadata {
     /// Path
     pub path: String,

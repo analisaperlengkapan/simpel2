@@ -18,6 +18,7 @@ use tokio::sync::RwLock;
 
 /// Post-quantum signature types supported by Authenc
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PqSignature`.
 pub enum PqSignature {
     /// ML-DSA signature
     MlDsa {
@@ -38,6 +39,7 @@ pub enum PqSignature {
 
 /// Credentials for user authentication
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `Credentials`.
 pub struct Credentials {
     /// User identifier (NIP or UUID)
     pub user_id: String,
@@ -49,6 +51,7 @@ pub struct Credentials {
 
 /// Authentication result from Authenc
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthResult`.
 pub struct AuthResult {
     /// Whether authentication was successful
     pub success: bool,
@@ -64,6 +67,7 @@ pub struct AuthResult {
 
 /// Token validation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TokenValidation`.
 pub struct TokenValidation {
     /// Whether token is valid
     pub valid: bool,
@@ -86,6 +90,7 @@ pub struct TokenValidation {
     since = "1.1.0",
     note = "Renamed to AuthencUserInfo to avoid confusion with canonical User model in crate::models::user. Use AuthencUserInfo instead."
 )]
+/// Mewakili pub `User`.
 pub type User = AuthencUserInfo;
 
 /// User information from Authenc provider (Indonesian government authentication)
@@ -95,6 +100,7 @@ pub type User = AuthencUserInfo;
 /// **Important**: This is NOT the canonical User model. For general user operations,
 /// use `crate::models::user::User` instead. This struct is only for Authenc integration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuthencUserInfo`.
 pub struct AuthencUserInfo {
     /// User identifier (as String for Authenc compatibility)
     pub id: String,
@@ -128,6 +134,7 @@ impl TokenCacheEntry {
 
 /// Token validation cache
 #[derive(Debug)]
+/// Mewakili pub `TokenCache`.
 pub struct TokenCache {
     cache: Arc<RwLock<HashMap<String, TokenCacheEntry>>>,
     default_ttl: Duration,
@@ -187,6 +194,7 @@ pub type ValidationCache = TokenCache;
 
 /// Post-quantum signature validator
 #[derive(Debug)]
+/// Mewakili pub `PostQuantumValidator`.
 pub struct PostQuantumValidator {
     /// Supported algorithms
     supported_algorithms: Vec<String>,
@@ -208,12 +216,12 @@ impl PostQuantumValidator {
     pub async fn validate_signature(
         &self,
         signature: &PqSignature,
-        data: &[u8],
+        _data: &[u8],
     ) -> Result<bool, CoreError> {
         match signature {
             PqSignature::MlDsa {
-                signature: sig,
-                public_key,
+                signature: _sig,
+                public_key: _,
             } => {
                 // TODO: Implement ML-DSA signature verification
                 // This would use a post-quantum cryptography library
@@ -221,16 +229,16 @@ impl PostQuantumValidator {
                 Ok(false)
             }
             PqSignature::SphincsPlusShake256 {
-                signature: sig,
-                public_key,
+                signature: _sig,
+                public_key: _,
             } => {
                 // TODO: Implement SPHINCS+ signature verification
                 log::warn!("SPHINCS+ signature validation not yet implemented");
                 Ok(false)
             }
             PqSignature::Hybrid {
-                classical_signature,
-                pq_signature,
+                classical_signature: _,
+                pq_signature: _,
             } => {
                 // TODO: Implement hybrid signature verification
                 // Verify both classical and post-quantum signatures
@@ -243,6 +251,7 @@ impl PostQuantumValidator {
 
 /// Authentication provider trait for pluggable auth backends
 #[async_trait]
+/// Mewakili pub `AuthProvider`.
 pub trait AuthProvider: Send + Sync {
     /// Authenticate a user with credentials
     async fn authenticate_user(
@@ -278,6 +287,7 @@ pub trait AuthProvider: Send + Sync {
 
 /// Authenc authentication provider implementation
 #[derive(Debug)]
+/// Mewakili pub `AuthencAuthProvider`.
 pub struct AuthencAuthProvider {
     /// Authenc service endpoint
     authenc_endpoint: String,

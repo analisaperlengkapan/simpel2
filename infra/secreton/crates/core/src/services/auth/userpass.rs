@@ -14,6 +14,7 @@ use crate::models::auth::UserInfo;
 
 /// Error types for UserPass authentication
 #[derive(Debug, thiserror::Error)]
+/// Mewakili pub `UserPassError`.
 pub enum UserPassError {
     #[error("Invalid credentials")]
     InvalidCredentials,
@@ -42,6 +43,7 @@ pub enum UserPassError {
 
 /// User account information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `UserPassUser`.
 pub struct UserPassUser {
     /// Username
     pub username: String,
@@ -178,6 +180,7 @@ impl UserPassUser {
 
 /// UserPass authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `UserPassConfig`.
 pub struct UserPassConfig {
     /// Default token TTL in seconds
     pub default_token_ttl: u32,
@@ -209,6 +212,7 @@ impl Default for UserPassConfig {
 
 /// Password policy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PasswordPolicy`.
 pub struct PasswordPolicy {
     /// Minimum password length
     pub min_length: usize,

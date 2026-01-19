@@ -11,6 +11,7 @@ use tracing::{info, warn};
 
 /// MFA policy configuration loaded from TOML files
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaPolicyConfig`.
 pub struct MfaPolicyConfig {
     /// General MFA settings
     pub mfa: MfaSettings,
@@ -18,6 +19,7 @@ pub struct MfaPolicyConfig {
 
 /// MFA settings from configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MfaSettings`.
 pub struct MfaSettings {
     /// Whether MFA is enabled globally
     pub enabled: bool,
@@ -67,6 +69,7 @@ pub struct MfaSettings {
 
 /// TOTP-specific settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `TotpSettings`.
 pub struct TotpSettings {
     pub issuer: String,
     pub time_window: u32,
@@ -78,6 +81,7 @@ pub struct TotpSettings {
 
 /// Policy enforcement settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `PolicySettings`.
 pub struct PolicySettings {
     pub enforce_for_all: bool,
     pub setup_grace_period: u32,
@@ -90,6 +94,7 @@ pub struct PolicySettings {
 
 /// Role-based policy settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RolePolicySettings`.
 pub struct RolePolicySettings {
     pub admin_immediate_setup: Vec<String>,
     pub high_privilege_roles: Vec<String>,
@@ -98,6 +103,7 @@ pub struct RolePolicySettings {
 
 /// Satker-based policy settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SatkerPolicySettings`.
 pub struct SatkerPolicySettings {
     pub high_security_satkers: Vec<String>,
     pub standard_satkers: Vec<String>,
@@ -105,6 +111,7 @@ pub struct SatkerPolicySettings {
 
 /// Recovery codes settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RecoveryCodesSettings`.
 pub struct RecoveryCodesSettings {
     pub count: u32,
     pub length: u32,
@@ -114,6 +121,7 @@ pub struct RecoveryCodesSettings {
 
 /// Rate limiting settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `RateLimitingSettings`.
 pub struct RateLimitingSettings {
     pub max_attempts_per_minute: u32,
     pub max_setup_attempts_per_hour: u32,
@@ -123,6 +131,7 @@ pub struct RateLimitingSettings {
 
 /// Audit settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AuditSettings`.
 pub struct AuditSettings {
     pub enabled: bool,
     pub log_success: bool,
@@ -134,6 +143,7 @@ pub struct AuditSettings {
 
 /// Security settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SecuritySettings`.
 pub struct SecuritySettings {
     pub secret_encryption: String,
     pub kdf: String,
@@ -146,6 +156,7 @@ pub struct SecuritySettings {
 
 /// Backup settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `BackupSettings`.
 pub struct BackupSettings {
     pub enabled: bool,
     pub interval_hours: u32,
@@ -156,6 +167,7 @@ pub struct BackupSettings {
 
 /// Monitoring settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `MonitoringSettings`.
 pub struct MonitoringSettings {
     pub metrics_enabled: bool,
     pub alert_on_anomalies: bool,
@@ -167,6 +179,7 @@ pub struct MonitoringSettings {
 
 /// Compliance settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `ComplianceSettings`.
 pub struct ComplianceSettings {
     pub fips_mode: bool,
     pub audit_integrity_check: bool,
@@ -177,6 +190,7 @@ pub struct ComplianceSettings {
 
 /// Access control settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `AccessControlSettings`.
 pub struct AccessControlSettings {
     pub setup_permission: String,
     pub verify_permission: String,
@@ -186,6 +200,7 @@ pub struct AccessControlSettings {
 
 /// Network security settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `NetworkSettings`.
 pub struct NetworkSettings {
     pub allowed_ip_ranges: Vec<String>,
     pub ip_rate_limiting: bool,
@@ -194,6 +209,7 @@ pub struct NetworkSettings {
 
 /// Session management settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Mewakili pub `SessionSettings`.
 pub struct SessionSettings {
     pub session_timeout: u32,
     pub require_mfa_for_extension: bool,
@@ -383,7 +399,7 @@ impl MfaPolicyLoader {
     }
 
     /// Apply configuration to MFA service
-    pub async fn apply_to_service(&self, mfa_service: &mut MfaService) -> Result<(), MfaError> {
+    pub async fn apply_to_service(&self, _mfa_service: &mut MfaService) -> Result<(), MfaError> {
         info!("Applying MFA policy configuration to service");
 
         // This would configure the MFA service with the loaded policies

@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Mewakili pub `CircuitBreakerState`.
 pub enum CircuitBreakerState {
     /// Circuit is closed, requests flow normally
     Closed,
@@ -24,6 +25,7 @@ pub enum CircuitBreakerState {
 /// When a service fails repeatedly, the circuit opens and blocks requests
 /// for a timeout period, then enters half-open state to test recovery.
 #[derive(Debug, Clone)]
+/// Mewakili pub `CircuitBreaker`.
 pub struct CircuitBreaker {
     state: Arc<RwLock<CircuitBreakerState>>,
     failure_count: Arc<RwLock<u32>>,
@@ -33,6 +35,7 @@ pub struct CircuitBreaker {
 
 /// Circuit breaker configuration
 #[derive(Debug, Clone)]
+/// Mewakili pub `CircuitBreakerConfig`.
 pub struct CircuitBreakerConfig {
     /// Maximum number of failures before opening circuit
     pub max_failures: u32,
