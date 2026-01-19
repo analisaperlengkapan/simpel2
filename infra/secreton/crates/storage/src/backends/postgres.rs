@@ -650,21 +650,6 @@ async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()>
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     "#;
 
-    let encryption_metadata_json =
-        serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize encryption metadata: {}", e),
-            }
-        })?;
-
-    let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-        StorageError::SerializationError {
-            source: None,
-            message: format!("Failed to serialize metadata: {}", e),
-        }
-    })?;
-
     client
         .execute(
             query,
@@ -672,9 +657,9 @@ async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()>
                 &entry.id,
                 &entry.path,
                 &entry.encrypted_data,
-                &encryption_metadata_json,
+                &entry.encryption_metadata,
                 &(entry.security_level as i32),
-                &metadata_json,
+                &entry.metadata,
                 &entry.tags,
                 &(entry.version as i32),
                 &entry.owner_id,
@@ -700,21 +685,6 @@ async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()
         WHERE id = $1
     "#;
 
-    let encryption_metadata_json =
-        serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize encryption metadata: {}", e),
-            }
-        })?;
-
-    let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-        StorageError::SerializationError {
-            source: None,
-            message: format!("Failed to serialize metadata: {}", e),
-        }
-    })?;
-
     let rows_affected = client
         .execute(
             query,
@@ -722,9 +692,9 @@ async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()
                 &entry.id,
                 &entry.path,
                 &entry.encrypted_data,
-                &encryption_metadata_json,
+                &entry.encryption_metadata,
                 &(entry.security_level as i32),
-                &metadata_json,
+                &entry.metadata,
                 &entry.tags,
                 &(entry.version as i32),
                 &entry.updated_at,
