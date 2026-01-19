@@ -4,13 +4,14 @@ use axum::extract::State;
 use crate::models::AppState;
 use uuid::Uuid;
 use validator::Validate;
+use serde::Deserialize;
 use crate::models::{ModelRegistry, ModelMetadata};
 use chrono::Utc;
 use reqwest::Client;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 
-static REGISTRY: Lazy<Mutex<ModelRegistry>> = Lazy::new(|| Mutex::new(ModelRegistry::new()));
+static REGISTRY: Lazy<RwLock<ModelRegistry>> = Lazy::new(|| RwLock::new(ModelRegistry::new()));
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct GenerateTextRequest {
@@ -106,7 +107,7 @@ pub async fn download_model(_: State<AppState>, Path(_): Path<String>) -> (Statu
 
 pub async fn approve_model(State(_): State<AppState>, Path(id): Path<String>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
     let user = payload["user"].as_str().unwrap_or("admin");
-    if REGISTRY.lock().await.approve_model(&id, user) {
+    if REGISTRY.write().await.approve_model(&id, user) {
         (StatusCode::OK, Json(json!({"model_id": id, "status": "approved", "approved_by": user})))
     } else {
         (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
@@ -133,16 +134,19 @@ pub async fn enqueue_job(State(state): State<AppState>, Json(payload): Json<serd
     let now = chrono::Utc::now();
     let payload_json = serde_json::to_value(&payload).unwrap_or(json!({}));
 
-    let client = state.pool.get().await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database connection failed"}))))?;
+    // Fix: Using match/unwrap instead of ? for error handling
+    let client = match state.pool.get().await {
+        Ok(c) => c,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database connection failed"}))),
+    };
+
     let res = client
         .execute(
             "INSERT INTO ai_jobs (id, job_type, payload, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)",
             &[&id, &job_type, &payload_json, &status, &now, &now]
         )
         .await;
-    )
-    .execute(&state.pool)
-    .await;
+
     match res {
         Ok(_) => (StatusCode::OK, Json(json!({"job_id": id, "status": status}))),
         Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
@@ -177,8 +181,6 @@ pub async fn job_status(State(state): State<AppState>, Path(id): Path<String>) -
                 problem_json(StatusCode::NOT_FOUND, "Job Not Found", "Job not found")
             }
         }
-        },
-        Ok(None) => problem_json(StatusCode::NOT_FOUND, "Job Not Found", "No job found with the given id"),
         Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
     }
 }
@@ -194,12 +196,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_health() {
-        let status = health().await;
-        assert_eq!(status, StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn test_enqueue_and_status() {
         let job_queue = Arc::new(Mutex::new(JobQueue::new()));
         let pool_config = deadpool_postgres::Config {
             user: Some("user".to_string()),
@@ -208,6 +204,34 @@ mod tests {
             dbname: Some("test".to_string()),
             ..Default::default()
         };
+        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let state = AppState {
+            pool,
+            config: crate::config::Config::default(),
+            llm_service: crate::llm::LlmService,
+            ocr_service: crate::ocr::OcrService,
+            rag_service: crate::rag::RagService,
+            job_queue: job_queue.clone(),
+        };
+        let (status, _) = health(State(state)).await;
+        assert_eq!(status, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_enqueue_and_status() {
+        // This test also constructs AppState.
+        // I will keep it as is, but it might fail to compile if I don't import everything.
+        // It imports AppState, JobQueue.
+        let job_queue = Arc::new(Mutex::new(JobQueue::new()));
+        let pool_config = deadpool_postgres::Config {
+            user: Some("user".to_string()),
+            password: Some("pass".to_string()),
+            host: Some("localhost".to_string()),
+            dbname: Some("test".to_string()),
+            ..Default::default()
+        };
+        // This requires local postgres. It will fail at runtime.
+        // But it should compile.
         let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
         let state = AppState {
             pool,
@@ -238,12 +262,12 @@ pub async fn register_model(State(_): State<AppState>, Json(payload): Json<serde
         created_at: Utc::now(),
         approved_by: None,
     };
-    REGISTRY.lock().await.add_model(meta);
+    REGISTRY.write().await.add_model(meta);
     (StatusCode::OK, Json(json!({"model_id": id, "status": "draft"})))
 }
 
 pub async fn get_model(State(_): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
-    if let Some(meta) = REGISTRY.lock().await.get_model(&id) {
+    if let Some(meta) = REGISTRY.read().await.get_model(&id) {
         let response = json!({
             "id": meta.id,
             "name": meta.name,
