@@ -1,7 +1,7 @@
 //! Tests for Indonesian localization formatters
 
 use chrono::{Datelike, Local, TimeZone, Timelike};
-use shared_microfrontend::utils::formatters::*;
+use lib_ui::utils::formatters::*;
 
 #[test]
 fn test_format_number_positive() {

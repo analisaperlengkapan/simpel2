@@ -1,6 +1,6 @@
 // Tests for monitoring, error tracking, and analytics modules
 
-use shared_microfrontend::utils::{
+use lib_ui::utils::{
     analytics::{EventType, track_event, track_page_view},
     error_tracking::{ErrorSeverity, capture_error},
     monitoring::track_api_request,
