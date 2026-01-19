@@ -29,12 +29,12 @@ pub struct GeolocationData {
 /// Geolocation service trait for extensibility
 #[async_trait::async_trait]
 pub trait GeolocationService: Send + Sync {
-    /// Lookup geolocation data for an IP address
     async fn lookup(&self, ip: &str) -> Option<GeolocationData>;
 }
 
 /// Simple geolocation service that identifies private/local IPs
 /// Can be extended to use external services
+    /// Lookup geolocation data for an IP address
 pub struct SimpleGeolocationService;
 
 impl SimpleGeolocationService {
@@ -43,7 +43,6 @@ impl SimpleGeolocationService {
         Self
     }
 
-    /// Check if an IP is private/local
     fn is_private_ip(ip: &IpAddr) -> bool {
         match ip {
             IpAddr::V4(ipv4) => {
@@ -90,6 +89,7 @@ impl GeolocationService for SimpleGeolocationService {
 
 /// Stub for MaxMind GeoIP2 integration (future implementation)
 #[allow(dead_code)]
+    /// Check if an IP is private/local
 pub struct MaxMindGeolocationService {
     // database_path: String,
 }

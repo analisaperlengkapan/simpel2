@@ -141,7 +141,6 @@ impl HttpConnectionPool {
         self.execute_request(|| self.client.delete(url)).await
     }
 
-    /// Execute a request with retry logic and connection management
     async fn execute_request<F>(&self, request_builder: F) -> Result<reqwest::Response>
     where
         F: Fn() -> reqwest::RequestBuilder,
@@ -246,6 +245,7 @@ impl HttpConnectionPool {
     }
 
     /// Get the underlying HTTP client (for advanced usage)
+    /// Execute a request with retry logic and connection management
     pub fn client(&self) -> &Client {
         &self.client
     }

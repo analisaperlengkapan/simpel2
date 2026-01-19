@@ -14,8 +14,6 @@ pub struct MfaFallbackConfig {
     #[serde(default = "default_storage_path")]
     pub storage_path: PathBuf,
 
-    /// Encryption key for local storage (base64 encoded)
-    /// If not provided, will be generated and stored in environment
     pub encryption_key: Option<String>,
 
     /// Sync interval in seconds
@@ -75,6 +73,8 @@ impl Default for MfaFallbackConfig {
 
 impl MfaFallbackConfig {
     /// Load configuration from environment variables
+    /// Encryption key for local storage (base64 encoded)
+    /// If not provided, will be generated and stored in environment
     pub fn from_env() -> Self {
         let mut config = Self::default();
 

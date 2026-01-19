@@ -29,7 +29,6 @@ use crate::error::AuthencError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum ThreatLevel {
-    /// Normal operations (0-2)
     Normal = 0,
     /// Elevated threat (3-5)
     Elevated = 3,
@@ -41,6 +40,7 @@ pub enum ThreatLevel {
 
 impl ThreatLevel {
     /// Get rate limit for this threat level (requests per minute)
+    /// Normal operations (0-2)
     pub fn rate_limit(&self) -> u64 {
         match self {
             ThreatLevel::Normal => 100,
@@ -119,7 +119,6 @@ impl Default for AdaptiveRateLimitConfig {
 /// Rate limit entry for tracking requests
 #[derive(Debug)]
 struct RateLimitEntry {
-    /// Number of requests in current window
     count: AtomicU64,
     /// Start of current window
     window_start: Instant,
@@ -142,9 +141,9 @@ impl RateLimitEntry {
 
 /// Adaptive rate limiter state
 #[derive(Clone)]
+    /// Number of requests in current window
 pub struct AdaptiveRateLimiter {
     config: AdaptiveRateLimitConfig,
-    /// Per-IP rate limit entries
     limits: Arc<DashMap<String, RateLimitEntry>>,
     /// Global threat level (0-10)
     threat_level: Arc<AtomicU8>,
@@ -154,6 +153,7 @@ pub struct AdaptiveRateLimiter {
 
 impl AdaptiveRateLimiter {
     /// Create a new adaptive rate limiter
+    /// Per-IP rate limit entries
     pub fn new(config: AdaptiveRateLimitConfig) -> Self {
         let limiter = Self {
             config: config.clone(),
@@ -243,7 +243,6 @@ impl AdaptiveRateLimiter {
         }
     }
 
-    /// Increase global threat level based on failed attempts
     fn increase_threat_level(&self, ip: &str, failed_count: u64) {
         let current = self.threat_level.load(Ordering::Relaxed);
         if current >= self.config.max_threat_level {
@@ -276,6 +275,7 @@ impl AdaptiveRateLimiter {
     }
 
     /// Check if request should be rate limited
+    /// Increase global threat level based on failed attempts
     pub fn check_rate_limit(&self, path: &str, ip: &str) -> Result<(), AuthencError> {
         if !self.config.enabled {
             return Ok(());

@@ -8,7 +8,6 @@ use uuid::Uuid;
 /// Authorization decision
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Decision {
-    /// Access is permitted
     Permit,
     /// Access is denied
     Deny,
@@ -18,6 +17,7 @@ pub enum Decision {
 
 /// Authorization request context
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Access is permitted
 pub struct AuthorizationContext {
     /// Subject requesting access
     pub subject: AuthorizationSubject,
@@ -83,7 +83,6 @@ pub struct Policy {
 /// Policy types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PolicyType {
-    /// Role-based access control policy
     RoleBased,
     /// Attribute-based access control policy
     AttributeBased,
@@ -99,8 +98,8 @@ pub enum PolicyType {
 
 /// Logic types for combining policies
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Role-based access control policy
 pub enum LogicType {
-    /// Positive logic (permit unless denied)
     Positive,
     /// Negative logic (deny unless permitted)
     Negative,
@@ -112,6 +111,7 @@ pub enum LogicType {
 
 /// Policy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Positive logic (permit unless denied)
 pub struct PolicyConfig {
     /// Roles required by the policy
     pub roles: Vec<String>,
@@ -133,7 +133,6 @@ pub struct PolicyCondition {
 /// Authorization service trait
 #[async_trait]
 pub trait AuthorizationService: Send + Sync {
-    /// Evaluate authorization request
     async fn evaluate(&self, context: &AuthorizationContext) -> Result<Decision, String>;
 
     /// Get all policies for a realm
@@ -151,6 +150,7 @@ pub trait AuthorizationService: Send + Sync {
 
 /// Resource server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Evaluate authorization request
 pub struct ResourceServer {
     /// Unique identifier for the resource server
     pub id: Uuid,
@@ -217,7 +217,6 @@ pub struct Scope {
 
 /// Authorization Manager - main service
 pub struct AuthorizationManager {
-    /// Database connection
     database: Arc<crate::database::Database>,
     /// Internal storage for policies
     policies: HashMap<Uuid, Policy>,
@@ -231,6 +230,7 @@ pub struct AuthorizationManager {
 
 impl AuthorizationManager {
     /// Create new authorization manager with database
+    /// Database connection
     pub fn new(database: Arc<crate::database::Database>) -> Self {
         Self {
             database,
@@ -302,7 +302,6 @@ impl AuthorizationManager {
         }
     }
 
-    /// Evaluate single policy
     fn evaluate_single_policy(&self, context: &AuthorizationContext, policy: &Policy) -> Decision {
         match policy.policy_type {
             PolicyType::RoleBased => self.evaluate_role_policy(context, &policy.config),
@@ -583,6 +582,7 @@ impl AuthorizationManager {
     }
 
     /// Check permissions for resource access
+    /// Evaluate single policy
     pub fn check_permissions(&self, context: &AuthorizationContext) -> Decision {
         // Find relevant permissions for the resource
         let mut relevant_permissions = Vec::new();

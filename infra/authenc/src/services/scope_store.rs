@@ -9,12 +9,12 @@ use crate::models::scope::{CreateScopeRequest, Scope, UpdateScopeRequest};
 /// Scope store for managing scopes in the database
 #[derive(Debug, Clone)]
 pub struct ScopeStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl ScopeStore {
     /// Create a new scope store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

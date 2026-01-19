@@ -14,7 +14,6 @@ use tracing::debug;
 /// Entry in the in-memory cache with TTL
 #[derive(Debug, Clone)]
 struct CacheEntry {
-    /// The cached value
     value: serde_json::Value,
     /// When this entry expires
     expires_at: Instant,
@@ -45,8 +44,8 @@ impl CacheEntry {
 }
 
 /// In-memory cache implementation using DashMap
+    /// The cached value
 pub struct InMemoryCache {
-    /// The cache storage
     cache: Arc<DashMap<String, CacheEntry>>,
     /// Maximum number of entries
     max_size: usize,
@@ -62,6 +61,7 @@ impl InMemoryCache {
     /// # Arguments
     /// * `max_size` - Maximum number of entries (default: 10,000)
     /// * `default_ttl` - Default TTL for entries (default: 60 seconds)
+    /// The cache storage
     pub fn new(max_size: usize, default_ttl: Duration) -> Self {
         debug!(
             "Creating in-memory cache with max_size={}, default_ttl={:?}",
@@ -76,7 +76,6 @@ impl InMemoryCache {
         }
     }
 
-    /// Evict expired entries
     fn evict_expired(&self) {
         let now = Instant::now();
         let mut evicted = 0;
@@ -126,6 +125,7 @@ impl InMemoryCache {
     }
 
     /// Get cache metrics
+    /// Evict expired entries
     pub fn metrics(&self) -> Arc<CacheMetrics> {
         Arc::clone(&self.metrics)
     }

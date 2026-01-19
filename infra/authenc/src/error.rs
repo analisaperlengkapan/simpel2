@@ -42,7 +42,6 @@ pub enum AuthencError {
     /// Account locked due to too many failed authentication attempts
     #[error("Account locked: {reason}")]
     AccountLocked {
-        /// The reason for the account lockout
         reason: String,
         /// When the account will be unlocked
         locked_until: std::time::Instant,
@@ -391,6 +390,7 @@ pub enum AuthencError {
 
 impl AuthencError {
     /// Create a validation error with custom message
+        /// The reason for the account lockout
     pub fn validation<T: Into<String>>(message: T) -> Self {
         Self::ValidationError {
             message: message.into(),

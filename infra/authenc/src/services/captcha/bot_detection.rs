@@ -13,7 +13,6 @@ use super::types::*;
 /// Machine learning model types for bot detection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MLModelType {
-    /// Naive Bayes probabilistic classifier
     NaiveBayes,
     /// Support Vector Machine classifier
     SVM,
@@ -27,6 +26,7 @@ pub enum MLModelType {
 
 /// Feature vector for machine learning models
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Naive Bayes probabilistic classifier
 pub struct FeatureVector {
     /// Mean mouse movement velocity
     pub mouse_velocity_mean: f64,
@@ -200,7 +200,6 @@ pub struct BotDetectionResult {
 /// Bot detection engine trait
 #[async_trait]
 pub trait BotDetectionEngine: Send + Sync {
-    /// Extract features from behavioral analysis
     async fn extract_features(
         &self,
         analysis: &BehavioralAnalysisResult,
@@ -239,6 +238,7 @@ pub trait BotDetectionEngine: Send + Sync {
 }
 
 /// Default bot detection engine implementation
+    /// Extract features from behavioral analysis
 pub struct DefaultBotDetectionEngine {
     ml_config: MLModelConfig,
     anomaly_config: AnomalyDetectionConfig,

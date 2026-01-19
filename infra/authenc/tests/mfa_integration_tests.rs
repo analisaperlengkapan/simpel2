@@ -16,7 +16,6 @@ use authenc::secreton_client::secreton_client::SecretonClient;
 use authenc::services::mfa_service::MfaService;
 use authenc::spi::credential::otp::{OtpAlgorithm, OtpCredentialProvider};
 
-/// Integration test utilities
 mod test_utils {
     use super::*;
 
@@ -58,6 +57,7 @@ mod test_utils {
     }
 
     /// Create a test user for integration tests
+/// Integration test utilities
     pub fn create_integration_test_user() -> User {
         User {
             id: Uuid::new_v4(),

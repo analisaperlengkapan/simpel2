@@ -412,21 +412,6 @@ pub fn generate_id_token(
     })
 }
 
-/// Apply protocol mappers to generate additional claims
-/// This function fetches effective mappers for a client and applies them to user data
-/// to generate additional JWT claims. This is called during token generation.
-/// # Arguments
-/// * `database` - Database connection for fetching mappers
-/// * `protocol_mapper_service` - Service for evaluating mappers
-/// * `client_id_uuid` - Client UUID for fetching mappers
-/// * `client_id_str` - Client ID string for mapper evaluation
-/// * `user` - User entity with roles, attributes, etc.
-/// * `scopes` - Requested OAuth2 scopes
-/// * `protocol` - Protocol name (e.g., "openid-connect")
-/// * `token_type` - Type of token (AccessToken, IdToken, UserInfo)
-/// # Returns
-/// * `Ok(HashMap)` - Additional claims to merge into token
-/// * `Err(AuthencError)` - If mapper evaluation fails
 #[allow(dead_code)]
 pub async fn apply_protocol_mappers(
     database: &crate::database::Database,
@@ -456,6 +441,21 @@ pub async fn apply_protocol_mappers(
 }
 
 /// Validate client credentials
+/// Apply protocol mappers to generate additional claims
+/// This function fetches effective mappers for a client and applies them to user data
+/// to generate additional JWT claims. This is called during token generation.
+/// # Arguments
+/// * `database` - Database connection for fetching mappers
+/// * `protocol_mapper_service` - Service for evaluating mappers
+/// * `client_id_uuid` - Client UUID for fetching mappers
+/// * `client_id_str` - Client ID string for mapper evaluation
+/// * `user` - User entity with roles, attributes, etc.
+/// * `scopes` - Requested OAuth2 scopes
+/// * `protocol` - Protocol name (e.g., "openid-connect")
+/// * `token_type` - Type of token (AccessToken, IdToken, UserInfo)
+/// # Returns
+/// * `Ok(HashMap)` - Additional claims to merge into token
+/// * `Err(AuthencError)` - If mapper evaluation fails
 pub fn validate_client(client_id: &str, client_secret: Option<&str>) -> Result<bool, AuthencError> {
     // In production, this would validate against a client registry
     // For demonstration, accept demo client and test client

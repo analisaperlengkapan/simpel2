@@ -69,30 +69,6 @@ impl From<AuthencError> for TokenExchangeError {
     }
 }
 
-/// OAuth 2.0 Token Exchange endpoint (RFC 8693)
-/// Exchanges one type of token for another. Supports:
-/// - Access token → Access token (scope reduction, audience change)
-/// - Refresh token → Access token
-/// - ID token → Access token
-/// - Token delegation with actor tokens
-/// # Request Parameters (POST /oauth2/token/exchange)
-/// - `grant_type`: Must be "urn:ietf:params:oauth:grant-type:token-exchange"
-/// - `subject_token`: The token to be exchanged
-/// - `subject_token_type`: URN identifying the token type
-/// - `actor_token`: (Optional) Token representing delegated authority
-/// - `actor_token_type`: (Required if actor_token present) URN of actor token type
-/// - `requested_token_type`: (Optional) Desired token type
-/// - `resource`: (Optional) Target resource identifier
-/// - `audience`: (Optional) Target audience identifier
-/// - `scope`: (Optional) Requested scopes
-/// # Authentication
-/// Requires client authentication via HTTP Basic Auth or client credentials
-/// # Response
-/// - `200 OK`: Token exchange successful
-/// - `400 Bad Request`: Invalid request parameters
-/// - `401 Unauthorized`: Invalid or expired tokens
-/// - `403 Forbidden`: Exchange not permitted by policy
-/// - `500 Internal Server Error`: Server error
 #[debug_handler]
 pub async fn token_exchange_endpoint(
     State(state): State<Arc<AppState>>,
@@ -360,6 +336,30 @@ pub async fn token_exchange_metadata() -> Json<TokenExchangeMetadata> {
 
 /// Mewakili struktur data `TokenExchangeMetadata`.
 #[derive(Debug, Serialize)]
+/// OAuth 2.0 Token Exchange endpoint (RFC 8693)
+/// Exchanges one type of token for another. Supports:
+/// - Access token → Access token (scope reduction, audience change)
+/// - Refresh token → Access token
+/// - ID token → Access token
+/// - Token delegation with actor tokens
+/// # Request Parameters (POST /oauth2/token/exchange)
+/// - `grant_type`: Must be "urn:ietf:params:oauth:grant-type:token-exchange"
+/// - `subject_token`: The token to be exchanged
+/// - `subject_token_type`: URN identifying the token type
+/// - `actor_token`: (Optional) Token representing delegated authority
+/// - `actor_token_type`: (Required if actor_token present) URN of actor token type
+/// - `requested_token_type`: (Optional) Desired token type
+/// - `resource`: (Optional) Target resource identifier
+/// - `audience`: (Optional) Target audience identifier
+/// - `scope`: (Optional) Requested scopes
+/// # Authentication
+/// Requires client authentication via HTTP Basic Auth or client credentials
+/// # Response
+/// - `200 OK`: Token exchange successful
+/// - `400 Bad Request`: Invalid request parameters
+/// - `401 Unauthorized`: Invalid or expired tokens
+/// - `403 Forbidden`: Exchange not permitted by policy
+/// - `500 Internal Server Error`: Server error
 pub struct TokenExchangeMetadata {
     pub grant_types_supported: Vec<String>,
     pub token_endpoint: String,

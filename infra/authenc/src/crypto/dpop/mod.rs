@@ -298,7 +298,6 @@ impl DPoPProof {
 
 /// DPoP Nonce Manager for replay attack prevention
 pub struct DPoPNonceManager {
-    /// Used nonces with expiration times
     used_nonces: HashMap<String, DateTime<Utc>>,
 }
 
@@ -310,6 +309,7 @@ impl Default for DPoPNonceManager {
 
 impl DPoPNonceManager {
     /// Create a new DPoP nonce manager
+    /// Used nonces with expiration times
     pub fn new() -> Self {
         Self {
             used_nonces: HashMap::new(),
@@ -347,7 +347,6 @@ impl DPoPNonceManager {
 
 /// DPoP Token Binder for binding access tokens to DPoP proofs
 pub struct DPoPTokenBinder {
-    /// Nonce manager
     nonce_manager: DPoPNonceManager,
 }
 
@@ -359,6 +358,7 @@ impl Default for DPoPTokenBinder {
 
 impl DPoPTokenBinder {
     /// Create a new DPoP token binder
+    /// Nonce manager
     pub fn new() -> Self {
         Self {
             nonce_manager: DPoPNonceManager::new(),

@@ -15,7 +15,6 @@ use tracing::debug;
 
 /// Event listener that invalidates cache based on system events
 pub struct CacheInvalidationListener {
-    /// Cache invalidation service
     invalidation_service: Arc<CacheInvalidationService>,
     /// Listener name
     name: String,
@@ -23,6 +22,7 @@ pub struct CacheInvalidationListener {
 
 impl CacheInvalidationListener {
     /// Create a new cache invalidation listener
+    /// Cache invalidation service
     pub fn new(invalidation_service: Arc<CacheInvalidationService>) -> Self {
         Self {
             invalidation_service,

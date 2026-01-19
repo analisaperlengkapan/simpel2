@@ -14,7 +14,6 @@ use tracing::{debug, error, info, warn};
 
 /// MFA performance monitoring service
 pub struct MfaPerformanceMonitor {
-    /// Performance metrics storage
     metrics: Arc<RwLock<MfaMetrics>>,
     /// Alert thresholds configuration
     alert_config: MfaAlertConfig,
@@ -24,6 +23,7 @@ pub struct MfaPerformanceMonitor {
 
 /// MFA performance metrics
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    /// Performance metrics storage
 pub struct MfaMetrics {
     /// Setup operation metrics
     pub setup_metrics: OperationMetrics,
@@ -62,12 +62,12 @@ pub struct OperationMetrics {
     pub min_response_time_ms: f64,
     /// Operations per second (current rate)
     pub operations_per_second: f64,
-    /// Response time history for percentile calculation
     response_times: Vec<f64>,
 }
 
 /// Cache-specific metrics
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+    /// Response time history for percentile calculation
 pub struct CacheMetrics {
     /// Cache hit count
     pub cache_hits: u64,
@@ -208,7 +208,6 @@ pub struct PerformanceAlert {
 /// Alert severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertSeverity {
-    /// Informational alert
     Info,
     /// Warning alert
     Warning,
@@ -218,8 +217,8 @@ pub enum AlertSeverity {
 
 /// Types of performance alerts
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Informational alert
 pub enum AlertType {
-    /// High response time alert
     HighResponseTime,
     /// Low success rate alert
     LowSuccessRate,
@@ -235,6 +234,7 @@ pub enum AlertType {
 
 impl MfaPerformanceMonitor {
     /// Create a new MFA performance monitor
+    /// High response time alert
     pub fn new(alert_config: Option<MfaAlertConfig>) -> Self {
         Self {
             metrics: Arc::new(RwLock::new(MfaMetrics::default())),
@@ -470,7 +470,6 @@ impl MfaPerformanceMonitor {
         Ok(())
     }
 
-    /// Check for performance alerts
     async fn check_alerts(&self, metrics: &MfaMetrics) {
         let mut alerts = Vec::new();
 
@@ -601,6 +600,7 @@ impl MfaPerformanceMonitor {
 
 /// Dashboard data structure for MFA performance monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Check for performance alerts
 pub struct MfaDashboardData {
     /// Current performance metrics
     pub current_metrics: MfaMetrics,

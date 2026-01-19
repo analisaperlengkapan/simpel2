@@ -63,7 +63,6 @@ pub struct KeyRotationEvent {
 /// Type of cryptographic key
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum KeyType {
-    /// JWT signing key (Ed25519)
     JwtSigning,
     /// Session encryption key (AES-GCM)
     SessionEncryption,
@@ -89,8 +88,8 @@ impl std::fmt::Display for KeyType {
 
 /// Status of a key rotation operation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    /// JWT signing key (Ed25519)
 pub enum RotationStatus {
-    /// Rotation completed successfully
     Success,
     /// Rotation failed
     Failed,
@@ -102,6 +101,7 @@ pub enum RotationStatus {
 
 /// Key metadata for tracking rotation schedule
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Rotation completed successfully
 pub struct KeyMetadata {
     /// Key identifier
     pub key_id: String,
@@ -119,7 +119,6 @@ pub struct KeyMetadata {
 
 /// Automatic key rotation service
 pub struct KeyRotationService {
-    /// Secreton client for key operations
     secreton_client: Arc<SecretonClient>,
     /// Database for audit logging
     database: Arc<crate::database::Database>,
@@ -133,6 +132,7 @@ pub struct KeyRotationService {
 
 impl KeyRotationService {
     /// Create a new key rotation service
+    /// Secreton client for key operations
     pub fn new(
         secreton_client: Arc<SecretonClient>,
         database: Arc<crate::database::Database>,

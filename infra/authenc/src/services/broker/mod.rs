@@ -11,7 +11,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 /// Types of identity providers supported by the broker
 pub enum IdentityProviderType {
-    /// LDAP identity provider
     LDAP,
     /// SAML identity provider
     SAML,
@@ -31,6 +30,7 @@ pub enum IdentityProviderType {
 
 /// Configuration for identity providers
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// LDAP identity provider
 pub struct IdentityProviderConfig {
     /// Unique identifier for the provider
     pub id: Uuid,
@@ -49,7 +49,6 @@ pub struct IdentityProviderConfig {
 /// Identity broker trait for external providers
 #[async_trait]
 pub trait IdentityBroker: Send + Sync {
-    /// Authenticate user against external provider
     async fn authenticate(&self, username: &str, password: &str) -> Result<Option<User>, String>;
 
     /// Get user info from external provider
@@ -64,6 +63,7 @@ pub trait IdentityBroker: Send + Sync {
 
 /// External user representation from identity providers
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Authenticate user against external provider
 pub struct ExternalUser {
     /// Unique identifier from the external identity provider
     pub external_id: String,
@@ -83,7 +83,6 @@ pub struct ExternalUser {
 
 /// Identity Broker Registry - manages multiple brokers
 pub struct IdentityBrokerRegistry {
-    /// Registered identity brokers by ID
     brokers: std::collections::HashMap<Uuid, Box<dyn IdentityBroker>>,
     /// Provider configurations by ID
     provider_configs: std::collections::HashMap<Uuid, IdentityProviderConfig>,
@@ -119,6 +118,7 @@ impl IdentityBrokerRegistry {
     /// // Register brokers...
     /// // registry.register_broker(config, Box::new(my_broker));
     /// ```
+    /// Registered identity brokers by ID
     pub fn new() -> Self {
         Self {
             brokers: std::collections::HashMap::new(),
@@ -195,15 +195,14 @@ impl IdentityBrokerRegistry {
 /// Cached user entry with timestamp
 #[derive(Debug, Clone)]
 struct CachedUser {
-    /// Cached user data
     user: User,
     /// When this entry was cached
     cached_at: Instant,
 }
 
 /// LDAP Identity Broker Implementation with Connection Pooling and Caching
+    /// Cached user data
 pub struct LdapIdentityBroker {
-    /// LDAP configuration
     config: LdapConfig,
     /// Pooled LDAP connection
     connection_pool: Arc<Mutex<Option<ldap3::Ldap>>>,
@@ -215,6 +214,7 @@ pub struct LdapIdentityBroker {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Configuration for LDAP identity broker
+    /// LDAP configuration
 pub struct LdapConfig {
     /// LDAP server hostname
     pub host: String,
@@ -301,7 +301,6 @@ impl LdapIdentityBroker {
         self
     }
 
-    /// Get cached user if still valid
     fn get_cached_user(&self, identifier: &str) -> Option<User> {
         if let Some(cached) = self.user_cache.get(identifier) {
             if cached.cached_at.elapsed() < self.cache_ttl {
@@ -662,6 +661,7 @@ fn create_user_from_ldap_entry(entry: &SearchEntry, config: &LdapConfig) -> Resu
 
 /// Social Login Broker Implementation
 #[allow(dead_code)]
+    /// Get cached user if still valid
 pub struct SocialIdentityBroker {
     config: SocialConfig,
     provider_type: IdentityProviderType,

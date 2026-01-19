@@ -21,9 +21,9 @@ pub mod common {
         tonic::include_proto!("common.v1");
     }
 }
-/// Modul `secreton`.
 
 /// Modul `v1`.
+/// Modul `secreton`.
 pub mod secreton {
 /// Modul `v1`.
     pub mod v1 {
@@ -55,10 +55,10 @@ pub struct CircuitBreaker {
     success_threshold: u32,
     success_count: Arc<RwLock<u32>>,
 }
-/// Fungsi `new(`.
 
 /// Fungsi `new(`.
 impl CircuitBreaker {
+/// Fungsi `new(`.
 /// Fungsi `new(`.
     pub fn new() -> Self {
         Self {

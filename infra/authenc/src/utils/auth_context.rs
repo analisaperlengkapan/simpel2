@@ -6,9 +6,9 @@ use crate::services::totp_store::TotpStore;
 use crate::services::user_store::UserStore;
 use std::sync::Arc;
 
+#[derive(Clone)]
 /// Aggregates all dependencies for the login handler.
 /// This struct is injected as a single dependency to simplify handler signatures and improve maintainability.
-#[derive(Clone)]
 pub struct AuthContext {
     /// Store for user data and authentication
     pub user_store: Arc<UserStore>,

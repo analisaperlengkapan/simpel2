@@ -13,7 +13,6 @@ pub enum CaptchaError {
     /// Challenge generation failed due to internal error
     #[error("Challenge generation failed: {message}")]
     GenerationFailed {
-        /// Error message describing the failure
         message: String,
         /// Whether the error is recoverable
         recoverable: bool,
@@ -174,8 +173,8 @@ pub enum CaptchaError {
 
 /// Error recovery strategy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+        /// Error message describing the failure
 pub enum RecoveryStrategy {
-    /// Retry the operation after a delay
     Retry {
         /// Maximum number of retry attempts
         max_attempts: u32,
@@ -209,8 +208,8 @@ pub enum RecoveryStrategy {
 
 /// Types of fallback mechanisms
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Retry the operation after a delay
 pub enum FallbackType {
-    /// Use local encryption instead of external service
     LocalEncryption,
     /// Use simplified challenge generation
     SimplifiedChallenge,
@@ -224,6 +223,7 @@ pub enum FallbackType {
 
 /// User-friendly error information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Use local encryption instead of external service
 pub struct UserErrorInfo {
     /// Error title for display
     pub title: String,
@@ -265,7 +265,6 @@ pub struct ErrorContext {
 /// Error recovery result
 #[derive(Debug, Clone)]
 pub enum RecoveryResult<T> {
-    /// Operation succeeded after recovery
     Recovered(T),
     /// Recovery failed, but fallback succeeded
     FallbackSucceeded(T),
@@ -277,6 +276,7 @@ pub enum RecoveryResult<T> {
 
 impl CaptchaError {
     /// Get recovery strategy for this error
+    /// Operation succeeded after recovery
     pub fn recovery_strategy(&self) -> RecoveryStrategy {
         match self {
             CaptchaError::GenerationFailed {

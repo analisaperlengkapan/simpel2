@@ -17,10 +17,10 @@ pub use client_scopes_ops::{
 };
 
 // Legacy operations now modularized into separate files
-/// Modul `legacy`.
 // Previously in operations_legacy.rs (11,263 lines), now split into 29 modules
 /// Modul `legacy`.
 // for better maintainability and navigation
+/// Modul `legacy`.
 /// Modul `legacy`.
 pub mod legacy;
 

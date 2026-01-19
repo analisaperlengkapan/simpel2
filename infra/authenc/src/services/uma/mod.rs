@@ -135,7 +135,6 @@ pub struct ClaimRequirement {
 /// UMA service trait for coordinating all UMA operations
 #[async_trait]
 pub trait UmaService: Send + Sync {
-    /// Request permission ticket from resource server
     async fn request_permission_ticket(
         &self,
         resource_server_id: &str,
@@ -163,6 +162,7 @@ pub trait UmaService: Send + Sync {
 
 /// RPT introspection response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Request permission ticket from resource server
 pub struct RptIntrospectionResponse {
     /// Whether token is active
     pub active: bool,

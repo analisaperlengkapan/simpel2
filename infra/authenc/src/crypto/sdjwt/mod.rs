@@ -140,7 +140,6 @@ impl Disclosure {
 /// Disclosure Red List for preventing disclosure replay attacks
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisclosureRedList {
-    /// List of disclosed claim hashes that have been used
     disclosed_hashes: HashSet<String>,
     /// Maximum size of the red list
     max_size: usize,
@@ -148,6 +147,7 @@ pub struct DisclosureRedList {
 
 impl DisclosureRedList {
     /// Create a new disclosure red list
+    /// List of disclosed claim hashes that have been used
     pub fn new(max_size: usize) -> Self {
         Self {
             disclosed_hashes: HashSet::new(),
@@ -214,7 +214,6 @@ impl Default for SdJwtVerificationContext {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SdJwtClaim {
-    /// Disclosed claim with value
     Disclosed {
         /// The disclosed claim value
         value: Value,
@@ -234,8 +233,8 @@ pub enum SdJwtClaim {
 /// SD-JWT Array Element types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
+    /// Disclosed claim with value
 pub enum SdJwtArrayElement {
-    /// Disclosed array element
     Disclosed(Value),
     /// Undisclosed array element with hash
     Undisclosed {
@@ -251,6 +250,7 @@ pub enum SdJwtArrayElement {
 
 /// Issuer-signed JWT with SD-JWT capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Disclosed array element
 pub struct IssuerSignedJwt {
     /// Standard JWT header
     pub header: HashMap<String, Value>,
@@ -595,7 +595,6 @@ impl SdJwt {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AbstractSdJwtClaim {
-    /// Disclosed claim with value
     Disclosed {
         /// The disclosed claim value
         value: Value,
@@ -619,6 +618,7 @@ pub enum AbstractSdJwtClaim {
 
 /// SD-JWT Claim Name for structured claim handling
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Disclosed claim with value
 pub struct SdJwtClaimName {
     /// The claim name
     pub name: String,

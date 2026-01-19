@@ -1,4 +1,3 @@
-/// Database operations for organizations
 use crate::{
     database::Database,
     error::{AuthencError, Result},
@@ -378,6 +377,7 @@ pub async fn update_member_role(
 
 /// Mewakili struktur data `OrganizationDomain`.
 #[derive(Debug, Clone)]
+/// Database operations for organizations
 pub struct OrganizationDomain {
     pub id: Uuid,
     pub organization_id: Uuid,

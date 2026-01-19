@@ -12,7 +12,6 @@ use std::collections::HashMap;
 /// Compliance standard types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ComplianceStandard {
-    /// SOC 2 Type II - Security, Availability, Processing Integrity, Confidentiality, Privacy
     Soc2TypeII,
     /// SOC 3 - Public-facing security report
     Soc3,
@@ -36,6 +35,7 @@ pub enum ComplianceStandard {
 
 /// Compliance control result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// SOC 2 Type II - Security, Availability, Processing Integrity, Confidentiality, Privacy
 pub struct ComplianceControlResult {
     /// Unique identifier for the compliance control
     pub control_id: String,
@@ -60,7 +60,6 @@ pub struct ComplianceControlResult {
 /// Control implementation status
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ControlStatus {
-    /// Control is fully implemented and operational
     Implemented,
     /// Control is partially implemented with some gaps
     PartiallyImplemented,
@@ -71,6 +70,7 @@ pub enum ControlStatus {
 }
 
 /// SOC 2 Type II Controls
+    /// Control is fully implemented and operational
 pub mod soc2 {
     use super::*;
 

@@ -29,7 +29,6 @@ pub struct SsoCookieData {
 
 /// SSO Cookie Manager for secure cookie operations
 pub struct SsoCookieManager {
-    /// Secret key for HMAC signing
     secret_key: Vec<u8>,
     /// Cookie name
     cookie_name: String,
@@ -47,8 +46,8 @@ pub struct SsoCookieManager {
 
 /// SameSite cookie policy
 #[derive(Debug, Clone)]
+    /// Secret key for HMAC signing
 pub enum SameSitePolicy {
-    /// Strict policy
     Strict,
     /// Lax policy
     Lax,
@@ -64,6 +63,7 @@ impl SsoCookieManager {
     /// * `cookie_name` - Name of the SSO cookie
     /// * `cookie_domain` - Optional domain for the cookie
     /// * `secure` - Whether cookie should be secure (HTTPS only)
+    /// Strict policy
     pub fn new(
         secret_key: &[u8],
         cookie_name: &str,
@@ -203,7 +203,6 @@ impl SsoCookieManager {
         header
     }
 
-    /// Sign data using HMAC-SHA256
     fn sign_data(&self, data: &str) -> Result<Vec<u8>> {
         let mut mac = HmacSha256::new_from_slice(&self.secret_key)
             .map_err(|e| AuthencError::internal(format!("Failed to create HMAC: {}", e)))?;
@@ -213,6 +212,7 @@ impl SsoCookieManager {
     }
 
     /// Get cookie name
+    /// Sign data using HMAC-SHA256
     pub fn cookie_name(&self) -> &str {
         &self.cookie_name
     }

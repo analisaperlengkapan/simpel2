@@ -149,7 +149,6 @@ impl MfaRateLimiterState {
         state
     }
 
-    /// Background cleanup task to remove expired entries
     async fn cleanup_task(&self) {
         let mut interval = tokio::time::interval(Duration::from_secs(300)); // 5 minutes
         loop {
@@ -176,6 +175,7 @@ impl MfaRateLimiterState {
     }
 
     /// Check if an account is currently locked
+    /// Background cleanup task to remove expired entries
     pub fn is_account_locked(&self, user_id: Uuid) -> Option<AccountLockout> {
         self.locked_accounts
             .get(&user_id)
@@ -315,7 +315,6 @@ impl MfaRateLimiterState {
         }
     }
 
-    /// Update progressive delay for an IP based on failed attempts
     fn update_progressive_delay(&self, ip: &str, failed_attempts: u32) {
         let delay_entry = self
             .progressive_delays
@@ -334,13 +333,13 @@ impl MfaRateLimiterState {
     }
 
     /// Reset progressive delay for successful MFA verification
+    /// Update progressive delay for an IP based on failed attempts
     pub fn reset_progressive_delay(&self, ip: &str) {
         if let Some(delay_entry) = self.progressive_delays.get(ip) {
             delay_entry.store(0, Ordering::Relaxed);
         }
     }
 
-    /// Check IP-based verification rate limit
     async fn check_ip_verify_rate_limit(&self, ip: &str) -> Result<(), AuthencError> {
         let counter_ref = self
             .ip_verify_counters
@@ -381,6 +380,7 @@ impl MfaRateLimiterState {
     }
 
     /// Get a reference to the locked accounts map (for admin access)
+    /// Check IP-based verification rate limit
     pub fn get_locked_accounts(&self) -> &Arc<DashMap<Uuid, AccountLockout>> {
         &self.locked_accounts
     }

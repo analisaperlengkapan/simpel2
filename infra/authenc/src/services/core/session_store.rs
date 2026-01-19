@@ -9,7 +9,6 @@ use crate::models::session::Session;
 
 /// Session store for managing user authentication sessions
 pub struct SessionStore {
-    /// Database connection
     db: Arc<Database>,
     /// token -> user_id mapping (for backward compatibility with in-memory)
     sessions: Arc<RwLock<HashMap<String, String>>>,
@@ -19,6 +18,7 @@ pub struct SessionStore {
 
 impl SessionStore {
     /// Create new session store for managing authentication sessions
+    /// Database connection
     pub fn new(db: Arc<Database>) -> Self {
         SessionStore {
             db,

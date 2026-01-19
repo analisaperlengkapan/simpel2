@@ -35,7 +35,6 @@ use std::time::Duration;
 /// Generic cache trait for different cache implementations
 #[async_trait]
 pub trait Cache: Send + Sync {
-    /// Get a value from the cache
     async fn get(&self, key: &str) -> Result<Option<serde_json::Value>>;
 
     /// Set a value in the cache with TTL
@@ -58,6 +57,7 @@ pub trait Cache: Send + Sync {
 }
 
 /// Cache key prefixes for different data types
+    /// Get a value from the cache
 pub struct CacheKeys;
 
 impl CacheKeys {

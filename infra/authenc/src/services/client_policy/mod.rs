@@ -49,7 +49,6 @@ pub struct ClientPolicyContext {
 /// Policy Condition trait
 #[async_trait]
 pub trait ClientPolicyCondition: Send + Sync {
-    /// Evaluate if the condition is met
     async fn evaluate(&self, context: &ClientPolicyContext) -> Result<bool, AuthencError>;
 
     /// Get condition name
@@ -58,8 +57,8 @@ pub trait ClientPolicyCondition: Send + Sync {
 
 /// Policy Executor trait
 #[async_trait]
+    /// Evaluate if the condition is met
 pub trait ClientPolicyExecutor: Send + Sync {
-    /// Execute the policy
     async fn execute(&self, context: &mut ClientPolicyContext) -> Result<(), AuthencError>;
 
     /// Get executor name
@@ -68,6 +67,7 @@ pub trait ClientPolicyExecutor: Send + Sync {
 
 /// Client Policy definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Execute the policy
 pub struct ClientPolicy {
     /// Policy name
     pub name: String,
@@ -1206,7 +1206,6 @@ impl ClientPolicyExecutor for ConfidentialClientAcceptExecutor {
 
 /// Client Policy manager
 pub struct ClientPolicyManager {
-    /// Registered policy conditions
     conditions: HashMap<String, Box<dyn ClientPolicyCondition>>,
     /// Registered policy executors
     executors: HashMap<String, Box<dyn ClientPolicyExecutor>>,
@@ -1216,6 +1215,7 @@ pub struct ClientPolicyManager {
 
 impl ClientPolicyManager {
     /// Create new client policy manager
+    /// Registered policy conditions
     pub fn new() -> Self {
         Self {
             conditions: HashMap::new(),

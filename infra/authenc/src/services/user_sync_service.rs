@@ -41,7 +41,6 @@ pub struct SyncResult {
 /// Sync status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum SyncStatus {
-    /// Sync is running
     Running,
     /// Sync completed successfully
     Completed,
@@ -53,6 +52,7 @@ pub enum SyncStatus {
 
 /// Sync job information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Sync is running
 pub struct SyncJob {
     pub id: Uuid,
     pub provider_alias: String,

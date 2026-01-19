@@ -13,7 +13,6 @@ use tracing::{debug, error, warn};
 /// Transaction isolation levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IsolationLevel {
-    /// Read uncommitted (lowest isolation)
     ReadUncommitted,
     /// Read committed (PostgreSQL default)
     ReadCommitted,
@@ -48,6 +47,7 @@ enum TransactionState {
 }
 
 /// Database transaction wrapper providing enterprise IAM-like transaction semantics
+    /// Read uncommitted (lowest isolation)
 pub struct DatabaseTransaction<'a> {
     transaction: Option<PgTransaction<'a>>,
     state: Arc<Mutex<TransactionState>>,

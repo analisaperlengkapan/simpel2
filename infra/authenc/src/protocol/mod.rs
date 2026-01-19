@@ -11,7 +11,6 @@ use uuid::Uuid;
 /// Protocol types supported
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Protocol {
-    /// OpenID Connect protocol
     OIDC,
     /// Security Assertion Markup Language protocol
     SAML,
@@ -19,6 +18,7 @@ pub enum Protocol {
 
 impl Protocol {
     /// Returns the string representation of the protocol
+    /// OpenID Connect protocol
     pub fn as_str(&self) -> &str {
         match self {
             Protocol::OIDC => "oidc",
@@ -55,7 +55,6 @@ pub struct MapperContext {
 /// Protocol mapper trait for extensible claim/attribute mapping
 #[async_trait]
 pub trait ProtocolMapper: Send + Sync {
-    /// Get mapper name
     fn name(&self) -> &str;
 
     /// Get mapper type
@@ -74,8 +73,8 @@ pub trait ProtocolMapper: Send + Sync {
 
 /// Mapper error types
 #[derive(Debug, Clone)]
+    /// Get mapper name
 pub enum MapperError {
-    /// Configuration provided to the mapper is invalid
     InvalidConfiguration(String),
     /// Required attribute is missing from the context
     MissingAttribute(String),
@@ -96,6 +95,7 @@ impl std::fmt::Display for MapperError {
 impl std::error::Error for MapperError {}
 
 /// User attribute mapper - maps user attributes to claims
+    /// Configuration provided to the mapper is invalid
 pub struct UserAttributeMapper {
     name: String,
     protocol: Protocol,

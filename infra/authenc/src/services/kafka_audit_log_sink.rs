@@ -6,7 +6,6 @@ use std::time::Duration;
 
 /// Kafka-based audit log sink for distributed streaming
 pub struct KafkaAuditLogSink {
-    /// Kafka producer for sending messages
     producer: FutureProducer,
     /// Kafka topic to send audit logs to
     pub topic: String,
@@ -14,6 +13,7 @@ pub struct KafkaAuditLogSink {
 
 impl KafkaAuditLogSink {
     /// Create new Kafka audit log sink
+    /// Kafka producer for sending messages
     pub fn new(brokers: &str, topic: &str) -> Result<Self, rdkafka::error::KafkaError> {
         let producer = ClientConfig::new()
             .set("bootstrap.servers", brokers)

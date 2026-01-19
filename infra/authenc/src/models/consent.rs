@@ -7,9 +7,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// User Consent Model
 /// Represents a user's consent for a client application
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserConsent {
     /// Unique identifier for the consent record
     pub id: Uuid,
@@ -27,9 +27,9 @@ pub struct UserConsent {
     pub metadata: serde_json::Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Consent Grant Request
 /// Request structure for granting consent
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentGrantRequest {
     /// Client ID requesting consent
     pub client_id: String,
@@ -41,9 +41,9 @@ pub struct ConsentGrantRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Consent Revocation Request
 /// Request structure for revoking consent
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentRevocationRequest {
     /// Client ID to revoke consent for
     pub client_id: String,
@@ -51,9 +51,9 @@ pub struct ConsentRevocationRequest {
     pub scopes: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Consent Response for API
 /// Response structure for consent information
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentResponse {
     /// Client ID that has consent
     pub client_id: String,
@@ -67,9 +67,9 @@ pub struct ConsentResponse {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Consent Scope Information
 /// Information about a specific scope in a consent
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentScopeInfo {
     /// Scope name
     pub name: String,
@@ -79,9 +79,9 @@ pub struct ConsentScopeInfo {
     pub required: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Consent Context
 /// Context information for consent requests
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentContext {
     /// Client information
     pub client_id: String,

@@ -42,7 +42,6 @@ impl HealthService {
     // Note: The into_service method will be implemented when we integrate
     // with the actual gRPC health check protocol in task 9.1
 
-    /// Check database health
     async fn check_database(&self) -> DependencyHealth {
         // Use shared health check implementation
         let checker = DatabaseHealthCheck::new(self.state.database.clone());
@@ -178,6 +177,7 @@ impl HealthService {
 
 /// Standard gRPC health check service
 /// This implements the grpc.health.v1.Health service protocol
+    /// Check database health
 pub struct StandardHealthService {
     authenc_health: Arc<HealthService>,
 }
@@ -213,7 +213,6 @@ impl StandardHealthService {
 /// Serving status for standard health check
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ServingStatus {
-    /// Service is healthy and serving requests
     Serving,
     /// Service is not serving requests
     NotServing,
@@ -223,6 +222,7 @@ pub enum ServingStatus {
 
 impl ServingStatus {
     /// Convert to i32 for proto
+    /// Service is healthy and serving requests
     pub fn as_i32(&self) -> i32 {
         match self {
             ServingStatus::Serving => 1,

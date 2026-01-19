@@ -9,12 +9,11 @@ use std::sync::Arc;
 use tokio_postgres::{Client, Statement};
 use tracing::{debug, error, warn};
 
+#[derive(Clone)]
 /// Prepared statement cache
 /// Thread-safe cache for prepared statements using DashMap for concurrent access.
 /// Automatically prepares statements on first use and reuses them for subsequent calls.
-#[derive(Clone)]
 pub struct PreparedStatementCache {
-    /// Map from SQL query to prepared statement
     cache: Arc<DashMap<String, Arc<Statement>>>,
     /// Maximum number of cached statements
     max_size: usize,
@@ -28,6 +27,7 @@ impl Default for PreparedStatementCache {
 
 impl PreparedStatementCache {
     /// Create a new prepared statement cache with specified maximum size
+    /// Map from SQL query to prepared statement
     pub fn new(max_size: usize) -> Self {
         Self {
             cache: Arc::new(DashMap::new()),
@@ -35,10 +35,6 @@ impl PreparedStatementCache {
         }
     }
 
-    /// Get or prepare a statement
-    ///
-    /// If the statement is already cached, returns the cached version.
-    /// Otherwise, prepares it and adds to cache.
     pub async fn get_or_prepare(&self, client: &Client, sql: &str) -> Result<Arc<Statement>> {
         // Check cache first
         if let Some(stmt) = self.cache.get(sql) {
@@ -88,6 +84,10 @@ impl PreparedStatementCache {
     }
 
     /// Clear all cached prepared statements
+    /// Get or prepare a statement
+    ///
+    /// If the statement is already cached, returns the cached version.
+    /// Otherwise, prepares it and adds to cache.
     pub fn clear(&self) {
         self.cache.clear();
         debug!("Cleared all prepared statements from cache");
@@ -101,7 +101,6 @@ impl PreparedStatementCache {
         }
     }
 
-    /// Truncate SQL for logging (avoid logging sensitive data)
     fn truncate_sql(sql: &str) -> String {
         let max_len = 100;
         if sql.len() > max_len {
@@ -112,6 +111,7 @@ impl PreparedStatementCache {
     }
 
     /// Remove a specific statement from cache
+    /// Truncate SQL for logging (avoid logging sensitive data)
     pub fn invalidate(&self, sql: &str) {
         if self.cache.remove(sql).is_some() {
             debug!("Invalidated cached statement: {}", Self::truncate_sql(sql));

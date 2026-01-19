@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 // Ed448 would require a different implementation with proper Ed448 library
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 
-/// EdDSA keypair for JWT signing - post-quantum ready security
-/// Note: Using Ed25519 as Ed448 support is not mature in Rust ecosystem
 pub static EDDSA_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
     // In production, load from secure storage or environment
     // For demo purposes, generate a new key each time
@@ -17,6 +15,8 @@ pub static EDDSA_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
 
 /// JSON Web Key Set containing EdDSA public keys
 #[derive(Debug, Serialize, Deserialize)]
+/// EdDSA keypair for JWT signing - post-quantum ready security
+/// Note: Using Ed25519 as Ed448 support is not mature in Rust ecosystem
 pub struct EddsaJwkSet {
     /// Array of JSON Web Keys
     pub keys: Vec<EddsaJwk>,

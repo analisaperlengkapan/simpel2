@@ -32,7 +32,6 @@ impl Spi for ThemeSpi {
 /// Theme types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThemeType {
-    /// Login theme type
     Login,
     /// Account theme type
     Account,
@@ -48,6 +47,7 @@ pub enum ThemeType {
 
 impl ThemeType {
     /// Get the string representation
+    /// Login theme type
     pub fn as_str(&self) -> &'static str {
         match self {
             ThemeType::Login => "login",
@@ -62,7 +62,6 @@ impl ThemeType {
 
 /// Theme provider interface
 pub trait ThemeProvider: Provider {
-    /// Get the theme name
     fn get_theme_name(&self) -> &str;
 
     /// Get theme resources for a specific type and locale
@@ -97,6 +96,7 @@ pub trait ThemeProvider: Provider {
 
 /// Theme resource representation
 #[derive(Debug, Clone)]
+    /// Get the theme name
 pub struct ThemeResource {
     /// Resource path
     pub path: String,
@@ -110,7 +110,6 @@ pub struct ThemeResource {
 
 /// Theme provider factory
 pub trait ThemeProviderFactory: ProviderFactory<dyn ThemeProvider> {
-    /// Get the theme name
     fn get_theme_name(&self) -> &str;
 
     /// Get supported theme types
@@ -124,6 +123,7 @@ pub trait ThemeProviderFactory: ProviderFactory<dyn ThemeProvider> {
 
 /// Theme-related errors
 #[derive(Debug, thiserror::Error)]
+    /// Get the theme name
 pub enum ThemeError {
     /// Theme not found
     #[error("Theme not found: {0}")]

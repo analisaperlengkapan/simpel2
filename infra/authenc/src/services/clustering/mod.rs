@@ -10,7 +10,6 @@ use tokio::time;
 /// Cluster node status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NodeStatus {
-    /// Node is up and running
     Up,
     /// Node is down
     Down,
@@ -24,6 +23,7 @@ pub enum NodeStatus {
 
 /// Cluster node information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Node is up and running
 pub struct ClusterNode {
     /// Unique identifier for the node
     pub node_id: String,
@@ -55,7 +55,6 @@ pub struct ClusterTopology {
 /// Cluster event types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClusterEventType {
-    /// A new node joined the cluster
     NodeJoined,
     /// A node left the cluster
     NodeLeft,
@@ -71,6 +70,7 @@ pub enum ClusterEventType {
 
 /// Cluster event
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// A new node joined the cluster
 pub struct ClusterEvent {
     /// Type of cluster event
     pub event_type: ClusterEventType,
@@ -85,7 +85,6 @@ pub struct ClusterEvent {
 /// Cluster communication interface
 #[async_trait]
 pub trait ClusterCommunication: Send + Sync {
-    /// Send a message to a specific node
     async fn send_message(&self, node_id: &str, message: &[u8]) -> Result<()>;
     /// Broadcast a message to all nodes in the cluster
     async fn broadcast_message(&self, message: &[u8]) -> Result<()>;
@@ -94,8 +93,8 @@ pub trait ClusterCommunication: Send + Sync {
 }
 
 /// In-memory cluster communication for development/testing
+    /// Send a message to a specific node
 pub struct InMemoryClusterCommunication {
-    /// Node ID of this instance
     node_id: String,
     /// Shared broadcast channel for all nodes
     broadcast_tx: broadcast::Sender<(String, Vec<u8>)>,
@@ -107,6 +106,7 @@ pub struct InMemoryClusterCommunication {
 
 impl InMemoryClusterCommunication {
     /// Create a new in-memory cluster communication instance
+    /// Node ID of this instance
     pub fn new(node_id: String, broadcast_tx: broadcast::Sender<(String, Vec<u8>)>) -> Self {
         let broadcast_rx = broadcast_tx.subscribe();
         Self {
@@ -172,7 +172,6 @@ impl ClusterCommunication for InMemoryClusterCommunication {
 
 /// JGroups-based cluster communication
 pub struct JGroupsClusterCommunication {
-    /// Name of the JGroups channel
     channel_name: String,
     /// Message queue for incoming messages
     message_queue: Arc<RwLock<Vec<(String, Vec<u8>)>>>,
@@ -184,6 +183,7 @@ pub struct JGroupsClusterCommunication {
 
 impl JGroupsClusterCommunication {
     /// Create a new JGroups cluster communication instance
+    /// Name of the JGroups channel
     pub fn new(channel_name: String) -> Self {
         let (outgoing_tx, mut outgoing_rx): (mpsc::UnboundedSender<(Option<String>, Vec<u8>)>, _) =
             mpsc::unbounded_channel();
@@ -241,7 +241,6 @@ impl ClusterCommunication for JGroupsClusterCommunication {
 /// Cluster membership service
 #[async_trait]
 pub trait ClusterMembership: Send + Sync {
-    /// Join a node to the cluster
     async fn join_cluster(&self, node: ClusterNode) -> Result<()>;
     /// Remove a node from the cluster
     async fn leave_cluster(&self, node_id: &str) -> Result<()>;
@@ -254,13 +253,14 @@ pub trait ClusterMembership: Send + Sync {
 }
 
 /// In-memory cluster membership for development/testing
+    /// Join a node to the cluster
 pub struct InMemoryClusterMembership {
-    /// Cluster topology
     topology: Arc<RwLock<ClusterTopology>>,
 }
 
 impl InMemoryClusterMembership {
     /// Create a new in-memory cluster membership instance
+    /// Cluster topology
     pub fn new(cluster_name: String) -> Self {
         let topology = ClusterTopology {
             cluster_name,
@@ -329,7 +329,6 @@ impl ClusterMembership for InMemoryClusterMembership {
 /// Distributed consensus service
 #[async_trait]
 pub trait DistributedConsensus: Send + Sync {
-    /// Propose a value for consensus
     async fn propose(&self, key: &str, value: &[u8]) -> Result<bool>;
     /// Get the consensus value for a key
     async fn get_consensus_value(&self, key: &str) -> Result<Option<Vec<u8>>>;
@@ -338,8 +337,8 @@ pub trait DistributedConsensus: Send + Sync {
 }
 
 /// Raft-based consensus
+    /// Propose a value for consensus
 pub struct RaftConsensus {
-    /// Unique identifier for this node
     node_id: String,
     /// List of peer node IDs
     peers: Vec<String>,
@@ -376,6 +375,7 @@ enum RaftState {
 
 impl RaftConsensus {
     /// Create a new Raft consensus instance
+    /// Unique identifier for this node
     pub fn new(node_id: String, peers: Vec<String>) -> Self {
         Self {
             node_id,
@@ -493,7 +493,6 @@ impl DistributedConsensus for RaftConsensus {
 
 /// Cluster manager - main service
 pub struct ClusterManager {
-    /// Unique identifier for this node
     node_id: String,
     /// Name of the cluster
     #[allow(dead_code)]
@@ -512,6 +511,7 @@ pub struct ClusterManager {
 
 impl ClusterManager {
     /// Create a new cluster manager
+    /// Unique identifier for this node
     pub fn new(
         node_id: String,
         cluster_name: String,
@@ -637,7 +637,6 @@ impl ClusterManager {
         self.event_listeners.push(listener);
     }
 
-    /// Notify all listeners of cluster event
     async fn notify_listeners(&self, event: ClusterEvent) {
         for listener in &self.event_listeners {
             listener.on_event(&event).await;
@@ -647,15 +646,15 @@ impl ClusterManager {
 
 /// Cluster event listener trait
 #[async_trait]
+    /// Notify all listeners of cluster event
 pub trait ClusterEventListener: Send + Sync {
-    /// Handle cluster event
     async fn on_event(&self, event: &ClusterEvent);
 }
 
 /// Session replication service for sticky sessions
 /// Distributed cache service
+    /// Handle cluster event
 pub struct DistributedCacheService {
-    /// Cluster manager instance
     cluster_manager: Arc<ClusterManager>,
     /// Local cache with expiry times
     cache: HashMap<String, (Vec<u8>, chrono::DateTime<chrono::Utc>)>,
@@ -663,6 +662,7 @@ pub struct DistributedCacheService {
 
 impl DistributedCacheService {
     /// Create a new distributed cache service
+    /// Cluster manager instance
     pub fn new(cluster_manager: Arc<ClusterManager>) -> Self {
         Self {
             cluster_manager,
@@ -767,7 +767,6 @@ pub struct ReplicatedSession {
 
 /// Session replication service
 pub struct SessionReplicationService {
-    /// Cluster manager instance
     cluster_manager: Arc<ClusterManager>,
     /// Local session storage
     sessions: Arc<RwLock<HashMap<String, ReplicatedSession>>>,
@@ -775,6 +774,7 @@ pub struct SessionReplicationService {
 
 impl SessionReplicationService {
     /// Create a new session replication service
+    /// Cluster manager instance
     pub fn new(cluster_manager: Arc<ClusterManager>) -> Self {
         Self {
             cluster_manager,
@@ -956,7 +956,6 @@ pub struct ClusterConfig {
 /// Cluster communication types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ClusterCommunicationType {
-    /// Infinispan-based communication
     Infinispan,
     /// JGroups-based communication
     JGroups,
@@ -972,8 +971,8 @@ impl Default for ClusterCommunicationType {
 
 /// Cluster membership types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    /// Infinispan-based communication
 pub enum ClusterMembershipType {
-    /// Kubernetes-based membership
     Kubernetes,
     /// Static membership configuration
     Static,
@@ -991,8 +990,8 @@ impl Default for ClusterMembershipType {
 
 /// Cluster consensus types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    /// Kubernetes-based membership
 pub enum ClusterConsensusType {
-    /// Raft consensus algorithm
     Raft,
     /// Paxos consensus algorithm
     Paxos,
@@ -1009,8 +1008,8 @@ impl Default for ClusterConsensusType {
 }
 
 /// Multi-cluster federation service
+    /// Raft consensus algorithm
 pub struct MultiClusterFederationService {
-    /// Map of cluster names to cluster managers
     clusters: HashMap<String, Arc<ClusterManager>>,
     /// Federation rules for cross-cluster communication
     federation_rules: HashMap<String, FederationRule>,
@@ -1024,6 +1023,7 @@ impl Default for MultiClusterFederationService {
 
 impl MultiClusterFederationService {
     /// Create a new multi-cluster federation service
+    /// Map of cluster names to cluster managers
     pub fn new() -> Self {
         Self {
             clusters: HashMap::new(),
@@ -1150,7 +1150,6 @@ pub struct FederationResponse {
 
 /// Node health monitor
 pub struct NodeHealthMonitor {
-    /// Cluster manager
     cluster_manager: Arc<ClusterManager>,
     /// Health check interval
     check_interval: Duration,
@@ -1162,6 +1161,7 @@ pub struct NodeHealthMonitor {
 
 /// Node health status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Cluster manager
 pub struct NodeHealthStatus {
     /// Node ID
     pub node_id: String,
@@ -1263,7 +1263,6 @@ impl NodeHealthMonitor {
 /// Cache eviction policy
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CacheEvictionPolicy {
-    /// Least Recently Used
     LRU,
     /// Least Frequently Used
     LFU,
@@ -1275,6 +1274,7 @@ pub enum CacheEvictionPolicy {
 
 /// Cache statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Least Recently Used
 pub struct CacheStatistics {
     /// Total number of cache entries
     pub total_entries: usize,

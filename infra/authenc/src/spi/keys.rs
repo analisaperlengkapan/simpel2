@@ -8,7 +8,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Key status enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum KeyStatus {
-    /// Key is active and can be used for signing/verification
     Active,
     /// Key is passive and available but not actively used
     Passive,
@@ -18,6 +17,7 @@ pub enum KeyStatus {
 
 impl KeyStatus {
     /// Create a KeyStatus from active and enabled flags
+    /// Key is active and can be used for signing/verification
     pub fn from(active: bool, enabled: bool) -> Self {
         if !enabled {
             KeyStatus::Disabled
@@ -221,7 +221,6 @@ impl std::ops::DerefMut for SecretKeyMetadata {
 /// Key provider trait for managing cryptographic keys
 #[async_trait]
 pub trait KeyProvider: Provider + Send + Sync {
-    /// Get the key type this provider handles (e.g., "rsa", "secret")
     fn get_key_type(&self) -> &str;
 
     /// Get all keys managed by this provider
@@ -241,8 +240,8 @@ pub trait KeyProvider: Provider + Send + Sync {
 }
 
 /// Trait for key metadata objects
+    /// Get the key type this provider handles (e.g., "rsa", "secret")
 pub trait KeyMetadataTrait: Send + Sync {
-    /// Get this object as Any for downcasting
     fn as_any(&self) -> &dyn Any;
     /// Get this object as mutable Any for downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -320,8 +319,8 @@ impl KeyMetadataTrait for SecretKeyMetadata {
 
 /// Key manager for coordinating multiple key providers
 #[async_trait]
+    /// Get this object as Any for downcasting
 pub trait KeyManager: Provider + Send + Sync {
-    /// Get the active key for signing with the specified algorithm
     async fn get_active_key(&self, algorithm: &str) -> Result<Option<Box<dyn KeyMetadataTrait>>>;
 
     /// Get a key by kid (key ID)
@@ -335,8 +334,8 @@ pub trait KeyManager: Provider + Send + Sync {
 }
 
 /// Default key manager implementation
+    /// Get the active key for signing with the specified algorithm
 pub struct DefaultKeyManager {
-    /// List of registered key providers
     providers: Vec<Box<dyn KeyProvider>>,
 }
 
@@ -348,6 +347,7 @@ impl Default for DefaultKeyManager {
 
 impl DefaultKeyManager {
     /// Create a new default key manager
+    /// List of registered key providers
     pub fn new() -> Self {
         Self {
             providers: Vec::new(),

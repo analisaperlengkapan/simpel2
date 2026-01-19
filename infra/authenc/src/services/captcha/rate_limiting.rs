@@ -141,7 +141,6 @@ impl CaptchaFailureTracker {
 /// Failure level classification for progressive rate limiting
 #[derive(Debug, Clone, PartialEq)]
 pub enum FailureLevel {
-    /// Low failure rate - minimal restrictions
     Low,
     /// Medium failure rate - moderate restrictions
     Medium,
@@ -153,8 +152,8 @@ pub enum FailureLevel {
 
 /// CAPTCHA rate limiting state
 #[derive(Clone)]
+    /// Low failure rate - minimal restrictions
 pub struct CaptchaRateLimitState {
-    /// Configuration for CAPTCHA rate limiting
     config: CaptchaRateLimitConfig,
     /// Base rate limiter state for standard rate limiting
     base_rate_limiter: RateLimiterState,
@@ -164,6 +163,7 @@ pub struct CaptchaRateLimitState {
 
 impl CaptchaRateLimitState {
     /// Create a new CAPTCHA rate limiting state
+    /// Configuration for CAPTCHA rate limiting
     pub fn new(config: CaptchaRateLimitConfig) -> Self {
         let base_rate_limiter = RateLimiterState::new(config.base_config.clone());
 
@@ -189,7 +189,6 @@ impl CaptchaRateLimitState {
         state
     }
 
-    /// Get tracking key for IP address
     fn get_tracking_key(&self, addr: &SocketAddr) -> String {
         addr.ip().to_string()
     }
@@ -368,6 +367,7 @@ pub async fn captcha_rate_limit_middleware(
 }
 
 /// Helper function to create CAPTCHA rate limiting layer
+    /// Get tracking key for IP address
 pub fn create_captcha_rate_limit_layer(
     config: CaptchaRateLimitConfig,
 ) -> impl tower::Layer<CaptchaRateLimitState> + Clone + Send + Sync + 'static {

@@ -5,9 +5,6 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-/// Ed25519 keypair for JWT signing - replaces vulnerable RSA
-/// Production: Loads from ED25519_PRIVATE_KEY_BASE64 environment variable
-/// Development: Generates ephemeral key with warning
 pub static ED25519_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
     // Try to load from environment variable (production)
     if let Ok(key_base64) = env::var("ED25519_PRIVATE_KEY_BASE64") {
@@ -106,6 +103,9 @@ fn load_key_from_file(path: &str) -> Result<SigningKey, String> {
 
 /// Generate a new Ed25519 keypair and return base64-encoded private key
 /// This is a utility function for initial key generation
+/// Ed25519 keypair for JWT signing - replaces vulnerable RSA
+/// Production: Loads from ED25519_PRIVATE_KEY_BASE64 environment variable
+/// Development: Generates ephemeral key with warning
 pub fn generate_new_keypair() -> (SigningKey, String) {
     let signing_key = SigningKey::generate(&mut OsRng);
     let private_key_base64 = base64ct::Base64::encode_string(signing_key.as_bytes());

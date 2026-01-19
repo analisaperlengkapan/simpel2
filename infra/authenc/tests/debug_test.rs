@@ -9,8 +9,8 @@ pub struct PasswordPolicy {
     pub blacklist: Vec<String>,
 }
 
-/// Fungsi `validate(`.
 impl PasswordPolicy {
+/// Fungsi `validate(`.
 /// Fungsi `validate(`.
     pub fn validate(&self, password: &str) -> Result<(), String> {
         if password.len() < self.min_length {

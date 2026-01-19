@@ -14,7 +14,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// SPI for LDAP and Active Directory federation
 #[async_trait]
 pub trait LdapFederationProvider: Provider {
-    /// Check if the provider is enabled
     fn is_enabled(&self) -> bool {
         true
     }
@@ -40,6 +39,7 @@ pub trait LdapFederationProvider: Provider {
 
 /// Configuration for LDAP federation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Check if the provider is enabled
 pub struct LdapFederationConfig {
     /// LDAP server URL (e.g., "ldap://localhost:389" or "ldaps://localhost:636")
     pub server_url: String,
@@ -136,7 +136,6 @@ impl Default for LdapFederationConfig {
 /// Factory for creating LDAP federation providers
 #[async_trait]
 pub trait LdapFederationProviderFactory: ProviderFactory<dyn LdapFederationProvider> {
-    /// Create a new LDAP federation provider
     async fn create(
         &self,
         config: &LdapFederationConfig,
@@ -144,6 +143,7 @@ pub trait LdapFederationProviderFactory: ProviderFactory<dyn LdapFederationProvi
 }
 
 /// Default implementation of LDAP federation provider
+    /// Create a new LDAP federation provider
 pub struct DefaultLdapFederationProvider {
     config: LdapFederationConfig,
 }
@@ -154,7 +154,6 @@ impl DefaultLdapFederationProvider {
         Self { config }
     }
 
-    /// Create LDAP connection
     async fn create_ldap_connection(&self) -> Result<LdapConn> {
         let settings = LdapConnSettings::new().set_starttls(self.config.use_ssl.unwrap_or(false));
 
@@ -492,6 +491,7 @@ impl LdapFederationProvider for DefaultLdapFederationProvider {
 }
 
 /// Default factory for LDAP federation providers
+    /// Create LDAP connection
 pub struct DefaultLdapFederationProviderFactory;
 
 impl Default for DefaultLdapFederationProviderFactory {

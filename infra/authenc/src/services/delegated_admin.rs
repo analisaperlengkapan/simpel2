@@ -12,7 +12,6 @@ use uuid::Uuid;
 /// Delegated admin permissions
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum DelegatedAdminPermission {
-    /// Manage users in the realm
     ManageUsers,
     /// Manage roles in the realm
     ManageRoles,
@@ -32,6 +31,7 @@ pub enum DelegatedAdminPermission {
 
 /// Delegated admin role
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Manage users in the realm
 pub struct DelegatedAdminRole {
     /// Unique identifier for the role
     pub id: Uuid,
@@ -71,7 +71,6 @@ pub struct DelegatedAdminAssignment {
 /// Delegated admin service trait
 #[async_trait]
 pub trait DelegatedAdminService: Send + Sync {
-    /// Check if a user has a specific permission in a realm
     async fn has_permission(
         &self,
         user_id: &Uuid,
@@ -125,6 +124,7 @@ pub trait DelegatedAdminService: Send + Sync {
 }
 
 /// Default implementation of delegated admin service
+    /// Check if a user has a specific permission in a realm
 pub struct DefaultDelegatedAdminService {
     // In a real implementation, this would store data in a database
     roles: std::sync::RwLock<HashMap<Uuid, DelegatedAdminRole>>,

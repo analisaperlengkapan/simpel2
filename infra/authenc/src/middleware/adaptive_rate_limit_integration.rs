@@ -20,7 +20,6 @@ use crate::middleware::adaptive_rate_limit::AdaptiveRateLimiter;
 
 /// Extension trait for authentication results to integrate with adaptive rate limiting
 pub trait AuthResultExt<T> {
-    /// Record the authentication result with the adaptive rate limiter
     fn record_auth_result(
         self,
         limiter: &Arc<AdaptiveRateLimiter>,
@@ -53,6 +52,7 @@ impl<T> AuthResultExt<T> for Result<T, AuthencError> {
 }
 
 /// Helper to extract IP address from connection info
+    /// Record the authentication result with the adaptive rate limiter
 pub fn extract_ip(conn_info: &ConnectInfo<std::net::SocketAddr>) -> String {
     conn_info.0.ip().to_string()
 }

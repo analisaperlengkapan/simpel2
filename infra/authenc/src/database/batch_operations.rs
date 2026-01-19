@@ -17,11 +17,11 @@ use std::collections::HashMap;
 use tracing::{debug, error};
 use uuid::Uuid;
 
-/// Batch size for audit log inserts (as per requirement 4.4)
 const AUDIT_LOG_BATCH_SIZE: usize = 1000;
 
 /// Audit log entry for batch insertion
 #[derive(Debug, Clone)]
+/// Batch size for audit log inserts (as per requirement 4.4)
 pub struct AuditLogEntry {
     pub id: Uuid,
     pub event_type: String,
@@ -57,41 +57,6 @@ impl BatchInsertable for AuditLogEntry {
     }
 }
 
-/// Batch insert audit logs with optimized performance
-/// Inserts multiple audit log entries in batches of 1000 to reduce database round-trips.
-/// This is significantly faster than individual inserts for bulk audit logging.
-/// # Arguments
-/// * `db` - Database connection
-/// * `entries` - Vector of audit log entries to insert
-/// # Returns
-/// Number of rows inserted
-/// # Example
-/// ```no_run
-/// use authenc::database::batch_operations::{batch_insert_audit_logs, AuditLogEntry};
-/// use chrono::Utc;
-/// use uuid::Uuid;
-/// async fn example(db: &Database) {
-///     let entries = vec![
-///         AuditLogEntry {
-///             id: Uuid::new_v4(),
-///             event_type: "LOGIN".to_string(),
-///             user_id: Some(Uuid::new_v4()),
-///             session_id: Some("session123".to_string()),
-///             ip_address: Some("192.168.1.1".to_string()),
-///             user_agent: Some("Mozilla/5.0".to_string()),
-///             action: "authenticate".to_string(),
-///             resource: "user".to_string(),
-///             success: true,
-///             error_message: None,
-///             metadata: None,
-///             timestamp: Utc::now(),
-///         },
-///         // ... more entries
-///     ];
-///     let inserted = batch_insert_audit_logs(db, entries).await.unwrap();
-///     println!("Inserted {} audit logs", inserted);
-/// }
-/// ```
 pub async fn batch_insert_audit_logs(db: &Database, entries: Vec<AuditLogEntry>) -> Result<u64> {
     if entries.is_empty() {
         return Ok(0);
@@ -251,6 +216,41 @@ pub async fn batch_query_user_permissions(
 
 /// Session validation result
 #[derive(Debug, Clone)]
+/// Batch insert audit logs with optimized performance
+/// Inserts multiple audit log entries in batches of 1000 to reduce database round-trips.
+/// This is significantly faster than individual inserts for bulk audit logging.
+/// # Arguments
+/// * `db` - Database connection
+/// * `entries` - Vector of audit log entries to insert
+/// # Returns
+/// Number of rows inserted
+/// # Example
+/// ```no_run
+/// use authenc::database::batch_operations::{batch_insert_audit_logs, AuditLogEntry};
+/// use chrono::Utc;
+/// use uuid::Uuid;
+/// async fn example(db: &Database) {
+///     let entries = vec![
+///         AuditLogEntry {
+///             id: Uuid::new_v4(),
+///             event_type: "LOGIN".to_string(),
+///             user_id: Some(Uuid::new_v4()),
+///             session_id: Some("session123".to_string()),
+///             ip_address: Some("192.168.1.1".to_string()),
+///             user_agent: Some("Mozilla/5.0".to_string()),
+///             action: "authenticate".to_string(),
+///             resource: "user".to_string(),
+///             success: true,
+///             error_message: None,
+///             metadata: None,
+///             timestamp: Utc::now(),
+///         },
+///         // ... more entries
+///     ];
+///     let inserted = batch_insert_audit_logs(db, entries).await.unwrap();
+///     println!("Inserted {} audit logs", inserted);
+/// }
+/// ```
 pub struct SessionValidationResult {
     pub session_id: String,
     pub is_valid: bool,

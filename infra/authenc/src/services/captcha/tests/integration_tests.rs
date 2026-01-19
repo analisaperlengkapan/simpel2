@@ -59,21 +59,21 @@ impl MockSecretonClient {
 pub struct MockAuthencMonitoring {
     pub should_fail: bool,
     pub events: std::sync::Arc<std::sync::Mutex<Vec<SecurityEvent>>>,
-/// Mewakili struktur data `SecurityEvent`.
 }
 
 /// Mewakili struktur data `SecurityEvent`.
 #[derive(Debug, Clone)]
+/// Mewakili struktur data `SecurityEvent`.
 pub struct SecurityEvent {
     pub event_type: String,
     pub ip_address: String,
     pub risk_level: String,
     pub timestamp: std::time::SystemTime,
-/// Fungsi `new(should_fail`.
 }
 
 /// Fungsi `new(should_fail`.
 impl MockAuthencMonitoring {
+/// Fungsi `new(should_fail`.
 /// Fungsi `new(should_fail`.
     pub fn new(should_fail: bool) -> Self {
         Self {
@@ -101,19 +101,19 @@ impl MockAuthencMonitoring {
 
         let mut events = self.events.lock().unwrap();
         events.push(event);
-/// Fungsi `get_events(`.
 
         Ok(())
     }
 
 /// Fungsi `clear_events(`.
+/// Fungsi `get_events(`.
     pub fn get_events(&self) -> Vec<SecurityEvent> {
         let events = self.events.lock().unwrap();
         events.clone()
-/// Fungsi `clear_events(`.
     }
 /// Fungsi `clear_events(`.
 
+/// Fungsi `clear_events(`.
     pub fn clear_events(&self) {
         let mut events = self.events.lock().unwrap();
         events.clear();

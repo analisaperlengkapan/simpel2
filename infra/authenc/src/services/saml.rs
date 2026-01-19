@@ -502,7 +502,6 @@ impl SamlService {
         Ok(xml.to_string())
     }
 
-    /// Verify SAML signature using the configured certificate
     fn verify_saml_signature(&self, xml: &str, certificate_pem: &str) -> Result<()> {
         // Parse the X.509 certificate
         let pem = parse_x509_pem(certificate_pem.as_bytes()).map_err(|_| {
@@ -784,6 +783,7 @@ impl SamlService {
     }
 
     /// Get SAML metadata for Identity Provider
+    /// Verify SAML signature using the configured certificate
     pub fn get_idp_metadata(&self, idp_entity_id: &str) -> Result<String> {
         let idp = self
             .identity_providers

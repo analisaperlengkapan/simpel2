@@ -38,7 +38,6 @@ pub struct MfaAuditContext {
 /// Types of MFA operations for audit logging
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MfaOperation {
-    /// MFA setup initiated
     SetupInitiated,
     /// MFA setup completed successfully
     SetupCompleted,
@@ -62,6 +61,7 @@ pub enum MfaOperation {
 
 impl MfaOperation {
     /// Convert to event type for standard event logging
+    /// MFA setup initiated
     pub fn to_event_type(&self) -> EventType {
         match self {
             MfaOperation::SetupInitiated | MfaOperation::SetupCompleted => EventType::MfaSetup,
@@ -96,7 +96,6 @@ impl MfaOperation {
 
 /// MFA audit logger for enhanced security event tracking
 pub struct MfaAuditLogger {
-    /// Event manager for firing audit events
     event_manager: Arc<tokio::sync::RwLock<crate::services::events::EventManager>>,
     /// Realm ID for events
     realm_id: String,
@@ -104,6 +103,7 @@ pub struct MfaAuditLogger {
 
 impl MfaAuditLogger {
     /// Create a new MFA audit logger
+    /// Event manager for firing audit events
     pub fn new(
         event_manager: Arc<tokio::sync::RwLock<crate::services::events::EventManager>>,
         realm_id: String,

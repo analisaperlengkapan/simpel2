@@ -69,7 +69,6 @@ pub struct MfaVerificationResult {
 
 /// MFA-specific cache operations
 pub struct MfaCache {
-    /// Underlying cache implementation
     cache: Arc<dyn Cache>,
     /// MFA cache TTL
     mfa_cache_ttl: Duration,
@@ -79,6 +78,7 @@ pub struct MfaCache {
 
 impl MfaCache {
     /// Create a new MFA cache instance
+    /// Underlying cache implementation
     pub fn new(
         cache: Arc<dyn Cache>,
         mfa_cache_ttl: Duration,

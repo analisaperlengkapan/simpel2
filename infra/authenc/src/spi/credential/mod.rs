@@ -52,7 +52,6 @@ impl CredentialInput {
 /// Credential input updater for managing credential updates
 #[async_trait]
 pub trait CredentialInputUpdater: Send + Sync {
-    /// Check if this updater supports the given credential type
     fn supports_credential_type(&self, credential_type: &str) -> bool;
 
     /// Update credential with input
@@ -84,8 +83,8 @@ pub trait CredentialInputUpdater: Send + Sync {
 
 /// Credential input validator for validating authentication attempts
 #[async_trait]
+    /// Check if this updater supports the given credential type
 pub trait CredentialInputValidator: Send + Sync {
-    /// Check if this validator supports the given credential type
     fn supports_credential_type(&self, credential_type: &str) -> bool;
 
     /// Check if credential type is configured for user
@@ -107,6 +106,7 @@ pub trait CredentialInputValidator: Send + Sync {
 
 /// Credential model representing a user credential
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Check if this validator supports the given credential type
 pub struct CredentialModel {
     /// Unique identifier for the credential
     pub id: String,
@@ -188,7 +188,6 @@ pub struct CredentialTypeMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Categories for credential types
 pub enum CredentialTypeCategory {
-    /// Basic authentication credentials
     Basic,
     /// Two-factor authentication credentials
     TwoFactor,
@@ -198,6 +197,7 @@ pub enum CredentialTypeCategory {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Property definition for credential type configuration
+    /// Basic authentication credentials
 pub struct CredentialTypeProperty {
     /// Property name/identifier
     pub name: String,
@@ -235,7 +235,6 @@ pub struct CredentialTypeMetadataContext {
 /// Credential provider trait
 #[async_trait]
 pub trait CredentialProvider: Provider + Send + Sync {
-    /// Get the credential type this provider handles
     fn get_type(&self) -> &str;
 
     /// Create a new credential for a user
@@ -307,6 +306,7 @@ pub trait CredentialProvider: Provider + Send + Sync {
 }
 
 /// Default credential provider implementation
+    /// Get the credential type this provider handles
 pub struct DefaultCredentialProvider;
 
 #[async_trait]
@@ -725,11 +725,11 @@ impl CredentialProviderFactory for OTPCredentialProviderFactory {
 /// Credential provider factory
 #[async_trait]
 pub trait CredentialProviderFactory: ProviderFactory<dyn CredentialProvider> {
-    /// Create a credential provider instance
     fn create_credential_provider(&self) -> Box<dyn CredentialProvider + Send + Sync>;
 }
 
 /// Default credential provider factory
+    /// Create a credential provider instance
 pub struct DefaultCredentialProviderFactory;
 
 impl Default for DefaultCredentialProviderFactory {

@@ -20,7 +20,6 @@ use std::time::{Duration, SystemTime};
 /// Supported canonicalization methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum CanonicalizationMethod {
-    /// Canonical XML 1.0 (without comments) - standard canonicalization method
     C14n,
     /// Canonical XML 1.0 (with comments) - includes XML comments in canonicalization
     C14nWithComments,
@@ -32,6 +31,7 @@ pub enum CanonicalizationMethod {
 
 impl CanonicalizationMethod {
     /// Parse canonicalization method from URI string
+    /// Canonical XML 1.0 (without comments) - standard canonicalization method
     pub fn from_uri(uri: &str) -> Result<Self> {
         match uri {
             "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" => Ok(Self::C14n),
@@ -50,7 +50,6 @@ impl CanonicalizationMethod {
 /// Supported digest methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum DigestMethod {
-    /// SHA-256 digest algorithm
     Sha256,
     /// SHA-384 digest algorithm
     Sha384,
@@ -60,6 +59,7 @@ pub enum DigestMethod {
 
 impl DigestMethod {
     /// Parse digest method from URI string
+    /// SHA-256 digest algorithm
     pub fn from_uri(uri: &str) -> Result<Self> {
         match uri {
             "http://www.w3.org/2001/04/xmlenc#sha256" => Ok(Self::Sha256),
@@ -86,7 +86,6 @@ impl DigestMethod {
 /// Supported signature methods
 #[derive(Debug, Clone, PartialEq)]
 pub enum SignatureMethod {
-    /// RSA with SHA-256
     RsaSha256,
     /// RSA with SHA-384
     RsaSha384,
@@ -96,6 +95,7 @@ pub enum SignatureMethod {
 
 impl SignatureMethod {
     /// Parse signature method from URI string
+    /// RSA with SHA-256
     pub fn from_uri(uri: &str) -> Result<Self> {
         match uri {
             "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" => Ok(Self::RsaSha256),
@@ -408,7 +408,6 @@ impl XmlSignature {
         self.verify_signature_value(&canonical_signed_info, &public_key)
     }
 
-    /// Verify a single reference digest
     fn verify_reference(&self, reference: &Reference, document: &str) -> Result<bool> {
         // Extract referenced element
         let referenced_xml = extract_element_by_uri(document, &reference.uri)?;
@@ -637,8 +636,8 @@ mod tests {
 
 /// Certificate validation result
 #[derive(Debug, Clone, PartialEq)]
+    /// Verify a single reference digest
 pub enum CertificateValidationResult {
-    /// Certificate is valid and trusted
     Valid,
     /// Certificate has expired
     Expired,
@@ -654,8 +653,8 @@ pub enum CertificateValidationResult {
 
 /// Certificate revocation status (simple version for validation results)
 #[derive(Debug, Clone, PartialEq)]
+    /// Certificate is valid and trusted
 pub enum SimpleRevocationStatus {
-    /// Certificate is not revoked
     NotRevoked,
     /// Certificate has been revoked
     Revoked,
@@ -664,8 +663,8 @@ pub enum SimpleRevocationStatus {
 }
 
 /// Certificate validator with trust store and CRL support
+    /// Certificate is not revoked
 pub struct CertificateValidator {
-    /// X.509 trust store containing trusted root certificates
     trust_store: X509Store,
     /// Whether to check certificate expiration dates
     pub enable_expiration_check: bool,
@@ -673,6 +672,7 @@ pub struct CertificateValidator {
 
 impl CertificateValidator {
     /// Create a new certificate validator with a trust store
+    /// X.509 trust store containing trusted root certificates
     pub fn new(trust_store: X509Store) -> Self {
         Self {
             trust_store,
@@ -903,7 +903,6 @@ impl CertificateValidator {
     }
 }
 
-/// Parse ASN.1 time string to DateTime<Utc>
 fn parse_asn1_time(time_str: &str) -> Result<DateTime<Utc>> {
     // ASN.1 time format: "MMM DD HH:MM:SS YYYY GMT"
     // Example: "Oct  2 12:00:00 2025 GMT"
@@ -930,6 +929,7 @@ fn parse_asn1_time(time_str: &str) -> Result<DateTime<Utc>> {
 /// Update XmlSignature to include certificate extraction
 impl XmlSignature {
     /// Get the X.509 certificate from KeyInfo (if present)
+/// Parse ASN.1 time string to DateTime<Utc>
     pub fn get_certificate(&self) -> Option<X509> {
         if let Some(ref key_info) = self.key_info {
             if let Some(ref cert_pem) = key_info.x509_certificate {
@@ -1195,7 +1195,6 @@ impl Default for XmlSecurityValidator {
 /// Revocation status of a certificate
 #[derive(Debug, Clone, PartialEq)]
 pub enum RevocationStatus {
-    /// Certificate is not revoked
     NotRevoked,
     /// Certificate is revoked
     Revoked {
@@ -1209,8 +1208,8 @@ pub enum RevocationStatus {
 }
 
 /// CRL Manager for downloading, parsing, and caching Certificate Revocation Lists
+    /// Certificate is not revoked
 pub struct CrlManager {
-    /// Cache of downloaded CRL bytes: URL -> (raw_bytes, expiration_time)
     cache: Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>,
     /// How long to cache CRLs (default: 1 hour)
     cache_duration: Duration,
@@ -1222,6 +1221,7 @@ pub struct CrlManager {
 
 impl CrlManager {
     /// Create a new CRL Manager with default settings
+    /// Cache of downloaded CRL bytes: URL -> (raw_bytes, expiration_time)
     pub fn new() -> Result<Self> {
         Self::with_config(Duration::from_secs(3600), 10 * 1024 * 1024)
     }
@@ -1266,7 +1266,6 @@ impl CrlManager {
         Ok(RevocationStatus::Unknown)
     }
 
-    /// Check revocation status using a specific CRL URL
     fn check_revocation_with_crl(
         &mut self,
         cert: &X509,
@@ -1347,6 +1346,7 @@ impl CrlManager {
     }
 
     /// Parse a CRL from bytes (tries DER, then PEM)
+    /// Check revocation status using a specific CRL URL
     pub fn parse_crl(&self, data: &[u8]) -> Result<X509Crl> {
         // Try DER format first
         if let Ok(crl) = X509Crl::from_der(data) {
@@ -1553,7 +1553,6 @@ mod certificate_tests {
 /// OCSP certificate status
 #[derive(Debug, Clone, PartialEq)]
 pub enum OcspStatus {
-    /// Certificate is valid and not revoked
     Good,
     /// Certificate has been revoked
     Revoked {
@@ -1567,12 +1566,12 @@ pub enum OcspStatus {
 }
 
 /// OCSP Client for real-time certificate revocation checking
+    /// Certificate is valid and not revoked
 pub struct OcspClient {
     /// HTTP client for OCSP requests
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     http_client: reqwest::blocking::Client,
 
-    /// Cache of OCSP responses (cert_id -> (response, expiration))
     response_cache: Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>,
 
     /// How long to cache OCSP responses (default: 5 minutes)
@@ -1589,6 +1588,7 @@ impl OcspClient {
     /// - Cache duration: 5 minutes (OCSP responses are meant to be current)
     /// - HTTP timeout: 10 seconds
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
+    /// Cache of OCSP responses (cert_id -> (response, expiration))
     pub fn new() -> Result<Self> {
         let http_client = reqwest::blocking::ClientBuilder::new()
             .timeout(Duration::from_secs(10))
@@ -1619,6 +1619,7 @@ impl OcspClient {
         })
     }
 
+    #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     /// Check certificate status via OCSP
     ///
     /// This will:
@@ -1627,7 +1628,6 @@ impl OcspClient {
     /// 3. Send HTTP POST to OCSP responder
     /// 4. Parse and verify OCSP response
     /// 5. Return certificate status
-    #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     pub fn check_status(&mut self, cert: &X509, issuer: &X509) -> Result<OcspStatus> {
         // Extract OCSP responder URL from certificate
         let ocsp_url = self.extract_ocsp_url(cert)?;
@@ -1696,7 +1696,6 @@ impl OcspClient {
         ))
     }
 
-    /// Build an OCSP request for a certificate
     fn build_ocsp_request(&self, cert: &X509, issuer: &X509) -> Result<Vec<u8>> {
         // Create OCSP request
         let mut request =
@@ -1855,6 +1854,7 @@ impl OcspClient {
     /// Use this when the certificate doesn't have an AIA extension
     /// or you want to override the default responder
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
+    /// Build an OCSP request for a certificate
     pub fn check_status_with_url(
         &mut self,
         cert: &X509,

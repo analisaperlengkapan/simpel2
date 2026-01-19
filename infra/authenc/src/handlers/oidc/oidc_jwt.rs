@@ -5,6 +5,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 // use rsa::pkcs1::EncodeRsaPrivateKey; // REMOVED: Vulnerable to timing attacks
 
+#[derive(Debug, Serialize, Deserialize)]
 /// Legacy OIDC ID token claims structure - DEPRECATED
 /// This struct is deprecated and should not be used.
 /// Use OidcIdTokenClaims from handlers/oidc_ed25519.rs instead.
@@ -12,7 +13,6 @@ use serde::{Deserialize, Serialize};
 /// - This legacy implementation uses RSA which is vulnerable to timing attacks
 /// - Replaced with Ed25519 for enhanced security
 /// - Do not use in production systems
-#[derive(Debug, Serialize, Deserialize)]
 pub struct OidcIdTokenClaims {
     /// Issuer identifier (token issuer)
     pub iss: String,
@@ -32,6 +32,11 @@ pub struct OidcIdTokenClaims {
     pub role: Option<String>,
 }
 
+#[deprecated(
+    since = "1.0.0",
+    note = "Use generate_ed25519_jwt instead - RSA JWT signing is insecure"
+)]
+/// Fungsi `generate_id_token(`.
 /// Legacy JWT generation function - DEPRECATED
 /// This function is deprecated and will return an error if called.
 /// Use generate_ed25519_jwt from handlers/oidc_ed25519.rs instead.
@@ -47,11 +52,6 @@ pub struct OidcIdTokenClaims {
 /// - Legacy RSA implementation removed due to security vulnerabilities
 /// - RSA signatures are susceptible to timing attacks
 /// - Use Ed25519 implementation for secure JWT signing
-#[deprecated(
-    since = "1.0.0",
-    note = "Use generate_ed25519_jwt instead - RSA JWT signing is insecure"
-)]
-/// Fungsi `generate_id_token(`.
 pub fn generate_id_token(
     sub: &str,
     aud: &str,

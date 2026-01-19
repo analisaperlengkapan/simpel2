@@ -47,7 +47,6 @@ pub struct DeviceInfo {
 /// Device type classification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DeviceType {
-    /// Desktop computer
     Desktop,
     /// Mobile phone or smartphone
     Mobile,
@@ -63,6 +62,7 @@ pub enum DeviceType {
 
 /// Device location information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Desktop computer
 pub struct DeviceLocation {
     /// Country code or name
     pub country: Option<String>,
@@ -115,7 +115,6 @@ pub struct DeviceTrustPolicy {
 /// Trust condition for policy evaluation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TrustCondition {
-    /// Trust score is above the specified threshold
     TrustScoreAbove(f64),
     /// Trust score is below the specified threshold
     TrustScoreBelow(f64),
@@ -143,8 +142,8 @@ pub enum TrustCondition {
 
 /// Action to take when policy matches
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Trust score is above the specified threshold
 pub enum TrustAction {
-    /// Allow the access
     Allow,
     /// Deny the access
     Deny,
@@ -158,6 +157,7 @@ pub enum TrustAction {
 
 /// Device session information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Allow the access
 pub struct DeviceSession {
     /// Unique identifier for the session
     pub id: Uuid,
@@ -183,7 +183,6 @@ pub struct DeviceSession {
 
 /// Device management service
 pub struct DeviceService {
-    /// Database connection
     db: Arc<Database>,
     /// List of active trust policies
     trust_policies: Vec<DeviceTrustPolicy>,
@@ -191,6 +190,7 @@ pub struct DeviceService {
 
 impl DeviceService {
     /// Create new device service
+    /// Database connection
     pub fn new(db: Arc<Database>) -> Self {
         Self {
             db,
@@ -468,7 +468,6 @@ impl DeviceService {
         &self.trust_policies
     }
 
-    /// Detect device type from user agent
     fn detect_device_type(&self, user_agent: &str) -> DeviceType {
         let ua = user_agent.to_lowercase();
         if ua.contains("mobile") || ua.contains("android") || ua.contains("iphone") {
@@ -688,6 +687,7 @@ impl DeviceService {
 
 /// Device registration request
 #[derive(Debug, Serialize, Deserialize)]
+    /// Detect device type from user agent
 pub struct DeviceRegistrationRequest {
     /// Human-readable name for the device
     pub device_name: String,

@@ -1,4 +1,3 @@
-/// Token management database operations
 use crate::database::Database;
 use crate::error::Result;
 use chrono::{DateTime, Utc};
@@ -6,6 +5,7 @@ use uuid::Uuid;
 
 /// Mewakili struktur data `AccessTokenData`.
 #[derive(Debug, Clone)]
+/// Token management database operations
 pub struct AccessTokenData {
     pub id: Uuid,
     pub token_hash: String,

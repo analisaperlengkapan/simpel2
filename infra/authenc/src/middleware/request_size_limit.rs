@@ -15,9 +15,6 @@ use http_body_util::Limited;
 /// Maximum request body size (1MB)
 pub const MAX_REQUEST_BODY_SIZE: usize = 1_048_576;
 
-/// Middleware to enforce request body size limits
-/// This middleware checks the Content-Length header and rejects requests
-/// that exceed the maximum allowed size before reading the body.
 pub async fn request_size_limit_middleware(
     request: Request,
     next: Next,
@@ -61,6 +58,9 @@ pub async fn request_size_limit_middleware(
 
 /// Tower layer for request size limiting
 /// This can be used with tower's layer system for more flexible middleware composition.
+/// Middleware to enforce request body size limits
+/// This middleware checks the Content-Length header and rejects requests
+/// that exceed the maximum allowed size before reading the body.
 pub mod layer {
     use super::*;
     use std::task::{Context, Poll};

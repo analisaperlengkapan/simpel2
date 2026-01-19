@@ -5,11 +5,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+#[async_trait]
 /// Legacy secret provider trait for service-level secret management
 /// Note: For main secret management, use crate::secreton_client module
-#[async_trait]
 pub trait VaultProvider: Send + Sync {
-    /// Retrieve a secret by key
     async fn get_secret(&self, key: &str) -> Result<Option<String>>;
 
     /// Store a secret
@@ -23,8 +22,8 @@ pub trait VaultProvider: Send + Sync {
 }
 
 /// File-based vault provider for Kubernetes secrets
+    /// Retrieve a secret by key
 pub struct FileVaultProvider {
-    /// Base directory path for storing secrets
     base_path: String,
 }
 
@@ -36,6 +35,7 @@ impl FileVaultProvider {
     ///
     /// # Returns
     /// A new `FileVaultProvider` instance.
+    /// Base directory path for storing secrets
     pub fn new(base_path: String) -> Self {
         Self { base_path }
     }
@@ -85,7 +85,6 @@ impl VaultProvider for FileVaultProvider {
 
 /// Java KeyStore-based vault provider
 pub struct KeyStoreVaultProvider {
-    /// Path to the Java KeyStore file
     keystore_path: String,
     /// Password for the KeyStore
     keystore_password: String,
@@ -103,6 +102,7 @@ impl KeyStoreVaultProvider {
     ///
     /// # Returns
     /// A new `KeyStoreVaultProvider` instance.
+    /// Path to the Java KeyStore file
     pub fn new(keystore_path: String, keystore_password: String, key_password: String) -> Self {
         Self {
             keystore_path,
@@ -226,7 +226,6 @@ impl VaultProvider for KeyStoreVaultProvider {
 /// Main secreton service
 #[derive(Clone)]
 pub struct VaultService {
-    /// Map of provider names to secreton provider implementations
     providers: std::collections::HashMap<String, std::sync::Arc<dyn VaultProvider>>,
 }
 
@@ -240,6 +239,7 @@ impl VaultService {
     ///
     /// let service = VaultService::new();
     /// ```
+    /// Map of provider names to secreton provider implementations
     pub fn new() -> Self {
         Self {
             providers: std::collections::HashMap::new(),
@@ -318,7 +318,6 @@ pub struct VaultProviderConfig {
 /// Secreton provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VaultProviderType {
-    /// File-based secreton provider for local secret storage
     File,
     /// Java KeyStore-based secreton provider
     KeyStore,
@@ -327,7 +326,12 @@ pub enum VaultProviderType {
 }
 
 /// Key resolver trait for secreton keys
+    /// File-based secreton provider for local secret storage
 pub trait KeyResolver: Send + Sync {
+    fn resolve_key(&self, realm: &str, secret_name: &str) -> String;
+}
+
+/// Default key resolver
     /// Resolves a realm and secret name into a secreton key.
     ///
     /// # Arguments
@@ -336,10 +340,6 @@ pub trait KeyResolver: Send + Sync {
     ///
     /// # Returns
     /// A string representing the resolved secreton key.
-    fn resolve_key(&self, realm: &str, secret_name: &str) -> String;
-}
-
-/// Default key resolver
 pub struct DefaultKeyResolver;
 
 impl KeyResolver for DefaultKeyResolver {

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Service Account entity for machine-to-machine authentication
 /// Service accounts represent non-human entities (services, applications, bots)
 /// that need to authenticate and access resources. Unlike regular OAuth2 clients,
@@ -51,7 +52,6 @@ use uuid::Uuid;
 ///     attributes: None,
 /// };
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceAccount {
     /// Unique identifier for the service account (UUID v4)
     pub id: Uuid,
@@ -79,6 +79,7 @@ pub struct ServiceAccount {
     pub attributes: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 /// Service account creation request
 /// Parameters required to create a new service account.
 /// Used when creating service accounts through the admin API.
@@ -104,7 +105,6 @@ pub struct ServiceAccount {
 ///   "roles": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
 /// }
 /// ```
-#[derive(Debug, Deserialize, Serialize)]
 pub struct CreateServiceAccountRequest {
     /// Service account name (must be unique within realm)
     pub name: String,
@@ -118,6 +118,7 @@ pub struct CreateServiceAccountRequest {
     pub roles: Option<Vec<Uuid>>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 /// Service account update request
 /// Parameters for updating an existing service account.
 /// All fields are optional to allow partial updates.
@@ -141,7 +142,6 @@ pub struct CreateServiceAccountRequest {
 ///   "roles": ["new-role-id-1", "new-role-id-2"]
 /// }
 /// ```
-#[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateServiceAccountRequest {
     /// New service account name (if updating)
     pub name: Option<String>,
@@ -153,6 +153,7 @@ pub struct UpdateServiceAccountRequest {
     pub roles: Option<Vec<Uuid>>,
 }
 
+#[derive(Debug, Serialize)]
 /// Service account credential regeneration response
 /// Response containing the new client secret after regeneration.
 /// The client secret is returned only once and cannot be retrieved again.
@@ -170,7 +171,6 @@ pub struct UpdateServiceAccountRequest {
 ///   "message": "Client secret regenerated successfully. Store this securely - it cannot be retrieved again."
 /// }
 /// ```
-#[derive(Debug, Serialize)]
 pub struct RegenerateSecretResponse {
     /// OAuth2 client identifier
     pub client_id: String,
@@ -180,6 +180,7 @@ pub struct RegenerateSecretResponse {
     pub message: String,
 }
 
+#[derive(Debug, Serialize)]
 /// Service account list response item
 /// Abbreviated service account information for list views.
 /// Does not include sensitive data like client secrets.
@@ -187,7 +188,6 @@ pub struct RegenerateSecretResponse {
 /// - Client secret hash is never returned in API responses
 /// - Only authorized admins can list service accounts
 /// - Filtering and pagination prevent information disclosure
-#[derive(Debug, Serialize)]
 pub struct ServiceAccountListItem {
     /// Unique identifier
     pub id: Uuid,
@@ -225,10 +225,10 @@ impl From<ServiceAccount> for ServiceAccountListItem {
     }
 }
 
+#[derive(Debug, Serialize)]
 /// Service account response (without sensitive data)
 /// Full service account information for single-item views.
 /// Excludes client secret hash for security.
-#[derive(Debug, Serialize)]
 pub struct ServiceAccountResponse {
     /// Unique identifier
     pub id: Uuid,

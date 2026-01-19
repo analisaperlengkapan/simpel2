@@ -10,11 +10,10 @@ use crate::models::client_registration::{
     ClientRegistrationRequest, ClientRegistrationResponse, ClientUpdateRequest, SoftwareStatement,
 };
 
+#[async_trait]
 /// LEGACY: Service for handling OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
 /// This trait is deprecated. Use client_registration_v2::ClientRegistrationService instead.
-#[async_trait]
 pub trait LegacyClientRegistrationService: Send + Sync {
-    /// Register a new OAuth 2.0 client dynamically
     async fn register_client(
         &self,
         request: ClientRegistrationRequest,
@@ -51,6 +50,7 @@ pub trait LegacyClientRegistrationService: Send + Sync {
 }
 
 /// Default implementation of Client Registration Service
+    /// Register a new OAuth 2.0 client dynamically
 pub struct DefaultClientRegistrationService {
     db: Arc<Database>,
     realm_id: Option<Uuid>,

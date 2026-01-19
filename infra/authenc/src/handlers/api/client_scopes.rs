@@ -15,8 +15,6 @@ use uuid::Uuid;
 // CLIENT SCOPE CRUD ENDPOINTS
 // ============================================================================
 
-/// List all client scopes in a realm
-/// GET /api/v1/realms/{realm_id}/client-scopes
 #[axum::debug_handler]
 pub async fn list_client_scopes(
     State(app_state): State<Arc<AppState>>,
@@ -37,12 +35,12 @@ pub async fn list_client_scopes(
 
 /// Mewakili struktur data `ListScopesQuery`.
 #[derive(Debug, Deserialize)]
+/// List all client scopes in a realm
+/// GET /api/v1/realms/{realm_id}/client-scopes
 pub struct ListScopesQuery {
     pub enabled_only: Option<bool>,
 }
 
-/// Get a specific client scope
-/// GET /api/v1/realms/{realm_id}/client-scopes/{scope_id}
 #[axum::debug_handler]
 pub async fn get_client_scope(
     State(app_state): State<Arc<AppState>>,
@@ -149,13 +147,13 @@ pub async fn get_client_scopes(
 /// Mewakili struktur data `ClientScopesResponse`.
 
 #[derive(Debug, Serialize)]
+/// Get a specific client scope
+/// GET /api/v1/realms/{realm_id}/client-scopes/{scope_id}
 pub struct ClientScopesResponse {
     pub default_scopes: Vec<ClientScopeResponse>,
     pub optional_scopes: Vec<ClientScopeResponse>,
 }
 
-/// Assign scopes to a client
-/// PUT /api/v1/clients/{client_id}/scopes
 #[axum::debug_handler]
 pub async fn assign_client_scopes(
     State(app_state): State<Arc<AppState>>,
@@ -229,12 +227,12 @@ pub async fn check_user_consent(
 
 /// Mewakili struktur data `CheckConsentRequest`.
 #[derive(Debug, Deserialize)]
+/// Assign scopes to a client
+/// PUT /api/v1/clients/{client_id}/scopes
 pub struct CheckConsentRequest {
     pub scopes: String,
 }
 
-/// Grant user consent for scopes
-/// POST /api/v1/users/{user_id}/clients/{client_id}/consent
 #[axum::debug_handler]
 pub async fn grant_user_consent(
     State(app_state): State<Arc<AppState>>,
@@ -266,6 +264,8 @@ pub async fn grant_user_consent(
 
 #[derive(Debug, Deserialize)]
 /// Mewakili struktur data `GrantConsentRequestBody`.
+/// Grant user consent for scopes
+/// POST /api/v1/users/{user_id}/clients/{client_id}/consent
 pub struct GrantConsentQuery {
     pub realm_id: Option<Uuid>,
 }
@@ -277,8 +277,6 @@ pub struct GrantConsentRequestBody {
     pub expires_in: Option<i64>,
 }
 
-/// Get consented scopes for a user and client
-/// GET /api/v1/users/{user_id}/clients/{client_id}/consents
 #[axum::debug_handler]
 pub async fn get_user_consents(
     State(app_state): State<Arc<AppState>>,
@@ -317,6 +315,8 @@ pub async fn revoke_user_consent(
 
 /// Mewakili struktur data `RevokeConsentRequest`.
 #[derive(Debug, Deserialize)]
+/// Get consented scopes for a user and client
+/// GET /api/v1/users/{user_id}/clients/{client_id}/consents
 pub struct RevokeConsentRequest {
     pub scope_names: Option<Vec<String>>,
 }
@@ -325,8 +325,6 @@ pub struct RevokeConsentRequest {
 // SCOPE VALIDATION ENDPOINTS (for OAuth2 flows)
 // ============================================================================
 
-/// Validate requested scopes for a client
-/// POST /api/v1/clients/{client_id}/validate-scopes
 #[axum::debug_handler]
 pub async fn validate_scopes(
     State(app_state): State<Arc<AppState>>,
@@ -351,14 +349,16 @@ pub async fn validate_scopes(
 /// Mewakili struktur data `ValidateScopesQuery`.
 
 #[derive(Debug, Deserialize)]
+/// Validate requested scopes for a client
+/// POST /api/v1/clients/{client_id}/validate-scopes
 pub struct ValidateScopesQuery {
 /// Mewakili struktur data `ValidateScopesRequest`.
     pub realm_id: Option<Uuid>,
-/// Mewakili struktur data `ValidateScopesRequest`.
 }
 
 /// Mewakili struktur data `ValidateScopesRequest`.
 #[derive(Debug, Deserialize)]
+/// Mewakili struktur data `ValidateScopesRequest`.
 pub struct ValidateScopesRequest {
     pub scopes: String,
 }
@@ -367,8 +367,6 @@ pub struct ValidateScopesRequest {
 // UTILITY ENDPOINTS
 // ============================================================================
 
-/// Get standard OIDC scopes for a realm
-/// GET /api/v1/realms/{realm_id}/client-scopes/standard
 #[axum::debug_handler]
 pub async fn get_standard_scopes(
     State(app_state): State<Arc<AppState>>,
@@ -408,6 +406,8 @@ use axum::Router;
 use axum::routing::{get, post};
 
 /// Register client scope routes
+/// Get standard OIDC scopes for a realm
+/// GET /api/v1/realms/{realm_id}/client-scopes/standard
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         // Client scope CRUD

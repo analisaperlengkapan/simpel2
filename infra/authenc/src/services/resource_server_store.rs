@@ -11,12 +11,12 @@ use crate::models::resource_server::{
 /// Resource server store for managing resource servers in the database
 #[derive(Debug, Clone)]
 pub struct ResourceServerStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl ResourceServerStore {
     /// Create a new resource server store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

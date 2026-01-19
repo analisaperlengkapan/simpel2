@@ -99,9 +99,9 @@ impl RichAuthorizationRequest {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// JWT Secured Authorization Response Mode (JARM) implementation
 /// Provides signed and optionally encrypted authorization responses
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtSecuredAuthorizationResponse {
     /// The issuer of the response (authorization server identifier)
     pub iss: String,
@@ -138,6 +138,7 @@ pub struct JwtSecuredAuthorizationResponse {
 }
 
 impl JwtSecuredAuthorizationResponse {
+    #[allow(clippy::too_many_arguments)]
     /// Create a successful authorization response
     ///
     /// # Arguments
@@ -149,7 +150,6 @@ impl JwtSecuredAuthorizationResponse {
     /// * `id_token` - Optional ID token
     /// * `state` - Optional state parameter
     /// * `scope` - Optional granted scope
-    #[allow(clippy::too_many_arguments)]
     pub fn success(
         issuer: String,
         audience: String,
@@ -262,9 +262,9 @@ impl JwtSecuredAuthorizationResponse {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// OAuth 2.0 Token Exchange implementation
 /// Allows exchanging one type of token for another
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenExchangeRequest {
     /// The grant type (must be "urn:ietf:params:oauth:grant-type:token-exchange")
     pub grant_type: String,
@@ -312,15 +312,6 @@ pub struct TokenExchangeResponse {
 pub struct TokenExchangeGrantTypeHandler;
 
 impl TokenExchangeGrantTypeHandler {
-    /// Handle token exchange request
-    ///
-    /// # Arguments
-    /// * `request` - The token exchange request
-    /// * `client_id` - The client identifier making the request
-    ///
-    /// # Returns
-    /// * `Ok(TokenExchangeResponse)` containing the exchanged token
-    /// * `Err(AuthencError)` if the exchange fails
     pub async fn handle_exchange(
         &self,
         request: TokenExchangeRequest,
@@ -420,6 +411,15 @@ impl TokenExchangeGrantTypeHandler {
 
 /// Advanced Grant Types Manager
 /// Manages advanced OAuth2 grant types like token exchange
+    /// Handle token exchange request
+    ///
+    /// # Arguments
+    /// * `request` - The token exchange request
+    /// * `client_id` - The client identifier making the request
+    ///
+    /// # Returns
+    /// * `Ok(TokenExchangeResponse)` containing the exchanged token
+    /// * `Err(AuthencError)` if the exchange fails
 pub struct AdvancedGrantTypesManager {
     token_exchange_handler: TokenExchangeGrantTypeHandler,
 }
@@ -438,16 +438,6 @@ impl AdvancedGrantTypesManager {
         }
     }
 
-    /// Handle advanced grant type requests
-    ///
-    /// # Arguments
-    /// * `grant_type` - The grant type identifier
-    /// * `parameters` - The request parameters
-    /// * `client_id` - The client identifier
-    ///
-    /// # Returns
-    /// * `Ok(HashMap<String, String>)` containing the response parameters
-    /// * `Err(AuthencError)` if the grant type is not supported or processing fails
     pub async fn handle_grant_type(
         &self,
         grant_type: &str,
@@ -494,6 +484,16 @@ impl AdvancedGrantTypesManager {
 /// OAuth 2.0 Device Authorization Flow
 /// Request payload for device authorization grant
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Handle advanced grant type requests
+    ///
+    /// # Arguments
+    /// * `grant_type` - The grant type identifier
+    /// * `parameters` - The request parameters
+    /// * `client_id` - The client identifier
+    ///
+    /// # Returns
+    /// * `Ok(HashMap<String, String>)` containing the response parameters
+    /// * `Err(AuthencError)` if the grant type is not supported or processing fails
 pub struct DeviceAuthorizationRequest {
     /// The client identifier requesting device authorization
     pub client_id: String,
@@ -535,7 +535,6 @@ pub struct DeviceTokenRequest {
 /// Response payload for device token requests
 /// Either indicates authorization is pending or provides the access token
 pub enum DeviceTokenResponse {
-    /// Authorization pending - user hasn't completed the flow yet
     Pending {
         /// Error code (usually "authorization_pending")
         error: String,
@@ -559,6 +558,7 @@ pub enum DeviceTokenResponse {
 
 /// Device Authorization Grant Type Handler
 /// Manages OAuth 2.0 Device Authorization Flow
+    /// Authorization pending - user hasn't completed the flow yet
 pub struct DeviceAuthorizationGrantTypeHandler {
     device_codes: HashMap<String, DeviceCodeState>,
 }

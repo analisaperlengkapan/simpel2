@@ -82,7 +82,6 @@ pub struct EnvironmentContext {
 /// Policy decision
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PolicyDecision {
-    /// Access granted
     Permit,
     /// Access denied
     Deny,
@@ -94,6 +93,7 @@ pub enum PolicyDecision {
 
 /// Policy evaluation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Access granted
 pub struct PolicyEvaluationResult {
     /// Final decision
     pub decision: PolicyDecision,
@@ -162,7 +162,6 @@ pub struct UmaPolicy {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PolicyType {
-    /// Role-based policy
     Role,
     /// User-based policy
     User,
@@ -183,8 +182,8 @@ pub enum PolicyType {
 /// Logic type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
+    /// Role-based policy
 pub enum Logic {
-    /// Positive logic - grant if conditions met
     Positive,
     /// Negative logic - deny if conditions met
     Negative,
@@ -193,8 +192,8 @@ pub enum Logic {
 /// Decision strategy for combining policies
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
+    /// Positive logic - grant if conditions met
 pub enum DecisionStrategy {
-    /// All policies must permit
     Unanimous,
     /// At least one policy must permit
     Affirmative,
@@ -204,6 +203,7 @@ pub enum DecisionStrategy {
 
 /// Policy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// All policies must permit
 pub struct PolicyConfig {
     /// Roles required (for role policy)
     #[serde(default)]
@@ -254,7 +254,6 @@ pub struct AttributeCondition {
 
 /// Policy engine for evaluating policies
 pub struct PolicyEngine {
-    /// Database connection
     db: Arc<Database>,
     /// Resource store
     resource_store: Arc<dyn ResourceStoreTrait>,
@@ -262,6 +261,7 @@ pub struct PolicyEngine {
 
 impl PolicyEngine {
     /// Create new policy engine
+    /// Database connection
     pub fn new(db: Arc<Database>, resource_store: Arc<dyn ResourceStoreTrait>) -> Self {
         Self { db, resource_store }
     }

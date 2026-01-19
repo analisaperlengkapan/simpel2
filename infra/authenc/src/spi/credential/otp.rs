@@ -21,7 +21,6 @@ pub const OTP_CREDENTIAL_TYPE: &str = "otp";
 /// TOTP algorithm options
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OtpAlgorithm {
-    /// SHA-1 algorithm (most common, RFC 6238)
     HmacSha1,
     /// SHA-256 algorithm
     HmacSha256,
@@ -31,6 +30,7 @@ pub enum OtpAlgorithm {
 
 impl OtpAlgorithm {
     /// Returns the string representation of the OTP algorithm
+    /// SHA-1 algorithm (most common, RFC 6238)
     pub fn as_str(&self) -> &'static str {
         match self {
             OtpAlgorithm::HmacSha1 => "HmacSHA1",
@@ -57,7 +57,6 @@ pub struct OtpCredentialData {
 
 /// OTP credential provider
 pub struct OtpCredentialProvider {
-    /// Default algorithm for new OTP credentials
     default_algorithm: OtpAlgorithm,
     /// Default number of digits
     default_digits: u32,
@@ -67,6 +66,7 @@ pub struct OtpCredentialProvider {
 
 impl OtpCredentialProvider {
     /// Create a new OTP credential provider with default settings
+    /// Default algorithm for new OTP credentials
     pub fn new() -> Self {
         Self {
             default_algorithm: OtpAlgorithm::HmacSha1,

@@ -62,7 +62,6 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
-/// Extract and validate the JWT token
 fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> {
     // Use Ed25519 JWT verification
     let claims = crate::utils::crypto::jwt::verify_jwt(token).map_err(|e| {
@@ -80,8 +79,8 @@ fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> 
 }
 
 /// Extension trait to get the authenticated user from a request
+/// Extract and validate the JWT token
 pub trait AuthUserExt {
-    /// Get the authenticated user if available
     fn auth_user(&self) -> Option<&AuthUser>;
 }
 
@@ -92,8 +91,8 @@ impl<B> AuthUserExt for Request<B> {
 }
 
 /// Extension trait to require authentication for a handler
+    /// Get the authenticated user if available
 pub trait RequireAuth {
-    /// Require the request to be authenticated
     fn require_auth(self) -> Result<AuthUser, AuthencError>;
 }
 
@@ -116,6 +115,7 @@ fn is_public_endpoint(path: &str) -> bool {
 }
 
 /// Create an auth middleware layer
+    /// Require the request to be authenticated
 pub fn auth_layer(secret: &str) -> impl tower::Layer<axum::Router> + Clone + Send + 'static {
     let state = Arc::new(AuthState {
         jwt_secret: secret.to_string(),

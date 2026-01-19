@@ -383,7 +383,6 @@ pub struct MemoryStats {
 
 /// Memory optimization utilities
 pub struct MemoryOptimizer {
-    /// Memory usage tracker
     tracker: MemoryTracker,
     /// String memory pool
     string_pool: MemoryPool<String>,
@@ -393,6 +392,7 @@ pub struct MemoryOptimizer {
 
 impl MemoryOptimizer {
     /// Create a new memory optimizer
+    /// Memory usage tracker
     pub fn new() -> Self {
         Self {
             tracker: MemoryTracker::new(),

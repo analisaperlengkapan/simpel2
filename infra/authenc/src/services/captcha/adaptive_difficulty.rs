@@ -89,7 +89,6 @@ impl Default for DifficultyParameters {
 
 /// Adaptive difficulty calculator
 pub struct AdaptiveDifficultyCalculator {
-    /// Configuration parameters
     params: DifficultyParameters,
     /// User behavior history cache
     behavior_cache: HashMap<String, UserBehaviorHistory>,
@@ -97,6 +96,7 @@ pub struct AdaptiveDifficultyCalculator {
 
 impl AdaptiveDifficultyCalculator {
     /// Create a new adaptive difficulty calculator
+    /// Configuration parameters
     pub fn new(params: DifficultyParameters) -> Self {
         Self {
             params,

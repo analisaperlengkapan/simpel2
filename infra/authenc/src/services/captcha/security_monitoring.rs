@@ -75,7 +75,6 @@ impl Default for CaptchaSecurityConfig {
 /// CAPTCHA security event types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CaptchaSecurityEvent {
-    /// A new CAPTCHA challenge was generated
     ChallengeGenerated,
     /// A CAPTCHA challenge was successfully validated
     ChallengeValidated,
@@ -110,6 +109,7 @@ impl std::fmt::Display for CaptchaSecurityEvent {
 
 /// CAPTCHA security event data
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// A new CAPTCHA challenge was generated
 pub struct CaptchaSecurityEventData {
     /// Type of security event that occurred
     pub event_type: CaptchaSecurityEvent,
@@ -265,7 +265,6 @@ impl ActivityTracker {
 /// CAPTCHA security monitoring state
 #[derive(Clone)]
 pub struct CaptchaSecurityMonitoringState {
-    /// Configuration for security monitoring behavior
     config: CaptchaSecurityConfig,
     /// Optional audit log store for persistent logging
     audit_store: Option<Arc<PgAuditLogStore>>,
@@ -275,6 +274,7 @@ pub struct CaptchaSecurityMonitoringState {
 
 impl CaptchaSecurityMonitoringState {
     /// Create a new CAPTCHA security monitoring state
+    /// Configuration for security monitoring behavior
     pub fn new(config: CaptchaSecurityConfig, audit_store: Option<Arc<PgAuditLogStore>>) -> Self {
         let state = Self {
             config,
@@ -371,7 +371,6 @@ impl CaptchaSecurityMonitoringState {
         Ok(())
     }
 
-    /// Check for suspicious activity and generate alerts
     async fn check_and_generate_alerts(
         &self,
         tracking_key: &str,
@@ -528,6 +527,7 @@ pub async fn captcha_security_monitoring_middleware(
 }
 
 /// Helper function to create CAPTCHA security monitoring layer
+    /// Check for suspicious activity and generate alerts
 pub fn create_captcha_security_monitoring_layer(
     config: CaptchaSecurityConfig,
     audit_store: Option<Arc<PgAuditLogStore>>,

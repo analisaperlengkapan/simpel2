@@ -101,7 +101,6 @@ impl UserChallengeHistory {
         self.update_preferences();
     }
 
-    /// Update preferred and avoid challenge types based on performance
     fn update_preferences(&mut self) {
         self.preferred_types.clear();
         self.avoid_types.clear();
@@ -118,6 +117,7 @@ impl UserChallengeHistory {
     }
 
     /// Adjust difficulty based on recent performance
+    /// Update preferred and avoid challenge types based on performance
     pub fn adjust_difficulty(&mut self) {
         let success_rate = self.overall_success_rate();
 
@@ -193,7 +193,6 @@ impl ChallengeTypeEffectiveness {
 
 /// Context-aware challenge selector
 pub struct ChallengeSelector {
-    /// Challenge type effectiveness metrics
     effectiveness_metrics: HashMap<String, ChallengeTypeEffectiveness>,
     /// User challenge histories
     user_histories: HashMap<String, UserChallengeHistory>,
@@ -201,6 +200,7 @@ pub struct ChallengeSelector {
 
 impl ChallengeSelector {
     /// Create a new challenge selector
+    /// Challenge type effectiveness metrics
     pub fn new() -> Self {
         let mut effectiveness_metrics = HashMap::new();
 

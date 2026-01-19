@@ -325,7 +325,6 @@ impl MfaAdminService {
         Ok(unlocked_count)
     }
 
-    /// Log admin actions for audit purposes
     async fn log_admin_action(
         &self,
         admin_user_id: Uuid,
@@ -364,6 +363,7 @@ impl MfaAdminService {
 }
 
 /// Background service for automatic account unlocking
+    /// Log admin actions for audit purposes
 pub struct AutoUnlockService {
     mfa_admin_service: Arc<MfaAdminService>,
 }

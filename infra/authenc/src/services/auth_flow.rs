@@ -19,11 +19,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// Authentication Flow Type
 /// Defines the different types of authentication flows supported
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticationFlowType {
-    /// Browser-based authentication flow for web applications
     Browser,
     /// Direct grant (resource owner password credentials) flow
     DirectGrant,
@@ -42,6 +41,7 @@ pub enum AuthenticationFlowType {
 /// Authentication Flow Model
 /// Represents an authentication flow configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Browser-based authentication flow for web applications
 pub struct AuthenticationFlowModel {
     /// Flow unique identifier
     pub id: uuid::Uuid,
@@ -59,9 +59,9 @@ pub struct AuthenticationFlowModel {
     pub priority: i32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Authentication Execution Model
 /// Represents a single execution step within an authentication flow
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthenticationExecutionModel {
     /// Execution unique identifier
     pub id: uuid::Uuid,
@@ -83,9 +83,9 @@ pub struct AuthenticationExecutionModel {
     pub requirements: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Authentication Session Model
 /// Represents an ongoing authentication session
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthenticationSessionModel {
     /// Session unique identifier
     pub id: uuid::Uuid,
@@ -109,18 +109,10 @@ pub struct AuthenticationSessionModel {
     pub completed: bool,
 }
 
+#[async_trait]
 /// Authentication Flow Resolver
 /// Trait for resolving which authentication flow to use based on context
-#[async_trait]
 pub trait AuthenticationFlowResolver: Send + Sync {
-    /// Resolve the appropriate authentication flow for the given context
-    ///
-    /// # Arguments
-    /// * `context` - The authentication context containing request details
-    ///
-    /// # Returns
-    /// * `Ok(AuthenticationFlowModel)` containing the resolved flow
-    /// * `Err(AuthencError)` if no suitable flow is found
     async fn resolve_flow(
         &self,
         context: &AuthenticationContext,
@@ -143,6 +135,14 @@ pub trait AuthenticationFlowResolver: Send + Sync {
 /// Authentication Context
 /// Contains information about the current authentication request
 #[derive(Debug, Clone)]
+    /// Resolve the appropriate authentication flow for the given context
+    ///
+    /// # Arguments
+    /// * `context` - The authentication context containing request details
+    ///
+    /// # Returns
+    /// * `Ok(AuthenticationFlowModel)` containing the resolved flow
+    /// * `Err(AuthencError)` if no suitable flow is found
 pub struct AuthenticationContext {
     /// Client ID requesting authentication
     pub client_id: String,
@@ -198,7 +198,6 @@ impl DefaultAuthenticationFlowResolver {
         resolver
     }
 
-    /// Initialize default authentication flows
     fn initialize_default_flows(&mut self) {
         // Browser Flow
         let browser_flow = AuthenticationFlowModel {
@@ -315,6 +314,7 @@ impl AuthenticationFlowResolver for DefaultAuthenticationFlowResolver {
 
 /// Authentication Session Manager
 /// Manages authentication sessions throughout the authentication process
+    /// Initialize default authentication flows
 pub struct AuthenticationSessionManager {
     sessions: HashMap<String, AuthenticationSessionModel>,
 }
@@ -333,15 +333,6 @@ impl AuthenticationSessionManager {
         }
     }
 
-    /// Create a new authentication session
-    ///
-    /// # Arguments
-    /// * `client_id` - The client requesting authentication
-    /// * `flow_id` - The authentication flow to use
-    ///
-    /// # Returns
-    /// * `Ok(String)` containing the session ID
-    /// * `Err(AuthencError)` if session creation fails
     pub async fn create_session(
         &mut self,
         client_id: String,
@@ -455,6 +446,15 @@ impl AuthenticationSessionManager {
 
 /// Authentication Manager
 /// Main coordinator for authentication flows and sessions
+    /// Create a new authentication session
+    ///
+    /// # Arguments
+    /// * `client_id` - The client requesting authentication
+    /// * `flow_id` - The authentication flow to use
+    ///
+    /// # Returns
+    /// * `Ok(String)` containing the session ID
+    /// * `Err(AuthencError)` if session creation fails
 pub struct AuthenticationManager {
     flow_resolver: Box<dyn AuthenticationFlowResolver>,
     session_manager: AuthenticationSessionManager,
@@ -475,14 +475,6 @@ impl AuthenticationManager {
         }
     }
 
-    /// Start authentication process for the given context
-    ///
-    /// # Arguments
-    /// * `context` - The authentication context containing request details
-    ///
-    /// # Returns
-    /// * `Ok(String)` containing the session ID for the authentication process
-    /// * `Err(AuthencError)` if authentication cannot be started
     pub async fn start_authentication(
         &mut self,
         context: &AuthenticationContext,
@@ -722,6 +714,14 @@ impl AuthenticationManager {
 
 /// Result of executing an authentication step
 #[derive(Debug, Clone)]
+    /// Start authentication process for the given context
+    ///
+    /// # Arguments
+    /// * `context` - The authentication context containing request details
+    ///
+    /// # Returns
+    /// * `Ok(String)` containing the session ID for the authentication process
+    /// * `Err(AuthencError)` if authentication cannot be started
 pub struct AuthenticationStepResult {
     /// Whether the authentication step was successful
     pub success: bool,

@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 /// Health check status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum HealthStatus {
-    /// Service is healthy and operational
     Up,
     /// Service is unhealthy or unavailable
     Down,
@@ -16,6 +15,7 @@ pub enum HealthStatus {
 
 /// Health check result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Service is healthy and operational
 pub struct HealthCheckResult {
     /// Name of the health check
     pub name: String,
@@ -32,7 +32,6 @@ pub struct HealthCheckResult {
 /// Health check trait
 #[async_trait]
 pub trait HealthCheck: Send + Sync {
-    /// Get the name of this health check
     fn name(&self) -> &str;
 
     /// Perform a health check and return the result
@@ -40,8 +39,8 @@ pub trait HealthCheck: Send + Sync {
 }
 
 /// Database health check
+    /// Get the name of this health check
 pub struct DatabaseHealthCheck {
-    /// Maximum number of connections in the pool
     pool_size: u32,
     /// Current number of active connections
     active_connections: u32,
@@ -56,6 +55,7 @@ impl DatabaseHealthCheck {
     ///
     /// # Returns
     /// A new `DatabaseHealthCheck` instance configured with the provided parameters.
+    /// Maximum number of connections in the pool
     pub fn new(pool_size: u32, active_connections: u32) -> Self {
         Self {
             pool_size,
@@ -93,7 +93,6 @@ impl HealthCheck for DatabaseHealthCheck {
 
 /// Cache health check
 pub struct CacheHealthCheck {
-    /// Number of cache hits
     cache_hits: u64,
     /// Number of cache misses
     cache_misses: u64,
@@ -108,6 +107,7 @@ impl CacheHealthCheck {
     ///
     /// # Returns
     /// A new `CacheHealthCheck` instance configured with the provided cache statistics.
+    /// Number of cache hits
     pub fn new(cache_hits: u64, cache_misses: u64) -> Self {
         Self {
             cache_hits,
@@ -147,7 +147,6 @@ impl HealthCheck for CacheHealthCheck {
 
 /// Authentication service health check
 pub struct AuthServiceHealthCheck {
-    /// Number of currently active sessions
     active_sessions: u32,
     /// Number of failed authentication attempts
     failed_attempts: u32,
@@ -162,6 +161,7 @@ impl AuthServiceHealthCheck {
     ///
     /// # Returns
     /// A new `AuthServiceHealthCheck` instance configured with the provided session statistics.
+    /// Number of currently active sessions
     pub fn new(active_sessions: u32, failed_attempts: u32) -> Self {
         Self {
             active_sessions,
@@ -200,7 +200,6 @@ impl HealthCheck for AuthServiceHealthCheck {
 
 /// Health check registry
 pub struct HealthCheckRegistry {
-    /// Map of health check names to their implementations
     checks: HashMap<String, Box<dyn HealthCheck>>,
 }
 
@@ -215,6 +214,7 @@ impl HealthCheckRegistry {
     ///
     /// # Returns
     /// A new `HealthCheckRegistry` instance with no registered health checks.
+    /// Map of health check names to their implementations
     pub fn new() -> Self {
         Self {
             checks: HashMap::new(),
@@ -245,10 +245,6 @@ impl HealthCheckRegistry {
         self.checks.insert(name.to_string(), check);
     }
 
-    /// Executes all registered health checks concurrently.
-    ///
-    /// # Returns
-    /// A vector containing the results of all health checks in arbitrary order.
     pub async fn run_all_checks(&self) -> Vec<HealthCheckResult> {
         let mut results = Vec::new();
         for check in self.checks.values() {
@@ -277,8 +273,11 @@ impl HealthCheckRegistry {
 
 /// Metrics types
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Executes all registered health checks concurrently.
+    ///
+    /// # Returns
+    /// A vector containing the results of all health checks in arbitrary order.
 pub enum MetricType {
-    /// Monotonically increasing counter
     Counter,
     /// Gauge that can go up and down
     Gauge,
@@ -290,6 +289,7 @@ pub enum MetricType {
 
 /// Metric value
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Monotonically increasing counter
 pub struct MetricValue {
     /// Name of the metric
     pub name: String,
@@ -304,13 +304,12 @@ pub struct MetricValue {
 /// Metrics collector trait
 #[async_trait]
 pub trait MetricsCollector: Send + Sync {
-    /// Collect all available metrics
     async fn collect(&self) -> Vec<MetricValue>;
 }
 
 /// Prometheus metrics collector
+    /// Collect all available metrics
 pub struct PrometheusMetricsCollector {
-    /// Collected metric values
     metrics: Vec<MetricValue>,
 }
 
@@ -325,6 +324,7 @@ impl PrometheusMetricsCollector {
     ///
     /// # Returns
     /// A new `PrometheusMetricsCollector` instance with an empty metrics buffer.
+    /// Collected metric values
     pub fn new() -> Self {
         Self {
             metrics: Vec::new(),
@@ -377,7 +377,6 @@ impl MetricsCollector for PrometheusMetricsCollector {
 
 /// Metrics registry
 pub struct MetricsRegistry {
-    /// List of registered metrics collectors
     collectors: Vec<Box<dyn MetricsCollector>>,
 }
 
@@ -389,6 +388,7 @@ impl Default for MetricsRegistry {
 
 impl MetricsRegistry {
     /// Create a new metrics registry
+    /// List of registered metrics collectors
     pub fn new() -> Self {
         Self {
             collectors: Vec::new(),
@@ -445,7 +445,6 @@ pub struct TraceEvent {
 
 /// Tracing service
 pub struct TracingService {
-    /// Map of span IDs to their corresponding spans
     spans: HashMap<String, TraceSpan>,
 }
 
@@ -460,6 +459,7 @@ impl TracingService {
     ///
     /// # Returns
     /// A new `TracingService` instance ready to track distributed traces and spans.
+    /// Map of span IDs to their corresponding spans
     pub fn new() -> Self {
         Self {
             spans: HashMap::new(),
@@ -555,7 +555,6 @@ pub struct ServiceLevelIndicator {
 /// SLI status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SliStatus {
-    /// SLI is meeting its objective
     Good,
     /// SLI is close to missing its objective
     Warning,
@@ -564,8 +563,8 @@ pub enum SliStatus {
 }
 
 /// SLI tracker
+    /// SLI is meeting its objective
 pub struct SliTracker {
-    /// Map of SLI names to their indicators
     indicators: HashMap<String, ServiceLevelIndicator>,
 }
 
@@ -580,6 +579,7 @@ impl SliTracker {
     ///
     /// # Returns
     /// A new `SliTracker` instance with an empty indicators map.
+    /// Map of SLI names to their indicators
     pub fn new() -> Self {
         Self {
             indicators: HashMap::new(),
@@ -670,7 +670,6 @@ pub struct PerformanceMetrics {
 
 /// Performance monitor
 pub struct PerformanceMonitor {
-    /// Current performance metrics
     metrics: PerformanceMetrics,
 }
 
@@ -694,6 +693,7 @@ impl PerformanceMonitor {
     /// - Error rate: 0.1%
     /// - CPU usage: 50%
     /// - Memory usage: 60%
+    /// Current performance metrics
     pub fn new() -> Self {
         Self {
             metrics: PerformanceMetrics {
@@ -730,7 +730,6 @@ impl PerformanceMonitor {
 
 /// Main observability service that combines health checks, metrics, and monitoring
 pub struct ObservabilityService {
-    /// Health check registry
     health_registry: HealthCheckRegistry,
     /// Metrics registry
     metrics_registry: MetricsRegistry,
@@ -750,6 +749,7 @@ impl Default for ObservabilityService {
 
 impl ObservabilityService {
     /// Create a new observability service
+    /// Health check registry
     pub fn new() -> Self {
         Self {
             health_registry: HealthCheckRegistry::new(),

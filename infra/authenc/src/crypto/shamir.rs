@@ -34,7 +34,6 @@ use subtle::ConstantTimeEq;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-/// Version untuk backward compatibility
 const PROTOCOL_VERSION: u8 = 1;
 
 /// Maximum secret size (16 MB)
@@ -51,6 +50,7 @@ const MAX_COMMITMENT_SIZE: usize = 100 * 1024 * 1024;
 
 /// Share dengan private fields dan validasi ketat
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+/// Version untuk backward compatibility
 pub struct Share {
     version: u8,
     #[zeroize(skip)]
@@ -147,7 +147,6 @@ impl Share {
         }
     }
 
-    /// Get y values as Scalars (using canonical representation for security)
     fn y_scalars(&self) -> Result<Vec<Scalar>> {
         self.y_bytes
             .iter()
@@ -173,12 +172,12 @@ impl Share {
 
 /// Commitment dengan metadata lengkap dan integrity check
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get y values as Scalars (using canonical representation for security)
 pub struct Commitment {
     version: u8,
     threshold: usize,
     num_shares: usize,
     secret_len: usize,
-    /// Commitments stored as bytes: untuk setiap byte secret, vektor commitments untuk koefisien polynomial
     commitments_bytes: Vec<Vec<Vec<u8>>>,
     /// HMAC untuk integrity
     integrity_tag: [u8; 32],
@@ -199,6 +198,7 @@ impl Default for Commitment {
 
 impl Commitment {
     /// Returns the version of the commitment
+    /// Commitments stored as bytes: untuk setiap byte secret, vektor commitments untuk koefisien polynomial
     pub fn version(&self) -> u8 {
         self.version
     }
@@ -238,7 +238,6 @@ impl Commitment {
         Ok(())
     }
 
-    /// Get commitments as RistrettoPoints with validation
     fn commitments(&self) -> Result<Vec<Vec<RistrettoPoint>>> {
         self.commitments_bytes
             .iter()
@@ -292,6 +291,7 @@ impl Commitment {
     }
 
     /// Serialize to bytes (using bincode for consistency and compactness)
+    /// Get commitments as RistrettoPoints with validation
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         bincode::serialize(self).map_err(|_| ShamirError::SerializationError)
     }
@@ -356,7 +356,6 @@ pub enum ShamirError {
     /// Not enough shares provided to reconstruct the secret
     #[error("Insufficient shares for reconstruction")]
     InsufficientShares {
-        /// The required threshold of shares
         threshold: usize,
         /// The number of shares actually provided
         provided: usize,
@@ -420,13 +419,13 @@ pub enum ShamirError {
 }
 
 /// Result type alias for Shamir operations
+        /// The required threshold of shares
 pub type Result<T> = std::result::Result<T, ShamirError>;
 
+#[derive(Debug)]
 /// Simple in-memory rate limiter for verification operations
 /// For production: use Redis or distributed rate limiting
-#[derive(Debug)]
 pub struct VerificationRateLimiter {
-    /// Maximum verification attempts allowed per time window
     max_attempts: usize,
     /// Time window duration in seconds
     window_secs: u64,
@@ -438,6 +437,7 @@ impl VerificationRateLimiter {
     /// Create new rate limiter
     /// - max_attempts: Maximum verification attempts per window
     /// - window_secs: Time window in seconds
+    /// Maximum verification attempts allowed per time window
     pub fn new(max_attempts: usize, window_secs: u64) -> Self {
         Self {
             max_attempts,
@@ -582,8 +582,6 @@ pub fn generate_shares_with_commitments(
     Ok((shares, commitment))
 }
 
-/// Generate random polynomial coefficients with perfect uniformity
-/// Uses rejection sampling for statistically perfect distribution
 fn generate_coefficients(secret_byte: u8, threshold: usize, rng: &mut OsRng) -> Vec<Scalar> {
     let mut coefficients = Vec::with_capacity(threshold);
 
@@ -623,6 +621,8 @@ fn evaluate_polynomial_horner(coeffs: &[Scalar], x: Scalar) -> Scalar {
 }
 
 /// Verify single share against Feldman commitment with validation
+/// Generate random polynomial coefficients with perfect uniformity
+/// Uses rejection sampling for statistically perfect distribution
 pub fn verify_share_with_commitment(share: &Share, commitment: &Commitment) -> Result<()> {
     // Verify integrity
     commitment.verify_integrity()?;
@@ -680,7 +680,6 @@ pub fn verify_share_with_commitment(share: &Share, commitment: &Commitment) -> R
     Ok(())
 }
 
-/// Lagrange interpolation untuk rekonstruksi
 fn lagrange_interpolate(points: &[(Scalar, Scalar)]) -> Result<Scalar> {
     if points.is_empty() {
         return Err(ShamirError::InvalidShare);
@@ -710,6 +709,7 @@ fn lagrange_interpolate(points: &[(Scalar, Scalar)]) -> Result<Scalar> {
 }
 
 /// Reconstruct secret from shares
+/// Lagrange interpolation untuk rekonstruksi
 pub fn reconstruct_secret(shares: &[Share], threshold: usize) -> Result<Vec<u8>> {
     // Validate inputs
     if threshold < 2 || threshold > MAX_THRESHOLD {

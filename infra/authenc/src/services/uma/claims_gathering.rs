@@ -58,7 +58,6 @@ pub enum ClaimValue {
 /// Claims gathering state
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClaimsGatheringState {
-    /// State ID
     id: String,
     /// Permission ticket
     ticket: String,
@@ -77,8 +76,8 @@ struct ClaimsGatheringState {
 }
 
 /// Claims gathering service
+    /// State ID
 pub struct ClaimsGatheringService {
-    /// Base URL for claims gathering endpoint
     base_url: String,
     /// State store (in production, use Redis or database)
     state_store: HashMap<String, ClaimsGatheringState>,
@@ -86,6 +85,7 @@ pub struct ClaimsGatheringService {
 
 impl ClaimsGatheringService {
     /// Create new claims gathering service
+    /// Base URL for claims gathering endpoint
     pub fn new(base_url: String) -> Self {
         Self {
             base_url,
@@ -199,7 +199,6 @@ impl ClaimsGatheringService {
         Ok(())
     }
 
-    /// Check if claims gathering requires interactive flow
     fn requires_interactive_gathering(&self, claims: &[ClaimRequirement]) -> bool {
         // Interactive gathering needed if:
         // 1. Claims require user input (not programmatically available)
@@ -272,8 +271,8 @@ impl ClaimsGatheringService {
 /// Result of claims submission
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "lowercase")]
+    /// Check if claims gathering requires interactive flow
 pub enum ClaimsSubmissionResult {
-    /// All required claims collected
     Complete {
         /// Permission ticket
         ticket: String,
@@ -292,6 +291,7 @@ pub enum ClaimsSubmissionResult {
 }
 
 /// Claims gathering flow helper
+    /// All required claims collected
 pub struct ClaimsGatheringFlow {
     service: ClaimsGatheringService,
 }

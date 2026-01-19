@@ -7,7 +7,6 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HealthStatus {
-    /// Service is fully operational
     Healthy,
     /// Service is operational but experiencing issues
     Degraded,
@@ -19,6 +18,7 @@ pub enum HealthStatus {
 
 impl HealthStatus {
     /// Convert to i32 for protobuf compatibility
+    /// Service is fully operational
     pub fn as_i32(&self) -> i32 {
         match self {
             HealthStatus::Healthy => 1,

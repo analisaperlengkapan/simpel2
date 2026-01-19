@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
 use ed25519_dalek::{Signature, Verifier};
 
+#[derive(Debug, Serialize, Deserialize)]
 /// JWT claims structure for token payload
 /// This struct represents the standard JWT claims used in authentication tokens.
 /// It contains the essential claims for user identification and token expiration.
@@ -16,7 +17,6 @@ use ed25519_dalek::{Signature, Verifier};
 /// - The `exp` claim should always be validated to prevent token reuse
 /// - The `sub` claim should be validated against authenticated user identity
 /// - Additional claims may be needed for more complex authorization scenarios
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     /// Subject identifier (typically the user ID or username)
     pub sub: String,
@@ -28,16 +28,6 @@ pub struct Claims {
 // JWT signing now uses Ed25519 keypair (see crypto/ed25519_keys.rs)
 // If symmetric signing is needed, use get_jwt_secret() function below.
 
-/// Get JWT secret from environment variable or secure configuration
-/// This function retrieves the JWT secret from the environment variable `JWT_SECRET`.
-/// If not found, it falls back to a test-only value (NOT for production).
-/// # Security Considerations
-/// - ALWAYS set JWT_SECRET environment variable in production
-/// - Never use hardcoded secrets
-/// - Rotate secrets regularly
-/// - Use strong random secrets (at least 32 bytes)
-/// # Returns
-/// A `Result` containing the secret bytes on success, or an error string on failure
 fn get_jwt_secret() -> Result<Vec<u8>, String> {
     // Try to get from environment variable
     if let Ok(secret) = std::env::var("JWT_SECRET") {
@@ -76,6 +66,16 @@ fn get_jwt_secret() -> Result<Vec<u8>, String> {
 /// use authenc::utils::crypto::jwt::generate_temp_jwt;
 /// let temp_token = generate_temp_jwt("user123").expect("Failed to generate temp token");
 /// ```
+/// Get JWT secret from environment variable or secure configuration
+/// This function retrieves the JWT secret from the environment variable `JWT_SECRET`.
+/// If not found, it falls back to a test-only value (NOT for production).
+/// # Security Considerations
+/// - ALWAYS set JWT_SECRET environment variable in production
+/// - Never use hardcoded secrets
+/// - Rotate secrets regularly
+/// - Use strong random secrets (at least 32 bytes)
+/// # Returns
+/// A `Result` containing the secret bytes on success, or an error string on failure
 pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
     let expiration = SystemTime::now()
         .checked_add(Duration::from_secs(10 * 60)) // 10 minutes for MFA verification
@@ -184,14 +184,6 @@ pub fn verify_jwt(token: &str) -> Result<Claims, String> {
     verify_jwt_internal(token, false)
 }
 
-/// Internal JWT verification function with optional blacklist checking
-/// This is the core verification logic that can optionally skip blacklist checks
-/// for performance when called from cached validation paths.
-/// # Arguments
-/// * `token` - The JWT token string to verify and decode
-/// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
-/// # Returns
-/// A `Result` containing the decoded `Claims` on success, or an error string on failure
 fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
@@ -247,6 +239,14 @@ fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims
 /// * `token` - The JWT token string to hash
 /// # Returns
 /// A hex-encoded SHA-256 hash of the token
+/// Internal JWT verification function with optional blacklist checking
+/// This is the core verification logic that can optionally skip blacklist checks
+/// for performance when called from cached validation paths.
+/// # Arguments
+/// * `token` - The JWT token string to verify and decode
+/// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
+/// # Returns
+/// A `Result` containing the decoded `Claims` on success, or an error string on failure
 pub fn hash_token(token: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();

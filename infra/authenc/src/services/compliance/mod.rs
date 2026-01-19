@@ -14,7 +14,6 @@ pub mod enhanced;
 /// Compliance framework types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComplianceFramework {
-    /// General Data Protection Regulation
     GDPR,
     /// California Consumer Privacy Act
     CCPA,
@@ -34,6 +33,7 @@ pub enum ComplianceFramework {
 
 /// Compliance requirement definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// General Data Protection Regulation
 pub struct ComplianceRequirement {
     /// Unique identifier for the requirement
     pub id: Uuid,
@@ -58,7 +58,6 @@ pub struct ComplianceRequirement {
 /// Compliance categories
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComplianceCategory {
-    /// Data protection and privacy requirements
     DataProtection,
     /// Access control and authorization requirements
     AccessControl,
@@ -78,8 +77,8 @@ pub enum ComplianceCategory {
 
 /// Compliance severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Data protection and privacy requirements
 pub enum ComplianceSeverity {
-    /// Critical severity - immediate action required
     Critical,
     /// High severity - urgent attention needed
     High,
@@ -93,6 +92,7 @@ pub enum ComplianceSeverity {
 
 /// Compliance check result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Critical severity - immediate action required
 pub struct ComplianceCheckResult {
     /// Unique identifier of the requirement being checked
     pub requirement_id: Uuid,
@@ -113,7 +113,6 @@ pub struct ComplianceCheckResult {
 /// Compliance status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComplianceStatus {
-    /// Fully compliant with requirements
     Compliant,
     /// Not compliant with requirements
     NonCompliant,
@@ -127,14 +126,15 @@ pub enum ComplianceStatus {
 
 /// Compliance check interface
 #[async_trait]
+    /// Fully compliant with requirements
 pub trait ComplianceCheck: Send + Sync {
-    /// Execute the compliance check
     async fn execute(&self) -> Result<ComplianceCheckResult>;
     /// Get the compliance requirement this check implements
     fn requirement(&self) -> &ComplianceRequirement;
 }
 
 /// GDPR compliance checks implementation
+    /// Execute the compliance check
 pub struct GDPRComplianceChecks;
 
 impl Default for GDPRComplianceChecks {
@@ -1016,7 +1016,6 @@ impl ComplianceCheck for HIPAAAuditControlsCheck {
 
 /// Main compliance service that manages compliance checks and frameworks
 pub struct ComplianceService {
-    /// Registered compliance checks
     checks: HashMap<Uuid, Box<dyn ComplianceCheck>>,
     /// Compliance requirements
     requirements: HashMap<Uuid, ComplianceRequirement>,
@@ -1029,6 +1028,7 @@ pub struct ComplianceService {
 
 impl ComplianceService {
     /// Create a new compliance service
+    /// Registered compliance checks
     pub fn new(audit_service: Arc<dyn ComplianceAuditService>) -> Self {
         Self {
             checks: HashMap::new(),
@@ -1106,7 +1106,6 @@ impl ComplianceService {
         })
     }
 
-    /// Generate recommendations based on check results
     fn generate_recommendations(&self, results: &[ComplianceCheckResult]) -> Vec<String> {
         let mut recommendations = Vec::new();
 
@@ -1125,6 +1124,7 @@ impl ComplianceService {
     }
 
     /// Get all compliance requirements
+    /// Generate recommendations based on check results
     pub fn get_requirements(&self) -> Vec<&ComplianceRequirement> {
         self.requirements.values().collect()
     }
@@ -1155,12 +1155,12 @@ pub struct ComplianceReport {
 /// Compliance audit service trait for logging compliance events
 #[async_trait]
 pub trait ComplianceAuditService: Send + Sync {
-    /// Log a compliance event
     async fn log_compliance_event(&self, event: &ComplianceEvent) -> Result<()>;
 }
 
 /// Compliance event structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Log a compliance event
 pub struct ComplianceEvent {
     /// Type of compliance event
     pub event_type: ComplianceEventType,
@@ -1179,7 +1179,6 @@ pub struct ComplianceEvent {
 /// Types of compliance events
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComplianceEventType {
-    /// A compliance check was executed
     CheckExecuted,
     /// A compliance violation was detected
     ViolationDetected,
@@ -1194,13 +1193,14 @@ pub enum ComplianceEventType {
 }
 
 /// Data Subject Rights service for handling GDPR data subject requests
+    /// A compliance check was executed
 pub struct DataSubjectRightsService {
-    /// Audit service for logging compliance events
     audit_service: Arc<dyn ComplianceAuditService>,
 }
 
 impl DataSubjectRightsService {
     /// Create a new data subject rights service
+    /// Audit service for logging compliance events
     pub fn new(audit_service: Arc<dyn ComplianceAuditService>) -> Self {
         Self { audit_service }
     }
@@ -1401,7 +1401,6 @@ pub struct DataAccessResponse {
 
 /// Privacy Impact Assessment service for managing PIA assessments
 pub struct PrivacyImpactAssessmentService {
-    /// Collection of privacy impact assessments
     assessments: HashMap<Uuid, PrivacyImpactAssessment>,
 }
 
@@ -1413,6 +1412,7 @@ impl Default for PrivacyImpactAssessmentService {
 
 impl PrivacyImpactAssessmentService {
     /// Create a new privacy impact assessment service
+    /// Collection of privacy impact assessments
     pub fn new() -> Self {
         Self {
             assessments: HashMap::new(),
@@ -1486,7 +1486,6 @@ pub struct PrivacyRisk {
 /// Risk severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RiskLevel {
-    /// Low risk level
     Low,
     /// Medium risk level
     Medium,
@@ -1498,8 +1497,8 @@ pub enum RiskLevel {
 
 /// Privacy Impact Assessment approval status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Low risk level
 pub enum PIAApprovalStatus {
-    /// Assessment is in draft state
     Draft,
     /// Assessment is under review
     UnderReview,
@@ -1513,6 +1512,7 @@ pub enum PIAApprovalStatus {
 
 /// Compliance configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Assessment is in draft state
 pub struct ComplianceConfig {
     /// Whether compliance features are enabled
     pub enabled: bool,

@@ -22,7 +22,6 @@ use crate::utils::crypto::password::{hash_password, verify_password};
 /// Challenge validator trait
 #[async_trait]
 pub trait ChallengeValidatorTrait: Send + Sync {
-    /// Validate a challenge response
     async fn validate_response(
         &self,
         challenge: &Challenge,
@@ -65,6 +64,7 @@ struct ValidationAttempt {
 
 impl ValidationAttempt {
 /// Fungsi `new(`.
+    /// Validate a challenge response
     pub fn new() -> Self {
         Self {
             count: 0,
@@ -87,19 +87,19 @@ impl ValidationAttempt {
             6..=10 => RiskLevel::High,
             _ => RiskLevel::Critical,
         };
-/// Fungsi `reset_on_success(`.
     }
 
+/// Fungsi `reset_on_success(`.
 /// Fungsi `reset_on_success(`.
     pub fn reset_on_success(&mut self) {
         self.count += 1;
         self.consecutive_failures = 0;
         self.last_attempt = SystemTime::now();
-/// Fungsi `is_locked_out(`.
         self.risk_level = RiskLevel::Low;
     }
 /// Fungsi `is_locked_out(`.
 
+/// Fungsi `is_locked_out(`.
     pub fn is_locked_out(&self) -> bool {
         match self.risk_level {
             RiskLevel::Critical => {
@@ -118,12 +118,12 @@ impl ValidationAttempt {
                     false
                 }
             }
-/// Fungsi `get_lockout_duration(`.
             _ => false,
         }
 /// Fungsi `get_lockout_duration(`.
     }
 
+/// Fungsi `get_lockout_duration(`.
 /// Fungsi `get_lockout_duration(`.
     pub fn get_lockout_duration(&self) -> Option<Duration> {
         if self.is_locked_out() {
@@ -140,7 +140,6 @@ impl ValidationAttempt {
 
 /// Core validation engine for CAPTCHA challenges
 pub struct ValidationEngine {
-    /// Behavioral analyzer for risk assessment
     behavioral_analyzer: Arc<dyn BehavioralAnalyzerTrait>,
     /// Optional rate limiting state for progressive restrictions
     rate_limit_state: Option<Arc<CaptchaRateLimitState>>,
@@ -156,6 +155,7 @@ pub struct ValidationEngine {
 
 impl ValidationEngine {
     /// Create a new validation engine
+    /// Behavioral analyzer for risk assessment
     pub fn new() -> Self {
         Self {
             behavioral_analyzer: Arc::new(BehavioralAnalyzer::new()),

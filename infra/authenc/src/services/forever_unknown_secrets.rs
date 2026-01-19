@@ -19,7 +19,6 @@ use crate::error::AuthencError;
 /// TPM/HSM Manager for hardware-backed secret generation
 #[derive(Debug)]
 pub struct HardwareSecurityManager {
-    /// Whether TPM/HSM is available
     available: bool,
     #[cfg(feature = "tpm")]
     /// TPM context (only available when TPM feature is enabled)
@@ -28,6 +27,7 @@ pub struct HardwareSecurityManager {
 
 impl HardwareSecurityManager {
     /// Create a new hardware security manager
+    /// Whether TPM/HSM is available
     pub fn new() -> Self {
         #[cfg(feature = "tpm")]
         {
@@ -53,7 +53,6 @@ impl HardwareSecurityManager {
     }
 
     #[cfg(feature = "tpm")]
-    /// Initialize TPM context
     fn initialize_tpm() -> Result<Context, Box<dyn std::error::Error>> {
         // Try different TCTI configurations
         let tcti_configs = vec![
@@ -73,6 +72,7 @@ impl HardwareSecurityManager {
     }
 
     /// Generate random bytes using hardware security when available
+    /// Initialize TPM context
     pub fn generate_random_bytes(&mut self, size: usize) -> Result<Vec<u8>, AuthencError> {
         #[cfg(feature = "tpm")]
         {
@@ -138,7 +138,6 @@ pub struct ForeverUnknownSecretsService {
     pub configs: RwLock<HashMap<Uuid, ForeverUnknownSecretConfig>>,
     /// In-memory secret storage (never persisted to disk) - public for testing
     pub secrets: RwLock<HashMap<Uuid, InMemorySecret>>,
-    /// RNG for secret generation
     rng: RwLock<ChaCha20Rng>,
     /// Hardware security manager
     hardware_security: HardwareSecurityManager,
@@ -146,6 +145,7 @@ pub struct ForeverUnknownSecretsService {
 
 impl ForeverUnknownSecretsService {
     /// Create a new forever unknown secrets service
+    /// RNG for secret generation
     pub fn new() -> Self {
         // Use system time as seed for RNG
         let seed = SystemTime::now()
@@ -298,7 +298,6 @@ impl ForeverUnknownSecretsService {
             .ok_or_else(|| AuthencError::resource_not_found("Secret not found"))
     }
 
-    /// Check if a secret needs rotation and rotate if necessary
     async fn check_and_rotate_secret(&self, id: Uuid) -> Result<(), AuthencError> {
         let configs = self.configs.read().await;
         let config = configs
@@ -446,6 +445,7 @@ impl ForeverUnknownSecretsService {
     }
 
     /// Check if hardware security (TPM/HSM) is available
+    /// Check if a secret needs rotation and rotate if necessary
     pub fn is_hardware_security_available(&self) -> bool {
         self.hardware_security.is_available()
     }

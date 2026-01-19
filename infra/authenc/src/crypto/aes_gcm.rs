@@ -11,12 +11,12 @@ use std::collections::HashMap;
 
 /// AES-GCM encryption service for enhanced security
 pub struct AesGcmService {
-    /// AES-256-GCM encryption key used for all cryptographic operations
     key: Key<Aes256Gcm>,
 }
 
 /// Encrypted data structure containing ciphertext, nonce, and authentication tag
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// AES-256-GCM encryption key used for all cryptographic operations
 pub struct EncryptedData {
     /// Base64-encoded ciphertext
     pub ciphertext: String,

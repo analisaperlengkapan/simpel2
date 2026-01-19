@@ -79,7 +79,6 @@ impl AuthContext {
 /// Authentication result status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuthStatus {
-    /// Authentication was successful
     Success,
     /// Authentication failed
     Failed,
@@ -93,6 +92,7 @@ pub enum AuthStatus {
 
 impl AuthStatus {
     /// Returns the string representation of the authentication status
+    /// Authentication was successful
     pub fn as_str(&self) -> &str {
         match self {
             AuthStatus::Success => "SUCCESS",
@@ -168,7 +168,6 @@ impl AuthResult {
 /// Authenticator requirement level
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Requirement {
-    /// Authenticator is required for authentication
     Required,
     /// Authenticator is an alternative option
     Alternative,
@@ -180,6 +179,7 @@ pub enum Requirement {
 
 impl Requirement {
     /// Returns the string representation of the requirement level
+    /// Authenticator is required for authentication
     pub fn as_str(&self) -> &str {
         match self {
             Requirement::Required => "REQUIRED",
@@ -204,7 +204,6 @@ impl Requirement {
 /// Custom authenticator trait
 #[async_trait]
 pub trait Authenticator: Send + Sync {
-    /// Get authenticator name
     fn name(&self) -> &str;
 
     /// Get authenticator type
@@ -227,8 +226,8 @@ pub trait Authenticator: Send + Sync {
 
 /// Authenticator error types
 #[derive(Debug, Clone)]
+    /// Get authenticator name
 pub enum AuthError {
-    /// Provided credentials are invalid
     InvalidCredentials,
     /// Authenticator configuration is invalid
     InvalidConfiguration(String),
@@ -261,6 +260,7 @@ impl std::fmt::Display for AuthError {
 impl std::error::Error for AuthError {}
 
 /// Username/Password authenticator
+    /// Provided credentials are invalid
 pub struct UsernamePasswordAuthenticator {
     name: String,
 }

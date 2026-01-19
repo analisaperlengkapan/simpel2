@@ -124,7 +124,6 @@ pub struct BehavioralAnalysisResult {
 /// Behavioral analyzer trait
 #[async_trait]
 pub trait BehavioralAnalyzerTrait: Send + Sync {
-    /// Analyze mouse movement patterns
     async fn analyze_mouse_behavior(
         &self,
         events: &[MouseEvent],
@@ -163,6 +162,7 @@ pub trait BehavioralAnalyzerTrait: Send + Sync {
 }
 
 /// Default behavioral analyzer implementation
+    /// Analyze mouse movement patterns
 pub struct BehavioralAnalyzer {
     config: BehavioralAnalysisConfig,
 }

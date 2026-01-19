@@ -46,7 +46,6 @@ impl EventRetentionService {
         })
     }
 
-    /// Create S3 client from cold storage configuration
     async fn create_s3_client(cold_storage: &ColdStorageConfig) -> Result<S3Client> {
         let mut config_builder = aws_sdk_s3::config::Builder::new()
             .behavior_version(BehaviorVersion::latest())
@@ -72,6 +71,7 @@ impl EventRetentionService {
     }
 
     /// Start the retention cleanup task
+    /// Create S3 client from cold storage configuration
     pub fn start_cleanup_task(self: Arc<Self>) {
         if !self.config.enabled {
             tracing::info!("Event retention is disabled, skipping cleanup task");
@@ -159,7 +159,6 @@ impl EventRetentionService {
         Ok(result)
     }
 
-    /// Clean up old user events
     async fn cleanup_user_events(&self, cutoff_date: DateTime<Utc>) -> Result<(usize, usize)> {
         let mut archived = 0;
 
@@ -426,6 +425,7 @@ impl EventRetentionService {
 
 /// Result of a retention cleanup operation
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+    /// Clean up old user events
 pub struct RetentionCleanupResult {
     /// Number of user events deleted
     pub user_events_deleted: usize,

@@ -17,8 +17,6 @@ use crate::models::client_registration::{
 // Use v2 trait which supports initial_access_token parameter
 use crate::services::client_registration_v2::ClientRegistrationService;
 
-/// Extract realm_id from request headers or context
-/// In production, this should be extracted from JWT token claims or URL path
 fn extract_realm_id(headers: &HeaderMap) -> Option<Uuid> {
     headers
         .get("x-realm-id")
@@ -46,6 +44,8 @@ fn extract_registration_token(headers: &HeaderMap) -> Option<String> {
 }
 
 /// Create client registration routes (RFC 7591/7592)
+/// Extract realm_id from request headers or context
+/// In production, this should be extracted from JWT token claims or URL path
 pub fn create_client_registration_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/register", post(register_client))

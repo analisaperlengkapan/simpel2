@@ -39,7 +39,6 @@ pub struct ValidationResult {
 
 /// JWT Validator with caching support
 pub struct JwtValidator {
-    /// Redis cache for validation results
     cache: Option<Arc<dyn Cache>>,
     /// Cache TTL for validation results (default: 5 minutes)
     cache_ttl: Duration,
@@ -53,6 +52,7 @@ impl JwtValidator {
     ///
     /// # Returns
     /// A new `JwtValidator` instance
+    /// Redis cache for validation results
     pub fn new(cache: Option<Arc<dyn Cache>>) -> Self {
         Self {
             cache,

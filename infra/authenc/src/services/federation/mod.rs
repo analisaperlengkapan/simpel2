@@ -21,7 +21,6 @@ use saml::SamlIdentityProvider;
 /// Identity provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdentityProviderType {
-    /// SAML 2.0 identity provider
     SAML,
     /// OpenID Connect identity provider
     OIDC,
@@ -39,6 +38,7 @@ pub enum IdentityProviderType {
 
 /// Identity provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// SAML 2.0 identity provider
 pub struct IdentityProviderConfig {
     /// Unique identifier for the identity provider
     pub id: Uuid,
@@ -63,7 +63,6 @@ pub struct IdentityProviderConfig {
 /// Identity provider interface
 #[async_trait]
 pub trait IdentityProvider: Send + Sync {
-    /// Authenticate a user with the identity provider
     async fn authenticate(&self, request: &AuthRequest) -> Result<AuthResponse>;
     /// Get user information from the provider
     async fn get_user_info(&self, token: &str) -> Result<UserInfo>;
@@ -75,6 +74,7 @@ pub trait IdentityProvider: Send + Sync {
 
 /// Authentication request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Authenticate a user with the identity provider
 pub struct AuthRequest {
     /// Username for authentication
     pub username: Option<String>,
@@ -165,7 +165,6 @@ pub mod jit_provisioning {
     /// JIT Provisioning Service trait
     #[async_trait]
     pub trait JITProvisioningService: Send + Sync {
-        /// Provision or find user based on external identity provider data
         async fn provision_user(
             &self,
             request: JITUserProvisioningRequest,
@@ -185,6 +184,7 @@ pub mod jit_provisioning {
     }
 
     /// Default implementation of JIT Provisioning Service
+        /// Provision or find user based on external identity provider data
     pub struct DefaultJITProvisioningService {
         db: Arc<Database>,
         _admin_service: Arc<dyn AdminService>,
@@ -308,7 +308,6 @@ pub mod jit_provisioning {
     }
 
     impl DefaultJITProvisioningService {
-        /// Create a new user from federated identity provider data
         async fn create_federated_user(
             &self,
             request: &JITUserProvisioningRequest,
@@ -421,8 +420,8 @@ pub mod jit_provisioning {
 // SAML and OIDC implementations moved to separate modules (saml.rs and oidc.rs)
 
 /// Federation service - main service
+        /// Create a new user from federated identity provider data
 pub struct FederationService {
-    /// Registered identity providers
     providers: HashMap<Uuid, Box<dyn IdentityProvider>>,
     /// Provider configurations
     provider_configs: HashMap<Uuid, IdentityProviderConfig>,
@@ -432,6 +431,7 @@ pub struct FederationService {
 
 impl FederationService {
     /// Create new federation service
+    /// Registered identity providers
     pub fn new(db: Arc<Database>) -> Self {
         Self {
             providers: HashMap::new(),

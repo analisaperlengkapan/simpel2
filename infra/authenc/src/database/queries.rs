@@ -7,19 +7,6 @@
 /// - Soft deletes preserve referential integrity
 /// - All queries use parameterized statements to prevent SQL injection
 pub mod users {
-    /// Create a new user record
-    ///
-    /// Inserts a new user into the database with all required fields.
-    /// Returns the created user record with generated timestamps.
-    ///
-    /// # Parameters
-    /// - $1: user ID (UUID)
-    /// - $2: username (unique within realm)
-    /// - $3: email address
-    /// - $4: password hash (bcrypt/scrypt)
-    /// - $5: realm ID
-    /// - $6: created_at timestamp
-    /// - $7: updated_at timestamp
     pub const CREATE_USER: &str = r#"
         INSERT INTO users (id, username, email, password_hash, realm_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -114,19 +101,20 @@ pub mod users {
 /// - Realm-scoped queries prevent data leakage between tenants
 /// - Soft deletes maintain referential integrity
 /// - All queries use parameterized statements
-pub mod realms {
-    /// Create a new realm
+    /// Create a new user record
     ///
-    /// Inserts a new realm record for multi-tenancy support.
-    /// Returns the created realm with generated timestamps.
+    /// Inserts a new user into the database with all required fields.
+    /// Returns the created user record with generated timestamps.
     ///
     /// # Parameters
-    /// - $1: realm ID (UUID)
-    /// - $2: realm name (unique identifier)
-    /// - $3: display name (human-readable)
-    /// - $4: description
-    /// - $5: created_at timestamp
-    /// - $6: updated_at timestamp
+    /// - $1: user ID (UUID)
+    /// - $2: username (unique within realm)
+    /// - $3: email address
+    /// - $4: password hash (bcrypt/scrypt)
+    /// - $5: realm ID
+    /// - $6: created_at timestamp
+    /// - $7: updated_at timestamp
+pub mod realms {
     pub const CREATE_REALM: &str = r#"
         INSERT INTO realms (id, name, display_name, description, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
@@ -205,19 +193,19 @@ pub mod realms {
 /// - User-role assignments control access permissions
 /// - Role changes should trigger permission cache invalidation
 /// - All queries prevent privilege escalation
-pub mod roles {
-    /// Create a new role
+    /// Create a new realm
     ///
-    /// Inserts a new role record within a specific realm.
-    /// Returns the created role with generated timestamps.
+    /// Inserts a new realm record for multi-tenancy support.
+    /// Returns the created realm with generated timestamps.
     ///
     /// # Parameters
-    /// - $1: role ID (UUID)
-    /// - $2: role name (unique within realm)
-    /// - $3: role description
-    /// - $4: realm ID
+    /// - $1: realm ID (UUID)
+    /// - $2: realm name (unique identifier)
+    /// - $3: display name (human-readable)
+    /// - $4: description
     /// - $5: created_at timestamp
     /// - $6: updated_at timestamp
+pub mod roles {
     pub const CREATE_ROLE: &str = r#"
         INSERT INTO roles (id, name, description, realm_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
@@ -299,6 +287,18 @@ pub mod roles {
 /// - IP addresses and user agents are captured for forensics
 /// - Timestamps ensure chronological ordering
 /// - Filtering supports compliance reporting requirements
+    /// Create a new role
+    ///
+    /// Inserts a new role record within a specific realm.
+    /// Returns the created role with generated timestamps.
+    ///
+    /// # Parameters
+    /// - $1: role ID (UUID)
+    /// - $2: role name (unique within realm)
+    /// - $3: role description
+    /// - $4: realm ID
+    /// - $5: created_at timestamp
+    /// - $6: updated_at timestamp
 pub mod audit {
     /// Create audit log entry
     ///

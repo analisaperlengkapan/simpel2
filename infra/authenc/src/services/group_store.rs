@@ -12,12 +12,12 @@ use uuid::Uuid;
 /// In-memory store for groups.
 /// Provides thread-safe CRUD operations for `Group`.
 pub struct GroupStore {
-    /// id -> group mapping
     groups: Arc<RwLock<HashMap<Uuid, Group>>>,
 }
 
 impl GroupStore {
     /// Create a new, empty GroupStore.
+    /// id -> group mapping
     pub fn new() -> Self {
         GroupStore {
             groups: Arc::new(RwLock::new(HashMap::new())),

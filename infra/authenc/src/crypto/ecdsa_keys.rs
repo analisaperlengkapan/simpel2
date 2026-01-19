@@ -10,9 +10,6 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-/// ECDSA P-256 keypair for JWT signing - secure alternative to RSA
-/// Production: Loads from ECDSA_P256_PRIVATE_KEY_BASE64 environment variable
-/// Development: Generates ephemeral key with warning
 pub static ECDSA_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
     // Try to load from environment variable (production)
     if let Ok(key_base64) = env::var("ECDSA_P256_PRIVATE_KEY_BASE64") {
@@ -46,6 +43,9 @@ fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
 }
 
 /// Generate a new ECDSA P-256 keypair and return base64-encoded private key
+/// ECDSA P-256 keypair for JWT signing - secure alternative to RSA
+/// Production: Loads from ECDSA_P256_PRIVATE_KEY_BASE64 environment variable
+/// Development: Generates ephemeral key with warning
 pub fn generate_new_p256_keypair() -> (SigningKey, String) {
     let signing_key = SigningKey::random(&mut OsRng);
     let private_key_bytes = signing_key.to_bytes();

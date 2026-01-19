@@ -39,12 +39,12 @@ use uuid::Uuid;
 /// let authenticated = store.authenticate(&service_account.client_id, "secret").await?;
 /// ```
 pub struct ServiceAccountStore {
-    /// Database connection
     db: Arc<Database>,
 }
 
 impl ServiceAccountStore {
     /// Create new service account store with database connection
+    /// Database connection
     pub fn with_database(db: Arc<Database>) -> Self {
         Self { db }
     }

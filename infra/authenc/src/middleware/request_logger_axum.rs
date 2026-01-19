@@ -147,8 +147,8 @@ pub struct ResponseBody<B> {
     status: StatusCode,
 }
 
-/// Fungsi `new(`.
 impl<B> ResponseBody<B> {
+/// Fungsi `new(`.
 /// Fungsi `new(`.
     pub fn new(
         inner: B,

@@ -63,7 +63,6 @@ pub struct EventConsumerStats {
 
 /// Event-driven cache invalidation consumer
 pub struct EventDrivenCacheInvalidator {
-    /// Cache invalidation service
     invalidation_service: Arc<CacheInvalidationService>,
     /// Kafka consumer for user events
     user_consumer: Arc<StreamConsumer>,
@@ -83,6 +82,7 @@ impl EventDrivenCacheInvalidator {
     /// # Arguments
     /// * `invalidation_service` - The cache invalidation service to use
     /// * `config` - Consumer configuration
+    /// Cache invalidation service
     pub fn new(
         invalidation_service: Arc<CacheInvalidationService>,
         config: EventConsumerConfig,

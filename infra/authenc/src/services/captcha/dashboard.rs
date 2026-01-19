@@ -178,7 +178,6 @@ pub struct SystemHealthStatus {
 /// Health status enum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HealthStatus {
-    /// System is healthy and operating normally
     Healthy,
     /// System has warnings but is still operational
     Warning,
@@ -190,6 +189,7 @@ pub enum HealthStatus {
 
 /// Component health information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// System is healthy and operating normally
 pub struct ComponentHealth {
     /// Health status of the component
     pub status: HealthStatus,
@@ -227,7 +227,6 @@ pub struct Alert {
 /// Alert severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertSeverity {
-    /// Informational alert
     Info,
     /// Warning alert requiring attention
     Warning,
@@ -237,6 +236,7 @@ pub enum AlertSeverity {
     Emergency,
 }
 /// Dashboard service for generating real-time analytics
+    /// Informational alert
 pub struct DashboardService {
     metrics_collector: Arc<MetricsCollector>,
     db_ops: Arc<crate::database::CaptchaOperations>,

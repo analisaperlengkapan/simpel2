@@ -49,7 +49,6 @@ pub struct HsmKeyMetadata {
 /// SecretonClient trait for secret backends
 #[async_trait]
 pub trait SecretonClientTrait: Send + Sync {
-    /// Fetch a secret by key (optionally scoped by realm)
     async fn get_secret(&self, key: &str, realm: Option<&str>) -> Option<Secret>;
 
     /// Store or update a secret
@@ -88,8 +87,8 @@ pub trait SecretonClientTrait: Send + Sync {
 
 /// Extended secreton trait for HSM integration
 #[async_trait]
+    /// Fetch a secret by key (optionally scoped by realm)
 pub trait HsmSecretonClient: SecretonClientTrait {
-    /// Generate a key in HSM
     async fn generate_hsm_key(
         &self,
         key_id: &str,
@@ -121,8 +120,8 @@ pub trait HsmSecretonClient: SecretonClientTrait {
 
 /// Secreton error types
 #[derive(Debug, Clone)]
+    /// Generate a key in HSM
 pub enum SecretonError {
-    /// Secret not found
     NotFound(String),
     /// Secreton backend unreachable
     Unavailable(String),
@@ -158,12 +157,13 @@ impl std::error::Error for SecretonError {}
 
 // Type aliases for backward compatibility during migration
 /// Alias tipe `Vault`.
+    /// Secret not found
 pub type Vault = dyn SecretonClientTrait;
 /// Alias tipe `VaultError`.
 pub type VaultError = SecretonError;
 
-/// Modul `grpc_client`.
 // Secreton client (custom Rust-based secret manager) - primary integration
+/// Modul `grpc_client`.
 /// Modul `grpc_client`.
 pub mod grpc_client;
 /// Modul `secreton_client`.

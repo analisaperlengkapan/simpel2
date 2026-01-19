@@ -39,7 +39,6 @@ impl Default for LoadMetrics {
 /// Security threat levels for adaptive security posture
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThreatLevel {
-    /// Normal operations - standard security measures
     Low,
     /// Elevated threat - enhanced monitoring and validation
     Medium,
@@ -57,8 +56,8 @@ impl Default for ThreatLevel {
 
 /// Cryptographic modes for post-quantum transition
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    /// Normal operations - standard security measures
 pub enum CryptoMode {
-    /// Classical cryptography (Ed25519, AES-256-GCM)
     Classical,
     /// Hybrid classical + post-quantum
     Hybrid,
@@ -85,8 +84,8 @@ impl std::fmt::Display for CryptoMode {
 
 /// Performance profiles for different operational modes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    /// Classical cryptography (Ed25519, AES-256-GCM)
 pub enum PerformanceProfile {
-    /// Optimized for low latency
     LowLatency,
     /// Balanced performance and security
     Balanced,
@@ -104,6 +103,7 @@ impl Default for PerformanceProfile {
 
 /// Cache configuration with adaptive TTL
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Optimized for low latency
 pub struct CacheConfig {
     /// Maximum cache size in entries
     pub max_size: usize,
@@ -335,7 +335,6 @@ impl DynamicConfig {
 
 /// Dynamic configuration manager with thread-safe updates
 pub struct DynamicConfigManager {
-    /// Current dynamic configuration stored in thread-safe wrapper
     config: Arc<RwLock<DynamicConfig>>,
     /// Channel sender for broadcasting configuration updates
     update_sender: watch::Sender<DynamicConfig>,
@@ -345,6 +344,7 @@ pub struct DynamicConfigManager {
 
 impl DynamicConfigManager {
     /// Create a new dynamic configuration manager
+    /// Current dynamic configuration stored in thread-safe wrapper
     pub fn new() -> Self {
         let config = Arc::new(RwLock::new(DynamicConfig::new()));
         let (update_sender, update_receiver) = watch::channel(DynamicConfig::new());
@@ -429,7 +429,6 @@ impl Default for DynamicConfigManager {
 
 /// Performance profiler for collecting system metrics
 pub struct PerformanceProfiler {
-    /// Time when profiling started
     start_time: Instant,
     /// Total number of requests processed
     request_count: Arc<RwLock<u64>>,
@@ -441,6 +440,7 @@ pub struct PerformanceProfiler {
 
 impl PerformanceProfiler {
     /// Create a new performance profiler
+    /// Time when profiling started
     pub fn new() -> Self {
         Self {
             start_time: Instant::now(),

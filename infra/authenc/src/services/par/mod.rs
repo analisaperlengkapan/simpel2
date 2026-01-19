@@ -73,7 +73,6 @@ pub struct StoredPARRequest {
 /// PAR Storage interface
 #[async_trait::async_trait]
 pub trait PARStorage: Send + Sync {
-    /// Store a PAR request
     async fn store_request(&self, request: StoredPARRequest) -> Result<(), AuthencError>;
 
     /// Retrieve a PAR request by URI
@@ -90,6 +89,7 @@ pub trait PARStorage: Send + Sync {
 }
 
 /// In-memory PAR storage implementation
+    /// Store a PAR request
 pub struct InMemoryPARStorage {
     storage: Arc<RwLock<HashMap<String, StoredPARRequest>>>,
 }
@@ -358,7 +358,6 @@ impl<S: PARStorage> PARAuthorizationHandler<S> {
         }
     }
 
-    /// Process authorization flow with PAR parameters
     async fn process_authorization_flow(
         &self,
         request: PARRequest,
@@ -431,6 +430,7 @@ impl<S: PARStorage> PARAuthorizationHandler<S> {
 }
 
 /// PAR Middleware for Axum
+    /// Process authorization flow with PAR parameters
 pub mod middleware {
     use axum::{Router, extract::State, http::StatusCode, response::Json};
     use serde::Deserialize;

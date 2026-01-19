@@ -55,7 +55,6 @@ use uuid::Uuid;
 /// Organization roles
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OrganizationRole {
-    /// Owner of the organization with full administrative privileges
     Owner,
     /// Administrator with elevated privileges
     Admin,
@@ -67,6 +66,7 @@ pub enum OrganizationRole {
 
 impl OrganizationRole {
     /// Convert the role to its string representation
+    /// Owner of the organization with full administrative privileges
     pub fn as_str(&self) -> &'static str {
         match self {
             OrganizationRole::Owner => "OWNER",
@@ -472,7 +472,6 @@ impl OrganizationService {
         .await
     }
 
-    /// Generate secure invitation token
     fn generate_invitation_token(&self) -> String {
         use rand::Rng;
         let mut rng = rand::thread_rng();
@@ -559,6 +558,7 @@ impl OrganizationService {
 
 /// Organization update request
 #[derive(Debug, Serialize, Deserialize)]
+    /// Generate secure invitation token
 pub struct OrganizationUpdate {
     /// New display name for the organization
     pub display_name: Option<String>,

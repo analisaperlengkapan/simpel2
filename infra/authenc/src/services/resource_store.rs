@@ -9,12 +9,12 @@ use crate::models::resource::{CreateResourceRequest, Resource, UpdateResourceReq
 /// Resource store for managing resources in the database
 #[derive(Debug, Clone)]
 pub struct ResourceStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl ResourceStore {
     /// Create a new resource store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

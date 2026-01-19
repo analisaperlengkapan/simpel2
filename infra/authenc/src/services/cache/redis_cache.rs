@@ -15,7 +15,6 @@ use tracing::{debug, error, warn};
 
 /// Redis cache implementation
 pub struct RedisCache {
-    /// Redis connection manager for connection pooling
     connection_manager: Arc<ConnectionManager>,
     /// Cache configuration
     config: CacheConfig,
@@ -249,6 +248,7 @@ impl Cache for RedisCache {
 
 impl RedisCache {
     /// Get MFA cache TTL
+    /// Redis connection manager for connection pooling
     pub fn mfa_cache_ttl(&self) -> Duration {
         self.config.mfa_cache_ttl
     }

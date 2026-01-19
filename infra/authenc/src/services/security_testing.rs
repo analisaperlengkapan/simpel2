@@ -33,7 +33,6 @@ pub mod security_tests {
     /// Security severity levels
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
     pub enum SecuritySeverity {
-        /// Critical security vulnerability requiring immediate attention
         Critical,
         /// High severity security issue
         High,
@@ -46,6 +45,7 @@ pub mod security_tests {
     }
 
     /// Penetration testing module
+        /// Critical security vulnerability requiring immediate attention
     pub mod penetration_tests {
         use super::*;
 

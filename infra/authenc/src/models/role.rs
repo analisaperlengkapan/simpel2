@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Role entity for role-based access control
 /// Represents a role in the role-based access control (RBAC) system.
 /// Roles define permissions and access levels for users within a realm.
@@ -23,7 +24,6 @@ use uuid::Uuid;
 /// - Soft deletes preserve referential integrity
 /// - Role changes should trigger permission cache invalidation
 /// - Role assignments control user access permissions
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
     /// Unique identifier for the role (UUID v4)
     pub id: Uuid,
@@ -49,6 +49,7 @@ pub struct Role {
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Deserialize)]
 /// Role creation request
 /// Parameters required to create a new role.
 /// Used when creating roles through the API.
@@ -61,7 +62,6 @@ pub struct Role {
 /// - Realm ID must be validated before role creation
 /// - Role creation should be authorized based on user permissions
 /// - Input validation prevents malicious role names
-#[derive(Debug, Deserialize)]
 pub struct CreateRoleRequest {
     /// Role name (must be unique within realm)
     pub name: String,
@@ -71,6 +71,7 @@ pub struct CreateRoleRequest {
     pub realm_id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
 /// Role update request
 /// Parameters for updating an existing role.
 /// All fields are optional to allow partial updates.
@@ -82,7 +83,6 @@ pub struct CreateRoleRequest {
 /// - Updates should be authorized based on user permissions
 /// - Role name uniqueness must be maintained
 /// - Changes should trigger audit logging
-#[derive(Debug, Deserialize)]
 pub struct UpdateRoleRequest {
     /// New role name (if updating)
     pub name: Option<String>,
@@ -90,6 +90,7 @@ pub struct UpdateRoleRequest {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
 /// Role response
 /// Safe role information returned to clients.
 /// Excludes sensitive internal fields.
@@ -105,7 +106,6 @@ pub struct UpdateRoleRequest {
 /// - Provides necessary role metadata for client management
 /// - Helps clients track role state and permissions
 /// - Realm scoping ensures proper data isolation
-#[derive(Debug, Serialize)]
 pub struct RoleResponse {
     /// Unique role identifier
     pub id: Uuid,

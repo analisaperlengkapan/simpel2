@@ -5,7 +5,6 @@ use serde_json::json;
 
 /// Elasticsearch audit log sink for SIEM integration
 pub struct ElasticsearchAuditLogSink {
-    /// HTTP client for sending requests to Elasticsearch
     client: Client,
     /// Elasticsearch endpoint URL
     endpoint: String,
@@ -23,6 +22,7 @@ impl ElasticsearchAuditLogSink {
     /// * `index` - Index name for audit logs (e.g., "authenc-audit-logs")
     /// * `username` - Optional username for basic auth
     /// * `password` - Optional password for basic auth
+    /// HTTP client for sending requests to Elasticsearch
     pub fn new(
         endpoint: &str,
         index: &str,

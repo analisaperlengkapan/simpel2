@@ -80,7 +80,6 @@ impl Default for SamlSecurityConfig {
 
 /// SAML Security Validator - Comprehensive SAML assertion validation
 pub struct SamlSecurityValidator {
-    /// XML security validator (XML bombs, depth limits, etc.)
     xml_validator: XmlSecurityValidator,
 
     /// Certificate validator with trust store
@@ -104,6 +103,7 @@ impl SamlSecurityValidator {
     /// # Arguments
     /// * `config` - Security configuration
     /// * `trust_certs` - Optional list of trusted CA certificates for chain validation
+    /// XML security validator (XML bombs, depth limits, etc.)
     pub fn new(config: SamlSecurityConfig, trust_certs: Option<Vec<X509>>) -> Result<Self> {
         // Create XML security validator
         let xml_validator = XmlSecurityValidator::with_limits(config.xml_limits.clone());
@@ -313,10 +313,10 @@ impl SamlSecurityValidator {
         Ok(())
     }
 
+    #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     /// Get cache statistics for monitoring
     ///
     /// Returns (crl_stats, ocsp_stats) where each is (total, valid)
-    #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     pub fn get_cache_stats(&self) -> ((usize, usize), (usize, usize)) {
         let crl_stats = if let Some(crl_manager) = &self.crl_manager {
             let manager = crl_manager.lock().unwrap();

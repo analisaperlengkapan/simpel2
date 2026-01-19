@@ -122,7 +122,6 @@ pub struct AuthorizationAdvice {
 /// Provider interface for Rich Authorization Request processing
 #[async_trait]
 pub trait RichAuthorizationProvider: Provider + Send + Sync {
-    /// Evaluate a rich authorization request
     async fn evaluate(&self, request: &RichAuthorizationRequest) -> Result<AuthorizationDecision>;
 
     /// Get supported resource types
@@ -136,6 +135,7 @@ pub trait RichAuthorizationProvider: Provider + Send + Sync {
 }
 
 /// Default implementation of RichAuthorizationProvider
+    /// Evaluate a rich authorization request
 pub struct DefaultRichAuthorizationProvider;
 
 impl Default for DefaultRichAuthorizationProvider {

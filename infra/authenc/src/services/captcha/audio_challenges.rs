@@ -12,7 +12,6 @@ use std::time::Duration;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AudioChallengeType {
-    /// Tone sequence - identify sequence of musical tones
     ToneSequence {
         /// Sequence of tone frequencies in Hz
         tone_frequencies: Vec<u16>,
@@ -61,6 +60,7 @@ pub enum AudioChallengeType {
 
 /// Audio challenge data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Tone sequence - identify sequence of musical tones
 pub struct AudioChallenge {
     /// Type of audio challenge
     pub challenge_type: AudioChallengeType,

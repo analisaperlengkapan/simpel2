@@ -34,7 +34,6 @@ impl Spi for EventsSpi {
 /// Event types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventType {
-    /// User login event
     Login,
     /// User login error event
     LoginError,
@@ -168,6 +167,7 @@ pub enum EventType {
 
 impl EventType {
     /// Get the string representation
+    /// User login event
     pub fn as_str(&self) -> &'static str {
         match self {
             EventType::Login => "LOGIN",
@@ -303,7 +303,6 @@ pub struct AdminEventAuthDetails {
 /// Admin event operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AdminEventOperationType {
-    /// Create operation
     Create,
     /// Update operation
     Update,
@@ -315,8 +314,8 @@ pub enum AdminEventOperationType {
 
 /// Event listener interface
 #[async_trait]
+    /// Create operation
 pub trait EventListenerProvider: Provider {
-    /// Handle user event
     async fn on_event(&self, event: &Event) -> Result<(), EventError>;
 
     /// Handle admin event
@@ -328,8 +327,8 @@ pub trait EventListenerProvider: Provider {
 
 /// Event store provider interface
 #[async_trait]
+    /// Handle user event
 pub trait EventStoreProvider: Provider {
-    /// Store user event
     async fn store_event(&self, event: Event) -> Result<(), EventError>;
 
     /// Store admin event
@@ -356,6 +355,7 @@ pub trait EventStoreProvider: Provider {
 
 /// Event query parameters
 #[derive(Debug, Clone, Default)]
+    /// Store user event
 pub struct EventQuery {
     /// Realm ID
     pub realm_id: Option<String>,
@@ -403,19 +403,19 @@ pub struct AdminEventQuery {
 /// Event provider interface (combines listener and store)
 #[async_trait]
 pub trait EventProvider: EventListenerProvider + EventStoreProvider {
-    /// Get event listeners
     fn get_listeners(&self) -> Vec<&dyn EventListenerProvider>;
 }
 
 /// Event provider factory
 #[async_trait]
+    /// Get event listeners
 pub trait EventProviderFactory: ProviderFactory<dyn EventProvider> {
-    /// Get supported event types
     fn get_supported_event_types(&self) -> Vec<EventType>;
 }
 
 /// Event-related errors
 #[derive(Debug, thiserror::Error)]
+    /// Get supported event types
 pub enum EventError {
     /// Event storage error
     #[error("Event storage error: {0}")]
@@ -472,7 +472,6 @@ impl DefaultEventProvider {
         self.listeners.push(listener);
     }
 
-    /// Convert SPI EventType to Model EventType
     fn convert_event_type(spi_type: EventType) -> crate::models::events::EventType {
         use crate::models::events::EventType as ModelEventType;
         match spi_type {
@@ -715,6 +714,7 @@ impl EventProvider for DefaultEventProvider {
 }
 
 /// Default event provider factory
+    /// Convert SPI EventType to Model EventType
 pub struct DefaultEventProviderFactory;
 
 impl Default for DefaultEventProviderFactory {

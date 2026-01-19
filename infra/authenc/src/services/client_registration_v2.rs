@@ -1,13 +1,3 @@
-/// Production-ready OAuth 2.0 Dynamic Client Registration Service (RFC 7591/7592)
-/// This service implements comprehensive DCR with:
-/// - Database-backed registration tokens
-/// - Initial access token support
-/// - Bcrypt-hashed client secrets
-/// - URI validation (HTTPS enforcement, open redirect protection)
-/// - JWKS validation
-/// - Software statement JWT validation
-/// - Policy-based registration control
-/// - Comprehensive audit logging
 use async_trait::async_trait;
 use bcrypt::{DEFAULT_COST, hash};
 use regex::Regex;
@@ -25,8 +15,17 @@ use crate::models::client_registration::{
 
 /// Service for handling OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
 #[async_trait]
+/// Production-ready OAuth 2.0 Dynamic Client Registration Service (RFC 7591/7592)
+/// This service implements comprehensive DCR with:
+/// - Database-backed registration tokens
+/// - Initial access token support
+/// - Bcrypt-hashed client secrets
+/// - URI validation (HTTPS enforcement, open redirect protection)
+/// - JWKS validation
+/// - Software statement JWT validation
+/// - Policy-based registration control
+/// - Comprehensive audit logging
 pub trait ClientRegistrationService: Send + Sync {
-    /// Register a new OAuth 2.0 client dynamically
     async fn register_client(
         &self,
         request: ClientRegistrationRequest,
@@ -58,6 +57,7 @@ pub trait ClientRegistrationService: Send + Sync {
 }
 
 /// Production implementation of Client Registration Service
+    /// Register a new OAuth 2.0 client dynamically
 pub struct ProductionClientRegistrationService {
     db: Arc<Database>,
     realm_id: Option<Uuid>,
@@ -83,7 +83,6 @@ impl ProductionClientRegistrationService {
         }
     }
 
-    /// Generate a secure client secret
     fn generate_client_secret(&self) -> String {
         use rand::distributions::Alphanumeric;
         use rand::{Rng, thread_rng};
@@ -770,4 +769,5 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
 
 // Legacy compatibility - keep old DefaultClientRegistrationService name
 /// Alias tipe `DefaultClientRegistrationService`.
+    /// Generate a secure client secret
 pub type DefaultClientRegistrationService = ProductionClientRegistrationService;

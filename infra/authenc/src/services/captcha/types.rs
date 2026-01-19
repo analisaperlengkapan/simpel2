@@ -10,7 +10,6 @@ use uuid::Uuid;
 /// CAPTCHA challenge types
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ChallengeType {
-    /// Visual CAPTCHA (image-based)
     Visual,
     /// Audio CAPTCHA (sound-based)
     Audio,
@@ -24,8 +23,8 @@ pub enum ChallengeType {
 
 /// Risk level assessment
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    /// Visual CAPTCHA (image-based)
 pub enum RiskLevel {
-    /// Low risk level
     Low,
     /// Medium risk level
     Medium,
@@ -37,8 +36,8 @@ pub enum RiskLevel {
 
 /// Behavioral classification
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    /// Low risk level
 pub enum BehaviorClassification {
-    /// Classified as human behavior
     Human,
     /// Suspicious behavior detected
     Suspicious,
@@ -50,6 +49,7 @@ pub enum BehaviorClassification {
 
 /// CAPTCHA challenge model
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Classified as human behavior
 pub struct Challenge {
     /// Unique challenge identifier
     pub id: String,
@@ -226,7 +226,6 @@ pub struct ValidationResult {
 // Validation functions and serialization helpers
 use serde::{Deserializer, Serializer};
 
-/// Validate difficulty level is between 1 and 10
 fn validate_difficulty<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
@@ -246,6 +245,7 @@ mod systemtime_serde {
     use std::time::UNIX_EPOCH;
 
 /// Fungsi `serialize`.
+/// Validate difficulty level is between 1 and 10
     pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

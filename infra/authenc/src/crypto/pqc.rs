@@ -444,7 +444,6 @@ pub mod mlkem {
         }
     }
 
-    /// Constant-time comparison for SharedSecret
     impl PartialEq for SharedSecret {
         fn eq(&self, other: &Self) -> bool {
             use subtle::ConstantTimeEq;
@@ -455,6 +454,7 @@ pub mod mlkem {
     impl Eq for SharedSecret {}
 
     /// Get the sizes of ML-KEM keys and ciphertext
+    /// Constant-time comparison for SharedSecret
     pub fn key_sizes() -> (usize, usize, usize, usize) {
         (
             mlkem768::public_key_bytes(),

@@ -20,7 +20,6 @@ use tracing::{debug, error, info, warn};
 /// Cache invalidation event types
 #[derive(Debug, Clone, PartialEq)]
 pub enum InvalidationEvent {
-    /// User data was updated
     UserUpdated { user_id: String },
     /// User permissions changed
     PermissionChanged { user_id: String },
@@ -36,6 +35,7 @@ pub enum InvalidationEvent {
 
 impl InvalidationEvent {
     /// Get cache keys that should be invalidated for this event
+    /// User data was updated
     pub fn get_cache_keys(&self) -> Vec<String> {
         match self {
             InvalidationEvent::UserUpdated { user_id } => {
@@ -99,7 +99,6 @@ impl InvalidationEvent {
 
 /// Cache invalidation service
 pub struct CacheInvalidationService {
-    /// Multi-layer cache to invalidate
     cache: Arc<MultiLayerCache>,
     /// Kafka consumer for cache invalidation events
     consumer: Option<Arc<StreamConsumer>>,
@@ -111,6 +110,7 @@ pub struct CacheInvalidationService {
 
 /// Statistics for cache invalidation
 #[derive(Debug, Clone, Default)]
+    /// Multi-layer cache to invalidate
 pub struct InvalidationStats {
     /// Total invalidation events processed
     pub total_events: u64,
@@ -129,13 +129,6 @@ pub struct InvalidationStats {
 }
 
 impl CacheInvalidationService {
-    /// Create a new cache invalidation service
-    ///
-    /// # Arguments
-    /// * `cache` - The multi-layer cache to invalidate
-    /// * `kafka_brokers` - Kafka broker addresses (optional, for eviven invalidation)
-    /// * `kafka_topic` - Kafka topic to subscribe to for invalidation events
-    /// * `consumer_group` - Kafka consumer group ID
     pub async fn new(
         cache: Arc<MultiLayerCache>,
         kafka_brokers: Option<&str>,
@@ -372,13 +365,20 @@ impl CacheInvalidationService {
 }
 
 /// Cache warming service for preloading active user data
+    /// Create a new cache invalidation service
+    ///
+    /// # Arguments
+    /// * `cache` - The multi-layer cache to invalidate
+    /// * `kafka_brokers` - Kafka broker addresses (optional, for eviven invalidation)
+    /// * `kafka_topic` - Kafka topic to subscribe to for invalidation events
+    /// * `consumer_group` - Kafka consumer group ID
 pub struct CacheWarmingService {
-    /// Multi-layer cache to warm
     cache: Arc<MultiLayerCache>,
 }
 
 impl CacheWarmingService {
     /// Create a new cache warming service
+    /// Multi-layer cache to warm
     pub fn new(cache: Arc<MultiLayerCache>) -> Self {
         Self { cache }
     }

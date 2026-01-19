@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// User session for authentication
 /// Represents an active user session with authentication tokens and metadata.
 /// Sessions track user authentication state, expiration, and security information.
@@ -22,7 +23,6 @@ use uuid::Uuid;
 /// - IP address and user agent tracking helps detect suspicious activity
 /// - Revoked sessions should be immediately invalidated
 /// - Refresh tokens enable secure token renewal without re-authentication
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     /// Unique session identifier (UUID)
     pub id: Uuid,
@@ -52,6 +52,7 @@ pub struct Session {
     pub mfa_verified_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Deserialize)]
 /// Session creation request
 /// Parameters required to create a new user session.
 /// Used when establishing authentication sessions after successful login.
@@ -65,7 +66,6 @@ pub struct Session {
 /// - IP address tracking helps detect session hijacking
 /// - User agent information aids in device identification
 /// - All fields should be validated before session creation
-#[derive(Debug, Deserialize)]
 pub struct CreateSessionRequest {
     /// ID of the user for whom to create the session
     pub user_id: Uuid,
@@ -77,6 +77,7 @@ pub struct CreateSessionRequest {
     pub user_agent: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
 /// Session response (without sensitive tokens)
 /// Safe session information returned to clients.
 /// Excludes sensitive token data for security.
@@ -93,7 +94,6 @@ pub struct CreateSessionRequest {
 /// - Provides necessary session metadata for client management
 /// - Helps clients track session state and expiration
 /// - IP and user agent info aids in session identification
-#[derive(Debug, Serialize)]
 pub struct SessionResponse {
     /// Unique session identifier
     pub id: Uuid,

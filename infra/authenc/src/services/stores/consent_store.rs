@@ -9,12 +9,12 @@ use crate::models::{ConsentGrantRequest, UserConsent};
 /// Consent store for managing user consents in the database
 #[derive(Debug, Clone)]
 pub struct ConsentStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl ConsentStore {
     /// Create a new consent store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

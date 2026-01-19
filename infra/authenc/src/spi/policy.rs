@@ -66,7 +66,6 @@ pub type PolicyResult<T> = std::result::Result<T, PolicyError>;
 /// Password policy provider trait
 #[async_trait]
 pub trait PasswordPolicyProvider: Provider + Send + Sync {
-    /// Validate password against policy for a specific realm and user
     async fn validate(
         &self,
         realm_id: &str,
@@ -101,6 +100,7 @@ pub trait PasswordPolicyProvider: Provider + Send + Sync {
 }
 
 /// Length password policy provider
+    /// Validate password against policy for a specific realm and user
 pub struct LengthPasswordPolicyProvider {
     min_length: Option<i32>,
 }
@@ -466,7 +466,6 @@ impl Provider for SpecialCharsPasswordPolicyProvider {
 /// Password policy manager for coordinating multiple policies
 #[async_trait]
 pub trait PasswordPolicyManager: Provider + Send + Sync {
-    /// Validate password against all configured policies
     async fn validate(
         &self,
         realm_id: &str,
@@ -485,6 +484,7 @@ pub trait PasswordPolicyManager: Provider + Send + Sync {
 }
 
 /// Default password policy manager implementation
+    /// Validate password against all configured policies
 pub struct DefaultPasswordPolicyManager {
     policies: Vec<Box<dyn PasswordPolicyProvider>>,
 }

@@ -5,7 +5,6 @@ use tracing::{error, info, warn};
 /// This replaces unsafe dynamic library loading with a safe configuration-based system
 /// where plugins are registered at compile time or through configuration files.
 pub struct PluginManager {
-    /// Registry of available plugin configurations
     plugin_configs: HashMap<String, PluginConfig>,
     /// List of enabled plugins
     enabled_plugins: Vec<String>,
@@ -13,6 +12,7 @@ pub struct PluginManager {
 
 /// Configuration for a plugin
 #[derive(Debug, Clone)]
+    /// Registry of available plugin configurations
 pub struct PluginConfig {
     /// Plugin name
     pub name: String,
@@ -96,7 +96,6 @@ impl PluginManager {
         Ok(())
     }
 
-    /// Initialize a specific plugin (safe implementation)
     fn initialize_plugin(&self, config: &PluginConfig) -> Result<(), String> {
         info!("Initializing plugin: {} v{}", config.name, config.version);
 
@@ -162,6 +161,7 @@ impl PluginManager {
     }
 
     /// Get list of enabled plugins
+    /// Initialize a specific plugin (safe implementation)
     pub fn get_enabled_plugins(&self) -> &[String] {
         &self.enabled_plugins
     }

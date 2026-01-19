@@ -11,7 +11,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, SpiError};
 /// Provider for required actions
 #[async_trait]
 pub trait RequiredActionProvider: Provider + Send + Sync {
-    /// Get the ID of this required action provider
     fn get_id(&self) -> &str;
 
     /// Get the display name of this required action
@@ -42,6 +41,7 @@ pub trait RequiredActionProvider: Provider + Send + Sync {
 
 /// Context for required action execution
 #[derive(Debug)]
+    /// Get the ID of this required action provider
 pub struct RequiredActionContext {
     /// The user for whom the action is being executed
     pub user: User,
@@ -54,7 +54,6 @@ pub struct RequiredActionContext {
 /// Result of required action execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RequiredActionResult {
-    /// Action completed successfully
     Success,
     /// Action failed with error message
     Failed(String),
@@ -69,6 +68,7 @@ pub enum RequiredActionResult {
 
 /// Configuration property for required actions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Action completed successfully
 pub struct RequiredActionConfigProperty {
     /// Property name
     pub name: String,
@@ -89,7 +89,6 @@ pub struct RequiredActionConfigProperty {
 /// Types of configuration properties
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RequiredActionPropertyType {
-    /// String property type
     String,
     /// Text property type
     Text,
@@ -113,8 +112,8 @@ pub enum RequiredActionPropertyType {
 
 /// Factory for creating required action providers
 #[async_trait]
+    /// String property type
 pub trait RequiredActionProviderFactory: Send + Sync {
-    /// Get the ID of the provider this factory creates
     fn get_id(&self) -> &str;
 
     /// Create a new provider instance with configuration
@@ -128,6 +127,7 @@ pub trait RequiredActionProviderFactory: Send + Sync {
 }
 
 /// Default required action provider factory
+    /// Get the ID of the provider this factory creates
 pub struct DefaultRequiredActionProviderFactory;
 
 impl Default for DefaultRequiredActionProviderFactory {

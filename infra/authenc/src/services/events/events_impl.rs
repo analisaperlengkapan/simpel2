@@ -8,7 +8,6 @@ use crate::models::events::{AdminEvent, Event};
 /// Event listener provider trait - SPI for custom event handlers
 #[async_trait]
 pub trait EventListenerProvider: Send + Sync {
-    /// Handle user events (login, register, profile updates, etc.)
     async fn on_event(&self, event: &Event) -> Result<()>;
 
     /// Handle admin events (user creation, client updates, etc.)
@@ -17,8 +16,8 @@ pub trait EventListenerProvider: Send + Sync {
 
 /// Event store provider trait - SPI for event persistence
 #[async_trait]
+    /// Handle user events (login, register, profile updates, etc.)
 pub trait EventStoreProvider: Send + Sync {
-    /// Store a user event
     async fn store_event(&self, event: &Event) -> Result<()>;
 
     /// Store an admin event
@@ -55,6 +54,7 @@ pub trait EventStoreProvider: Send + Sync {
 }
 
 /// Event builder for constructing events fluently
+    /// Store a user event
 pub struct EventBuilder {
     event: Event,
 }
@@ -172,7 +172,6 @@ impl AdminEventBuilder {
 
 /// Event manager - central service for event handling
 pub struct EventManager {
-    /// List of registered event listeners
     listeners: Vec<Arc<dyn EventListenerProvider>>,
     /// Event store provider
     store_provider: Option<Arc<dyn EventStoreProvider>>,
@@ -186,6 +185,7 @@ impl Default for EventManager {
 
 impl EventManager {
     /// Create a new event manager
+    /// List of registered event listeners
     pub fn new() -> Self {
         Self {
             listeners: Vec::new(),

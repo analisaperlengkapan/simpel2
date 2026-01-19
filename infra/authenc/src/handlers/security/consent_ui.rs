@@ -343,7 +343,6 @@ pub async fn test_process_consent(
     }
 }
 
-/// Generate HTML for consent page
 fn generate_consent_html(
     client: &crate::models::oidc_client::OidcClient,
     scopes: &[String],
@@ -613,6 +612,7 @@ pub async fn revoke_consent(
 }
 
 /// Create consent UI routes
+/// Generate HTML for consent page
 pub fn create_consent_routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/oauth2/consent", get(consent_page).post(process_consent))

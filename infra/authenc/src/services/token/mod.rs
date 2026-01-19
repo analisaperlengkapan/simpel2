@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 /// Token Manager for handling access tokens, refresh tokens, and token lifecycle
 pub struct TokenManager {
-    /// Database connection
     db: Arc<Database>,
     /// Default access token lifetime (seconds)
     access_token_ttl: i64,
@@ -21,6 +20,7 @@ pub struct TokenManager {
 
 impl TokenManager {
     /// Create new TokenManager with database connection
+    /// Database connection
     pub fn new(db: Arc<Database>) -> Self {
         Self {
             db,
@@ -280,7 +280,6 @@ impl TokenManager {
 
     // ========== Private helper methods ==========
 
-    /// Generate cryptographically secure random token
     fn generate_random_token(&self) -> String {
         use base64::Engine;
         use rand::Rng;
@@ -299,6 +298,7 @@ impl TokenManager {
 
 /// Token information for listing (no sensitive data)
 #[derive(Debug, Clone)]
+    /// Generate cryptographically secure random token
 pub struct TokenInfo {
     /// Unique identifier of the token
     pub id: Uuid,

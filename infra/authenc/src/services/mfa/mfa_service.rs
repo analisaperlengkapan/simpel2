@@ -16,7 +16,6 @@ use uuid::Uuid;
 /// Trait for MFA operations that can be performed by a secret client
 #[async_trait::async_trait]
 pub trait MfaClient: Send + Sync {
-    /// Set up MFA for a user by generating a secret and QR code
     async fn setup_mfa(
         &self,
         user_id: &str,
@@ -49,6 +48,7 @@ pub trait MfaClient: Send + Sync {
 
 /// MFA setup response containing QR code and backup information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Set up MFA for a user by generating a secret and QR code
 pub struct MfaSetupResponse {
     /// QR code data URL for scanning with authenticator apps
     pub qr_code_url: String,
@@ -90,7 +90,6 @@ pub struct MfaStatistics {
 
 /// MFA Service that wraps existing OtpCredentialProvider and integrates with secreton
 pub struct MfaService {
-    /// Existing OTP credential provider for TOTP operations
     otp_provider: OtpCredentialProvider,
     /// Secreton client for encrypted secret storage
     secreton_client: Arc<dyn MfaClient>,
@@ -102,6 +101,7 @@ pub struct MfaService {
 
 impl MfaService {
     /// Create a new MFA service instance
+    /// Existing OTP credential provider for TOTP operations
     pub fn new(secreton_client: Arc<dyn MfaClient>, db_pool: deadpool_postgres::Pool) -> Self {
         Self {
             otp_provider: OtpCredentialProvider::new(),

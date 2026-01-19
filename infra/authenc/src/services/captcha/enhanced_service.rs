@@ -18,7 +18,6 @@ use uuid::Uuid;
 
 /// Enhanced CAPTCHA service with error handling and fallback mechanisms
 pub struct EnhancedCaptchaService {
-    /// Core CAPTCHA service
     core_service: Arc<CaptchaService>,
     /// Fallback service for degraded mode operations
     fallback_service: Arc<FallbackService>,
@@ -35,6 +34,7 @@ pub struct EnhancedCaptchaService {
 
 /// Service health status
 #[derive(Debug, Clone)]
+    /// Core CAPTCHA service
 pub struct ServiceHealth {
     /// Whether Secreton service is available
     pub secreton_available: bool,
@@ -107,7 +107,6 @@ impl EnhancedCaptchaService {
         &self.fallback_service
     }
 
-    /// Create error context for operations
     fn create_error_context(
         &self,
         operation: &str,
@@ -470,6 +469,7 @@ impl EnhancedCaptchaService {
 
 /// Comprehensive metrics including error handling status
 #[derive(Debug, Clone)]
+    /// Create error context for operations
 pub struct ComprehensiveMetrics {
     /// Current service health status
     pub service_health: ServiceHealth,

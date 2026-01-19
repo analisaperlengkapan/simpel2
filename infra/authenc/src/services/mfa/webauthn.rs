@@ -27,7 +27,6 @@ pub struct WebAuthnService {
     relying_party_name: String,
     relying_party_origin: String,
     webauthn: Webauthn,
-    /// In-memory storage for registration challenges (in production, use Redis/database)
     registration_states: Arc<RwLock<HashMap<String, PasskeyRegistration>>>,
     /// In-memory storage for authentication challenges (in production, use Redis/database)
     authentication_states: Arc<RwLock<HashMap<String, PasskeyAuthentication>>>,
@@ -37,6 +36,7 @@ pub struct WebAuthnService {
 
 /// WebAuthn registration request
 #[derive(Debug, Serialize, Deserialize)]
+    /// In-memory storage for registration challenges (in production, use Redis/database)
 pub struct WebAuthnRegistrationRequest {
     /// Username for the WebAuthn credential
     pub username: String,

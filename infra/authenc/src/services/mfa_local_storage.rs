@@ -53,7 +53,6 @@ pub struct LocalStorageMetadata {
 /// Degraded mode status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DegradedMode {
-    /// Normal operation - Secreton available
     Normal,
     /// Degraded - using local storage
     Degraded,
@@ -62,8 +61,8 @@ pub enum DegradedMode {
 }
 
 /// Local encrypted storage for MFA secrets
+    /// Normal operation - Secreton available
 pub struct MfaLocalStorage {
-    /// AES-GCM encryption service
     encryption: Arc<AesGcmService>,
     /// In-memory cache of secrets
     secrets: Arc<RwLock<HashMap<String, LocalMfaSecret>>>,
@@ -77,6 +76,7 @@ pub struct MfaLocalStorage {
 
 /// Metrics for local storage usage
 #[derive(Debug, Clone, Default)]
+    /// AES-GCM encryption service
 pub struct LocalStorageMetrics {
     /// Number of secrets stored locally
     pub secrets_stored: u64,

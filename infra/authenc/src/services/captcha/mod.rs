@@ -48,11 +48,11 @@ pub mod types;
 pub mod validator;
 
 #[cfg(test)]
-/// Modul `tests`.
 mod test_generator;
 /// Modul `tests`.
 
 #[cfg(test)]
+/// Modul `tests`.
 pub mod tests;
 
 // Re-exports

@@ -53,7 +53,6 @@ impl Default for MultiLayerCacheConfig {
 /// On DELETE:
 /// 1. Delete from both L1 and L2
 pub struct MultiLayerCache {
-    /// L1 in-memory cache
     l1: Arc<InMemoryCache>,
     /// L2 Redis cache
     l2: Arc<RedisCache>,
@@ -69,6 +68,7 @@ impl MultiLayerCache {
     /// # Arguments
     /// * `l2_cache` - Redis cache instance for L2
     /// * `config` - Multi-layer cache configuration
+    /// L1 in-memory cache
     pub fn new(l2_cache: Arc<RedisCache>, config: MultiLayerCacheConfig) -> Self {
         let l1 = Arc::new(InMemoryCache::new(config.l1_max_size, config.l1_ttl));
 

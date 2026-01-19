@@ -10,12 +10,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Authenc Kubernetes Operator
-/// Provides cloud-native deployment capabilities with advanced features
-/// Authenc Custom Resource Definition
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[kube(group = "authenc.io", version = "v1", kind = "Authenc", namespaced)]
 #[kube(status = "AuthencStatus")]
+/// Authenc Kubernetes Operator
+/// Provides cloud-native deployment capabilities with advanced features
+/// Authenc Custom Resource Definition
 pub struct AuthencSpec {
     /// Number of replicas for the Authenc deployment
     pub replicas: Option<i32>,
@@ -174,7 +174,6 @@ pub struct AuthencStatus {
 /// Authenc deployment phase
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 pub enum AuthencPhase {
-    /// Deployment is pending
     Pending,
     /// Deployment is running successfully
     Running,
@@ -186,6 +185,7 @@ pub enum AuthencPhase {
 
 /// Kubernetes condition
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+    /// Deployment is pending
 pub struct Condition {
     /// Type of the condition
     pub type_: String,
@@ -293,7 +293,6 @@ impl AuthencOperator {
         Ok(())
     }
 
-    /// Build Kubernetes deployment
     fn build_deployment(
         &self,
         authenc: &Authenc,
@@ -585,6 +584,7 @@ impl AuthencOperator {
 }
 
 /// Controller for managing Authenc resources
+    /// Build Kubernetes deployment
 pub struct AuthencController {
     operator: AuthencOperator,
 }

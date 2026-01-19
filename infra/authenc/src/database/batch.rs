@@ -28,15 +28,6 @@ impl<'a> BatchOperations<'a> {
         self
     }
 
-    /// Batch insert operation
-    ///
-    /// Inserts multiple rows in a single optimized query using PostgreSQL's
-    /// VALUES clause with multiple rows.
-    ///
-    /// # Example SQL Generated:
-    /// ```sql
-    /// INSERT INTO table (col1, col2) VALUES ($1, $2), ($3, $4), ($5, $6)
-    /// ```
     pub async fn batch_insert<T: BatchInsertable>(
         &self,
         table: &str,
@@ -258,8 +249,16 @@ impl<'a> BatchOperations<'a> {
 }
 
 /// Trait for types that can be batch inserted
+    /// Batch insert operation
+    ///
+    /// Inserts multiple rows in a single optimized query using PostgreSQL's
+    /// VALUES clause with multiple rows.
+    ///
+    /// # Example SQL Generated:
+    /// ```sql
+    /// INSERT INTO table (col1, col2) VALUES ($1, $2), ($3, $4), ($5, $6)
+    /// ```
 pub trait BatchInsertable {
-    /// Collect parameters for this item into the params vector
     fn collect_params<'a>(
         &'a self,
         params: &mut Vec<&'a (dyn tokio_postgres::types::ToSql + Sync)>,
@@ -267,6 +266,7 @@ pub trait BatchInsertable {
 }
 
 /// Trait for types that can be batch updated
+    /// Collect parameters for this item into the params vector
 pub trait BatchUpdateable {
     /// Collect update parameters (id, then all update values) into the params vector
     fn collect_update_params<'a>(

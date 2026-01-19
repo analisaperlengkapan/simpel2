@@ -6,7 +6,6 @@ use uuid::Uuid;
 /// Authentication token types for SIMKARI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TokenType {
-    /// Access token for API authorization
     AccessToken,
     /// Refresh token for obtaining new access tokens
     RefreshToken,
@@ -24,6 +23,7 @@ pub enum TokenType {
 
 /// Flexible scope system for SIMKARI operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Access token for API authorization
 pub struct FlexibleScope {
     /// Base scope (e.g., "read", "write", "admin")
     pub base: String,

@@ -103,7 +103,6 @@ impl Rpt {
 
 /// RPT Service for creating and managing RPTs
 pub struct RptService {
-    /// Issuer URL
     issuer: String,
     /// Signing key
     signing_key: EncodingKey,
@@ -115,6 +114,7 @@ pub struct RptService {
 
 impl RptService {
     /// Create new RPT service
+    /// Issuer URL
     pub fn new(issuer: String, signing_key: EncodingKey, verification_key: DecodingKey) -> Self {
         Self {
             issuer,

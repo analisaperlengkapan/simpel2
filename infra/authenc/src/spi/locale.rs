@@ -31,7 +31,6 @@ impl Spi for LocaleSpi {
 /// Locale provider interface
 #[async_trait]
 pub trait LocaleProvider: Provider {
-    /// Get available locales
     async fn get_available_locales(&self) -> Result<Vec<String>, LocaleError>;
 
     /// Get the default locale
@@ -69,13 +68,14 @@ pub trait LocaleProvider: Provider {
 
 /// Locale provider factory
 #[async_trait]
+    /// Get available locales
 pub trait LocaleProviderFactory: ProviderFactory<dyn LocaleProvider> {
-    /// Get supported locales
     fn get_supported_locales(&self) -> Vec<String>;
 }
 
 /// Locale-related errors
 #[derive(Debug, thiserror::Error)]
+    /// Get supported locales
 pub enum LocaleError {
     /// Locale not found
     #[error("Locale not found: {0}")]

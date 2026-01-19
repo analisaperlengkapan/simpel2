@@ -54,7 +54,6 @@ pub struct ExecutionState {
 /// Authentication manager for coordinating authentication flows
 #[async_trait]
 pub trait AuthenticationManager: Send + Sync {
-    /// Create a new authentication session
     async fn create_authentication_session(
         &self,
         realm_id: &str,
@@ -108,6 +107,7 @@ pub trait AuthenticationManager: Send + Sync {
 }
 
 /// Default authentication manager implementation
+    /// Create a new authentication session
 pub struct DefaultAuthenticationManager {
     sessions: Arc<tokio::sync::RwLock<HashMap<String, AuthenticationSessionState>>>,
     database: Arc<crate::database::Database>,

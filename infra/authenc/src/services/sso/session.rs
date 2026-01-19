@@ -82,7 +82,6 @@ pub struct CreateSessionParams<'a> {
 /// SSO Session Manager trait
 #[async_trait]
 pub trait SsoSessionManager: Send + Sync {
-    /// Create a new SSO session
     async fn create_session(&self, params: CreateSessionParams<'_>) -> Result<SsoSession>;
 
     /// Get SSO session by session ID
@@ -123,6 +122,7 @@ pub trait SsoSessionManager: Send + Sync {
 }
 
 /// Default in-memory SSO session manager
+    /// Create a new SSO session
 pub struct DefaultSsoSessionManager {
     sessions: Arc<RwLock<HashMap<String, SsoSession>>>,
 }

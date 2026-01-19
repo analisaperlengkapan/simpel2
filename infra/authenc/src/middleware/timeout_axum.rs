@@ -8,7 +8,6 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::warn;
 
-/// Default timeout duration (30 seconds)
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Middleware that adds a timeout to requests
@@ -35,6 +34,7 @@ pub async fn timeout_middleware(request: Request, next: Next) -> Response<Body> 
 
 /// Layer that adds a timeout to requests
 #[derive(Clone, Debug)]
+/// Default timeout duration (30 seconds)
 pub struct TimeoutLayer {
     timeout: Duration,
 }

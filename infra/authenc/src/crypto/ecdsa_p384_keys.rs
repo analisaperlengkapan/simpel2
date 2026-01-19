@@ -9,9 +9,6 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-/// ECDSA P-384 keypair for JWT signing - enterprise-grade security
-/// Production: Loads from ECDSA_P384_PRIVATE_KEY_BASE64 environment variable
-/// Development: Generates ephemeral key with warning
 pub static ECDSA_P384_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
     // Try to load from environment variable (production)
     if let Ok(key_base64) = env::var("ECDSA_P384_PRIVATE_KEY_BASE64") {
@@ -38,6 +35,9 @@ pub static ECDSA_P384_KEYPAIR: Lazy<SigningKey> = Lazy::new(|| {
 
 /// JSON Web Key Set containing ECDSA P-384 public keys
 #[derive(Debug, Serialize, Deserialize)]
+/// ECDSA P-384 keypair for JWT signing - enterprise-grade security
+/// Production: Loads from ECDSA_P384_PRIVATE_KEY_BASE64 environment variable
+/// Development: Generates ephemeral key with warning
 pub struct EcdsaP384JwkSet {
     /// Array of JSON Web Keys
     pub keys: Vec<EcdsaP384Jwk>,
@@ -158,7 +158,6 @@ pub fn get_p384_jwk_set() -> EcdsaP384JwkSet {
     EcdsaP384JwkSet { keys: vec![jwk] }
 }
 
-/// Load ECDSA P-384 signing key from base64-encoded bytes
 fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
     let key_bytes = base64ct::Base64::decode_vec(key_base64)
         .map_err(|e| format!("Base64 decode error: {}", e))?;
@@ -167,6 +166,7 @@ fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
 }
 
 /// Generate a new ECDSA P-384 keypair and return base64-encoded private key
+/// Load ECDSA P-384 signing key from base64-encoded bytes
 pub fn generate_new_p384_keypair() -> (SigningKey, String) {
     let signing_key = SigningKey::random(&mut OsRng);
     let private_key_bytes = signing_key.to_bytes();

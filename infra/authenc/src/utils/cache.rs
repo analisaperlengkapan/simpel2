@@ -151,7 +151,6 @@ where
         }
     }
 
-    /// Cleanup expired entries
     fn cleanup_expired(&mut self) {
         let expired_keys: Vec<K> = self
             .data
@@ -179,6 +178,7 @@ where
 
 /// Cache statistics
 #[derive(Debug, Clone)]
+    /// Cleanup expired entries
 pub struct CacheStats {
     /// Current number of items in cache
     pub size: usize,
@@ -194,7 +194,6 @@ pub struct CacheStats {
 
 /// Thread-safe LRU cache wrapper
 pub struct ThreadSafeLruCache<K, V> {
-    /// Underlying LRU cache protected by RwLock
     cache: Arc<RwLock<LruCache<K, V>>>,
 }
 
@@ -204,6 +203,7 @@ where
     V: Clone,
 {
     /// Create a new thread-safe LRU cache
+    /// Underlying LRU cache protected by RwLock
     pub fn new(capacity: usize) -> Self {
         Self {
             cache: Arc::new(RwLock::new(LruCache::new(capacity))),

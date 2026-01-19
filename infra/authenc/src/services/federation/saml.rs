@@ -16,7 +16,6 @@ use super::{AuthRequest, AuthResponse, IdentityProvider, IdentityProviderConfig,
 
 /// SAML 2.0 Identity Provider
 pub struct SamlIdentityProvider {
-    /// Provider configuration
     config: IdentityProviderConfig,
     /// IdP entity ID
     entity_id: String,
@@ -34,6 +33,7 @@ pub struct SamlIdentityProvider {
 
 impl SamlIdentityProvider {
     /// Create new SAML identity provider
+    /// Provider configuration
     pub fn new(config: IdentityProviderConfig, db: Arc<Database>) -> Result<Self> {
         let entity_id = config
             .config

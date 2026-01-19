@@ -177,7 +177,6 @@ impl UmaPolicyStore {
         Ok(())
     }
 
-    /// Helper to parse policy type from string
     fn parse_policy_type(&self, s: &str) -> Result<PolicyType> {
         match s.to_lowercase().as_str() {
             "role" => Ok(PolicyType::Role),
@@ -219,6 +218,7 @@ impl UmaPolicyStore {
 }
 
 /// UMA delegation policy storage operations
+    /// Helper to parse policy type from string
 pub struct UmaDelegationPolicyStore {
     database: Arc<Database>,
 }

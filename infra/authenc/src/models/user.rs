@@ -13,7 +13,6 @@ use uuid::Uuid;
 /// Administrative levels in the Attorney General's Office hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AdminLevel {
-    /// Admin for a specific satker (satuan kerja)
     AdminSatker(String),
     /// Admin for a specific wilayah (regional area)
     AdminWilayah(String),
@@ -25,6 +24,7 @@ pub enum AdminLevel {
 
 impl AdminLevel {
     /// Check if this admin level can manage the given admin level
+    /// Admin for a specific satker (satuan kerja)
     pub fn can_manage(&self, other: &AdminLevel) -> bool {
         match (self, other) {
             (AdminLevel::AdminPusat, _) => true,
@@ -55,7 +55,6 @@ impl AdminLevel {
 /// Role scope defining the organizational level where the role applies
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RoleScope {
-    /// Role applies to a specific satker (satuan kerja)
     Satker(String),
     /// Role applies to a specific wilayah (regional area)
     Wilayah(String),
@@ -65,6 +64,7 @@ pub enum RoleScope {
 
 impl RoleScope {
     /// Check if this scope includes the given satker
+    /// Role applies to a specific satker (satuan kerja)
     pub fn includes_satker(&self, satker_code: &str) -> bool {
         match self {
             RoleScope::Satker(scope_satker) => scope_satker == satker_code,
@@ -88,7 +88,6 @@ impl RoleScope {
 /// Access level for secreton operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AccessLevel {
-    /// Read-only access to secrets
     ReadOnly,
     /// Read and write access to secrets
     ReadWrite,
@@ -100,6 +99,7 @@ pub enum AccessLevel {
 
 /// Time-based access restrictions
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Read-only access to secrets
 pub struct TimeRestrictions {
     /// Start time for access (hour of day, 0-23)
     pub start_hour: u8,
@@ -345,7 +345,6 @@ pub struct UserCredential {
 /// Credential type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CredentialType {
-    /// Password-based authentication
     Password,
     /// Time-based One-Time Password (TOTP)
     Totp,
@@ -361,6 +360,7 @@ pub enum CredentialType {
 
 /// User session
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Password-based authentication
 pub struct UserSession {
     /// Unique identifier for the session
     pub id: Uuid,
@@ -681,7 +681,6 @@ pub struct AuthenticationExecution {
 /// Execution requirement
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExecutionRequirement {
-    /// Execution is required
     Required,
     /// Execution is an alternative option
     Alternative,
@@ -693,6 +692,7 @@ pub enum ExecutionRequirement {
 
 /// Authenticator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Execution is required
 pub struct AuthenticatorConfig {
     /// Unique identifier for the configuration
     pub id: Uuid,

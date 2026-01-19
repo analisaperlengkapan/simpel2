@@ -35,11 +35,6 @@ pub struct ExampleResponse {
     pub user_id: Option<String>,
 }
 
-/// Example handler demonstrating enhanced audit logging
-/// This shows how to:
-/// 1. Extract request context from headers
-/// 2. Sanitize request/response payloads
-/// 3. Log events with full context including geolocation
 pub async fn example_audit_handler(
     State(audit_service): State<Arc<EnhancedAuditService>>,
     headers: HeaderMap,
@@ -122,6 +117,11 @@ pub async fn simple_audit_example(headers: HeaderMap, session_id: Option<String>
 }
 
 /// Example of payload sanitization
+/// Example handler demonstrating enhanced audit logging
+/// This shows how to:
+/// 1. Extract request context from headers
+/// 2. Sanitize request/response payloads
+/// 3. Log events with full context including geolocation
 pub fn example_payload_sanitization() {
     let config = SanitizerConfig::default();
 

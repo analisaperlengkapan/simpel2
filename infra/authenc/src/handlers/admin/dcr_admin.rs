@@ -1,9 +1,3 @@
-/// Admin API for managing Dynamic Client Registration
-/// Provides endpoints for:
-/// - Creating initial access tokens
-/// - Listing initial access tokens
-/// - Revoking initial access tokens
-/// - Viewing registration policies
 use axum::{
     Router,
     extract::{Path, Query, State},
@@ -20,6 +14,12 @@ use crate::database::operations::client_registration as db_ops;
 use crate::error::{AuthencError, Result};
 
 /// Create DCR admin routes
+/// Admin API for managing Dynamic Client Registration
+/// Provides endpoints for:
+/// - Creating initial access tokens
+/// - Listing initial access tokens
+/// - Revoking initial access tokens
+/// - Viewing registration policies
 pub fn create_dcr_admin_routes() -> Router<Arc<AppState>> {
     Router::new()
         // Initial Access Token Management

@@ -13,7 +13,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Session provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SessionProviderType {
-    /// User session provider
     User,
     /// Client session provider
     Client,
@@ -21,6 +20,7 @@ pub enum SessionProviderType {
 
 /// Session query context for filtering and pagination
 #[derive(Debug, Clone, Default)]
+    /// User session provider
 pub struct SessionQueryContext {
     /// Optional realm identifier to filter sessions
     pub realm_id: Option<String>,
@@ -41,7 +41,6 @@ pub struct SessionQueryContext {
 /// Session provider trait - base trait for all session providers
 #[async_trait]
 pub trait SessionProvider: Provider + Send + Sync {
-    /// Get the session provider type
     fn get_type(&self) -> SessionProviderType;
 
     /// Get the provider name
@@ -50,8 +49,8 @@ pub trait SessionProvider: Provider + Send + Sync {
 
 /// User session provider trait
 #[async_trait]
+    /// Get the session provider type
 pub trait UserSessionProvider: SessionProvider {
-    /// Create a new user session
     async fn create_user_session(&self, session: Session) -> Result<Session>;
 
     /// Get user session by ID
@@ -75,8 +74,8 @@ pub trait UserSessionProvider: SessionProvider {
 
 /// Session provider factory trait
 #[async_trait]
+    /// Create a new user session
 pub trait SessionProviderFactory: Send + Sync {
-    /// Create a session provider of the specified type
     fn create_session_provider(
         &self,
         provider_type: SessionProviderType,
@@ -84,6 +83,7 @@ pub trait SessionProviderFactory: Send + Sync {
 }
 
 /// Default user session provider implementation
+    /// Create a session provider of the specified type
 pub struct DefaultUserSessionProvider {
     session_store: Arc<SessionStore>,
 }

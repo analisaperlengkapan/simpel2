@@ -8,7 +8,6 @@ use std::collections::HashMap;
 /// FIPS 140-3 compliance levels (updated standard)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum FipsLevel {
-    /// No FIPS compliance
     None = 0,
     /// FIPS Level 1 compliance
     Level1 = 1,
@@ -22,6 +21,7 @@ pub enum FipsLevel {
 
 /// FIPS co/// FIPS compliance event
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// No FIPS compliance
 pub struct FipsComplianceEvent {
     /// Type of compliance event (e.g., "algorithm_validation", "key_generation")
     pub event_type: String,
@@ -37,7 +37,6 @@ pub struct FipsComplianceEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// FIPS compliance status enumeration
 pub enum FipsComplianceStatus {
-    /// The system is compliant with FIPS standards
     Compliant,
     /// The system is not compliant with FIPS standards
     NonCompliant,
@@ -49,6 +48,7 @@ pub enum FipsComplianceStatus {
 
 /// Security Profile for different compliance levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// The system is compliant with FIPS standards
 pub struct SecurityProfile {
     /// Name of the security profile
     pub name: String,
@@ -69,7 +69,6 @@ pub struct SecurityProfile {
 /// FIPS Security Profile Provider
 #[async_trait]
 pub trait FipsSecurityProfileProvider: Send + Sync {
-    /// Get available security profiles
     async fn get_security_profiles(&self) -> Result<Vec<SecurityProfile>, AuthencError>;
 
     /// Get current security profile
@@ -88,6 +87,7 @@ pub trait FipsSecurityProfileProvider: Send + Sync {
 
 /// FIPS compliance check result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get available security profiles
 pub struct FipsComplianceCheck {
     /// Name of the compliance check performed
     pub check_name: String,
@@ -115,7 +115,6 @@ pub struct AlgorithmValidation {
 /// FIPS security provider interface
 #[async_trait]
 pub trait FipsSecurityProvider: Send + Sync {
-    /// Check if the system is in FIPS mode
     async fn is_fips_mode(&self) -> Result<bool>;
 
     /// Get current FIPS level
@@ -132,8 +131,8 @@ pub trait FipsSecurityProvider: Send + Sync {
 }
 
 /// BouncyCastle FIPS provider implementation
+    /// Check if the system is in FIPS mode
 pub struct BouncyCastleFipsProvider {
-    /// Whether FIPS mode is currently enabled in the provider
     fips_mode_enabled: bool,
     /// List of cryptographic algorithms approved for FIPS compliance
     approved_algorithms: Vec<String>,
@@ -159,6 +158,7 @@ impl BouncyCastleFipsProvider {
     ///
     /// # Returns
     /// A new `BouncyCastleFipsProvider` instance configured with default settings
+    /// Whether FIPS mode is currently enabled in the provider
     pub fn new() -> Self {
         Self {
             fips_mode_enabled: false,
@@ -278,7 +278,6 @@ impl FipsSecurityProvider for BouncyCastleFipsProvider {
 
 /// OpenSSL FIPS provider implementation
 pub struct OpenSslFipsProvider {
-    /// Whether FIPS mode is currently enabled in the OpenSSL provider
     fips_mode_enabled: bool,
 }
 
@@ -302,6 +301,7 @@ impl OpenSslFipsProvider {
     ///
     /// # Returns
     /// A new `OpenSslFipsProvider` instance with FIPS mode disabled
+    /// Whether FIPS mode is currently enabled in the OpenSSL provider
     pub fn new() -> Self {
         Self {
             fips_mode_enabled: false,
@@ -404,7 +404,6 @@ impl FipsSecurityProvider for OpenSslFipsProvider {
 
 /// FIPS compliance manager
 pub struct FipsComplianceManager {
-    /// The FIPS security provider implementation
     provider: Box<dyn FipsSecurityProvider>,
     /// Whether strict FIPS compliance is required (reject non-compliant operations)
     strict_mode: bool,
@@ -427,6 +426,7 @@ impl FipsComplianceManager {
     ///
     /// # Returns
     /// A new `FipsComplianceManager` instance configured with the provided security provider
+    /// The FIPS security provider implementation
     pub fn new(provider: Box<dyn FipsSecurityProvider>) -> Self {
         Self {
             provider,
@@ -526,7 +526,6 @@ pub struct FipsConfig {
 /// FIPS provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FipsProviderType {
-    /// BouncyCastle FIPS provider
     BouncyCastle,
     /// OpenSSL FIPS provider
     OpenSsl,
@@ -535,6 +534,7 @@ pub enum FipsProviderType {
 }
 
 /// FIPS keystore manager for secure key storage
+    /// BouncyCastle FIPS provider
 pub struct FipsKeyStoreManager {
     /// Path to the keystore file on disk
     #[allow(dead_code)]
@@ -697,7 +697,6 @@ impl FipsKeyStoreManager {
 
 /// FIPS audit logger for compliance tracking
 pub struct FipsAuditLogger {
-    /// Whether audit logging of FIPS compliance events is enabled
     audit_enabled: bool,
 }
 
@@ -734,6 +733,7 @@ impl FipsAuditLogger {
     /// let logger = FipsAuditLogger::new(true); // Enable audit logging
     /// // Logger is ready for compliance event tracking
     /// ```
+    /// Whether audit logging of FIPS compliance events is enabled
     pub fn new(audit_enabled: bool) -> Self {
         Self { audit_enabled }
     }
@@ -778,7 +778,6 @@ impl FipsAuditLogger {
 }
 /// Advanced FIPS Security Provider with FIPS 140-3 support
 pub struct AdvancedFipsSecurityProvider {
-    /// Whether FIPS mode is currently enabled in the provider
     fips_mode_enabled: bool,
     /// Current active security profile for compliance validation
     current_profile: SecurityProfile,
@@ -809,6 +808,7 @@ impl AdvancedFipsSecurityProvider {
     /// # Returns
     /// A new `AdvancedFipsSecurityProvider` instance with predefined FIPS security profiles
     #[allow(clippy::vec_init_then_push)]
+    /// Whether FIPS mode is currently enabled in the provider
     pub fn new() -> Self {
         let mut profiles = Vec::new();
 
@@ -1120,7 +1120,6 @@ pub struct FipsApplianceBootstrap {
     /// List of entropy sources for random number generation
     #[allow(dead_code)]
     entropy_sources: Vec<String>,
-    /// Whether key ceremony is required for initialization
     key_ceremony_required: bool,
     /// Whether tamper detection is enabled
     tamper_detection_enabled: bool,
@@ -1149,6 +1148,7 @@ impl FipsApplianceBootstrap {
     ///
     /// # Returns
     /// A new `FipsApplianceBootstrap` instance configured with secure defaults
+    /// Whether key ceremony is required for initialization
     pub fn new() -> Self {
         Self {
             entropy_sources: vec![

@@ -26,8 +26,6 @@ pub fn create_oid4vc_router() -> Router<Arc<AppState>> {
         .route("/credentials", post(issue_credential))
 }
 
-/// Get credential issuer metadata
-/// GET /.well-known/openid-credential-issuer
 async fn get_issuer_metadata(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
@@ -130,6 +128,8 @@ pub async fn verify_credential(
 }
 
 /// Create verifiable presentation router
+/// Get credential issuer metadata
+/// GET /.well-known/openid-credential-issuer
 pub fn create_vp_router() -> Router<Arc<AppState>> {
     Router::new().route("/credentials/verify", post(verify_credential))
 }

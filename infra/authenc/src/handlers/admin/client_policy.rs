@@ -40,8 +40,6 @@ pub struct ListProfilesQuery {
 
 // ========== Client Policy Handlers ==========
 
-/// Create a new client policy
-/// POST /api/v1/admin/client-policies
 pub async fn create_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
     Json(request): Json<CreateClientPolicyRequest>,
@@ -440,6 +438,8 @@ use axum::Router;
 use axum::routing::{delete, get, post, put};
 
 /// Create the router for client policy management endpoints
+/// Create a new client policy
+/// POST /api/v1/admin/client-policies
 pub fn create_policy_router(state: Arc<PolicyHandlerState>) -> Router {
     Router::new()
         // Policy CRUD

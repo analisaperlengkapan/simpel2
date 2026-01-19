@@ -15,11 +15,11 @@ use authenc::models::user::User;
 use authenc::services::mfa_security_monitor::{MfaSecurityMonitor, MfaSecurityMonitorConfig};
 use authenc::services::mfa_service::MfaService;
 
-/// Test utilities for MFA security integration
 mod security_test_utils {
     use super::*;
 
     /// Create test rate limiter configuration
+/// Test utilities for MFA security integration
     pub fn create_test_rate_limiter_config() -> MfaRateLimitConfig {
         MfaRateLimitConfig {
             max_attempts_per_minute_per_ip: 10,

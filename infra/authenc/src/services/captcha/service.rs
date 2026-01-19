@@ -14,7 +14,6 @@ use std::time::Duration;
 /// CAPTCHA service trait defining core operations
 #[async_trait]
 pub trait CaptchaServiceTrait: Send + Sync {
-    /// Generate a new CAPTCHA challenge
     async fn generate_challenge(
         &self,
         challenge_type: ChallengeType,
@@ -42,8 +41,8 @@ pub trait CaptchaServiceTrait: Send + Sync {
 }
 
 /// CAPTCHA service implementation
+    /// Generate a new CAPTCHA challenge
 pub struct CaptchaService {
-    /// Database operations for CAPTCHA challenges
     db_ops: Arc<crate::database::CaptchaOperations>,
     /// Challenge generator for creating CAPTCHA challenges
     generator: Arc<super::generator::ChallengeGenerator>,
@@ -59,6 +58,7 @@ pub struct CaptchaService {
 
 impl CaptchaService {
     /// Create a new CAPTCHA service with all required components
+    /// Database operations for CAPTCHA challenges
     pub fn new(
         db_ops: Arc<crate::database::CaptchaOperations>,
         generator: Arc<super::generator::ChallengeGenerator>,

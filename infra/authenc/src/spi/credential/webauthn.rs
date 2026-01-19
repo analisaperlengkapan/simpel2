@@ -54,7 +54,6 @@ pub struct WebAuthnCredentialData {
 /// Attestation conveyance preference for WebAuthn registration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AttestationPreference {
-    /// No attestation statement is provided (privacy-focused)
     None,
     /// Indirect attestation (anonymized attestation)
     Indirect,
@@ -85,6 +84,7 @@ impl From<AttestationPreference> for AttestationConveyancePreference {
 
 /// WebAuthn registration options
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// No attestation statement is provided (privacy-focused)
 pub struct WebAuthnRegistrationOptions {
     /// Relying Party ID (typically the domain)
     pub rp_id: String,
@@ -138,7 +138,6 @@ pub struct WebAuthnAllowedCredential {
 
 /// WebAuthn credential provider with full attestation support
 pub struct WebAuthnCredentialProvider {
-    /// Relying party ID (domain)
     rp_id: String,
     /// Relying party name
     rp_name: String,
@@ -158,6 +157,7 @@ pub struct WebAuthnCredentialProvider {
 
 impl WebAuthnCredentialProvider {
     /// Create a new WebAuthn credential provider with attestation support
+    /// Relying party ID (domain)
     pub fn new(rp_id: String, rp_name: String, rp_origin: String) -> Result<Self> {
         // WebauthnBuilder expects a Url for the relying party origin
         let rp_origin_url = Url::parse(&rp_origin)
@@ -316,7 +316,6 @@ impl WebAuthnCredentialProvider {
         Ok((passkey, attestation_data))
     }
 
-    /// Extract attestation data from registration response
     fn extract_attestation_data(
         &self,
         response: &RegisterPublicKeyCredential,
@@ -375,6 +374,7 @@ impl WebAuthnCredentialProvider {
     }
 
     /// Get authenticator metadata by AAGUID
+    /// Extract attestation data from registration response
     pub fn get_authenticator_metadata(&self, aaguid: &str) -> Option<AuthenticatorMetadata> {
         // In a full implementation, this would look up the AAGUID in the
         // FIDO Metadata Service (MDS) to get authenticator details

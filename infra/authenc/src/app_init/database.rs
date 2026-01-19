@@ -8,10 +8,6 @@ use crate::config::AppConfig;
 use crate::error::{AuthencError, Result};
 use std::sync::Arc;
 
-/// Initialize database connection pool
-///
-/// Creates and configures the database connection pool based on the
-/// provided configuration.
 pub async fn initialize_database(config: &AppConfig) -> Result<Arc<crate::database::Database>> {
     let database = Arc::new(
         crate::database::Database::new(&config.database)
@@ -50,6 +46,10 @@ pub async fn init_uma_tables(database: &Arc<crate::database::Database>) -> Resul
 }
 
 /// Initialize consent store
+/// Initialize database connection pool
+///
+/// Creates and configures the database connection pool based on the
+/// provided configuration.
 pub fn initialize_consent_store(
     database: Arc<crate::database::Database>,
 ) -> Arc<crate::services::stores::consent_store::ConsentStore> {

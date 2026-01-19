@@ -2,16 +2,15 @@ use crate::models::audit_log::AuditLog;
 
 /// Trait for audit log sinks that can receive and process audit logs
 pub trait AuditLogSink: Send + Sync {
-    /// Send audit log to this sink
-    ///
-    /// # Arguments
-    /// * `log` - The audit log entry to send
     fn send(&self, log: &AuditLog);
 }
 
 /// Multi-sink implementation that sends logs to multiple sinks
+    /// Send audit log to this sink
+    ///
+    /// # Arguments
+    /// * `log` - The audit log entry to send
 pub struct MultiAuditLogSink {
-    /// Collection of sinks to send logs to
     sinks: Vec<Box<dyn AuditLogSink>>,
 }
 
@@ -20,16 +19,13 @@ impl MultiAuditLogSink {
     ///
     /// # Arguments
     /// * `sinks` - Vector of audit log sinks to send logs to
+    /// Collection of sinks to send logs to
     pub fn new(sinks: Vec<Box<dyn AuditLogSink>>) -> Self {
         Self { sinks }
     }
 }
 
 impl AuditLogSink for MultiAuditLogSink {
-    /// Send audit log to all configured sinks
-    ///
-    /// # Arguments
-    /// * `log` - The audit log entry to send
     fn send(&self, log: &AuditLog) {
         for sink in &self.sinks {
             sink.send(log);
@@ -64,6 +60,10 @@ impl AuditLogSink for MultiAuditLogSink {
 /// # Ok(())
 /// # }
 /// ```
+    /// Send audit log to all configured sinks
+    ///
+    /// # Arguments
+    /// * `log` - The audit log entry to send
 pub struct PgAuditLogSink {
     /// PostgreSQL audit log store instance
     pub store: crate::services::pg_audit_log_store::PgAuditLogStore,

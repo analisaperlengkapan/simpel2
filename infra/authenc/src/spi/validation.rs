@@ -49,7 +49,6 @@ pub struct ValidationResult {
 
 /// Validator provider interface
 pub trait ValidatorProvider: Provider {
-    /// Validate a single value
     fn validate_value(
         &self,
         value: String,
@@ -84,6 +83,7 @@ pub trait ValidatorProvider: Provider {
 
 /// Validator configuration property
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Validate a single value
 pub struct ValidatorConfigProperty {
     /// Property name
     pub name: String,
@@ -100,7 +100,6 @@ pub struct ValidatorConfigProperty {
 /// Validator property types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ValidatorPropertyType {
-    /// String property type
     String,
     /// Integer property type
     Integer,
@@ -109,13 +108,14 @@ pub enum ValidatorPropertyType {
 }
 
 /// Validator provider factory
+    /// String property type
 pub trait ValidatorProviderFactory: ProviderFactory<dyn ValidatorProvider> {
-    /// Get validator ID
     fn get_id(&self) -> &'static str;
 }
 
 /// Validation errors
 #[derive(Debug, thiserror::Error)]
+    /// Get validator ID
 pub enum ValidationError {
     /// Validation configuration error
     #[error("Validation configuration error: {0}")]

@@ -24,7 +24,6 @@ use uuid::Uuid;
 /// Federation provider type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FederationProviderType {
-    /// LDAP directory server
     Ldap,
     /// Active Directory (Microsoft AD)
     ActiveDirectory,
@@ -34,6 +33,7 @@ pub enum FederationProviderType {
 
 /// Federated identity link information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// LDAP directory server
 pub struct FederatedIdentityLink {
     pub id: Uuid,
     pub user_id: Uuid,

@@ -11,12 +11,12 @@ use crate::models::permission_ticket::{
 /// Permission ticket store for managing permission tickets in the database
 #[derive(Debug, Clone)]
 pub struct PermissionTicketStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl PermissionTicketStore {
     /// Create a new permission ticket store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

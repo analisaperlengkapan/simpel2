@@ -35,8 +35,6 @@ pub struct PermissionTicketResponse {
     pub ticket: String,
 }
 
-/// POST /uma/permission - Request permission ticket
-/// Called by resource server when client attempts access without RPT
 pub async fn request_permission_ticket(
     State(state): State<Arc<AppState>>,
     _auth: AuthBearer, // Require authentication
@@ -95,6 +93,8 @@ pub async fn authorize_access(
 /// POST /uma/introspect - Introspect RPT token
 /// Called by resource server to validate RPT
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// POST /uma/permission - Request permission ticket
+/// Called by resource server when client attempts access without RPT
 pub struct IntrospectionRequest {
     pub token: String,
     pub token_type_hint: Option<String>,
@@ -110,8 +110,6 @@ pub async fn introspect_rpt(
     Ok(Json(introspection))
 }
 
-/// POST /uma/claims/submit - Submit collected claims
-/// Called by client after gathering required claims
 pub async fn submit_claims(
     State(state): State<Arc<AppState>>,
     _auth: AuthBearer, // Require authentication
@@ -136,14 +134,14 @@ pub async fn gather_claims_page(
 /// Resource owner authorization endpoints
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// POST /uma/claims/submit - Submit collected claims
+/// Called by client after gathering required claims
 pub struct AuthorizationDecisionRequest {
     pub ticket_id: String,
     pub decision: AuthorizationDecision,
     pub reason: Option<String>,
 }
 
-/// GET /uma/pending-requests - Get pending authorization requests
-/// Called by resource owner to see pending access requests
 pub async fn get_pending_requests(
     State(state): State<Arc<AppState>>,
     auth: AuthBearer, // Extract authenticated user
@@ -179,6 +177,8 @@ pub async fn authorize_request(
 /// GET /.well-known/uma2-configuration - UMA 2.0 discovery endpoint
 /// Returns UMA 2.0 configuration metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// GET /uma/pending-requests - Get pending authorization requests
+/// Called by resource owner to see pending access requests
 pub struct UmaConfiguration {
     pub issuer: String,
     pub permission_endpoint: String,

@@ -99,7 +99,6 @@ pub struct DlqEntry {
 
 /// Enhanced event publisher with reliability features
 pub struct EventPublisher {
-    /// Kafka producer
     producer: FutureProducer,
     /// Configuration
     config: EventPublisherConfig,
@@ -113,6 +112,7 @@ pub struct EventPublisher {
 
 impl EventPublisher {
     /// Create a new event publisher
+    /// Kafka producer
     pub fn new(config: EventPublisherConfig) -> Result<Self> {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", &config.brokers)

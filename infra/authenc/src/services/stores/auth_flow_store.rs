@@ -18,7 +18,6 @@ use crate::{
 /// Authentication flow store trait
 #[async_trait]
 pub trait AuthFlowStoreTrait: Send + Sync {
-    /// Create a new authentication flow
     async fn create_flow(&self, flow: &AuthenticationFlowModel) -> Result<AuthenticationFlowModel>;
 
     /// Get authentication flow by ID
@@ -72,6 +71,7 @@ pub trait AuthFlowStoreTrait: Send + Sync {
 }
 
 /// PostgreSQL implementation of authentication flow store
+    /// Create a new authentication flow
 pub struct AuthFlowStore {
     database: Arc<Database>,
 }

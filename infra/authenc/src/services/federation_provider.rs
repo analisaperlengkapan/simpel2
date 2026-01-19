@@ -9,7 +9,6 @@ use subtle::ConstantTimeEq;
 /// Trait for federation providers that can authenticate users from external systems
 #[async_trait::async_trait]
 pub trait FederationProvider: Send + Sync {
-    /// Get user by username from external system
     fn get_user_by_username(&self, username: &str) -> Option<User>;
     /// Verify user password against external system
     fn verify_password(&self, username: &str, password: &str) -> bool;
@@ -29,13 +28,14 @@ pub trait FederationProvider: Send + Sync {
 }
 
 /// Registry for managing multiple federation providers
+    /// Get user by username from external system
 pub struct FederationRegistry {
-    /// Collection of registered federation providers
     providers: Vec<Box<dyn FederationProvider>>,
 }
 
 impl FederationRegistry {
     /// Create new federation registry
+    /// Collection of registered federation providers
     pub fn new() -> Self {
         Self {
             providers: Vec::new(),

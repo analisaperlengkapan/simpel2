@@ -272,7 +272,6 @@ pub async fn disable_totp(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Verify a TOTP code against a secret
 fn verify_totp_code(secret: &str, code: &str) -> bool {
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -318,6 +317,7 @@ fn verify_totp_code(secret: &str, code: &str) -> bool {
 
 /// Credential response structure
 #[derive(serde::Serialize)]
+/// Verify a TOTP code against a secret
 pub struct CredentialResponse {
     /// Unique identifier for the credential
     pub id: String,

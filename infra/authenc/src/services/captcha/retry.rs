@@ -11,7 +11,6 @@ use tracing::{debug, error, info, warn};
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CircuitState {
-    /// Normal operation - requests are allowed
     Closed,
     /// Failing state - requests are rejected
     Open,
@@ -21,8 +20,8 @@ pub enum CircuitState {
 
 /// Circuit breaker for external service calls
 #[derive(Debug, Clone)]
+    /// Normal operation - requests are allowed
 pub struct CircuitBreaker {
-    /// Current state of the circuit breaker
     state: Arc<RwLock<CircuitState>>,
     /// Number of consecutive failures
     failure_count: Arc<RwLock<u32>>,
@@ -40,6 +39,7 @@ pub struct CircuitBreaker {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker with the given failure threshold and recovery timeout
+    /// Current state of the circuit breaker
     pub fn new(failure_threshold: u32, recovery_timeout: Duration) -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitState::Closed)),
@@ -182,7 +182,6 @@ impl Default for RetryConfig {
 /// Retry executor with various backoff strategies
 #[derive(Clone)]
 pub struct RetryExecutor {
-    /// Configuration for retry behavior
     config: RetryConfig,
     /// Optional circuit breaker for additional protection
     circuit_breaker: Option<Arc<CircuitBreaker>>,
@@ -190,6 +189,7 @@ pub struct RetryExecutor {
 
 impl RetryExecutor {
     /// Create a new retry executor with the given configuration
+    /// Configuration for retry behavior
     pub fn new(config: RetryConfig) -> Self {
         Self {
             config,

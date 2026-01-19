@@ -130,9 +130,9 @@ impl Default for SecurityHeadersConfig {
     }
 }
 
-/// Enhanced CSRF configuration
 impl CsrfConfig {
     /// Secure defaults for production
+/// Enhanced CSRF configuration
     pub fn secure() -> Self {
         Self {
             enabled: true,
@@ -150,9 +150,9 @@ impl CsrfConfig {
     }
 }
 
-/// Enhanced rate limiting configuration
 impl RateLimitConfig {
     /// Secure defaults for production
+/// Enhanced rate limiting configuration
     pub fn secure() -> Self {
         Self {
             requests_per_minute: 60,
@@ -181,9 +181,9 @@ impl RateLimitConfig {
     }
 }
 
-/// Enhanced input validation configuration
 impl InputValidationConfig {
     /// Secure defaults for production
+/// Enhanced input validation configuration
     pub fn secure() -> Self {
         Self {
             enabled: true,
@@ -211,9 +211,9 @@ impl InputValidationConfig {
     }
 }
 
-/// Enhanced security monitoring configuration
 impl SecurityMonitoringConfig {
     /// Secure defaults for production
+/// Enhanced security monitoring configuration
     pub fn secure() -> Self {
         Self {
             enabled: true,

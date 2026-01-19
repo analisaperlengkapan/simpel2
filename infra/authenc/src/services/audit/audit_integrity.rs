@@ -57,7 +57,6 @@ pub struct IntegrityCheckResult {
 /// Status of an integrity check
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum IntegrityCheckStatus {
-    /// All checks passed
     Success,
     /// Some checks failed
     Failed,
@@ -67,6 +66,7 @@ pub enum IntegrityCheckStatus {
 
 impl IntegrityCheckStatus {
 /// Fungsi `as_str(`.
+    /// All checks passed
     pub fn as_str(&self) -> &'static str {
         match self {
             IntegrityCheckStatus::Success => "success",
@@ -99,7 +99,6 @@ pub struct IntegrityFailure {
 
 /// Audit integrity checker service
 pub struct AuditIntegrityChecker {
-    /// Database connection
     database: Arc<Database>,
     /// Signature service
     signature_service: Arc<AuditSignatureService>,
@@ -109,6 +108,7 @@ pub struct AuditIntegrityChecker {
 
 impl AuditIntegrityChecker {
     /// Create a new audit integrity checker
+    /// Database connection
     pub fn new(
         database: Arc<Database>,
         signature_service: Arc<AuditSignatureService>,

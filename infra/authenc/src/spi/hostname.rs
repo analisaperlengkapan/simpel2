@@ -71,7 +71,6 @@ pub struct HostnameResolution {
 /// Hostname provider trait for dynamic hostname resolution
 #[async_trait]
 pub trait HostnameProvider: Send + Sync {
-    /// Get the hostname for the given request context
     async fn get_hostname(&self, request_uri: &str) -> Result<Option<String>>;
 
     /// Get the frontend URL for the given request context
@@ -88,6 +87,7 @@ pub trait HostnameProvider: Send + Sync {
 }
 
 /// Default hostname provider implementation
+    /// Get the hostname for the given request context
 pub struct DefaultHostnameProvider {
     config: HostnameConfig,
 }

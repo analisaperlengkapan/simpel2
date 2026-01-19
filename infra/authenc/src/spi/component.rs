@@ -170,7 +170,6 @@ pub struct ProviderConfigProperty {
 pub trait ComponentFactory<CreatedType, ProviderType: Provider + ?Sized>:
     ProviderFactory<ProviderType> + Send + Sync
 {
-    /// Create a component instance
     async fn create_component(&self, model: &ComponentModel) -> Result<CreatedType>;
 
     /// Validate component configuration
@@ -210,17 +209,17 @@ pub trait ComponentFactory<CreatedType, ProviderType: Provider + ?Sized>:
 
 /// Sub-component factory for hierarchical components
 #[async_trait]
+    /// Create a component instance
 pub trait SubComponentFactory<CreatedType, ProviderType: Provider + ?Sized>:
     ComponentFactory<CreatedType, ProviderType>
 {
-    /// Get the component type this factory handles
     fn get_component_type(&self) -> &str;
 }
 
 /// Component factory provider for managing component factories
 #[async_trait]
+    /// Get the component type this factory handles
 pub trait ComponentFactoryProvider: Provider + Send + Sync {
-    /// Get component factory by provider type
     fn get_component_factory(&self, provider_type: &str) -> Option<&dyn Any>;
 
     /// Get all component factories
@@ -238,6 +237,7 @@ pub trait ComponentFactoryProvider: Provider + Send + Sync {
 }
 
 /// Default component factory provider implementation
+    /// Get component factory by provider type
 pub struct DefaultComponentFactoryProvider {
     factories: HashMap<String, Box<dyn Any + Send + Sync>>,
 }

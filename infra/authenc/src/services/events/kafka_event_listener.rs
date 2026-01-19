@@ -9,7 +9,6 @@ use crate::services::events::EventListenerProvider;
 
 /// Kafka event listener for streaming events to Kafka topics
 pub struct KafkaEventListener {
-    /// Kafka producer for sending messages
     producer: FutureProducer,
     /// Kafka topic for user events
     user_events_topic: String,
@@ -24,6 +23,7 @@ impl KafkaEventListener {
     /// * `brokers` - Kafka broker addresses (comma-separated)
     /// * `user_events_topic` - Topic for user events
     /// * `admin_events_topic` - Topic for admin events
+    /// Kafka producer for sending messages
     pub fn new(brokers: &str, user_events_topic: &str, admin_events_topic: &str) -> Result<Self> {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", brokers)

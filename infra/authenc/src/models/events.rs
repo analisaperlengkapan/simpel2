@@ -6,7 +6,6 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum EventType {
     // Authentication events
-    /// Successful user login event
     Login,
     /// Failed user login attempt
     LoginError,
@@ -174,6 +173,7 @@ pub enum EventType {
 
 impl EventType {
     /// Check if this event should be saved by default
+    /// Successful user login event
     pub fn is_save_by_default(&self) -> bool {
         match self {
             // Authentication events - save by default
@@ -472,7 +472,6 @@ impl Event {
 /// Admin operation types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum OperationType {
-    /// Create operation
     Create,
     /// Update operation
     Update,
@@ -484,6 +483,7 @@ pub enum OperationType {
 
 impl OperationType {
     /// Convert the operation type to its string representation
+    /// Create operation
     pub fn as_str(&self) -> &'static str {
         match self {
             OperationType::Create => "CREATE",
@@ -508,7 +508,6 @@ impl OperationType {
 /// Admin resource types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ResourceType {
-    /// Realm resource
     Realm,
     /// Realm role resource
     RealmRole,
@@ -586,6 +585,7 @@ pub enum ResourceType {
 
 impl ResourceType {
     /// Convert the resource type to its string representation
+    /// Realm resource
     pub fn as_str(&self) -> &'static str {
         match self {
             ResourceType::Realm => "REALM",

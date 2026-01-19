@@ -132,7 +132,6 @@ use std::sync::Arc;
 /// Core SPI trait that all service provider interfaces must implement
 #[async_trait]
 pub trait Spi: Send + Sync {
-    /// Get the name of this SPI
     fn get_name(&self) -> &'static str;
 
     /// Check if this SPI is internal (not user-configurable)
@@ -149,8 +148,8 @@ pub trait Spi: Send + Sync {
 
 /// Core provider trait that all providers must implement
 #[async_trait]
+    /// Get the name of this SPI
 pub trait Provider: Send + Sync {
-    /// Close the provider and release resources
     fn close(&mut self) {}
 
     /// Get the provider as Any for downcasting
@@ -161,8 +160,8 @@ pub trait Provider: Send + Sync {
 }
 
 /// Provider factory trait for creating provider instances
+    /// Close the provider and release resources
 pub trait ProviderFactory<T: Provider + ?Sized>: Send + Sync {
-    /// Create a new provider instance
     fn create(&self, config: &ProviderConfig) -> Result<Box<T>, SpiError>;
 
     /// Initialize the factory
@@ -199,6 +198,7 @@ pub trait ProviderFactory<T: Provider + ?Sized>: Send + Sync {
 
 /// Configuration for providers
 #[derive(Debug, Clone)]
+    /// Create a new provider instance
 pub struct ProviderConfig {
     /// Provider-specific configuration
     pub properties: HashMap<String, String>,
@@ -260,7 +260,6 @@ pub struct ConfigProperty {
 /// Configuration property types
 #[derive(Debug, Clone)]
 pub enum ConfigPropertyType {
-    /// String configuration property
     String,
     /// Integer configuration property
     Integer,
@@ -278,6 +277,7 @@ pub enum ConfigPropertyType {
 
 /// SPI-related errors
 #[derive(Debug, thiserror::Error)]
+    /// String configuration property
 pub enum SpiError {
     /// Provider implementation not found
     #[error("Provider not found: {0}")]

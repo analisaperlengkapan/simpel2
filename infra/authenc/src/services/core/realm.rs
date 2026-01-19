@@ -8,7 +8,6 @@ use uuid::Uuid;
 /// Realm service trait for multi-tenant realm management
 #[async_trait]
 pub trait RealmService: Send + Sync {
-    /// Create a new realm
     async fn create_realm(&self, request: CreateRealmRequest) -> Result<RealmResponse, String>;
 
     /// Get realm by ID
@@ -35,13 +34,14 @@ pub trait RealmService: Send + Sync {
 }
 
 /// PostgreSQL implementation of RealmService
+    /// Create a new realm
 pub struct PostgresRealmService {
-    /// Database connection
     db: Arc<Database>,
 }
 
 impl PostgresRealmService {
     /// Create new PostgreSQL realm service
+    /// Database connection
     pub fn new(db: Arc<Database>) -> Self {
         Self { db }
     }
@@ -116,12 +116,12 @@ impl RealmService for PostgresRealmService {
 
 /// Realm management service for multi-tenant operations
 pub struct RealmManager {
-    /// Realm service implementation
     service: Arc<dyn RealmService>,
 }
 
 impl RealmManager {
     /// Create new realm manager
+    /// Realm service implementation
     pub fn new(service: Arc<dyn RealmService>) -> Self {
         Self { service }
     }

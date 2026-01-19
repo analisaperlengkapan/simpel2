@@ -40,7 +40,6 @@ pub struct AlertRule {
 /// Types of alert rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlertRuleType {
-    /// Alert when bot detection rate exceeds threshold
     BotDetectionRate,
     /// Alert when success rate falls below threshold
     SuccessRate,
@@ -60,6 +59,7 @@ pub enum AlertRuleType {
 
 /// Alert condition configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Alert when bot detection rate exceeds threshold
 pub struct AlertCondition {
     /// Name of the metric to monitor
     pub metric: String,
@@ -76,7 +76,6 @@ pub struct AlertCondition {
 /// Comparison operators for alert conditions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComparisonOperator {
-    /// Metric value must be greater than threshold
     GreaterThan,
     /// Metric value must be less than threshold
     LessThan,
@@ -92,8 +91,8 @@ pub enum ComparisonOperator {
 
 /// Notification channels for alerts
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Metric value must be greater than threshold
 pub enum NotificationChannel {
-    /// Send alerts via email to specified addresses
     Email {
         /// List of email addresses to send alerts to
         addresses: Vec<String>,
@@ -126,8 +125,8 @@ pub enum NotificationChannel {
 
 /// Log levels for logging notifications
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Send alerts via email to specified addresses
 pub enum LogLevel {
-    /// Informational log level
     Info,
     /// Warning log level
     Warn,
@@ -153,6 +152,7 @@ struct AlertState {
 }
 
 /// Alerting engine
+    /// Informational log level
 pub struct AlertingEngine {
     rules: Arc<RwLock<Vec<AlertRule>>>,
     alert_states: Arc<RwLock<HashMap<String, AlertState>>>,
@@ -178,7 +178,6 @@ impl AlertingEngine {
         }
     }
 
-    /// Create default alert rules
     fn create_default_rules() -> Vec<AlertRule> {
         vec![
             // High bot detection rate alert
@@ -574,6 +573,7 @@ impl Clone for AlertingEngine {
     }
 }
 /// Notification sender for alerts
+    /// Create default alert rules
 pub struct NotificationSender {
     // Configuration for different notification channels
 }
@@ -612,7 +612,6 @@ impl NotificationSender {
         }
     }
 
-    /// Send email notification
     async fn send_email_notification(
         &self,
         addresses: &[String],
@@ -687,6 +686,7 @@ impl NotificationSender {
 }
 
 /// Alert manager that coordinates alerting with the CAPTCHA service
+    /// Send email notification
 pub struct AlertManager {
     alerting_engine: Arc<AlertingEngine>,
     metrics_collector: Arc<MetricsCollector>,

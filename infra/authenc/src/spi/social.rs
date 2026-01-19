@@ -10,7 +10,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Social provider types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum SocialProviderType {
-    /// Google OAuth provider
     Google,
     /// Facebook OAuth provider
     Facebook,
@@ -30,6 +29,7 @@ pub enum SocialProviderType {
 
 /// Social user profile from external provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Google OAuth provider
 pub struct SocialUserProfile {
     /// Provider type
     pub provider_type: SocialProviderType,
@@ -87,7 +87,6 @@ pub struct OAuth2Token {
 /// SPI for social identity providers (OAuth2/OIDC)
 #[async_trait]
 pub trait SocialProvider: Provider {
-    /// Check if the provider is enabled
     fn is_enabled(&self) -> bool {
         true
     }
@@ -116,6 +115,7 @@ pub trait SocialProvider: Provider {
 
 /// Configuration for social providers
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Check if the provider is enabled
 pub struct SocialProviderConfig {
     /// Provider type
     pub provider_type: SocialProviderType,
@@ -192,18 +192,18 @@ impl Default for SocialProviderConfig {
 /// Factory for creating social providers
 #[async_trait]
 pub trait SocialProviderFactory: ProviderFactory<dyn SocialProvider> {
-    /// Create a new social provider
     async fn create(&self, config: &SocialProviderConfig) -> Result<Arc<dyn SocialProvider>>;
 }
 
 /// Default implementation of social provider
+    /// Create a new social provider
 pub struct DefaultSocialProvider {
-    /// Provider configuration
     config: SocialProviderConfig,
 }
 
 impl DefaultSocialProvider {
     /// Create a new default social provider with the given configuration
+    /// Provider configuration
     pub fn new(config: SocialProviderConfig) -> Self {
         Self { config }
     }
@@ -453,7 +453,6 @@ impl SocialProvider for DefaultSocialProvider {
 }
 
 impl DefaultSocialProvider {
-    /// Parse Google OAuth2 user profile
     fn parse_google_profile(&self, data: &serde_json::Value) -> Result<SocialUserProfile> {
         Ok(SocialUserProfile {
             provider_type: SocialProviderType::Google,
@@ -559,6 +558,7 @@ impl DefaultSocialProvider {
 }
 
 /// Default factory for social providers
+    /// Parse Google OAuth2 user profile
 pub struct DefaultSocialProviderFactory;
 
 impl Default for DefaultSocialProviderFactory {

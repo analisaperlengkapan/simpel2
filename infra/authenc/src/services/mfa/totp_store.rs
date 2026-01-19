@@ -10,7 +10,6 @@ use std::sync::{Arc, RwLock};
 
 /// TOTP (Time-based One-Time Password) store for managing user TOTP secrets
 pub struct TotpStore {
-    /// user_id -> base32 secret mapping
     secrets: Arc<RwLock<HashMap<String, String>>>,
     /// user_id -> hashed backup codes mapping
     backup_codes: Arc<RwLock<HashMap<String, Vec<String>>>>,
@@ -20,6 +19,7 @@ pub struct TotpStore {
 
 impl TotpStore {
     /// Create new TOTP store for managing Time-based One-Time Password secrets
+    /// user_id -> base32 secret mapping
     pub fn new() -> Self {
         TotpStore {
             secrets: Arc::new(RwLock::new(HashMap::new())),

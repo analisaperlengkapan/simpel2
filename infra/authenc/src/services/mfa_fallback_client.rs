@@ -17,7 +17,6 @@ use tracing::{error, info, warn};
 
 /// MFA client with automatic fallback and sync
 pub struct MfaFallbackClient {
-    /// Primary Secreton client
     secreton: Arc<SecretonClient>,
     /// Local encrypted storage fallback
     local_storage: Arc<MfaLocalStorage>,
@@ -31,6 +30,7 @@ impl MfaFallbackClient {
     /// # Arguments
     /// * `secreton` - Secreton client for primary storage
     /// * `local_storage` - Local encrypted storage for fallback
+    /// Primary Secreton client
     pub fn new(secreton: Arc<SecretonClient>, local_storage: Arc<MfaLocalStorage>) -> Self {
         Self {
             secreton,

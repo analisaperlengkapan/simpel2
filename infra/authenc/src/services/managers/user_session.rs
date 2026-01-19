@@ -53,7 +53,6 @@ pub struct ClientSessionState {
 /// User session manager for managing user sessions
 #[async_trait]
 pub trait UserSessionManager: Send + Sync {
-    /// Create a new user session
     async fn create_user_session(
         &self,
         user_id: &str,
@@ -99,6 +98,7 @@ pub trait UserSessionManager: Send + Sync {
 }
 
 /// Default user session manager implementation
+    /// Create a new user session
 pub struct DefaultUserSessionManager {
     sessions: Arc<tokio::sync::RwLock<HashMap<String, UserSessionState>>>,
     session_timeout: Duration,

@@ -11,7 +11,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Authenticator types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticatorType {
-    /// Username/password authentication
     UsernamePassword,
     /// One-time password (TOTP)
     OTP,
@@ -27,8 +26,8 @@ pub enum AuthenticatorType {
 
 /// Authentication flow types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    /// Username/password authentication
 pub enum AuthenticationFlowType {
-    /// Browser-based authentication flow
     Browser,
     /// Direct access grants (resource owner password credentials)
     DirectGrant,
@@ -44,6 +43,7 @@ pub enum AuthenticationFlowType {
 
 /// Authentication context
 #[derive(Debug, Clone)]
+    /// Browser-based authentication flow
 pub struct AuthenticationContext {
     /// The realm ID
     pub realm_id: String,
@@ -98,7 +98,6 @@ pub struct AuthenticatorConfig {
 /// Authenticator trait
 #[async_trait]
 pub trait Authenticator: Provider + Send + Sync {
-    /// Get the authenticator configuration
     fn get_config(&self) -> &AuthenticatorConfig;
 
     /// Authenticate a user
@@ -117,6 +116,7 @@ pub trait Authenticator: Provider + Send + Sync {
 }
 
 /// Username/password authenticator
+    /// Get the authenticator configuration
 pub struct UsernamePasswordAuthenticator {
     config: AuthenticatorConfig,
 }
@@ -246,7 +246,6 @@ impl Authenticator for OTPAuthenticator {
 /// Authenticator provider trait
 #[async_trait]
 pub trait AuthenticatorProvider: Provider + Send + Sync {
-    /// Get all available authenticators
     async fn get_authenticators(&self) -> Result<Vec<Box<dyn Authenticator + Send + Sync>>>;
 
     /// Get authenticator by ID
@@ -282,6 +281,7 @@ pub trait AuthenticatorProvider: Provider + Send + Sync {
 }
 
 /// Default authenticator provider
+    /// Get all available authenticators
 pub struct DefaultAuthenticatorProvider;
 
 impl Default for DefaultAuthenticatorProvider {

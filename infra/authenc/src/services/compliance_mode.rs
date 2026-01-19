@@ -12,12 +12,12 @@ use crate::services::events::EventManager;
 /// Trait for event management in compliance mode
 #[async_trait::async_trait]
 pub trait ComplianceEventManager: Send + Sync {
-    /// Fire an event
     async fn fire_event(&self, event: Event) -> Result<(), AuthencError>;
 }
 
 /// Compliance mode configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Fire an event
 pub struct ComplianceModeConfig {
     /// Whether compliance mode is enabled
     pub enabled: bool,
@@ -33,7 +33,6 @@ pub struct ComplianceModeConfig {
 
 /// Compliance mode service - manages compliance frameworks and validation
 pub struct ComplianceModeService {
-    /// Service configuration
     config: RwLock<ComplianceModeConfig>,
     /// Event manager for compliance events
     event_manager: Arc<dyn ComplianceEventManager>,
@@ -41,6 +40,7 @@ pub struct ComplianceModeService {
 
 impl ComplianceModeService {
     /// Create a new compliance mode service
+    /// Service configuration
     pub fn new(event_manager: Arc<dyn ComplianceEventManager>) -> Self {
         Self {
             config: RwLock::new(ComplianceModeConfig {
@@ -198,7 +198,6 @@ impl ComplianceModeService {
         Ok(())
     }
 
-    /// Validate operation against GDPR requirements
     async fn validate_gdpr_operation(
         &self,
         operation: &str,
@@ -337,6 +336,7 @@ impl ComplianceEventManager for EventManager {
 
 /// Trait for compliance-aware services
 #[async_trait]
+    /// Validate operation against GDPR requirements
 pub trait ComplianceAware {
     /// Validate operation against compliance requirements
     async fn validate_compliance(

@@ -1079,11 +1079,11 @@ pub mod oauth2 {
     }
 }
 
+
+/// Database operations for organizations
 /// Database operations for Dynamic Client Registration (RFC 7591/7592)
 /// Note: This module has been moved to operations/client_registration_ops.rs
 /// The re-export is now handled in operations/mod.rs
-
-/// Database operations for organizations
 pub mod organizations {
     use crate::{
         database::Database,
@@ -2426,7 +2426,6 @@ pub mod users {
         Ok(())
     }
 
-    /// Helper function to convert database row to User
     fn row_to_user(row: &tokio_postgres::Row) -> User {
         User {
             id: row.get(0),
@@ -3332,6 +3331,7 @@ pub mod users {
 }
 
 /// Database operations for social accounts
+    /// Helper function to convert database row to User
 pub mod social_accounts {
     use crate::{
         database::Database,
@@ -4145,7 +4145,6 @@ pub mod realms {
         Ok(rows.into_iter().map(row_to_realm).collect())
     }
 
-    /// Helper function to convert database row to Realm
     fn row_to_realm(row: tokio_postgres::Row) -> Realm {
         Realm {
             id: row.get(0),
@@ -4200,6 +4199,7 @@ pub mod realms {
 }
 
 /// Federated Identity Management operations (for identity brokering and linking)
+    /// Helper function to convert database row to Realm
 pub mod federated_identity {
     use crate::{database::Database, error::Result};
     use chrono::{DateTime, Duration, Utc};
@@ -10302,7 +10302,6 @@ pub mod sessions {
         Ok(sessions)
     }
 
-    /// Helper function to hash tokens using SHA256
     fn hash_token(token: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(token.as_bytes());
@@ -10311,6 +10310,7 @@ pub mod sessions {
 }
 
 /// Theme customization database operations
+    /// Helper function to hash tokens using SHA256
 pub mod themes {
     use super::*;
 

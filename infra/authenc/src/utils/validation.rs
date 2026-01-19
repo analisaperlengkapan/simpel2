@@ -10,7 +10,6 @@ use std::sync::OnceLock;
 /// Maximum request body size (1MB)
 pub const MAX_REQUEST_BODY_SIZE: usize = 1_048_576;
 
-/// Email validation regex (RFC 5322 simplified)
 static EMAIL_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// Username validation regex (alphanumeric, underscore, hyphen, 3-50 chars)
@@ -57,6 +56,7 @@ fn phone_regex() -> &'static Regex {
 }
 
 /// Validate email format
+/// Email validation regex (RFC 5322 simplified)
 pub fn validate_email(email: &str) -> bool {
     email_regex().is_match(email)
 }

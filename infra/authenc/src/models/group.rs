@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// User group for organizing users
 /// Represents a user group for organizing and managing users within a realm.
 /// Groups can be hierarchical and used for bulk operations and access control.
@@ -22,7 +23,6 @@ use uuid::Uuid;
 /// - Group membership affects user access levels
 /// - Hierarchical structure allows inherited permissions
 /// - Changes should trigger audit logging
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
     /// Unique identifier for the group (UUID v4)
     pub id: Uuid,
@@ -44,6 +44,7 @@ pub struct Group {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Deserialize)]
 /// Group creation request
 /// Parameters required to create a new user group.
 /// Used when creating groups through the API.
@@ -56,7 +57,6 @@ pub struct Group {
 /// - Realm ID must be validated before group creation
 /// - Group creation should be authorized based on user permissions
 /// - Input validation prevents malicious group names
-#[derive(Debug, Deserialize)]
 pub struct CreateGroupRequest {
     /// Group name (must be unique within realm)
     pub name: String,
@@ -66,6 +66,7 @@ pub struct CreateGroupRequest {
     pub realm_id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
 /// Group update request
 /// Parameters for updating an existing user group.
 /// All fields are optional to allow partial updates.
@@ -75,7 +76,6 @@ pub struct CreateGroupRequest {
 /// - Updates should be authorized based on user permissions
 /// - Group name uniqueness must be maintained
 /// - Changes should trigger audit logging
-#[derive(Debug, Deserialize)]
 pub struct UpdateGroupRequest {
     /// New group name (if updating)
     pub name: Option<String>,
@@ -87,6 +87,7 @@ pub struct UpdateGroupRequest {
     pub attributes: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Serialize)]
 /// Group response
 /// Safe group information returned to clients.
 /// Includes member count and hierarchical information.
@@ -108,7 +109,6 @@ pub struct UpdateGroupRequest {
 /// - Hierarchical path shows group position
 /// - Helps clients track group state and membership
 /// - Realm scoping ensures proper data isolation
-#[derive(Debug, Serialize)]
 pub struct GroupResponse {
     /// Unique group identifier
     pub id: Uuid,

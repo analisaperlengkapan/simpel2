@@ -32,7 +32,6 @@ use uuid::Uuid;
 
 /// Enhanced cryptographic engine for SIMKARI operations
 pub struct EnhancedCryptoEngine {
-    /// AES-GCM service for session data encryption
     aes_service: AesGcmService,
     /// Performance metrics cache
     metrics: Arc<RwLock<CryptoMetrics>>,
@@ -44,8 +43,8 @@ pub struct EnhancedCryptoEngine {
 
 /// Post-quantum cryptography mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// AES-GCM service for session data encryption
 pub enum PostQuantumMode {
-    /// Classical cryptography only (Ed25519, AES-256-GCM)
     Classical,
     /// Hybrid mode (Classical + Post-Quantum)
     Hybrid,
@@ -55,6 +54,7 @@ pub enum PostQuantumMode {
 
 /// Performance metrics for cryptographic operations
 #[derive(Debug, Default, Clone)]
+    /// Classical cryptography only (Ed25519, AES-256-GCM)
 pub struct CryptoMetrics {
     /// JWT signing operations count and timing
     pub jwt_signing: OperationMetrics,
@@ -90,7 +90,6 @@ pub struct OperationMetrics {
 /// Cached validation result
 #[derive(Debug, Clone)]
 struct CachedValidation {
-    /// Whether the token is valid
     valid: bool,
     /// Expiration time of the cache entry
     expires_at: DateTime<Utc>,
@@ -100,6 +99,7 @@ struct CachedValidation {
 
 /// Enhanced JWT claims for SIMKARI pegawai
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Whether the token is valid
 pub struct PegawaiClaims {
     /// Standard JWT claims
     #[serde(flatten)]
@@ -123,7 +123,6 @@ pub struct PegawaiClaims {
 /// Administrative levels in the Attorney General's Office hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AdminLevel {
-    /// Admin for specific satker
     AdminSatker(String),
     /// Admin for specific wilayah (kejaksaan tinggi)
     AdminWilayah(String),
@@ -135,6 +134,7 @@ pub enum AdminLevel {
 
 /// Secreton access permissions for role-based access
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Admin for specific satker
 pub struct SecretonPermissions {
     /// Secrets that can be read
     pub read_secrets: Vec<String>,

@@ -1,6 +1,3 @@
-/// Software Statement JWT Validator (RFC 7591 Section 2.3)
-/// Validates software statements (signed JWTs containing client metadata)
-/// from trusted issuers
 use async_trait::async_trait;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::{Deserialize, Serialize};
@@ -13,6 +10,9 @@ use crate::error::{AuthencError, Result};
 
 /// Software Statement claims (from JWT payload)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Software Statement JWT Validator (RFC 7591 Section 2.3)
+/// Validates software statements (signed JWTs containing client metadata)
+/// from trusted issuers
 pub struct SoftwareStatementClaims {
     /// Issuer of the software statement
     pub iss: String,
@@ -73,7 +73,6 @@ pub struct SoftwareStatementClaims {
 /// Trait for validating software statements
 #[async_trait]
 pub trait SoftwareStatementValidator: Send + Sync {
-    /// Validate a software statement JWT and extract claims
     async fn validate_statement(&self, statement_jwt: &str) -> Result<SoftwareStatementClaims>;
 
     /// Check if an issuer is trusted
@@ -81,6 +80,7 @@ pub trait SoftwareStatementValidator: Send + Sync {
 }
 
 /// Production implementation of software statement validator
+    /// Validate a software statement JWT and extract claims
 pub struct ProductionSoftwareStatementValidator {
     db: Arc<Database>,
 }

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Audit log entry for tracking security and operational events.
 /// This struct represents a single audit log entry that captures important
 /// events, user actions, and system activities for compliance and monitoring
@@ -19,7 +20,6 @@ use serde::{Deserialize, Serialize};
 /// - Logs should be stored securely with proper access controls
 /// - Retention policies should comply with regulatory requirements
 /// - Timestamps should use UTC to ensure consistency across systems
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLog {
     /// Timestamp when the audit event occurred (UTC timezone)
     pub timestamp: DateTime<Utc>,

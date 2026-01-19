@@ -207,7 +207,6 @@ pub struct WebauthnSessionData {
 /// WebAuthn session type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WebauthnSessionType {
-    /// Session for registering a new WebAuthn credential
     Registration,
     /// Session for authenticating with an existing WebAuthn credential
     Authentication,
@@ -215,6 +214,7 @@ pub enum WebauthnSessionType {
 
 /// WebAuthn policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Session for registering a new WebAuthn credential
 pub struct WebauthnPolicy {
     /// Unique identifier for the policy
     pub id: Uuid,

@@ -8,10 +8,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Policy database model
 /// Represents a single security policy that can be applied to OAuth2/OIDC clients.
 /// Policies contain conditions that must be met and executors that enforce security rules.
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientPolicyModel {
     /// Unique identifier for the policy
     pub id: Uuid,
@@ -43,10 +43,10 @@ pub struct ClientPolicyModel {
     pub created_by: Option<Uuid>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Profile database model
 /// A profile is a reusable collection of policies that can be applied to multiple clients.
 /// Profiles enable consistent policy enforcement across similar client types.
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientProfileModel {
     /// Unique identifier for the profile
     pub id: Uuid,
@@ -72,9 +72,9 @@ pub struct ClientProfileModel {
     pub created_by: Option<Uuid>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client-Policy Assignment
 /// Associates a specific policy with a client, either directly or through a profile.
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientPolicyAssignment {
     /// Unique identifier for the assignment
     pub id: Uuid,

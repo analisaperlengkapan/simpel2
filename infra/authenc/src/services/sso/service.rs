@@ -19,7 +19,6 @@ use super::session::{SsoSession, SsoSessionManager};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum SsoProvider {
-    /// OpenID Connect
     Oidc,
     /// OAuth 2.0
     OAuth2,
@@ -31,6 +30,7 @@ pub enum SsoProvider {
 
 impl SsoProvider {
     /// Convert to string
+    /// OpenID Connect
     pub fn as_str(&self) -> &str {
         match self {
             SsoProvider::Oidc => "oidc",
@@ -96,7 +96,6 @@ pub struct SsoLogoutRequest {
 /// SSO Service trait
 #[async_trait]
 pub trait SsoService: Send + Sync {
-    /// Initiate SSO login flow
     async fn initiate_login(&self, request: SsoInitiateRequest) -> Result<String>;
 
     /// Handle SSO callback
@@ -116,6 +115,7 @@ pub trait SsoService: Send + Sync {
 }
 
 /// Default SSO Service implementation
+    /// Initiate SSO login flow
 pub struct DefaultSsoService {
     session_manager: Arc<dyn SsoSessionManager>,
     cookie_manager: Arc<SsoCookieManager>,

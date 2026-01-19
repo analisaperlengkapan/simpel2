@@ -17,7 +17,6 @@ use std::time::Duration;
 /// Secreton client wrapper for CAPTCHA operations
 #[derive(Debug, Clone)]
 pub struct CaptchaSecretonClient {
-    /// Underlying Secreton client
     client: Arc<SecretonClient>,
     /// Key ID for CAPTCHA encryption
     encryption_key_id: String,
@@ -25,6 +24,7 @@ pub struct CaptchaSecretonClient {
 
 /// Encrypted challenge data
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Underlying Secreton client
 pub struct EncryptedChallengeData {
     /// Encrypted challenge content
     pub ciphertext: String,
@@ -39,7 +39,6 @@ pub struct EncryptedChallengeData {
 /// Secreton client trait for CAPTCHA operations
 #[async_trait]
 pub trait CaptchaSecretonTrait: Send + Sync {
-    /// Encrypt challenge data
     async fn encrypt_challenge(
         &self,
         plaintext: &str,
@@ -62,6 +61,7 @@ pub trait CaptchaSecretonTrait: Send + Sync {
 
 impl CaptchaSecretonClient {
     /// Create a new CAPTCHA Secreton client
+    /// Encrypt challenge data
     pub fn new(client: Arc<SecretonClient>, encryption_key_id: String) -> Self {
         Self {
             client,
@@ -69,7 +69,6 @@ impl CaptchaSecretonClient {
         }
     }
 
-    /// Get or create encryption key for CAPTCHA operations
     async fn ensure_encryption_key(
         &self,
         context: &SecurityContext,
@@ -206,6 +205,7 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
 }
 
 /// Create a default CAPTCHA Secreton client
+    /// Get or create encryption key for CAPTCHA operations
 pub fn create_captcha_secreton_client(
     secreton_client: Arc<SecretonClient>,
 ) -> CaptchaSecretonClient {

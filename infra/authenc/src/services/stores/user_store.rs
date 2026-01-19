@@ -9,12 +9,12 @@ use crate::models::user::{CreateUserRequest, UpdateUserRequest, User};
 /// User store for managing users in the database
 #[derive(Debug, Clone)]
 pub struct UserStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl UserStore {
     /// Create a new user store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

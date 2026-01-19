@@ -10,12 +10,12 @@ use crate::services::social::SocialProvider;
 /// Social account store for managing social account links in the database
 #[derive(Debug, Clone)]
 pub struct SocialAccountStore {
-    /// Database instance
     database: Arc<Database>,
 }
 
 impl SocialAccountStore {
     /// Create a new social account store
+    /// Database instance
     pub fn new(database: Arc<Database>) -> Self {
         Self { database }
     }

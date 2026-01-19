@@ -9,7 +9,6 @@ use uuid::Uuid;
 /// Admin service trait
 #[async_trait]
 pub trait AdminService: Send + Sync {
-    /// Get system statistics
     async fn get_system_stats(&self) -> Result<SystemStats, String>;
 
     /// Get user management data
@@ -100,6 +99,7 @@ pub trait AdminService: Send + Sync {
 
 /// System statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get system statistics
 pub struct SystemStats {
     /// Total number of users in the system
     pub total_users: u64,
@@ -568,7 +568,6 @@ impl AdminManager {
         Self { db }
     }
 
-    /// Generate system statistics with real database queries
     async fn generate_system_stats(&self) -> SystemStats {
         // Integration 17: Admin Console Statistics with database verification
 
@@ -1419,8 +1418,8 @@ impl AdminService for AdminManager {
 
 /// Identity provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Generate system statistics with real database queries
 pub enum IdentityProviderType {
-    /// SAML 2.0 identity provider
     SAML,
     /// OpenID Connect identity provider
     OIDC,
@@ -1438,6 +1437,7 @@ pub enum IdentityProviderType {
 
 /// Identity provider response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// SAML 2.0 identity provider
 pub struct IdentityProviderResponse {
     /// Unique identifier for the identity provider
     pub id: Uuid,

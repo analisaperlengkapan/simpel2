@@ -23,7 +23,6 @@ use uuid::Uuid;
 
 /// Permission endpoint service
 pub struct PermissionEndpoint {
-    /// Database connection
     db: Arc<Database>,
     /// Resource store
     resource_store: Arc<dyn ResourceStoreTrait>,
@@ -41,6 +40,7 @@ pub struct PermissionEndpoint {
 
 impl PermissionEndpoint {
     /// Create new permission endpoint
+    /// Database connection
     pub fn new(
         db: Arc<Database>,
         resource_store: Arc<dyn ResourceStoreTrait>,
@@ -61,9 +61,6 @@ impl PermissionEndpoint {
         }
     }
 
-    /// Request permission ticket
-    ///
-    /// Called by resource server when client attempts access without valid RPT
     pub async fn request_permission_ticket(
         &self,
         realm_id: &str,
@@ -416,6 +413,9 @@ impl PermissionEndpoint {
 }
 
 /// Helper to create authorization context from HTTP request
+    /// Request permission ticket
+    ///
+    /// Called by resource server when client attempts access without valid RPT
 pub struct AuthorizationContextBuilder {
     subject_id: Option<String>,
     client_id: Option<String>,
@@ -448,24 +448,24 @@ impl AuthorizationContextBuilder {
     pub fn subject_id(mut self, subject_id: String) -> Self {
         self.subject_id = Some(subject_id);
         self
-/// Fungsi `client_id(mut`.
     }
 
 /// Fungsi `client_id(mut`.
+/// Fungsi `client_id(mut`.
     pub fn client_id(mut self, client_id: String) -> Self {
         self.client_id = Some(client_id);
-/// Fungsi `ip_address(mut`.
         self
     }
 /// Fungsi `ip_address(mut`.
 
+/// Fungsi `ip_address(mut`.
     pub fn ip_address(mut self, ip: String) -> Self {
-/// Fungsi `user_agent(mut`.
         self.ip_address = Some(ip);
         self
     }
 
 /// Fungsi `mfa_completed(mut`.
+/// Fungsi `user_agent(mut`.
     pub fn user_agent(mut self, ua: String) -> Self {
         self.user_agent = Some(ua);
         self
@@ -475,26 +475,26 @@ impl AuthorizationContextBuilder {
     pub fn mfa_completed(mut self, completed: bool) -> Self {
         self.mfa_completed = completed;
         self
-/// Fungsi `attribute(mut`.
     }
 
 /// Fungsi `trust_score(mut`.
+/// Fungsi `attribute(mut`.
     pub fn trust_score(mut self, score: f64) -> Self {
         self.trust_score = Some(score);
-/// Fungsi `build(`.
         self
 /// Fungsi `attribute(mut`.
     }
 /// Fungsi `attribute(mut`.
 
+/// Fungsi `build(`.
     pub fn attribute(mut self, key: String, value: serde_json::Value) -> Self {
         self.attributes.insert(key, value);
-/// Fungsi `build(`.
         self
 /// Fungsi `build(`.
     }
 
 /// Fungsi `build`.
+/// Fungsi `build(`.
     pub fn build(
         self,
     ) -> Result<(

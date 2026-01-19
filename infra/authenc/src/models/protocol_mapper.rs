@@ -34,7 +34,6 @@ pub struct ProtocolMapper {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProtocolMapperType {
-    /// Maps user properties to token claims
     UserProperty,
     /// Maps user roles to token claims
     UserRole,
@@ -95,6 +94,7 @@ impl std::str::FromStr for ProtocolMapperType {
 
 /// Protocol mapper configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Maps user properties to token claims
 pub struct ProtocolMapperConfiguration {
     /// Claim name in the token
     pub claim_name: String,

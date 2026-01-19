@@ -3,13 +3,12 @@ use std::sync::Mutex;
 
 /// Trait for anomaly detection functionality
 pub trait AnomalyDetectorTrait: Send + Sync {
-    /// Check if an IP address is new for a given user
     fn is_new_ip(&self, user_id: &str, ip: &str) -> Result<bool, String>;
 }
 
 /// Anomaly detector for tracking user IP addresses and detecting suspicious activity
+    /// Check if an IP address is new for a given user
 pub struct AnomalyDetector {
-    /// Map of user IDs to their known IP addresses for anomaly detection
     known_ips: Mutex<HashMap<String, Vec<String>>>,
 }
 
@@ -21,6 +20,7 @@ impl Default for AnomalyDetector {
 
 impl AnomalyDetector {
     /// Create a new anomaly detector instance
+    /// Map of user IDs to their known IP addresses for anomaly detection
     pub fn new() -> Self {
         Self {
             known_ips: Mutex::new(HashMap::new()),

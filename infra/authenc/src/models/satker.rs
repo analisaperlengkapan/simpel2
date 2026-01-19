@@ -33,7 +33,6 @@ pub struct Satker {
 /// Type of satker in the organizational hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SatkerType {
-    /// Central office (Kejaksaan Agung)
     Pusat,
     /// High prosecutor's office (Kejaksaan Tinggi)
     KejaksaanTinggi,
@@ -47,6 +46,7 @@ pub enum SatkerType {
 
 /// Satker hierarchy node for traversal
 #[derive(Debug, Clone)]
+    /// Central office (Kejaksaan Agung)
 pub struct SatkerNode {
     /// Satker information
     pub satker: Satker,
@@ -112,7 +112,6 @@ impl SatkerNode {
 pub struct SatkerHierarchy {
     /// Map of satker code to satker
     pub satkers: HashMap<String, Satker>,
-    /// Map of satker code to parent code
     parent_map: HashMap<String, String>,
     /// Map of satker code to children codes
     children_map: HashMap<String, Vec<String>>,
@@ -122,6 +121,7 @@ pub struct SatkerHierarchy {
 
 impl SatkerHierarchy {
     /// Create a new satker hierarchy from a list of satkers
+    /// Map of satker code to parent code
     pub fn new(satkers: Vec<Satker>) -> Self {
         let mut satker_map = HashMap::new();
         let mut parent_map = HashMap::new();

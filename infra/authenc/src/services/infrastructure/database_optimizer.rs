@@ -11,7 +11,6 @@ use tracing::{debug, info, warn};
 
 /// Database optimizer for MFA operations
 pub struct DatabaseOptimizer {
-    /// Optimized connection pool for MFA operations
     mfa_pool: Pool,
     /// Performance metrics
     metrics: DatabaseMetrics,
@@ -19,6 +18,7 @@ pub struct DatabaseOptimizer {
 
 /// Database performance metrics
 #[derive(Debug, Clone, Default)]
+    /// Optimized connection pool for MFA operations
 pub struct DatabaseMetrics {
     /// Total number of MFA queries executed
     pub total_queries: u64,
@@ -103,7 +103,6 @@ impl DatabaseOptimizer {
         result
     }
 
-    /// Update performance metrics
     fn update_metrics(&mut self, query_name: &str, execution_time: Duration) {
         let execution_ms = execution_time.as_millis() as f64;
 
@@ -136,6 +135,7 @@ impl DatabaseOptimizer {
     }
 
     /// Get current performance metrics
+    /// Update performance metrics
     pub fn get_metrics(&self) -> DatabaseMetrics {
         let mut metrics = self.metrics.clone();
 
@@ -267,12 +267,12 @@ pub struct DatabaseHealthStatus {
 
 /// Query performance analyzer for MFA operations
 pub struct MfaQueryAnalyzer {
-    /// Query execution times by query type
     query_times: std::collections::HashMap<String, Vec<Duration>>,
 }
 
 impl MfaQueryAnalyzer {
     /// Create a new query analyzer
+    /// Query execution times by query type
     pub fn new() -> Self {
         Self {
             query_times: std::collections::HashMap::new(),

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// OIDC client configuration for OAuth 2.0 and OpenID Connect authentication flows.
 /// This struct represents an OAuth 2.0 client that can participate in OIDC authentication
 /// flows with the authorization server. It contains the necessary configuration for
@@ -16,7 +17,6 @@ use serde::{Deserialize, Serialize};
 /// - Redirect URIs should be validated to prevent open redirect attacks
 /// - Client IDs should be unique and not guessable
 /// - Disabled clients should not be able to authenticate users
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcClient {
     /// Unique internal identifier for the OIDC client (UUID or similar)
     pub id: String,

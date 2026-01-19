@@ -56,7 +56,6 @@ pub struct UserProfileAttribute {
 /// Attribute types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AttributeType {
-    /// Text attribute type
     Text,
     /// Email attribute type
     Email,
@@ -78,6 +77,7 @@ pub enum AttributeType {
 
 /// Attribute validation rules
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Text attribute type
 pub struct AttributeValidation {
     /// Validator name
     pub validator: String,
@@ -88,7 +88,6 @@ pub struct AttributeValidation {
 /// User profile context
 #[derive(Debug, Clone)]
 pub enum UserProfileContext {
-    /// User registration
     Registration,
     /// User profile update
     UpdateProfile,
@@ -101,8 +100,8 @@ pub enum UserProfileContext {
 }
 
 /// User profile provider interface
+    /// User registration
 pub trait UserProfileProvider: Provider {
-    /// Get user profile attributes for a context
     fn get_profile_attributes(
         &self,
         context: UserProfileContext,
@@ -128,6 +127,7 @@ pub trait UserProfileProvider: Provider {
 
 /// User profile validation result
 #[derive(Debug, Clone)]
+    /// Get user profile attributes for a context
 pub struct UserProfileValidationResult {
     /// Whether validation passed
     pub is_valid: bool,
@@ -159,7 +159,6 @@ pub struct UserProfileGroup {
 
 /// User profile provider factory
 pub trait UserProfileProviderFactory: ProviderFactory<dyn UserProfileProvider> {
-    /// Get the provider priority
     fn get_priority(&self) -> i32 {
         0
     }
@@ -167,6 +166,7 @@ pub trait UserProfileProviderFactory: ProviderFactory<dyn UserProfileProvider> {
 
 /// User profile errors
 #[derive(Debug, thiserror::Error)]
+    /// Get the provider priority
 pub enum UserProfileError {
     /// User profile validation failed
     #[error("User profile validation failed: {0}")]

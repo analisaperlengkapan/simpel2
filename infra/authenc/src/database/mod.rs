@@ -11,7 +11,6 @@ use crate::{
 #[derive(Clone)] // Derive Clone for easy sharing across handlers
 pub struct Database {
     pool: Pool,
-    /// Prepared statement cache for improved performance
     prepared_cache: PreparedStatementCache,
     /// Pool metrics for monitoring
     metrics: std::sync::Arc<PoolMetrics>,
@@ -32,6 +31,7 @@ impl std::fmt::Debug for Database {
 
 /// Pool metrics for monitoring connection pool health
 #[derive(Debug, Default)]
+    /// Prepared statement cache for improved performance
 pub struct PoolMetrics {
     /// Total connections acquired
     pub connections_acquired: std::sync::atomic::AtomicU64,
@@ -362,8 +362,6 @@ impl Database {
         })
     }
 
-    /// Execute multiple queries within a single connection
-    /// Note: For true transactions, use the database client directly
     pub async fn execute_batch<F, Fut, R>(&self, f: F) -> Result<R>
     where
         F: FnOnce(&deadpool_postgres::Client) -> Fut,
@@ -389,6 +387,8 @@ impl Database {
     }
 
     /// Get pool health metrics
+    /// Execute multiple queries within a single connection
+    /// Note: For true transactions, use the database client directly
     pub fn pool_health(&self) -> PoolHealth {
         let status = self.pool.status();
         let size = status.size;
@@ -436,8 +436,6 @@ impl Database {
         }
     }
 
-    /// Perform periodic connection validation
-    /// This should be called periodically (e.g., every 30 seconds) to ensure connections are healthy
     pub async fn validate_connections(&self) -> Result<ValidationResult> {
         let start = std::time::Instant::now();
         let health = self.pool_health();
@@ -479,6 +477,8 @@ impl Database {
 
 /// Detailed pool statistics
 #[derive(Debug, Clone)]
+    /// Perform periodic connection validation
+    /// This should be called periodically (e.g., every 30 seconds) to ensure connections are healthy
 pub struct PoolStats {
     /// Current pool size
     pub size: usize,
@@ -576,10 +576,6 @@ impl Database {
         }
     }
 
-    /// Execute work within a transaction
-    ///
-    /// The provided closure receives the client and can perform multiple operations.
-    /// The transaction is automatically committed if the closure succeeds, or rolled back on error.
     pub async fn with_transaction<F, R>(&self, f: F) -> Result<R>
     where
         F: for<'a> FnOnce(
@@ -613,6 +609,10 @@ impl Database {
     }
 
     /// Get the prepared statement cache
+    /// Execute work within a transaction
+    ///
+    /// The provided closure receives the client and can perform multiple operations.
+    /// The transaction is automatically committed if the closure succeeds, or rolled back on error.
     pub fn prepared_cache(&self) -> &PreparedStatementCache {
         &self.prepared_cache
     }
@@ -622,9 +622,6 @@ impl Database {
         self.prepared_cache.stats()
     }
 
-    /// Execute batch operations
-    ///
-    /// The provided closure receives a BatchOperations builder for bulk inserts, updates, deletes.
     pub async fn with_batch_operations<F, R>(&self, f: F) -> Result<R>
     where
         F: for<'a> FnOnce(
@@ -640,6 +637,9 @@ impl Database {
     }
 
     /// Clear prepared statement cache (useful for schema changes)
+    /// Execute batch operations
+    ///
+    /// The provided closure receives a BatchOperations builder for bulk inserts, updates, deletes.
     pub fn clear_prepared_cache(&self) {
         self.prepared_cache.clear();
     }

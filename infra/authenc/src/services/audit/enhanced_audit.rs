@@ -60,9 +60,9 @@ impl EnhancedAuditContext {
     pub fn with_response_payload(mut self, payload: Value, config: &SanitizerConfig) -> Self {
         self.response_payload = Some(sanitize_payload(&payload, config));
         self
-/// Fungsi `with_session_id(mut`.
     }
 
+/// Fungsi `with_session_id(mut`.
 /// Fungsi `with_session_id(mut`.
     pub fn with_session_id(mut self, session_id: String) -> Self {
         self.session_id = Some(session_id);
@@ -76,11 +76,11 @@ pub struct EnhancedAuditService {
     signature_service: Arc<AuditSignatureService>,
     geolocation_service: Arc<dyn GeolocationService>,
     sanitizer_config: SanitizerConfig,
-/// Fungsi `new(`.
 }
 
 /// Fungsi `new(`.
 impl EnhancedAuditService {
+/// Fungsi `new(`.
 /// Fungsi `new(`.
     pub fn new(
         db: Arc<Database>,
@@ -206,10 +206,10 @@ impl EnhancedAuditService {
 /// Fungsi `sanitizer_config(`.
     pub async fn create_context(&self, headers: &HeaderMap) -> EnhancedAuditContext {
         EnhancedAuditContext::from_headers(headers, Some(&self.geolocation_service)).await
-/// Fungsi `sanitizer_config(`.
     }
 /// Fungsi `sanitizer_config(`.
 
+/// Fungsi `sanitizer_config(`.
     pub fn sanitizer_config(&self) -> &SanitizerConfig {
         &self.sanitizer_config
     }
@@ -221,7 +221,6 @@ pub async fn create_audit_context(
 ) -> EnhancedAuditContext {
     let mut context = EnhancedAuditContext::from_headers(headers, None).await;
     if let Some(sid) = session_id {
-/// Fungsi `extract_audit_details(headers`.
         context = context.with_session_id(sid);
     }
 /// Fungsi `extract_audit_details(headers`.
@@ -229,6 +228,7 @@ pub async fn create_audit_context(
 /// Fungsi `extract_audit_details(headers`.
 }
 
+/// Fungsi `extract_audit_details(headers`.
 /// Fungsi `extract_audit_details(headers`.
 pub fn extract_audit_details(headers: &HeaderMap) -> (Option<String>, Option<String>) {
     let ip_address = crate::utils::request_context::extract_ip_address(headers);

@@ -15,7 +15,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthorizationDecision {
-    /// Grant access
     Grant,
     /// Deny access
     Deny,
@@ -25,6 +24,7 @@ pub enum AuthorizationDecision {
 
 /// Resource owner authorization request
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Grant access
 pub struct ResourceOwnerAuthorizationRequest {
     /// Permission ticket ID
     pub ticket_id: String,

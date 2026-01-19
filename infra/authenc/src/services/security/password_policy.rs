@@ -107,20 +107,6 @@ impl PasswordPolicyService {
         Self::new(database, PasswordPolicyConfig::default())
     }
 
-    /// Validate a new password against all policy rules
-    ///
-    /// This performs comprehensive validation including:
-    /// - Password strength requirements
-    /// - Password history check
-    /// - Username inclusion check
-    ///
-    /// # Arguments
-    /// * `user_id` - ID of the user changing their password
-    /// * `username` - Username to check for inclusion
-    /// * `new_password` - The new password to validate
-    ///
-    /// # Returns
-    /// A `PasswordPolicyValidationResult` with validation status and details
     pub async fn validate_new_password(
         &self,
         user_id: Uuid,
@@ -172,6 +158,20 @@ impl PasswordPolicyService {
     ///
     /// # Returns
     /// Tuple of (is_expired, days_until_expiration)
+    /// Validate a new password against all policy rules
+    ///
+    /// This performs comprehensive validation including:
+    /// - Password strength requirements
+    /// - Password history check
+    /// - Username inclusion check
+    ///
+    /// # Arguments
+    /// * `user_id` - ID of the user changing their password
+    /// * `username` - Username to check for inclusion
+    /// * `new_password` - The new password to validate
+    ///
+    /// # Returns
+    /// A `PasswordPolicyValidationResult` with validation status and details
     pub fn check_expiration(&self, user: &User) -> (bool, Option<i64>) {
         check_password_expiration(
             user.password_expires_at,
@@ -193,13 +193,6 @@ impl PasswordPolicyService {
         calculate_password_expiration(password_changed_at, self.config.password_expiration_days)
     }
 
-    /// Get password history for a user from database
-    ///
-    /// # Arguments
-    /// * `user_id` - ID of the user
-    ///
-    /// # Returns
-    /// Vector of password hashes from history
     async fn get_password_history(
         &self,
         user_id: Uuid,
@@ -336,6 +329,13 @@ impl PasswordPolicyService {
     }
 
     /// Get password policy configuration
+    /// Get password history for a user from database
+    ///
+    /// # Arguments
+    /// * `user_id` - ID of the user
+    ///
+    /// # Returns
+    /// Vector of password hashes from history
     pub fn get_config(&self) -> &PasswordPolicyConfig {
         &self.config
     }

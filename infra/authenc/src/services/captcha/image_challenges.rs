@@ -12,7 +12,6 @@ use std::time::Duration;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ImagePuzzleType {
-    /// Jigsaw puzzle - arrange pieces to form complete image
     Jigsaw {
         /// Number of pieces in the puzzle
         pieces: u8,
@@ -58,6 +57,7 @@ pub enum ImagePuzzleType {
 
 /// Image challenge data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Jigsaw puzzle - arrange pieces to form complete image
 pub struct ImageChallenge {
     /// Type of image puzzle
     pub puzzle_type: ImagePuzzleType,

@@ -48,7 +48,6 @@ impl Default for MfaSecurityMonitorConfig {
 /// MFA security event types for monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MfaSecurityEventType {
-    /// Excessive failed MFA attempts from single IP
     ExcessiveFailedAttempts {
         /// IP address showing excessive failed attempts
         ip: String,
@@ -112,8 +111,8 @@ pub enum MfaSecurityEventType {
 
 /// Security alert severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Excessive failed MFA attempts from single IP
 pub enum AlertSeverity {
-    /// Low severity alert
     Low,
     /// Medium severity alert
     Medium,
@@ -125,6 +124,7 @@ pub enum AlertSeverity {
 
 /// Security alert information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Low severity alert
 pub struct SecurityAlert {
     /// Unique identifier of the security alert
     pub id: Uuid,
@@ -180,11 +180,11 @@ pub struct MfaSecurityMonitor {
 
 /// Trait for handling security alerts
 pub trait AlertHandler: Send + Sync {
-    /// Handle a security alert by processing it according to implementation logic
     fn handle_alert(&self, alert: &SecurityAlert) -> Result<(), AuthencError>;
 }
 
 /// Default alert handler that logs alerts
+    /// Handle a security alert by processing it according to implementation logic
 pub struct LoggingAlertHandler;
 
 impl AlertHandler for LoggingAlertHandler {

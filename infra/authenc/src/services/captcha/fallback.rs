@@ -47,7 +47,6 @@ impl Default for FallbackConfig {
 /// Fallback service state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FallbackState {
-    /// Normal operation with all services available
     Normal,
     /// Degraded operation with some services unavailable
     Degraded,
@@ -56,6 +55,7 @@ pub enum FallbackState {
 }
 
 /// Local encryption fallback when Secreton is unavailable
+    /// Normal operation with all services available
 pub struct LocalEncryptionFallback {
     key: [u8; 32],
     enabled: bool,

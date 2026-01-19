@@ -8,7 +8,6 @@ use tokio::sync::RwLock;
 /// Satker authorization service for hierarchy-aware access control
 #[derive(Clone)]
 pub struct SatkerAuthorizationService {
-    /// Satker hierarchy for traversal
     hierarchy: Arc<RwLock<SatkerHierarchy>>,
     /// Cache for authorization decisions
     decision_cache: Arc<RwLock<HashMap<String, CrossSatkerValidation>>>,
@@ -16,6 +15,7 @@ pub struct SatkerAuthorizationService {
 
 impl SatkerAuthorizationService {
     /// Create a new satker authorization service
+    /// Satker hierarchy for traversal
     pub fn new(satkers: Vec<Satker>) -> Self {
         let hierarchy = SatkerHierarchy::new(satkers);
 
@@ -66,7 +66,6 @@ impl SatkerAuthorizationService {
         Ok(false)
     }
 
-    /// Check if a role grants access to a target satker
     fn role_grants_access(
         &self,
         role: &Role,
@@ -358,6 +357,7 @@ impl SatkerAuthorizationService {
 
 /// Satker hierarchy information response
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    /// Check if a role grants access to a target satker
 pub struct SatkerHierarchyInfo {
     /// The satker itself
     pub satker: Satker,

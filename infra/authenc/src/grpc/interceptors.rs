@@ -9,10 +9,10 @@ use std::time::{Duration, Instant};
 use tonic::{Request, Status};
 use tracing::{debug, info, warn};
 
+#[derive(Clone)]
 /// Authentication interceptor
 /// Validates JWT tokens from request metadata and injects user context
 /// into request extensions for downstream handlers.
-#[derive(Clone)]
 pub struct AuthInterceptor {
     /// Optional: List of methods that don't require authentication
     pub exempt_methods: Vec<String>,
@@ -30,7 +30,6 @@ impl AuthInterceptor {
         }
     }
 
-    /// Check if a method is exempt from authentication
     fn is_exempt(&self, method: &str) -> bool {
         self.exempt_methods.iter().any(|m| m == method)
     }
@@ -78,6 +77,7 @@ impl tonic::service::Interceptor for AuthInterceptor {
 /// Logging interceptor
 /// Logs all incoming gRPC requests with method name, metadata, and timing information.
 #[derive(Clone)]
+    /// Check if a method is exempt from authentication
 pub struct LoggingInterceptor {
     /// Enable verbose logging
     pub verbose: bool,
@@ -94,7 +94,6 @@ impl LoggingInterceptor {
         Self { verbose: true }
     }
 
-    /// Extract request ID from metadata
     fn extract_request_id(&self, request: &Request<()>) -> Option<String> {
         request
             .metadata()
@@ -154,6 +153,7 @@ impl tonic::service::Interceptor for LoggingInterceptor {
 /// - Request latency per method
 /// - Error rate per method
 #[derive(Clone)]
+    /// Extract request ID from metadata
 pub struct MetricsInterceptor {
     /// Enable detailed metrics
     pub detailed: bool,
@@ -165,7 +165,6 @@ impl MetricsInterceptor {
         Self { detailed: true }
     }
 
-    /// Record request start time
     fn record_request_start(&self, request: &mut Request<()>) {
         let start_time = Instant::now();
         request.extensions_mut().insert(start_time);
@@ -210,10 +209,10 @@ struct RateLimitEntry {
 
 /// Mewakili struktur data `RateLimitInterceptor`.
 #[derive(Clone)]
+    /// Record request start time
 pub struct RateLimitInterceptor {
     /// Requests per minute limit
     pub limit: u32,
-    /// Window duration (default: 1 minute)
     window_duration: Duration,
     /// Per-client rate limit entries
     entries: Arc<DashMap<String, RateLimitEntry>>,
@@ -221,6 +220,7 @@ pub struct RateLimitInterceptor {
 
 impl RateLimitInterceptor {
     /// Create a new rate limiting interceptor
+    /// Window duration (default: 1 minute)
     pub fn new(limit: u32) -> Self {
         Self {
             limit,

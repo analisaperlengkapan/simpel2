@@ -35,7 +35,6 @@ pub enum PolicyEnforcementMode {
     /// Enforce policies
     #[default]
     Enforcing,
-    /// Permit all requests
     Permissive,
     /// Deny all requests
     Disabled,
@@ -43,6 +42,7 @@ pub enum PolicyEnforcementMode {
 
 impl PolicyEnforcementMode {
     /// Convert to string representation
+    /// Permit all requests
     pub fn as_str(&self) -> &str {
         match self {
             PolicyEnforcementMode::Enforcing => "enforcing",
@@ -71,7 +71,6 @@ pub enum DecisionStrategy {
     /// Unanimous decision (all policies must permit)
     #[default]
     Unanimous,
-    /// Affirmative decision (at least one policy must permit)
     Affirmative,
     /// Consensus decision (majority of policies must permit)
     Consensus,
@@ -79,6 +78,7 @@ pub enum DecisionStrategy {
 
 impl DecisionStrategy {
     /// Convert to string representation
+    /// Affirmative decision (at least one policy must permit)
     pub fn as_str(&self) -> &str {
         match self {
             DecisionStrategy::Unanimous => "unanimous",

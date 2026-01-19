@@ -16,7 +16,6 @@ use std::collections::HashMap;
 /// User Federation Provider trait (enterprise IAM standard's UserStorageProvider)
 #[async_trait]
 pub trait UserFederationProvider: Send + Sync {
-    /// Get provider name
     fn name(&self) -> &str;
 
     /// Validate user credentials
@@ -44,6 +43,7 @@ pub trait UserFederationProvider: Send + Sync {
 
 /// User information structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get provider name
 pub struct UserInfo {
     /// Username
     pub username: String,
@@ -393,6 +393,7 @@ impl UserFederationProvider for KerberosFederationProvider {
     }
 }
 
+#[async_trait]
 /// Social Login Provider trait
 /// Defines the interface for social login providers (OAuth2/OIDC).
 /// Implementations handle the OAuth2 flow for various social platforms.
@@ -401,12 +402,7 @@ impl UserFederationProvider for KerberosFederationProvider {
 /// - State parameters must be validated to prevent CSRF attacks
 /// - Access tokens should be validated before use
 /// - HTTPS must be used for all OAuth2 endpoints
-#[async_trait]
 pub trait SocialLoginProvider: Send + Sync {
-    /// Get provider name
-    ///
-    /// Returns a unique identifier for the social login provider.
-    /// Used for provider registration and identification.
     fn name(&self) -> &str;
 
     /// Get authorization URL
@@ -448,6 +444,10 @@ pub trait SocialLoginProvider: Send + Sync {
 
 /// Social login result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get provider name
+    ///
+    /// Returns a unique identifier for the social login provider.
+    /// Used for provider registration and identification.
 pub struct SocialLoginResult {
     /// Access token
     pub access_token: String,

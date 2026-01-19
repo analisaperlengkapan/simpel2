@@ -246,9 +246,6 @@ pub struct OAuth2TokenResponse {
 
 use crate::error::Result;
 
-/// Converts a PostgreSQL database row into an OAuth2Client instance
-/// This implementation extracts all OAuth2Client fields from a database row
-/// and constructs a new OAuth2Client struct. All fields are required in the row.
 impl TryFrom<tokio_postgres::Row> for OAuth2Client {
     type Error = AuthencError;
 
@@ -356,6 +353,9 @@ impl TryFrom<tokio_postgres::Row> for OAuth2AccessToken {
 /// Client registration access token (RFC 7592)
 /// Tokens issued for managing dynamically registered clients
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Converts a PostgreSQL database row into an OAuth2Client instance
+/// This implementation extracts all OAuth2Client fields from a database row
+/// and constructs a new OAuth2Client struct. All fields are required in the row.
 pub struct ClientRegistrationToken {
     /// Unique identifier
     pub id: Uuid,
@@ -377,9 +377,9 @@ pub struct ClientRegistrationToken {
     pub last_used_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Initial access token (RFC 7591)
 /// Tokens used to protect the client registration endpoint
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitialAccessToken {
     /// Unique identifier
     pub id: Uuid,

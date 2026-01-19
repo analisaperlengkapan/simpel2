@@ -110,7 +110,6 @@ pub struct AutomationIndicator {
 /// Indicator severity levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndicatorSeverity {
-    /// Low severity automation indicator
     Low,
     /// Medium severity automation indicator
     Medium,
@@ -122,6 +121,7 @@ pub enum IndicatorSeverity {
 
 /// Privacy risk assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Low severity automation indicator
 pub struct PrivacyRisk {
     /// Overall privacy risk level
     pub risk_level: PrivacyRiskLevel,
@@ -134,7 +134,6 @@ pub struct PrivacyRisk {
 /// Privacy risk levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PrivacyRiskLevel {
-    /// Minimal privacy risk
     Minimal,
     /// Low privacy risk
     Low,
@@ -146,6 +145,7 @@ pub enum PrivacyRiskLevel {
 
 /// Fingerprinting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Minimal privacy risk
 pub struct FingerprintingConfig {
     /// Enable advanced fingerprinting techniques
     pub enable_advanced_fingerprinting: bool,
@@ -194,7 +194,6 @@ impl Default for FingerprintingConfig {
 /// Browser fingerprinting engine trait
 #[async_trait]
 pub trait FingerprintingEngine: Send + Sync {
-    /// Analyze basic browser fingerprint
     async fn analyze_basic_fingerprint(
         &self,
         fingerprint: &BrowserFingerprint,
@@ -239,6 +238,7 @@ pub trait FingerprintingEngine: Send + Sync {
 }
 
 /// Default fingerprinting engine implementation
+    /// Analyze basic browser fingerprint
 pub struct DefaultFingerprintingEngine {
     config: FingerprintingConfig,
 

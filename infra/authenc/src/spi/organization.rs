@@ -71,7 +71,6 @@ pub struct OrganizationMemberModel {
 /// Organization roles
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OrganizationRole {
-    /// Organization owner with full access
     Owner,
     /// Organization admin with management access
     Admin,
@@ -81,6 +80,7 @@ pub enum OrganizationRole {
 
 impl OrganizationRole {
     /// Convert the role to its string representation
+    /// Organization owner with full access
     pub fn as_str(&self) -> &'static str {
         match self {
             OrganizationRole::Owner => "OWNER",
@@ -103,7 +103,6 @@ impl OrganizationRole {
 /// Organization provider trait
 #[async_trait]
 pub trait OrganizationProvider: Provider + Send + Sync {
-    /// Create a new organization
     async fn create_organization(
         &self,
         name: &str,
@@ -178,6 +177,7 @@ pub trait OrganizationProvider: Provider + Send + Sync {
 }
 
 /// Default organization provider implementation
+    /// Create a new organization
 pub struct DefaultOrganizationProvider {
     // In a real implementation, this would hold database connections, etc.
 }

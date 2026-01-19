@@ -7,7 +7,6 @@
 use serde_json::{Map, Value, json};
 use std::collections::HashSet;
 
-/// Fields that should be completely removed from audit logs
 const SENSITIVE_FIELDS: &[&str] = &[
     "password",
     "password_hash",
@@ -45,6 +44,7 @@ const MASKABLE_FIELDS: &[&str] = &[
 
 /// Payload sanitizer configuration
 #[derive(Debug, Clone)]
+/// Fields that should be completely removed from audit logs
 pub struct SanitizerConfig {
     /// Additional sensitive fields to remove
     pub additional_sensitive_fields: HashSet<String>,
@@ -102,7 +102,6 @@ pub fn sanitize_payload(payload: &Value, config: &SanitizerConfig) -> Value {
     }
 }
 
-/// Check if a field is sensitive and should be removed
 fn is_sensitive_field(field: &str, config: &SanitizerConfig) -> bool {
     SENSITIVE_FIELDS.contains(&field) || config.additional_sensitive_fields.contains(field)
 }
@@ -148,6 +147,7 @@ fn mask_email(email: &str) -> Value {
 }
 
 /// Sanitize a string payload (JSON or plain text)
+/// Check if a field is sensitive and should be removed
 pub fn sanitize_string_payload(payload: &str, config: &SanitizerConfig) -> Result<String, String> {
     // Check size limit
     if payload.len() > config.max_payload_size {

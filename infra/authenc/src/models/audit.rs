@@ -45,7 +45,6 @@ pub struct AuditLog {
 /// Audit event type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuditEventType {
-    /// User login event
     Login,
     /// User logout event
     Logout,
@@ -117,8 +116,8 @@ pub enum AuditEventType {
 
 /// Audit operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// User login event
 pub enum AuditOperation {
-    /// Create operation
     Create,
     /// Read operation
     Read,
@@ -150,8 +149,8 @@ pub enum AuditOperation {
 
 /// Audit result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Create operation
 pub enum AuditResult {
-    /// Operation completed successfully
     Success,
     /// Operation failed
     Failure,
@@ -165,6 +164,7 @@ pub enum AuditResult {
 
 /// Audit event for creating audit log entries
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Operation completed successfully
 pub struct AuditEvent {
     /// Timestamp when the event occurred
     pub timestamp: DateTime<Utc>,
@@ -287,7 +287,6 @@ pub struct SecurityEvent {
 /// Security event type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityEventType {
-    /// Brute force attack attempt detected
     BruteForceAttempt,
     /// Account has been locked out
     AccountLockout,
@@ -319,8 +318,8 @@ pub enum SecurityEventType {
 
 /// Security severity
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Brute force attack attempt detected
 pub enum SecuritySeverity {
-    /// Low severity security event
     Low,
     /// Medium severity security event
     Medium,
@@ -332,6 +331,7 @@ pub enum SecuritySeverity {
 
 /// Audit retention policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Low severity security event
 pub struct AuditRetentionPolicy {
     /// Unique identifier for the retention policy
     pub id: Uuid,
@@ -391,7 +391,6 @@ pub struct AuditExportJob {
 /// Audit export format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuditExportFormat {
-    /// Export in JSON format
     Json,
     /// Export in CSV format
     Csv,
@@ -403,6 +402,7 @@ pub enum AuditExportFormat {
 
 /// Audit export status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Export in JSON format
 pub enum AuditExportStatus {
     /// Export job is pending
     Pending,

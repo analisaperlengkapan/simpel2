@@ -34,7 +34,6 @@ pub enum AuditSignatureError {
 /// Audit signature service for tamper-proof logging
 #[derive(Clone)]
 pub struct AuditSignatureService {
-    /// HMAC secret key for signing
     secret_key: Arc<Vec<u8>>,
 }
 
@@ -43,6 +42,7 @@ impl AuditSignatureService {
     ///
     /// # Arguments
     /// * `secret_key` - Secret key for HMAC signing (should be at least 32 bytes)
+    /// HMAC secret key for signing
     pub fn new(secret_key: Vec<u8>) -> Self {
         Self {
             secret_key: Arc::new(secret_key),

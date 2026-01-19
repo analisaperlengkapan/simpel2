@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 
 /// Brute force protection service to prevent credential stuffing and dictionary attacks
 pub struct BruteForceProtector {
-    /// Map of keys (username/IP) to timestamps of failed attempts
     attempts: Mutex<HashMap<String, Vec<Instant>>>,
     /// Maximum number of failed attempts allowed within the time window
     pub max_attempts: usize,
@@ -18,6 +17,7 @@ impl BruteForceProtector {
     /// # Arguments
     /// * `max_attempts` - Maximum number of failed attempts allowed within the time window
     /// * `window_secs` - Time window in seconds for counting failed attempts
+    /// Map of keys (username/IP) to timestamps of failed attempts
     pub fn new(max_attempts: usize, window_secs: u64) -> Self {
         Self {
             attempts: Mutex::new(HashMap::new()),

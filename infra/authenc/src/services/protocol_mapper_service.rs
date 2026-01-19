@@ -166,7 +166,6 @@ impl ProtocolMapperService {
         Ok(claims)
     }
 
-    /// Evaluate a single mapper
     async fn evaluate_mapper(
         &self,
         mapper: &ProtocolMapper,
@@ -486,6 +485,7 @@ impl ProtocolMapperService {
 
 /// Token type for mapper inclusion filtering
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// Evaluate a single mapper
 pub enum TokenType {
     AccessToken,
     IdToken,

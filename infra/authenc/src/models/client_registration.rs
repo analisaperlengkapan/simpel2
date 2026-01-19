@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Registration Request (RFC 7591)
 /// Parameters for registering a new OAuth 2.0 client dynamically
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientRegistrationRequest {
     /// Array of redirection URIs for use in redirect-based flows
     pub redirect_uris: Vec<String>,
@@ -129,9 +129,9 @@ pub struct ClientRegistrationRequest {
     pub additional_metadata: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Registration Response (RFC 7591)
 /// Response containing the registered client information
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientRegistrationResponse {
     /// OAuth 2.0 client identifier string
     pub client_id: String,
@@ -280,9 +280,9 @@ pub struct ClientRegistrationResponse {
     pub additional_metadata: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Update Request (RFC 7592)
 /// Parameters for updating a registered client
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientUpdateRequest {
     /// Array of redirection URIs for use in redirect-based flows
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -409,9 +409,9 @@ pub struct ClientUpdateRequest {
     pub additional_metadata: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Software Statement (RFC 7591)
 /// JWT containing client metadata signed by a trusted party
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SoftwareStatement {
     /// Software identifier
     #[serde(skip_serializing_if = "Option::is_none")]

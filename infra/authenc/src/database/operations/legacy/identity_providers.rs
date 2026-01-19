@@ -1,4 +1,3 @@
-/// Database operations for identity provider management
 use crate::{database::Database, error::Result};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -6,6 +5,7 @@ use uuid::Uuid;
 
 /// Mewakili struktur data `IdentityProviderData`.
 #[derive(Debug, Clone)]
+/// Database operations for identity provider management
 pub struct IdentityProviderData {
     pub id: Uuid,
     pub name: String,

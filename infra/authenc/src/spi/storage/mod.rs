@@ -16,7 +16,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Storage provider types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StorageProviderType {
-    /// User storage provider
     User,
     /// Client storage provider
     Client,
@@ -28,6 +27,7 @@ pub enum StorageProviderType {
 
 /// Storage query context for filtering and pagination
 #[derive(Debug, Clone, Default)]
+    /// User storage provider
 pub struct StorageQueryContext {
     /// Optional realm identifier to filter storage items
     pub realm_id: Option<String>,
@@ -44,7 +44,6 @@ pub struct StorageQueryContext {
 /// Storage provider trait - base trait for all storage providers
 #[async_trait]
 pub trait StorageProvider: Provider + Send + Sync {
-    /// Get the storage provider type
     fn get_type(&self) -> StorageProviderType;
 
     /// Get the provider name
@@ -53,8 +52,8 @@ pub trait StorageProvider: Provider + Send + Sync {
 
 /// User storage provider trait
 #[async_trait]
+    /// Get the storage provider type
 pub trait UserStorageProvider: StorageProvider {
-    /// Get user by ID
     async fn get_user(&self, user_id: Uuid) -> Result<Option<User>>;
 
     /// Get user by username
@@ -81,8 +80,8 @@ pub trait UserStorageProvider: StorageProvider {
 
 /// Client storage provider trait
 #[async_trait]
+    /// Get user by ID
 pub trait ClientStorageProvider: StorageProvider {
-    /// Get client by ID
     async fn get_client(&self, client_id: Uuid) -> Result<Option<OidcClient>>;
 
     /// Get client by client_id string
@@ -110,8 +109,8 @@ pub trait ClientStorageProvider: StorageProvider {
 
 /// Role storage provider trait
 #[async_trait]
+    /// Get client by ID
 pub trait RoleStorageProvider: StorageProvider {
-    /// Get role by ID
     async fn get_role(&self, role_id: Uuid) -> Result<Option<Role>>;
 
     /// Get role by name
@@ -135,8 +134,8 @@ pub trait RoleStorageProvider: StorageProvider {
 
 /// Group storage provider trait
 #[async_trait]
+    /// Get role by ID
 pub trait GroupStorageProvider: StorageProvider {
-    /// Get group by ID
     async fn get_group(&self, group_id: Uuid) -> Result<Option<Group>>;
 
     /// Get group by name
@@ -160,6 +159,7 @@ pub trait GroupStorageProvider: StorageProvider {
 }
 
 /// Default user storage provider implementation
+    /// Get group by ID
 pub struct DefaultUserStorageProvider {
     user_store: Arc<dyn UserStoreTrait>,
 }
@@ -531,7 +531,6 @@ impl Provider for DefaultGroupStorageProvider {
 /// Storage provider factory trait
 #[async_trait]
 pub trait StorageProviderFactory: ProviderFactory<dyn StorageProvider> {
-    /// Create a storage provider instance
     fn create_storage_provider(
         &self,
         provider_type: StorageProviderType,
@@ -539,6 +538,7 @@ pub trait StorageProviderFactory: ProviderFactory<dyn StorageProvider> {
 }
 
 /// Default storage provider factory
+    /// Create a storage provider instance
 pub struct DefaultStorageProviderFactory {
     user_store: Arc<dyn UserStoreTrait>,
     oidc_client_store: Arc<crate::services::oidc_client_store::OidcClientStore>,

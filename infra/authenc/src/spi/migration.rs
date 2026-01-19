@@ -71,12 +71,12 @@ pub enum MigrationType {
     /// SQL migration
     #[default]
     SQL,
-    /// Custom migration with custom type
     Custom(String),
 }
 
 /// Migration status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Custom migration with custom type
 pub struct MigrationStatus {
     /// Current database version
     pub current_version: String,
@@ -93,7 +93,6 @@ pub struct MigrationStatus {
 /// Provider interface for Migration operations
 #[async_trait]
 pub trait MigrationProvider: Provider + Send + Sync {
-    /// Get the current migration status
     async fn get_status(&self) -> Result<MigrationStatus>;
 
     /// Execute pending migrations
@@ -116,6 +115,7 @@ pub trait MigrationProvider: Provider + Send + Sync {
 }
 
 /// Default implementation of MigrationProvider
+    /// Get the current migration status
 pub struct DefaultMigrationProvider;
 
 impl Default for DefaultMigrationProvider {

@@ -19,7 +19,6 @@ use crate::error::AuthencError;
 /// Middleware that enforces role-based access control
 #[derive(Clone)]
 pub struct RequireRole<S> {
-    /// The inner service to wrap with RBAC protection
     inner: S,
     /// The role required to access the protected resource
     required_role: String,
@@ -27,8 +26,8 @@ pub struct RequireRole<S> {
 
 /// RBAC middleware service
 #[derive(Clone)]
-pub struct RbacMiddleware<S> {
     /// The inner service to wrap with RBAC protection
+pub struct RbacMiddleware<S> {
     inner: S,
     /// The role required to access the protected resource
     required_role: String,
@@ -36,6 +35,7 @@ pub struct RbacMiddleware<S> {
 
 impl<S> RequireRole<S> {
     /// Create a new RBAC middleware that requires the specified role
+    /// The inner service to wrap with RBAC protection
     pub fn new(inner: S, required_role: &str) -> Self {
         Self {
             inner,
@@ -111,9 +111,9 @@ pub async fn rbac_middleware(
     Ok(response)
 }
 
-/// RBAC layer
 // Simplified RBAC layer type alias
 /// Alias tipe `RbacLayer`.
+/// RBAC layer
 pub type RbacLayer<S> = RequireRole<S>;
 
 impl<S> RbacMiddleware<S> {
@@ -209,12 +209,12 @@ where
 /// Layer that applies the RBAC middleware
 #[derive(Clone)]
 pub struct RequireRoleLayer {
-    /// The role required to access the protected resource
     role: String,
 }
 
 impl RequireRoleLayer {
     /// Create a new RBAC layer that requires the specified role
+    /// The role required to access the protected resource
     pub fn new(role: &str) -> Self {
         Self {
             role: role.to_string(),

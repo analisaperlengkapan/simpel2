@@ -54,9 +54,6 @@ impl PoolMonitor {
         Self::new(database, PoolMonitorConfig::default())
     }
 
-    /// Start the monitoring service
-    ///
-    /// This runs indefinitely and should be spawned as a background task.
     pub async fn start(self) {
         info!(
             "Starting connection pool monitor (check interval: {:?})",
@@ -178,6 +175,9 @@ impl PoolMonitor {
     }
 
     /// Get current pool statistics
+    /// Start the monitoring service
+    ///
+    /// This runs indefinitely and should be spawned as a background task.
     pub fn get_stats(&self) -> PoolStats {
         self.database.pool_stats()
     }

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Client Scope entity - reusable OAuth2/OIDC scope definition
 /// Client scopes are reusable scope configurations that can be assigned to clients
 /// as either default scopes (automatically granted) or optional scopes (require user consent).
@@ -14,7 +15,6 @@ use uuid::Uuid;
 /// - Custom application scopes (read:aset, write:aset, admin:satker)
 /// - Consent management with human-readable descriptions
 /// - Protocol mapper associations for claim generation
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientScope {
     /// Unique identifier for the scope
     pub id: Uuid,

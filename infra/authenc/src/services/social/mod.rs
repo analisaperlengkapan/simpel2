@@ -5,7 +5,6 @@ use std::collections::HashMap;
 /// Social login provider types
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
 pub enum SocialProvider {
-    /// Google OAuth provider
     Google,
     /// Facebook OAuth provider
     Facebook,
@@ -35,6 +34,7 @@ pub enum SocialProvider {
 
 impl SocialProvider {
     /// Convert the provider to a string representation
+    /// Google OAuth provider
     pub fn as_str(&self) -> &str {
         match self {
             SocialProvider::Google => "google",
@@ -142,7 +142,6 @@ pub struct SocialLoginSession {
 /// Social login service trait
 #[async_trait]
 pub trait SocialLoginService: Send + Sync {
-    /// Initiate OAuth login flow
     async fn initiate_login(
         &self,
         provider: SocialProvider,
@@ -172,6 +171,7 @@ pub trait SocialLoginService: Send + Sync {
 
 /// OAuth 2.0 token response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Initiate OAuth login flow
 pub struct OAuthTokenResponse {
     /// Access token for API calls
     pub access_token: String,
@@ -191,7 +191,6 @@ use std::sync::RwLock;
 
 /// Social Login Manager
 pub struct SocialLoginManager {
-    /// Configured OAuth providers
     providers: HashMap<SocialProvider, OAuthConfig>,
     /// Active login sessions
     sessions: RwLock<HashMap<String, SocialLoginSession>>,
@@ -207,6 +206,7 @@ impl Default for SocialLoginManager {
 
 impl SocialLoginManager {
     /// Create new social login manager
+    /// Configured OAuth providers
     pub fn new() -> Self {
         Self {
             providers: HashMap::new(),
@@ -409,7 +409,6 @@ impl SocialLoginService for SocialLoginManager {
 }
 
 impl SocialLoginManager {
-    /// Parse Google user profile
     fn parse_google_profile(&self, data: serde_json::Value) -> SocialUserProfile {
         SocialUserProfile {
             provider: SocialProvider::Google,
@@ -634,6 +633,7 @@ impl SocialLoginManager {
 }
 
 /// Pre-configured OAuth configurations for popular providers
+    /// Parse Google user profile
 pub struct OAuthConfigs;
 
 impl OAuthConfigs {

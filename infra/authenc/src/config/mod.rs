@@ -421,8 +421,6 @@ fn default_cluster_name() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
-    /// Server configuration
-    /// Server configuration settings
     pub server: ServerConfig,
 
     /// Database configuration
@@ -491,6 +489,8 @@ pub struct AppConfig {
 }
 
 /// Backwards-compatibility alias for older tests and integrations
+    /// Server configuration
+    /// Server configuration settings
 pub type AuthencConfig = AppConfig;
 
 /// Federation configuration for LDAP/AD and social login
@@ -700,6 +700,7 @@ impl DatabaseConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Security configuration for the authentication platform
 /// This struct contains all security-related configuration parameters for the
 /// authentication platform, including JWT settings, password policies, rate limiting,
@@ -721,7 +722,6 @@ impl DatabaseConfig {
 ///     ..Default::default()
 /// };
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BasicSecurityConfig {
     /// Secret key for JWT signing and validation
     pub jwt_secret: String,
@@ -897,7 +897,6 @@ impl AppConfig {
         })
     }
 
-    /// Merge another config into this one (other config takes precedence)
     fn merge(&mut self, other: Self) {
         // Server config
         if other.server.host != default_host() {
@@ -1045,6 +1044,7 @@ impl AppConfig {
         note = "Use `load()` instead for file-based config with env overrides"
     )]
 /// Fungsi `from_env(`.
+    /// Merge another config into this one (other config takes precedence)
     pub fn from_env() -> Result<Self> {
         let mut config = Self::default();
         config.apply_env_overrides()?;
@@ -1331,12 +1331,12 @@ mod tests {
     }
 }
 
-/// Serde module for log level serialization
 mod log_level_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use tracing::Level;
 /// Fungsi `serialize`.
 
+/// Serde module for log level serialization
     pub fn serialize<S>(level: &Level, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1349,9 +1349,9 @@ mod log_level_serde {
             Level::ERROR => "error",
         };
         level_str.serialize(serializer)
-/// Fungsi `deserialize`.
     }
 
+/// Fungsi `deserialize`.
 /// Fungsi `deserialize`.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Level, D::Error>
     where

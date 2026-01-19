@@ -17,7 +17,6 @@ use tokio::sync::RwLock;
 /// Post-quantum algorithm types supported by Secreton
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PqAlgorithm {
-    /// ML-DSA (FIPS 204) - Digital Signature Algorithm
     MlDsa,
     /// ML-KEM (FIPS 203) - Key Encapsulation Mechanism
     MlKem,
@@ -29,6 +28,7 @@ pub enum PqAlgorithm {
 
 /// Signing key material for JWT operations
 #[derive(Debug, Clone)]
+    /// ML-DSA (FIPS 204) - Digital Signature Algorithm
 pub struct SigningKey {
     /// Key identifier
     pub key_id: String,
@@ -106,7 +106,6 @@ pub struct MfaStatusResponse {
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CircuitBreakerState {
-    /// Circuit is closed, requests are allowed
     Closed,
     /// Circuit is open, requests are blocked
     Open,
@@ -116,8 +115,8 @@ pub enum CircuitBreakerState {
 
 /// Circuit breaker for handling Secreton service failures
 #[derive(Debug, Clone)]
+    /// Circuit is closed, requests are allowed
 pub struct CircuitBreaker {
-    /// Current state of the circuit breaker
     state: Arc<RwLock<CircuitBreakerState>>,
     /// Failure count
     failure_count: Arc<RwLock<u32>>,
@@ -135,6 +134,7 @@ pub struct CircuitBreaker {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker with default settings
+    /// Current state of the circuit breaker
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitBreakerState::Closed)),
@@ -228,7 +228,6 @@ impl CircuitBreaker {
 /// Enhanced client for interacting with the Secreton secret management service
 #[derive(Debug, Clone)]
 pub struct SecretonClient {
-    /// Secreton service endpoint URL
     endpoint: String,
     /// Authentication token for the Secreton service
     token: String,
@@ -281,6 +280,7 @@ impl SecretonClient {
     /// );
     /// // Client is ready for secret operations
     /// ```
+    /// Secreton service endpoint URL
     pub fn new(endpoint: String, token: String) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -334,7 +334,6 @@ impl SecretonClient {
         }
     }
 
-    /// Execute a request with circuit breaker and retry logic
     async fn execute_with_circuit_breaker<F, Fut, T>(
         &self,
         operation: F,
@@ -2143,6 +2142,7 @@ impl SecretonVault {
     /// let vault = SecretonVault::new(client);
     /// // Vault is ready for secret operations through standard interface
     /// ```
+    /// Execute a request with circuit breaker and retry logic
     pub fn new(client: SecretonClient) -> Self {
         SecretonVault { client }
     }
@@ -2153,6 +2153,7 @@ impl SecretonVault {
     }
 }
 
+#[derive(Debug, Clone)]
 /// Secreton vault implementation for the Vault trait
 /// This struct provides a read-only vault interface to the Secreton service,
 /// implementing the standard Vault trait for integration with the authentication
@@ -2170,7 +2171,6 @@ impl SecretonVault {
 /// - Provides metadata support for secret management
 /// - Handles error conditions gracefully
 /// - Enhanced for government security requirements
-#[derive(Debug, Clone)]
 pub struct SecretonVault {
     /// The underlying Secreton client for service communication
     client: SecretonClient,

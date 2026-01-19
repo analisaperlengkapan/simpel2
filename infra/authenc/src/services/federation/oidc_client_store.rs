@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 /// OIDC client store for managing OAuth2/OIDC client registrations
 pub struct OidcClientStore {
-    /// Database connection
     db: Arc<Database>,
 }
 
@@ -25,6 +24,7 @@ impl OidcClientStore {
     ///
     /// # Panics
     /// This method will panic if called. It exists only for backward compatibility.
+    /// Database connection
     pub fn new() -> Self {
         panic!(
             "OidcClientStore requires database connection. Use OidcClientStore::with_database() instead."

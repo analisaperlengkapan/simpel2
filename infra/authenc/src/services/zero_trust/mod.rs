@@ -7,7 +7,6 @@ use uuid::Uuid;
 /// Zero Trust security levels
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum TrustLevel {
-    /// No trust established
     None = 0,
     /// Low level of trust
     Low = 1,
@@ -21,6 +20,7 @@ pub enum TrustLevel {
 
 /// Device trust information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// No trust established
 pub struct DeviceTrust {
     /// Unique identifier for the device
     pub device_id: String,
@@ -75,7 +75,6 @@ pub struct Location {
 /// Device compliance status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComplianceStatus {
-    /// Device is compliant with security policies
     Compliant,
     /// Device is not compliant with security policies
     NonCompliant,
@@ -87,6 +86,7 @@ pub enum ComplianceStatus {
 
 /// Risk assessment result
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Device is compliant with security policies
 pub struct RiskAssessment {
     /// Risk score from 0.0 to 1.0, higher values indicate higher risk
     pub score: f64,
@@ -103,7 +103,6 @@ pub struct RiskAssessment {
 /// Risk levels
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RiskLevel {
-    /// Low risk level
     Low,
     /// Medium risk level
     Medium,
@@ -115,6 +114,7 @@ pub enum RiskLevel {
 
 /// Risk factors
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Low risk level
 pub struct RiskFactor {
     /// Type of risk factor
     pub factor_type: String,
@@ -200,7 +200,6 @@ pub struct PolicyAction {
 /// Continuous Authentication Service
 #[async_trait]
 pub trait ContinuousAuthService: Send + Sync {
-    /// Evaluate device trust
     async fn evaluate_device_trust(&self, device_info: &DeviceInfo) -> Result<DeviceTrust, String>;
 
     /// Perform risk assessment
@@ -219,6 +218,7 @@ pub trait ContinuousAuthService: Send + Sync {
 
 /// Suspicious activity report
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Evaluate device trust
 pub struct SuspiciousActivity {
     /// Type of suspicious activity detected
     pub activity_type: String,
@@ -388,7 +388,6 @@ impl ZeroTrustManager {
         total_score.clamp(0.0, 1.0)
     }
 
-    /// Calculate location-based risk
     async fn calculate_location_risk(&self, context: &AuthContext) -> f64 {
         let mut risk_score = 0.0;
 
@@ -484,6 +483,7 @@ impl ZeroTrustManager {
     }
 
     /// Determine risk level from score
+    /// Calculate location-based risk
     pub fn determine_risk_level(score: f64) -> RiskLevel {
         if score >= 0.8 {
             RiskLevel::Critical

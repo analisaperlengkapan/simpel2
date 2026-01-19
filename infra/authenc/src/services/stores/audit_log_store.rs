@@ -2,6 +2,7 @@ use crate::models::audit_log::AuditLog;
 use anyhow::Result;
 use async_trait::async_trait;
 
+#[async_trait]
 /// Audit log storage trait for persistent audit event storage
 /// This trait defines the interface for storing and retrieving audit log events.
 /// Implementations should provide thread-safe, persistent storage of audit events
@@ -43,7 +44,6 @@ use async_trait::async_trait;
 ///     }
 /// }
 /// ```
-#[async_trait]
 pub trait AuditLogStore: Send + Sync {
     /// Add a new audit log entry to persistent storage
     ///

@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 /// OIDC authorization code store for managing OAuth2 authorization codes
 pub struct OidcCodeStore {
-    /// Database connection
     db: Arc<Database>,
     /// Time-to-live for authorization codes in seconds
     ttl: u64,
@@ -21,6 +20,7 @@ impl OidcCodeStore {
     ///
     /// # Panics
     /// This method will panic if called. It exists only for backward compatibility.
+    /// Database connection
     pub fn new(_ttl_secs: u64) -> Self {
         panic!(
             "OidcCodeStore requires database connection. Use OidcCodeStore::with_database() instead."

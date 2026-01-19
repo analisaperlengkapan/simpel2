@@ -15,7 +15,6 @@ use tokio::task::spawn_blocking;
 /// Supported content encodings
 #[derive(Debug, Clone, Copy)]
 pub enum ContentEncoding {
-    /// The `gzip` encoding.
     Gzip,
     /// The `deflate` encoding.
     Deflate,
@@ -25,6 +24,7 @@ pub enum ContentEncoding {
 
 impl ContentEncoding {
     /// Get the header value for this encoding
+    /// The `gzip` encoding.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Gzip => "gzip",

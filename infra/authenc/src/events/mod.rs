@@ -16,7 +16,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EventCategory {
-    /// User-related events (registration, profile updates, etc.)
     User,
     /// Administrative events (user management, system configuration, etc.)
     Admin,
@@ -33,9 +32,9 @@ pub enum EventCategory {
 /// Event types for specific actions
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+    /// User-related events (registration, profile updates, etc.)
 pub enum EventType {
     // User events
-    /// User account was created
     UserCreated,
     /// User account was updated
     UserUpdated,
@@ -109,6 +108,7 @@ pub enum EventType {
 
 impl EventType {
     /// Convert event type to string representation
+    /// User account was created
     pub fn as_str(&self) -> &str {
         match self {
             EventType::UserCreated => "USER_CREATED",
@@ -239,7 +239,6 @@ impl Event {
 /// Event listener trait for handling events
 #[async_trait]
 pub trait EventListener: Send + Sync {
-    /// Get listener name
     fn name(&self) -> &str;
 
     /// Get listener type
@@ -263,6 +262,7 @@ pub trait EventListener: Send + Sync {
 }
 
 /// Event bus for dispatching events to listeners
+    /// Get listener name
 pub struct EventBus {
     listeners: Arc<RwLock<Vec<Arc<dyn EventListener>>>>,
 }
@@ -342,7 +342,6 @@ pub struct ListenerResult {
 /// Event error types
 #[derive(Debug, Clone)]
 pub enum EventError {
-    /// Listener execution failed with the specified error message
     ListenerFailed(String),
     /// Failed to serialize or deserialize event data
     SerializationError(String),
@@ -369,6 +368,7 @@ impl std::fmt::Display for EventError {
 impl std::error::Error for EventError {}
 
 /// Built-in logging event listener
+    /// Listener execution failed with the specified error message
 pub struct LoggingListener {
     name: String,
     log_level: String,

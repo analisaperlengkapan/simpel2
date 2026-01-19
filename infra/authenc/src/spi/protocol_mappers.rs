@@ -11,7 +11,6 @@ use crate::spi::{Provider, ProviderConfig, ProviderFactory, Spi, SpiError};
 /// Protocol mapper types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProtocolMapperType {
-    /// Maps user properties to token claims
     UserProperty,
     /// Maps user roles to token claims
     UserRole,
@@ -31,6 +30,7 @@ pub enum ProtocolMapperType {
 
 /// Protocol mapper configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Maps user properties to token claims
 pub struct ProtocolMapperConfig {
     /// Unique identifier for the mapper
     pub id: String,
@@ -78,7 +78,6 @@ pub struct ProtocolMapperContext {
 /// Protocol mapper trait
 #[async_trait]
 pub trait ProtocolMapper: Provider + Send + Sync {
-    /// Get the protocol mapper configuration
     fn get_config(&self) -> &ProtocolMapperConfig;
 
     /// Evaluate the mapper and return claims to add to the token
@@ -99,8 +98,8 @@ pub trait ProtocolMapper: Provider + Send + Sync {
 
 /// Protocol mapper provider trait
 #[async_trait]
+    /// Get the protocol mapper configuration
 pub trait ProtocolMapperProvider: Provider + Send + Sync {
-    /// Get all available protocol mappers
     async fn get_protocol_mappers(&self) -> Result<Vec<Box<dyn ProtocolMapper + Send + Sync>>>;
 
     /// Get protocol mapper by ID
@@ -133,6 +132,7 @@ pub trait ProtocolMapperProvider: Provider + Send + Sync {
 }
 
 /// Default user property protocol mapper
+    /// Get all available protocol mappers
 pub struct UserPropertyProtocolMapper {
     config: ProtocolMapperConfig,
 }

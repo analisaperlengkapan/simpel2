@@ -1,6 +1,3 @@
-/// OAuth2 Authorization Code Flow with PKCE Support
-/// This module implements the OAuth2 authorization code flow with PKCE (RFC 7636)
-/// for enhanced security.
 use crate::{
     database::Database,
     error::{AuthencError, Result},
@@ -19,6 +16,9 @@ use std::sync::Arc;
 
 /// Authorization request parameters
 #[derive(Debug, Serialize, Deserialize)]
+/// OAuth2 Authorization Code Flow with PKCE Support
+/// This module implements the OAuth2 authorization code flow with PKCE (RFC 7636)
+/// for enhanced security.
 pub struct AuthorizationRequest {
     pub response_type: String,
     pub client_id: String,

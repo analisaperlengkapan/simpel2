@@ -32,7 +32,6 @@ pub struct StorageConfig {
 /// Storage Provider Types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum StorageProviderType {
-    /// In-memory storage for testing and development
     InMemory,
     /// PostgreSQL database storage
     PostgreSQL,
@@ -46,8 +45,8 @@ pub enum StorageProviderType {
 
 /// Storage Provider trait
 #[async_trait]
+    /// In-memory storage for testing and development
 pub trait StorageProvider: Send + Sync {
-    /// Get provider name
     fn name(&self) -> &str;
 
     /// Initialize the storage provider
@@ -65,8 +64,8 @@ pub trait StorageProvider: Send + Sync {
 
 /// Storage Transaction trait
 #[async_trait]
+    /// Get provider name
 pub trait StorageTransaction: Send + Sync {
-    /// Commit the transaction
     async fn commit(&mut self) -> Result<(), AuthencError>;
 
     /// Rollback the transaction
@@ -75,8 +74,8 @@ pub trait StorageTransaction: Send + Sync {
 
 /// Generic Storage Repository trait
 #[async_trait]
+    /// Commit the transaction
 pub trait StorageRepository<T: Send + Sync + Clone + Serialize + serde::de::DeserializeOwned>: Send + Sync {
-    /// Find entity by ID
     async fn find_by_id(&self, id: &str) -> Result<Option<T>, AuthencError>;
 
     /// Find all entities
@@ -97,8 +96,8 @@ pub trait StorageRepository<T: Send + Sync + Clone + Serialize + serde::de::Dese
 
 /// User Storage Repository
 #[async_trait]
+    /// Find entity by ID
 pub trait UserStorageRepository: StorageRepository<crate::models::user::User> {
-    /// Find user by username
     async fn find_by_username(&self, username: &str) -> Result<Option<crate::models::user::User>, AuthencError>;
 
     /// Find user by email
@@ -110,8 +109,8 @@ pub trait UserStorageRepository: StorageRepository<crate::models::user::User> {
 
 /// Client Storage Repository
 #[async_trait]
+    /// Find user by username
 pub trait ClientStorageRepository: StorageRepository<crate::models::oauth2::OAuth2Client> {
-    /// Find client by client ID
     async fn find_by_client_id(&self, client_id: &str) -> Result<Option<crate::models::oauth2::OAuth2Client>, AuthencError>;
 
     /// Find clients by owner
@@ -120,8 +119,8 @@ pub trait ClientStorageRepository: StorageRepository<crate::models::oauth2::OAut
 
 /// Realm Storage Repository
 #[async_trait]
+    /// Find client by client ID
 pub trait RealmStorageRepository: StorageRepository<crate::models::realm::Realm> {
-    /// Find realm by name
     async fn find_by_name(&self, name: &str) -> Result<Option<crate::models::realm::Realm>, AuthencError>;
 
     /// Find realms by owner
@@ -129,6 +128,7 @@ pub trait RealmStorageRepository: StorageRepository<crate::models::realm::Realm>
 }
 
 /// In-Memory Storage Provider
+    /// Find realm by name
 pub struct InMemoryStorageProvider {
     data: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
@@ -169,8 +169,8 @@ impl StorageProvider for InMemoryStorageProvider {
 /// In-Memory Transaction (no-op for in-memory storage)
 pub struct InMemoryTransaction;
 
-/// Fungsi `new(`.
 impl InMemoryTransaction {
+/// Fungsi `new(`.
 /// Fungsi `new(`.
     pub fn new() -> Self {
         Self
@@ -194,10 +194,10 @@ pub struct InMemoryRepository<T: Send + Sync + Clone + Serialize + serde::de::De
     entity_type: String,
     _phantom: std::marker::PhantomData<T>,
 }
-/// Fungsi `new(storage`.
 
 /// Fungsi `new(storage`.
 impl<T: Send + Sync + Clone + Serialize + serde::de::DeserializeOwned> InMemoryRepository<T> {
+/// Fungsi `new(storage`.
 /// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>, entity_type: String) -> Self {
         Self {
@@ -435,13 +435,13 @@ impl StorageManager {
 /// In-Memory User Repository
 pub struct InMemoryUserRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
-/// Fungsi `new(storage`.
 }
 /// Fungsi `new(storage`.
 
 /// Fungsi `new(storage`.
 impl InMemoryUserRepository {
 /// Fungsi `new`.
+/// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
     }
@@ -552,7 +552,6 @@ impl UserStorageRepository for InMemoryUserRepository {
 
 /// In-Memory Client Repository
 pub struct InMemoryClientRepository {
-/// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
 }
@@ -560,6 +559,7 @@ pub struct InMemoryClientRepository {
 
 /// Fungsi `new`.
 impl InMemoryClientRepository {
+/// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
     }
@@ -659,13 +659,13 @@ impl ClientStorageRepository for InMemoryClientRepository {
 
 /// In-Memory Realm Repository
 pub struct InMemoryRealmRepository {
-/// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
 }
 /// Fungsi `new`.
 
 impl InMemoryRealmRepository {
+/// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
     }
@@ -790,7 +790,6 @@ mod tests {
         };
 
         let manager = StorageManager::new(config).await;
-/// Modul `postgresql`.
         assert!(manager.is_ok());
 /// Modul `postgresql`.
     }
@@ -798,6 +797,7 @@ mod tests {
 }
 
 // Module declarations
+/// Modul `postgresql`.
 pub mod postgresql;
     pub parameters: HashMap<String, String>,
 }
@@ -805,7 +805,6 @@ pub mod postgresql;
 /// Storage Transaction
 #[async_trait]
 pub trait StorageTransaction: Send + Sync {
-    /// Commit the transaction
     async fn commit(&mut self) -> Result<(), AuthencError>;
 
     /// Rollback the transaction
@@ -814,8 +813,8 @@ pub trait StorageTransaction: Send + Sync {
 
 /// Storage Provider SPI (Service Provider Interface)
 #[async_trait]
+    /// Commit the transaction
 pub trait StorageProvider: Send + Sync {
-    /// Get provider name
     fn name(&self) -> &str;
 
     /// Initialize the provider
@@ -833,8 +832,8 @@ pub trait StorageProvider: Send + Sync {
 
 /// Generic Storage Repository trait
 #[async_trait]
+    /// Get provider name
 pub trait StorageRepository<T: Send + Sync + Clone>: Send + Sync {
-    /// Find entity by ID
     async fn find_by_id(&self, id: &str) -> Result<Option<T>, AuthencError>;
 
     /// Find all entities
@@ -855,8 +854,8 @@ pub trait StorageRepository<T: Send + Sync + Clone>: Send + Sync {
 
 /// User Storage Repository
 #[async_trait]
+    /// Find entity by ID
 pub trait UserStorageRepository: StorageRepository<crate::models::user::User> {
-    /// Find user by username
     async fn find_by_username(&self, username: &str) -> Result<Option<crate::models::user::User>, AuthencError>;
 
     /// Find user by email
@@ -868,8 +867,8 @@ pub trait UserStorageRepository: StorageRepository<crate::models::user::User> {
 
 /// Client Storage Repository
 #[async_trait]
+    /// Find user by username
 pub trait ClientStorageRepository: StorageRepository<crate::models::oauth2::OAuth2Client> {
-    /// Find client by client ID
     async fn find_by_client_id(&self, client_id: &str) -> Result<Option<crate::models::oauth2::OAuth2Client>, AuthencError>;
 
     /// Find clients by owner
@@ -878,8 +877,8 @@ pub trait ClientStorageRepository: StorageRepository<crate::models::oauth2::OAut
 
 /// Realm Storage Repository
 #[async_trait]
+    /// Find client by client ID
 pub trait RealmStorageRepository: StorageRepository<crate::models::realm::Realm> {
-    /// Find realm by name
     async fn find_by_name(&self, name: &str) -> Result<Option<crate::models::realm::Realm>, AuthencError>;
 
     /// Find realms by owner
@@ -888,12 +887,13 @@ pub trait RealmStorageRepository: StorageRepository<crate::models::realm::Realm>
 
 /// Fungsi `new(`.
 /// In-Memory Storage Provider
+    /// Find realm by name
 pub struct InMemoryStorageProvider {
-/// Fungsi `new`.
     data: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
 
 impl InMemoryStorageProvider {
+/// Fungsi `new`.
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),
@@ -922,12 +922,12 @@ impl StorageProvider for InMemoryStorageProvider {
 
     async fn close(&mut self) -> Result<(), AuthencError> {
         Ok(())
-/// Fungsi `new(`.
     }
 }
 /// Fungsi `new(`.
 
 /// In-Memory Transaction (no-op for in-memory storage)
+/// Fungsi `new(`.
 pub struct InMemoryTransaction;
 
 impl InMemoryTransaction {
@@ -950,7 +950,6 @@ impl StorageTransaction for InMemoryTransaction {
 /// Fungsi `new(storage`.
 /// Generic In-Memory Repository Implementation
 pub struct InMemoryRepository<T: Send + Sync + Clone + serde::Serialize + serde::de::DeserializeOwned> {
-/// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
     entity_type: String,
@@ -958,6 +957,7 @@ pub struct InMemoryRepository<T: Send + Sync + Clone + serde::Serialize + serde:
 }
 
 impl<T: Send + Sync + Clone + serde::Serialize + serde::de::DeserializeOwned> InMemoryRepository<T> {
+/// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>, entity_type: String) -> Self {
         Self {
             storage,
@@ -1158,13 +1158,13 @@ impl StorageManager {
     /// Close storage manager
     pub async fn close(&mut self) -> Result<(), AuthencError> {
         self.provider.close().await
-/// Fungsi `new(storage`.
     }
 }
 /// Fungsi `new(storage`.
 
 /// Fungsi `new(storage`.
 /// In-Memory User Repository
+/// Fungsi `new(storage`.
 pub struct InMemoryUserRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
@@ -1254,7 +1254,6 @@ impl UserStorageRepository for InMemoryUserRepository {
 
     async fn find_by_role(&self, role_id: &str) -> Result<Vec<crate::models::user::User>, AuthencError> {
         let users = self.find_all().await?;
-/// Fungsi `new(storage`.
         Ok(users.into_iter().filter(|u| u.roles.contains(&role_id.to_string())).collect())
     }
 /// Fungsi `new(storage`.
@@ -1262,6 +1261,7 @@ impl UserStorageRepository for InMemoryUserRepository {
 /// Fungsi `new(storage`.
 
 /// In-Memory Client Repository
+/// Fungsi `new(storage`.
 pub struct InMemoryClientRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
@@ -1345,7 +1345,6 @@ impl ClientStorageRepository for InMemoryClientRepository {
 
     async fn find_by_owner(&self, owner_id: &str) -> Result<Vec<crate::models::oauth2::OAuth2Client>, AuthencError> {
         let clients = self.find_all().await?;
-/// Fungsi `new(storage`.
         // In a real implementation, you'd have an owner_id field
         Ok(clients)
 /// Fungsi `new(storage`.
@@ -1354,6 +1353,7 @@ impl ClientStorageRepository for InMemoryClientRepository {
 }
 
 /// In-Memory Realm Repository
+/// Fungsi `new(storage`.
 pub struct InMemoryRealmRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
@@ -1562,7 +1562,6 @@ mod tests {
             enabled: true,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-/// Modul `postgresql`.
             deleted_at: None,
         };
 /// Modul `postgresql`.
@@ -1578,4 +1577,5 @@ mod tests {
 }
 
 // Module declarations
+/// Modul `postgresql`.
 pub mod postgresql;

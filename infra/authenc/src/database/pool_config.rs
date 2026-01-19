@@ -7,12 +7,11 @@ use crate::config::DatabaseConfig;
 use deadpool_postgres::{ManagerConfig, PoolConfig, RecyclingMethod};
 use std::time::Duration;
 
+#[derive(Debug, Clone)]
 /// Connection pool configuration builder
 /// Provides fine-grained control over connection pool behavior following
 /// production best practices from enterprise IAM and PostgreSQL documentation.
-#[derive(Debug, Clone)]
 pub struct PoolConfigBuilder {
-    /// Maximum number of connections in the pool
     max_size: usize,
     /// Minimum idle connections to maintain
     min_idle: Option<usize>,
@@ -41,6 +40,7 @@ impl Default for PoolConfigBuilder {
 
 impl PoolConfigBuilder {
     /// Create a new pool configuration builder
+    /// Maximum number of connections in the pool
     pub fn new() -> Self {
         Self::default()
     }

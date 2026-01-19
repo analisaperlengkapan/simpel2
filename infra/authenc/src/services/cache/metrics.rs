@@ -14,7 +14,6 @@ use std::time::{Duration, Instant};
 /// Cache metrics collector for tracking cache performance
 #[derive(Debug, Clone)]
 pub struct CacheMetrics {
-    /// Total number of cache hits
     hits: Arc<AtomicU64>,
     /// Total number of cache misses
     misses: Arc<AtomicU64>,
@@ -46,6 +45,7 @@ impl Default for CacheMetrics {
 
 impl CacheMetrics {
     /// Create a new cache metrics collector
+    /// Total number of cache hits
     pub fn new() -> Self {
         Self {
             hits: Arc::new(AtomicU64::new(0)),

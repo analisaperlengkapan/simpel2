@@ -5,12 +5,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// OpenID for Verifiable Credentials (OID4VC) implementation
 /// RFC 039 - OpenID for Verifiable Credential Issuance
 /// RFC 040 - OpenID for Verifiable Presentations
 /// Enhanced with advanced features for enterprise use
 /// OID4VC Credential Issuer Metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialIssuerMetadata {
     /// The credential issuer's identifier URL
     pub credential_issuer: String,
@@ -79,7 +79,6 @@ pub struct CredentialSupported {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CredentialFormat {
-    /// JWT VC JSON format
     JwtVcJson,
     /// JWT VC JSON-LD format
     JwtVcJsonLd,
@@ -93,6 +92,7 @@ pub enum CredentialFormat {
 
 /// Credential display metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// JWT VC JSON format
 pub struct CredentialDisplay {
     /// Display name of the credential
     pub name: String,
@@ -307,7 +307,6 @@ pub struct CredentialStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Issuer {
-    /// Simple string identifier for the issuer
     String(String),
     /// Object with issuer ID and optional name
     Object {
@@ -320,6 +319,7 @@ pub enum Issuer {
 
 /// Credential subject
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Simple string identifier for the issuer
 pub struct CredentialSubject {
     /// Optional unique identifier for the subject
     pub id: Option<String>,
@@ -432,7 +432,6 @@ pub struct StatusList2021 {
 /// OID4VC Service trait
 #[async_trait]
 pub trait Oid4VcService: Send + Sync {
-    /// Get credential issuer metadata
     async fn get_issuer_metadata(&self) -> Result<CredentialIssuerMetadata, String>;
 
     /// Handle authorization request
@@ -491,6 +490,7 @@ pub trait Oid4VcService: Send + Sync {
 }
 
 /// Enhanced OID4VC Manager implementation
+    /// Get credential issuer metadata
 pub struct EnhancedOid4VcManager {
     issuer_url: String,
     supported_credentials: HashMap<String, CredentialSupported>,
@@ -985,7 +985,6 @@ impl EnhancedOid4VcManager {
         })
     }
 
-    /// Create cryptographic proof based on format
     fn create_proof(
         &self,
         subject: &CredentialSubject,
@@ -1167,6 +1166,7 @@ impl EnhancedOid4VcManager {
     }
 
     /// Create verifiable presentation
+    /// Create cryptographic proof based on format
     pub fn create_verifiable_presentation(
         &self,
         credentials: Vec<serde_json::Value>,
@@ -1191,7 +1191,6 @@ impl EnhancedOid4VcManager {
         })
     }
 
-    /// Create presentation proof
     fn create_presentation_proof(
         &self,
         presentation_data: &serde_json::Value,
@@ -1654,6 +1653,7 @@ impl EnhancedOid4VcManager {
 }
 
 /// Legacy OID4VC Manager for backward compatibility
+    /// Create presentation proof
 pub struct LegacyOid4VcManager {
     enhanced_manager: EnhancedOid4VcManager,
 }

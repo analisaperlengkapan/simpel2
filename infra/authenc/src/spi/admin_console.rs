@@ -32,7 +32,6 @@ impl Spi for AdminConsoleSpi {
 /// Admin console provider trait
 #[async_trait]
 pub trait AdminConsoleProvider: Provider {
-    /// Get the admin console base URL
     fn get_base_url(&self) -> &str;
 
     /// Get admin console configuration
@@ -57,6 +56,7 @@ pub trait AdminConsoleProvider: Provider {
 
 /// Admin console configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+    /// Get the admin console base URL
 pub struct AdminConsoleConfig {
     /// Whether admin console is enabled
     pub enabled: bool,
@@ -96,7 +96,6 @@ impl Default for AdminConsoleConfig {
 /// Admin console features
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AdminConsoleFeature {
-    /// Users management feature
     Users,
     /// Groups management feature
     Groups,
@@ -123,6 +122,7 @@ pub enum AdminConsoleFeature {
 }
 
 /// Default admin console provider implementation
+    /// Users management feature
 pub struct DefaultAdminConsoleProvider {
     config: AdminConsoleConfig,
 }

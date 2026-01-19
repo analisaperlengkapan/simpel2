@@ -58,7 +58,6 @@ enum MathOperation {
 /// Challenge generator trait
 #[async_trait]
 pub trait ChallengeGeneratorTrait: Send + Sync {
-    /// Generate a visual challenge
     async fn generate_visual_challenge(&self, difficulty: u8) -> Result<String, CaptchaError>;
 
     /// Generate an audio challenge
@@ -93,8 +92,8 @@ pub trait ChallengeGeneratorTrait: Send + Sync {
 }
 
 /// Default challenge generator implementation with cryptographic security
+    /// Generate a visual challenge
 pub struct ChallengeGenerator {
-    /// Cryptographically secure random number generator
     rng: ChaCha20Rng,
     /// Image challenge generator
     image_generator: ImageChallengeGenerator,
@@ -106,6 +105,7 @@ pub struct ChallengeGenerator {
 
 impl ChallengeGenerator {
     /// Create a new challenge generator with cryptographically secure RNG
+    /// Cryptographically secure random number generator
     pub fn new() -> Self {
         Self::new_with_secreton(None)
     }
