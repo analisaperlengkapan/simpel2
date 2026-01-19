@@ -42,8 +42,10 @@ use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::error::SdkError;
+use aws_sdk_s3::config::SharedCredentialsProvider;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{debug, info, error};
 
@@ -124,13 +126,24 @@ impl S3Backend {
                 "static",
             );
             sdk_config_loader = sdk_config_loader.credentials_provider(
-                aws_sdk_s3::config::SharedCredentialsProvider::new(credentials)
+                SharedCredentialsProvider::new(credentials)
             );
         }
 
         if let Some(ref endpoint) = config.endpoint {
             sdk_config_loader = sdk_config_loader.endpoint_url(endpoint);
         }
+
+        // Apply retry configuration
+        let retry_config = aws_config::retry::RetryConfig::standard()
+            .with_max_attempts(config.max_retries);
+        sdk_config_loader = sdk_config_loader.retry_config(retry_config);
+
+        // Apply timeout configuration
+        let timeout_config = aws_config::timeout::TimeoutConfig::builder()
+            .operation_timeout(Duration::from_secs(config.timeout_secs))
+            .build();
+        sdk_config_loader = sdk_config_loader.timeout_config(timeout_config);
 
         let sdk_config = sdk_config_loader.load().await;
 
