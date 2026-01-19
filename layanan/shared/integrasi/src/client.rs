@@ -602,7 +602,10 @@ impl MonsaktiClient {
         Ok(())
     }
 
-    /// Simpan data ke file CSV
+    /// Simpan data ke file CSV.
+    ///
+    /// Fungsi ini menggunakan `tokio::task::spawn_blocking` untuk memindahkan operasi I/O
+    /// yang blocking ke thread pool terpisah, sehingga tidak mengganggu kinerja runtime async.
     pub async fn save_to_csv<P: AsRef<Path>>(
         &self,
         data: &serde_json::Value,
@@ -611,6 +614,7 @@ impl MonsaktiClient {
         let path = Path::new(&self.config.output_dir).join(filename);
 
         // Check data validity before spawning blocking task
+        // Note: cloning is necessary here because data is a reference and we need ownership to move into spawn_blocking
         let array = match data.as_array() {
             Some(arr) if !arr.is_empty() => arr.clone(),
             Some(_) => {
@@ -633,23 +637,29 @@ impl MonsaktiClient {
                 let headers: Vec<&String> = obj.keys().collect();
                 wtr.write_record(&headers)?;
 
+                // Use ByteRecord to reuse buffer and avoid String allocations
+                let mut record = csv::ByteRecord::new();
                 for item in &array {
                     if let Some(obj) = item.as_object() {
-                        let row: Vec<String> = headers
-                            .iter()
-                            .map(|h| {
-                                obj.get(*h)
-                                    .map(|v| match v {
-                                        serde_json::Value::String(s) => s.clone(),
-                                        serde_json::Value::Number(n) => n.to_string(),
-                                        serde_json::Value::Bool(b) => b.to_string(),
-                                        serde_json::Value::Null => "".to_string(),
-                                        _ => v.to_string(),
-                                    })
-                                    .unwrap_or_default()
-                            })
-                            .collect();
-                        wtr.write_record(&row)?;
+                        record.clear();
+                        for h in &headers {
+                            if let Some(v) = obj.get(*h) {
+                                match v {
+                                    serde_json::Value::String(s) => record.push_field(s.as_bytes()),
+                                    serde_json::Value::Number(n) => {
+                                        record.push_field(n.to_string().as_bytes())
+                                    }
+                                    serde_json::Value::Bool(b) => {
+                                        record.push_field(if *b { b"true" } else { b"false" })
+                                    }
+                                    serde_json::Value::Null => record.push_field(b""),
+                                    _ => record.push_field(v.to_string().as_bytes()),
+                                }
+                            } else {
+                                record.push_field(b"");
+                            }
+                        }
+                        wtr.write_byte_record(&record)?;
                     }
                 }
             }
