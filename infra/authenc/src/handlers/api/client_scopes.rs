@@ -222,7 +222,6 @@ pub async fn check_user_consent(
         .await?;
 
     Ok(Json(result))
-/// Mewakili struktur data `CheckConsentRequest`.
 }
 
 /// Mewakili struktur data `CheckConsentRequest`.
@@ -258,19 +257,18 @@ pub async fn grant_user_consent(
         )
         .await?;
 
-/// Mewakili struktur data `GrantConsentQuery`.
     Ok(StatusCode::CREATED)
 }
 
+/// Mewakili struktur data `GrantConsentQuery`.
 #[derive(Debug, Deserialize)]
-/// Mewakili struktur data `GrantConsentRequestBody`.
-/// Grant user consent for scopes
-/// POST /api/v1/users/{user_id}/clients/{client_id}/consent
 pub struct GrantConsentQuery {
     pub realm_id: Option<Uuid>,
 }
-/// Mewakili struktur data `GrantConsentRequestBody`.
 
+/// Mewakili struktur data `GrantConsentRequestBody`.
+/// Grant user consent for scopes
+/// POST /api/v1/users/{user_id}/clients/{client_id}/consent
 #[derive(Debug, Deserialize)]
 pub struct GrantConsentRequestBody {
     pub scope_names: Vec<String>,
@@ -306,11 +304,9 @@ pub async fn revoke_user_consent(
     app_state
         .client_scope_service
         .revoke_consent(user_id, client_id, scope_names)
-/// Mewakili struktur data `RevokeConsentRequest`.
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
-/// Mewakili struktur data `RevokeConsentRequest`.
 }
 
 /// Mewakili struktur data `RevokeConsentRequest`.
@@ -339,26 +335,22 @@ pub async fn validate_scopes(
 
     let result = app_state
         .client_scope_service
-/// Mewakili struktur data `ValidateScopesQuery`.
         .validate_requested_scopes(client_id, realm_id, &request.scopes)
         .await?;
 
     Ok(Json(result))
-/// Mewakili struktur data `ValidateScopesRequest`.
 }
-/// Mewakili struktur data `ValidateScopesQuery`.
 
+/// Mewakili struktur data `ValidateScopesQuery`.
 #[derive(Debug, Deserialize)]
 /// Validate requested scopes for a client
 /// POST /api/v1/clients/{client_id}/validate-scopes
 pub struct ValidateScopesQuery {
-/// Mewakili struktur data `ValidateScopesRequest`.
     pub realm_id: Option<Uuid>,
 }
 
 /// Mewakili struktur data `ValidateScopesRequest`.
 #[derive(Debug, Deserialize)]
-/// Mewakili struktur data `ValidateScopesRequest`.
 pub struct ValidateScopesRequest {
     pub scopes: String,
 }

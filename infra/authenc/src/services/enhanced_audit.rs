@@ -223,13 +223,11 @@ pub async fn create_audit_context(
     if let Some(sid) = session_id {
         context = context.with_session_id(sid);
     }
-/// Fungsi `extract_audit_details(headers`.
+
     context
-/// Fungsi `extract_audit_details(headers`.
 }
 
-/// Fungsi `extract_audit_details(headers`.
-/// Fungsi `extract_audit_details(headers`.
+/// Fungsi `extract_audit_details(headers`).
 pub fn extract_audit_details(headers: &HeaderMap) -> (Option<String>, Option<String>) {
     let ip_address = crate::utils::request_context::extract_ip_address(headers);
     let user_agent = crate::utils::request_context::extract_user_agent(headers);

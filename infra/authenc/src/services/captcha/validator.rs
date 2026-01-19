@@ -120,7 +120,6 @@ impl ValidationAttempt {
             }
             _ => false,
         }
-/// Fungsi `get_lockout_duration(`.
     }
 
 /// Fungsi `get_lockout_duration(`.

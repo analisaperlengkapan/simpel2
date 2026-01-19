@@ -482,15 +482,12 @@ impl AuthorizationContextBuilder {
     pub fn trust_score(mut self, score: f64) -> Self {
         self.trust_score = Some(score);
         self
-/// Fungsi `attribute(mut`.
     }
-/// Fungsi `attribute(mut`.
 
-/// Fungsi `build(`.
+    /// Fungsi `attribute(mut`.
     pub fn attribute(mut self, key: String, value: serde_json::Value) -> Self {
         self.attributes.insert(key, value);
         self
-/// Fungsi `build(`.
     }
 
 /// Fungsi `build`.
