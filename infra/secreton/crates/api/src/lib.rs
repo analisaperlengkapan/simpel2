@@ -99,10 +99,11 @@ pub fn create_api_router(state: ApiState) -> Router {
         .nest("/pki", create_pki_router(state.pki.clone()));
 
     // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)
-    let v1_handlers = handlers::create_router(
-        &config::ApiConfig::load().unwrap_or_default(),
-        state.services.clone(),
-    );
+    let config = config::ApiConfig::load().unwrap_or_default();
+    let protected_routes = handlers::create_protected_router(&config, state.services.clone());
+    let unprotected_routes = handlers::create_unprotected_router(&config, state.services.clone());
+
+    let v1_handlers = protected_routes.merge(unprotected_routes);
 
     // Combine legacy and new handlers into a single Router
     let v1_router = v1_legacy

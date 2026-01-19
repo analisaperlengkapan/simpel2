@@ -236,7 +236,7 @@ fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
 }
 
 /// Validate policy condition
-fn validate_condition(condition: &Value, rule_idx: usize) -> Result<(), CoreError> {
+fn validate_condition(condition: &Value, _rule_idx: usize) -> Result<(), CoreError> {
     if !condition.is_object() {
         return Err(CoreError::Validation {
             message: "Invalid input".to_string(),
