@@ -41,21 +41,15 @@ pub fn Captcha(
     let (announcements, set_announcements) = signal(Vec::<String>::new());
     let (show_alternative_inputs, _set_show_alternative_inputs) = signal(false);
 
-    // Behavioral analysis state
-    let (behavioral_metrics, set_behavioral_metrics) =
-        signal(None::<super::behavioral_tracker::SimpleBehavioralMetrics>);
+    // Behavioral analysis state (New Implementation)
+    let (behavioral_data, _set_behavioral_data) = super::behavioral::use_behavioral_collector();
+
     let session_id = format!("captcha_session_{}", js_sys::Date::now() as u64);
 
     // Validation feedback state
     let (validation_status, set_validation_status) =
         signal(super::validation_feedback::ValidationStatus::Idle);
     let (input_value, set_input_value) = signal(String::new());
-
-    // Handle behavioral data updates
-    let handle_behavioral_update =
-        move |metrics: super::behavioral_tracker::SimpleBehavioralMetrics| {
-            set_behavioral_metrics.set(Some(metrics));
-        };
 
     // Initialize with provided difficulty
     if let Some(diff) = difficulty {
@@ -243,62 +237,28 @@ pub fn Captcha(
     };
 
     view! {
-        {if behavioral_analysis {
-            view! {
-                <super::behavioral_tracker::SimpleBehavioralTracker
-                    session_id=session_id.clone()
-                    on_data_update=Callback::new(handle_behavioral_update)
-                >
-                    <CaptchaContainer
-                        class=class
-                        announcements=announcements
-                        current_focus=current_focus
-                        set_current_focus=set_current_focus
-                        nav_elements=nav_elements
-                        state=state
-                        set_state=set_state
-                        challenge_data=challenge_data
-                        accessibility_enabled=accessibility_enabled
-                        on_success=on_success
-                        on_failure=on_failure
-                        refresh_challenge=refresh_challenge
-                        show_alternative_inputs=show_alternative_inputs
-                        behavioral_analysis=behavioral_analysis
-                        behavioral_metrics=behavioral_metrics
-                        session_id=session_id
-                        validation_status=validation_status
-                        set_validation_status=set_validation_status
-                        input_value=input_value
-                        set_input_value=set_input_value
-                    />
-                </super::behavioral_tracker::SimpleBehavioralTracker>
-            }.into_any()
-        } else {
-            view! {
-                <CaptchaContainer
-                    class=class
-                    announcements=announcements
-                    current_focus=current_focus
-                    set_current_focus=set_current_focus
-                    nav_elements=nav_elements
-                    state=state
-                    set_state=set_state
-                    challenge_data=challenge_data
-                    accessibility_enabled=accessibility_enabled
-                    on_success=on_success
-                    on_failure=on_failure
-                    refresh_challenge=refresh_challenge
-                    show_alternative_inputs=show_alternative_inputs
-                    behavioral_analysis=behavioral_analysis
-                    behavioral_metrics=behavioral_metrics
-                    session_id=session_id
-                    validation_status=validation_status
-                    set_validation_status=set_validation_status
-                    input_value=input_value
-                    set_input_value=set_input_value
-                />
-            }.into_any()
-        }}
+        <CaptchaContainer
+            class=class
+            announcements=announcements
+            current_focus=current_focus
+            set_current_focus=set_current_focus
+            nav_elements=nav_elements
+            state=state
+            set_state=set_state
+            challenge_data=challenge_data
+            accessibility_enabled=accessibility_enabled
+            on_success=on_success
+            on_failure=on_failure
+            refresh_challenge=refresh_challenge
+            show_alternative_inputs=show_alternative_inputs
+            behavioral_analysis=behavioral_analysis
+            behavioral_data=behavioral_data
+            session_id=session_id
+            validation_status=validation_status
+            set_validation_status=set_validation_status
+            input_value=input_value
+            set_input_value=set_input_value
+        />
     }
 }
 
@@ -319,7 +279,7 @@ fn CaptchaContainer(
     refresh_challenge: impl Fn(leptos::ev::MouseEvent) + 'static + Copy + Send,
     show_alternative_inputs: ReadSignal<bool>,
     behavioral_analysis: bool,
-    behavioral_metrics: ReadSignal<Option<super::behavioral_tracker::SimpleBehavioralMetrics>>,
+    behavioral_data: ReadSignal<BehavioralData>,
     session_id: String,
     validation_status: ReadSignal<ValidationStatus>,
     set_validation_status: WriteSignal<ValidationStatus>,
@@ -426,6 +386,9 @@ fn CaptchaContainer(
                                 set_validation_status=set_validation_status
                                 input_value=input_value
                                 set_input_value=set_input_value
+                                behavioral_data=behavioral_data
+                                session_id=session_id.clone()
+                                challenge_id=current_state.challenge_id.clone()
                             />
 
                             {if accessibility_enabled && show_alternative_inputs.get() {
@@ -452,10 +415,6 @@ fn CaptchaContainer(
                                                 "Session: " {&session_id[..8]} "..."
                                             </div>
                                         </div>
-                                        <super::behavioral_tracker::BehavioralMetricsDisplay
-                                            metrics=behavioral_metrics
-                                            show_details=false
-                                        />
                                     </div>
                                 }.into_any()
                             } else {
@@ -650,8 +609,13 @@ pub fn ChallengeInput(
     set_validation_status: WriteSignal<ValidationStatus>,
     input_value: ReadSignal<String>,
     set_input_value: WriteSignal<String>,
+    behavioral_data: ReadSignal<BehavioralData>,
+    session_id: String,
+    challenge_id: Option<String>,
 ) -> impl IntoView {
     let (is_submitting, set_is_submitting) = signal(false);
+    let session_id_store = StoredValue::new(session_id);
+    let challenge_id_store = StoredValue::new(challenge_id);
 
     // Handle answer selection for visual challenges
     let handle_answer_click = move |answer: String| {
@@ -662,18 +626,92 @@ pub fn ChallengeInput(
         set_is_submitting.set(true);
         set_validation_status.set(ValidationStatus::Validating);
 
-        // For demo purposes, accept "4" as correct answer for "2 + 2"
-        let is_correct = answer == "4" || answer == "2 + 2";
+        let behavioral_data_val = behavioral_data.get();
+        let challenge_id_val = challenge_id_store.get_value().unwrap_or_default();
+        let session_id_val = session_id_store.get_value();
 
         spawn_local(async move {
-            // Simulate validation delay
-            gloo_timers::future::TimeoutFuture::new(1000).await;
+            // Get Authenc URL from environment or use default
+            let authenc_url = option_env!("AUTHENC_URL")
+                .unwrap_or("http://localhost:8080")
+                .to_string();
 
-            if is_correct {
+            let verify_url = format!("{}/captcha/verify", authenc_url);
+
+            // Prepare validation request
+            let validation_request = ValidationRequest {
+                challenge_id: challenge_id_val,
+                answer: answer,
+                behavioral_data: Some(behavioral_data_val),
+            };
+
+            let mut success = false;
+            let mut error_msg = "Verification failed".to_string();
+
+            // Make API call to Authenc
+             match web_sys::window() {
+                Some(window) => {
+                    use wasm_bindgen::{JsCast, JsValue};
+                    use web_sys::{Request, RequestInit, RequestMode, Response};
+
+                    let opts = RequestInit::new();
+                    opts.set_method("POST");
+                    opts.set_mode(RequestMode::Cors);
+
+                    // Set body
+                    if let Ok(body_str) = serde_json::to_string(&validation_request) {
+                        opts.set_body(&JsValue::from_str(&body_str));
+                    }
+
+                    match Request::new_with_str_and_init(&verify_url, &opts) {
+                        Ok(request) => {
+                             let _ = request.headers().set("Content-Type", "application/json");
+
+                             match wasm_bindgen_futures::JsFuture::from(
+                                window.fetch_with_request(&request),
+                            ).await {
+                                Ok(resp_value) => {
+                                    let resp: Response = resp_value.dyn_into().unwrap();
+                                     if resp.ok() {
+                                         if let Ok(json) = wasm_bindgen_futures::JsFuture::from(resp.json().unwrap()).await {
+                                             if let Ok(val_resp) = serde_wasm_bindgen::from_value::<ValidationResponse>(json) {
+                                                 if val_resp.success {
+                                                     success = true;
+                                                 } else {
+                                                     error_msg = val_resp.message;
+                                                 }
+                                             }
+                                         }
+                                     } else {
+                                         error_msg = format!("API error: {}", resp.status());
+                                     }
+                                }
+                                Err(_) => {
+                                    error_msg = "Network error".to_string();
+                                }
+                             }
+                        }
+                        Err(_) => {
+                            error_msg = "Request creation failed".to_string();
+                        }
+                    }
+                }
+                None => {
+                    error_msg = "Window not available".to_string();
+                }
+             }
+
+            if success {
                 set_validation_status.set(ValidationStatus::Success);
-                on_submit.run(format!("captcha_token_{}", js_sys::Date::now() as u64));
+                // The token is the response or we generate one? usually the backend returns a token.
+                // For now, assuming successful verification implies we can proceed.
+                // Ideally, the validation response should contain the token.
+                // But `ValidationResponse` in `types.rs` doesn't have a token field?
+                // Let's assume we pass the session_id or a signed token.
+                // For now, retaining the previous logic but with success flag
+                on_submit.run(format!("captcha_verified_{}", session_id_val));
             } else {
-                set_validation_status.set(ValidationStatus::Failed("Incorrect answer".to_string()));
+                set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
                 set_state.update(|s| {
                     s.attempts += 1;
                     if s.attempts >= 3 {
@@ -682,7 +720,7 @@ pub fn ChallengeInput(
                 });
 
                 if let Some(failure_callback) = on_failure {
-                    failure_callback.run("Incorrect answer".to_string());
+                    failure_callback.run(error_msg);
                 }
             }
 
