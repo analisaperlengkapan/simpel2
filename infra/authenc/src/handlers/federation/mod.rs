@@ -1,7 +1,11 @@
 pub mod broker;
+/// Modul `federated_auth`.
 pub mod federated_auth;
+/// Modul `federated_login`.
 pub mod federated_login;
+/// Modul `federation_admin`.
 pub mod federation_admin;
+/// Modul `jit_admin_service`.
 pub mod jit_admin_service;
 pub mod saml;
 pub mod social;
