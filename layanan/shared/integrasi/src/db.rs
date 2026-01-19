@@ -239,6 +239,10 @@ pub async fn bulk_insert_postgres(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
+
+    // Reuse vector capacity to reduce allocations
+    let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
+
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
@@ -247,8 +251,10 @@ pub async fn bulk_insert_postgres(
         );
         for item in chunk {
             if let Some(obj) = item.as_object() {
+                // Clear previous parameters but keep capacity
+                params.clear();
+
                 // Konversi nilai JSON ke parameter PostgreSQL
-                let mut params: Vec<SqlParam> = Vec::new();
                 for col in &columns {
                     // Handle mapping: api_id in DB comes from id in JSON
                     let json_key = if col == "api_id" { "id" } else { col.as_str() };
@@ -261,6 +267,8 @@ pub async fn bulk_insert_postgres(
                 }
 
                 // Convert to references for execute
+                // We create a new vector of references for each call, but it's lightweight
+                // Reusing a second vector here is possible but params reference lifetimes make it tricky
                 let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
                     .iter()
                     .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
