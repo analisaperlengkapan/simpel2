@@ -47,6 +47,7 @@ dashmap = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+dashmap = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 assert-json-diff = { workspace = true }
 serial_test = { workspace = true }
