@@ -11,6 +11,7 @@ pub mod permission_store;
 pub mod realm_store;
 /// Modul `social_account_store`.
 pub mod role_store;
+/// Modul `social_account_store`.
 pub mod social_account_store;
 pub mod user_store;
 

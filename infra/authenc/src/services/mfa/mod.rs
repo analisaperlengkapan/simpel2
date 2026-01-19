@@ -14,4 +14,5 @@ pub mod mfa_security_monitor;
 pub mod mfa_service;
 /// Modul `totp_store`.
 pub mod totp_store;
+/// Modul `webauthn`.
 pub mod webauthn;

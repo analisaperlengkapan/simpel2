@@ -124,6 +124,7 @@ impl ValidationAttempt {
 /// Fungsi `get_lockout_duration(`.
     }
 
+/// Fungsi `get_lockout_duration(`.
     pub fn get_lockout_duration(&self) -> Option<Duration> {
         if self.is_locked_out() {
             match self.risk_level {

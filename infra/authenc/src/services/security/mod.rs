@@ -4,6 +4,8 @@ pub mod anomaly_detector;
 pub mod brute_force_protector;
 /// Modul `password_policy`.
 pub mod forever_unknown_secrets;
+/// Modul `jwt_validator`.
 pub mod jwt_validator;
+/// Modul `security_testing`.
 pub mod password_policy;
 pub mod security_testing;

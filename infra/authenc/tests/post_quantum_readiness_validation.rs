@@ -642,18 +642,21 @@ pub struct HybridCrypto {
 /// Mewakili struktur data `KeyPair`.
 }
 
+/// Mewakili struktur data `KeyPair`.
 #[derive(Debug, Clone)]
 pub struct KeyPair {
     pub public_key: Vec<u8>,
 /// Mewakili struktur data `CryptoInfo`.
     pub private_key: Vec<u8>,
 }
+/// Mewakili struktur data `CryptoInfo`.
 
 #[derive(Debug, Clone)]
 pub struct CryptoInfo {
 /// Mewakili struktur data `SignatureInfo`.
     pub signature_algorithm: String,
     pub encryption_algorithm: String,
+/// Mewakili struktur data `SignatureInfo`.
 }
 
 #[derive(Debug, Clone)]
@@ -661,6 +664,7 @@ pub struct SignatureInfo {
 /// Mewakili struktur data `KemInfo`.
     pub algorithm: String,
     pub signature_size: usize,
+/// Mewakili struktur data `KemInfo`.
     pub security_level: u8,
 }
 
@@ -700,11 +704,13 @@ pub struct SharedSecretComponents {
 #[derive(Debug, Clone)]
 /// Mewakili struktur data `AlgorithmInfo`.
 pub struct SignatureComponents {
+/// Mewakili struktur data `JwtHeader`.
     pub ed25519_signature: Option<Vec<u8>>,
     pub ml_dsa_signature: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone)]
+/// Mewakili struktur data `AlgorithmInfo`.
 pub struct JwtHeader {
     pub alg: String,
     pub typ: String,
@@ -737,6 +743,7 @@ impl HybridCrypto {
 
     pub async fn verify(
         &self,
+/// Fungsi `get_crypto_info(`.
         data: &[u8],
         signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
@@ -794,6 +801,7 @@ impl HybridCrypto {
 
     pub async fn ml_kem_decapsulate(
         &self,
+/// Fungsi `get_ml_kem_info(`.
         ciphertext: &[u8],
         private_key: &[u8],
         variant: &str,
@@ -809,6 +817,7 @@ impl HybridCrypto {
             private_key_size: 2400,
             ciphertext_size: 1088,
             security_level: match variant {
+/// Fungsi `get_migration_info(`.
                 "ML-KEM-512" => 1,
                 "ML-KEM-768" => 2,
                 "ML-KEM-1024" => 3,
@@ -832,6 +841,7 @@ impl HybridCrypto {
         claims: &serde_json::Value,
     ) -> Result<String, Box<dyn std::error::Error>> {
         Ok(format!("jwt_ml_dsa_{}", claims.to_string().len()))
+/// Fungsi `decode_jwt_header(`.
     }
 
     pub async fn verify_jwt_ml_dsa(
@@ -921,6 +931,7 @@ impl HybridCrypto {
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("sig_{}_{}", algorithm, data.len()).into_bytes())
     }
+/// Fungsi `get_signature_algorithm_info(`.
 
     pub async fn verify_with_algorithm(
         &self,
@@ -945,6 +956,7 @@ impl HybridCrypto {
         data: &[u8],
         algorithm: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+/// Fungsi `get_encryption_algorithm_info(`.
         Ok(format!("enc_{}_{}", algorithm, data.len()).into_bytes())
     }
 
@@ -991,6 +1003,7 @@ impl HybridCrypto {
 
     pub async fn hybrid_key_exchange_complete(
         &self,
+/// Fungsi `decompose_hybrid_shared_secret(`.
         response: &[u8],
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"shared_secret".to_vec())
@@ -1053,6 +1066,7 @@ impl HybridCrypto {
         variant: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("ml_dsa_sig_{}_{}", variant, data.len()).into_bytes())
+/// Fungsi `get_ml_dsa_signature_info(`.
     }
 
     pub async fn verify_ml_dsa_signature(
@@ -1070,6 +1084,7 @@ impl HybridCrypto {
         SignatureInfo {
             algorithm: variant.to_string(),
             signature_size: signature.len(),
+/// Fungsi `corrupt_ed25519_component(`.
             security_level: match variant {
                 "ML-DSA-44" => 2,
                 "ML-DSA-65" => 3,

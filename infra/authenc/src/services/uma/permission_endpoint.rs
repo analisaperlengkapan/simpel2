@@ -451,11 +451,13 @@ impl AuthorizationContextBuilder {
 /// Fungsi `client_id(mut`.
     }
 
+/// Fungsi `client_id(mut`.
     pub fn client_id(mut self, client_id: String) -> Self {
         self.client_id = Some(client_id);
 /// Fungsi `ip_address(mut`.
         self
     }
+/// Fungsi `ip_address(mut`.
 
     pub fn ip_address(mut self, ip: String) -> Self {
 /// Fungsi `user_agent(mut`.
@@ -480,10 +482,12 @@ impl AuthorizationContextBuilder {
         self.trust_score = Some(score);
 /// Fungsi `build(`.
         self
+/// Fungsi `attribute(mut`.
     }
 
     pub fn attribute(mut self, key: String, value: serde_json::Value) -> Self {
         self.attributes.insert(key, value);
+/// Fungsi `build(`.
         self
     }
 

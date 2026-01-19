@@ -357,6 +357,7 @@ pub struct ValidateScopesQuery {
 /// Mewakili struktur data `ValidateScopesRequest`.
 }
 
+/// Mewakili struktur data `ValidateScopesRequest`.
 #[derive(Debug, Deserialize)]
 pub struct ValidateScopesRequest {
     pub scopes: String,

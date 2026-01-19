@@ -74,6 +74,7 @@ pub mod tokens;
 pub mod user_consents;
 /// Modul `webauthn`.
 pub mod users;
+/// Modul `webauthn`.
 pub mod webauthn;
 
 // Re-export top-level event functions for backward compatibility

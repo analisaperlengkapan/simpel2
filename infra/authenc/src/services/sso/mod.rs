@@ -16,6 +16,7 @@
 pub mod cookie;
 /// Modul `service`.
 pub mod service;
+/// Modul `session`.
 pub mod session;
 
 pub use cookie::SsoCookieManager;

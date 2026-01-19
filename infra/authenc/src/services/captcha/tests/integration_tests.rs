@@ -74,6 +74,7 @@ pub struct SecurityEvent {
 
 /// Fungsi `new(should_fail`.
 impl MockAuthencMonitoring {
+/// Fungsi `new(should_fail`.
     pub fn new(should_fail: bool) -> Self {
         Self {
             should_fail,
@@ -111,6 +112,7 @@ impl MockAuthencMonitoring {
         events.clone()
 /// Fungsi `clear_events(`.
     }
+/// Fungsi `clear_events(`.
 
     pub fn clear_events(&self) {
         let mut events = self.events.lock().unwrap();

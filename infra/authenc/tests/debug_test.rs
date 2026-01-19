@@ -11,6 +11,7 @@ pub struct PasswordPolicy {
 
 /// Fungsi `validate(`.
 impl PasswordPolicy {
+/// Fungsi `validate(`.
     pub fn validate(&self, password: &str) -> Result<(), String> {
         if password.len() < self.min_length {
             return Err(format!(

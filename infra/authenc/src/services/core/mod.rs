@@ -10,5 +10,6 @@ pub mod client_scope_service;
 pub mod realm;
 /// Modul `token_exchange`.
 pub mod session_store;
+/// Modul `token_exchange`.
 pub mod token_exchange;
 pub mod user_sync_service;

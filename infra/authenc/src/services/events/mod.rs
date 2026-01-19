@@ -6,7 +6,9 @@ pub mod event_publisher;
 pub mod event_retention;
 /// Modul `pg_event_store`.
 pub mod event_retention_tests;
+/// Modul `events_impl`.
 pub mod events_impl;
+/// Modul `pg_event_store`.
 pub mod kafka_event_listener;
 pub mod pg_event_store;
 

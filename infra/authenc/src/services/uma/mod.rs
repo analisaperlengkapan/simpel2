@@ -17,6 +17,7 @@ pub mod init;
 pub mod permission_endpoint;
 /// Modul `rpt`.
 pub mod policy_engine;
+/// Modul `resource_owner_auth`.
 pub mod resource_owner_auth;
 pub mod rpt;
 

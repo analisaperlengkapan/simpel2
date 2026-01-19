@@ -29,6 +29,7 @@ pub mod generator;
 pub mod image_challenges;
 /// Modul `rate_limiting`.
 pub mod metrics;
+/// Modul `rate_limiting`.
 pub mod rate_limiting;
 /// Modul `risk_assessment`.
 /// Modul `tests`.
@@ -37,6 +38,7 @@ pub mod retry;
 pub mod risk_assessment;
 /// Modul `validator`.
 pub mod secreton_integration;
+/// Modul `service`.
 pub mod security_monitoring;
 pub mod service;
 pub mod types;
@@ -44,6 +46,7 @@ pub mod types;
 pub mod validator;
 
 #[cfg(test)]
+/// Modul `tests`.
 mod test_generator;
 
 #[cfg(test)]

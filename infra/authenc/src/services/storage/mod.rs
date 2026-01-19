@@ -171,6 +171,7 @@ pub struct InMemoryTransaction;
 
 /// Fungsi `new(`.
 impl InMemoryTransaction {
+/// Fungsi `new(`.
     pub fn new() -> Self {
         Self
     }
@@ -195,6 +196,7 @@ pub struct InMemoryRepository<T: Send + Sync + Clone + Serialize + serde::de::De
 }
 /// Fungsi `new(storage`.
 
+/// Fungsi `new(storage`.
 impl<T: Send + Sync + Clone + Serialize + serde::de::DeserializeOwned> InMemoryRepository<T> {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>, entity_type: String) -> Self {
         Self {
@@ -434,6 +436,7 @@ pub struct InMemoryUserRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
 }
+/// Fungsi `new(storage`.
 
 impl InMemoryUserRepository {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
@@ -548,6 +551,7 @@ impl UserStorageRepository for InMemoryUserRepository {
 pub struct InMemoryClientRepository {
 /// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
+/// Fungsi `new(storage`.
 }
 
 impl InMemoryClientRepository {
@@ -650,6 +654,7 @@ impl ClientStorageRepository for InMemoryClientRepository {
 
 /// In-Memory Realm Repository
 pub struct InMemoryRealmRepository {
+/// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 }
 
@@ -910,6 +915,7 @@ impl StorageProvider for InMemoryStorageProvider {
 /// Fungsi `new(`.
     }
 }
+/// Fungsi `new(`.
 
 /// In-Memory Transaction (no-op for in-memory storage)
 pub struct InMemoryTransaction;
@@ -934,6 +940,7 @@ impl StorageTransaction for InMemoryTransaction {
 /// Fungsi `new(storage`.
 /// Generic In-Memory Repository Implementation
 pub struct InMemoryRepository<T: Send + Sync + Clone + serde::Serialize + serde::de::DeserializeOwned> {
+/// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
     entity_type: String,
     _phantom: std::marker::PhantomData<T>,
@@ -1143,6 +1150,7 @@ impl StorageManager {
 /// Fungsi `new(storage`.
     }
 }
+/// Fungsi `new(storage`.
 
 /// In-Memory User Repository
 pub struct InMemoryUserRepository {
@@ -1237,6 +1245,7 @@ impl UserStorageRepository for InMemoryUserRepository {
 /// Fungsi `new(storage`.
         Ok(users.into_iter().filter(|u| u.roles.contains(&role_id.to_string())).collect())
     }
+/// Fungsi `new(storage`.
 }
 
 /// In-Memory Client Repository
@@ -1326,6 +1335,7 @@ impl ClientStorageRepository for InMemoryClientRepository {
 /// Fungsi `new(storage`.
         // In a real implementation, you'd have an owner_id field
         Ok(clients)
+/// Fungsi `new(storage`.
     }
 }
 
@@ -1541,6 +1551,7 @@ mod tests {
 /// Modul `postgresql`.
             deleted_at: None,
         };
+/// Modul `postgresql`.
 
         // Test save and find
         assert!(client_repo.save(&client).await.is_ok());
