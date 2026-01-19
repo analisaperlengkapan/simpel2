@@ -12,6 +12,7 @@ pub async fn list_oidc_clients(store: web::Data<OidcClientStore>) -> impl Respon
     }
 }
 
+/// Mewakili struktur data `CreateOidcClientRequest`.
 #[derive(Deserialize)]
 pub struct CreateOidcClientRequest {
     pub client_id: String,

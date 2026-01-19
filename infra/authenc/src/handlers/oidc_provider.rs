@@ -118,6 +118,7 @@ pub async fn oidc_discovery() -> impl Responder {
 
 // Stub endpoints for OIDC
 
+/// Mewakili struktur data `OidcAuthorizeQuery`.
 #[derive(Deserialize)]
 pub struct OidcAuthorizeQuery {
     pub client_id: String,
@@ -243,6 +244,7 @@ pub async fn oidc_authorize(
         .finish()
 }
 
+/// Mewakili struktur data `OidcTokenRequest`.
 #[derive(Deserialize)]
 pub struct OidcTokenRequest {
     pub grant_type: String,

@@ -1044,6 +1044,7 @@ impl AppConfig {
         since = "0.2.0",
         note = "Use `load()` instead for file-based config with env overrides"
     )]
+/// Fungsi `from_env(`.
     pub fn from_env() -> Result<Self> {
         let mut config = Self::default();
         config.apply_env_overrides()?;
@@ -1334,6 +1335,7 @@ mod tests {
 mod log_level_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use tracing::Level;
+/// Fungsi `serialize`.
 
     pub fn serialize<S>(level: &Level, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1347,6 +1349,7 @@ mod log_level_serde {
             Level::ERROR => "error",
         };
         level_str.serialize(serializer)
+/// Fungsi `deserialize`.
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Level, D::Error>

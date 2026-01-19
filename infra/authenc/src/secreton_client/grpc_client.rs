@@ -14,11 +14,13 @@ use tonic::{Request, Status};
 use tracing::warn;
 
 // Generated proto code - must be at module root for proper namespace resolution
+/// Modul `common`.
 pub mod common {
     pub mod v1 {
         tonic::include_proto!("common.v1");
     }
 }
+/// Modul `secreton`.
 
 pub mod secreton {
     pub mod v1 {
@@ -50,6 +52,7 @@ pub struct CircuitBreaker {
     success_threshold: u32,
     success_count: Arc<RwLock<u32>>,
 }
+/// Fungsi `new(`.
 
 impl CircuitBreaker {
     pub fn new() -> Self {

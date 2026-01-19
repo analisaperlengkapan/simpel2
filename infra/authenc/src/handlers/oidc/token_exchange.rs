@@ -358,6 +358,7 @@ pub async fn token_exchange_metadata() -> Json<TokenExchangeMetadata> {
     })
 }
 
+/// Mewakili struktur data `TokenExchangeMetadata`.
 #[derive(Debug, Serialize)]
 pub struct TokenExchangeMetadata {
     pub grant_types_supported: Vec<String>,

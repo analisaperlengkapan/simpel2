@@ -1,5 +1,8 @@
+/// Modul `admin`.
 pub mod admin;
+/// Modul `client_registration`.
 pub mod client_policy;
+/// Modul `satker`.
 pub mod client_registration;
 pub mod dcr_admin;
 pub mod satker;

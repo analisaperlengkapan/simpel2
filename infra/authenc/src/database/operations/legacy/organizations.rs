@@ -376,6 +376,7 @@ pub async fn update_member_role(
     Ok(())
 }
 
+/// Mewakili struktur data `OrganizationDomain`.
 #[derive(Debug, Clone)]
 pub struct OrganizationDomain {
     pub id: Uuid,

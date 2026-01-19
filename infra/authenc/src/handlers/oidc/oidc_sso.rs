@@ -1,7 +1,7 @@
 use crate::config::SsoCookieConfig;
 use crate::error::{AuthencError, Result};
 use crate::events::{Event, EventCategory, EventType};
-use crate::handlers::oidc_ed25519::{OidcAuthorizeQuery, generate_ed25519_jwt};
+use crate::handlers::oidc::oidc_ed25519::{OidcAuthorizeQuery, generate_ed25519_jwt};
 use crate::utils::sso_cookie::{SsoCookieManager, SsoSession};
 use axum::{
     extract::{Query, State},
@@ -21,6 +21,7 @@ pub struct SsoState {
 }
 
 impl SsoState {
+/// Fungsi `new(config`.
     pub fn new(config: SsoCookieConfig) -> Self {
         Self {
             cookie_manager: Arc::new(SsoCookieManager::new(config)),

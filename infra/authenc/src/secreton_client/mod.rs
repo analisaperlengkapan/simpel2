@@ -157,6 +157,7 @@ impl std::fmt::Display for SecretonError {
 impl std::error::Error for SecretonError {}
 
 // Type aliases for backward compatibility during migration
+/// Alias tipe `Vault`.
 pub type Vault = dyn SecretonClientTrait;
 pub type VaultError = SecretonError;
 

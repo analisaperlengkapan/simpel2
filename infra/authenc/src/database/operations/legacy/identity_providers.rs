@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use uuid::Uuid;
 
+/// Mewakili struktur data `IdentityProviderData`.
 #[derive(Debug, Clone)]
 pub struct IdentityProviderData {
     pub id: Uuid,

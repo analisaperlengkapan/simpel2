@@ -1,6 +1,6 @@
 use crate::database::Database;
 use crate::error::AuthencError;
-use crate::handlers::jit_admin_service::JitAdminService;
+use crate::handlers::federation::jit_admin_service::JitAdminService;
 use crate::models::user::{JITUserProvisioningRequest, JITUserProvisioningResponse};
 use crate::services::federation::jit_provisioning::{
     DefaultJITProvisioningService, JITProvisioningService,

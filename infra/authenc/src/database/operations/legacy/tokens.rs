@@ -4,6 +4,7 @@ use crate::error::Result;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+/// Mewakili struktur data `AccessTokenData`.
 #[derive(Debug, Clone)]
 pub struct AccessTokenData {
     pub id: Uuid,
@@ -240,6 +241,7 @@ pub async fn get_token_statistics(db: &Database) -> Result<TokenStatistics> {
         total_tokens: row.get::<_, i64>(3) as u64,
     })
 }
+/// Mewakili struktur data `TokenStatistics`.
 
 #[derive(Debug, Clone)]
 pub struct TokenStatistics {

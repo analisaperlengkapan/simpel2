@@ -6,14 +6,14 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get the proto directory path (relative to workspace root)
-    let proto_dir = PathBuf::from("../proto");
+    // Get the proto directory path (relative to authenc crate root)
+    let proto_dir = PathBuf::from("proto");
 
     // Proto files to compile
     let proto_files = vec![
         proto_dir.join("authenc.proto"),
         proto_dir.join("common.proto"),
-        proto_dir.join("secreton.proto"), // For Secreton client
+        proto_dir.join("secreton.proto"),
     ];
 
     // Configure tonic-prost-build (tonic 0.14+)
@@ -30,9 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
 
     // Tell Cargo to rerun this build script if proto files change
-    println!("cargo:rerun-if-changed=../proto/authenc.proto");
-    println!("cargo:rerun-if-changed=../proto/common.proto");
-    println!("cargo:rerun-if-changed=../proto/secreton.proto");
+    println!("cargo:rerun-if-changed=proto/authenc.proto");
+    println!("cargo:rerun-if-changed=proto/common.proto");
+    println!("cargo:rerun-if-changed=proto/secreton.proto");
 
     Ok(())
 }

@@ -49,6 +49,7 @@ pub use authenc_service::proto;
 pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup};
 
 // Include common proto types
+/// Modul `common`.
 pub mod common {
     pub mod v1 {
         tonic::include_proto!("common.v1");

@@ -51,6 +51,7 @@ pub struct OidcIdTokenClaims {
     since = "1.0.0",
     note = "Use generate_ed25519_jwt instead - RSA JWT signing is insecure"
 )]
+/// Fungsi `generate_id_token(`.
 pub fn generate_id_token(
     sub: &str,
     aud: &str,

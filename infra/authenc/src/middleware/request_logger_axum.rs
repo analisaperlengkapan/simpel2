@@ -27,6 +27,7 @@ impl<S> Layer<S> for RequestLogger {
     }
 }
 
+/// Mewakili struktur data `RequestLoggerMiddleware`.
 #[derive(Clone, Debug)]
 pub struct RequestLoggerMiddleware<S> {
     inner: S,
@@ -146,6 +147,7 @@ pub struct ResponseBody<B> {
     status: StatusCode,
 }
 
+/// Fungsi `new(`.
 impl<B> ResponseBody<B> {
     pub fn new(
         inner: B,

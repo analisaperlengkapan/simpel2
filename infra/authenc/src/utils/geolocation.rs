@@ -38,6 +38,7 @@ pub trait GeolocationService: Send + Sync {
 pub struct SimpleGeolocationService;
 
 impl SimpleGeolocationService {
+/// Fungsi `new(`.
     pub fn new() -> Self {
         Self
     }

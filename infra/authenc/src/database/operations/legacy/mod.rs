@@ -16,20 +16,35 @@ pub use serde_json::Value as JsonValue;
 pub use tracing::{debug, error, info, warn};
 pub use uuid::Uuid;
 
+/// Modul `admin_console`.
 pub mod admin_console;
+/// Modul `auth_flows`.
 pub mod audit;
+/// Modul `devices`.
 pub mod auth_flows;
+/// Modul `events`.
 pub mod authenticators;
+/// Modul `federated_identity`.
 pub mod devices;
+/// Modul `identity_providers`.
 pub mod event_functions; // Top-level event functions (not in events module)
+/// Modul `oauth2_providers`.
 pub mod events;
+/// Modul `permission_tickets`.
 pub mod federated_identities;
+/// Modul `realms`.
 pub mod federated_identity;
+/// Modul `resources`.
 pub mod groups;
+/// Modul `saml`.
 pub mod identity_providers;
+/// Modul `service_accounts`.
 pub mod oauth2;
+/// Modul `social_accounts`.
 pub mod oauth2_providers;
+/// Modul `tokens`.
 pub mod organizations;
+/// Modul `users`.
 pub mod permission_tickets;
 pub mod protocol_mappers;
 pub mod realms;

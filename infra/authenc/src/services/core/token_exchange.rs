@@ -629,7 +629,7 @@ impl TokenExchangeService {
         resource: Option<&str>,
         client_id: &str,
     ) -> Result<TokenExchangeResponse> {
-        use crate::handlers::oauth2_comprehensive::{AccessTokenClaims, generate_access_token};
+        use crate::handlers::oidc::oauth2_comprehensive::{AccessTokenClaims, generate_access_token};
 
         let now = Utc::now().timestamp();
         let expires_in = self.config.default_token_ttl;

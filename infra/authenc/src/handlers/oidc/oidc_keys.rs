@@ -43,6 +43,7 @@ pub static RSA_KEYPAIR: Lazy<()> = Lazy::new(|| {
     since = "1.0.0",
     note = "Use Ed25519 public key functions instead - RSA is insecure"
 )]
+/// Fungsi `get_public_pem(`.
 pub fn get_public_pem() -> Result<String, String> {
     log::error!("SECURITY: Attempted to use legacy RSA PEM - use Ed25519 implementation");
     Err(
@@ -67,6 +68,7 @@ pub fn get_public_pem() -> Result<String, String> {
 #[deprecated(
     since = "1.0.0",
     note = "Use Ed25519 signing functions instead - RSA is insecure"
+/// Fungsi `get_private_pem(`.
 )]
 pub fn get_private_pem() -> Result<String, String> {
     log::error!("SECURITY: Attempted to use legacy RSA private PEM - use Ed25519 implementation");

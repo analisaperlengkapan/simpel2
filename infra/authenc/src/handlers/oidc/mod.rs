@@ -1,7 +1,12 @@
+/// Modul `jwks`.
 pub mod jwks;
+/// Modul `oauth2_authz_code`.
 pub mod jwt_ed25519;
+/// Modul `oid4vc`.
 pub mod oauth2_authz_code;
+/// Modul `oidc_jwt`.
 pub mod oauth2_comprehensive;
+/// Modul `oidc_sso`.
 pub mod oid4vc;
 pub mod oidc_ed25519;
 pub mod oidc_jwt;

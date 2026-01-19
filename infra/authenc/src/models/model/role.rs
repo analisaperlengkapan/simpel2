@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 
+/// Mewakili struktur data `Role`.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Role {
     pub id: String,

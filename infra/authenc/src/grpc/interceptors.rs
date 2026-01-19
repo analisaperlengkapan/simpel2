@@ -208,6 +208,7 @@ struct RateLimitEntry {
     window_start: Instant,
 }
 
+/// Mewakili struktur data `RateLimitInterceptor`.
 #[derive(Clone)]
 pub struct RateLimitInterceptor {
     /// Requests per minute limit

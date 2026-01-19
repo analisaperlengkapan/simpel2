@@ -113,6 +113,7 @@ pub async fn rbac_middleware(
 
 /// RBAC layer
 // Simplified RBAC layer type alias
+/// Alias tipe `RbacLayer`.
 pub type RbacLayer<S> = RequireRole<S>;
 
 impl<S> RbacMiddleware<S> {

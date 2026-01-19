@@ -304,6 +304,7 @@ pub struct ClientScopeAssignment {
     pub assignment_type: ScopeAssignmentType,
 }
 
+/// Enum `ScopeAssignmentType`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ScopeAssignmentType {

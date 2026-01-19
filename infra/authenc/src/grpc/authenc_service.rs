@@ -13,6 +13,7 @@ use crate::services::cache::Cache;
 use crate::services::stores::UserStoreTrait;
 
 // Include generated proto code
+/// Modul `proto`.
 pub mod proto {
     tonic::include_proto!("authenc.v1");
 }

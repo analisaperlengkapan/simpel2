@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+/// Mewakili struktur data `CreatePolicyRequest`.
 #[derive(Deserialize)]
 pub struct CreatePolicyRequest {
     pub name: String,
@@ -24,6 +25,7 @@ pub struct CreatePolicyRequest {
     pub realm_id: Uuid,
 }
 
+/// Mewakili struktur data `PolicyResponse`.
 #[derive(Serialize)]
 pub struct PolicyResponse {
     pub id: Uuid,
@@ -36,6 +38,7 @@ pub struct PolicyResponse {
     pub realm_id: Uuid,
 }
 
+/// Mewakili struktur data `UpdatePolicyRequest`.
 #[derive(Deserialize)]
 pub struct UpdatePolicyRequest {
     pub name: Option<String>,
@@ -45,6 +48,7 @@ pub struct UpdatePolicyRequest {
     pub enabled: Option<bool>,
 }
 
+/// Mewakili struktur data `CheckPermissionRequest`.
 #[derive(Deserialize)]
 pub struct CheckPermissionRequest {
     pub user_id: String,
@@ -58,12 +62,14 @@ pub struct CheckPermissionRequest {
     pub environment: Option<std::collections::HashMap<String, String>>,
 }
 
+/// Mewakili struktur data `PermissionResponse`.
 #[derive(Serialize)]
 pub struct PermissionResponse {
     pub decision: Decision,
     pub reason: Option<String>,
-}
+} 
 
+/// Mewakili struktur data `ListPoliciesQuery`.
 #[derive(Deserialize)]
 pub struct ListPoliciesQuery {
     pub realm_id: Option<Uuid>,
@@ -71,6 +77,7 @@ pub struct ListPoliciesQuery {
     pub limit: Option<u32>,
 }
 
+/// Mewakili struktur data `PoliciesListResponse`.
 #[derive(Serialize)]
 pub struct PoliciesListResponse {
     pub policies: Vec<PolicyResponse>,

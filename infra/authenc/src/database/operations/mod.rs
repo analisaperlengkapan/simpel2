@@ -1,5 +1,7 @@
 // Database operations submodules
+/// Modul `client_registration_ops`.
 pub mod client_registration_ops;
+/// Modul `protocol_mappers_ops`.
 pub mod client_scopes_ops;
 pub mod protocol_mappers_ops;
 pub mod tokens;
@@ -13,6 +15,7 @@ pub use client_scopes_ops::{
 };
 
 // Legacy operations now modularized into separate files
+/// Modul `legacy`.
 // Previously in operations_legacy.rs (11,263 lines), now split into 29 modules
 // for better maintainability and navigation
 pub mod legacy;

@@ -9,11 +9,17 @@ use std::sync::Arc;
 use crate::app::AppState;
 
 // Sub-modules (Grouped by Feature)
+/// Modul `admin`.
 pub mod admin;
+/// Modul `api`.
 pub mod api;
+/// Modul `federation`.
 pub mod federation;
+/// Modul `internal`.
 pub mod internal;
+/// Modul `oidc`.
 pub mod oidc;
+/// Modul `security`.
 pub mod security;
 
 // Re-exports

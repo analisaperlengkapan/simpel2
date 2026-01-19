@@ -7,6 +7,7 @@ use crate::services::stores::user_store::UserStore;
 use chrono::{DateTime, Utc};
 use std::fmt::Write;
 
+/// Mewakili struktur data `AuditLogQuery`.
 #[derive(serde::Deserialize)]
 pub struct AuditLogQuery {
     pub event: Option<String>,
@@ -165,6 +166,7 @@ pub async fn export_audit_logs_csv(
     HttpResponse::Unauthorized().body("Invalid or missing token")
 }
 
+/// Fungsi `configure_routes(cfg`.
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.route("/logs", web::get().to(get_audit_logs))
         .route("/logs/export", web::get().to(export_audit_logs_csv));
