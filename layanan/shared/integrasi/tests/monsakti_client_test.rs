@@ -1,13 +1,12 @@
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
 use std::collections::HashMap;
-use std::time::Instant;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 use serde_json::json;
 
 #[tokio::test]
-async fn bench_fetch_performance() {
+async fn test_monsakti_fetch_parsing_logic() {
     // 1. Setup WireMock
     let mock_server = MockServer::start().await;
 
@@ -42,26 +41,19 @@ async fn bench_fetch_performance() {
 
     let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
 
-    // 3. Warmup
-    let _ = client.fetch("ADM", "data", vec!["var1".to_string()]).await;
+    // 3. Perform Fetch
+    let res = client.fetch("ADM", "data", vec!["var1".to_string()]).await;
 
-    // 4. Benchmark Loop
-    let start = Instant::now();
-    let iterations = 50;
-    for _ in 0..iterations {
-        let res = client.fetch("ADM", "data", vec!["var1".to_string()]).await;
-        assert!(res.is_ok(), "Fetch failed");
-        let resp = res.unwrap();
-        // Verify parsing logic works (crucial since we are changing it)
-        assert!(resp.new_token.is_some(), "Expected new_token to be present");
-        assert_eq!(resp.new_token.as_deref(), Some("new_token_123"));
+    // 4. Assertions
+    assert!(res.is_ok(), "Fetch failed");
+    let resp = res.unwrap();
 
-        let data = resp.data.expect("Expected data");
-        let arr = data.as_array().expect("Expected data to be array");
-        assert_eq!(arr.len(), 2);
-    }
-    let duration = start.elapsed();
+    // Verify parsing logic works for the specific array format
+    assert!(resp.new_token.is_some(), "Expected new_token to be present");
+    assert_eq!(resp.new_token.as_deref(), Some("new_token_123"));
 
-    println!("Benchmark finished: {:?} for {} iterations", duration, iterations);
-    println!("Average time per request: {:?}", duration / iterations as u32);
+    let data = resp.data.expect("Expected data");
+    let arr = data.as_array().expect("Expected data to be array");
+    assert_eq!(arr.len(), 2);
+    assert_eq!(arr[0]["name"], "Item 1");
 }
