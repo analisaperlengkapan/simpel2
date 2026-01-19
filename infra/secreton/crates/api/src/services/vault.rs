@@ -7,9 +7,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
-use secreton_core::audit::{AuditLog, AuditLogger, AuditStatus};
 use lib_crypto::{AlgorithmId, CryptoEngine};
 use lib_storage::{SecurityLevel, StorageBackend};
+use secreton_core::audit::{AuditLog, AuditLogger, AuditStatus};
 
 /// Vault service errors
 #[derive(Error, Debug)]
@@ -737,9 +737,9 @@ mod tests {
     use super::*;
     use crate::config::AuthConfig;
     use crate::services::auth::AuthService;
-    use secreton_core::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
     use lib_crypto::SecurityParams;
     use lib_storage::MemoryBackend;
+    use secreton_core::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
 
     #[tokio::test]
     async fn test_vault_service_creation() {

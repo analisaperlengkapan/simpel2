@@ -12,6 +12,9 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use crate::config::ApiConfig;
+use lib_crypto::CryptoEngine;
+use lib_hsm::HsmBackend;
+use lib_storage::StorageBackend;
 use secreton_core::audit::AuditLogger;
 use secreton_core::namespace::NamespaceService;
 use secreton_core::services::identity::IdentityService;
@@ -32,9 +35,6 @@ use secreton_core::services::secrets::ssh::SshEngine;
 use secreton_core::services::secrets::totp::TotpEngine;
 use secreton_core::services::secrets::transform::TransformEngine;
 use secreton_core::services::wrapping::WrappingService;
-use lib_crypto::CryptoEngine;
-use secreton_hsm::HsmBackend;
-use lib_storage::StorageBackend;
 use std::sync::RwLock;
 
 // Re-export SealStorageAdapter for backward compatibility

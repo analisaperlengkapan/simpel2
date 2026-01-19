@@ -5,7 +5,7 @@
 //! for secure master key distribution.
 
 use chrono::{DateTime, Utc};
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;

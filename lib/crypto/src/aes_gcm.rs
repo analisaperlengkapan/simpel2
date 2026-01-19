@@ -108,14 +108,11 @@ impl AesGcmService {
                     CryptoError::InvalidInput("Invalid ciphertext encoding".to_string())
                 })?;
 
-            let nonce_bytes =
-                Base64UrlUnpadded::decode_vec(&encrypted_data.nonce).map_err(|_| {
-                    CryptoError::InvalidInput("Invalid nonce encoding".to_string())
-                })?;
+            let nonce_bytes = Base64UrlUnpadded::decode_vec(&encrypted_data.nonce)
+                .map_err(|_| CryptoError::InvalidInput("Invalid nonce encoding".to_string()))?;
 
-            let tag = Base64UrlUnpadded::decode_vec(&encrypted_data.tag).map_err(|_| {
-                CryptoError::InvalidInput("Invalid tag encoding".to_string())
-            })?;
+            let tag = Base64UrlUnpadded::decode_vec(&encrypted_data.tag)
+                .map_err(|_| CryptoError::InvalidInput("Invalid tag encoding".to_string()))?;
 
             if nonce_bytes.len() != 12 {
                 return Err(CryptoError::InvalidNonceLength);
@@ -142,8 +139,8 @@ impl AesGcmService {
 
     /// Encrypt JSON data
     pub fn encrypt_json<T: Serialize>(&self, data: &T) -> CryptoResult<EncryptedData> {
-        let json_string =
-            serde_json::to_string(data).map_err(|e| CryptoError::SerializationError(e.to_string()))?;
+        let json_string = serde_json::to_string(data)
+            .map_err(|e| CryptoError::SerializationError(e.to_string()))?;
         self.encrypt(json_string.as_bytes())
     }
 
@@ -153,9 +150,11 @@ impl AesGcmService {
         encrypted_data: &EncryptedData,
     ) -> CryptoResult<T> {
         let plaintext = self.decrypt(encrypted_data)?;
-        let json_string =
-            String::from_utf8(plaintext).map_err(|_| CryptoError::SerializationError("Invalid UTF-8 in decrypted data".to_string()))?;
-        serde_json::from_str(&json_string).map_err(|e| CryptoError::SerializationError(e.to_string()))
+        let json_string = String::from_utf8(plaintext).map_err(|_| {
+            CryptoError::SerializationError("Invalid UTF-8 in decrypted data".to_string())
+        })?;
+        serde_json::from_str(&json_string)
+            .map_err(|e| CryptoError::SerializationError(e.to_string()))
     }
 
     /// Generate a new encryption key
@@ -184,7 +183,11 @@ impl AesGcmService {
     }
 
     /// Encrypt large data with streaming
-    pub fn encrypt_stream(&self, data: &[u8], chunk_size: usize) -> CryptoResult<Vec<EncryptedData>> {
+    pub fn encrypt_stream(
+        &self,
+        data: &[u8],
+        chunk_size: usize,
+    ) -> CryptoResult<Vec<EncryptedData>> {
         data.chunks(chunk_size)
             .map(|chunk| self.encrypt(chunk))
             .collect()
@@ -268,7 +271,11 @@ impl KeyRotationService {
     }
 
     /// Decrypt with key rotation support
-    pub fn decrypt(&self, encrypted_data: &EncryptedData, key_id: Option<&str>) -> CryptoResult<Vec<u8>> {
+    pub fn decrypt(
+        &self,
+        encrypted_data: &EncryptedData,
+        key_id: Option<&str>,
+    ) -> CryptoResult<Vec<u8>> {
         // Try current key first
         match self.current_key.decrypt(encrypted_data) {
             Ok(data) => Ok(data),
@@ -287,7 +294,9 @@ impl KeyRotationService {
                     }
                 }
 
-                Err(CryptoError::DecryptionFailed("Unable to decrypt with any available key".to_string()))
+                Err(CryptoError::DecryptionFailed(
+                    "Unable to decrypt with any available key".to_string(),
+                ))
             }
         }
     }

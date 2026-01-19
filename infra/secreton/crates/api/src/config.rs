@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 // Re-export HSM configuration from secreton-hsm crate
-pub use secreton_hsm::HsmConfig;
+pub use lib_hsm::HsmConfig;
 
 /// Main API configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

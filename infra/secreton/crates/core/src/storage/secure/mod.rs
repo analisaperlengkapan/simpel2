@@ -78,7 +78,7 @@ use anyhow::{Result, anyhow};
 use argon2::{Argon2, Params};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 use tracing::info;

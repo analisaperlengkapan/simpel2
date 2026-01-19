@@ -21,45 +21,6 @@ use crate::tls::GrpcTlsConfig;
 // ServiceContainer not yet available in grpc crate
 // use crate::services::ServiceContainer;
 
-// Snapshot types (not yet in proto, placeholders for future implementation)
-#[derive(Debug, Clone)]
-pub struct CreateSnapshotRequest {}
-
-#[derive(Debug, Clone)]
-pub struct CreateSnapshotResponse {
-    pub snapshot_id: String,
-    pub size_bytes: u64,
-    pub compressed_size_bytes: u64,
-    pub checksum: String,
-    pub created_at: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct SnapshotInfo {
-    pub snapshot_id: String,
-    pub size_bytes: u64,
-    pub compressed_size_bytes: u64,
-    pub checksum: String,
-    pub created_at: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct ListSnapshotsRequest {}
-
-#[derive(Debug, Clone)]
-pub struct ListSnapshotsResponse {
-    pub snapshots: Vec<SnapshotInfo>,
-    pub total: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct RestoreSnapshotRequest {
-    pub snapshot_id: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct RestoreSnapshotResponse {}
-
 /// gRPC service implementation
 #[derive(Clone)]
 pub struct SecretonGrpcService {
@@ -1464,6 +1425,40 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             "Response wrapping not yet implemented",
         ))
     }
+
+    // ============================================================================
+    // Snapshot Management Methods (Required by SecretonService trait)
+    // ============================================================================
+
+    #[instrument(skip(self, _request))]
+    async fn create_snapshot(
+        &self,
+        _request: Request<CreateSnapshotRequest>,
+    ) -> Result<Response<CreateSnapshotResponse>, Status> {
+        Err(Status::unimplemented(
+            "Snapshot creation not yet implemented - requires raft-consensus feature",
+        ))
+    }
+
+    #[instrument(skip(self, _request))]
+    async fn list_snapshots(
+        &self,
+        _request: Request<ListSnapshotsRequest>,
+    ) -> Result<Response<ListSnapshotsResponse>, Status> {
+        Err(Status::unimplemented(
+            "Snapshot listing not yet implemented - requires raft-consensus feature",
+        ))
+    }
+
+    #[instrument(skip(self, _request))]
+    async fn restore_snapshot(
+        &self,
+        _request: Request<RestoreSnapshotRequest>,
+    ) -> Result<Response<RestoreSnapshotResponse>, Status> {
+        Err(Status::unimplemented(
+            "Snapshot restoration not yet implemented - requires raft-consensus feature",
+        ))
+    }
 }
 
 // ================================================================================
@@ -1549,219 +1544,6 @@ impl SecretonGrpcService {
                     policies_count: u.policies_count as u64,
                 })
                 .unwrap_or_default(),
-        }
-    }
-
-    // ============================================================================
-    // Snapshot Management Methods
-    // ============================================================================
-
-    #[allow(dead_code)]
-    #[instrument(skip(self, _request))]
-    async fn create_snapshot(
-        &self,
-        _request: Request<CreateSnapshotRequest>,
-    ) -> Result<Response<CreateSnapshotResponse>, Status> {
-        #[cfg(not(feature = "raft-consensus"))]
-        {
-            return Err(Status::unimplemented("Raft consensus feature not enabled"));
-        }
-
-        #[cfg(feature = "raft-consensus")]
-        {
-            info!("Creating Raft snapshot via gRPC");
-
-            // Get Raft storage backend
-            let raft_storage = self
-                .storage
-                .as_any()
-                .downcast_ref::<lib_storage::raft::RaftCluster>()
-                .ok_or_else(|| {
-                    error!("Storage backend is not a Raft cluster");
-                    Status::failed_precondition("Raft cluster not configured")
-                })?;
-
-            // Check if this node is the leader
-            if !raft_storage.is_leader().await {
-                warn!("Snapshot creation attempted on non-leader node");
-                return Err(Status::failed_precondition(
-                    "Snapshots can only be created on the leader node",
-                ));
-            }
-
-            // Get current cluster status for metadata
-            let status = raft_storage.status().await.map_err(|e| {
-                error!("Failed to get cluster status: {}", e);
-                Status::internal(format!("Failed to get cluster status: {}", e))
-            })?;
-
-            // Generate snapshot ID
-            let snapshot_id = format!(
-                "snapshot-{}-{}",
-                chrono::Utc::now().timestamp(),
-                uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
-            );
-
-            // Simulate snapshot data
-            let snapshot_data = format!(
-                "{{\"node_id\":{},\"term\":{},\"index\":{},\"timestamp\":{}}}",
-                status.node_id,
-                status.current_term,
-                status.last_applied.unwrap_or(0),
-                chrono::Utc::now().timestamp()
-            );
-            let snapshot_bytes = snapshot_data.as_bytes();
-            let original_size = snapshot_bytes.len() as u64;
-
-            // Compress snapshot data
-            #[cfg(feature = "flate2")]
-            let (compressed_data, compressed_size) = {
-                use flate2::Compression;
-                use flate2::write::GzEncoder;
-                use std::io::Write;
-
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                encoder
-                    .write_all(snapshot_bytes)
-                    .map_err(|e| Status::internal(format!("Failed to compress snapshot: {}", e)))?;
-                let compressed_data = encoder.finish().map_err(|e| {
-                    Status::internal(format!("Failed to finish compression: {}", e))
-                })?;
-                let compressed_size = compressed_data.len() as u64;
-                (compressed_data, compressed_size)
-            };
-
-            #[cfg(not(feature = "flate2"))]
-            let (compressed_data, compressed_size) = { (snapshot_bytes.to_vec(), original_size) };
-
-            // Calculate checksum
-            use sha2::{Digest, Sha256};
-            let mut hasher = Sha256::new();
-            hasher.update(&compressed_data);
-            let checksum = format!("{:x}", hasher.finalize());
-
-            // Record metrics (only if metrics feature is enabled)
-            #[cfg(feature = "metrics")]
-            {
-                counter!("secreton_grpc_create_snapshot_requests").increment(1);
-                counter!("secreton_raft_snapshots_created").increment(1);
-                gauge!("secreton_raft_snapshot_size_bytes").set(original_size as f64);
-            }
-
-            let response = CreateSnapshotResponse {
-                snapshot_id: snapshot_id.clone(),
-                size_bytes: original_size,
-                compressed_size_bytes: compressed_size,
-                checksum,
-                created_at: chrono::Utc::now().timestamp(),
-            };
-
-            info!("Snapshot {} created successfully via gRPC", snapshot_id);
-            Ok(Response::new(response))
-        }
-    }
-
-    #[allow(dead_code)]
-    #[instrument(skip(self, _request))]
-    async fn list_snapshots(
-        &self,
-        _request: Request<ListSnapshotsRequest>,
-    ) -> Result<Response<ListSnapshotsResponse>, Status> {
-        #[cfg(not(feature = "raft-consensus"))]
-        {
-            return Err(Status::unimplemented("Raft consensus feature not enabled"));
-        }
-
-        #[cfg(feature = "raft-consensus")]
-        {
-            info!("Listing snapshots via gRPC");
-
-            // Get Raft storage backend
-            let _raft_storage = self
-                .storage
-                .as_any()
-                .downcast_ref::<lib_storage::raft::RaftCluster>()
-                .ok_or_else(|| {
-                    error!("Storage backend is not a Raft cluster");
-                    Status::failed_precondition("Raft cluster not configured")
-                })?;
-
-            // List snapshots from raft storage (stub implementation)
-            let snapshots = Vec::new();
-
-            // Record metrics (only if metrics feature is enabled)
-            #[cfg(feature = "metrics")]
-            {
-                counter!("secreton_grpc_list_snapshots_requests").increment(1);
-            }
-
-            let response = ListSnapshotsResponse {
-                snapshots,
-                total: 0,
-            };
-
-            info!("Listed {} snapshots via gRPC", response.total);
-            Ok(Response::new(response))
-        }
-    }
-
-    #[allow(dead_code)]
-    #[instrument(skip(self, request))]
-    async fn restore_snapshot(
-        &self,
-        request: Request<RestoreSnapshotRequest>,
-    ) -> Result<Response<RestoreSnapshotResponse>, Status> {
-        #[cfg(not(feature = "raft-consensus"))]
-        {
-            return Err(Status::unimplemented("Raft consensus feature not enabled"));
-        }
-
-        #[cfg(feature = "raft-consensus")]
-        {
-            let req = request.into_inner();
-
-            info!("Restoring from snapshot {} via gRPC", req.snapshot_id);
-
-            // Validate snapshot ID
-            if req.snapshot_id.is_empty() {
-                return Err(Status::invalid_argument("Snapshot ID cannot be empty"));
-            }
-
-            if !req.snapshot_id.starts_with("snapshot-") {
-                return Err(Status::invalid_argument(
-                    "Invalid snapshot ID format. Must start with 'snapshot-'",
-                ));
-            }
-
-            // Get Raft storage backend
-            let raft_storage = self
-                .storage
-                .as_any()
-                .downcast_ref::<lib_storage::raft::RaftCluster>()
-                .ok_or_else(|| {
-                    error!("Storage backend is not a Raft cluster");
-                    Status::failed_precondition("Raft cluster not configured")
-                })?;
-
-            // Check if this node is the leader
-            if !raft_storage.is_leader().await {
-                warn!("Snapshot restore attempted on non-leader node");
-                return Err(Status::failed_precondition(
-                    "Snapshots can only be restored on the leader node",
-                ));
-            }
-
-            // Record metrics (only if metrics feature is enabled)
-            #[cfg(feature = "metrics")]
-            {
-                counter!("secreton_grpc_restore_snapshot_requests").increment(1);
-                counter!("secreton_raft_restores_attempted").increment(1);
-            }
-
-            warn!("Snapshot restore not yet fully implemented");
-            Err(Status::unimplemented(
-                "Snapshot restore not yet fully implemented",
-            ))
         }
     }
 

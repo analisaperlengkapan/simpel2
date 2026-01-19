@@ -457,7 +457,7 @@ impl WrappingService {
             Aes256Gcm, Nonce,
             aead::{Aead, KeyInit},
         };
-        use rand::{rngs::OsRng, RngCore};
+        use rand::{RngCore, rngs::OsRng};
 
         // Generate random key for this wrap operation
         let mut key_bytes = [0u8; 32];

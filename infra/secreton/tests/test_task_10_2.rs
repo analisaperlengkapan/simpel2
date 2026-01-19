@@ -2,12 +2,12 @@
 //! Tests the new integration test components
 
 use chrono::Utc;
+use lib_crypto::HybridCrypto;
 use secreton_core::SecurityLevel;
 use secreton_core::auth::{AuthencAuthProvider, PqSignature};
 use secreton_core::models::secret::{
     AccessControl, EncryptedValue, EncryptionAlgorithm, Secret, SecretMetadata,
 };
-use lib_crypto::HybridCrypto;
 
 #[test]
 fn test_authenc_provider_can_be_created() {

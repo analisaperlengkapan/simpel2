@@ -3,9 +3,7 @@
 //! Tests encryption/decryption roundtrip
 
 use anyhow::Result;
-use lib_crypto::hybrid::{
-    CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
-};
+use lib_crypto::hybrid::{CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements};
 
 #[tokio::test]
 async fn test_classical_crypto_roundtrip() -> Result<()> {

@@ -4,8 +4,8 @@
 //! allowing SealService to persist vault state using the storage backend.
 
 use anyhow::Result;
-use secreton_core::services::seal::{VaultState, VaultStateStorage};
 use lib_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use secreton_core::services::seal::{VaultState, VaultStateStorage};
 use std::sync::Arc;
 
 const VAULT_STATE_PATH: &str = "sys/seal/state";
@@ -73,8 +73,8 @@ impl VaultStateStorage for SealStorageAdapter {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use secreton_core::services::seal::{EncryptionMetadata, KdfParams, SealConfig};
     use lib_storage::MemoryBackend;
+    use secreton_core::services::seal::{EncryptionMetadata, KdfParams, SealConfig};
 
     fn create_test_vault_state() -> VaultState {
         VaultState {

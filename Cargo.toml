@@ -445,7 +445,8 @@ slog-async = "2.8.0"
 # Storage Tools
 tokio-postgres-rustls = "0.13.0"
 tokio-rustls = "0.26"
-prost = "0.13.0"
+prost = "0.14"
+prost-types = "0.14"
 
 # Development
 criterion = { version = "0.5.1", features = ["html_reports"] }
@@ -454,8 +455,9 @@ proptest = "1.4.0"
 # AI and ML Dependencies
 qdrant-client = "1.11"
 tiktoken-rs = "0.7.0"
-tonic = { version = "0.14.2", features = ["transport"] }
+tonic = { version = "0.14.2", features = ["transport", "tls-ring", "tls-native-roots", "server", "channel"] }
 tonic-build = "0.14"
+tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 
 # CLI tools

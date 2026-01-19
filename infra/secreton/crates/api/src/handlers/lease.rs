@@ -5,7 +5,7 @@
 //! isolation, authorization, audit logging, and monitoring.
 
 use axum::{
-    Router, async_trait,
+    Router,
     extract::{FromRequestParts, Path, Query, State},
     http::request::Parts,
     response::Json,
@@ -43,48 +43,52 @@ pub struct LeaseAuth {
     pub is_admin: bool,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for LeaseAuth
 where
     S: Send + Sync,
 {
     type Rejection = ApiError;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let context = parts
-            .extensions
-            .get::<RequestContext>()
-            .ok_or(ApiError::Internal {
-                message: "Request context not found".to_string(),
-            })?;
+    fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
+        async move {
+            let context = parts
+                .extensions
+                .get::<RequestContext>()
+                .ok_or(ApiError::Internal {
+                    message: "Request context not found".to_string(),
+                })?;
 
-        let user = context
-            .user_id
-            .clone()
-            .unwrap_or_else(|| "anonymous".to_string());
+            let user = context
+                .user_id
+                .clone()
+                .unwrap_or_else(|| "anonymous".to_string());
 
-        let namespace = context
-            .jwt_claims
-            .as_ref()
-            .and_then(|c| c.satker_code.as_ref().or(c.wilayah_code.as_ref()))
-            .cloned()
-            .unwrap_or_else(|| "default".to_string());
-
-        let is_admin = context
-            .user_roles
-            .iter()
-            .any(|r| r == "admin" || r == "superuser")
-            || context
+            let namespace = context
                 .jwt_claims
                 .as_ref()
-                .map(|c| matches!(c.admin_level, AdminLevel::Pusat))
-                .unwrap_or(false);
+                .and_then(|c| c.satker_code.as_ref().or(c.wilayah_code.as_ref()))
+                .cloned()
+                .unwrap_or_else(|| "default".to_string());
 
-        Ok(LeaseAuth {
-            user,
-            namespace,
-            is_admin,
-        })
+            let is_admin = context
+                .user_roles
+                .iter()
+                .any(|r| r == "admin" || r == "superuser")
+                || context
+                    .jwt_claims
+                    .as_ref()
+                    .map(|c| matches!(c.admin_level, AdminLevel::Pusat))
+                    .unwrap_or(false);
+
+            Ok(LeaseAuth {
+                user,
+                namespace,
+                is_admin,
+            })
+        }
     }
 }
 

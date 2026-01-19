@@ -194,10 +194,8 @@ impl OidcVerifier {
                     AuthError::TokenValidation("Missing EC y coordinate".to_string())
                 })?;
 
-                // For now, construct PEM format for ES256
-                // In production, use a proper ECDSA library
-                let pem = format_ec_public_key_pem(x, y)?;
-                DecodingKey::from_ec_pem(pem.as_bytes())
+                // Use from_ec_components directly with x and y base64 values
+                DecodingKey::from_ec_components(x, y)
                     .map_err(|e| AuthError::TokenValidation(format!("Invalid EC key: {}", e)))
             }
             other => Err(AuthError::TokenValidation(format!(

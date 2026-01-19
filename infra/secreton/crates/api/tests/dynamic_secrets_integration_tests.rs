@@ -14,9 +14,9 @@
 //! - Audit logging
 //! - Error handling
 
+use lib_storage::MemoryBackend;
 use secreton_api::{handlers::dynamic::*, services::ServiceContainer};
 use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
-use lib_storage::MemoryBackend;
 use std::sync::Arc;
 
 /// Helper to create test service container

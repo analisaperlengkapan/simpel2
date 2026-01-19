@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // Import Ed25519 functions from lib-crypto crate
-use lib_crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
 use ed25519_dalek::{Signature, Verifier};
+use lib_crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
 
 /// JWT claims structure for token payload
 /// This struct represents the standard JWT claims used in authentication tokens.

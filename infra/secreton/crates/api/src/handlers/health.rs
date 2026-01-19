@@ -595,7 +595,7 @@ async fn check_crypto_readiness(_state: &AppState) -> HealthCheck {
 }
 
 /// Check HSM health
-async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
+async fn check_hsm_health(hsm: &lib_hsm::HsmBackend) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
     // Check HSM connectivity and health

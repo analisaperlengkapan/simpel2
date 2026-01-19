@@ -8,9 +8,7 @@
 #![cfg(feature = "storage-comprehensive-tests")]
 
 use anyhow::Result;
-use lib_storage::{
-    EncryptionMetadata, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
-};
+use lib_storage::{EncryptionMetadata, QueryParams, SecurityLevel, StorageBackend, VaultEntry};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use uuid::Uuid;

@@ -3,10 +3,8 @@
 //! Tests security features and compliance
 
 use anyhow::Result;
+use lib_crypto::hybrid::{CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements};
 use secreton_core::models::SecurityLevel;
-use lib_crypto::hybrid::{
-    CryptoMode, HybridCrypto, PerformancePriority, SecurityRequirements,
-};
 
 #[tokio::test]
 async fn test_security_levels_exist() -> Result<()> {

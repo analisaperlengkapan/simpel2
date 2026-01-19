@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn main() {
     // Set build date
@@ -32,10 +32,7 @@ fn main() {
         .build_server(true)
         .build_client(false)
         .out_dir(&out_dir)
-        .compile_protos(
-            &["../../proto/secreton.proto"],
-            &["../../proto"],
-        )
+        .compile_protos(&["../../proto/secreton.proto"], &["../../proto"])
         .expect("Failed to compile proto files");
 
     // Tell cargo to rerun if proto files change

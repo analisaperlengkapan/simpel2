@@ -9,7 +9,7 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
 };
 use chrono::{DateTime, Utc};
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
 use serde::{Deserialize, Serialize};
 
 use crate::services::seal::SealService;

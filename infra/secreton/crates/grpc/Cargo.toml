@@ -37,6 +37,7 @@ tracing = { workspace = true }
 
 # gRPC
 tonic = { workspace = true }
+tonic-prost = { workspace = true }
 prost = { workspace = true }
 
 # TLS

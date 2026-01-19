@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info, warn};
 
+use lib_crypto::transit::TransitEngine;
 use secreton_api::grpc::server::SecretonGrpcService;
 use secreton_api::grpc::tls::GrpcTlsConfig;
 use secreton_api::services::ServiceContainer;
@@ -12,7 +13,6 @@ use secreton_api::{
     ApiState, KVApiState, KVEngine, PkiApiState, TransitApiState, config::ApiConfig,
     create_api_router,
 };
-use lib_crypto::transit::TransitEngine;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
