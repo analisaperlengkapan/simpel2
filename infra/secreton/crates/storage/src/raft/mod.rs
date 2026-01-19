@@ -105,12 +105,30 @@ impl StorageBackend for RaftCluster {
         let start = std::time::Instant::now();
         // Ping the cluster by ensuring linearizability (read consistency)
         // This confirms we are connected to the leader and can process reads
-        let ping_result = self.raft.ensure_linearizable().await;
-        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+        // Add a timeout to prevent hanging if the cluster is unresponsive
+        let ping_result = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            self.raft.ensure_linearizable(),
+        )
+        .await;
 
-        // If ping fails, mark as unhealthy or degraded
-        if ping_result.is_err() {
-            is_healthy = false;
+        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+        let mut error_msg = None;
+
+        match ping_result {
+            Ok(Ok(_)) => {
+                // Success - linearizable read confirmed
+            }
+            Ok(Err(e)) => {
+                // Raft internal error
+                is_healthy = false;
+                error_msg = Some(e.to_string());
+            }
+            Err(_) => {
+                // Timeout
+                is_healthy = false;
+                error_msg = Some("Health check timed out after 3s".to_string());
+            }
         }
 
         Ok(HealthStatus {
@@ -118,7 +136,7 @@ impl StorageBackend for RaftCluster {
             response_time_ms,
             connections_active: 0,
             connections_idle: 0,
-            last_error: ping_result.err().map(|e| e.to_string()),
+            last_error: error_msg,
             uptime_seconds: 0, // TODO: Track uptime (requires start time field in RaftCluster)
         })
     }
