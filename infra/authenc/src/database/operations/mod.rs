@@ -21,6 +21,7 @@ pub use client_scopes_ops::{
 // Previously in operations_legacy.rs (11,263 lines), now split into 29 modules
 /// Modul `legacy`.
 // for better maintainability and navigation
+/// Modul `legacy`.
 pub mod legacy;
 
 // Re-export all legacy modules for backward compatibility

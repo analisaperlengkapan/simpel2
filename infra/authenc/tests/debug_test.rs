@@ -1,3 +1,4 @@
+/// Mewakili struktur data `PasswordPolicy`.
 #[derive(Debug, Clone)]
 pub struct PasswordPolicy {
     pub min_length: usize,
@@ -8,6 +9,7 @@ pub struct PasswordPolicy {
     pub blacklist: Vec<String>,
 }
 
+/// Fungsi `validate(`.
 impl PasswordPolicy {
     pub fn validate(&self, password: &str) -> Result<(), String> {
         if password.len() < self.min_length {

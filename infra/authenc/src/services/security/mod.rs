@@ -1,5 +1,8 @@
+/// Modul `anomaly_detector`.
 pub mod anomaly_detector;
+/// Modul `forever_unknown_secrets`.
 pub mod brute_force_protector;
+/// Modul `password_policy`.
 pub mod forever_unknown_secrets;
 pub mod jwt_validator;
 pub mod password_policy;

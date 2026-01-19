@@ -81,6 +81,7 @@ pub struct EnhancedAuditService {
 
 /// Fungsi `new(`.
 impl EnhancedAuditService {
+/// Fungsi `new(`.
     pub fn new(
         db: Arc<Database>,
         signature_service: Arc<AuditSignatureService>,
@@ -207,6 +208,7 @@ impl EnhancedAuditService {
         EnhancedAuditContext::from_headers(headers, Some(&self.geolocation_service)).await
 /// Fungsi `sanitizer_config(`.
     }
+/// Fungsi `sanitizer_config(`.
 
     pub fn sanitizer_config(&self) -> &SanitizerConfig {
         &self.sanitizer_config
@@ -224,6 +226,7 @@ pub async fn create_audit_context(
     }
 /// Fungsi `extract_audit_details(headers`.
     context
+/// Fungsi `extract_audit_details(headers`.
 }
 
 pub fn extract_audit_details(headers: &HeaderMap) -> (Option<String>, Option<String>) {

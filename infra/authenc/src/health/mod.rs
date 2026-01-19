@@ -9,6 +9,7 @@
 //! - `types`: Shared types and enums for health status
 
 pub mod checks;
+/// Modul `types`.
 pub mod types;
 
 pub use checks::{DatabaseHealthCheck, KafkaHealthCheck, RedisHealthCheck, SecretonHealthCheck};

@@ -6,7 +6,9 @@ pub mod client_registration;
 pub mod client_registration_v2;
 /// Modul `token_exchange`.
 pub mod client_scope_service;
+/// Modul `realm`.
 pub mod realm;
+/// Modul `token_exchange`.
 pub mod session_store;
 pub mod token_exchange;
 pub mod user_sync_service;

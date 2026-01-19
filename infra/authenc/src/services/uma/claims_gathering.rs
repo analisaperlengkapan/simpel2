@@ -297,6 +297,7 @@ pub struct ClaimsGatheringFlow {
 }
 
 impl ClaimsGatheringFlow {
+/// Fungsi `new(base_url`.
     pub fn new(base_url: String) -> Self {
         Self {
             service: ClaimsGatheringService::new(base_url),

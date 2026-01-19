@@ -59,6 +59,7 @@ pub struct CircuitBreaker {
 
 /// Fungsi `new(`.
 impl CircuitBreaker {
+/// Fungsi `new(`.
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitBreakerState::Closed)),

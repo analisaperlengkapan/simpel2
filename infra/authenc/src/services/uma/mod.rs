@@ -11,8 +11,11 @@
 //! - Resource owner authorization
 
 pub mod claims_gathering;
+/// Modul `init`.
 pub mod init;
+/// Modul `policy_engine`.
 pub mod permission_endpoint;
+/// Modul `rpt`.
 pub mod policy_engine;
 pub mod resource_owner_auth;
 pub mod rpt;

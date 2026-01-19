@@ -315,6 +315,7 @@ pub async fn revoke_user_consent(
 /// Mewakili struktur data `RevokeConsentRequest`.
 }
 
+/// Mewakili struktur data `RevokeConsentRequest`.
 #[derive(Debug, Deserialize)]
 pub struct RevokeConsentRequest {
     pub scope_names: Option<Vec<String>>,
@@ -347,11 +348,13 @@ pub async fn validate_scopes(
     Ok(Json(result))
 /// Mewakili struktur data `ValidateScopesRequest`.
 }
+/// Mewakili struktur data `ValidateScopesQuery`.
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateScopesQuery {
 /// Mewakili struktur data `ValidateScopesRequest`.
     pub realm_id: Option<Uuid>,
+/// Mewakili struktur data `ValidateScopesRequest`.
 }
 
 #[derive(Debug, Deserialize)]

@@ -429,6 +429,7 @@ pub struct AuthorizationContextBuilder {
 }
 
 impl AuthorizationContextBuilder {
+/// Fungsi `new(`.
     pub fn new() -> Self {
         Self {
             subject_id: None,
@@ -442,34 +443,42 @@ impl AuthorizationContextBuilder {
             attributes: HashMap::new(),
         }
     }
+/// Fungsi `subject_id(mut`.
 
     pub fn subject_id(mut self, subject_id: String) -> Self {
         self.subject_id = Some(subject_id);
         self
+/// Fungsi `client_id(mut`.
     }
 
     pub fn client_id(mut self, client_id: String) -> Self {
         self.client_id = Some(client_id);
+/// Fungsi `ip_address(mut`.
         self
     }
 
     pub fn ip_address(mut self, ip: String) -> Self {
+/// Fungsi `user_agent(mut`.
         self.ip_address = Some(ip);
         self
     }
 
+/// Fungsi `mfa_completed(mut`.
     pub fn user_agent(mut self, ua: String) -> Self {
         self.user_agent = Some(ua);
         self
     }
+/// Fungsi `trust_score(mut`.
 
     pub fn mfa_completed(mut self, completed: bool) -> Self {
         self.mfa_completed = completed;
         self
+/// Fungsi `attribute(mut`.
     }
 
     pub fn trust_score(mut self, score: f64) -> Self {
         self.trust_score = Some(score);
+/// Fungsi `build(`.
         self
     }
 

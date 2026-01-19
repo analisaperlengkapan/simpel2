@@ -14,6 +14,7 @@ pub mod metrics;
 pub mod mfa_cache;
 /// Modul `redis_cache`.
 pub mod multi_layer_cache;
+/// Modul `redis_cache`.
 pub mod redis_cache;
 
 pub use event_consumer::{EventConsumerConfig, EventConsumerStats, EventDrivenCacheInvalidator};

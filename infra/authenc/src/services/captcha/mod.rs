@@ -25,16 +25,22 @@ pub mod fallback;
 pub mod fingerprinting;
 /// Modul `validator`.
 pub mod generator;
+/// Modul `image_challenges`.
 pub mod image_challenges;
+/// Modul `rate_limiting`.
 pub mod metrics;
 pub mod rate_limiting;
+/// Modul `risk_assessment`.
 /// Modul `tests`.
 pub mod retry;
+/// Modul `service`.
 pub mod risk_assessment;
+/// Modul `validator`.
 pub mod secreton_integration;
 pub mod security_monitoring;
 pub mod service;
 pub mod types;
+/// Modul `tests`.
 pub mod validator;
 
 #[cfg(test)]

@@ -14,6 +14,7 @@
 //! - Session timeout and lifecycle management
 
 pub mod cookie;
+/// Modul `service`.
 pub mod service;
 pub mod session;
 

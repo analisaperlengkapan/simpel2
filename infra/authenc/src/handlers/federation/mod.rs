@@ -15,4 +15,5 @@ pub mod social;
 /// Modul `sso`.
 /// Modul `spi_federation`.
 pub mod spi_federation;
+/// Modul `sso`.
 pub mod sso;

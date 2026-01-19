@@ -451,6 +451,7 @@ fn test_config_with_invalid_secreton() -> AuthencConfig {
 }
 
 mod tls {
+/// Enum `ProtocolVersion`.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     pub enum ProtocolVersion {
         TLSv1_0,

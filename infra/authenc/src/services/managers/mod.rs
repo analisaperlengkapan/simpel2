@@ -4,6 +4,7 @@
 //! complex operations across different components of the authentication system.
 
 pub mod authentication;
+/// Modul `user_session`.
 pub mod user_session;
 
 // Re-export commonly used managers

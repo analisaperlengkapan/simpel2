@@ -70,7 +70,9 @@ pub mod social_accounts;
 pub mod themes;
 /// Modul `webauthn`.
 pub mod tokens;
+/// Modul `user_consents`.
 pub mod user_consents;
+/// Modul `webauthn`.
 pub mod users;
 pub mod webauthn;
 

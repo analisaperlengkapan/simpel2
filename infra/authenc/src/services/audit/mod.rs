@@ -10,5 +10,6 @@ pub mod audit_signature;
 pub mod elasticsearch_audit_log_sink;
 /// Modul `kafka_audit_log_sink`.
 pub mod enhanced_audit;
+/// Modul `kafka_audit_log_sink`.
 pub mod kafka_audit_log_sink;
 pub mod pg_audit_log_store;

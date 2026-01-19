@@ -47,6 +47,7 @@ mod test_utils {
         .expect("Failed to create test database pool")
     }
 
+/// Fungsi `create_integration_test_user(`.
     pub fn create_integration_test_user() -> User {
         User {
             id: Uuid::new_v4(),

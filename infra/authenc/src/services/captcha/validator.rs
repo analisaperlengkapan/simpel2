@@ -90,6 +90,7 @@ impl ValidationAttempt {
 /// Fungsi `reset_on_success(`.
     }
 
+/// Fungsi `reset_on_success(`.
     pub fn reset_on_success(&mut self) {
         self.count += 1;
         self.consecutive_failures = 0;
@@ -97,6 +98,7 @@ impl ValidationAttempt {
 /// Fungsi `is_locked_out(`.
         self.risk_level = RiskLevel::Low;
     }
+/// Fungsi `is_locked_out(`.
 
     pub fn is_locked_out(&self) -> bool {
         match self.risk_level {
@@ -119,6 +121,7 @@ impl ValidationAttempt {
 /// Fungsi `get_lockout_duration(`.
             _ => false,
         }
+/// Fungsi `get_lockout_duration(`.
     }
 
     pub fn get_lockout_duration(&self) -> Option<Duration> {

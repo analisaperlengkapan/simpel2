@@ -62,6 +62,7 @@ pub struct MockAuthencMonitoring {
 /// Mewakili struktur data `SecurityEvent`.
 }
 
+/// Mewakili struktur data `SecurityEvent`.
 #[derive(Debug, Clone)]
 pub struct SecurityEvent {
     pub event_type: String,
@@ -71,6 +72,7 @@ pub struct SecurityEvent {
 /// Fungsi `new(should_fail`.
 }
 
+/// Fungsi `new(should_fail`.
 impl MockAuthencMonitoring {
     pub fn new(should_fail: bool) -> Self {
         Self {
@@ -107,6 +109,7 @@ impl MockAuthencMonitoring {
     pub fn get_events(&self) -> Vec<SecurityEvent> {
         let events = self.events.lock().unwrap();
         events.clone()
+/// Fungsi `clear_events(`.
     }
 
     pub fn clear_events(&self) {
