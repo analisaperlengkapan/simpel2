@@ -20,10 +20,11 @@ mod rbac;
 mod ticket;
 mod webhook;
 
-use crate::{config::AppConfig, error::AppError, handlers::routes};
+use crate::{config::AppConfig, error::AppError, handlers::routes, rate_limit::RateLimitState};
 use axum::{Router, http::Method};
+use dashmap::DashMap;
 use prometheus::{Encoder, Registry, TextEncoder};
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
@@ -36,7 +37,7 @@ pub struct AppState {
     pub redis: redis::Client,
     pub config: AppConfig,
     pub metrics_registry: Registry,
-    pub rate_limit: rate_limit::RateLimitState,
+    pub rate_limit: RateLimitState,
 }
 
 #[tokio::main]
@@ -59,13 +60,16 @@ async fn main() -> Result<(), AppError> {
     // Setup metrics registry
     let metrics_registry = setup_metrics()?;
 
+    // Initialize rate limiter state
+    let rate_limit_state = Arc::new(DashMap::new());
+
     // Create application state
     let state = AppState {
         db: db_pool,
         redis: redis_client,
         config: config.clone(),
         metrics_registry,
-        rate_limit: rate_limit::new_rate_limiter(),
+        rate_limit: rate_limit_state,
     };
 
     // Create router dengan semua routes
@@ -173,12 +177,6 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         ])
         .allow_credentials(true);
 
-    // Rate Limit Middleware Integration
-    let rate_limit_layer = axum::middleware::from_fn_with_state(
-        state.rate_limit.clone(),
-        |state, req, next| rate_limit::rate_limit_middleware(state, req, next, 100) // Default limit 100 req/min
-    );
-
     // Create main application router
     let app = routes(state.config.clone(), state.db.clone()).layer(
         tower::ServiceBuilder::new()
@@ -187,7 +185,10 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
             // Use with_status_code if possible, or just ignore deprecated warning if API surface matches
             .layer(TimeoutLayer::new(Duration::from_secs(30)))
             .layer(cors)
-            .layer(rate_limit_layer),
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                crate::rate_limit::rate_limit_middleware,
+            )),
     );
 
     // Add health check and metrics routes

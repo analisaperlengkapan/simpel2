@@ -1,19 +1,20 @@
 use crate::error::AppError;
+use crate::AppState;
 use axum::{extract::State, http::Request, middleware::Next, response::Response};
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[allow(dead_code)]
 pub type RateLimitState = Arc<DashMap<String, (u32, u64)>>;
 
-#[allow(dead_code)]
 pub async fn rate_limit_middleware(
-    State(state): State<RateLimitState>,
+    State(state): State<AppState>,
     req: Request<axum::body::Body>,
     next: Next,
-    limit: u32,
 ) -> Result<Response, AppError> {
+    let limit = state.config.rate_limit_ticket; // Use a default from config (or similar)
+    let rate_limit_map = &state.rate_limit;
+
     let ip = req
         .headers()
         .get("x-forwarded-for")
@@ -25,14 +26,14 @@ pub async fn rate_limit_middleware(
 
     // Probabilistic cleanup (approx 1 in 100 requests) to prevent memory leaks
     if now_duration.subsec_nanos() % 100 == 0 {
-        let state_clone = state.clone();
+        let map_clone = rate_limit_map.clone();
         tokio::spawn(async move {
-            state_clone.retain(|_, (_, ts)| now - *ts <= 60);
+            map_clone.retain(|_, (_, ts)| now - *ts <= 60);
         });
     }
 
     // Use DashMap's entry API which locks only the specific bucket/entry
-    let mut entry = state.entry(ip).or_insert((0, now));
+    let mut entry = rate_limit_map.entry(ip).or_insert((0, now));
     let val = entry.value_mut();
 
     if now - val.1 > 60 {
