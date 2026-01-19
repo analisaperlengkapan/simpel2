@@ -3,20 +3,32 @@
 //! AI-resistant CAPTCHA system integrated with authenc security infrastructure
 
 pub mod adaptive_difficulty;
+/// Modul `alerting`.
 pub mod alerting;
+/// Modul `audio_challenges`.
 pub mod analyzer;
+/// Modul `challenge_selector`.
 pub mod audio_challenges;
+/// Modul `enhanced_service`.
 pub mod bot_detection;
+/// Modul `fallback`.
 pub mod challenge_selector;
+/// Modul `generator`.
 pub mod dashboard;
+/// Modul `metrics`.
 pub mod enhanced_service;
+/// Modul `retry`.
 pub mod error;
+/// Modul `secreton_integration`.
 pub mod fallback;
+/// Modul `service`.
 pub mod fingerprinting;
+/// Modul `validator`.
 pub mod generator;
 pub mod image_challenges;
 pub mod metrics;
 pub mod rate_limiting;
+/// Modul `tests`.
 pub mod retry;
 pub mod risk_assessment;
 pub mod secreton_integration;

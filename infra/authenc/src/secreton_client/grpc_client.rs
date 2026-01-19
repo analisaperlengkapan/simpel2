@@ -25,6 +25,7 @@ pub mod common {
 
 /// Modul `v1`.
 pub mod secreton {
+/// Modul `v1`.
     pub mod v1 {
         tonic::include_proto!("secreton.v1");
     }
@@ -56,6 +57,7 @@ pub struct CircuitBreaker {
 }
 /// Fungsi `new(`.
 
+/// Fungsi `new(`.
 impl CircuitBreaker {
     pub fn new() -> Self {
         Self {

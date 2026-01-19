@@ -64,6 +64,7 @@ struct ValidationAttempt {
 }
 
 impl ValidationAttempt {
+/// Fungsi `new(`.
     pub fn new() -> Self {
         Self {
             count: 0,
@@ -72,6 +73,7 @@ impl ValidationAttempt {
             risk_level: RiskLevel::Low,
         }
     }
+/// Fungsi `increment_failure(`.
 
     pub fn increment_failure(&mut self) {
         self.count += 1;
@@ -85,12 +87,14 @@ impl ValidationAttempt {
             6..=10 => RiskLevel::High,
             _ => RiskLevel::Critical,
         };
+/// Fungsi `reset_on_success(`.
     }
 
     pub fn reset_on_success(&mut self) {
         self.count += 1;
         self.consecutive_failures = 0;
         self.last_attempt = SystemTime::now();
+/// Fungsi `is_locked_out(`.
         self.risk_level = RiskLevel::Low;
     }
 
@@ -112,6 +116,7 @@ impl ValidationAttempt {
                     false
                 }
             }
+/// Fungsi `get_lockout_duration(`.
             _ => false,
         }
     }

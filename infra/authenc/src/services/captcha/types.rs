@@ -245,6 +245,7 @@ mod systemtime_serde {
     use super::*;
     use std::time::UNIX_EPOCH;
 
+/// Fungsi `serialize`.
     pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -254,6 +255,7 @@ mod systemtime_serde {
             .map_err(|_| serde::ser::Error::custom("SystemTime before UNIX_EPOCH"))?;
         serializer.serialize_u64(duration.as_secs())
     }
+/// Fungsi `deserialize`.
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
     where

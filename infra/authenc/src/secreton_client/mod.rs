@@ -164,6 +164,7 @@ pub type VaultError = SecretonError;
 
 /// Modul `grpc_client`.
 // Secreton client (custom Rust-based secret manager) - primary integration
+/// Modul `grpc_client`.
 pub mod grpc_client;
 pub mod secreton_client;
 

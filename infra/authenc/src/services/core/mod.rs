@@ -1,6 +1,10 @@
+/// Modul `auth_flow`.
 pub mod auth_flow;
+/// Modul `client_registration_v2`.
 pub mod client_registration;
+/// Modul `realm`.
 pub mod client_registration_v2;
+/// Modul `token_exchange`.
 pub mod client_scope_service;
 pub mod realm;
 pub mod session_store;

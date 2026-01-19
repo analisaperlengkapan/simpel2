@@ -769,4 +769,5 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
 }
 
 // Legacy compatibility - keep old DefaultClientRegistrationService name
+/// Alias tipe `DefaultClientRegistrationService`.
 pub type DefaultClientRegistrationService = ProductionClientRegistrationService;

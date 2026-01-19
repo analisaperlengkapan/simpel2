@@ -10,6 +10,7 @@ pub mod federation_admin;
 pub mod jit_admin_service;
 /// Modul `social`.
 pub mod saml;
+/// Modul `social`.
 pub mod social;
 /// Modul `sso`.
 /// Modul `spi_federation`.

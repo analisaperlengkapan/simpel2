@@ -62,9 +62,13 @@ pub mod saml;
 pub mod scopes;
 /// Modul `webauthn`.
 pub mod service_accounts;
+/// Modul `sessions`.
 pub mod sessions;
+/// Modul `themes`.
 pub mod social_accounts;
+/// Modul `user_consents`.
 pub mod themes;
+/// Modul `webauthn`.
 pub mod tokens;
 pub mod user_consents;
 pub mod users;

@@ -227,6 +227,7 @@ pub async fn check_user_consent(
 /// Mewakili struktur data `CheckConsentRequest`.
 }
 
+/// Mewakili struktur data `CheckConsentRequest`.
 #[derive(Debug, Deserialize)]
 pub struct CheckConsentRequest {
     pub scopes: String,
@@ -268,6 +269,7 @@ pub async fn grant_user_consent(
 pub struct GrantConsentQuery {
     pub realm_id: Option<Uuid>,
 }
+/// Mewakili struktur data `GrantConsentRequestBody`.
 
 #[derive(Debug, Deserialize)]
 pub struct GrantConsentRequestBody {
@@ -310,6 +312,7 @@ pub async fn revoke_user_consent(
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
+/// Mewakili struktur data `RevokeConsentRequest`.
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,6 +350,7 @@ pub async fn validate_scopes(
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateScopesQuery {
+/// Mewakili struktur data `ValidateScopesRequest`.
     pub realm_id: Option<Uuid>,
 }
 

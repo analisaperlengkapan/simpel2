@@ -8,4 +8,5 @@ pub mod client_registration;
 pub mod dcr_admin;
 /// Modul `spi_management`.
 pub mod satker;
+/// Modul `spi_management`.
 pub mod spi_management;

@@ -5,6 +5,7 @@ pub mod client_registration_ops;
 pub mod client_scopes_ops;
 /// Modul `protocol_mappers_ops`.
 pub mod protocol_mappers_ops;
+/// Modul `tokens`.
 pub mod tokens;
 
 // Re-export with shorter alias for backwards compatibility

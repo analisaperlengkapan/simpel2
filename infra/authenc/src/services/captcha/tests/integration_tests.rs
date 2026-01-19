@@ -17,6 +17,7 @@ pub struct MockSecretonClient {
 }
 
 impl MockSecretonClient {
+/// Fungsi `new(should_fail`.
     pub fn new(should_fail: bool) -> Self {
         Self {
             should_fail,
@@ -47,6 +48,7 @@ impl MockSecretonClient {
             .map_err(|e| e.to_string())
             .and_then(|bytes| String::from_utf8(bytes).map_err(|e| e.to_string()))
     }
+/// Fungsi `get_failure_count(`.
 
     pub fn get_failure_count(&self) -> u32 {
         self.failure_count.load(std::sync::atomic::Ordering::SeqCst)
@@ -57,6 +59,7 @@ impl MockSecretonClient {
 pub struct MockAuthencMonitoring {
     pub should_fail: bool,
     pub events: std::sync::Arc<std::sync::Mutex<Vec<SecurityEvent>>>,
+/// Mewakili struktur data `SecurityEvent`.
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +68,7 @@ pub struct SecurityEvent {
     pub ip_address: String,
     pub risk_level: String,
     pub timestamp: std::time::SystemTime,
+/// Fungsi `new(should_fail`.
 }
 
 impl MockAuthencMonitoring {
@@ -94,10 +98,12 @@ impl MockAuthencMonitoring {
 
         let mut events = self.events.lock().unwrap();
         events.push(event);
+/// Fungsi `get_events(`.
 
         Ok(())
     }
 
+/// Fungsi `clear_events(`.
     pub fn get_events(&self) -> Vec<SecurityEvent> {
         let events = self.events.lock().unwrap();
         events.clone()

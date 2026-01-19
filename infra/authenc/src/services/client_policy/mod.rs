@@ -13,6 +13,7 @@
 //! - Token rotation policies
 
 pub mod enforcer;
+/// Modul `store`.
 pub mod store;
 
 use crate::error::AuthencError;

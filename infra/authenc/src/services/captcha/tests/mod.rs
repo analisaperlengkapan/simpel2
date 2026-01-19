@@ -1,6 +1,7 @@
 //! Comprehensive test suite for CAPTCHA error handling and fallback mechanisms
 
 pub mod error_handling_tests;
+/// Modul `integration_tests`.
 pub mod integration_tests;
 pub mod security_tests;
 

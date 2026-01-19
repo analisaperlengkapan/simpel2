@@ -14,5 +14,6 @@ pub mod oidc_ed25519;
 pub mod oidc_jwt;
 /// Modul `token_exchange`.
 pub mod oidc_keys;
+/// Modul `oidc_sso`.
 pub mod oidc_sso;
 pub mod token_exchange;

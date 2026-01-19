@@ -5,4 +5,5 @@ pub mod user;
 pub mod realm;
 /// Modul `role`.
 pub mod role;
+/// Modul `permission`.
 pub mod permission;

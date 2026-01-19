@@ -6,4 +6,5 @@ pub mod device;
 pub mod uma;
 /// Modul `webauthn`.
 pub mod webauthn;
+/// Modul `zero_trust`.
 pub mod zero_trust;

@@ -10,7 +10,9 @@ pub mod in_memory_cache;
 pub mod invalidation;
 /// Modul `multi_layer_cache`.
 pub mod metrics;
+/// Modul `mfa_cache`.
 pub mod mfa_cache;
+/// Modul `redis_cache`.
 pub mod multi_layer_cache;
 pub mod redis_cache;
 

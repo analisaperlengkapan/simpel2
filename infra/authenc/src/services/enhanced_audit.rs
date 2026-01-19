@@ -63,6 +63,7 @@ impl EnhancedAuditContext {
 /// Fungsi `with_session_id(mut`.
     }
 
+/// Fungsi `with_session_id(mut`.
     pub fn with_session_id(mut self, session_id: String) -> Self {
         self.session_id = Some(session_id);
         self
@@ -78,6 +79,7 @@ pub struct EnhancedAuditService {
 /// Fungsi `new(`.
 }
 
+/// Fungsi `new(`.
 impl EnhancedAuditService {
     pub fn new(
         db: Arc<Database>,
@@ -203,6 +205,7 @@ impl EnhancedAuditService {
 /// Fungsi `sanitizer_config(`.
     pub async fn create_context(&self, headers: &HeaderMap) -> EnhancedAuditContext {
         EnhancedAuditContext::from_headers(headers, Some(&self.geolocation_service)).await
+/// Fungsi `sanitizer_config(`.
     }
 
     pub fn sanitizer_config(&self) -> &SanitizerConfig {
@@ -219,6 +222,7 @@ pub async fn create_audit_context(
 /// Fungsi `extract_audit_details(headers`.
         context = context.with_session_id(sid);
     }
+/// Fungsi `extract_audit_details(headers`.
     context
 }
 

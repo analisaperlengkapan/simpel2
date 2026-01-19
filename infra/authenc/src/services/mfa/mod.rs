@@ -8,7 +8,9 @@ pub mod mfa_fallback_client;
 pub mod mfa_local_storage;
 /// Modul `webauthn`.
 pub mod mfa_performance_monitor;
+/// Modul `mfa_security_monitor`.
 pub mod mfa_security_monitor;
+/// Modul `totp_store`.
 pub mod mfa_service;
 pub mod totp_store;
 pub mod webauthn;
