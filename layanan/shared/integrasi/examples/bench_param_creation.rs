@@ -1,50 +1,62 @@
 use std::time::Instant;
-use serde_json::{json, Value};
+use serde_json::json;
 use layanan_integrasi::db::json_to_sql_param;
+use tokio_postgres::types::{Type, ToSql};
+use bytes::BytesMut;
 
 fn main() {
-    let size = 100_000;
-    println!("Preparing {} records...", size);
+    let iterations = 100_000;
+    println!("Benchmarking json_to_sql_param + to_sql with {} iterations...", iterations);
 
-    // Create sample data
-    let mut data = Vec::with_capacity(size);
-    for i in 0..size {
-        data.push(json!({
-            "id": format!("00000000-0000-0000-0000-{:012x}", i),
-            "nama": format!("Name {}", i),
-            "description": "Some long description text that might be cloned repeatedly if we are not careful. ".repeat(5),
-            "amount": i,
-            "is_active": i % 2 == 0,
-            "details": {
-                "field1": "value1",
-                "field2": i
-            }
-        }));
-    }
+    // Test data
+    let num_val = json!(12345.6789);
+    // Large array to make allocation cost significant
+    let arr_val = json!([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        {"foo": "bar", "baz": "qux"},
+        "some string",
+        [1, 2, 3]
+    ]);
+    let obj_val = json!({
+        "key": "value",
+        "nested": [1, 2, 3, 4, 5],
+        "more": "data",
+        "even_more": {"a": 1, "b": 2}
+    });
 
-    let columns = vec!["id", "nama", "description", "amount", "is_active", "details"];
+    let mut buffer = BytesMut::with_capacity(4096);
 
-    println!("Starting benchmark (json_to_sql_param allocation)...");
+    // 1. Benchmark Number -> String (TEXT column)
+    // We simulate a column that is NOT api_id, so it goes to "OwnedString" currently.
     let start = Instant::now();
-
-    let mut param_count = 0;
-
-    for item in &data {
-        if let Some(obj) = item.as_object() {
-            // Simulate the loop in bulk_insert_postgres
-            let mut params = Vec::new();
-            for col in &columns {
-                let value = obj.get(*col).unwrap_or(&Value::Null);
-                // Call the function
-                params.push(json_to_sql_param(value, *col));
-            }
-            param_count += params.len();
-            // In the real code, these would be used in a query then dropped.
-            // We drop them here at the end of iteration.
-        }
+    for _ in 0..iterations {
+        let param = json_to_sql_param(&num_val, "some_number_column");
+        buffer.clear();
+        param.to_sql(&Type::TEXT, &mut buffer).unwrap();
     }
+    let duration_num = start.elapsed();
+    println!("Number -> TEXT: {:.2?}", duration_num);
 
-    let duration = start.elapsed();
-    println!("Processed {} params in {:.2?}", param_count, duration);
-    println!("Time per record: {:.2?}", duration / size as u32);
+    // 2. Benchmark Array -> String (TEXT column)
+    // Column name doesn't end in _data or _json, so it goes to "OwnedJsonString" currently.
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let param = json_to_sql_param(&arr_val, "some_array_column");
+        buffer.clear();
+        param.to_sql(&Type::TEXT, &mut buffer).unwrap();
+    }
+    let duration_arr = start.elapsed();
+    println!("Array -> TEXT:  {:.2?}", duration_arr);
+
+    // 3. Benchmark Object -> String (TEXT column)
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let param = json_to_sql_param(&obj_val, "some_object_column");
+        buffer.clear();
+        param.to_sql(&Type::TEXT, &mut buffer).unwrap();
+    }
+    let duration_obj = start.elapsed();
+    println!("Object -> TEXT: {:.2?}", duration_obj);
+
+    println!("Total time: {:.2?}", duration_num + duration_arr + duration_obj);
 }
