@@ -12,4 +12,5 @@ pub mod realm;
 pub mod session_store;
 /// Modul `token_exchange`.
 pub mod token_exchange;
+/// Modul `user_sync_service`.
 pub mod user_sync_service;

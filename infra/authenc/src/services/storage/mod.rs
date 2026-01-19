@@ -198,6 +198,7 @@ pub struct InMemoryRepository<T: Send + Sync + Clone + Serialize + serde::de::De
 
 /// Fungsi `new(storage`.
 impl<T: Send + Sync + Clone + Serialize + serde::de::DeserializeOwned> InMemoryRepository<T> {
+/// Fungsi `new(storage`.
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>, entity_type: String) -> Self {
         Self {
             storage,
@@ -438,6 +439,7 @@ pub struct InMemoryUserRepository {
 }
 /// Fungsi `new(storage`.
 
+/// Fungsi `new(storage`.
 impl InMemoryUserRepository {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
         Self { storage }
@@ -553,6 +555,7 @@ pub struct InMemoryClientRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
 /// Fungsi `new(storage`.
 }
+/// Fungsi `new(storage`.
 
 impl InMemoryClientRepository {
     pub fn new(storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>) -> Self {
@@ -656,6 +659,7 @@ impl ClientStorageRepository for InMemoryClientRepository {
 pub struct InMemoryRealmRepository {
 /// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
+/// Fungsi `new(storage`.
 }
 
 impl InMemoryRealmRepository {
@@ -785,6 +789,7 @@ mod tests {
         let manager = StorageManager::new(config).await;
 /// Modul `postgresql`.
         assert!(manager.is_ok());
+/// Modul `postgresql`.
     }
 }
 
@@ -942,6 +947,7 @@ impl StorageTransaction for InMemoryTransaction {
 pub struct InMemoryRepository<T: Send + Sync + Clone + serde::Serialize + serde::de::DeserializeOwned> {
 /// Fungsi `new(storage`.
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
+/// Fungsi `new(storage`.
     entity_type: String,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1152,6 +1158,7 @@ impl StorageManager {
 }
 /// Fungsi `new(storage`.
 
+/// Fungsi `new(storage`.
 /// In-Memory User Repository
 pub struct InMemoryUserRepository {
     storage: Arc<RwLock<HashMap<String, HashMap<String, serde_json::Value>>>>,
@@ -1247,6 +1254,7 @@ impl UserStorageRepository for InMemoryUserRepository {
     }
 /// Fungsi `new(storage`.
 }
+/// Fungsi `new(storage`.
 
 /// In-Memory Client Repository
 pub struct InMemoryClientRepository {
@@ -1337,6 +1345,7 @@ impl ClientStorageRepository for InMemoryClientRepository {
         Ok(clients)
 /// Fungsi `new(storage`.
     }
+/// Fungsi `new(storage`.
 }
 
 /// In-Memory Realm Repository
@@ -1553,6 +1562,7 @@ mod tests {
         };
 /// Modul `postgresql`.
 
+/// Modul `postgresql`.
         // Test save and find
         assert!(client_repo.save(&client).await.is_ok());
         let found_client = client_repo.find_by_client_id("test-client").await.unwrap();

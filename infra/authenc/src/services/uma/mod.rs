@@ -19,6 +19,7 @@ pub mod permission_endpoint;
 pub mod policy_engine;
 /// Modul `resource_owner_auth`.
 pub mod resource_owner_auth;
+/// Modul `rpt`.
 pub mod rpt;
 
 // Re-exports for convenience

@@ -13,6 +13,7 @@ pub mod realm_store;
 pub mod role_store;
 /// Modul `social_account_store`.
 pub mod social_account_store;
+/// Modul `user_store`.
 pub mod user_store;
 
 // Re-export commonly used types

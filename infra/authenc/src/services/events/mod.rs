@@ -10,6 +10,7 @@ pub mod event_retention_tests;
 pub mod events_impl;
 /// Modul `pg_event_store`.
 pub mod kafka_event_listener;
+/// Modul `pg_event_store`.
 pub mod pg_event_store;
 
 pub use event_listeners::*;

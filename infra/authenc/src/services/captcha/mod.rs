@@ -40,6 +40,7 @@ pub mod risk_assessment;
 pub mod secreton_integration;
 /// Modul `service`.
 pub mod security_monitoring;
+/// Modul `service`.
 pub mod service;
 pub mod types;
 /// Modul `tests`.
@@ -48,6 +49,7 @@ pub mod validator;
 #[cfg(test)]
 /// Modul `tests`.
 mod test_generator;
+/// Modul `tests`.
 
 #[cfg(test)]
 pub mod tests;

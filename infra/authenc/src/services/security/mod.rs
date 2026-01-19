@@ -8,4 +8,5 @@ pub mod forever_unknown_secrets;
 pub mod jwt_validator;
 /// Modul `security_testing`.
 pub mod password_policy;
+/// Modul `security_testing`.
 pub mod security_testing;
