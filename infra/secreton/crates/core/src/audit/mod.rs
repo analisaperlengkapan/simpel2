@@ -148,6 +148,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 mod backends;
+pub mod api_audit;
 
 // DEPRECATED: Middleware module moved to secreton-api crate
 // Requires 'legacy-axum-middleware' feature to compile (disabled by default)

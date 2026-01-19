@@ -81,8 +81,12 @@ getrandom.workspace = true
 regex.workspace = true
 ipnetwork.workspace = true
 url.workspace = true
+sysinfo = "0.33.1"
+jsonwebtoken.workspace = true
 
 # Internal crates
+secreton-hsm.workspace = true
+totp-rs.workspace = true
 secreton-types.workspace = true
 secreton-crypto.workspace = true
 secreton-storage.workspace = true
