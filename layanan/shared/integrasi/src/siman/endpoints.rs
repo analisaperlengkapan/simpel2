@@ -161,7 +161,7 @@ pub async fn fetch_all_aset_paginated(
                     })
             }
         })
-        .buffer_unordered(10) // Concurrent limit
+        .buffer_unordered(10) // Concurrent limit. Unordered to avoid head-of-line blocking.
         .collect::<Vec<Result<Vec<Value>, MonsaktiError>>>()
         .await;
 
