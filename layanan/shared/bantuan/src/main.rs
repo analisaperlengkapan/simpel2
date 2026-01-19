@@ -36,6 +36,7 @@ pub struct AppState {
     pub redis: redis::Client,
     pub config: AppConfig,
     pub metrics_registry: Registry,
+    pub rate_limit: rate_limit::RateLimitState,
 }
 
 #[tokio::main]
@@ -64,6 +65,7 @@ async fn main() -> Result<(), AppError> {
         redis: redis_client,
         config: config.clone(),
         metrics_registry,
+        rate_limit: rate_limit::new_rate_limiter(),
     };
 
     // Create router dengan semua routes
@@ -171,6 +173,12 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
         ])
         .allow_credentials(true);
 
+    // Rate Limit Middleware Integration
+    let rate_limit_layer = axum::middleware::from_fn_with_state(
+        state.rate_limit.clone(),
+        |state, req, next| rate_limit::rate_limit_middleware(state, req, next, 100) // Default limit 100 req/min
+    );
+
     // Create main application router
     let app = routes(state.config.clone(), state.db.clone()).layer(
         tower::ServiceBuilder::new()
@@ -178,7 +186,8 @@ async fn create_app_router(state: AppState) -> Result<Router, AppError> {
             .layer(CompressionLayer::new())
             // Use with_status_code if possible, or just ignore deprecated warning if API surface matches
             .layer(TimeoutLayer::new(Duration::from_secs(30)))
-            .layer(cors),
+            .layer(cors)
+            .layer(rate_limit_layer),
     );
 
     // Add health check and metrics routes
