@@ -601,7 +601,10 @@ impl MonsaktiClient {
         Ok(())
     }
 
-    /// Simpan data ke file CSV
+    /// Simpan data ke file CSV.
+    ///
+    /// Fungsi ini menggunakan `tokio::task::spawn_blocking` untuk memindahkan operasi I/O
+    /// yang blocking ke thread pool terpisah, sehingga tidak mengganggu kinerja runtime async.
     pub async fn save_to_csv<P: AsRef<Path>>(
         &self,
         data: &serde_json::Value,
