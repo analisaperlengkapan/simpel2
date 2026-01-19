@@ -92,6 +92,14 @@ pub fn init_certificate_cache(ttl_seconds: u64) {
     }
 }
 
+/// Update certificate cache TTL
+pub fn update_certificate_cache_ttl(ttl_seconds: u64) {
+    if let Ok(mut cache) = CERT_CACHE.lock() {
+        // Recreate cache with new TTL (clears existing cache)
+        *cache = Some(Arc::new(CertificateCache::new(ttl_seconds)));
+    }
+}
+
 /// Get certificate cache instance
 fn get_cert_cache() -> Option<Arc<CertificateCache>> {
     CERT_CACHE.lock().ok()?.as_ref().cloned()
@@ -315,7 +323,7 @@ impl RequestContext {
 #[derive(Debug)]
 pub struct RateLimitState {
     requests: HashMap<String, Vec<Instant>>,
-    max_requests_per_minute: u32,
+    pub max_requests_per_minute: u32,
 }
 
 impl RateLimitState {
@@ -353,6 +361,17 @@ static RATE_LIMITER: Mutex<Option<RateLimitState>> = Mutex::new(None);
 pub fn init_rate_limiting(max_requests_per_minute: u32) {
     if let Ok(mut limiter) = RATE_LIMITER.lock() {
         *limiter = Some(RateLimitState::new(max_requests_per_minute));
+    }
+}
+
+/// Update rate limiting configuration
+pub fn update_rate_limiting(max_requests_per_minute: u32) {
+    if let Ok(mut limiter) = RATE_LIMITER.lock() {
+        if let Some(ref mut l) = *limiter {
+            l.max_requests_per_minute = max_requests_per_minute;
+        } else {
+            *limiter = Some(RateLimitState::new(max_requests_per_minute));
+        }
     }
 }
 
@@ -1712,20 +1731,40 @@ mod middleware_tests {
     }
 
     async fn create_test_api_state(sealed: bool) -> ApiState {
-        let seal_service = SealService::new(SealConfig::default());
+        use secreton_storage::MemoryBackend;
+        let storage = Arc::new(MemoryBackend::new());
+        let cfg = deadpool_postgres::Config::new();
+        let pool = cfg.create_pool(None, tokio_postgres::NoTls).unwrap();
+
+        let services = crate::services::ServiceContainer::new_mock(storage, pool);
+
         if !sealed {
-            // This is a simplified way to unseal for testing purposes.
-            // In a real scenario, you would need to initialize and unseal with shares.
-            let mut state = seal_service.state.write().await;
-            *state = secreton_core::services::seal::SealState::Unsealed;
+            // Initialize and unseal
+            if let Ok(init_res) = services.seal.initialize().await {
+                // init_res is Vec<Share>
+                if let Some(share) = init_res.first() {
+                    // Share struct doesn't have public fields, but it implements serialization
+                    if let Ok(share_bytes) = share.to_bytes() {
+                        // The unseal method expects a hex-encoded string or string representation
+                        // Assuming the share bytes can be hex encoded to be passed as key
+                        let key_str = hex::encode(share_bytes);
+                        let _ = services.seal.unseal(key_str).await;
+                    }
+                }
+            }
         }
 
         ApiState {
-            services: Arc::new(crate::services::Services {
-                seal: seal_service,
-                // Add other mock services as needed
-            }),
-            ..Default::default() // Use default for other fields
+            transit: crate::transit::TransitApiState {
+                engine: Arc::new(secreton_crypto::transit::TransitEngine::new()),
+                config: None
+            },
+            kv: crate::kv::KVApiState {
+                engine: Arc::new(crate::kv::KVEngine::new())
+            },
+            pki: crate::pki::PkiApiState::default(),
+            services: Arc::new(services),
+            prometheus_handle: None,
         }
     }
 

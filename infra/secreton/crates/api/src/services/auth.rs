@@ -5,7 +5,7 @@ use jsonwebtoken::{encode, decode, Algorithm, EncodingKey, DecodingKey, Validati
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use uuid::Uuid;
 
 use crate::config::AuthConfig;
@@ -156,7 +156,7 @@ struct Claims {
 pub struct AuthService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     crypto: Arc<CryptoEngine>,
-    config: AuthConfig,
+    config: Arc<RwLock<AuthConfig>>,
 }
 
 impl AuthService {
@@ -169,13 +169,22 @@ impl AuthService {
         let service = Self {
             storage,
             crypto,
-            config: config.clone(),
+            config: Arc::new(RwLock::new(config.clone())),
         };
 
         // Initialize default roles if they don't exist
         service.initialize_default_roles().await?;
 
         Ok(service)
+    }
+
+    /// Update configuration
+    pub fn update_config(&self, new_config: AuthConfig) {
+        if let Ok(mut config) = self.config.write() {
+            *config = new_config;
+        } else {
+            tracing::error!("Failed to acquire write lock on AuthConfig");
+        }
     }
 
     /// Authenticate user with username and password
@@ -208,10 +217,15 @@ impl AuthService {
             }
         }
 
-        // Create session and tokens
         let session_id = Uuid::new_v4().to_string();
-        let access_token = self.create_access_token(&user, &session_id)?;
-        let refresh_token = self.create_refresh_token(&user, &session_id)?;
+
+        // Scope the lock to avoid holding it across await points
+        let (access_token, refresh_token, expires_in) = {
+            let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+            let access_token = self.create_access_token(&user, &session_id, &config)?;
+            let refresh_token = self.create_refresh_token(&user, &session_id, &config)?;
+            (access_token, refresh_token, config.jwt.expiration.as_secs())
+        };
 
         // Store session
         let session = Session {
@@ -223,7 +237,7 @@ impl AuthService {
             user_agent: user_agent.to_string(),
             created_at: chrono::Utc::now(),
             expires_at: chrono::Utc::now()
-                + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64),
+                + chrono::Duration::seconds(expires_in as i64),
             last_accessed: chrono::Utc::now(),
         };
 
@@ -241,7 +255,7 @@ impl AuthService {
             access_token,
             refresh_token,
             token_type: "Bearer".to_string(),
-            expires_in: self.config.jwt.expiration.as_secs(),
+            expires_in,
             user,
         })
     }
@@ -250,16 +264,18 @@ impl AuthService {
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
         use jsonwebtoken::{decode, DecodingKey, Validation};
 
-        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+        let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+
+        let mut validation = Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(
             |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
         )?);
 
         // Validation requires setting audience and issuer
-        validation.set_audience(&[&self.config.jwt.audience]);
-        validation.set_issuer(&[&self.config.jwt.issuer]);
+        validation.set_audience(&[&config.jwt.audience]);
+        validation.set_issuer(&[&config.jwt.issuer]);
 
         // DecodingKey from secret
-        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+        let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
         let token_data = decode::<Claims>(token, &decoding_key, &validation)
             .map_err(|e| match e.kind() {
@@ -631,9 +647,11 @@ impl AuthService {
         let path = format!("sys/mfa/{}/totp", user_id);
 
         if let Some(entry) = self.storage.get_by_path(&path).await.map_err(|e| AuthError::Internal(e.to_string()))? {
+            let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+
             // Derive key using PBKDF2 with user ID as salt
             let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
-                self.config.jwt.secret.as_bytes(),
+                config.jwt.secret.as_bytes(),
                 user_id.as_bytes(),
                 10000,
                 32
@@ -662,46 +680,50 @@ impl AuthService {
     pub async fn store_mfa_secret(&self, user_id: &str, secret: &str) -> Result<(), AuthError> {
         let path = format!("sys/mfa/{}/totp", user_id);
 
-        // Derive key
-        let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
-            self.config.jwt.secret.as_bytes(),
-            user_id.as_bytes(),
-            10000,
-            32
-        ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+        let entry = {
+            let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
 
-        // Encrypt secret
-        let encrypted = self.crypto.encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
-            .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
+            // Derive key
+            let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
+                config.jwt.secret.as_bytes(),
+                user_id.as_bytes(),
+                10000,
+                32
+            ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
 
-        let entry = VaultEntry::new(
-            path,
-            encrypted.ciphertext,
-            serde_json::json!({
-                "nonce": hex::encode(encrypted.nonce),
-                "algorithm": "Aes256Gcm"
-            }),
-            SecurityLevel::Secret,
-            "system".to_string(),
-        );
+            // Encrypt secret
+            let encrypted = self.crypto.encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
+                .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
+
+            VaultEntry::new(
+                path,
+                encrypted.ciphertext,
+                serde_json::json!({
+                    "nonce": hex::encode(encrypted.nonce),
+                    "algorithm": "Aes256Gcm"
+                }),
+                SecurityLevel::Secret,
+                "system".to_string(),
+            )
+        };
 
         self.storage.store(&entry).await.map_err(|e| AuthError::Internal(e.to_string()))?;
         Ok(())
     }
 
     /// Create access token (JWT)
-    fn create_access_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
+    fn create_access_token(&self, user: &User, session_id: &str, config: &AuthConfig) -> Result<String, AuthError> {
         let now = chrono::Utc::now();
         let expiration = now
-            + chrono::Duration::seconds(self.config.jwt.expiration.as_secs() as i64);
+            + chrono::Duration::seconds(config.jwt.expiration.as_secs() as i64);
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
-            iss: self.config.jwt.issuer.clone(),
-            aud: self.config.jwt.audience.clone(),
+            iss: config.jwt.issuer.clone(),
+            aud: config.jwt.audience.clone(),
             exp: expiration.timestamp() as usize,
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
@@ -716,7 +738,7 @@ impl AuthService {
             namespace: user.namespace.clone(),
         };
 
-        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+        let algorithm = Algorithm::from_str(&config.jwt.algorithm)
             .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
 
         let header = Header::new(algorithm);
@@ -724,24 +746,24 @@ impl AuthService {
         encode(
             &header,
             &claims,
-            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+            &EncodingKey::from_secret(config.jwt.secret.as_bytes()),
         )
         .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
 
     /// Create refresh token
-    fn create_refresh_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
+    fn create_refresh_token(&self, user: &User, session_id: &str, config: &AuthConfig) -> Result<String, AuthError> {
         let now = chrono::Utc::now();
         let expiration = now
-            + chrono::Duration::seconds(self.config.jwt.refresh_expiration.as_secs() as i64);
+            + chrono::Duration::seconds(config.jwt.refresh_expiration.as_secs() as i64);
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
 
         let claims = Claims {
             sub: user.id.to_string(),
-            iss: self.config.jwt.issuer.clone(),
-            aud: self.config.jwt.audience.clone(),
+            iss: config.jwt.issuer.clone(),
+            aud: config.jwt.audience.clone(),
             exp: expiration.timestamp() as usize,
             iat: now.timestamp() as usize,
             jti: session_id.to_string(),
@@ -756,7 +778,7 @@ impl AuthService {
             namespace: user.namespace.clone(),
         };
 
-        let algorithm = Algorithm::from_str(&self.config.jwt.algorithm)
+        let algorithm = Algorithm::from_str(&config.jwt.algorithm)
             .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?;
 
         let header = Header::new(algorithm);
@@ -764,7 +786,7 @@ impl AuthService {
         encode(
             &header,
             &claims,
-            &EncodingKey::from_secret(self.config.jwt.secret.as_bytes()),
+            &EncodingKey::from_secret(config.jwt.secret.as_bytes()),
         )
         .map_err(|e| AuthError::TokenGeneration(e.to_string()))
     }
@@ -1031,7 +1053,7 @@ mod tests {
         let auth_service = AuthService {
             storage,
             crypto,
-            config,
+            config: Arc::new(RwLock::new(config)),
         };
 
         let password = "test_password";
@@ -1250,7 +1272,7 @@ mod tests {
 
         let session_id = Uuid::new_v4().to_string();
         let token = auth_service
-            .create_access_token(&user, &session_id)
+            .create_access_token(&user, &session_id, &config)
             .expect("create token");
 
         assert!(!token.is_empty());
@@ -1425,7 +1447,7 @@ impl AuthService {
         Self {
             storage,
             crypto,
-            config: AuthConfig::default(),
+            config: Arc::new(RwLock::new(AuthConfig::default())),
         }
     }
 }
