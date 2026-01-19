@@ -650,6 +650,11 @@ async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()>
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     "#;
 
+    let owner_uuid = Uuid::parse_str(&entry.owner_id).map_err(|e| StorageError::SerializationError {
+        source: None,
+        message: format!("Invalid owner_id (must be UUID): {}", e),
+    })?;
+
     client
         .execute(
             query,
@@ -662,7 +667,7 @@ async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()>
                 &entry.metadata,
                 &entry.tags,
                 &(entry.version as i32),
-                &entry.owner_id,
+                &owner_uuid,
                 &entry.created_at,
                 &entry.updated_at,
                 &entry.expires_at,
