@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    # Run security checks weekly on Mondays at 02:00 UTC
+    # Run security checks weekly on Mondays at 02:00 UTC (09:00 WIB)
     - cron: "0 2 * * 1"
   workflow_dispatch: # Allow manual trigger
+
+# Explicit permissions for security (least privilege principle)
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
 
 # Cancel in-progress runs for the same workflow and branch (except scheduled runs)
 concurrency:
@@ -23,6 +29,7 @@ jobs:
   cargo-audit:
     name: Security Audit (cargo-audit)
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

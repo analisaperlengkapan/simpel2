@@ -3,45 +3,177 @@
 > **Notice to Agents**: This file serves as the **primary source of truth** for AI agents working on this repository. Read this before planning or executing tasks to understand the architecture, conventions, and workflows.
 
 ## 🌍 Project Context
+
 **SIMPelv2** is a mission-critical **Rust Monorepo** for the Indonesian Attorney General's Office (Kejaksaan RI). It uses a microservices architecture for the backend (`layanan/`) and a microfrontend architecture for the frontend (`antarmuka/`).
 
 ### 🔑 Key Tech Stack
--   **Language**: Rust (Edition 2024, Version 1.90+)
--   **Backend Framework**: Axum (HTTP), Tonic (gRPC)
--   **Frontend Framework**: Leptos (WASM)
--   **Database**: PostgreSQL (via `tokio-postgres` / `deadpool`)
--   **Infrastructure**: Docker, Kubernetes
+
+| Component | Technology |
+|-----------|------------|
+| **Language** | Rust (Edition 2024, MSRV 1.90+) |
+| **Backend HTTP** | Axum 0.8.x (REST API) |
+| **Backend gRPC** | Tonic 0.14.x + Prost 0.14.x |
+| **Frontend** | Leptos 0.8.x (WASM CSR) |
+| **Database** | PostgreSQL (tokio-postgres / deadpool) |
+| **Caching** | Redis |
+| **Infrastructure** | Docker, Kubernetes |
+| **Identity** | Authenc (custom OAuth2/OIDC via gRPC) |
+| **Secrets** | Secreton (custom vault via gRPC) |
 
 ---
 
-## 🏗️ Workspace Structure & Naming Conventions
+## 🏛️ System Architecture
 
-### 1. Structure Overview
+```mermaid
+flowchart TB
+    subgraph Browser["🌐 Browser (WASM)"]
+        MF1["Portal<br/>Microfrontend"]
+        MF2["Intel<br/>Microfrontend"]
+        MF3["Pidsus<br/>Microfrontend"]
+        MFN["... Other<br/>Microfrontends"]
+    end
+
+    subgraph Backend["⚙️ Backend Services"]
+        LP["layanan-portal"]
+        LI["layanan-intel"]
+        LS["layanan-pidsus"]
+        LN["... Other Services"]
+    end
+
+    subgraph Infra["🔐 Infrastructure (Separate Workspaces)"]
+        AUTH["Authenc<br/>(Identity Provider)"]
+        SEC["Secreton<br/>(Secrets Vault)"]
+    end
+
+    subgraph Data["💾 Data Layer"]
+        PG[(PostgreSQL)]
+        RD[(Redis)]
+    end
+
+    %% Browser to Backend: REST API only
+    MF1 -->|"REST API<br/>(JSON/HTTP)"| LP
+    MF2 -->|"REST API<br/>(JSON/HTTP)"| LI
+    MF3 -->|"REST API<br/>(JSON/HTTP)"| LS
+    MFN -->|"REST API<br/>(JSON/HTTP)"| LN
+
+    %% Backend to Infrastructure: gRPC only
+    LP -->|"gRPC<br/>(mTLS)"| AUTH
+    LP -->|"gRPC<br/>(mTLS)"| SEC
+    LI -->|"gRPC<br/>(mTLS)"| AUTH
+    LI -->|"gRPC<br/>(mTLS)"| SEC
+    LS -->|"gRPC<br/>(mTLS)"| AUTH
+    LS -->|"gRPC<br/>(mTLS)"| SEC
+
+    %% Infrastructure internal
+    AUTH <-->|"gRPC<br/>(mTLS)"| SEC
+
+    %% Data access
+    LP --> PG
+    LP --> RD
+    LI --> PG
+    LS --> PG
+    AUTH --> PG
+    SEC --> PG
+
+    style Browser fill:#e1f5fe
+    style Backend fill:#fff3e0
+    style Infra fill:#fce4ec
+    style Data fill:#e8f5e9
+```
+
+### 🚨 Critical Communication Rules
+
+| From | To | Protocol | Allowed? |
+|------|-----|----------|----------|
+| Microfrontend | Backend Service | **REST API** (JSON/HTTP) | ✅ YES |
+| Microfrontend | Authenc | ❌ FORBIDDEN | ⛔ NO |
+| Microfrontend | Secreton | ❌ FORBIDDEN | ⛔ NO |
+| Backend Service | Backend Service | **gRPC** (Protobuf) | ✅ YES |
+| Backend Service | Authenc | **gRPC** (mTLS) | ✅ YES |
+| Backend Service | Secreton | **gRPC** (mTLS) | ✅ YES |
+| Authenc | Secreton | **gRPC** (mTLS) | ✅ YES |
+
+---
+
+## 🏗️ Workspace Structure
+
+```mermaid
+flowchart LR
+    subgraph Root["📦 Root Workspace"]
+        direction TB
+        CT["Cargo.toml<br/>(Single Source of Truth)"]
+
+        subgraph Lib["lib/ - Shared Libraries"]
+            LU["lib-ui<br/>(alias: shared-microfrontend)"]
+            LM["lib-middleware"]
+            LC["lib-crypto"]
+            LT["lib-types"]
+            LS2["lib-storage"]
+            LUT["lib-utils"]
+        end
+
+        subgraph Antarmuka["antarmuka/ - Microfrontends"]
+            AP["portal/"]
+            AI["intel/"]
+            APS["pidsus/"]
+            AN["... others"]
+        end
+
+        subgraph Layanan["layanan/ - Backend Services"]
+            SP["daskrimti/portal/"]
+            SI["daskrimti/intel/"]
+            SPS["daskrimti/pidsus/"]
+            SN["... others"]
+        end
+    end
+
+    subgraph InfraSep["🔒 Separate Workspaces"]
+        AUTH2["infra/authenc/<br/>(own Cargo.lock)"]
+        SEC2["infra/secreton/<br/>(own Cargo.lock)"]
+    end
+
+    CT --> Lib
+    CT --> Antarmuka
+    CT --> Layanan
+
+    style Root fill:#e3f2fd
+    style InfraSep fill:#ffebee
+```
+
+### Directory Layout
+
 ```bash
 /var/www/simpelv2/
 ├── Cargo.toml          # ROOT WORKSPACE MANIFEST (Single source of truth)
-├── lib/                # SHARED LIBRARIES (Avoid duplication here)
-│   ├── types/          # Domain types (lib-types)
-│   ├── crypto/         # Cryptography (lib-crypto)
-│   ├── storage/        # Database & Raft (lib-storage)
+├── lib/                # SHARED LIBRARIES
+│   ├── ui/             # UI components (lib-ui, alias: shared-microfrontend)
 │   ├── middleware/     # Axum middlewares (lib-middleware)
-│   ├── utils/          # Common utilities (lib-utils)
-│   └── ui/             # Shared UI components (lib-ui)
-├── infra/              # CORE INFRASTRUCTURE
-│   ├── authenc/        # Identity Provider (authenc)
-│   └── secreton/       # Secret Management (secreton)
-├── layanan/            # BACKEND MICROSERVICES
+│   ├── crypto/         # Cryptography (lib-crypto)
+│   ├── types/          # Domain types (lib-types)
+│   ├── storage/        # Database & Raft (lib-storage)
+│   └── utils/          # Common utilities (lib-utils)
+├── antarmuka/          # FRONTEND MICROFRONTENDS (Leptos WASM)
+│   ├── daskrimti/portal/  # Main portal
+│   ├── intel/          # Intel module
+│   ├── pidsus/         # Pidsus module
+│   └── .../            # Other microfrontends
+├── layanan/            # BACKEND MICROSERVICES (Axum + Tonic)
 │   └── daskrimti/      # Main domain services
-└── antarmuka/          # FRONTEND MICROFRONTENDS
-    └── [domain]/       # Microfrontend implementations
+│       ├── portal/     # Portal backend
+│       ├── intel/      # Intel backend
+│       └── .../        # Other services
+└── infra/              # INFRASTRUCTURE (SEPARATE WORKSPACES!)
+    ├── authenc/        # Identity Provider - own Cargo.lock
+    └── secreton/       # Secret Management - own Cargo.lock
 ```
 
-### 2. Naming & Placement Rules
+### Naming Conventions
+
 | Type | Directory Location | Package Name Schema | Example |
-| :--- | :--- | :--- | :--- |
-| **Microfrontend** | `antarmuka/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
-| **Microservice** | `layanan/daskrimti/[name]/` | `layanan-[name]` | `layanan-portal` |
-| **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-utils` |
+|------|-------------------|---------------------|---------|
+| **Microfrontend** | `antarmuka/[domain]/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
+| **Microservice** | `layanan/[domain]/[name]/` | `layanan-[name]` | `layanan-portal` |
+| **Shared Lib** | `lib/[name]/` | `lib-[name]` | `lib-ui` |
 | **Infra** | `infra/[name]/` | `[name]` | `authenc` |
 
 ---
@@ -49,45 +181,347 @@
 ## 📏 Critical Conventions (DO NOT VIOLATE)
 
 ### 1. 📦 Dependency Management
--   **Root Cargo.toml is King**: ALL external dependencies MUST be defined in `[workspace.dependencies]` in the root `Cargo.toml`.
--   **Inheritance**: Member crates MUST use `dependeny_name = { workspace = true }`. **NEVER** specify versions in member `Cargo.toml` files.
--   **Versioning**: All internal crates (including `authenc` and `secreton`) inherit `version.workspace = true`. The current workspace version is **0.1.0**.
 
-### 2. 🧹 Code Quality & Maintenance Tools
-Use these standard commands instead of `make`:
--   **Verification**: `cargo check --workspace` (Run frequently!)
--   **Formatting**: `cargo fmt --all` (Enforce style guides)
--   **Linting/Fixing**: `cargo fix --workspace --allow-dirty` (Auto-fix warnings)
--   **Security**: `cargo audit` (Check for vulnerabilities in dependencies)
+- **Root Cargo.toml is King**: ALL external dependencies MUST be defined in `[workspace.dependencies]`
+- **Inheritance**: Member crates MUST use `dependency_name = { workspace = true }`
+- **NEVER specify versions** in member `Cargo.toml` files
+- **Alias Note**: `shared-microfrontend = { package = "lib-ui", path = "lib/ui" }` — use `shared-microfrontend` in code
+- **Infra Independence**: `infra/authenc` and `infra/secreton` are SEPARATE workspaces
 
-### 3. 🛡️ System Integration Strategy
-The ecosystem is designed to be tightly integrated:
--   **Authenc (Identity)**: centralizes user identities. Services should NOT manage users locally.
--   **Secreton (Vault)**: centralizes secrets/keys. Services retrieve DB credentials/keys from Secreton at startup.
--   **Lib-Middleware**: The bridge. All `layanan-*` services MUST use `lib-middleware` to transparently integrate:
-    -   JWT Validation (via Authenc public keys)
-    -   Tracing/Logging
-    -   Error Handling
--   **Portal**: The visual integrator. Consumes `lib-ui` for consistent design system and composes `*-microfrontend` WASM bundles.
+### 2. 🧹 Code Quality Commands
+
+```bash
+# Verification & Building
+cargo check --workspace          # Quick compilation check
+cargo build --workspace          # Full workspace build
+cargo build --bin layanan-NAME   # Build specific service
+
+# Code Quality
+cargo fmt --all                  # Format all code
+cargo clippy --workspace         # Lint with warnings as errors
+
+# Testing
+cargo test --workspace           # Run all tests
+
+# Security
+cargo audit                      # Check for vulnerabilities
+cargo deny check                 # Check licenses and advisories
+
+# Frontend (Leptos WASM)
+cd antarmuka/daskrimti/portal && trunk serve --open    # Dev server
+cd antarmuka/daskrimti/portal && trunk build --release # Production build
+
+# Separate infrastructure (MUST build separately)
+cd infra/authenc && cargo build
+cd infra/secreton && cargo build
+```
 
 ---
 
-## 🛠️ Common Workflows for Agents
+## 🦀 Code Patterns
 
-### A. Add a New Microservice
-1.  Create directory: `layanan/daskrimti/my-feature/`.
-2.  Initialize `Cargo.toml`. Name it `layanan-my-feature`.
-3.  Add to root `members`.
-4.  Add `lib-middleware` and `lib-utils` dependencies.
-5.  Implement Axum router using `lib-middleware` layers.
+### Axum 0.8.x Pattern (Backend REST API)
 
-### B. Add a New Microfrontend
-1.  Create directory: `antarmuka/my-feature/`.
-2.  Initialize `Cargo.toml`. Name it `my-feature-microfrontend`.
-3.  Add to root `members`.
-4.  Add `lib-ui` dependency.
-5.  Implement Leptos components.
+```rust
+use axum::{
+    extract::{Path, Query, State, Json},
+    routing::{get, post, put, delete},
+    Router,
+    http::StatusCode,
+    response::IntoResponse,
+};
+use std::sync::Arc;
+use tokio::net::TcpListener;
 
-### C. Debugging
--   **Do NOT look for a Makefile**. It does not exist. Use cargo commands directly.
--   If `cargo audit` fails, check if the vulnerability affects the specific deployment usage before upgrading.
+// ✅ Application State
+#[derive(Clone)]
+pub struct AppState {
+    pub db_pool: deadpool_postgres::Pool,
+    pub redis: redis::aio::ConnectionManager,
+    pub authenc_client: AuthencGrpcClient,  // gRPC client to Authenc
+    pub secreton_client: SecretonGrpcClient, // gRPC client to Secreton
+}
+
+// ✅ Router setup with State
+pub fn create_router(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/api/v1/users", get(list_users).post(create_user))
+        .route("/api/v1/users/{id}", get(get_user).put(update_user).delete(delete_user))
+        .layer(lib_middleware::tracing_layer())
+        .layer(lib_middleware::jwt_validation_layer())
+        .with_state(state)
+}
+
+// ✅ Handler with extractors
+async fn get_user(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<User>, AppError> {
+    let user = state.db_pool.get().await?
+        .query_one("SELECT * FROM users WHERE id = $1", &[&id]).await?;
+    Ok(Json(user.into()))
+}
+
+// ✅ Main entry point
+#[tokio::main]
+async fn main() {
+    let state = Arc::new(AppState::new().await);
+    let app = create_router(state);
+
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+```
+
+### Tonic + Prost Pattern (gRPC Services)
+
+```rust
+// ✅ Proto file: proto/auth.proto
+// syntax = "proto3";
+// package auth;
+// service AuthService {
+//   rpc ValidateToken(TokenRequest) returns (TokenResponse);
+// }
+
+// ✅ build.rs - Generate code with tonic-prost-build
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_prost_build::Config::new()
+        .out_dir("src/generated")
+        .compile_protos(&["proto/auth.proto"], &["proto/"])?;
+    Ok(())
+}
+
+// ✅ gRPC Server Implementation
+use tonic::{Request, Response, Status};
+
+pub mod auth_proto {
+    tonic::include_proto!("auth");
+}
+use auth_proto::auth_service_server::{AuthService, AuthServiceServer};
+use auth_proto::{TokenRequest, TokenResponse};
+
+#[derive(Debug, Default)]
+pub struct AuthServiceImpl {
+    // dependencies
+}
+
+#[tonic::async_trait]
+impl AuthService for AuthServiceImpl {
+    async fn validate_token(
+        &self,
+        request: Request<TokenRequest>,
+    ) -> Result<Response<TokenResponse>, Status> {
+        let token = request.into_inner().token;
+
+        // Validate token logic
+        let response = TokenResponse {
+            valid: true,
+            user_id: "user-123".to_string(),
+            roles: vec!["admin".to_string()],
+        };
+
+        Ok(Response::new(response))
+    }
+}
+
+// ✅ gRPC Client Usage (from layanan to authenc)
+use auth_proto::auth_service_client::AuthServiceClient;
+use tonic::transport::Channel;
+
+pub async fn create_authenc_client() -> Result<AuthServiceClient<Channel>, tonic::transport::Error> {
+    let channel = Channel::from_static("https://authenc.internal:50051")
+        .tls_config(tonic::transport::ClientTlsConfig::new())?
+        .connect()
+        .await?;
+
+    Ok(AuthServiceClient::new(channel))
+}
+
+// ✅ Using gRPC client in Axum handler
+async fn protected_handler(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let token = headers.get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .ok_or(AppError::Unauthorized)?;
+
+    // Call Authenc via gRPC (NOT directly from frontend!)
+    let response = state.authenc_client
+        .clone()
+        .validate_token(TokenRequest { token: token.to_string() })
+        .await?;
+
+    if !response.into_inner().valid {
+        return Err(AppError::Unauthorized);
+    }
+
+    Ok(Json(json!({"message": "authorized"})))
+}
+```
+
+### Leptos 0.8.x Pattern (Microfrontend WASM)
+
+```rust
+use leptos::prelude::*;
+use shared_microfrontend::prelude::*;  // This is lib-ui
+
+// ✅ Signal creation (NOT create_signal!)
+#[component]
+pub fn Counter(initial: i32) -> impl IntoView {
+    let (count, set_count) = signal(initial);
+
+    // Event handlers
+    let increment = move |_| *set_count.write() += 1;
+    let decrement = move |_| *set_count.write() -= 1;
+
+    view! {
+        <div class="counter">
+            <button on:click=decrement>"-1"</button>
+            <span>{count}</span>
+            <button on:click=increment>"+1"</button>
+        </div>
+    }
+}
+
+// ✅ RwSignal for shared state
+#[component]
+pub fn SharedState() -> impl IntoView {
+    let state = RwSignal::new(AppState::default());
+
+    // Provide to children
+    provide_context(state);
+
+    view! { <ChildComponent /> }
+}
+
+// ✅ Resource for async data fetching (calls REST API, NOT gRPC!)
+#[component]
+pub fn UserList() -> impl IntoView {
+    let users = Resource::new(
+        || (),
+        |_| async move {
+            // Call backend REST API (layanan-portal)
+            gloo_net::http::Request::get("/api/v1/users")
+                .send()
+                .await?
+                .json::<Vec<User>>()
+                .await
+        }
+    );
+
+    view! {
+        <Suspense fallback=move || view! { <Loading /> }>
+            {move || users.get().map(|result| match result {
+                Ok(users) => view! {
+                    <ul>
+                        <For
+                            each=move || users.clone()
+                            key=|user| user.id
+                            children=|user| view! { <li>{user.name}</li> }
+                        />
+                    </ul>
+                }.into_any(),
+                Err(e) => view! { <ErrorDisplay error=e.to_string() /> }.into_any(),
+            })}
+        </Suspense>
+    }
+}
+
+// ✅ Effect for side effects
+#[component]
+pub fn WithEffect() -> impl IntoView {
+    let (count, set_count) = signal(0);
+
+    Effect::new(move || {
+        // Runs when count changes
+        log::info!("Count changed to: {}", count.get());
+    });
+
+    view! { <button on:click=move |_| set_count.set(count.get() + 1)>"Click"</button> }
+}
+
+// ✅ Main mount (CSR)
+pub fn main() {
+    console_error_panic_hook::set_once();
+    leptos::mount::mount_to_body(App);
+}
+```
+
+---
+
+## 🔐 Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant MF as 🌐 Microfrontend<br/>(WASM)
+    participant Portal as ⚙️ layanan-portal<br/>(Axum REST)
+    participant Auth as 🔐 Authenc<br/>(gRPC)
+    participant Sec as 🔒 Secreton<br/>(gRPC)
+
+    User->>MF: 1. Access app
+    MF->>MF: 2. Check localStorage for JWT
+
+    alt No JWT / Expired
+        MF->>Portal: 3. GET /api/auth/status
+        Portal->>Auth: 4. gRPC: ValidateSession()
+        Auth-->>Portal: 5. Session invalid
+        Portal-->>MF: 6. 401 Unauthorized
+        MF->>User: 7. Redirect to login
+
+        User->>MF: 8. Submit credentials
+        MF->>Portal: 9. POST /api/auth/login
+        Portal->>Auth: 10. gRPC: Authenticate()
+        Auth->>Sec: 11. gRPC: GetMFASecret()
+        Sec-->>Auth: 12. MFA secret
+        Auth-->>Portal: 13. JWT + Refresh token
+        Portal-->>MF: 14. Set tokens in response
+        MF->>MF: 15. Store JWT in localStorage
+    end
+
+    MF->>Portal: 16. API call with JWT header
+    Portal->>Auth: 17. gRPC: ValidateToken()
+    Auth-->>Portal: 18. Token valid + claims
+    Portal-->>MF: 19. API response
+
+    Note over MF,Auth: ⛔ Microfrontend NEVER calls Authenc/Secreton directly!
+```
+
+---
+
+## ⚠️ Common Pitfalls
+
+❌ **DON'T:**
+- Reference `infra/authenc` or `infra/secreton` from main workspace members
+- Call Authenc/Secreton directly from microfrontend (use layanan as proxy)
+- Use `create_signal` in Leptos 0.8.x (use `signal()`)
+- Store JWT tokens in cookies (use `localStorage`)
+- Duplicate auth logic in microfrontends (Portal only!)
+- Use RSA for new signing (use Ed25519)
+- Specify dependency versions in member `Cargo.toml` files
+- Use environment variables for secrets (use Secreton via gRPC)
+
+✅ **DO:**
+- Import from `shared-microfrontend` (alias for `lib-ui`) for UI components
+- Use REST API from microfrontend → layanan
+- Use gRPC from layanan → authenc/secreton
+- Use `trunk build --release` for production WASM
+- Run `cargo fmt --all && cargo clippy --workspace` before commits
+- Use `ProtectedRoute` for all authenticated pages
+- Build authenc/secreton separately: `cd infra/authenc && cargo build`
+- Add new dependencies to root `Cargo.toml` workspace.dependencies first
+
+---
+
+## 📚 Key Documentation References
+
+| Topic | Location |
+|-------|----------|
+| Full coding guide | `.github/copilot-instructions.md` |
+| Auth flow architecture | `antarmuka/COMPLETE_AUTH_FLOW_ARCHITECTURE.md` |
+| MFA documentation | `docs/MFA_ARCHITECTURE_DOCUMENTATION.md` |
+| Security considerations | `docs/ATTORNEY_GENERAL_SECURITY_CONSIDERATIONS.md` |
+| lib-ui components | `lib/ui/README.md`, `lib/ui/COMPONENT_REFERENCE.md` |
+| Contributing guide | `CONTRIBUTING.md` |
+| CI/CD workflows | `.github/workflows/` |

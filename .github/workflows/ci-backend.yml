@@ -7,6 +7,7 @@ on:
       - "layanan/**"
       - "infra/authenc/**"
       - "infra/secreton/**"
+      - "lib/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/ci-backend.yml"
@@ -16,8 +17,15 @@ on:
       - "layanan/**"
       - "infra/authenc/**"
       - "infra/secreton/**"
+      - "lib/**"
       - "Cargo.toml"
       - "Cargo.lock"
+
+# Explicit permissions for security (least privilege principle)
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
 
 # Cancel in-progress runs for the same workflow and branch
 concurrency:
@@ -34,6 +42,7 @@ jobs:
   check:
     name: Cargo Check
     runs-on: self-hosted
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

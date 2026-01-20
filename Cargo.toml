@@ -455,7 +455,13 @@ proptest = "1.4.0"
 # AI and ML Dependencies
 qdrant-client = "1.11"
 tiktoken-rs = "0.7.0"
-tonic = { version = "0.14.2", features = ["transport", "tls-ring", "tls-native-roots", "server", "channel"] }
+tonic = { version = "0.14.2", features = [
+    "transport",
+    "tls-ring",
+    "tls-native-roots",
+    "server",
+    "channel",
+] }
 tonic-build = "0.14"
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
@@ -486,7 +492,7 @@ aws-types = "1.3"
 aws-credential-types = "1.2"
 
 # Legacy/Other
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 warp = "0.3"
 data-encoding = "2.6"
 pem = "3.0"
