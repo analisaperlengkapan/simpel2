@@ -153,6 +153,11 @@ impl AdminService {
         })
     }
 
+    /// Track request for metrics
+    pub fn track_request(&self) {
+        // TODO: Implement actual request tracking
+    }
+
     /// Get system statistics
     pub async fn get_system_stats(&self) -> Result<SystemStats, AdminError> {
         // Get storage statistics

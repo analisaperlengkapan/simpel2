@@ -107,6 +107,10 @@ pub struct AuthConfig {
     /// Session configuration
     pub session: SessionConfig,
 
+    /// Password policy configuration
+    #[serde(default)]
+    pub password_policy: PasswordPolicyConfig,
+
     /// Multi-factor authentication
     pub mfa: MfaConfig,
 }
@@ -204,6 +208,37 @@ pub enum SessionStore {
     Memory,
     Redis { url: String },
     Database { table: String },
+}
+
+/// Password policy configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordPolicyConfig {
+    /// Minimum password length
+    pub min_length: u8,
+
+    /// Require uppercase characters
+    pub require_uppercase: bool,
+
+    /// Require lowercase characters
+    pub require_lowercase: bool,
+
+    /// Require numbers
+    pub require_numbers: bool,
+
+    /// Require special characters
+    pub require_special: bool,
+}
+
+impl Default for PasswordPolicyConfig {
+    fn default() -> Self {
+        Self {
+            min_length: 8,
+            require_uppercase: true,
+            require_lowercase: true,
+            require_numbers: true,
+            require_special: true,
+        }
+    }
 }
 
 /// Cookie configuration
