@@ -13,6 +13,9 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use url::Url;
+use chrono::Duration;
+use secreton_storage::{VaultEntry, SecurityLevel};
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
@@ -168,7 +171,31 @@ mod tests {
 
     #[tokio::test]
     async fn test_oauth_login_returns_authorization_url() {
-        let server = create_test_server().await;
+        let mut config = ApiConfig::default();
+        config.auth.oauth2 = Some(crate::config::OAuth2Config {
+            providers: vec![crate::config::OAuth2Provider {
+                name: "github".to_string(),
+                client_id: "gh_client_id".to_string(),
+                client_secret: "gh_secret".to_string(),
+                auth_url: "https://github.com/login/oauth/authorize".to_string(),
+                token_url: "https://github.com/login/oauth/access_token".to_string(),
+                user_info_url: "https://api.github.com/user".to_string(),
+            }],
+            redirect_url: "http://localhost:8080/v1/auth/oauth/callback".to_string(),
+            scopes: vec!["read:user".to_string(), "user:email".to_string()],
+        });
+
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
+        let server = TestServer::new(app).expect("Failed to create test server");
         let response = server.get("/oauth/github").await;
         response.assert_status_ok();
 
@@ -176,12 +203,12 @@ mod tests {
         assert!(body.success);
         let data = body.data.expect("oauth payload");
         assert_eq!(data["provider"], "github");
-        assert!(
-            data["auth_url"]
-                .as_str()
-                .expect("auth_url should be a string")
-                .contains("https://oauth.provider.com")
-        );
+
+        let auth_url = data["auth_url"].as_str().expect("auth_url should be a string");
+        assert!(auth_url.contains("https://github.com/login/oauth/authorize"));
+        assert!(auth_url.contains("client_id=gh_client_id"));
+        assert!(auth_url.contains("state="));
+        assert!(auth_url.contains("response_type=code"));
     }
 }
 
@@ -783,21 +810,74 @@ pub async fn disable_mfa(
 
 /// OAuth login redirect
 pub async fn oauth_login(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(provider): Path<String>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement OAuth login
-    // 1. Validate provider
-    // 2. Generate OAuth state
-    // 3. Build authorization URL
-    // 4. Store state for callback verification
+    // 1. Get OAuth configuration
+    let oauth_config = match &state.config.auth.oauth2 {
+        Some(config) => config,
+        None => return Err(ApiError::Configuration("OAuth2 not configured".to_string())),
+    };
 
-    let auth_url = "https://oauth.provider.com/authorize?client_id=123&state=abc".to_string();
+    // 2. Find provider
+    let provider_config = oauth_config
+        .providers
+        .iter()
+        .find(|p| p.name == provider)
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Provider '{}'", provider),
+        })?;
+
+    // 3. Generate OAuth state
+    let state_token = uuid::Uuid::new_v4().to_string();
+
+    // 4. Store state for callback verification
+    let state_data = serde_json::json!({
+        "provider": provider,
+        "created_at": chrono::Utc::now()
+    });
+
+    let encrypted_state = state
+        .crypto
+        .encrypt_simple(state_data.to_string().as_bytes())
+        .map_err(|e| ApiError::Internal {
+            message: format!("Encryption failed: {}", e),
+        })?;
+
+    let storage_entry = VaultEntry::new(
+        format!("sys/oauth/states/{}", state_token),
+        encrypted_state,
+        serde_json::json!({
+            "type": "oauth_state",
+            "provider": provider
+        }),
+        SecurityLevel::Internal,
+        "system".to_string(),
+    )
+    .with_expiration(chrono::Utc::now() + Duration::minutes(10));
+
+    state.storage.store(&storage_entry).await.map_err(|e| {
+        ApiError::Internal {
+            message: format!("Failed to store OAuth state: {}", e),
+        }
+    })?;
+
+    // 5. Build authorization URL
+    let mut url = Url::parse(&provider_config.auth_url).map_err(|e| {
+        ApiError::Configuration(format!("Invalid auth URL for provider '{}': {}", provider, e))
+    })?;
+
+    url.query_pairs_mut()
+        .append_pair("client_id", &provider_config.client_id)
+        .append_pair("redirect_uri", &oauth_config.redirect_url)
+        .append_pair("scope", &oauth_config.scopes.join(" "))
+        .append_pair("state", &state_token)
+        .append_pair("response_type", "code");
 
     let data = serde_json::json!({
         "provider": provider,
-        "auth_url": auth_url,
-        "state": "abc123"
+        "auth_url": url.to_string(),
+        "state": state_token
     });
 
     Ok(Json(ApiResponse::success(data)))
