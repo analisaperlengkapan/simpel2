@@ -15,6 +15,7 @@ reqwest = { version = "0.12", features = [
   "native-tls",
   "cookies",
 ], default-features = false }
+ureq = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
 tokio-postgres = { version = "0.7", features = [
   "with-chrono-0_4",
