@@ -12,7 +12,9 @@ use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
 use secreton_storage::{MemoryBackend, StorageBackend};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Admin service errors
@@ -125,12 +127,73 @@ pub struct MaintenanceResult {
     pub details: HashMap<String, serde_json::Value>,
 }
 
+/// Request rate tracker
+pub struct RequestTracker {
+    buckets: Vec<AtomicU64>,
+}
+
+impl RequestTracker {
+    pub fn new() -> Self {
+        Self {
+            buckets: (0..60).map(|_| AtomicU64::new(0)).collect(),
+        }
+    }
+
+    pub fn track_request(&self) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
+        let idx = (now % 60) as usize;
+        let bucket = &self.buckets[idx];
+
+        let _ = bucket.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |val| {
+            let stored_ts = (val >> 32) as u32;
+            let count = val as u32;
+            if stored_ts == now {
+                // Same second, increment
+                Some(((stored_ts as u64) << 32) | (count as u64 + 1))
+            } else {
+                // New second, reset
+                Some(((now as u64) << 32) | 1)
+            }
+        });
+    }
+
+    pub fn get_rpm(&self) -> f64 {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
+        let mut total = 0;
+
+        for bucket in &self.buckets {
+            let val = bucket.load(Ordering::Relaxed);
+            let stored_ts = (val >> 32) as u32;
+            let count = val as u32;
+
+            // Check if within last 60 seconds
+            if now.wrapping_sub(stored_ts) < 60 {
+                total += count;
+            }
+        }
+        total as f64
+    }
+}
+
+impl Default for RequestTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Admin service for system management
 pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
     lease_cleaner: Arc<dyn LeaseCleaner>,
+    request_tracker: Arc<RequestTracker>,
     start_time: chrono::DateTime<chrono::Utc>,
     system: Arc<Mutex<System>>,
 }
@@ -148,9 +211,15 @@ impl AdminService {
             auth,
             audit,
             lease_cleaner,
+            request_tracker: Arc::new(RequestTracker::new()),
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
         })
+    }
+
+    /// Track a request for rate limiting statistics
+    pub fn track_request(&self) {
+        self.request_tracker.track_request();
     }
 
     /// Get system statistics
@@ -230,7 +299,7 @@ impl AdminService {
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
-            requests_per_minute: 0.0, // TODO: Implement request rate tracking
+            requests_per_minute: self.request_tracker.get_rpm(),
             memory: memory_stats,
             cpu: cpu_stats,
             disk: disk_stats,
@@ -806,6 +875,20 @@ mod tests {
         assert!(details.contains_key("freed_space_bytes"));
         assert!(details.contains_key("storage_before_bytes"));
     }
+
+    #[test]
+    fn test_request_tracker() {
+        let tracker = RequestTracker::new();
+
+        // Track requests
+        for _ in 0..10 {
+            tracker.track_request();
+        }
+
+        // Should have 10 RPM
+        let rpm = tracker.get_rpm();
+        assert_eq!(rpm, 10.0);
+    }
 }
 
 impl AdminService {
@@ -828,6 +911,7 @@ impl AdminService {
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
             lease_cleaner: Arc::new(DummyLeaseCleaner),
+            request_tracker: Arc::new(RequestTracker::new()),
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
         }

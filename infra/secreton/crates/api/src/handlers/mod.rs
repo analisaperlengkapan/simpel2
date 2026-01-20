@@ -222,6 +222,12 @@ pub struct VersionInfo {
     pub rust_version: String,
 }
 
+/// Create the complete API router
+pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
+    create_protected_router(config, services.clone())
+        .merge(create_unprotected_router(config, services))
+}
+
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
