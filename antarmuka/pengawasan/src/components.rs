@@ -338,3 +338,38 @@ pub enum AlertVariant {
     Error,
     Info,
 }
+
+/// Layout submodule with shared layout components
+pub mod layout {
+    use leptos::prelude::*;
+
+    /// Main layout wrapper component for pengawasan pages
+    #[component]
+    pub fn Layout(children: Children) -> impl IntoView {
+        view! {
+            <div class="min-h-screen bg-gray-100">
+                <nav class="bg-kejaksaan-blue-800 text-white">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex items-center justify-between h-16">
+                            <div class="flex items-center">
+                                <span class="text-xl font-bold">"Pengawasan - SIMPel"</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <a href="/pengawasan" class="hover:bg-kejaksaan-blue-700 px-3 py-2 rounded-md text-sm font-medium">"Dashboard"</a>
+                                <a href="/pengawasan/schedules" class="hover:bg-kejaksaan-blue-700 px-3 py-2 rounded-md text-sm font-medium">"Jadwal"</a>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+                <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    {children()}
+                </main>
+                <footer class="bg-gray-200 py-4 mt-auto">
+                    <div class="max-w-7xl mx-auto px-4 text-center text-gray-600 text-sm">
+                        "© 2025 Kejaksaan Republik Indonesia - Sistem Pengawasan"
+                    </div>
+                </footer>
+            </div>
+        }
+    }
+}

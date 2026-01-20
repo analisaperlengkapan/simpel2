@@ -1,6 +1,6 @@
 use crate::api::{CreateScheduleRequest, create_schedule, fetch_schedules};
 use crate::components::layout::Layout;
-use chrono::{NaiveDateTime, TimeZone, Utc};
+use chrono::NaiveDateTime;
 use leptos::prelude::*;
 
 #[component]
