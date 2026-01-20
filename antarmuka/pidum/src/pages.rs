@@ -1,6 +1,6 @@
 use crate::api::*;
 use crate::types::*;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 
 // Re-use ActionButton from previous version (simplified)
@@ -161,7 +161,7 @@ pub fn PidumDashboard() -> impl IntoView {
 #[component]
 pub fn DaftarPerkara() -> impl IntoView {
     // Using a local resource for non-Send futures (WASM)
-    let perkara_resource = LocalResource::new(|| fetch_perkara_list());
+    let perkara_resource = LocalResource::new(fetch_perkara_list);
 
     view! {
         <div class="space-y-6">

@@ -1,6 +1,10 @@
 // SIMPEL Pidum - Microfrontend
 // Sistem Informasi Pidana Umum untuk Kejaksaan RI
 #![recursion_limit = "256"]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(clippy::all)]
 
 use leptos::prelude::*;
 use leptos_meta::*;
