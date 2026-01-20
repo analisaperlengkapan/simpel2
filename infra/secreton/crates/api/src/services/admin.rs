@@ -156,7 +156,7 @@ impl AdminService {
         })
     }
 
-    /// Track a request for RPM calculation
+/// Track a request for RPM calculation
     pub fn track_request(&self) {
         self.request_count.fetch_add(1, Ordering::Relaxed);
     }

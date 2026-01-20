@@ -995,6 +995,8 @@ impl AuthService {
 
     /// Get token ID (jti) from token
     pub fn get_token_id(&self, token: &str) -> Result<String, AuthError> {
+        use jsonwebtoken::{decode, DecodingKey, Validation};
+
         let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
 
         let mut validation = Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(

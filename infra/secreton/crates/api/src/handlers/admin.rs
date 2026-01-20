@@ -739,40 +739,47 @@ pub async fn update_user(
 
 /// System configuration endpoints
 pub async fn get_config(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SystemConfig>>> {
-    // TODO: Implement config retrieval
-    let config = SystemConfig {
+    let config = &state.config;
+
+    // Get storage backend type dynamically
+    let backend_type = match state.storage.get_stats().await {
+        Ok(stats) => stats.backend_type,
+        Err(_) => "unknown".to_string(),
+    };
+
+    let system_config = SystemConfig {
         api: ApiConfigInfo {
-            version: "1.0.0".to_string(),
-            bind_address: "0.0.0.0:8080".to_string(),
-            max_connections: 1000,
-            timeout: 30,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            bind_address: config.http.bind_address.to_string(),
+            max_connections: config.database.max_connections,
+            timeout: config.http.timeout.as_secs(),
         },
         security: SecurityConfigInfo {
-            mfa_enabled: true,
+            mfa_enabled: config.auth.mfa.enabled,
             password_policy: PasswordPolicyInfo {
-                min_length: 8,
-                require_uppercase: true,
-                require_lowercase: true,
-                require_numbers: true,
-                require_special: true,
+                min_length: config.auth.password_policy.min_length,
+                require_uppercase: config.auth.password_policy.require_uppercase,
+                require_lowercase: config.auth.password_policy.require_lowercase,
+                require_numbers: config.auth.password_policy.require_numbers,
+                require_special: config.auth.password_policy.require_special,
             },
-            session_timeout: 3600,
+            session_timeout: config.auth.session.timeout.as_secs(),
         },
         storage: StorageConfigInfo {
-            backend: "postgresql".to_string(),
+            backend: backend_type,
             encryption_enabled: true,
             backup_enabled: true,
         },
         monitoring: MonitoringConfigInfo {
-            metrics_enabled: true,
-            tracing_enabled: true,
-            log_level: "info".to_string(),
+            metrics_enabled: config.monitoring.metrics,
+            tracing_enabled: config.monitoring.tracing,
+            log_level: config.logging.level.clone(),
         },
     };
 
-    Ok(Json(ApiResponse::success(config)))
+    Ok(Json(ApiResponse::success(system_config)))
 }
 
 /// System monitoring endpoints
