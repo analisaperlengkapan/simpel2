@@ -619,39 +619,36 @@ impl MonsaktiClient {
             None => return Ok(()),
         };
 
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
         // Offload blocking I/O to a blocking thread
         tokio::task::spawn_blocking(move || -> Result<(), MonsaktiError> {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
             let mut wtr = csv::Writer::from_path(&path)?;
             if let Some(first) = array.first()
                 && let Some(obj) = first.as_object()
             {
                 let headers: Vec<&String> = obj.keys().collect();
-
-                // Write headers using ByteRecord
-                let mut record = csv::ByteRecord::new();
-                for h in &headers {
-                    record.push_field(h.as_bytes());
-                }
-                wtr.write_byte_record(&record)?;
+                wtr.write_record(&headers)?;
 
                 for item in &array {
                     if let Some(obj) = item.as_object() {
-                        record.clear();
-                        for h in &headers {
-                            let value = obj.get(*h).unwrap_or(&serde_json::Value::Null);
-                            match value {
-                                serde_json::Value::String(s) => record.push_field(s.as_bytes()),
-                                serde_json::Value::Number(n) => record.push_field(n.to_string().as_bytes()),
-                                serde_json::Value::Bool(b) => record.push_field(b.to_string().as_bytes()),
-                                serde_json::Value::Null => record.push_field(b""),
-                                _ => record.push_field(value.to_string().as_bytes()),
-                            }
-                        }
-                        wtr.write_byte_record(&record)?;
+                        let row: Vec<std::borrow::Cow<'_, [u8]>> = headers
+                            .iter()
+                            .map(|h| {
+                                obj.get(*h)
+                                    .map(|v| match v {
+                                        serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
+                                        serde_json::Value::Number(n) => std::borrow::Cow::Owned(n.to_string().into_bytes()),
+                                        serde_json::Value::Bool(b) => std::borrow::Cow::Owned(b.to_string().into_bytes()),
+                                        serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
+                                        _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
+                                    })
+                                    .unwrap_or(std::borrow::Cow::Borrowed(&[]))
+                            })
+                            .collect();
+                        wtr.write_record(&row)?;
                     }
                 }
             }
