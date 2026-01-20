@@ -3,7 +3,9 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use dashmap::DashMap;
 
+#[derive(Clone)]
 pub struct AppState {
     pub pool: Pool,
     pub config: crate::config::Config,
@@ -11,6 +13,7 @@ pub struct AppState {
     pub ocr_service: OcrService,
     pub rag_service: RagService,
     pub job_queue: Arc<Mutex<JobQueue>>,
+    pub http_client: reqwest::Client,
 }
 
 #[derive(Clone, Debug)]
@@ -54,21 +57,27 @@ pub struct ModelMetadata {
 }
 
 pub struct ModelRegistry {
-    pub models: Vec<ModelMetadata>,
+    pub models: DashMap<String, ModelMetadata>,
+}
+
+impl Default for ModelRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModelRegistry {
     pub fn new() -> Self {
-        Self { models: vec![] }
+        Self { models: DashMap::new() }
     }
-    pub fn add_model(&mut self, meta: ModelMetadata) {
-        self.models.push(meta);
+    pub fn add_model(&self, meta: ModelMetadata) {
+        self.models.insert(meta.id.clone(), meta);
     }
-    pub fn get_model(&self, id: &str) -> Option<&ModelMetadata> {
-        self.models.iter().find(|m| m.id == id)
+    pub fn get_model(&self, id: &str) -> Option<ModelMetadata> {
+        self.models.get(id).map(|m| m.clone())
     }
-    pub fn approve_model(&mut self, id: &str, user: &str) -> bool {
-        if let Some(m) = self.models.iter_mut().find(|m| m.id == id) {
+    pub fn approve_model(&self, id: &str, user: &str) -> bool {
+        if let Some(mut m) = self.models.get_mut(id) {
             m.status = "approved".to_string();
             m.approved_by = Some(user.to_string());
             true
