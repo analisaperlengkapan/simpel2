@@ -916,7 +916,27 @@ impl AuthService {
 
     /// Store session
     async fn store_session(&self, session: &Session) -> Result<(), AuthError> {
-        // TODO: Implement session storage
+        let session_bytes = serde_json::to_vec(session)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
+
+        let encrypted_data = self
+            .crypto
+            .encrypt_simple(&session_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt session: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/sessions/{}", session.id),
+            encrypted_data,
+            serde_json::json!({"method": "simple", "type": "session"}),
+            SecurityLevel::Confidential,
+            session.user_id.clone(),
+        );
+
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to store session: {}", e)))?;
+
         Ok(())
     }
 
