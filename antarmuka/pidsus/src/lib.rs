@@ -1,6 +1,11 @@
 // SIMPEL Pidsus - Microfrontend
 // Sistem Informasi Penyidikan Pidana Khusus Kejaksaan RI
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(clippy::all)]
+
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
@@ -21,7 +26,6 @@ pub use types::*;
 mod api;
 
 mod components;
-pub use components::*;
 
 #[component]
 pub fn App() -> impl IntoView {
