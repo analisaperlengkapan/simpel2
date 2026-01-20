@@ -218,8 +218,8 @@
 /// Optimized traits
 pub mod optimized_traits;
 
-// TODO: audit needs missing dependencies (ring, sha2, zeroize)
-// pub mod audit;
+// Audit module - enhanced with HMAC chain for tamper-proof storage
+pub mod audit;
 
 // TODO: seal_wrapping needs missing dependencies (ring, flate2, fips_compliance)
 // pub mod seal_wrapping;

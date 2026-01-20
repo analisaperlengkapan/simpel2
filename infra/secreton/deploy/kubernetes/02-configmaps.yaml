@@ -19,7 +19,7 @@ data:
     echo "PostgreSQL is ready"
 
     # Start Secreton server
-    exec /app/secreton server --config /app/config/secreton.toml
+    exec /app/secreton server --config /app/secreton.toml
 
 ---
 # ConfigMap for Prometheus configuration

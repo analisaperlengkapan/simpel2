@@ -2,7 +2,7 @@
 
 use axum::{
     Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post},
@@ -268,11 +268,12 @@ pub struct DeleteResponse {
 pub fn create_kv_router(state: KVApiState) -> Router {
     Router::new()
         .route("/secrets", get(list_secrets))
-        .route("/secret/data/{path}", post(put_secret))
-        .route("/secret/data/{path}", get(get_secret))
-        .route("/secret/data/{path}", delete(delete_secret))
-        .route("/secret/metadata/{path}", get(get_metadata))
-        .route("/secret/destroy/{path}/{version}", delete(destroy_secret))
+        .route("/secret/data/*path", post(put_secret))
+        .route("/secret/data/*path", get(get_secret))
+        .route("/secret/data/*path", delete(delete_secret))
+        .route("/secret/metadata/*path", get(get_metadata))
+        // Note: destroy version is handled differently - version as query param
+        .route("/secret/destroy/*path", delete(destroy_secret_query))
         .with_state(state)
 }
 
@@ -396,7 +397,48 @@ pub async fn get_metadata(
     }
 }
 
-/// Permanently destroy a secret version
+/// Query parameters for destroy endpoint
+#[derive(Debug, Deserialize)]
+pub struct DestroyQuery {
+    /// Version to destroy
+    #[serde(default = "default_version")]
+    pub version: u32,
+}
+
+fn default_version() -> u32 {
+    1
+}
+
+/// Permanently destroy a secret version (with version as query param)
+#[axum::debug_handler]
+pub async fn destroy_secret_query(
+    State(state): State<KVApiState>,
+    Path(path): Path<String>,
+    Query(query): Query<DestroyQuery>,
+) -> Result<Json<DeleteResponse>, StatusCode> {
+    let version = query.version;
+    match state.engine.destroy_secret(&path, version as u64).await {
+        Ok(_) => {
+            info!(
+                "Permanently destroyed secret '{}' version {}",
+                path, version
+            );
+            Ok(Json(DeleteResponse {
+                success: true,
+                message: format!(
+                    "Secret '{}' version {} permanently destroyed",
+                    path, version
+                ),
+            }))
+        }
+        Err(_) => {
+            warn!("Failed to destroy secret '{}' version {}", path, version);
+            Err(StatusCode::NOT_FOUND)
+        }
+    }
+}
+
+/// Permanently destroy a secret version (original with path param - kept for compatibility)
 #[axum::debug_handler]
 pub async fn destroy_secret(
     State(state): State<KVApiState>,

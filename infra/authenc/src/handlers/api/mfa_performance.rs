@@ -359,13 +359,18 @@ pub async fn mfa_performance_health(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::mfa_performance_monitor::OperationMetrics;
+    use crate::services::mfa_performance_monitor::{CacheMetrics, OperationMetrics};
 
     #[test]
     fn test_calculate_health_score() {
-        let metrics = MfaMetrics::default();
+        // Create metrics with healthy cache hit ratio for perfect score test
+        let mut metrics = MfaMetrics::default();
+        metrics.cache_metrics = CacheMetrics {
+            hit_ratio: 1.0, // Perfect cache hit ratio
+            ..Default::default()
+        };
 
-        // Test perfect health score
+        // Test perfect health score with good cache hit ratio
         let score = calculate_health_score(&metrics, 1.0, 50.0);
         assert!((score - 1.0).abs() < 0.001);
 
@@ -373,6 +378,11 @@ mod tests {
         let score = calculate_health_score(&metrics, 0.90, 200.0);
         assert!(score < 1.0);
         assert!(score > 0.0);
+
+        // Test with default metrics (zero cache hit ratio should degrade score)
+        let default_metrics = MfaMetrics::default();
+        let score = calculate_health_score(&default_metrics, 1.0, 50.0);
+        assert!(score < 1.0); // Score should be degraded due to 0 cache hit ratio
     }
 
     #[test]

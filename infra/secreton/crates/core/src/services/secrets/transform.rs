@@ -50,6 +50,23 @@ pub enum TransformationType {
     Masking,
 }
 
+/// Masking pattern types
+/// Requirement 10.3: Support credit card, email, phone masking patterns
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum MaskingPattern {
+    /// Default masking (show last 4 characters)
+    Default,
+    /// Credit card masking (show last 4 digits)
+    CreditCard,
+    /// Email masking (show first char and domain)
+    Email,
+    /// Phone masking (show last 4 digits)
+    Phone,
+    /// Custom template-based masking
+    Custom,
+}
+
 /// Alphabet for FPE
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -80,6 +97,7 @@ pub struct Transformation {
     pub alphabet: Option<Alphabet>,
     pub tweak_source: Option<String>,
     pub masking_char: Option<char>,
+    pub masking_pattern: Option<MaskingPattern>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -92,6 +110,7 @@ impl Transformation {
             alphabet: Some(Alphabet::Alphanumeric),
             tweak_source: None,
             masking_char: Some('*'),
+            masking_pattern: Some(MaskingPattern::Default),
             created_at: Utc::now(),
         }
     }
@@ -103,6 +122,25 @@ pub struct TransformRole {
     pub name: String,
     pub transformations: Vec<String>,
     pub created_at: DateTime<Utc>,
+}
+
+/// Tokenization audit statistics
+/// Requirement 10.5: Return usage stats without exposing original values
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenizationAuditStats {
+    pub total_tokens: usize,
+    pub transformations: Vec<TransformationStats>,
+    pub generated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransformationStats {
+    pub transformation_name: String,
+    pub token_count: usize,
+    pub total_encode_operations: usize,
+    pub total_decode_operations: usize,
+    pub oldest_token: Option<DateTime<Utc>>,
+    pub newest_token: Option<DateTime<Utc>>,
 }
 
 impl TransformRole {
@@ -126,6 +164,9 @@ struct TokenMapping {
     plaintext: String,
     transformation_name: String,
     created_at: DateTime<Utc>,
+    encode_count: usize,
+    decode_count: usize,
+    last_accessed: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -359,11 +400,15 @@ impl TransformEngine {
         }
 
         let token = format!("tok_{}", Uuid::new_v4().simple());
+        let now = Utc::now();
         let mapping = TokenMapping {
             token: token.clone(),
             plaintext: value.to_string(),
             transformation_name: transformation.name.clone(),
-            created_at: Utc::now(),
+            created_at: now,
+            encode_count: 1,
+            decode_count: 0,
+            last_accessed: now,
         };
 
         let mut token_mappings = self.token_mappings.write().await;
@@ -379,10 +424,15 @@ impl TransformEngine {
     }
 
     async fn decode_tokenization(&self, token: &str) -> Result<String, TransformError> {
-        let mappings = self.token_mappings.read().await;
+        let mut mappings = self.token_mappings.write().await;
         let mapping = mappings
-            .get(token)
+            .get_mut(token)
             .ok_or_else(|| TransformError::DecodeFailed("Token not found".to_string()))?;
+
+        // Update statistics
+        mapping.decode_count += 1;
+        mapping.last_accessed = Utc::now();
+
         debug!("Decoded token");
         Ok(mapping.plaintext.clone())
     }
@@ -393,18 +443,117 @@ impl TransformEngine {
         value: &str,
     ) -> Result<String, TransformError> {
         let mask_char = transformation.masking_char.unwrap_or('*');
+        let pattern = transformation
+            .masking_pattern
+            .as_ref()
+            .unwrap_or(&MaskingPattern::Default);
 
-        if let Some(ref template) = transformation.template {
-            self.apply_template(value, template, mask_char)
-        } else {
-            let len = value.len();
-            if len <= 4 {
-                Ok(mask_char.to_string().repeat(len))
-            } else {
-                let masked = mask_char.to_string().repeat(len - 4);
-                let visible = &value[len - 4..];
-                Ok(format!("{}{}", masked, visible))
+        match pattern {
+            MaskingPattern::CreditCard => self.mask_credit_card(value, mask_char),
+            MaskingPattern::Email => self.mask_email(value, mask_char),
+            MaskingPattern::Phone => self.mask_phone(value, mask_char),
+            MaskingPattern::Custom => {
+                if let Some(ref template) = transformation.template {
+                    self.apply_template(value, template, mask_char)
+                } else {
+                    Err(TransformError::InvalidTemplate(
+                        "Custom masking requires template".to_string(),
+                    ))
+                }
             }
+            MaskingPattern::Default => {
+                if let Some(ref template) = transformation.template {
+                    self.apply_template(value, template, mask_char)
+                } else {
+                    let len = value.len();
+                    if len <= 4 {
+                        Ok(mask_char.to_string().repeat(len))
+                    } else {
+                        let masked = mask_char.to_string().repeat(len - 4);
+                        let visible = &value[len - 4..];
+                        Ok(format!("{}{}", masked, visible))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Mask credit card number (show last 4 digits)
+    /// Format: ****-****-****-1234
+    fn mask_credit_card(&self, value: &str, mask_char: char) -> Result<String, TransformError> {
+        let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
+
+        if digits.len() < 13 || digits.len() > 19 {
+            return Err(TransformError::InvalidTemplate(
+                "Invalid credit card number length".to_string(),
+            ));
+        }
+
+        let len = digits.len();
+        let masked_count = len - 4;
+        let masked = mask_char.to_string().repeat(masked_count);
+        let visible = &digits[masked_count..];
+
+        // Format with dashes for readability
+        if len == 16 {
+            Ok(format!(
+                "{}-{}-{}-{}",
+                &masked[0..4],
+                &masked[4..8],
+                &masked[8..12],
+                visible
+            ))
+        } else {
+            Ok(format!("{}{}", masked, visible))
+        }
+    }
+
+    /// Mask email address (show first char and domain)
+    /// Format: j***@domain.com
+    fn mask_email(&self, value: &str, mask_char: char) -> Result<String, TransformError> {
+        if let Some(at_pos) = value.find('@') {
+            let local = &value[..at_pos];
+            let domain = &value[at_pos..];
+
+            if local.is_empty() {
+                return Err(TransformError::InvalidTemplate(
+                    "Invalid email format".to_string(),
+                ));
+            }
+
+            let first_char = local.chars().next().unwrap();
+            let masked_len = local.len().saturating_sub(1);
+            let masked = mask_char.to_string().repeat(masked_len);
+
+            Ok(format!("{}{}{}", first_char, masked, domain))
+        } else {
+            Err(TransformError::InvalidTemplate(
+                "Invalid email format: missing @".to_string(),
+            ))
+        }
+    }
+
+    /// Mask phone number (show last 4 digits)
+    /// Format: ***-***-1234
+    fn mask_phone(&self, value: &str, mask_char: char) -> Result<String, TransformError> {
+        let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
+
+        if digits.len() < 7 {
+            return Err(TransformError::InvalidTemplate(
+                "Invalid phone number length".to_string(),
+            ));
+        }
+
+        let len = digits.len();
+        let masked_count = len - 4;
+        let masked = mask_char.to_string().repeat(masked_count);
+        let visible = &digits[masked_count..];
+
+        // Format with dashes for US phone numbers
+        if len == 10 {
+            Ok(format!("{}-{}-{}", &masked[0..3], &masked[3..6], visible))
+        } else {
+            Ok(format!("{}{}", masked, visible))
         }
     }
 
@@ -461,6 +610,147 @@ impl TransformEngine {
     pub async fn list_roles(&self) -> Vec<String> {
         let roles = self.roles.read().await;
         roles.keys().cloned().collect()
+    }
+
+    /// Batch encode multiple values with consistent mapping
+    /// Requirement 10.4: Process multiple values with consistent mapping
+    pub async fn batch_encode(
+        &self,
+        role_name: &str,
+        transformation_name: &str,
+        values: &[String],
+        tweak: Option<&str>,
+    ) -> Result<Vec<String>, TransformError> {
+        // Verify role access once
+        let roles = self.roles.read().await;
+        let role = roles
+            .get(role_name)
+            .ok_or_else(|| TransformError::RoleNotFound(role_name.to_string()))?;
+        if !role.can_use(transformation_name) {
+            return Err(TransformError::AccessDenied(
+                role_name.to_string(),
+                transformation_name.to_string(),
+            ));
+        }
+        drop(roles);
+
+        let transformations = self.transformations.read().await;
+        let transformation = transformations
+            .get(transformation_name)
+            .ok_or_else(|| TransformError::TransformationNotFound(transformation_name.to_string()))?
+            .clone();
+        drop(transformations);
+
+        // Process all values
+        let mut results = Vec::with_capacity(values.len());
+        for value in values {
+            let encoded = match transformation.transformation_type {
+                TransformationType::FPE => self.encode_fpe(&transformation, value, tweak).await?,
+                TransformationType::Tokenization => {
+                    self.encode_tokenization(&transformation, value).await?
+                }
+                TransformationType::Masking => self.encode_masking(&transformation, value).await?,
+            };
+            results.push(encoded);
+        }
+
+        debug!(
+            "Batch encoded {} values for transformation: {}",
+            values.len(),
+            transformation_name
+        );
+        Ok(results)
+    }
+
+    /// Batch decode multiple values
+    pub async fn batch_decode(
+        &self,
+        role_name: &str,
+        transformation_name: &str,
+        values: &[String],
+        tweak: Option<&str>,
+    ) -> Result<Vec<String>, TransformError> {
+        // Verify role access once
+        let roles = self.roles.read().await;
+        let role = roles
+            .get(role_name)
+            .ok_or_else(|| TransformError::RoleNotFound(role_name.to_string()))?;
+        if !role.can_use(transformation_name) {
+            return Err(TransformError::AccessDenied(
+                role_name.to_string(),
+                transformation_name.to_string(),
+            ));
+        }
+        drop(roles);
+
+        let transformations = self.transformations.read().await;
+        let transformation = transformations
+            .get(transformation_name)
+            .ok_or_else(|| TransformError::TransformationNotFound(transformation_name.to_string()))?
+            .clone();
+        drop(transformations);
+
+        // Process all values
+        let mut results = Vec::with_capacity(values.len());
+        for value in values {
+            let decoded = match transformation.transformation_type {
+                TransformationType::FPE => self.decode_fpe(&transformation, value, tweak).await?,
+                TransformationType::Tokenization => self.decode_tokenization(value).await?,
+                TransformationType::Masking => {
+                    return Err(TransformError::DecodeFailed(
+                        "Masking is irreversible".to_string(),
+                    ))
+                }
+            };
+            results.push(decoded);
+        }
+
+        debug!(
+            "Batch decoded {} values for transformation: {}",
+            values.len(),
+            transformation_name
+        );
+        Ok(results)
+    }
+
+    /// Get tokenization audit statistics
+    /// Requirement 10.5: Return usage stats without exposing original values
+    pub async fn get_audit_statistics(&self) -> Result<TokenizationAuditStats, TransformError> {
+        let mappings = self.token_mappings.read().await;
+
+        // Group by transformation
+        let mut stats_map: HashMap<String, Vec<&TokenMapping>> = HashMap::new();
+        for mapping in mappings.values() {
+            stats_map
+                .entry(mapping.transformation_name.clone())
+                .or_insert_with(Vec::new)
+                .push(mapping);
+        }
+
+        let mut transformations = Vec::new();
+        for (transformation_name, tokens) in stats_map {
+            let token_count = tokens.len();
+            let total_encode_operations: usize = tokens.iter().map(|t| t.encode_count).sum();
+            let total_decode_operations: usize = tokens.iter().map(|t| t.decode_count).sum();
+
+            let oldest_token = tokens.iter().map(|t| t.created_at).min();
+            let newest_token = tokens.iter().map(|t| t.created_at).max();
+
+            transformations.push(TransformationStats {
+                transformation_name,
+                token_count,
+                total_encode_operations,
+                total_decode_operations,
+                oldest_token,
+                newest_token,
+            });
+        }
+
+        Ok(TokenizationAuditStats {
+            total_tokens: mappings.len(),
+            transformations,
+            generated_at: Utc::now(),
+        })
     }
 }
 

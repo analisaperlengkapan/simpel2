@@ -422,22 +422,87 @@ async fn list_providers(State(state): State<Arc<AppState>>) -> impl IntoResponse
     }
 }
 
-/// Generate JWT tokens for authenticated user
+/// Generate JWT tokens for authenticated user using Ed25519 signing
+///
+/// This function generates production-ready JWT tokens:
+/// - Access token: Ed25519 signed JWT with user claims
+/// - Refresh token: Ed25519 signed JWT for token rotation
+/// - Both tokens include proper claims (sub, iss, aud, exp, iat, roles)
+///
+/// # Security Considerations
+/// - Uses Ed25519 for cryptographically secure signatures
+/// - Access tokens expire in 1 hour
+/// - Refresh tokens expire in 30 days
+/// - All tokens are stored in the session store for validation
 async fn generate_tokens(
     state: &Arc<AppState>,
     user: &crate::models::User,
     realm_id: Uuid,
 ) -> AuthencResult<(String, String, u64)> {
-    // This is a simplified token generation - in production you'd use proper JWT service
-    let access_token = format!("access_{}", uuid::Uuid::new_v4());
-    let refresh_token = format!("refresh_{}", uuid::Uuid::new_v4());
-    let expires_in = 3600u64; // 1 hour
+    use crate::handlers::oidc_ed25519::generate_ed25519_jwt;
+    use crate::utils::jwt::generate_refresh_token;
 
-    // In production, you would:
-    // 1. Load user roles and permissions
-    // 2. Generate proper Ed25519 signed JWT
-    // 3. Store token in database/cache
-    // 4. Include proper claims (sub, iss, aud, exp, etc.)
+    // Load user roles from database
+    let user_roles: Vec<String> = match crate::database::operations::roles::get_user_roles(
+        &state.database,
+        &user.id,
+    ).await {
+        Ok(roles) => roles.into_iter().map(|r| r.name).collect(),
+        Err(e) => {
+            tracing::warn!("Failed to load user roles: {}, using empty roles", e);
+            Vec::new()
+        }
+    };
+
+    // Determine primary role for JWT claim
+    let primary_role = user_roles.first().map(|s| s.as_str());
+
+    // Generate Ed25519 signed access token with user claims
+    let access_token = generate_ed25519_jwt(
+        &user.id.to_string(),
+        &realm_id.to_string(),
+        Some(&user.email),
+        user.first_name.as_deref().or(Some(&user.username)),
+        primary_role,
+    );
+
+    // Generate Ed25519 signed refresh token
+    let refresh_token = generate_refresh_token(&user.id.to_string())
+        .map_err(|e| crate::error::AuthencError::internal(&format!("Failed to generate refresh token: {}", e)))?;
+
+    let expires_in = 3600u64; // 1 hour for access token
+
+    // Store session in session store for validation
+    let now = chrono::Utc::now();
+    let session = crate::models::session::Session {
+        id: uuid::Uuid::new_v4(),
+        user_id: user.id,
+        token: access_token.clone(),
+        refresh_token: Some(refresh_token.clone()),
+        expires_at: now + chrono::Duration::hours(1),
+        created_at: now,
+        last_accessed: now,
+        ip_address: None,
+        user_agent: None,
+        revoked: false,
+        mfa_verified: false,
+        is_temp_session: false,
+        mfa_verified_at: None,
+    };
+
+    // Store session asynchronously (don't block token response)
+    let session_store = state.session_store.clone();
+    tokio::spawn(async move {
+        if let Err(e) = session_store.store_session(session).await {
+            tracing::error!("Failed to store session: {}", e);
+        }
+    });
+
+    tracing::info!(
+        "Generated Ed25519 JWT tokens for user {} in realm {}",
+        user.username,
+        realm_id
+    );
 
     Ok((access_token, refresh_token, expires_in))
 }

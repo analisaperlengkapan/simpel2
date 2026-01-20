@@ -167,6 +167,9 @@ impl RptService {
         let mut validation = Validation::default();
         validation.set_issuer(&[&self.issuer]);
         validation.validate_exp = true;
+        // RPT tokens have dynamic audiences (resource servers), skip audience validation
+        // Audience is verified separately by resource servers when needed
+        validation.validate_aud = false;
 
         let token_data =
             jsonwebtoken::decode::<RptClaims>(token, &self.verification_key, &validation)

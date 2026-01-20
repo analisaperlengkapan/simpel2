@@ -27,24 +27,24 @@ pub fn create_federation_admin_routes() -> Router<Arc<AppState>> {
         // Identity provider management
         .route("/identity-providers", get(list_identity_providers))
         .route("/identity-providers", post(create_identity_provider))
-        .route("/identity-providers/:id", get(get_identity_provider))
-        .route("/identity-providers/:id", put(update_identity_provider))
-        .route("/identity-providers/:id", delete(delete_identity_provider))
+        .route("/identity-providers/{id}", get(get_identity_provider))
+        .route("/identity-providers/{id}", put(update_identity_provider))
+        .route("/identity-providers/{id}", delete(delete_identity_provider))
         // Sync management
-        .route("/sync/trigger/:alias", post(trigger_sync))
+        .route("/sync/trigger/{alias}", post(trigger_sync))
         .route("/sync/status", get(get_sync_status))
-        .route("/sync/history/:alias", get(get_sync_history))
+        .route("/sync/history/{alias}", get(get_sync_history))
         // User identity links
         .route(
-            "/users/:user_id/identity-links",
+            "/users/{user_id}/identity-links",
             get(get_user_identity_links),
         )
         .route(
-            "/users/:user_id/identity-links/:link_id",
+            "/users/{user_id}/identity-links/{link_id}",
             delete(delete_identity_link),
         )
         // Federation statistics
-        .route("/statistics/:alias", get(get_federation_statistics))
+        .route("/statistics/{alias}", get(get_federation_statistics))
 }
 
 /// Request to create identity provider

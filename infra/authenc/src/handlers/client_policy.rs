@@ -71,7 +71,7 @@ pub async fn create_client_policy(
 
 /// Get a client policy by ID
 ///
-/// GET /api/v1/admin/client-policies/:id
+/// GET /api/v1/admin/client-policies/{id}
 pub async fn get_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(policy_id): Path<Uuid>,
@@ -132,7 +132,7 @@ pub async fn list_client_policies(
 
 /// Update a client policy
 ///
-/// PUT /api/v1/admin/client-policies/:id
+/// PUT /api/v1/admin/client-policies/{id}
 pub async fn update_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(policy_id): Path<Uuid>,
@@ -158,7 +158,7 @@ pub async fn update_client_policy(
 
 /// Delete a client policy
 ///
-/// DELETE /api/v1/admin/client-policies/:id
+/// DELETE /api/v1/admin/client-policies/{id}
 pub async fn delete_client_policy(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(policy_id): Path<Uuid>,
@@ -210,7 +210,7 @@ pub async fn create_client_profile(
 
 /// Get a client profile by ID (with policies)
 ///
-/// GET /api/v1/admin/client-profiles/:id
+/// GET /api/v1/admin/client-profiles/{id}
 pub async fn get_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(profile_id): Path<Uuid>,
@@ -263,7 +263,7 @@ pub async fn list_client_profiles(
 
 /// Update a client profile
 ///
-/// PUT /api/v1/admin/client-profiles/:id
+/// PUT /api/v1/admin/client-profiles/{id}
 pub async fn update_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(profile_id): Path<Uuid>,
@@ -289,7 +289,7 @@ pub async fn update_client_profile(
 
 /// Delete a client profile
 ///
-/// DELETE /api/v1/admin/client-profiles/:id
+/// DELETE /api/v1/admin/client-profiles/{id}
 pub async fn delete_client_profile(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(profile_id): Path<Uuid>,
@@ -316,7 +316,7 @@ pub async fn delete_client_profile(
 
 /// Assign a policy to a client
 ///
-/// POST /api/v1/admin/clients/:client_id/policies
+/// POST /api/v1/admin/clients/{client_id}/policies
 pub async fn assign_policy_to_client(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(client_id): Path<Uuid>,
@@ -354,7 +354,7 @@ pub async fn assign_policy_to_client(
 
 /// Get all policies assigned to a client
 ///
-/// GET /api/v1/admin/clients/:client_id/policies
+/// GET /api/v1/admin/clients/{client_id}/policies
 pub async fn get_client_policies(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(client_id): Path<Uuid>,
@@ -378,7 +378,7 @@ pub async fn get_client_policies(
 
 /// Get all policy assignments for a client
 ///
-/// GET /api/v1/admin/clients/:client_id/policy-assignments
+/// GET /api/v1/admin/clients/{client_id}/policy-assignments
 pub async fn get_client_policy_assignments(
     State(state): State<Arc<PolicyHandlerState>>,
     Path(client_id): Path<Uuid>,
@@ -397,7 +397,7 @@ pub async fn get_client_policy_assignments(
 
 /// Remove a policy assignment from a client
 ///
-/// DELETE /api/v1/admin/clients/:client_id/policies/:policy_id
+/// DELETE /api/v1/admin/clients/{client_id}/policies/{policy_id}
 pub async fn remove_policy_assignment(
     State(state): State<Arc<PolicyHandlerState>>,
     Path((client_id, policy_id)): Path<(Uuid, Uuid)>,
@@ -424,7 +424,7 @@ pub async fn remove_policy_assignment(
 
 /// Remove a profile assignment from a client
 ///
-/// DELETE /api/v1/admin/clients/:client_id/profiles/:profile_id
+/// DELETE /api/v1/admin/clients/{client_id}/profiles/{profile_id}
 pub async fn remove_profile_assignment(
     State(state): State<Arc<PolicyHandlerState>>,
     Path((client_id, profile_id)): Path<(Uuid, Uuid)>,
@@ -460,31 +460,31 @@ pub fn create_policy_router(state: Arc<PolicyHandlerState>) -> Router {
         // Policy CRUD
         .route("/client-policies", post(create_client_policy))
         .route("/client-policies", get(list_client_policies))
-        .route("/client-policies/:id", get(get_client_policy))
-        .route("/client-policies/:id", put(update_client_policy))
-        .route("/client-policies/:id", delete(delete_client_policy))
+        .route("/client-policies/{id}", get(get_client_policy))
+        .route("/client-policies/{id}", put(update_client_policy))
+        .route("/client-policies/{id}", delete(delete_client_policy))
         // Profile CRUD
         .route("/client-profiles", post(create_client_profile))
         .route("/client-profiles", get(list_client_profiles))
-        .route("/client-profiles/:id", get(get_client_profile))
-        .route("/client-profiles/:id", put(update_client_profile))
-        .route("/client-profiles/:id", delete(delete_client_profile))
+        .route("/client-profiles/{id}", get(get_client_profile))
+        .route("/client-profiles/{id}", put(update_client_profile))
+        .route("/client-profiles/{id}", delete(delete_client_profile))
         // Client policy assignments
         .route(
-            "/clients/:client_id/policies",
+            "/clients/{client_id}/policies",
             post(assign_policy_to_client),
         )
-        .route("/clients/:client_id/policies", get(get_client_policies))
+        .route("/clients/{client_id}/policies", get(get_client_policies))
         .route(
-            "/clients/:client_id/policy-assignments",
+            "/clients/{client_id}/policy-assignments",
             get(get_client_policy_assignments),
         )
         .route(
-            "/clients/:client_id/policies/:policy_id",
+            "/clients/{client_id}/policies/{policy_id}",
             delete(remove_policy_assignment),
         )
         .route(
-            "/clients/:client_id/profiles/:profile_id",
+            "/clients/{client_id}/profiles/{profile_id}",
             delete(remove_profile_assignment),
         )
         .with_state(state)

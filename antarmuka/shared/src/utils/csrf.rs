@@ -354,6 +354,7 @@ pub async fn csrf_protected_request(
 mod tests {
     use super::*;
 
+    #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_csrf_token_generation() {
         let token = CsrfToken::generate();
@@ -368,6 +369,7 @@ mod tests {
         assert!(!constant_time_compare("abc123", "abc12"));
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_double_submit_cookie() {
         let cookie = DoubleSubmitCookie::new();

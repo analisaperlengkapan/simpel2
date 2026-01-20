@@ -533,31 +533,108 @@ impl SocialLoginProvider for GoogleOAuth2Provider {
         ))
     }
 
-    async fn exchange_code(&self, _code: &str) -> Result<SocialLoginResult, AuthencError> {
-        // Exchange authorization code for tokens
-        // This would make HTTP request to Google's token endpoint
+    async fn exchange_code(&self, code: &str) -> Result<SocialLoginResult, AuthencError> {
+        // Production HTTP call to Google's token endpoint
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("google_oauth2_client_init: {}", e),
+            })?;
+
+        let params = [
+            ("client_id", self.client_id.as_str()),
+            ("client_secret", self.client_secret.as_str()),
+            ("code", code),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", self.redirect_uri.as_str()),
+        ];
+
+        let response = client
+            .post("https://oauth2.googleapis.com/token")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("google_oauth2_token_exchange: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            tracing::error!("Google OAuth2 token exchange failed: {}", error_body);
+            return Err(AuthencError::ExternalServiceError {
+                service: format!("google_oauth2_token_exchange: HTTP {}", error_body),
+            });
+        }
+
+        let token_response: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AuthencError::SerializationError {
+                message: format!("Failed to parse Google token response: {}", e),
+            })?;
+
         Ok(SocialLoginResult {
-            access_token: "google_access_token".to_string(),
-            token_type: "Bearer".to_string(),
-            expires_in: Some(3600),
-            refresh_token: Some("google_refresh_token".to_string()),
-            scope: Some("openid email profile".to_string()),
-            id_token: Some("google_id_token".to_string()),
+            access_token: token_response["access_token"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            token_type: token_response["token_type"]
+                .as_str()
+                .unwrap_or("Bearer")
+                .to_string(),
+            expires_in: token_response["expires_in"].as_i64(),
+            refresh_token: token_response["refresh_token"].as_str().map(String::from),
+            scope: token_response["scope"].as_str().map(String::from),
+            id_token: token_response["id_token"].as_str().map(String::from),
         })
     }
 
-    async fn get_user_info(&self, _access_token: &str) -> Result<UserInfo, AuthencError> {
-        // Get user info from Google
-        // This would make HTTP request to Google's userinfo endpoint
+    async fn get_user_info(&self, access_token: &str) -> Result<UserInfo, AuthencError> {
+        // Production HTTP call to Google's userinfo endpoint
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("google_oauth2_client_init: {}", e),
+            })?;
+
+        let response = client
+            .get("https://www.googleapis.com/oauth2/v2/userinfo")
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("google_userinfo_fetch: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            tracing::error!("Google userinfo fetch failed: {}", error_body);
+            return Err(AuthencError::ExternalServiceError {
+                service: format!("google_userinfo_fetch: HTTP {}", error_body),
+            });
+        }
+
+        let profile_data: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AuthencError::SerializationError {
+                message: format!("Failed to parse Google userinfo: {}", e),
+            })?;
+
         Ok(UserInfo {
-            username: "google_user".to_string(),
-            email: Some("user@gmail.com".to_string()),
-            first_name: Some("Google".to_string()),
-            last_name: Some("User".to_string()),
-            display_name: Some("Google User".to_string()),
+            username: profile_data["email"]
+                .as_str()
+                .unwrap_or("google_user")
+                .to_string(),
+            email: profile_data["email"].as_str().map(String::from),
+            first_name: profile_data["given_name"].as_str().map(String::from),
+            last_name: profile_data["family_name"].as_str().map(String::from),
+            display_name: profile_data["name"].as_str().map(String::from),
             attributes: HashMap::new(),
             enabled: true,
-            email_verified: true,
+            email_verified: profile_data["verified_email"].as_bool().unwrap_or(false),
         })
     }
 }
@@ -624,29 +701,158 @@ impl SocialLoginProvider for GitHubOAuth2Provider {
         ))
     }
 
-    async fn exchange_code(&self, _code: &str) -> Result<SocialLoginResult, AuthencError> {
-        // Exchange authorization code for tokens
+    async fn exchange_code(&self, code: &str) -> Result<SocialLoginResult, AuthencError> {
+        // Production HTTP call to GitHub's token endpoint
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("github_oauth2_client_init: {}", e),
+            })?;
+
+        let params = [
+            ("client_id", self.client_id.as_str()),
+            ("client_secret", self.client_secret.as_str()),
+            ("code", code),
+            ("redirect_uri", self.redirect_uri.as_str()),
+        ];
+
+        let response = client
+            .post("https://github.com/login/oauth/access_token")
+            .header("Accept", "application/json")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("github_oauth2_token_exchange: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            tracing::error!("GitHub OAuth2 token exchange failed: {}", error_body);
+            return Err(AuthencError::ExternalServiceError {
+                service: format!("github_oauth2_token_exchange: HTTP {}", error_body),
+            });
+        }
+
+        let token_response: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AuthencError::SerializationError {
+                message: format!("Failed to parse GitHub token response: {}", e),
+            })?;
+
+        // Check for OAuth error in response body
+        if let Some(error) = token_response.get("error") {
+            let error_desc = token_response["error_description"]
+                .as_str()
+                .unwrap_or("Unknown error");
+            return Err(AuthencError::ExternalServiceError {
+                service: format!("github_oauth2: {} - {}", error, error_desc),
+            });
+        }
+
         Ok(SocialLoginResult {
-            access_token: "github_access_token".to_string(),
-            token_type: "Bearer".to_string(),
-            expires_in: Some(3600),
-            refresh_token: None,
-            scope: Some("user:email".to_string()),
-            id_token: None,
+            access_token: token_response["access_token"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            token_type: token_response["token_type"]
+                .as_str()
+                .unwrap_or("Bearer")
+                .to_string(),
+            expires_in: token_response["expires_in"].as_i64(),
+            refresh_token: token_response["refresh_token"].as_str().map(String::from),
+            scope: token_response["scope"].as_str().map(String::from),
+            id_token: None, // GitHub doesn't use OIDC
         })
     }
 
-    async fn get_user_info(&self, _access_token: &str) -> Result<UserInfo, AuthencError> {
-        // Get user info from GitHub
+    async fn get_user_info(&self, access_token: &str) -> Result<UserInfo, AuthencError> {
+        // Production HTTP call to GitHub's user API
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .user_agent("Authenc-OAuth2-Client/1.0")
+            .build()
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("github_oauth2_client_init: {}", e),
+            })?;
+
+        // Fetch user profile
+        let user_response = client
+            .get("https://api.github.com/user")
+            .bearer_auth(access_token)
+            .send()
+            .await
+            .map_err(|e| AuthencError::ExternalServiceError {
+                service: format!("github_user_fetch: {}", e),
+            })?;
+
+        if !user_response.status().is_success() {
+            let error_body = user_response.text().await.unwrap_or_default();
+            tracing::error!("GitHub user fetch failed: {}", error_body);
+            return Err(AuthencError::ExternalServiceError {
+                service: format!("github_user_fetch: HTTP {}", error_body),
+            });
+        }
+
+        let user_data: serde_json::Value = user_response
+            .json()
+            .await
+            .map_err(|e| AuthencError::SerializationError {
+                message: format!("Failed to parse GitHub user data: {}", e),
+            })?;
+
+        // Fetch user emails (GitHub requires separate API call for emails)
+        let emails_response = client
+            .get("https://api.github.com/user/emails")
+            .bearer_auth(access_token)
+            .send()
+            .await;
+
+        let primary_email = if let Ok(resp) = emails_response {
+            if resp.status().is_success() {
+                if let Ok(emails) = resp.json::<Vec<serde_json::Value>>().await {
+                    emails
+                        .iter()
+                        .find(|e| e["primary"].as_bool().unwrap_or(false))
+                        .and_then(|e| e["email"].as_str())
+                        .map(String::from)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Use email from user data if primary email fetch failed
+        let email = primary_email.or_else(|| user_data["email"].as_str().map(String::from));
+
+        // Parse name into first/last name
+        let full_name = user_data["name"].as_str().unwrap_or("");
+        let name_parts: Vec<&str> = full_name.split_whitespace().collect();
+        let first_name = name_parts.first().map(|s| s.to_string());
+        let last_name = if name_parts.len() > 1 {
+            Some(name_parts[1..].join(" "))
+        } else {
+            None
+        };
+
         Ok(UserInfo {
-            username: "github_user".to_string(),
-            email: Some("user@github.com".to_string()),
-            first_name: Some("GitHub".to_string()),
-            last_name: Some("User".to_string()),
-            display_name: Some("GitHub User".to_string()),
+            username: user_data["login"]
+                .as_str()
+                .unwrap_or("github_user")
+                .to_string(),
+            email,
+            first_name,
+            last_name,
+            display_name: user_data["name"].as_str().map(String::from),
             attributes: HashMap::new(),
             enabled: true,
-            email_verified: true,
+            email_verified: true, // GitHub emails are verified
         })
     }
 }

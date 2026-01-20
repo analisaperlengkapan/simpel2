@@ -5,6 +5,7 @@
 //! SIMKARI super app authentication system.
 
 use crate::error::CoreError;
+use crate::utils::base64_encode;
 use crate::models::auth::UserInfo;
 use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
 use crate::utils::correlation::CorrelationContext;
@@ -637,9 +638,9 @@ impl AuthProvider for AuthencAuthProvider {
             } => {
                 serde_json::json!({
                     "algorithm": "ml-dsa",
-                    "signature": base64::encode(sig),
-                    "public_key": base64::encode(public_key),
-                    "data": base64::encode(data)
+                    "signature": base64_encode(sig),
+                    "public_key": base64_encode(public_key),
+                    "data": base64_encode(data)
                 })
             }
             PqSignature::SphincsPlusShake256 {
@@ -648,9 +649,9 @@ impl AuthProvider for AuthencAuthProvider {
             } => {
                 serde_json::json!({
                     "algorithm": "sphincs-plus-shake256",
-                    "signature": base64::encode(sig),
-                    "public_key": base64::encode(public_key),
-                    "data": base64::encode(data)
+                    "signature": base64_encode(sig),
+                    "public_key": base64_encode(public_key),
+                    "data": base64_encode(data)
                 })
             }
             PqSignature::Hybrid {
@@ -659,9 +660,9 @@ impl AuthProvider for AuthencAuthProvider {
             } => {
                 serde_json::json!({
                     "algorithm": "hybrid",
-                    "classical_signature": base64::encode(classical_signature),
+                    "classical_signature": base64_encode(classical_signature),
                     "pq_signature": pq_signature,
-                    "data": base64::encode(data)
+                    "data": base64_encode(data)
                 })
             }
         };

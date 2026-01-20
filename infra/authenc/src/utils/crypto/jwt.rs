@@ -1,9 +1,10 @@
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 // Import Ed25519 functions
-use crate::crypto::ed25519_keys::{ED25519_KEYPAIR, sign_ed25519};
+use crate::crypto::ed25519_keys::{sign_ed25519, ED25519_KEYPAIR};
 use ed25519_dalek::{Signature, Verifier};
 
 /// JWT claims structure for token payload
@@ -25,6 +26,21 @@ pub struct Claims {
     pub sub: String,
     /// Token expiration timestamp as Unix timestamp
     pub exp: usize,
+}
+
+/// Refresh token claims with JWT ID for token rotation
+///
+/// This struct extends basic claims with a unique JWT ID (`jti`) to ensure
+/// each refresh token is unique, even when generated in rapid succession.
+/// This is critical for proper token rotation security.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefreshTokenClaims {
+    /// Subject identifier (typically the user ID or username)
+    pub sub: String,
+    /// Token expiration timestamp as Unix timestamp
+    pub exp: usize,
+    /// JWT ID - unique identifier for this token (enables token rotation)
+    pub jti: String,
 }
 
 // SECURITY NOTE: Previously had hardcoded secret here. Now removed for security.
@@ -288,6 +304,7 @@ pub fn hash_token(token: &str) -> String {
 ///
 /// Creates a JWT refresh token that can be used to obtain new access tokens.
 /// Refresh tokens have a longer lifetime than access tokens.
+/// Each token has a unique JWT ID (jti) for proper token rotation.
 ///
 /// # Arguments
 /// * `user_id` - The user identifier to include in the token's subject claim
@@ -298,7 +315,7 @@ pub fn hash_token(token: &str) -> String {
 /// # Security Considerations
 /// - Refresh tokens expire after 30 days
 /// - Should be stored securely (httpOnly cookies recommended)
-/// - Should be rotated on each use
+/// - Should be rotated on each use (enabled by unique jti)
 /// - Uses Ed25519 for cryptographic signing
 pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
     let expiration = SystemTime::now()
@@ -308,9 +325,13 @@ pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
         .unwrap()
         .as_secs() as usize;
 
-    let claims = Claims {
+    // Generate unique JWT ID for token rotation
+    let jti = Uuid::new_v4().to_string();
+
+    let claims = RefreshTokenClaims {
         sub: user_id.to_owned(),
         exp: expiration,
+        jti,
     };
 
     // Create JWT header

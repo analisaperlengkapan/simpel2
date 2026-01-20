@@ -1,0 +1,194 @@
+name: Sync Status Check
+
+on:
+  # Run every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      notify_on_sync:
+        description: 'Send notification even if repositories are in sync'
+        type: boolean
+        default: false
+
+env:
+  GITLAB_PROJECT: "irhas/simpel2"
+  GITLAB_URL: "https://gitlab.kejaksaan.go.id"
+
+jobs:
+  check-sync-status:
+    name: 📊 Check Repository Sync Status
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    outputs:
+      in_sync: ${{ steps.compare.outputs.in_sync }}
+      github_sha: ${{ steps.compare.outputs.github_sha }}
+      gitlab_sha: ${{ steps.compare.outputs.gitlab_sha }}
+      direction: ${{ steps.compare.outputs.direction }}
+      commits_diff: ${{ steps.compare.outputs.commits_diff }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "sync-check@github.com"
+          git config --global user.name "Sync Status Checker"
+
+      - name: Fetch GitLab main
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          git remote add gitlab "$GITLAB_MIRROR_URL" 2>/dev/null || true
+          git fetch gitlab main --depth=100 || {
+            echo "::warning::Failed to fetch GitLab main branch"
+            exit 0
+          }
+
+      - name: Compare branches
+        id: compare
+        run: |
+          GITHUB_SHA=$(git rev-parse HEAD)
+          GITLAB_SHA=$(git rev-parse gitlab/main 2>/dev/null || echo "UNKNOWN")
+
+          echo "github_sha=$GITHUB_SHA" >> $GITHUB_OUTPUT
+          echo "gitlab_sha=$GITLAB_SHA" >> $GITHUB_OUTPUT
+
+          if [ "$GITLAB_SHA" = "UNKNOWN" ]; then
+            echo "in_sync=unknown" >> $GITHUB_OUTPUT
+            echo "direction=unknown" >> $GITHUB_OUTPUT
+            echo "commits_diff=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$GITHUB_SHA" = "$GITLAB_SHA" ]; then
+            echo "in_sync=true" >> $GITHUB_OUTPUT
+            echo "direction=none" >> $GITHUB_OUTPUT
+            echo "commits_diff=0" >> $GITHUB_OUTPUT
+          else
+            echo "in_sync=false" >> $GITHUB_OUTPUT
+
+            # Determine direction
+            AHEAD=$(git rev-list --count gitlab/main..HEAD 2>/dev/null || echo "0")
+            BEHIND=$(git rev-list --count HEAD..gitlab/main 2>/dev/null || echo "0")
+
+            if [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -eq 0 ]; then
+              echo "direction=github_ahead" >> $GITHUB_OUTPUT
+              echo "commits_diff=$AHEAD" >> $GITHUB_OUTPUT
+            elif [ "$BEHIND" -gt 0 ] && [ "$AHEAD" -eq 0 ]; then
+              echo "direction=gitlab_ahead" >> $GITHUB_OUTPUT
+              echo "commits_diff=$BEHIND" >> $GITHUB_OUTPUT
+            else
+              echo "direction=diverged" >> $GITHUB_OUTPUT
+              TOTAL=$((AHEAD + BEHIND))
+              echo "commits_diff=$TOTAL" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # 📊 Repository Sync Status
+
+          | Repository | SHA |
+          |------------|-----|
+          | GitHub main | `${{ steps.compare.outputs.github_sha }}` |
+          | GitLab main | `${{ steps.compare.outputs.gitlab_sha }}` |
+
+          **Status:** ${{ steps.compare.outputs.in_sync == 'true' && '✅ In Sync' || steps.compare.outputs.in_sync == 'unknown' && '❓ Unknown' || '⚠️ Out of Sync' }}
+
+          EOF
+
+          if [ "${{ steps.compare.outputs.in_sync }}" = "false" ]; then
+            case "${{ steps.compare.outputs.direction }}" in
+              github_ahead)
+                echo "**Direction:** GitHub is ahead by ${{ steps.compare.outputs.commits_diff }} commits" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "The bidirectional sync workflow should create a GitLab MR automatically." >> $GITHUB_STEP_SUMMARY
+                ;;
+              gitlab_ahead)
+                echo "**Direction:** GitLab is ahead by ${{ steps.compare.outputs.commits_diff }} commits" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "GitLab CI should create a GitHub PR automatically." >> $GITHUB_STEP_SUMMARY
+                ;;
+              diverged)
+                echo "**Direction:** ⚠️ Branches have DIVERGED" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "Manual intervention is required to reconcile the branches." >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Last checked: $(date -u +'%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY
+
+  notify-out-of-sync:
+    name: 🔔 Send Notification
+    needs: check-sync-status
+    if: |
+      needs.check-sync-status.outputs.in_sync == 'false' ||
+      (needs.check-sync-status.outputs.in_sync == 'true' && github.event.inputs.notify_on_sync == 'true')
+    runs-on: self-hosted
+
+    steps:
+      - name: Determine notification type
+        id: notify-type
+        run: |
+          if [ "${{ needs.check-sync-status.outputs.in_sync }}" = "true" ]; then
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "status=IN SYNC" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.check-sync-status.outputs.direction }}" = "diverged" ]; then
+            echo "emoji=🚨" >> $GITHUB_OUTPUT
+            echo "status=DIVERGED - Manual intervention required" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          else
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "status=Out of sync by ${{ needs.check-sync-status.outputs.commits_diff }} commits" >> $GITHUB_OUTPUT
+            echo "color=warning" >> $GITHUB_OUTPUT
+          fi
+
+      # Uncomment and configure to enable Slack notifications
+      # - name: Send Slack notification
+      #   if: vars.SLACK_WEBHOOK_URL != ''
+      #   uses: slackapi/slack-github-action@v1
+      #   with:
+      #     payload: |
+      #       {
+      #         "attachments": [
+      #           {
+      #             "color": "${{ steps.notify-type.outputs.color }}",
+      #             "blocks": [
+      #               {
+      #                 "type": "header",
+      #                 "text": {
+      #                   "type": "plain_text",
+      #                   "text": "${{ steps.notify-type.outputs.emoji }} Repository Sync Status"
+      #                 }
+      #               },
+      #               {
+      #                 "type": "section",
+      #                 "text": {
+      #                   "type": "mrkdwn",
+      #                   "text": "*Status:* ${{ steps.notify-type.outputs.status }}\n*GitHub SHA:* `${{ needs.check-sync-status.outputs.github_sha }}`\n*GitLab SHA:* `${{ needs.check-sync-status.outputs.gitlab_sha }}`"
+      #                 }
+      #               }
+      #             ]
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Log notification
+        run: |
+          echo "${{ steps.notify-type.outputs.emoji }} Sync Status: ${{ steps.notify-type.outputs.status }}"
+          echo "Direction: ${{ needs.check-sync-status.outputs.direction }}"
+          echo "Commits diff: ${{ needs.check-sync-status.outputs.commits_diff }}"

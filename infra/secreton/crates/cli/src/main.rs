@@ -4,13 +4,29 @@ use clap::{Parser, Subcommand};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
+mod audit;
+mod auth;
 mod backup;
 mod config;
+mod http_client;
+mod middleware;
+mod operator;
+mod policy;
+mod policy_parser;
 mod seal;
+mod token;
+mod token_store;
 
+use audit::{AuditCommand, execute_audit_command};
+use auth::{login_command, logout_command};
 use backup::{BackupCommand, execute_backup_command};
 use config::CliConfig;
+use http_client::AuthenticatedClient;
+use middleware::SealChecker;
+use operator::{OperatorCommand, execute_operator_command};
+use policy::{PolicyCommand, execute_policy_command};
 use seal::{SealCommand, execute_seal_command};
+use token::{TokenCommand, execute_token_command};
 
 #[derive(Parser)]
 #[command(
@@ -29,6 +45,9 @@ struct Cli {
     #[arg(long, global = true)]
     server: Option<String>,
 
+    #[arg(long, global = true)]
+    namespace: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -37,12 +56,43 @@ struct Cli {
 enum Commands {
     /// System health and status commands
     Status,
+    /// Login to Secreton vault
+    Login {
+        /// Authentication method (userpass or token)
+        #[arg(short, long, default_value = "userpass")]
+        method: String,
+
+        /// Username for userpass authentication
+        #[arg(short, long)]
+        username: Option<String>,
+
+        /// Token for token authentication
+        #[arg(short, long)]
+        token: Option<String>,
+    },
+    /// Logout from Secreton vault
+    Logout,
+    /// Configuration management
+    #[command(subcommand)]
+    Config(ConfigCommand),
+    /// Policy management operations
+    #[command(subcommand)]
+    Policy(PolicyCommand),
+    /// Token management operations
+    #[command(subcommand)]
+    Token(TokenCommand),
     /// Seal/unseal operations
     #[command(subcommand)]
     Seal(SealCommand),
     /// Backup and restore operations
     #[command(subcommand)]
     Backup(BackupCommand),
+    /// Operator diagnostic commands
+    #[command(subcommand)]
+    Operator(OperatorCommand),
+    /// Audit log commands
+    #[command(subcommand)]
+    Audit(AuditCommand),
     /// Transit engine operations (encryption/decryption)
     Transit {
         #[command(subcommand)]
@@ -53,6 +103,24 @@ enum Commands {
         #[command(subcommand)]
         cmd: SecretCommand,
     },
+}
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Set a configuration value
+    Set {
+        /// Configuration key (e.g., "server", "namespace")
+        key: String,
+        /// Configuration value
+        value: String,
+    },
+    /// Get a configuration value
+    Get {
+        /// Configuration key (e.g., "server", "namespace")
+        key: String,
+    },
+    /// Show all configuration values
+    Show,
 }
 
 #[derive(Subcommand)]
@@ -105,26 +173,95 @@ async fn main() -> Result<()> {
 
     tracing::subscriber::set_global_default(subscriber)?;
 
-    // Load configuration
-    let mut config = CliConfig::default();
-    if let Some(config_path) = &cli.config {
-        config = CliConfig::load_from_file(config_path).await?;
-    }
+    // Load configuration with precedence: flag > env > config file > default
+    let mut config = if let Some(config_path) = &cli.config {
+        CliConfig::load_from_file(config_path).await?
+    } else {
+        CliConfig::load_default().await.unwrap_or_default()
+    };
 
-    // Override server URL if provided via command line
+    // Override server URL with precedence: flag > env > config
     if let Some(server_url) = &cli.server {
         config.server_url = server_url.clone();
+    } else if let Ok(env_addr) = std::env::var("SECRETON_ADDR") {
+        config.server_url = env_addr;
+    }
+
+    // Override namespace if provided via command line
+    if let Some(namespace) = &cli.namespace {
+        config.default_namespace = namespace.clone();
     }
 
     info!("Using server: {}", config.server_url);
+    info!("Using namespace: {}", config.default_namespace);
 
     // Execute commands
     match cli.command {
         Commands::Status => status_command(&config).await,
+        Commands::Login {
+            method,
+            username,
+            token,
+        } => login_command(&config, &method, username, token).await,
+        Commands::Logout => logout_command(&config).await,
+        Commands::Config(cmd) => config_command(cmd, &config).await,
+        Commands::Policy(cmd) => execute_policy_command(cmd, &config, cli.namespace.as_deref()).await,
+        Commands::Token(cmd) => execute_token_command(cmd, &config, cli.namespace.as_deref()).await,
         Commands::Seal(cmd) => execute_seal_command(cmd, &config).await,
         Commands::Backup(cmd) => execute_backup_command(cmd, &config).await,
-        Commands::Transit { cmd } => transit_command(cmd, &config).await,
-        Commands::Secret { cmd } => secret_command(cmd, &config).await,
+        Commands::Operator(cmd) => execute_operator_command(cmd, &config).await,
+        Commands::Audit(cmd) => execute_audit_command(cmd, &config).await,
+        Commands::Transit { cmd } => transit_command(cmd, &config, cli.namespace.as_deref()).await,
+        Commands::Secret { cmd } => secret_command(cmd, &config, cli.namespace.as_deref()).await,
+    }
+}
+
+async fn config_command(cmd: ConfigCommand, config: &CliConfig) -> Result<()> {
+    match cmd {
+        ConfigCommand::Set { key, value } => {
+            let mut new_config = config.clone();
+
+            match key.as_str() {
+                "server" => {
+                    new_config.server_url = value.clone();
+                    println!("✅ Server URL set to: {}", value);
+                }
+                "namespace" => {
+                    new_config.default_namespace = value.clone();
+                    println!("✅ Default namespace set to: {}", value);
+                }
+                _ => {
+                    anyhow::bail!("Unknown configuration key: {}. Valid keys: server, namespace", key);
+                }
+            }
+
+            new_config.save_default().await?;
+            println!("   Configuration saved to: {}", CliConfig::default_config_path()?.display());
+
+            Ok(())
+        }
+        ConfigCommand::Get { key } => {
+            match key.as_str() {
+                "server" => {
+                    println!("{}", config.server_url);
+                }
+                "namespace" => {
+                    println!("{}", config.default_namespace);
+                }
+                _ => {
+                    anyhow::bail!("Unknown configuration key: {}. Valid keys: server, namespace", key);
+                }
+            }
+            Ok(())
+        }
+        ConfigCommand::Show => {
+            println!("📋 Current Configuration:");
+            println!("   Server URL:        {}", config.server_url);
+            println!("   Default Namespace: {}", config.default_namespace);
+            println!();
+            println!("   Config file: {}", CliConfig::default_config_path()?.display());
+            Ok(())
+        }
     }
 }
 
@@ -159,17 +296,28 @@ async fn status_command(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-async fn transit_command(cmd: TransitCommand, config: &CliConfig) -> Result<()> {
-    let client = reqwest::Client::new();
+async fn transit_command(cmd: TransitCommand, config: &CliConfig, namespace: Option<&str>) -> Result<()> {
+    // Check vault seal status before operations
+    let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
+    if let Err(e) = seal_checker.require_unsealed().await {
+        eprintln!("❌ {}", e);
+        return Ok(());
+    }
+
+    // Create authenticated client
+    let auth_client = AuthenticatedClient::new()?;
+    let _effective_namespace = config.get_namespace(namespace);
 
     match cmd {
         TransitCommand::CreateKey { name } => {
             let url = format!("{}/v1/transit/keys/{}", config.server_url, name);
-            let response = client
-                .post(&url)
-                .header("Content-Type", "application/json")
-                .json(&serde_json::json!({}))
-                .send()
+            let response = auth_client
+                .execute(
+                    auth_client
+                        .post(&url)?
+                        .header("Content-Type", "application/json")
+                        .json(&serde_json::json!({})),
+                )
                 .await?;
 
             if response.status().is_success() {
@@ -180,7 +328,7 @@ async fn transit_command(cmd: TransitCommand, config: &CliConfig) -> Result<()> 
         }
         TransitCommand::ListKeys => {
             let url = format!("{}/v1/transit/keys", config.server_url);
-            let response = client.get(&url).send().await?;
+            let response = auth_client.execute(auth_client.get(&url)?).await?;
 
             if response.status().is_success() {
                 let keys: serde_json::Value = response.json().await?;
@@ -217,11 +365,13 @@ async fn transit_command(cmd: TransitCommand, config: &CliConfig) -> Result<()> 
                 "plaintext": encoded_data
             });
 
-            let response = client
-                .post(&url)
-                .header("Content-Type", "application/json")
-                .json(&payload)
-                .send()
+            let response = auth_client
+                .execute(
+                    auth_client
+                        .post(&url)?
+                        .header("Content-Type", "application/json")
+                        .json(&payload),
+                )
                 .await?;
 
             if response.status().is_success() {
@@ -249,11 +399,13 @@ async fn transit_command(cmd: TransitCommand, config: &CliConfig) -> Result<()> 
                 "ciphertext": ciphertext
             });
 
-            let response = client
-                .post(&url)
-                .header("Content-Type", "application/json")
-                .json(&payload)
-                .send()
+            let response = auth_client
+                .execute(
+                    auth_client
+                        .post(&url)?
+                        .header("Content-Type", "application/json")
+                        .json(&payload),
+                )
                 .await?;
 
             if response.status().is_success() {
@@ -274,8 +426,17 @@ async fn transit_command(cmd: TransitCommand, config: &CliConfig) -> Result<()> 
     Ok(())
 }
 
-async fn secret_command(cmd: SecretCommand, config: &CliConfig) -> Result<()> {
-    let client = reqwest::Client::new();
+async fn secret_command(cmd: SecretCommand, config: &CliConfig, namespace: Option<&str>) -> Result<()> {
+    // Check vault seal status before operations
+    let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
+    if let Err(e) = seal_checker.require_unsealed().await {
+        eprintln!("❌ {}", e);
+        return Ok(());
+    }
+
+    // Create authenticated client
+    let auth_client = AuthenticatedClient::new()?;
+    let _effective_namespace = config.get_namespace(namespace);
 
     match cmd {
         SecretCommand::Put { path, data } => {
@@ -298,11 +459,13 @@ async fn secret_command(cmd: SecretCommand, config: &CliConfig) -> Result<()> {
                 "data": secret_data
             });
 
-            let response = client
-                .post(&url)
-                .header("Content-Type", "application/json")
-                .json(&payload)
-                .send()
+            let response = auth_client
+                .execute(
+                    auth_client
+                        .post(&url)?
+                        .header("Content-Type", "application/json")
+                        .json(&payload),
+                )
                 .await?;
 
             if response.status().is_success() {
@@ -318,7 +481,7 @@ async fn secret_command(cmd: SecretCommand, config: &CliConfig) -> Result<()> {
         }
         SecretCommand::Get { path } => {
             let url = format!("{}/v1/secret/data/{}", config.server_url, path);
-            let response = client.get(&url).send().await?;
+            let response = auth_client.execute(auth_client.get(&url)?).await?;
 
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await?;
@@ -337,7 +500,7 @@ async fn secret_command(cmd: SecretCommand, config: &CliConfig) -> Result<()> {
         }
         SecretCommand::List => {
             let url = format!("{}/v1/secrets", config.server_url);
-            let response = client.get(&url).send().await?;
+            let response = auth_client.execute(auth_client.get(&url)?).await?;
 
             if response.status().is_success() {
                 let result: serde_json::Value = response.json().await?;
@@ -357,7 +520,7 @@ async fn secret_command(cmd: SecretCommand, config: &CliConfig) -> Result<()> {
         }
         SecretCommand::Delete { path } => {
             let url = format!("{}/v1/secret/data/{}", config.server_url, path);
-            let response = client.delete(&url).send().await?;
+            let response = auth_client.execute(auth_client.delete(&url)?).await?;
 
             if response.status().is_success() {
                 println!("✅ Secret deleted at path '{}'", path);

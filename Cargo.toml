@@ -81,8 +81,8 @@ rust-version = "1.90"
 
 [workspace.dependencies]
 # Axum Backend Dependencies - Latest Stable
-axum = { version = "0.8.6", features = ["macros", "multipart", "ws"] }
-axum-extra = { version = "0.10.3", features = ["typed-header"] }
+axum = { version = "0.8.7", features = ["macros", "multipart", "ws"] }
+axum-extra = { version = "0.12.2", features = ["typed-header"] }
 tokio = { version = "1.47.1", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
@@ -155,7 +155,7 @@ x25519-dalek = { version = "2.0.1", features = [
 # vaultrs removed - we use our own Secreton implementation
 
 # Proc Macro Dependencies (secure alternatives)
-syn = { version = "2.0.108", features = [
+syn = { version = "2.0.111", features = [
     "full",
     "parsing",
     "printing",
@@ -216,9 +216,9 @@ nutype = { version = "0.6.2", features = [
 opentelemetry = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["tonic", "tls"] }
 prometheus = "0.14"
-sentry = { version = "0.45.0", features = ["tracing"] }
+sentry = { version = "0.46.0", features = ["tracing"] }
 metrics = "0.24"
-metrics-exporter-prometheus = "0.17"
+metrics-exporter-prometheus = "0.18.0"
 tracing-opentelemetry = "0.32.0"
 
 # Email and Notifications
@@ -312,34 +312,34 @@ calamine = "0.31"                # Excel reading
 rust_xlsxwriter = "0.91.0"       # Excel writing
 
 # Utility libraries
-tokio-util = "0.7.16"
+tokio-util = "0.7.17"
 walkdir = "2"
 mime = "0.3"
 sentry-tracing = "0.46.0"
-tempfile = "3"
+ tempfile = "3"
 
 # Dev dependencies (for testing)
 tokio-test = "0.4.4"
-mockall = "0.13"
+mockall = "0.14.0"
 serial_test = "3"
 assert-json-diff = "2"
 
 # Leptos Frontend Dependencies - Latest Available Stable
-leptos = { version = "0.8.12" }
+leptos = { version = "0.8.14" }
 leptos_meta = { version = "0.8.5" }
-leptos_router = { version = "0.8.9" }
+leptos_router = { version = "0.8.10" }
 leptos_dom = { version = "0.8.7" }
-leptos_macro = { version = "0.8.11" }
+leptos_macro = { version = "0.8.12" }
 server_fn = { version = "0.8.8" }
 
 # WASM specific - Latest Stable Versions (Updated)
-wasm-bindgen = "0.2.105"
-wasm-bindgen-futures = "0.4.55"
-wasm-bindgen-test = "0.3.55"
-js-sys = "0.3.81"
+wasm-bindgen = "0.2.106"
+wasm-bindgen-futures = "0.4.56"
+wasm-bindgen-test = "0.3.56"
+js-sys = "0.3.83"
 gloo-net = { version = "0.6", features = ["http"] }
 gloo-utils = { version = "0.2", features = ["serde"] }
-web-sys = { version = "0.3.81", features = [
+web-sys = { version = "0.3.83", features = [
     "HtmlInputElement",
     "Window",
     "Document",
@@ -398,9 +398,9 @@ once_cell = "1.19"
 
 # Additional dependencies
 axum-server = { version = "0.7.2", features = ["tls-rustls"] }
-hyper = { version = "1.7.0", features = ["full"] }
-hyper-util = { version = "0.1.17", features = ["full"] }
-bytes = "1.10.1"
+hyper = { version = "1.8.1", features = ["full"] }
+hyper-util = { version = "0.1.18", features = ["full"] }
+bytes = "1.11.0"
 
 # AI and ML Dependencies
 qdrant-client = "1.11"
@@ -408,7 +408,7 @@ tiktoken-rs = "0.7.0"
 tonic = { version = "0.14.2", features = ["tls", "tls-roots"] }
 
 # CLI tools
-clap = { version = "4.5.51", features = ["derive"] }
+clap = { version = "4.5.53", features = ["derive"] }
 colored = "3.0"
 shellexpand = "3.1"
 which = "8.0"

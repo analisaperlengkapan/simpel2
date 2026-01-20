@@ -15,6 +15,17 @@ use std::path::Path;
 
 use crate::config::CliConfig;
 
+/// Options for restore operation
+struct RestoreOptions {
+    password: Option<String>,
+    point_in_time: Option<String>,
+    secrets_only: bool,
+    audit_only: bool,
+    dry_run: bool,
+    force: bool,
+    target_namespace: Option<String>,
+}
+
 #[derive(Subcommand)]
 pub enum BackupCommand {
     /// Create a backup of vault data
@@ -121,8 +132,20 @@ pub struct BackupManifest {
     pub uncompressed_size: u64,
     pub compression_algorithm: String,
     pub encryption_algorithm: String,
+    pub encryption_kdf: String,
+    pub encryption_kdf_params: EncryptionKdfParams,
     pub data_checksum: String,
     pub metadata: std::collections::HashMap<String, serde_json::Value>,
+}
+
+/// Encryption key derivation function parameters
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EncryptionKdfParams {
+    pub algorithm: String,
+    pub memory_cost_kb: u32,
+    pub time_cost: u32,
+    pub parallelism: u32,
+    pub salt_size_bytes: u32,
 }
 
 /// Type of backup
@@ -206,13 +229,15 @@ pub async fn execute_backup_command(cmd: BackupCommand, config: &CliConfig) -> R
             restore_backup(
                 config,
                 &file,
-                password,
-                point_in_time,
-                secrets_only,
-                audit_only,
-                dry_run,
-                force,
-                target_namespace,
+                RestoreOptions {
+                    password,
+                    point_in_time,
+                    secrets_only,
+                    audit_only,
+                    dry_run,
+                    force,
+                    target_namespace,
+                },
             )
             .await
         }
@@ -340,7 +365,7 @@ async fn create_backup(
     let manifest = BackupManifest {
         backup_id: backup_id.clone(),
         created_at: Utc::now(),
-        format_version: "1.0.0".to_string(),
+        format_version: "2.0.0".to_string(), // Updated for enhanced encryption
         backup_type: if incremental {
             BackupType::Incremental
         } else {
@@ -353,6 +378,14 @@ async fn create_backup(
         uncompressed_size: 0,
         compression_algorithm: format!("gzip-{}", compression_level),
         encryption_algorithm: "aes-256-gcm".to_string(),
+        encryption_kdf: "argon2id".to_string(),
+        encryption_kdf_params: EncryptionKdfParams {
+            algorithm: "argon2id-v19".to_string(),
+            memory_cost_kb: 64 * 1024, // 64 MB
+            time_cost: 3,
+            parallelism: 4,
+            salt_size_bytes: 32,
+        },
         data_checksum: String::new(),
         metadata: std::collections::HashMap::new(),
     };
@@ -440,17 +473,14 @@ async fn verify_backup(file_path: &str, password: Option<String>, verbose: bool)
     let backup_data: BackupData =
         serde_json::from_slice(&json_data).context("Failed to parse backup data")?;
 
-    println!("Verifying checksum...");
-    let calculated_checksum = calculate_checksum(&json_data);
-    if calculated_checksum != backup_data.manifest.data_checksum {
-        anyhow::bail!(
-            "Checksum mismatch! Expected: {}, Got: {}",
-            backup_data.manifest.data_checksum,
-            calculated_checksum
-        );
-    }
+    println!("Verifying backup integrity...");
+    verify_backup_integrity(&backup_data, &json_data)?;
 
-    println!("Checksum verified");
+    println!("✓ SHA-256 checksum verified");
+    println!("✓ Format version {} compatible", backup_data.manifest.format_version);
+    println!("✓ Secret count verified: {}", backup_data.manifest.secret_count);
+    println!("✓ Audit log count verified: {}", backup_data.manifest.audit_log_count);
+    println!("✓ Data size verified: {} bytes", backup_data.manifest.uncompressed_size);
     println!();
     println!("Backup Information:");
     println!("  Backup ID: {}", backup_data.manifest.backup_id);
@@ -471,6 +501,14 @@ async fn verify_backup(file_path: &str, password: Option<String>, verbose: bool)
     println!(
         "  Encryption: {}",
         backup_data.manifest.encryption_algorithm
+    );
+    println!("  Encryption KDF: {}", backup_data.manifest.encryption_kdf);
+    println!(
+        "  KDF Parameters: {} (memory: {} KB, time: {}, parallelism: {})",
+        backup_data.manifest.encryption_kdf_params.algorithm,
+        backup_data.manifest.encryption_kdf_params.memory_cost_kb,
+        backup_data.manifest.encryption_kdf_params.time_cost,
+        backup_data.manifest.encryption_kdf_params.parallelism
     );
 
     if let Some(base_id) = &backup_data.manifest.base_backup_id {
@@ -565,22 +603,16 @@ async fn list_backups(directory: &str, detailed: bool) -> Result<()> {
 async fn restore_backup(
     config: &CliConfig,
     file_path: &str,
-    password: Option<String>,
-    point_in_time: Option<String>,
-    secrets_only: bool,
-    audit_only: bool,
-    dry_run: bool,
-    force: bool,
-    target_namespace: Option<String>,
+    options: RestoreOptions,
 ) -> Result<()> {
     println!("Restoring vault from backup: {}", file_path);
     println!();
 
-    if secrets_only && audit_only {
+    if options.secrets_only && options.audit_only {
         anyhow::bail!("Cannot specify both --secrets-only and --audit-only");
     }
 
-    let decryption_password = get_password(password)?;
+    let decryption_password = get_password(options.password)?;
 
     // Step 1: Load and validate backup
     println!("Step 1/5: Loading backup file...");
@@ -612,7 +644,7 @@ async fn restore_backup(
     println!("  ✓ Checksum verified");
 
     // Parse point-in-time if provided
-    let pit_timestamp = if let Some(pit_str) = point_in_time {
+    let pit_timestamp = if let Some(pit_str) = options.point_in_time {
         let pit = DateTime::parse_from_rfc3339(&pit_str)
             .context("Invalid point-in-time format. Use ISO 8601 (e.g., 2025-10-29T10:00:00Z)")?
             .with_timezone(&Utc);
@@ -631,7 +663,7 @@ async fn restore_backup(
     println!("  Secrets: {}", backup_data.manifest.secret_count);
     println!("  Audit Logs: {}", backup_data.manifest.audit_log_count);
 
-    if dry_run {
+    if options.dry_run {
         println!();
         println!("DRY RUN MODE - No changes will be applied");
     }
@@ -663,14 +695,14 @@ async fn restore_backup(
 
     println!();
     println!("Restore Plan:");
-    if !audit_only {
+    if !options.audit_only {
         println!("  Secrets to restore: {}", secrets_to_restore.len());
     }
-    if !secrets_only {
+    if !options.secrets_only {
         println!("  Audit logs to restore: {}", audit_logs_to_restore.len());
     }
 
-    if dry_run {
+    if options.dry_run {
         println!();
         println!("Dry run complete. No changes were made.");
         println!();
@@ -679,7 +711,7 @@ async fn restore_backup(
     }
 
     // Confirm restore
-    if !force {
+    if !options.force {
         println!();
         println!("⚠️  WARNING: This will restore data to the vault.");
         println!("   Existing secrets may be overwritten.");
@@ -699,7 +731,7 @@ async fn restore_backup(
     let client = reqwest::Client::new();
 
     // Step 4: Restore secrets
-    if !audit_only {
+    if !options.audit_only {
         println!();
         println!("Step 4/5: Restoring secrets...");
 
@@ -708,7 +740,7 @@ async fn restore_backup(
         let mut failed_count = 0;
 
         for (idx, secret) in secrets_to_restore.iter().enumerate() {
-            let restore_path = if let Some(ref ns) = target_namespace {
+            let restore_path = if let Some(ref ns) = options.target_namespace {
                 format!("{}/{}", ns, secret.path)
             } else {
                 secret.path.clone()
@@ -722,7 +754,7 @@ async fn restore_backup(
                 .map(|r| r.status().is_success())
                 .unwrap_or(false);
 
-            if exists && !force {
+            if exists && !options.force {
                 skipped_count += 1;
                 if (idx + 1) % 10 == 0 {
                     println!(
@@ -791,7 +823,7 @@ async fn restore_backup(
     }
 
     // Step 5: Restore audit logs
-    if !secrets_only {
+    if !options.secrets_only {
         println!();
         println!("Step 5/5: Restoring audit logs...");
 
@@ -881,7 +913,7 @@ async fn restore_backup(
     if let Some(pit) = pit_timestamp {
         println!("  Point-in-Time: {}", pit);
     }
-    if let Some(ref ns) = target_namespace {
+    if let Some(ref ns) = options.target_namespace {
         println!("  Target Namespace: {}", ns);
     }
     println!();
@@ -1032,24 +1064,40 @@ fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
 fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
     use aes_gcm::{
         Aes256Gcm, Nonce,
-        aead::{Aead, KeyInit},
+        aead::{Aead, KeyInit, OsRng, rand_core::RngCore},
     };
-    use argon2::Argon2;
+    use argon2::{Argon2, Params, Version};
 
-    let salt = b"secreton-backup-salt-v1";
+    // Generate random salt for each backup (more secure than fixed salt)
+    let mut salt = [0u8; 32];
+    OsRng.fill_bytes(&mut salt);
+
+    // Use Argon2id with strong parameters for key derivation
+    // Memory cost: 64 MB, Time cost: 3 iterations, Parallelism: 4
+    let params = Params::new(65536, 3, 4, Some(32))
+        .map_err(|e| anyhow::anyhow!("Failed to create Argon2 params: {}", e))?;
+
+    let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
+
     let mut key = [0u8; 32];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt, &mut key)
+    argon2
+        .hash_password_into(password.as_bytes(), &salt, &mut key)
         .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
 
-    let nonce = Nonce::from(*b"unique nonce");
+    // Generate random nonce for each encryption
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from(nonce_bytes);
 
     let cipher = Aes256Gcm::new(&key.into());
     let ciphertext = cipher
         .encrypt(&nonce, data)
         .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
 
-    let mut result = nonce.to_vec();
+    // Format: [salt (32 bytes)] [nonce (12 bytes)] [ciphertext]
+    let mut result = Vec::with_capacity(32 + 12 + ciphertext.len());
+    result.extend_from_slice(&salt);
+    result.extend_from_slice(&nonce_bytes);
     result.extend_from_slice(&ciphertext);
 
     Ok(result)
@@ -1060,22 +1108,36 @@ fn decrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
         Aes256Gcm, Nonce,
         aead::{Aead, KeyInit},
     };
-    use argon2::Argon2;
+    use argon2::{Argon2, Params, Version};
 
-    if data.len() < 12 {
-        anyhow::bail!("Invalid encrypted data: too short");
+    // Format: [salt (32 bytes)] [nonce (12 bytes)] [ciphertext]
+    if data.len() < 44 {
+        anyhow::bail!("Invalid encrypted data: too short (expected at least 44 bytes, got {})", data.len());
     }
 
-    let salt = b"secreton-backup-salt-v1";
-    let mut key = [0u8; 32];
-    Argon2::default()
-        .hash_password_into(password.as_bytes(), salt, &mut key)
-        .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
+    // Extract salt
+    let (salt, rest) = data.split_at(32);
+    if salt.len() != 32 {
+        return Err(anyhow::anyhow!("Invalid salt size"));
+    }
 
-    let (nonce_bytes, ciphertext) = data.split_at(12);
+    // Extract nonce
+    let (nonce_bytes, ciphertext) = rest.split_at(12);
     if nonce_bytes.len() != 12 {
         return Err(anyhow::anyhow!("Invalid nonce size"));
     }
+
+    // Derive key using same parameters as encryption
+    let params = Params::new(65536, 3, 4, Some(32))
+        .map_err(|e| anyhow::anyhow!("Failed to create Argon2 params: {}", e))?;
+
+    let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
+
+    let mut key = [0u8; 32];
+    argon2
+        .hash_password_into(password.as_bytes(), salt, &mut key)
+        .map_err(|e| anyhow::anyhow!("Failed to derive key: {}", e))?;
+
     let mut nonce_arr = [0u8; 12];
     nonce_arr.copy_from_slice(nonce_bytes);
     let nonce = Nonce::from(nonce_arr);
@@ -1083,9 +1145,65 @@ fn decrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(&key.into());
     let plaintext = cipher
         .decrypt(&nonce, ciphertext)
-        .map_err(|e| anyhow::anyhow!("Decryption failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Decryption failed - check password: {}", e))?;
 
     Ok(plaintext)
+}
+
+/// Check if backup format version is compatible with current version
+fn is_format_version_compatible(version: &str) -> bool {
+    matches!(version, "1.0.0" | "2.0.0")
+}
+
+/// Verify backup integrity comprehensively
+fn verify_backup_integrity(backup_data: &BackupData, json_data: &[u8]) -> Result<()> {
+    // Verify SHA-256 checksum of uncompressed data
+    let calculated_checksum = calculate_checksum(json_data);
+    if calculated_checksum != backup_data.manifest.data_checksum {
+        anyhow::bail!(
+            "Backup integrity check failed! SHA-256 checksum mismatch.\nExpected: {}\nGot: {}\n\nThis indicates the backup file has been corrupted or tampered with.",
+            backup_data.manifest.data_checksum,
+            calculated_checksum
+        );
+    }
+
+    // Verify backup format version compatibility
+    let format_version = backup_data.manifest.format_version.as_str();
+    if !is_format_version_compatible(format_version) {
+        anyhow::bail!(
+            "Backup format version {} is not compatible with this version of secreton.\nSupported versions: 1.0.0, 2.0.0",
+            format_version
+        );
+    }
+
+    // Verify data structure integrity
+    if backup_data.secrets.len() != backup_data.manifest.secret_count {
+        anyhow::bail!(
+            "Backup integrity check failed! Secret count mismatch.\nManifest claims: {}\nActual count: {}",
+            backup_data.manifest.secret_count,
+            backup_data.secrets.len()
+        );
+    }
+
+    if backup_data.audit_logs.len() != backup_data.manifest.audit_log_count {
+        anyhow::bail!(
+            "Backup integrity check failed! Audit log count mismatch.\nManifest claims: {}\nActual count: {}",
+            backup_data.manifest.audit_log_count,
+            backup_data.audit_logs.len()
+        );
+    }
+
+    // Verify uncompressed size matches
+    let actual_size = json_data.len() as u64;
+    if actual_size != backup_data.manifest.uncompressed_size {
+        anyhow::bail!(
+            "Backup integrity check failed! Size mismatch.\nManifest claims: {} bytes\nActual size: {} bytes",
+            backup_data.manifest.uncompressed_size,
+            actual_size
+        );
+    }
+
+    Ok(())
 }
 
 async fn should_include_in_incremental(_path: &str, _base_manifest: &BackupManifest) -> bool {

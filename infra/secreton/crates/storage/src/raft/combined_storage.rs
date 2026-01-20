@@ -240,26 +240,30 @@ impl RaftStorage<SecretonTypeConfig> for SecretonRaftStorage {
         entries: &[Entry],
     ) -> Result<Vec<StateMachineResponse>, StorageError<NodeId>> {
         let mut sm = self.state_machine.write().await;
-        let mut responses = Vec::new();
+        let mut responses = Vec::with_capacity(entries.len());
 
         for entry in entries {
-            let data = match &entry.payload {
-                openraft::EntryPayload::Blank => continue,
-                openraft::EntryPayload::Normal(data) => data,
+            let response = match &entry.payload {
+                openraft::EntryPayload::Blank => {
+                    // Blank entries still need a response
+                    *sm.last_applied_log.write().await = Some(entry.log_id);
+                    StateMachineResponse::Success
+                }
+                openraft::EntryPayload::Normal(data) => {
+                    // data is already StateMachineCommand
+                    let cmd = data.clone();
+                    let response = sm.apply_command(cmd).await;
+                    *sm.last_applied_log.write().await = Some(entry.log_id);
+                    response
+                }
                 openraft::EntryPayload::Membership(m) => {
                     *sm.last_membership.write().await =
                         StoredMembership::new(Some(entry.log_id), m.clone());
                     *sm.last_applied_log.write().await = Some(entry.log_id);
-                    continue;
+                    StateMachineResponse::Success
                 }
             };
-
-            // data is already StateMachineCommand
-            let cmd = data.clone();
-
-            let response = sm.apply_command(cmd).await;
             responses.push(response);
-            *sm.last_applied_log.write().await = Some(entry.log_id);
         }
 
         Ok(responses)

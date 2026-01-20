@@ -1,0 +1,295 @@
+# ============================================================================
+# Authenc IAM Service - Configuration Template
+# ============================================================================
+# Copy this file to authenc.toml and customize for your environment.
+#
+# SECURITY NOTES:
+# - Never commit authenc.toml with real secrets to version control
+# - Use environment variables for secrets: ${ENV_VAR_NAME}
+# - Secrets are loaded from Secreton service in production
+# - Database credentials should use environment variable interpolation
+#
+# CONFIGURATION HIERARCHY:
+# 1. authenc.toml (this file) - Base configuration
+# 2. Environment variables - Override specific values
+# 3. Secreton - Load secrets at runtime
+# 4. Database (authenc.configuration table) - Dynamic config
+# ============================================================================
+
+# ============================================================================
+# SERVER CONFIGURATION
+# ============================================================================
+[server]
+# Network binding
+host = "0.0.0.0"
+port = 8088
+
+# gRPC configuration
+grpc_port = 9088
+grpc_enabled = true
+
+# Connection settings
+keep_alive = 75
+client_timeout = 30
+client_disconnect_timeout = 5
+max_connections = 200
+
+# API prefixes
+public_prefix = "/api/v1"
+admin_prefix = "/admin"
+internal_prefix = "/internal"
+
+# TLS configuration (enable in production)
+tls_enabled = false
+# tls_cert_path = "/path/to/cert.pem"
+# tls_key_path = "/path/to/key.pem"
+
+# CORS configuration
+cors_allowed_origins = ["*"]  # Restrict in production
+
+# ============================================================================
+# DATABASE CONFIGURATION
+# ============================================================================
+[database]
+# Connection settings - Use environment variables for credentials
+host = "${DB_HOST:-localhost}"
+port = 5432
+username = "${DB_USER:-postgres}"
+password = "${DB_PASSWORD}"  # REQUIRED: Set via environment variable
+database = "${DB_NAME:-authenc}"
+
+# Connection pool settings
+max_connections = 50
+min_connections = 10
+connection_timeout = 30
+idle_timeout = 600
+max_lifetime = 1800
+connection_timeout_seconds = 30
+
+# Optional: Separate audit log database
+# audit_log_url = "postgresql://user:pass@host:port/audit_db"
+
+# ============================================================================
+# SECURITY CONFIGURATION
+# ============================================================================
+[security]
+# JWT Configuration
+# In production, jwt_secret is loaded from Secreton
+jwt_secret = "${JWT_SECRET}"  # REQUIRED: Set via Secreton or environment
+jwt_expiry = 3600  # 1 hour
+
+# Password Policy
+password_min_length = 12
+password_salt_rounds = 12
+
+# Rate Limiting
+rate_limit_requests = 100
+rate_limit_window = 60
+rate_limit_requests_per_minute = 100
+
+# Brute Force Protection
+brute_force_max_attempts = 5
+brute_force_window_seconds = 300
+
+# ============================================================================
+# REDIS CONFIGURATION (Caching & Sessions)
+# ============================================================================
+[redis]
+enabled = true
+url = "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0"
+pool_size = 10
+connection_timeout = 5
+default_ttl = 3600
+mfa_cache_ttl = 300
+otp_verification_ttl = 90
+
+# ============================================================================
+# SECRETON INTEGRATION (Secrets Management)
+# ============================================================================
+[secreton]
+enabled = true
+url = "${SECRETON_API_URL:-http://secreton:8200}"
+token = "${SECRETON_TOKEN}"  # REQUIRED: Set via environment variable
+mount_path = "authenc"
+key_rotation_interval = 86400  # 24 hours
+
+# Secrets to load from Secreton (loaded at startup)
+secrets_to_load = [
+    "jwt_secret",
+    "ed25519_private_key",
+    "ecdsa_p256_private_key",
+    "ecdsa_p384_private_key",
+    "ecdsa_p521_private_key",
+    "smtp_password",
+    "encryption_key"
+]
+
+# ============================================================================
+# OBSERVABILITY CONFIGURATION
+# ============================================================================
+[observability]
+log_level = "info"  # trace, debug, info, warn, error
+enable_metrics = true
+metrics_endpoint = "/metrics"
+metrics_port = 9090
+enable_tracing = true
+structured_logging = true
+# log_file = "/var/log/authenc/authenc.log"  # Optional file logging
+
+# ============================================================================
+# FEATURE FLAGS
+# ============================================================================
+[features]
+enable_registration = true
+enable_password_reset = true
+enable_email_verification = true
+enable_multi_factor_auth = true
+enable_api_docs = false  # Disable in production
+enable_metrics = true
+enable_health_checks = true
+enable_rate_limiting = true
+enable_caching = true
+enable_compression = true
+enable_cors = true
+enable_input_validation = true
+
+# ============================================================================
+# CONFIGURATION LOADER (Hybrid Config)
+# ============================================================================
+[config_loader]
+enabled = true
+load_from_database = true
+cache_ttl = 300
+reload_interval = 0  # 0 = disabled
+allow_hot_reload = true
+
+# ============================================================================
+# RATE LIMITING (Detailed)
+# ============================================================================
+[rate_limit]
+enabled = true
+requests_per_second = 10
+burst_size = 20
+
+[adaptive_rate_limit]
+enabled = true
+baseline_requests_per_minute = 100
+max_requests_per_minute = 200
+min_requests_per_minute = 50
+
+[mfa_rate_limit]
+enabled = true
+max_attempts = 5
+window_seconds = 300
+
+# ============================================================================
+# SSO COOKIE CONFIGURATION
+# ============================================================================
+[sso_cookie]
+name = "AUTHENC_SSO"
+# domain = "simpel.kejaksaan.go.id"  # Set for cross-subdomain SSO
+path = "/"
+max_age = 3600  # 1 hour
+secure = true   # Require HTTPS
+http_only = true  # Prevent XSS
+same_site = "Lax"
+
+# ============================================================================
+# EVENTS & AUDIT CONFIGURATION
+# ============================================================================
+[events]
+enabled = true
+user_event_retention_days = 90
+admin_event_retention_days = 365
+max_cleanup_batch_size = 10000
+cleanup_interval_hours = 24
+archive_before_delete = false
+# archive_directory = "/var/lib/authenc/archive"
+
+# Cold storage for event archiving (S3/MinIO)
+# [events.cold_storage]
+# enabled = false
+# storage_type = "s3"
+# endpoint = "https://s3.amazonaws.com"
+# region = "ap-southeast-1"
+# bucket = "authenc-events-archive"
+# access_key_id = "${S3_ACCESS_KEY}"
+# secret_access_key = "${S3_SECRET_KEY}"
+# path_prefix = "authenc/events/archive"
+# force_path_style = false
+
+# ============================================================================
+# KAFKA CONFIGURATION (Event Streaming)
+# ============================================================================
+# [kafka]
+# enabled = false
+# brokers = "kafka:9092"
+# audit_topic = "authenc.audit"
+# user_events_topic = "authenc.user-events"
+# admin_events_topic = "authenc.admin-events"
+# client_id = "authenc-producer"
+# message_timeout_ms = 5000
+# compression = "lz4"
+
+# ============================================================================
+# CLUSTERING CONFIGURATION (High Availability)
+# ============================================================================
+[clustering]
+enabled = false
+cluster_name = "authenc-cluster"
+# node_id = "node-1"  # Auto-generated if not set
+session_replication_enabled = true
+cache_replication_enabled = true
+# discovery_addresses = ["node-1:7800", "node-2:7800", "node-3:7800"]
+
+# ============================================================================
+# FEDERATION CONFIGURATION (LDAP/AD/Social Login)
+# ============================================================================
+# [federation]
+# sync_enabled = false
+# sync_interval_minutes = 60
+# batch_size = 100
+
+# ============================================================================
+# OIDC CONFIGURATION
+# ============================================================================
+# [oidc]
+# issuer = "https://auth.simpel.kejaksaan.go.id"
+# client_id = "authenc"
+# client_secret = "${OIDC_CLIENT_SECRET}"
+# redirect_uri = "https://simpel.kejaksaan.go.id/callback"
+
+# ============================================================================
+# SAML CONFIGURATION
+# ============================================================================
+# [saml]
+# entity_id = "https://auth.simpel.kejaksaan.go.id/saml"
+# sso_url = "https://idp.example.com/saml/sso"
+# certificate = "/path/to/saml-cert.pem"
+
+# ============================================================================
+# KEY ROTATION CONFIGURATION
+# ============================================================================
+# [key_rotation]
+# enabled = true
+# rotation_interval_hours = 24
+# key_overlap_period_hours = 2
+# algorithm = "Ed25519"
+
+# ============================================================================
+# SPI CONFIGURATION (Enterprise Extensibility)
+# ============================================================================
+[spi]
+# Organization providers
+# [[spi.organization]]
+# id = "default"
+# enabled = true
+# priority = 0
+# config = {}
+
+# Rich Authorization providers
+# [[spi.rich_authorization]]
+# id = "default"
+# enabled = true
+# priority = 0
+# config = {}

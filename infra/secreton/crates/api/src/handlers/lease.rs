@@ -26,7 +26,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/leases/renew", post(renew_lease))
         .route("/leases/revoke", post(revoke_lease))
         .route("/leases/revoke-prefix", post(revoke_lease_prefix))
-        .route("/leases/lookup/{lease_id}", get(lookup_lease))
+        .route("/leases/lookup/:lease_id", get(lookup_lease))
         .route("/leases", get(list_leases))
         .route("/leases/stats", get(get_lease_stats))
 }

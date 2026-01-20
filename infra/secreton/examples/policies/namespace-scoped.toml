@@ -1,0 +1,131 @@
+# Namespace-Scoped Policy
+#
+# This policy demonstrates namespace isolation for multi-tenant environments.
+# It grants access only to resources within a specific namespace, ensuring
+# that different teams or applications cannot access each other's secrets.
+#
+# Use case: Multi-tenant deployments, team isolation, application segregation,
+# compliance requirements for data separation
+
+# Policy metadata
+name = "namespace-scoped"
+description = "Access scoped to engineering namespace for team isolation"
+namespace = "engineering"
+
+# Rule 1: Full access to secrets within the engineering namespace
+# Team members can manage all secrets in their namespace
+[[rules]]
+effect = "allow"
+path = "secret/data/*"
+capabilities = ["create", "read", "update", "delete", "list"]
+
+# Rule 2: Access to secret metadata within the namespace
+# Enables version management and metadata operations
+[[rules]]
+effect = "allow"
+path = "secret/metadata/*"
+capabilities = ["read", "list", "update"]
+
+# Rule 3: Transit encryption within the namespace
+# Team can use encryption services scoped to their namespace
+[[rules]]
+effect = "allow"
+path = "transit/*"
+capabilities = ["create", "read", "update", "list"]
+
+# Rule 4: Deny key deletion to prevent accidental data loss
+# Prevent team members from deleting encryption keys
+[[rules]]
+effect = "deny"
+path = "transit/keys/*"
+capabilities = ["delete"]
+
+# Rule 5: Read-only access to namespace policies
+# Team members can view but not modify their namespace policies
+[[rules]]
+effect = "allow"
+path = "sys/policies/*"
+capabilities = ["read", "list"]
+
+# Rule 6: Deny policy modification
+# Only administrators can modify policies
+[[rules]]
+effect = "deny"
+path = "sys/policies/*"
+capabilities = ["create", "update", "delete"]
+
+# Rule 7: Token management within namespace
+# Team members can create tokens for their applications
+[[rules]]
+effect = "allow"
+path = "auth/token/create"
+capabilities = ["create", "update"]
+
+# Rule 8: Token lookup for current token
+# Users can inspect their own token information
+[[rules]]
+effect = "allow"
+path = "auth/token/lookup-self"
+capabilities = ["read"]
+
+# Rule 9: Token renewal
+# Users can renew their own tokens
+[[rules]]
+effect = "allow"
+path = "auth/token/renew-self"
+capabilities = ["update"]
+
+# Rule 10: Deny cross-namespace access
+# Explicitly prevent access to other namespaces
+# Note: This is enforced by the namespace field above, but explicit deny
+# provides defense in depth
+[[rules]]
+effect = "deny"
+path = "sys/namespaces/*"
+capabilities = ["*"]
+
+# Rule 11: Deny seal/unseal operations
+# Namespace users cannot seal or unseal the vault
+[[rules]]
+effect = "deny"
+path = "sys/seal"
+capabilities = ["*"]
+
+[[rules]]
+effect = "deny"
+path = "sys/unseal"
+capabilities = ["*"]
+
+# Rule 12: Deny system configuration changes
+# Prevent namespace users from modifying system settings
+[[rules]]
+effect = "deny"
+path = "sys/config/*"
+capabilities = ["*"]
+
+# Rule 13: Allow reading audit logs for the namespace
+# Team members can view audit logs for their namespace activities
+[[rules]]
+effect = "allow"
+path = "sys/audit/log"
+capabilities = ["read"]
+
+# Rule 14: Time-based access restriction (optional)
+# Uncomment to restrict access to business hours
+# [[rules]]
+# effect = "allow"
+# path = "secret/data/*"
+# capabilities = ["read"]
+#
+# [rules.condition]
+# time_range = { start = "2025-01-01T08:00:00Z", end = "2025-12-31T18:00:00Z" }
+
+# Rule 15: IP-based access restriction (optional)
+# Uncomment to restrict access to office network
+# [[rules]]
+# effect = "allow"
+# path = "secret/data/*"
+# capabilities = ["read"]
+#
+# [rules.condition]
+# allowed_ips = ["10.0.0.0/8", "192.168.0.0/16"]

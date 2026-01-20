@@ -22,27 +22,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     print_startup_banner();
 
-    info!("Loading configuration...");
-    // Load configuration with hierarchy: default.toml → production.toml → env vars
-    // This provides better security and auditability for Secret Management service
-    let config = ApiConfig::load().map_err(|e| {
-        error!("Failed to load configuration: {}", e);
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    info!("Loading bootstrap configuration...");
+    // Load bootstrap config (infrastructure only, no secrets)
+    let bootstrap_config_path = std::env::var("SECRETON_CONFIG")
+        .unwrap_or_else(|_| "secreton.toml".to_string());
+
+    let bootstrap = secreton_core::config::BootstrapConfig::from_file(
+        std::path::Path::new(&bootstrap_config_path)
+    ).map_err(|e| {
+        error!("Failed to load bootstrap config from {}: {}", bootstrap_config_path, e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string())
     })?;
 
-    info!("Initializing service container...");
+    info!("Bootstrap config loaded successfully");
+    info!("  Storage backend: {:?}", bootstrap.storage.backend);
+    info!("  HTTP listener: {}", bootstrap.listener.http.address);
+    info!("  gRPC listener: {}", bootstrap.listener.grpc.address);
+
+    info!("Initializing service container with bootstrap config...");
     // Create service container (includes SealService, storage, crypto, etc.)
-    let services = Arc::new(ServiceContainer::new(&config).await?);
+    let services = Arc::new(ServiceContainer::new_from_bootstrap(&bootstrap).await?);
 
     // CRITICAL SECURITY: Check seal status at startup
     if services.seal.is_sealed().await {
         warn!("🔒 Vault is SEALED at startup");
         warn!("   All secret operations will be blocked until vault is unsealed");
         warn!("   Use /v1/sys/unseal endpoint with threshold shares to unseal");
+        warn!("   Application config will be loaded after unsealing");
     } else {
         info!("🔓 Vault is UNSEALED at startup");
-        info!("   Secret operations are allowed");
+        info!("   Loading application config from encrypted storage...");
     }
+
+    // Load application config (encrypted in storage, only accessible when unsealed)
+    let app_config = if !services.seal.is_sealed().await {
+        match secreton_core::config::ApplicationConfig::load_from_storage(&*services.storage, &services.seal).await {
+            Ok(cfg) => {
+                info!("✅ Application config loaded successfully");
+                cfg
+            },
+            Err(e) => {
+                warn!("⚠️  Failed to load application config: {}", e);
+                warn!("   Using default application config");
+                warn!("   Run 'secreton config init' to initialize application config");
+                secreton_core::config::ApplicationConfig::default()
+            }
+        }
+    } else {
+        info!("Using default application config (vault is sealed)");
+        secreton_core::config::ApplicationConfig::default()
+    };
+
+    info!("Creating API configuration...");
+    // Merge bootstrap + application config into ApiConfig
+    let config = ApiConfig::from_bootstrap_and_application(&bootstrap, &app_config)
+        .map_err(|e| {
+            error!("Failed to create API config: {}", e);
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+        })?;
+
+    // Apply environment variable overrides
+    let mut config = config;
+    config.apply_env_overrides().map_err(|e| {
+        error!("Failed to apply environment overrides: {}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
 
     info!("Creating transit engine...");
     // Create transit engine (shared between REST and gRPC)

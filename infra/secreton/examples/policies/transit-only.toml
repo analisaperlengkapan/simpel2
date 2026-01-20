@@ -1,0 +1,104 @@
+# Transit-Only Policy
+#
+# This policy grants access exclusively to the transit encryption engine,
+# allowing applications to use Secreton as a cryptographic service without
+# accessing any stored secrets.
+#
+# Use case: Applications requiring encryption/decryption, data protection
+# services, encryption-as-a-service integrations
+
+# Policy metadata
+name = "transit-only"
+description = "Encryption and decryption operations only"
+namespace = "default"
+
+# Rule 1: Allow encryption operations
+# Enables encrypting plaintext data using transit keys
+[[rules]]
+effect = "allow"
+path = "transit/encrypt/*"
+capabilities = ["create", "update"]
+
+# Rule 2: Allow decryption operations
+# Enables decrypting ciphertext data using transit keys
+[[rules]]
+effect = "allow"
+path = "transit/decrypt/*"
+capabilities = ["create", "update"]
+
+# Rule 3: Allow rewrapping (re-encryption with latest key version)
+# Useful for key rotation without decrypting data
+[[rules]]
+effect = "allow"
+path = "transit/rewrap/*"
+capabilities = ["create", "update"]
+
+# Rule 4: Allow data key generation
+# Enables generating data encryption keys for envelope encryption
+[[rules]]
+effect = "allow"
+path = "transit/datakey/*"
+capabilities = ["create", "update"]
+
+# Rule 5: Allow reading transit key information
+# Enables checking key versions and configuration (not the key material itself)
+[[rules]]
+effect = "allow"
+path = "transit/keys/*"
+capabilities = ["read"]
+
+# Rule 6: Allow listing available transit keys
+# Enables discovery of available encryption keys
+[[rules]]
+effect = "allow"
+path = "transit/keys"
+capabilities = ["list"]
+
+# Rule 7: Allow signing operations (for digital signatures)
+# Enables creating digital signatures using transit keys
+[[rules]]
+effect = "allow"
+path = "transit/sign/*"
+capabilities = ["create", "update"]
+
+# Rule 8: Allow signature verification
+# Enables verifying digital signatures
+[[rules]]
+effect = "allow"
+path = "transit/verify/*"
+capabilities = ["create", "update"]
+
+# Rule 9: Allow HMAC generation
+# Enables creating HMACs for data integrity verification
+[[rules]]
+effect = "allow"
+path = "transit/hmac/*"
+capabilities = ["create", "update"]
+
+# Rule 10: Deny key management operations
+# Prevent creating, deleting, or rotating keys (admin-only operations)
+[[rules]]
+effect = "deny"
+path = "transit/keys/*"
+capabilities = ["create", "delete", "update"]
+
+# Rule 11: Deny access to all secret storage
+# Explicitly prevent access to the KV secrets engine
+[[rules]]
+effect = "deny"
+path = "secret/*"
+capabilities = ["*"]
+
+# Rule 12: Deny access to PKI
+# Prevent certificate operations
+[[rules]]
+effect = "deny"
+path = "pki/*"
+capabilities = ["*"]
+
+# Rule 13: Deny access to system operations
+# Prevent administrative operations
+[[rules]]
+effect = "deny"
+path = "sys/*"
+capabilities = ["*"]

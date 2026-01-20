@@ -211,6 +211,224 @@ secreton backup list --directory /backups --detailed
 
 For detailed restore documentation, see [RESTORE_GUIDE.md](RESTORE_GUIDE.md).
 
+### Authentication Operations
+
+#### Login
+
+Authenticate to the Secreton vault and store a token locally:
+
+```bash
+# Login with username/password (interactive)
+secreton login
+
+# Login with username/password (non-interactive)
+secreton login --username admin
+
+# Login with an existing token
+secreton login --method token --token stn.your_token_here
+```
+
+The CLI will securely prompt for your password without echoing it to the terminal.
+
+#### Logout
+
+Clear the stored authentication token:
+
+```bash
+secreton logout
+```
+
+### Policy Management Operations
+
+#### List Policies
+
+Display all available policies:
+
+```bash
+# List all policies
+secreton policy list
+
+# List policies in a specific namespace
+secreton policy list --namespace production
+
+# Output as JSON
+secreton policy list --format json
+```
+
+#### Read Policy
+
+View the contents of a specific policy:
+
+```bash
+# Read policy in TOML format (default)
+secreton policy read my-policy
+
+# Read policy in JSON format
+secreton policy read my-policy --format json
+```
+
+#### Write Policy
+
+Create or update a policy from a file:
+
+```bash
+# Write policy from TOML file
+secreton policy write my-policy policy.toml
+
+# The policy file should be in TOML format (see examples below)
+```
+
+#### Delete Policy
+
+Remove a policy:
+
+```bash
+# Delete with confirmation prompt
+secreton policy delete my-policy
+
+# Delete without confirmation
+secreton policy delete my-policy --force
+```
+
+#### Format Policy File
+
+Format a policy file according to standard conventions:
+
+```bash
+# Format a policy file (modifies in place)
+secreton policy fmt policy.toml
+
+# Check if formatting is needed without modifying
+secreton policy fmt policy.toml --check
+
+# Format to JSON
+secreton policy fmt policy.toml --format json
+```
+
+#### Validate Policy File
+
+Check policy syntax without applying it:
+
+```bash
+secreton policy validate policy.toml
+```
+
+#### Test Policy
+
+Test if a policy would allow a specific operation:
+
+```bash
+secreton policy test my-policy --path secret/data/database --action read
+```
+
+### Token Management Operations
+
+#### Create Token
+
+Generate a new authentication token:
+
+```bash
+# Create token with specific policies
+secreton token create --policies default,admin
+
+# Create token with TTL
+secreton token create --policies default --ttl 1h
+
+# Create non-renewable token
+secreton token create --policies default --renewable false
+
+# Create token with display name
+secreton token create --policies default --display-name "CI/CD Pipeline"
+```
+
+#### Lookup Token
+
+View information about a token:
+
+```bash
+# Lookup current token
+secreton token lookup
+
+# Lookup specific token
+secreton token lookup stn.specific_token_here
+```
+
+#### Renew Token
+
+Extend the TTL of the current token:
+
+```bash
+# Renew with default increment
+secreton token renew
+
+# Renew with specific increment
+secreton token renew --increment 2h
+```
+
+#### Revoke Token
+
+Invalidate a token:
+
+```bash
+secreton token revoke stn.token_to_revoke
+```
+
+#### Token Capabilities
+
+Check what operations a token can perform on a path:
+
+```bash
+secreton token capabilities secret/data/database
+```
+
+### Operator Diagnostic Commands
+
+#### Diagnose
+
+Run comprehensive diagnostics on vault connectivity and status:
+
+```bash
+secreton operator diagnose
+```
+
+This command checks:
+- Connectivity to the vault server
+- Vault initialization status
+- Vault seal status
+- Authentication status and token validity
+
+### Audit Log Commands
+
+#### List Audit Logs
+
+View audit logs with optional filtering:
+
+```bash
+# List recent audit logs (default: 50 entries)
+secreton audit list
+
+# Filter by user
+secreton audit list --user admin@example.com
+
+# Filter by operation
+secreton audit list --operation secret.read
+
+# Filter by resource path
+secreton audit list --path secret/data/database
+
+# Filter by time range
+secreton audit list --start-time 2025-12-01T00:00:00Z --end-time 2025-12-31T23:59:59Z
+
+# Combine filters
+secreton audit list --user admin --operation policy.write --limit 100
+
+# Output as JSON
+secreton audit list --format json
+
+# Output as CSV
+secreton audit list --format csv
+```
+
 ### System Operations
 
 #### Health Check
@@ -227,25 +445,97 @@ The CLI can be configured via:
 2. Environment variables
 3. Command-line flags
 
+Configuration precedence (highest to lowest):
+- Command-line flags
+- Environment variables
+- Configuration file
+- Default values
+
 ### Configuration File
 
+The configuration file is stored at `~/.secreton/config.toml`:
+
 ```toml
-server_url = "https://secreton.example.com"
-timeout = 30
+server_url = "https://secreton.example.com:8200"
+default_namespace = "default"
+```
+
+### Configuration Commands
+
+```bash
+# Set server URL
+secreton config set server https://secreton.example.com:8200
+
+# Set default namespace
+secreton config set namespace production
+
+# Get server URL
+secreton config get server
+
+# Show all configuration
+secreton config show
 ```
 
 ### Environment Variables
 
 ```bash
-export SECRETON_SERVER_URL="https://secreton.example.com"
-export SECRETON_TOKEN="your-token-here"
+# Server address
+export SECRETON_ADDR="https://secreton.example.com:8200"
+
+# Default namespace
+export SECRETON_NAMESPACE="production"
 ```
 
 ### Command-Line Flags
 
 ```bash
-secreton --server https://secreton.example.com seal status
+# Override server URL for a single command
+secreton --server https://secreton.example.com:8200 seal status
+
+# Override namespace for a single command
+secreton --namespace production policy list
+
+# Enable verbose logging
+secreton --verbose seal status
 ```
+
+## Policy File Format
+
+Policies are defined in TOML format. Here's the structure:
+
+```toml
+# Policy metadata
+name = "my-policy"
+description = "Description of what this policy allows"
+namespace = "default"
+
+# Policy rules
+[[rules]]
+effect = "allow"  # or "deny"
+path = "secret/data/database/*"
+capabilities = ["read", "list"]
+
+[[rules]]
+effect = "allow"
+path = "secret/data/database/credentials"
+capabilities = ["read"]
+mfa = true  # Require MFA for this operation
+
+# Optional conditions
+[rules.condition]
+time_range = { start = "2025-01-01T00:00:00Z", end = "2025-12-31T23:59:59Z" }
+allowed_ips = ["192.168.1.0/24", "10.0.0.0/8"]
+```
+
+### Example Policies
+
+Example policy files are available in `infra/secreton/examples/policies/`:
+
+- `read-only.toml` - Read-only access to secrets
+- `admin.toml` - Full administrative access
+- `database-secrets.toml` - Scoped access to database credentials
+- `transit-only.toml` - Encryption/decryption only access
+- `namespace-scoped.toml` - Namespace-isolated access
 
 ## Examples
 
@@ -258,22 +548,152 @@ secreton seal init --shares 5 --threshold 3 --output keys.json
 # 2. Check status (should be unsealed after init)
 secreton seal status
 
-# 3. Create encryption key
+# 3. Login with root token (from initialization)
+secreton login --method token --token <root-token-from-init>
+
+# 4. Create a policy for application access
+cat > app-policy.toml <<EOF
+name = "app-access"
+description = "Application access to secrets"
+namespace = "default"
+
+[[rules]]
+effect = "allow"
+path = "secret/data/app/*"
+capabilities = ["read", "list"]
+
+[[rules]]
+effect = "allow"
+path = "transit/encrypt/app-key"
+capabilities = ["update"]
+
+[[rules]]
+effect = "allow"
+path = "transit/decrypt/app-key"
+capabilities = ["update"]
+EOF
+
+secreton policy write app-access app-policy.toml
+
+# 5. Create a token for the application
+secreton token create --policies app-access --ttl 24h --display-name "Production App"
+
+# 6. Create encryption key
 secreton transit create-key app-key
 
-# 4. Store a secret
-secreton secret put app/config api_key=abc123
+# 7. Store application secrets
+secreton secret put app/config api_key=abc123 db_password=secret
 
-# 5. Seal the vault
+# 8. Test the policy
+secreton policy test app-access --path secret/data/app/config --action read
+
+# 9. Verify audit logs
+secreton audit list --limit 10
+```
+
+### Daily Operations Workflow
+
+```bash
+# 1. Check vault status
+secreton operator diagnose
+
+# 2. Login (if needed)
+secreton login
+
+# 3. List available secrets
+secreton secret list
+
+# 4. Retrieve a secret
+secreton secret get app/config
+
+# 5. Encrypt sensitive data
+echo "sensitive data" | secreton transit encrypt app-key
+
+# 6. Decrypt data
+secreton transit decrypt app-key --data "vault:v1:..."
+
+# 7. Check token expiration
+secreton token lookup
+
+# 8. Renew token if needed
+secreton token renew --increment 1h
+```
+
+### Policy Management Workflow
+
+```bash
+# 1. List all policies
+secreton policy list
+
+# 2. Read an existing policy
+secreton policy read default
+
+# 3. Create a new policy file
+cat > database-admin.toml <<EOF
+name = "database-admin"
+description = "Full access to database secrets"
+namespace = "default"
+
+[[rules]]
+effect = "allow"
+path = "secret/data/database/*"
+capabilities = ["create", "read", "update", "delete", "list"]
+EOF
+
+# 4. Validate the policy
+secreton policy validate database-admin.toml
+
+# 5. Format the policy
+secreton policy fmt database-admin.toml
+
+# 6. Write the policy to vault
+secreton policy write database-admin database-admin.toml
+
+# 7. Test the policy
+secreton policy test database-admin --path secret/data/database/prod --action update
+
+# 8. Create a token with the policy
+secreton token create --policies database-admin --ttl 8h
+```
+
+### Backup and Restore Workflow
+
+```bash
+# 1. Create a full backup
+secreton backup create --output backup-$(date +%Y%m%d).bak
+
+# 2. Verify backup integrity
+secreton backup verify --file backup-20251202.bak
+
+# 3. List available backups
+secreton backup list
+
+# 4. Restore from backup (dry run first)
+secreton backup restore --file backup-20251202.bak --dry-run
+
+# 5. Perform actual restore
+secreton backup restore --file backup-20251202.bak
+```
+
+### Seal/Unseal Workflow
+
+```bash
+# 1. Check seal status
+secreton seal status
+
+# 2. Seal the vault (for maintenance)
 secreton seal seal
 
-# 6. Unseal with 3 keys
+# 3. Unseal with threshold number of keys
 secreton seal unseal  # Enter key 1
 secreton seal unseal  # Enter key 2
 secreton seal unseal  # Enter key 3
 
-# 7. Verify unsealed
+# 4. Verify unsealed
 secreton seal status
+
+# 5. If needed, reset unseal progress
+secreton seal unseal --reset
 ```
 
 ### Secure Key Input
@@ -303,11 +723,40 @@ secreton seal unseal --key "$UNSEAL_KEY"
 ### Connection Refused
 
 ```bash
+# Run diagnostics to check connectivity
+secreton operator diagnose
+
 # Check server URL
 secreton --server https://secreton.example.com status
 
 # Verify server is running
 curl https://secreton.example.com/health
+```
+
+### Authentication Issues
+
+```bash
+# Check if you're authenticated
+secreton token lookup
+
+# If token expired, login again
+secreton login
+
+# Verify token with server
+secreton operator diagnose
+```
+
+### Permission Denied
+
+```bash
+# Check your token's capabilities for a path
+secreton token capabilities secret/data/myapp
+
+# View your token's policies
+secreton token lookup
+
+# Test if a policy allows an operation
+secreton policy test my-policy --path secret/data/myapp --action read
 ```
 
 ### Invalid Unseal Key
@@ -326,6 +775,38 @@ curl https://secreton.example.com/health
 
 - Check current status with `secreton seal status`
 - Use `secreton seal unseal --reset` to reset unseal progress
+
+### Policy Validation Errors
+
+```bash
+# Validate policy syntax
+secreton policy validate my-policy.toml
+
+# Format policy file
+secreton policy fmt my-policy.toml
+
+# Check example policies for reference
+ls infra/secreton/examples/policies/
+```
+
+### Token Expired
+
+```bash
+# Check token status
+secreton token lookup
+
+# Renew if renewable
+secreton token renew
+
+# Otherwise, login again
+secreton login
+```
+
+### Audit Log Access Denied
+
+- Ensure your token has audit read permissions
+- Check with: `secreton token capabilities /v1/audit/logs`
+- Contact your vault administrator for audit access
 
 ## Development
 

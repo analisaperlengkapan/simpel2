@@ -365,7 +365,7 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
 
     // Test encryption/decryption with the crypto service
     let test_data = b"health_check_test_data";
-    let test_key = b"test_key_32_bytes_for_health_01";
+    let test_key = b"test_key_32_bytes_for_health_1!!"; // Exactly 32 bytes for AES-256
 
     let (status, message, mut details_map) =
         match state
@@ -693,18 +693,17 @@ mod tests {
     use crate::services::ServiceContainer;
     use std::sync::Arc;
 
-    fn create_state() -> Arc<ServiceContainer> {
+    async fn create_state() -> Arc<ServiceContainer> {
         let config = ApiConfig::default();
-        tokio::runtime::Runtime::new()
-            .expect("Failed to create Tokio runtime")
-            .block_on(ServiceContainer::new(&config))
+        ServiceContainer::new(&config)
+            .await
             .expect("Failed to create services")
             .into()
     }
 
     #[tokio::test]
     async fn test_simple_health_check() {
-        let services = create_state();
+        let services = create_state().await;
 
         let result = simple_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
@@ -715,7 +714,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_liveness_check() {
-        let services = create_state();
+        let services = create_state().await;
 
         let result = liveness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
@@ -726,7 +725,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check_response() {
-        let services = create_state();
+        let services = create_state().await;
         let result = health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
@@ -741,7 +740,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_readiness_check_marks_ready() {
-        let services = create_state();
+        let services = create_state().await;
         let result = readiness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 
@@ -755,7 +754,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_detailed_health_overall_status() {
-        let services = create_state();
+        let services = create_state().await;
         let result = detailed_health_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 

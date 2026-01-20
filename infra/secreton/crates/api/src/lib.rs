@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod audit;
 pub mod auth;
 pub mod config;
+pub mod config_adapter;
 pub mod error;
 pub mod extractors;
 pub mod handlers;
@@ -96,8 +97,9 @@ pub fn create_api_router(state: ApiState) -> Router {
         .nest("/pki", create_pki_router(state.pki));
 
     // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)
+    // Note: handlers that need config should get it from ServiceContainer
     let v1_handlers = handlers::create_router(
-        &config::ApiConfig::load().unwrap_or_default(),
+        &config::ApiConfig::default(),
         state.services.clone(),
     );
 

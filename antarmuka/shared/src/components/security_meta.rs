@@ -137,13 +137,24 @@ pub fn CspViolationReporter(#[prop(optional)] report_uri: Option<String>) -> imp
 }
 
 /// Nonce generator for inline scripts (CSP nonce support)
+/// WASM implementation using js_sys::Math for randomness
+#[cfg(target_arch = "wasm32")]
 pub fn generate_csp_nonce() -> String {
     use js_sys::Math;
 
-    // Generate a random nonce
+    // Generate a random nonce (16 bytes = 32 hex chars)
     (0..16)
         .map(|_| format!("{:02x}", (Math::random() * 255.0) as u8))
         .collect::<String>()
+}
+
+/// Nonce generator for non-WASM targets
+/// Uses UUID v4 as a secure random source and formats as 32 hex chars
+#[cfg(not(target_arch = "wasm32"))]
+pub fn generate_csp_nonce() -> String {
+    use uuid::Uuid;
+
+    Uuid::new_v4().as_simple().to_string()
 }
 
 /// Component to inject CSP nonce into script tags
@@ -164,8 +175,8 @@ pub fn ScriptWithNonce(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
+    #[cfg(target_arch = "wasm32")]
     #[test]
     fn test_generate_csp_nonce() {
         let nonce = generate_csp_nonce();

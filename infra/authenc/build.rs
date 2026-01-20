@@ -6,8 +6,15 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Get the proto directory path (relative to workspace root)
-    let proto_dir = PathBuf::from("../proto");
+    // Get the proto directory path
+    // Try multiple locations for flexibility:
+    // 1. proto/ (for Docker builds)
+    // 2. ../proto/ (for local development from authenc/)
+    let proto_dir = if PathBuf::from("proto").exists() {
+        PathBuf::from("proto")
+    } else {
+        PathBuf::from("../proto")
+    };
 
     // Proto files to compile
     let proto_files = vec![
@@ -15,6 +22,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         proto_dir.join("common.proto"),
         proto_dir.join("secreton.proto"), // For Secreton client
     ];
+
+    // Verify proto files exist
+    for proto_file in &proto_files {
+        if !proto_file.exists() {
+            eprintln!("Warning: Proto file not found: {:?}", proto_file);
+        }
+    }
 
     // Configure tonic-build
     tonic_build::configure()
@@ -26,13 +40,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Compile the proto files
         .compile_protos(
             &proto_files,
-            &[proto_dir], // Include directories
+            &[proto_dir.clone()], // Include directories
         )?;
 
     // Tell Cargo to rerun this build script if proto files change
-    println!("cargo:rerun-if-changed=../proto/authenc.proto");
-    println!("cargo:rerun-if-changed=../proto/common.proto");
-    println!("cargo:rerun-if-changed=../proto/secreton.proto");
+    for proto_file in &proto_files {
+        if proto_file.exists() {
+            println!("cargo:rerun-if-changed={}", proto_file.display());
+        }
+    }
 
     Ok(())
 }

@@ -24,10 +24,10 @@ pub fn create_mfa_management_routes() -> Router<Arc<crate::app::AppState>> {
     Router::new()
         // User MFA status management
         .route("/users", get(get_users_mfa_status))
-        .route("/users/:user_id/status", get(get_user_mfa_status))
-        .route("/users/:user_id/reset", post(reset_user_mfa))
-        .route("/users/:user_id/disable", post(disable_user_mfa))
-        .route("/users/:user_id/force-setup", post(force_mfa_setup))
+        .route("/users/{user_id}/status", get(get_user_mfa_status))
+        .route("/users/{user_id}/reset", post(reset_user_mfa))
+        .route("/users/{user_id}/disable", post(disable_user_mfa))
+        .route("/users/{user_id}/force-setup", post(force_mfa_setup))
         // Bulk operations
         .route("/bulk/reset", post(bulk_reset_mfa))
         .route("/bulk/disable", post(bulk_disable_mfa))
@@ -42,11 +42,11 @@ pub fn create_mfa_management_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/reports/compliance", get(get_compliance_report))
         // Recovery operations
         .route(
-            "/users/:user_id/recovery-codes",
+            "/users/{user_id}/recovery-codes",
             get(get_user_recovery_codes),
         )
         .route(
-            "/users/:user_id/recovery-codes/regenerate",
+            "/users/{user_id}/recovery-codes/regenerate",
             post(regenerate_recovery_codes),
         )
 }

@@ -1,0 +1,51 @@
+# Prometheus Configuration for Authenc Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'authenc-monitor'
+    environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Authenc Service
+  - job_name: 'authenc'
+    static_configs:
+      - targets: ['authenc:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL (via postgres_exporter if available)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Redis (via redis_exporter if available)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

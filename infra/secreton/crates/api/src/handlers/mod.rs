@@ -73,24 +73,32 @@ pub mod admin;
 pub mod auth;
 pub mod aws;
 pub mod azure;
+pub mod classification;
+pub mod crypto;
 pub mod dynamic;
 pub mod gcp;
 pub mod health;
 pub mod identity;
+pub mod inject;
 pub mod kafka;
+pub mod key_hierarchy;
 pub mod kmip;
 pub mod ldap;
 pub mod lease;
 pub mod namespace;
+pub mod pki;
 pub mod policy;
 pub mod rabbitmq;
+pub mod revocation;
 pub mod rotation;
 pub mod seal;
 pub mod secret;
 pub mod ssh;
 pub mod totp;
 pub mod transform;
+pub mod webhook;
 pub mod wrapping;
+pub mod zero_knowledge;
 
 #[cfg(feature = "raft-consensus")]
 pub mod raft;
@@ -118,18 +126,24 @@ pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Ro
         .merge(lease::create_routes())
         .merge(policy::create_routes())
         .merge(wrapping::create_routes())
-        .merge(totp::create_routes())
-        .merge(transform::create_routes())
-        .merge(ssh::create_routes())
-        .merge(aws::create_routes())
-        .merge(gcp::create_routes())
-        .merge(azure::create_routes())
-        .merge(identity::create_routes())
-        .merge(rotation::create_routes())
-        .merge(kmip::create_routes())
-        .merge(ldap::create_routes())
-        .merge(rabbitmq::create_routes())
-        .merge(kafka::create_routes());
+        .merge(key_hierarchy::create_routes())
+        .nest("/totp", totp::create_routes())
+        .nest("/crypto", crypto::create_routes())
+        .nest("/transform", transform::create_routes())
+        .nest("/pki", pki::create_routes())
+        .nest("/ssh", ssh::create_routes())
+        .nest("/aws", aws::create_routes())
+        .nest("/gcp", gcp::create_routes())
+        .nest("/azure", azure::create_routes())
+        .nest("/identity", identity::create_routes())
+        .nest("/rotation", rotation::create_routes())
+        .nest("/kmip", kmip::create_routes())
+        .nest("/ldap", ldap::create_routes())
+        .nest("/rabbitmq", rabbitmq::create_routes())
+        .nest("/kafka", kafka::create_routes())
+        .nest("/zk", zero_knowledge::create_routes())
+        .nest("/inject", inject::create_routes())
+        .nest("/webhooks", webhook::create_routes());
 
     // Add raft routes if feature is enabled
     #[cfg(feature = "raft-consensus")]
@@ -139,6 +153,7 @@ pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Ro
 
     // Create API v1 routes (to be nested by caller, e.g. under /v1)
     Router::new()
+        .route("/", get(root_handler))
         .nest("/auth", auth::create_routes())
         .nest("/secret", secret::create_routes())
         .route("/secrets", get(secret::list_secrets))
@@ -228,7 +243,7 @@ mod tests {
         let app = create_router(&config, services);
         let server = TestServer::new(app).expect("Failed to create TestServer");
 
-        let response = server.get("/api/v1/version").await;
+        let response = server.get("/version").await;
         response.assert_status_ok();
 
         let body: ApiResponse<VersionInfo> = response.json();

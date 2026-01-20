@@ -45,6 +45,8 @@ base64.workspace = true
 hex.workspace = true
 flate2.workspace = true
 sha2.workspace = true
+hmac.workspace = true
+sha3.workspace = true
 
 # Metrics
 metrics.workspace = true
@@ -88,3 +90,4 @@ enable-inline-tests = []
 axum-test.workspace = true
 criterion.workspace = true
 tempfile.workspace = true
+proptest.workspace = true

@@ -22,7 +22,7 @@ pub fn create_mfa_admin_routes() -> Router<Arc<crate::app::AppState>> {
         .route("/locked-accounts", get(get_locked_accounts))
         .route("/unlock-account", post(unlock_account))
         .route("/reset-mfa", post(reset_mfa))
-        .route("/account-status/:user_id", get(get_account_status))
+        .route("/account-status/{user_id}", get(get_account_status))
         .route("/bulk-unlock", post(bulk_unlock_accounts))
 }
 

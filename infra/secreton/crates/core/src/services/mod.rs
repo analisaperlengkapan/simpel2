@@ -51,8 +51,10 @@
 //! ```
 
 // Core services (essential)
+pub mod classification;
 pub mod health;
 pub mod identity;
+pub mod key_hierarchy;
 // TODO: key_manager needs refactoring to use proper StorageBackend API
 // pub mod key_manager;
 pub mod lease;
@@ -61,10 +63,12 @@ pub mod mfa;
 pub mod policy;
 pub mod rate_limit;
 pub mod rbac;
+pub mod revocation;
 pub mod rotation;
 pub mod seal;
 pub mod token;
 pub mod wrapping;
+pub mod zero_knowledge;
 
 // Auth services
 pub mod auth;

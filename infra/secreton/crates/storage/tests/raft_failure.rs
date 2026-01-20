@@ -17,6 +17,7 @@ fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterC
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     }
 }
 
@@ -59,6 +60,7 @@ async fn test_leader_failure_reelection() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -97,6 +99,7 @@ async fn test_follower_catchup() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -140,6 +143,7 @@ async fn test_snapshot_recovery() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -185,6 +189,7 @@ async fn test_network_partition() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -211,6 +216,7 @@ async fn test_graceful_shutdown() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;

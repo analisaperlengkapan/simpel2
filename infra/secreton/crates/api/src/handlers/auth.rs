@@ -26,13 +26,14 @@ pub fn create_routes() -> Router<AppState> {
         .route("/logout", post(logout))
         .route("/token/refresh", post(refresh_token))
         .route("/token/verify", post(verify_token))
+        .route("/token/lookup-self", get(token_lookup_self))
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
-        .route("/oauth/{provider}", get(oauth_login))
-        .route("/oauth/{provider}/callback", get(oauth_callback))
+        .route("/oauth/:provider", get(oauth_login))
+        .route("/oauth/:provider/callback", get(oauth_callback))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/{session_id}", delete(revoke_session))
+        .route("/sessions/:session_id", delete(revoke_session))
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -58,7 +59,38 @@ mod tests {
 
     #[tokio::test]
     async fn test_login_endpoint_returns_tokens() {
-        let server = create_test_server().await;
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create a test user
+        let password_hash = services.auth.hash_password("password123").unwrap_or_default();
+        let user = secreton_core::models::User {
+            id: uuid::Uuid::new_v4(),
+            username: "alice".to_string(),
+            email: "alice@example.com".to_string(),
+            password_hash,
+            full_name: Some("Alice Test".to_string()),
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: std::collections::HashSet::new(),
+            namespace: "default".to_string(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+        };
+        let _ = services.auth.store_user(&user).await;
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to create test server");
+
         let request = LoginRequest {
             username: "alice".to_string(),
             password: "password123".to_string(),
@@ -405,6 +437,86 @@ pub async fn verify_token(
             message: format!("Invalid token: {}", e),
         }),
     }
+}
+
+/// Token lookup self - get information about the current token
+///
+/// # Endpoint
+/// `GET /v1/auth/token/lookup-self`
+///
+/// # Headers
+/// - `X-Vault-Token`: The token to look up
+///
+/// # Response
+/// Returns information about the token including policies, TTL, and metadata
+pub async fn token_lookup_self(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<ApiResponse<TokenLookupResponse>>> {
+    // Extract token from X-Vault-Token header (Vault convention)
+    let token = headers
+        .get("x-vault-token")
+        .or_else(|| headers.get("authorization"))
+        .and_then(|h| h.to_str().ok())
+        .map(|h| h.strip_prefix("Bearer ").unwrap_or(h))
+        .ok_or_else(|| ApiError::Authentication {
+            message: "Missing X-Vault-Token header".to_string(),
+        })?;
+
+    // Validate token and get user info
+    match state.auth.validate_token(token).await {
+        Ok(user) => {
+            let response = TokenLookupResponse {
+                accessor: format!("accessor-{}", uuid::Uuid::new_v4()),
+                creation_time: user.created_at.timestamp(),
+                creation_ttl: 2764800, // 32 days default
+                display_name: user.full_name.clone().unwrap_or_else(|| user.username.clone()),
+                entity_id: user.id.to_string(),
+                expire_time: chrono::Utc::now()
+                    .checked_add_signed(chrono::Duration::hours(24))
+                    .map(|t| t.to_rfc3339())
+                    .unwrap_or_default(),
+                explicit_max_ttl: 0,
+                id: token.to_string(),
+                issue_time: user.created_at.to_rfc3339(),
+                meta: HashMap::new(),
+                num_uses: 0,
+                orphan: false,
+                path: "auth/token/create".to_string(),
+                policies: user.roles.iter().cloned().collect(),
+                renewable: true,
+                ttl: 86400, // 24 hours
+                token_type: if user.is_superuser { "root" } else { "service" }.to_string(),
+            };
+            Ok(Json(ApiResponse::success(response)))
+        }
+        Err(e) => Err(ApiError::Authentication {
+            message: format!("Invalid token: {}", e),
+        }),
+    }
+}
+
+/// Token lookup response
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenLookupResponse {
+    pub accessor: String,
+    pub creation_time: i64,
+    pub creation_ttl: i64,
+    pub display_name: String,
+    pub entity_id: String,
+    pub expire_time: String,
+    pub explicit_max_ttl: i64,
+    pub id: String,
+    pub issue_time: String,
+    pub meta: HashMap<String, String>,
+    pub num_uses: i64,
+    pub orphan: bool,
+    pub path: String,
+    pub policies: Vec<String>,
+    pub renewable: bool,
+    pub ttl: i64,
+    #[serde(rename = "type")]
+    pub token_type: String,
 }
 
 /// Setup MFA for user

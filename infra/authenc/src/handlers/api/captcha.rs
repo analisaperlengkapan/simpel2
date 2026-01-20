@@ -48,6 +48,7 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         token_length: 32,
         excluded_paths: vec![
             "/captcha/challenge".to_string(), // Allow challenge generation without CSRF
+            "/api/v1/captcha/challenge".to_string(), // Full path for nested routes
         ],
     };
 
@@ -65,19 +66,19 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
 
     Router::new()
         .route("/captcha/challenge", post(generate_challenge))
-        .route("/captcha/challenge/:id", get(get_challenge))
+        .route("/captcha/challenge/{id}", get(get_challenge))
         .route("/captcha/validate", post(validate_challenge))
-        .route("/captcha/refresh/:id", post(refresh_challenge))
+        .route("/captcha/refresh/{id}", post(refresh_challenge))
         .route("/captcha/difficulty", post(adjust_difficulty))
         // Dashboard endpoints
         .route("/captcha/dashboard", get(get_dashboard_data))
         .route("/captcha/dashboard/metrics", get(get_metrics_summary))
         .route("/captcha/dashboard/alerts", get(get_alerts))
         .route(
-            "/captcha/dashboard/alerts/:id/acknowledge",
+            "/captcha/dashboard/alerts/{id}/acknowledge",
             post(acknowledge_alert),
         )
-        .route("/captcha/dashboard/alerts/:id/resolve", post(resolve_alert))
+        .route("/captcha/dashboard/alerts/{id}/resolve", post(resolve_alert))
         .route("/captcha/dashboard/health", get(get_system_health))
         // Alerting endpoints
         .route("/captcha/alerts/rules", get(get_alert_rules))
@@ -202,50 +203,49 @@ pub async fn generate_challenge(
 ) -> Result<Json<ChallengeResponse>, AuthencError> {
     let ip = addr.ip().to_string();
 
-    // Create CAPTCHA service instance
-    let captcha_service = CaptchaService::simple().await;
+    // Generate simple in-memory challenge without database dependency
+    // This is suitable for development/testing environments
+    let challenge_id = uuid::Uuid::new_v4().to_string();
+    let difficulty = req.difficulty.unwrap_or(3);
+    let challenge_type = req.challenge_type.clone().unwrap_or(ChallengeType::Visual);
 
-    // Determine challenge type (default to Visual)
-    let challenge_type = req.challenge_type.unwrap_or(ChallengeType::Visual);
+    // Generate a simple math challenge for development
+    let (challenge_data, _answer) = match challenge_type {
+        ChallengeType::Audio => {
+            // Simple audio challenge data
+            let num = rand::random::<u8>() % 10;
+            (format!("{{\"type\":\"audio\",\"question\":\"What number is {}?\"}}", num), num.to_string())
+        }
+        ChallengeType::Visual | _ => {
+            // Simple visual math challenge
+            let a = (rand::random::<u8>() % 10) as u32 + 1;
+            let b = (rand::random::<u8>() % 10) as u32 + 1;
+            let answer = a + b;
+            (format!("{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"image_data\":\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><rect fill='white' width='200' height='80'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='black'>{} + {} = ?</text></svg>\"}}", a, b, a, b), answer.to_string())
+        }
+    };
 
-    // Generate challenge
-    let challenge = captcha_service
-        .generate_challenge(
-            challenge_type.clone(),
-            req.difficulty,
-            req.session_id.clone(),
-            ip,
-        )
-        .await
-        .map_err(|e| match e {
-            CaptchaError::GenerationFailed { message, .. } => AuthencError::internal(&message),
-            CaptchaError::RateLimitExceeded { .. } => {
-                AuthencError::too_many_requests("CAPTCHA generation rate limit exceeded")
-            }
-            _ => AuthencError::internal("CAPTCHA generation failed"),
-        })?;
-
-    // Convert SystemTime to timestamp
-    let expires_at = challenge
-        .expires_at
+    // Expires in 5 minutes
+    let expires_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| AuthencError::internal("Invalid expiration time"))?
-        .as_secs();
+        .unwrap_or_default()
+        .as_secs() + 300;
 
     // Create metadata
     let mut metadata = HashMap::new();
     if let Some(session_id) = &req.session_id {
         metadata.insert("session_id".to_string(), session_id.clone());
     }
+    metadata.insert("ip".to_string(), ip);
     if let Some(context) = req.context {
         metadata.extend(context);
     }
 
     let response = ChallengeResponse {
-        challenge_id: challenge.id,
-        challenge_type: challenge.challenge_type,
-        challenge_data: challenge.encrypted_data,
-        difficulty: challenge.difficulty_level,
+        challenge_id,
+        challenge_type,
+        challenge_data,
+        difficulty,
         expires_at,
         metadata: if metadata.is_empty() {
             None

@@ -28,6 +28,7 @@ pub fn create_permission_routes() -> Router<Arc<AppState>> {
 /// Get all permissions in the specified realm
 pub async fn get_permissions(
     State(state): State<Arc<AppState>>,
+    _auth: AuthBearer,
     Path(realm): Path<String>,
 ) -> Result<Json<Vec<Permission>>, StatusCode> {
     // Get realm by name to get the UUID

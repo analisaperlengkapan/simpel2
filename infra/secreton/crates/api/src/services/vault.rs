@@ -737,6 +737,12 @@ mod tests {
             .await
             .expect("Failed to create VaultService");
 
+        // First create a secret
+        let mut data = HashMap::new();
+        data.insert("key1".to_string(), "value1".to_string());
+        let _ = service.put_secret("app/config", data, "user1").await;
+
+        // Then retrieve it
         let secret = service.get_secret("app/config", "user1").await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
@@ -776,7 +782,8 @@ mod tests {
         let result = service.encrypt("key1", "plaintext", "user1").await;
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.ciphertext, "encrypted_data");
+        // Ciphertext should be a non-empty base64 string
+        assert!(!result.ciphertext.is_empty());
         assert_eq!(result.key_version, 1);
     }
 }

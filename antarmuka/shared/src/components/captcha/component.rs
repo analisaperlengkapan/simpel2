@@ -80,10 +80,15 @@ pub fn Captcha(
         let session_id_for_spawn = session_id_clone.clone();
 
         spawn_local(async move {
-            // Get Authenc URL from environment or use default
-            let authenc_url = option_env!("AUTHENC_URL")
-                .unwrap_or("http://localhost:8080")
-                .to_string();
+            // Get Authenc URL - use window.location.origin for same-origin requests
+            // This allows nginx proxy to route /captcha/ to Authenc
+            let authenc_url = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_else(|| {
+                    option_env!("AUTHENC_URL")
+                        .unwrap_or("http://localhost:8080")
+                        .to_string()
+                });
 
             let challenge_url = format!("{}/captcha/challenge", authenc_url);
 

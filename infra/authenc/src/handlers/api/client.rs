@@ -26,6 +26,7 @@ pub fn create_client_routes() -> Router<Arc<AppState>> {
 /// Get all clients in the specified realm
 pub async fn get_clients(
     State(state): State<Arc<AppState>>,
+    _auth: AuthBearer,
     Path(realm): Path<String>,
 ) -> Result<Json<Vec<OidcClient>>, StatusCode> {
     // Get realm by name to validate it exists
@@ -43,6 +44,7 @@ pub async fn get_clients(
 /// Get a specific client by client ID
 pub async fn get_client(
     State(state): State<Arc<AppState>>,
+    _auth: AuthBearer,
     Path((realm, client_id)): Path<(String, String)>,
 ) -> Result<Json<OidcClient>, StatusCode> {
     // Get realm by name to validate it exists

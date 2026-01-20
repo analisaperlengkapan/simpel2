@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock as AsyncRwLock;
+use redis::{AsyncCommands, Client as RedisClient};
 
 use crate::error::CoreError;
 
@@ -408,22 +409,279 @@ pub type TokenValidationCache = AsyncSecretCache<String, bool>;
 pub type UserPermissionCache = AsyncSecretCache<String, Vec<String>>;
 pub type EncryptionKeyCache = AsyncSecretCache<String, Vec<u8>>;
 
+/// Cache backend configuration
+#[derive(Debug, Clone)]
+pub enum CacheBackend {
+    /// In-memory LRU cache
+    Memory,
+    /// Redis backend
+    Redis { url: String },
+    /// Hybrid: Memory L1 + Redis L2
+    Hybrid { redis_url: String },
+}
+
+/// Redis-backed cache implementation
+pub struct RedisCache {
+    client: RedisClient,
+    key_prefix: String,
+}
+
+impl RedisCache {
+    /// Create a new Redis cache
+    pub fn new(url: &str, key_prefix: &str) -> Result<Self> {
+        let client = RedisClient::open(url)
+            .map_err(|e| CoreError::internal(&format!("Failed to connect to Redis: {}", e)))?;
+
+        Ok(Self {
+            client,
+            key_prefix: key_prefix.to_string(),
+        })
+    }
+
+    /// Get a connection to Redis
+    async fn get_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        self.client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| CoreError::internal(&format!("Failed to get Redis connection: {}", e)))
+    }
+
+    /// Build full key with prefix
+    fn build_key(&self, key: &str) -> String {
+        format!("{}:{}", self.key_prefix, key)
+    }
+
+    /// Set a value with TTL
+    pub async fn set(&self, key: &str, value: &[u8], ttl: Duration) -> Result<()> {
+        let mut conn = self.get_connection().await?;
+        let full_key = self.build_key(key);
+
+        let _: () = conn.set_ex(&full_key, value, ttl.as_secs())
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis SET failed: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Get a value
+    pub async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        let mut conn = self.get_connection().await?;
+        let full_key = self.build_key(key);
+
+        let result: Option<Vec<u8>> = conn
+            .get(&full_key)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis GET failed: {}", e)))?;
+
+        Ok(result)
+    }
+
+    /// Delete a key
+    pub async fn delete(&self, key: &str) -> Result<()> {
+        let mut conn = self.get_connection().await?;
+        let full_key = self.build_key(key);
+
+        let _: () = conn.del(&full_key)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis DEL failed: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Check if key exists
+    pub async fn exists(&self, key: &str) -> Result<bool> {
+        let mut conn = self.get_connection().await?;
+        let full_key = self.build_key(key);
+
+        let exists: bool = conn
+            .exists(&full_key)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis EXISTS failed: {}", e)))?;
+
+        Ok(exists)
+    }
+
+    /// Clear all keys with prefix
+    pub async fn clear_all(&self) -> Result<()> {
+        let mut conn = self.get_connection().await?;
+        let pattern = format!("{}:*", self.key_prefix);
+
+        // Get all keys matching pattern
+        let keys: Vec<String> = conn
+            .keys(&pattern)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis KEYS failed: {}", e)))?;
+
+        if !keys.is_empty() {
+            let _: () = conn.del(&keys)
+                .await
+                .map_err(|e| CoreError::internal(&format!("Redis DEL failed: {}", e)))?;
+        }
+
+        Ok(())
+    }
+
+    /// Get cache statistics from Redis INFO
+    pub async fn stats(&self) -> Result<RedisCacheStats> {
+        let mut conn = self.get_connection().await?;
+
+        // Get keyspace info
+        let info: String = redis::cmd("INFO")
+            .arg("keyspace")
+            .query_async(&mut conn)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis INFO failed: {}", e)))?;
+
+        // Get memory stats
+        let memory_info: String = redis::cmd("INFO")
+            .arg("memory")
+            .query_async(&mut conn)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis INFO failed: {}", e)))?;
+
+        // Parse stats (simplified)
+        let keys_count = self.count_keys().await?;
+
+        Ok(RedisCacheStats {
+            keys_count,
+            memory_used_bytes: 0, // Would parse from memory_info
+            hits: 0,              // Would need to track separately
+            misses: 0,            // Would need to track separately
+        })
+    }
+
+    /// Count keys with prefix
+    async fn count_keys(&self) -> Result<usize> {
+        let mut conn = self.get_connection().await?;
+        let pattern = format!("{}:*", self.key_prefix);
+
+        let keys: Vec<String> = conn
+            .keys(&pattern)
+            .await
+            .map_err(|e| CoreError::internal(&format!("Redis KEYS failed: {}", e)))?;
+
+        Ok(keys.len())
+    }
+}
+
+/// Redis cache statistics
+#[derive(Debug, Clone)]
+pub struct RedisCacheStats {
+    pub keys_count: usize,
+    pub memory_used_bytes: u64,
+    pub hits: u64,
+    pub misses: u64,
+}
+
+/// Hybrid cache combining memory L1 and Redis L2
+pub struct HybridCache<K, V>
+where
+    K: Clone + Eq + Hash + ToString,
+    V: Clone + serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    l1_cache: AsyncSecretCache<K, V>,
+    l2_cache: RedisCache,
+}
+
+impl<K, V> HybridCache<K, V>
+where
+    K: Clone + Eq + Hash + ToString,
+    V: Clone + serde::Serialize + for<'de> serde::Deserialize<'de>,
+{
+    /// Create a new hybrid cache
+    pub fn new(l1_capacity: usize, redis_url: &str, key_prefix: &str) -> Result<Self> {
+        Ok(Self {
+            l1_cache: AsyncSecretCache::new(l1_capacity),
+            l2_cache: RedisCache::new(redis_url, key_prefix)?,
+        })
+    }
+
+    /// Get a value (checks L1 then L2)
+    pub async fn get(&self, key: &K) -> Result<Option<V>> {
+        // Check L1 first
+        if let Some(value) = self.l1_cache.get(key).await {
+            return Ok(Some(value));
+        }
+
+        // Check L2
+        let key_str = key.to_string();
+        if let Some(bytes) = self.l2_cache.get(&key_str).await? {
+            // Deserialize from Redis
+            let value: V = serde_json::from_slice(&bytes)
+                .map_err(|e| CoreError::internal(&format!("Failed to deserialize from Redis: {}", e)))?;
+
+            // Populate L1 cache
+            self.l1_cache
+                .insert(key.clone(), value.clone(), Duration::from_secs(300), SensitivityLevel::Medium)
+                .await;
+
+            return Ok(Some(value));
+        }
+
+        Ok(None)
+    }
+
+    /// Set a value (writes to both L1 and L2)
+    pub async fn set(&self, key: K, value: V, ttl: Duration, sensitivity: SensitivityLevel) -> Result<()> {
+        // Write to L1
+        self.l1_cache.insert(key.clone(), value.clone(), ttl, sensitivity).await;
+
+        // Write to L2
+        let key_str = key.to_string();
+        let bytes = serde_json::to_vec(&value)
+            .map_err(|e| CoreError::internal(&format!("Failed to serialize for Redis: {}", e)))?;
+
+        self.l2_cache.set(&key_str, &bytes, ttl).await?;
+
+        Ok(())
+    }
+
+    /// Remove a value (from both L1 and L2)
+    pub async fn remove(&self, key: &K) -> Result<()> {
+        self.l1_cache.remove(key).await;
+        let key_str = key.to_string();
+        self.l2_cache.delete(&key_str).await?;
+        Ok(())
+    }
+
+    /// Clear all entries
+    pub async fn clear(&self) -> Result<()> {
+        self.l1_cache.clear().await;
+        self.l2_cache.clear_all().await?;
+        Ok(())
+    }
+
+    /// Get L1 cache statistics
+    pub async fn l1_stats(&self) -> SecretCacheStats {
+        self.l1_cache.stats().await
+    }
+
+    /// Get L2 cache statistics
+    pub async fn l2_stats(&self) -> Result<RedisCacheStats> {
+        self.l2_cache.stats().await
+    }
+}
+
 /// Secret cache manager for coordinating multiple caches
 pub struct SecretCacheManager {
     secret_cache: SecretValueCache,
     token_cache: TokenValidationCache,
     permission_cache: UserPermissionCache,
     key_cache: EncryptionKeyCache,
+    backend: CacheBackend,
+    redis_cache: Option<RedisCache>,
 }
 
 impl SecretCacheManager {
-    /// Create a new secret cache manager with default capacities
+    /// Create a new secret cache manager with default capacities (memory-only)
     pub fn new() -> Self {
         Self {
             secret_cache: SecretValueCache::new(20000),
             token_cache: TokenValidationCache::new(50000),
             permission_cache: UserPermissionCache::new(10000),
             key_cache: EncryptionKeyCache::new(5000),
+            backend: CacheBackend::Memory,
+            redis_cache: None,
         }
     }
 
@@ -439,7 +697,63 @@ impl SecretCacheManager {
             token_cache: TokenValidationCache::new(token_capacity),
             permission_cache: UserPermissionCache::new(permission_capacity),
             key_cache: EncryptionKeyCache::new(key_capacity),
+            backend: CacheBackend::Memory,
+            redis_cache: None,
         }
+    }
+
+    /// Create a new cache manager with Redis backend
+    pub fn with_redis(
+        secret_capacity: usize,
+        token_capacity: usize,
+        permission_capacity: usize,
+        key_capacity: usize,
+        redis_url: &str,
+    ) -> Result<Self> {
+        let redis_cache = RedisCache::new(redis_url, "secreton")?;
+
+        Ok(Self {
+            secret_cache: SecretValueCache::new(secret_capacity),
+            token_cache: TokenValidationCache::new(token_capacity),
+            permission_cache: UserPermissionCache::new(permission_capacity),
+            key_cache: EncryptionKeyCache::new(key_capacity),
+            backend: CacheBackend::Redis {
+                url: redis_url.to_string(),
+            },
+            redis_cache: Some(redis_cache),
+        })
+    }
+
+    /// Create a new cache manager with hybrid backend (memory L1 + Redis L2)
+    pub fn with_hybrid(
+        secret_capacity: usize,
+        token_capacity: usize,
+        permission_capacity: usize,
+        key_capacity: usize,
+        redis_url: &str,
+    ) -> Result<Self> {
+        let redis_cache = RedisCache::new(redis_url, "secreton")?;
+
+        Ok(Self {
+            secret_cache: SecretValueCache::new(secret_capacity),
+            token_cache: TokenValidationCache::new(token_capacity),
+            permission_cache: UserPermissionCache::new(permission_capacity),
+            key_cache: EncryptionKeyCache::new(key_capacity),
+            backend: CacheBackend::Hybrid {
+                redis_url: redis_url.to_string(),
+            },
+            redis_cache: Some(redis_cache),
+        })
+    }
+
+    /// Get the cache backend type
+    pub fn backend(&self) -> &CacheBackend {
+        &self.backend
+    }
+
+    /// Check if Redis is enabled
+    pub fn is_redis_enabled(&self) -> bool {
+        self.redis_cache.is_some()
     }
 
     /// Get secret value cache
@@ -493,6 +807,23 @@ impl SecretCacheManager {
             permission_cache: permission_stats,
             key_cache: key_stats,
         }
+    }
+
+    /// Get Redis cache statistics if available
+    pub async fn get_redis_stats(&self) -> Result<Option<RedisCacheStats>> {
+        if let Some(redis) = &self.redis_cache {
+            Ok(Some(redis.stats().await?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Invalidate a key in Redis cache if available
+    pub async fn invalidate_redis(&self, key: &str) -> Result<()> {
+        if let Some(redis) = &self.redis_cache {
+            redis.delete(key).await?;
+        }
+        Ok(())
     }
 }
 

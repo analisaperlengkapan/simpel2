@@ -27,8 +27,9 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/raft/join", post(add_peer))
         .route("/raft/peers", get(list_peers))
-        .route("/raft/peers/{node_id}", delete(remove_peer))
+        .route("/raft/peers/:node_id", delete(remove_peer))
         .route("/raft/status", get(get_cluster_status))
+        .route("/raft/election-stats", get(get_election_stats))
         .route("/raft/snapshot", post(create_snapshot))
         .route("/raft/snapshots", get(list_snapshots))
 }
@@ -190,6 +191,42 @@ fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
             message: "Admin role required for this operation".to_string(),
         })
     }
+}
+
+/// Get leader election statistics
+///
+/// Returns statistics about leader elections including timing and SLA compliance.
+#[instrument(skip(state))]
+pub async fn get_election_stats(
+    State(state): State<AppState>,
+    _user: AuthenticatedUser,
+) -> ApiResult<Json<ApiResponse<secreton_storage::raft::LeaderElectionStats>>> {
+    info!("Getting leader election statistics");
+
+    // Get Raft storage backend
+    let raft_storage = state
+        .storage
+        .as_any()
+        .downcast_ref::<secreton_storage::raft::RaftCluster>()
+        .ok_or_else(|| {
+            error!("Storage backend is not a Raft cluster");
+            ApiError::Internal {
+                message: "Raft cluster not configured".to_string(),
+            }
+        })?;
+
+    // Get election statistics
+    let stats = raft_storage.get_election_stats().await;
+
+    info!(
+        "Election stats: total={}, last_duration={:?}ms, avg_duration={:?}ms, meets_sla={}",
+        stats.total_elections,
+        stats.last_election_duration_ms,
+        stats.avg_election_duration_ms,
+        stats.meets_sla
+    );
+
+    Ok(Json(ApiResponse::success(stats)))
 }
 
 /// Get cluster status

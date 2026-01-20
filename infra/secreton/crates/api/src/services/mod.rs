@@ -28,11 +28,13 @@ use secreton_core::services::secrets::kafka::KafkaEngine;
 use secreton_core::services::secrets::kmip::KmipEngine;
 use secreton_core::services::secrets::ldap::LdapEngine;
 use secreton_core::services::secrets::rabbitmq::RabbitMqEngine;
+use secreton_core::services::secrets::pki::PkiEngine;
 use secreton_core::services::secrets::ssh::SshEngine;
 use secreton_core::services::secrets::totp::TotpEngine;
 use secreton_core::services::secrets::transform::TransformEngine;
 use secreton_core::services::wrapping::WrappingService;
 use secreton_crypto::CryptoEngine;
+use secreton_crypto::transit::TransitEngine;
 use secreton_hsm::HsmBackend;
 use secreton_storage::StorageBackend;
 use std::sync::RwLock;
@@ -81,8 +83,14 @@ pub struct ServiceContainer {
     /// Transform secrets engine
     pub transform_engine: Arc<TransformEngine>,
 
+    /// Transit encryption engine
+    pub transit_engine: Arc<TransitEngine>,
+
     /// SSH secrets engine
     pub ssh_engine: Arc<SshEngine>,
+
+    /// PKI secrets engine
+    pub pki_engine: Arc<PkiEngine>,
 
     /// AWS secrets engine
     pub aws_engine: Arc<AwsEngine>,
@@ -131,6 +139,23 @@ pub struct ServiceContainer {
 }
 
 impl ServiceContainer {
+    /// Get PKI engine
+    pub fn pki_engine(&self) -> Arc<PkiEngine> {
+        self.pki_engine.clone()
+    }
+
+    /// Create new service container from bootstrap config
+    /// This is used during startup before application config is loaded
+    pub async fn new_from_bootstrap(bootstrap: &secreton_core::config::BootstrapConfig) -> Result<Self> {
+        // Create minimal ApiConfig from bootstrap (using defaults for application settings)
+        let app_config = secreton_core::config::ApplicationConfig::default();
+        let api_config = crate::config::ApiConfig::from_bootstrap_and_application(bootstrap, &app_config)
+            .map_err(|e| anyhow::anyhow!("Failed to create API config: {}", e))?;
+
+        // Use the standard new() method
+        Self::new(&api_config).await
+    }
+
     /// Create new service container
     pub async fn new(config: &ApiConfig) -> Result<Self> {
         // Initialize core infrastructure
@@ -150,7 +175,9 @@ impl ServiceContainer {
             database_engine,
             totp_engine,
             transform_engine,
+            transit_engine,
             ssh_engine,
+            pki_engine,
             aws_engine,
             gcp_engine,
             azure_engine,
@@ -183,7 +210,9 @@ impl ServiceContainer {
             database_engine,
             totp_engine,
             transform_engine,
+            transit_engine,
             ssh_engine,
+            pki_engine,
             aws_engine,
             gcp_engine,
             azure_engine,
@@ -311,7 +340,9 @@ impl ServiceContainer {
         Arc<DatabaseSecretsEngine>,
         Arc<TotpEngine>,
         Arc<TransformEngine>,
+        Arc<TransitEngine>,
         Arc<SshEngine>,
+        Arc<PkiEngine>,
         Arc<AwsEngine>,
         Arc<GcpEngine>,
         Arc<AzureEngine>,
@@ -335,8 +366,14 @@ impl ServiceContainer {
         let transform_engine = Arc::new(TransformEngine::with_storage(pool.clone()));
         tracing::info!("✅ Transform secrets engine initialized");
 
+        let transit_engine = Arc::new(TransitEngine::new());
+        tracing::info!("✅ Transit encryption engine initialized");
+
         let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
         tracing::info!("✅ SSH secrets engine initialized");
+
+        let pki_engine = Arc::new(PkiEngine::new());
+        tracing::info!("✅ PKI secrets engine initialized");
 
         let aws_engine = Arc::new(AwsEngine::new());
         tracing::info!("✅ AWS secrets engine initialized");
@@ -382,7 +419,9 @@ impl ServiceContainer {
             database_engine,
             totp_engine,
             transform_engine,
+            transit_engine,
             ssh_engine,
+            pki_engine,
             aws_engine,
             gcp_engine,
             azure_engine,
@@ -450,9 +489,9 @@ impl ServiceContainer {
         #[cfg(feature = "raft-consensus")]
         use secreton_storage::{RaftCluster, RaftClusterConfig};
 
-        // Get storage backend type from config or environment
-        let backend_type =
-            std::env::var("Secreton_STORAGE_BACKEND").unwrap_or_else(|_| "memory".to_string());
+        // Get storage backend type from config (with environment override)
+        let backend_type = std::env::var("SECRETON_STORAGE_BACKEND")
+            .unwrap_or_else(|_| config.storage.backend.clone());
 
         tracing::info!("Initializing storage backend: {}", backend_type);
 
@@ -462,17 +501,27 @@ impl ServiceContainer {
                 {
                     tracing::info!("Using Raft storage backend (integrated mode)");
 
-                    // Node ID for this Raft node (default: 1)
+                    // Get Raft configuration from config file or environment
                     let node_id = std::env::var("SECRETON_RAFT_NODE_ID")
                         .ok()
                         .and_then(|v| v.parse::<u64>().ok())
-                        .unwrap_or(1);
+                        .unwrap_or(config.storage.raft.node_id);
 
                     let mut raft_config = RaftClusterConfig::default();
                     raft_config.node_id = node_id;
 
-                    // Optional peer list from environment: "2=http://node2:7000,3=http://node3:7000"
-                    if let Ok(peers_str) = std::env::var("SECRETON_RAFT_PEERS") {
+                    // Parse peer list from config or environment
+                    let peers_str = std::env::var("SECRETON_RAFT_PEERS")
+                        .ok()
+                        .or_else(|| {
+                            if config.storage.raft.peers.is_empty() {
+                                None
+                            } else {
+                                Some(config.storage.raft.peers.join(","))
+                            }
+                        });
+
+                    if let Some(peers_str) = peers_str {
                         let mut peers = std::collections::HashMap::new();
                         for part in peers_str
                             .split(',')
@@ -486,7 +535,7 @@ impl ServiceContainer {
                                     }
                                     Err(e) => {
                                         tracing::warn!(
-                                            "Invalid node id '{}' in SECRETON_RAFT_PEERS: {}",
+                                            "Invalid node id '{}' in Raft peers: {}",
                                             id_str,
                                             e
                                         );
@@ -496,7 +545,7 @@ impl ServiceContainer {
                         }
 
                         if !peers.is_empty() {
-                            tracing::info!("Configured Raft peers from SECRETON_RAFT_PEERS");
+                            tracing::info!("Configured Raft peers from config/environment");
                             raft_config.peers = peers;
                         }
                     }
@@ -688,7 +737,9 @@ impl ServiceContainer {
         let database_engine = Arc::new(DatabaseSecretsEngine::new());
         let totp_engine = Arc::new(TotpEngine::new());
         let transform_engine = Arc::new(TransformEngine::with_storage(pool.clone()));
+        let transit_engine = Arc::new(TransitEngine::new());
         let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
+        let pki_engine = Arc::new(PkiEngine::new());
         let aws_engine = Arc::new(AwsEngine::new());
         let gcp_engine = Arc::new(GcpEngine::new());
         let azure_engine = Arc::new(AzureEngine::new());
@@ -734,7 +785,9 @@ impl ServiceContainer {
             database_engine,
             totp_engine,
             transform_engine,
+            transit_engine,
             ssh_engine,
+            pki_engine,
             aws_engine,
             gcp_engine,
             azure_engine,

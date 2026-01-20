@@ -18,6 +18,8 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
+use crate::utils::base64_encode;
+
 /// GCP Secrets Engine errors
 #[derive(Debug, thiserror::Error)]
 pub enum GcpError {
@@ -554,7 +556,7 @@ impl GcpEngine {
     fn generate_private_key(&self) -> String {
         format!(
             "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----\n",
-            base64::encode(format!("GENERATED_KEY_{}", Uuid::new_v4()))
+            base64_encode(format!("GENERATED_KEY_{}", Uuid::new_v4()))
         )
     }
 }

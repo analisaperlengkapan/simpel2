@@ -120,6 +120,34 @@ impl AppState {
         // Initialize database connection pool
         let database = crate::app_init::database::initialize_database(&config).await?;
 
+        // Run database migrations before initializing other services
+        tracing::info!("🔄 Running database migrations...");
+        let db_pool = database.get_pool();
+        match crate::database::migrations::run_migrations_with_schema(db_pool.clone()).await {
+            Ok(result) => {
+                if result.is_success() {
+                    tracing::info!(
+                        "✅ Database migrations completed: {} applied, {} skipped",
+                        result.applied,
+                        result.skipped
+                    );
+                } else {
+                    tracing::warn!(
+                        "⚠️ Database migrations completed with {} errors: {:?}",
+                        result.errors.len(),
+                        result.errors
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to run database migrations: {}", e);
+                return Err(AuthencError::database(format!(
+                    "Database migration failed: {}",
+                    e
+                )));
+            }
+        }
+
         // Initialize UMA 2.0 tables
         crate::app_init::database::init_uma_tables(&database).await?;
 

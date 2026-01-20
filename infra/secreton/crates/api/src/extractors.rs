@@ -37,14 +37,22 @@ where
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        // Extract token from Authorization header
+        // Extract token from X-Vault-Token header (Vault convention) or Authorization header
         let token = parts
             .headers
-            .get("authorization")
+            .get("x-vault-token")
             .and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer "))
+            .map(|t| t.to_string())
+            .or_else(|| {
+                parts
+                    .headers
+                    .get("authorization")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|h| h.strip_prefix("Bearer "))
+                    .map(|t| t.to_string())
+            })
             .ok_or_else(|| ApiError::Authentication {
-                message: "Missing or invalid Authorization header".to_string(),
+                message: "Missing X-Vault-Token or Authorization header".to_string(),
             })?;
 
         // For now, create a dummy user since we can't access services from FromRequestParts

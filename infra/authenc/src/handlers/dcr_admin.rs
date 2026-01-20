@@ -27,18 +27,18 @@ pub fn create_dcr_admin_routes() -> Router<Arc<AppState>> {
         .route("/initial-access-tokens", post(create_initial_access_token))
         .route("/initial-access-tokens", get(list_initial_access_tokens))
         .route(
-            "/initial-access-tokens/:id",
+            "/initial-access-tokens/{id}",
             delete(revoke_initial_access_token),
         )
         // Policy Management
-        .route("/policies/:realm_id", get(get_registration_policy))
-        .route("/policies/:realm_id", post(create_registration_policy))
+        .route("/policies/{realm_id}", get(get_registration_policy))
+        .route("/policies/{realm_id}", post(create_registration_policy))
         .route(
-            "/policies/:realm_id/:policy_id",
+            "/policies/{realm_id}/{policy_id}",
             put(update_registration_policy),
         )
         .route(
-            "/policies/:realm_id/:policy_id",
+            "/policies/{realm_id}/{policy_id}",
             delete(delete_registration_policy),
         )
         // Software Statement Issuer Management
@@ -51,15 +51,15 @@ pub fn create_dcr_admin_routes() -> Router<Arc<AppState>> {
             get(list_software_statement_issuers),
         )
         .route(
-            "/software-statement-issuers/:id",
+            "/software-statement-issuers/{id}",
             get(get_software_statement_issuer),
         )
         .route(
-            "/software-statement-issuers/:id",
+            "/software-statement-issuers/{id}",
             put(update_software_statement_issuer),
         )
         .route(
-            "/software-statement-issuers/:id",
+            "/software-statement-issuers/{id}",
             delete(delete_software_statement_issuer),
         )
 }

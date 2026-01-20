@@ -26,19 +26,19 @@ use secreton_core::audit::AuditLog;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Secret operations
-        .route("/data/{path}", get(get_secret))
-        .route("/data/{path}", post(create_secret))
-        .route("/data/{path}", put(update_secret))
-        .route("/data/{path}", delete(delete_secret))
+        .route("/data/*path", get(get_secret))
+        .route("/data/*path", post(create_secret))
+        .route("/data/*path", put(update_secret))
+        .route("/data/*path", delete(delete_secret))
         .route("/secrets", get(list_secrets))
         // Key operations
         .route("/keys", get(list_keys))
         .route("/keys", post(create_key))
-        .route("/keys/{key_id}", get(get_key))
-        .route("/keys/{key_id}", put(update_key))
-        .route("/keys/{key_id}", delete(delete_key))
-        .route("/keys/{key_id}/rotate", post(rotate_key))
-        .route("/keys/{key_id}/versions", get(list_key_versions))
+        .route("/keys/:key_id", get(get_key))
+        .route("/keys/:key_id", put(update_key))
+        .route("/keys/:key_id", delete(delete_key))
+        .route("/keys/:key_id/rotate", post(rotate_key))
+        .route("/keys/:key_id/versions", get(list_key_versions))
         // Encryption operations
         .route("/encrypt", post(encrypt_data))
         .route("/decrypt", post(decrypt_data))
@@ -47,19 +47,19 @@ pub fn create_routes() -> Router<AppState> {
         .route("/hash", post(hash_data))
         // Policy operations
         .route("/policies", get(list_policies))
-        .route("/policies/{name}", get(get_policy))
-        .route("/policies/{name}", post(create_policy))
-        .route("/policies/{name}", put(update_policy))
-        .route("/policies/{name}", delete(delete_policy))
+        .route("/policies/:name", get(get_policy))
+        .route("/policies/:name", post(create_policy))
+        .route("/policies/:name", put(update_policy))
+        .route("/policies/:name", delete(delete_policy))
         // Audit operations
         .route("/audit", get(get_audit_logs))
         .route("/audit/export", get(export_audit_logs))
         // Backup operations
         .route("/backup", post(create_backup))
         .route("/backup", get(list_backups))
-        .route("/backup/{backup_id}", get(get_backup))
-        .route("/backup/{backup_id}/restore", post(restore_backup))
-        .route("/backup/{backup_id}", delete(delete_backup))
+        .route("/backup/:backup_id", get(get_backup))
+        .route("/backup/:backup_id/restore", post(restore_backup))
+        .route("/backup/:backup_id", delete(delete_backup))
 }
 
 #[derive(Debug, Deserialize)]
@@ -122,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_secret_returns_placeholder_data() {
         let server = server_with_routes().await;
-        let response = server.get("/secrets/app/config").await;
+        let response = server.get("/data/app/config").await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();
@@ -146,7 +146,7 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/secrets/app/admin").json(&payload).await;
+        let response = server.post("/data/app/admin").json(&payload).await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();

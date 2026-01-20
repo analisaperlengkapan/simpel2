@@ -412,50 +412,50 @@ pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         // Client scope CRUD
         .route(
-            "/realms/:realm_id/client-scopes",
+            "/realms/{realm_id}/client-scopes",
             get(list_client_scopes).post(create_client_scope),
         )
         .route(
-            "/realms/:realm_id/client-scopes/:scope_id",
+            "/realms/{realm_id}/client-scopes/{scope_id}",
             get(get_client_scope)
                 .put(update_client_scope)
                 .delete(delete_client_scope),
         )
         // Client scope assignments
         .route(
-            "/clients/:client_id/scopes",
+            "/clients/{client_id}/scopes",
             get(get_client_scopes).put(assign_client_scopes),
         )
         .route(
-            "/clients/:client_id/default-scopes",
+            "/clients/{client_id}/default-scopes",
             get(get_client_default_scopes),
         )
         .route(
-            "/clients/:client_id/optional-scopes",
+            "/clients/{client_id}/optional-scopes",
             get(get_client_optional_scopes),
         )
         // User consent
         .route(
-            "/users/:user_id/clients/:client_id/consent/check",
+            "/users/{user_id}/clients/{client_id}/consent/check",
             post(check_user_consent),
         )
         .route(
-            "/users/:user_id/clients/:client_id/consent",
+            "/users/{user_id}/clients/{client_id}/consent",
             post(grant_user_consent),
         )
         .route(
-            "/users/:user_id/clients/:client_id/consents",
+            "/users/{user_id}/clients/{client_id}/consents",
             get(get_user_consents).delete(revoke_user_consent),
         )
         // Scope validation
-        .route("/clients/:client_id/validate-scopes", post(validate_scopes))
+        .route("/clients/{client_id}/validate-scopes", post(validate_scopes))
         // Utility
         .route(
-            "/realms/:realm_id/client-scopes/standard",
+            "/realms/{realm_id}/client-scopes/standard",
             get(get_standard_scopes),
         )
         .route(
-            "/realms/:realm_id/client-scopes/initialize",
+            "/realms/{realm_id}/client-scopes/initialize",
             post(initialize_standard_scopes),
         )
 }

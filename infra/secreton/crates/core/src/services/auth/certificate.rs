@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 use x509_parser::prelude::*;
 
 use crate::models::auth::UserInfo;
+use crate::utils::base64_decode;
 
 /// Error types for Certificate authentication
 #[derive(Debug, thiserror::Error)]
@@ -150,7 +151,7 @@ impl CertAuth {
             .collect();
         let pem_body = pem_lines.join("");
 
-        let der_data = base64::decode(&pem_body)
+        let der_data = base64_decode(&pem_body)
             .map_err(|e| CertError::ParseError(format!("Base64 decode error: {}", e)))?;
 
         let (_, cert) = X509Certificate::from_der(&der_data)

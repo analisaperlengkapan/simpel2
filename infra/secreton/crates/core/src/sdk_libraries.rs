@@ -314,6 +314,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::utils::base64_encode;
+
 /// Common SDK configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SdkConfig {
@@ -1065,7 +1067,7 @@ roleRef:
 "#,
                 self.config.namespace,
                 self.config.namespace,
-                base64::encode(&self.config.token),
+                base64_encode(&self.config.token),
                 self.config.namespace,
                 self.config.image,
                 self.config.server_url,

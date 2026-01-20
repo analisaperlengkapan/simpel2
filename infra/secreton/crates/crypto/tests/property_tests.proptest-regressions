@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 616e4834ad2b96f44710ba8f37bcc0a00fc6b0e22e9edb67e49c993713fa4c90 # shrinks to master_key = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], threshold = 2
+cc 7966350c2abf49614dc69664ddf1be3d24d5a9c501a3c0113708dd62f845ec47 # shrinks to master_key = [0, 0, 0, 0, 0, 0, 14, 193, 72, 245, 143, 25, 53, 66, 74, 158], threshold = 9

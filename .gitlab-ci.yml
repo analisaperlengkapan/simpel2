@@ -1,6 +1,10 @@
 # 🔍 GitLab CI/CD Optimized Configuration
-# Version: 1.0.0 - Enhanced Security & Quality Pipeline
+# Version: 1.1.0 - Enhanced Security & Quality Pipeline with Bidirectional Sync
 # Features: Comprehensive Rust toolchain with security scanning
+
+# Include bidirectional sync with GitHub
+include:
+  - local: ".gitlab/ci/sync-to-github.yml"
 
 stages:
   - preparation
@@ -11,6 +15,7 @@ stages:
   - security-scan
   - sbom
   - deploy
+  - sync
   - cleanup
 
 variables:
@@ -385,18 +390,7 @@ build:leptos-frontend:
   <<: *cache-pull
   parallel:
     matrix:
-      - FRONTEND:
-          [
-            portal,
-            badiklat,
-            datun,
-            intel,
-            pengawasan,
-            pidmil,
-            pidsus,
-            pidum,
-            pemulihan_aset,
-          ]
+      - FRONTEND: [portal, badiklat, datun, intel, pengawasan, pidmil, pidsus, pidum, pemulihan_aset]
   script:
     - 'echo "🌐 Building Leptos WASM frontend: $FRONTEND"'
     - |

@@ -62,12 +62,12 @@ impl CryptoStorageBridge {
 
         // Create default key if it doesn't exist
         {
-            let t = transit.write().await;
+            let mut t = transit.write().await;
             if t.get_key_info(&default_key_name).await.is_err() {
                 t.create_key(default_key_name.clone(), KeyType::Aes256Gcm, None)
                     .await?;
             }
-        }
+        } // Lock is dropped here
 
         Ok(Self {
             transit,
@@ -87,23 +87,17 @@ impl CryptoStorageBridge {
         let transit = self.transit.read().await;
         let encrypted = transit.encrypt(key_name, data, None, None).await?;
 
-        // Parse encrypted data format: v<version>:<ciphertext>
+        // Parse encrypted data format: v<version>:<nonce>:<ciphertext>
         let parts: Vec<&str> = encrypted.split(':').collect();
-        let version = if parts.len() == 2 {
+        let version = if !parts.is_empty() {
             parts[0].trim_start_matches('v').parse().unwrap_or(1)
         } else {
             1
         };
 
-        let encrypted_bytes = if parts.len() == 2 {
-            general_purpose::STANDARD
-                .decode(parts[1])
-                .map_err(|e| CryptoError::InvalidCiphertext(e.to_string()))?
-        } else {
-            general_purpose::STANDARD
-                .decode(&encrypted)
-                .map_err(|e| CryptoError::InvalidCiphertext(e.to_string()))?
-        };
+        // Store the entire encrypted string (including nonce) as bytes
+        // We'll reconstruct it exactly when decrypting
+        let encrypted_bytes = encrypted.as_bytes().to_vec();
 
         // Get key info for metadata
         let key_info = transit.get_key_info(key_name).await?;
@@ -126,12 +120,9 @@ impl CryptoStorageBridge {
     pub async fn decrypt_from_storage(&self, entry: &EncryptedVaultEntry) -> CryptoResult<Vec<u8>> {
         let transit = self.transit.read().await;
 
-        // Reconstruct encrypted format
-        let encrypted_str = format!(
-            "v{}:{}",
-            entry.key_version,
-            general_purpose::STANDARD.encode(&entry.encrypted_data)
-        );
+        // Convert stored bytes back to string (it's the original encrypted format)
+        let encrypted_str = String::from_utf8(entry.encrypted_data.clone())
+            .map_err(|e| CryptoError::InvalidCiphertext(format!("Invalid UTF-8: {}", e)))?;
 
         // Decrypt using transit engine
         transit.decrypt(&entry.key_id, &encrypted_str, None).await
