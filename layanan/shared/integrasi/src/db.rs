@@ -244,6 +244,20 @@ pub async fn bulk_insert_postgres(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
+
+    // Prepare query once (optimization: hoisted out of loop)
+    let placeholders: Vec<String> =
+        (1..=columns.len()).map(|i| format!("${}", i)).collect();
+    let query = format!(
+        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
+    // Reuse vector allocation for params to reduce memory churn
+    let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
+
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
@@ -252,18 +266,8 @@ pub async fn bulk_insert_postgres(
         );
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                // Build query dengan placeholders
-                let placeholders: Vec<String> =
-                    (1..=columns.len()).map(|i| format!("${}", i)).collect();
-                let query = format!(
-                    "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-                    table_name,
-                    columns.join(", "),
-                    placeholders.join(", ")
-                );
-
                 // Konversi nilai JSON ke parameter PostgreSQL
-                let mut params: Vec<SqlParam> = Vec::new();
+                params.clear();
                 for col in &columns {
                     // Handle mapping: api_id in DB comes from id in JSON
                     let json_key = if col == "api_id" { "id" } else { col.as_str() };
@@ -276,6 +280,9 @@ pub async fn bulk_insert_postgres(
                 }
 
                 // Convert to references for execute
+                // Note: We cannot easily reuse param_refs vector due to borrow checker constraints
+                // (referencing 'params' which is mutable across iterations).
+                // However, Vec<&dyn ToSql> allocation is cheap compared to the data itself.
                 let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
                     .iter()
                     .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
