@@ -393,13 +393,42 @@ impl AuthService {
 
     /// Refresh access token
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
-        // TODO: Implement token refresh logic
-        // 1. Validate refresh token
-        // 2. Get user from token
-        // 3. Generate new access token
-        // 4. Optionally rotate refresh token
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
-        Err(AuthError::Internal("Not implemented".to_string()))
+        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+            |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
+        )?);
+        validation.set_audience(&[&self.config.jwt.audience]);
+        validation.set_issuer(&[&self.config.jwt.issuer]);
+
+        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+
+        let token_data = decode::<Claims>(refresh_token, &decoding_key, &validation)
+            .map_err(|e| match e.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                _ => AuthError::InvalidToken,
+            })?;
+
+        let claims = token_data.claims;
+
+        // Enforce token type must be 'refresh'
+        if claims.token_type != "refresh" {
+            return Err(AuthError::InvalidToken);
+        }
+
+        // Get user from token
+        let user = self.get_user(&claims.sub).await?;
+
+        // Generate new access token
+        let access_token = self.create_access_token(&user, &claims.jti)?;
+
+        Ok(AuthToken {
+            access_token,
+            refresh_token: refresh_token.to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: self.config.jwt.expiration,
+            user,
+        })
     }
 
     /// Create user
