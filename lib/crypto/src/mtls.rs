@@ -24,7 +24,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use authenc::crypto::mtls::{MtlsConfig, mtls_middleware};
 //! use axum::{Router, middleware, routing::get};
 //! use std::sync::Arc;

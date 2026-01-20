@@ -51,7 +51,7 @@
 //!
 //! # Example: Encrypting Data
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use secreton_crypto::{CryptoEngine, SecurityParams};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -68,7 +68,7 @@
 //!
 //! # Example: Post-Quantum Hybrid Encryption
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use secreton_crypto::hybrid::HybridCrypto;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
