@@ -292,6 +292,66 @@ mod tests {
         let body: ApiResponse<UserResponse> = response.json();
         assert_eq!(body.data.unwrap().username, "newuser");
     }
+
+    #[tokio::test]
+    async fn test_update_user() {
+        // Initialize services
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create a user to update
+        let user = services
+            .auth
+            .create_user(
+                "update_target",
+                "original@example.com",
+                "password123",
+                Some("Original Name"),
+                vec!["user".to_string()],
+                None,
+                true,
+            )
+            .await
+            .expect("Failed to create user");
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        // Update request
+        let update_req = UpdateUserRequest {
+            email: Some("updated@example.com".to_string()),
+            full_name: Some("Updated Name".to_string()),
+            enabled: Some(false),
+            metadata: Some(HashMap::from([("key".to_string(), "value".to_string())])),
+        };
+
+        let response = server
+            .put(&format!("/users/{}", user.id))
+            .json(&update_req)
+            .await;
+
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        assert!(body.success);
+        let updated_user = body.data.expect("user payload");
+
+        assert_eq!(updated_user.id, user.id.to_string());
+        assert_eq!(updated_user.email, "updated@example.com");
+        assert_eq!(updated_user.full_name, Some("Updated Name".to_string()));
+        assert_eq!(updated_user.enabled, false);
+        assert_eq!(updated_user.metadata.get("key").map(|s| s.as_str()), Some("value"));
+
+        // Verify via GET
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        let body: ApiResponse<UserResponse> = response.json();
+        let fetched_user = body.data.expect("user payload");
+        assert_eq!(fetched_user.email, "updated@example.com");
+    }
 }
 
 /// User management models
@@ -603,26 +663,44 @@ pub async fn get_user(
 }
 
 pub async fn update_user(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserRequest>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
-    // TODO: Implement user update
-    let user = UserResponse {
-        id: user_id,
-        username: "testuser".to_string(),
-        email: request.email.unwrap_or("test@example.com".to_string()),
-        full_name: request.full_name,
-        enabled: request.enabled.unwrap_or(true),
-        roles: vec!["user".to_string()],
-        permissions: vec!["read".to_string()],
-        last_login: Some(chrono::Utc::now()),
-        created_at: chrono::Utc::now() - chrono::Duration::days(7),
-        updated_at: chrono::Utc::now(),
-        metadata: request.metadata.unwrap_or_default(),
+    // Use AuthService to update user
+    let user = state
+        .auth
+        .update_user(
+            &user_id,
+            request.email,
+            request.full_name,
+            request.enabled,
+            request.metadata,
+        )
+        .await?;
+
+    // Collect and sort roles
+    let mut roles: Vec<String> = user.roles.into_iter().collect();
+    roles.sort();
+
+    // Calculate permissions
+    let permissions = calculate_permissions_from_roles(&roles);
+
+    let response = UserResponse {
+        id: user.id.to_string(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        enabled: user.is_active,
+        roles,
+        permissions,
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        metadata: user.metadata,
     };
 
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 /// System configuration endpoints
