@@ -12,6 +12,7 @@ use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
 use secreton_storage::{MemoryBackend, StorageBackend};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
@@ -133,6 +134,7 @@ pub struct AdminService {
     lease_cleaner: Arc<dyn LeaseCleaner>,
     start_time: chrono::DateTime<chrono::Utc>,
     system: Arc<Mutex<System>>,
+    request_count: Arc<AtomicU64>,
 }
 
 impl AdminService {
@@ -150,13 +152,13 @@ impl AdminService {
             lease_cleaner,
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
+            request_count: Arc::new(AtomicU64::new(0)),
         })
     }
 
     /// Track a request for RPM calculation
     pub fn track_request(&self) {
-        // TODO: Implement request tracking
-        // For now, no-op to satisfy middleware
+        self.request_count.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Get system statistics
@@ -169,6 +171,15 @@ impl AdminService {
 
         // Calculate uptime
         let uptime_seconds = (chrono::Utc::now() - self.start_time).num_seconds() as u64;
+
+        // Calculate RPM (simplified: total requests / uptime minutes)
+        let total_requests = self.request_count.load(Ordering::Relaxed);
+        let uptime_minutes = (uptime_seconds as f64) / 60.0;
+        let requests_per_minute = if uptime_minutes > 0.0 {
+            (total_requests as f64) / uptime_minutes
+        } else {
+            0.0
+        };
 
         // Get actual user and session counts from auth service
         let total_users = self.auth.count_users().await.unwrap_or(0);
@@ -236,7 +247,7 @@ impl AdminService {
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
-            requests_per_minute: 0.0, // TODO: Implement request rate tracking
+            requests_per_minute,
             memory: memory_stats,
             cpu: cpu_stats,
             disk: disk_stats,
@@ -960,6 +971,7 @@ impl AdminService {
             lease_cleaner: Arc::new(DummyLeaseCleaner),
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
+            request_count: Arc::new(AtomicU64::new(0)),
         }
     }
 }
