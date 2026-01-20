@@ -30,7 +30,7 @@ impl PidmilService {
         case_id: Uuid,
         req: CreateSuspectRequest,
     ) -> Result<MilitarySuspect> {
-        if let Some(_) = self.repo.get_case_by_id(case_id).await? {
+        if self.repo.get_case_by_id(case_id).await?.is_some() {
             self.repo.create_suspect(case_id, req).await
         } else {
             Err(anyhow::anyhow!("Case not found"))
