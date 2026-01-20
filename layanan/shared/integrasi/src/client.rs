@@ -656,7 +656,7 @@ impl MonsaktiClient {
             Ok(())
         })
         .await
-        .map_err(|e| MonsaktiError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+        .map_err(|e| MonsaktiError::IoError(std::io::Error::other(e)))??;
 
         Ok(())
     }
