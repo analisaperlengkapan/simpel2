@@ -5,16 +5,13 @@ mod error;
 mod handlers;
 mod models;
 
-use axum::{
-    routing::get,
-    Router,
-};
+use crate::config::AppConfig;
+use axum::{Router, routing::get};
 use deadpool_postgres::{Config, Runtime};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use crate::config::AppConfig;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +26,9 @@ async fn main() {
     // Database Pool
     let mut db_cfg = Config::new();
     db_cfg.url = Some(config.database_url.clone());
-    let pool = db_cfg.create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls).expect("Failed to create pool");
+    let pool = db_cfg
+        .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+        .expect("Failed to create pool");
 
     // Initialize Database
     if let Err(e) = database::init_db(&pool).await {
@@ -45,8 +44,14 @@ async fn main() {
         .route("/", get(health_check))
         .route("/api/v1/keuangan/health", get(health_check))
         .route("/api/v1/keuangan/metrics", get(handlers::get_metrics))
-        .route("/api/v1/keuangan/budgets", get(handlers::list_budgets).post(handlers::create_budget))
-        .route("/api/v1/keuangan/transactions", get(handlers::list_transactions).post(handlers::create_transaction))
+        .route(
+            "/api/v1/keuangan/budgets",
+            get(handlers::list_budgets).post(handlers::create_budget),
+        )
+        .route(
+            "/api/v1/keuangan/transactions",
+            get(handlers::list_transactions).post(handlers::create_transaction),
+        )
         .layer(cors)
         .with_state(pool);
 

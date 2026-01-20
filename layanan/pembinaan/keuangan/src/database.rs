@@ -5,14 +5,14 @@ pub async fn init_db(pool: &Pool) -> Result<()> {
     let client = pool.get().await?;
 
     // Create schema
-    client.execute(
-        "CREATE SCHEMA IF NOT EXISTS keuangan",
-        &[],
-    ).await?;
+    client
+        .execute("CREATE SCHEMA IF NOT EXISTS keuangan", &[])
+        .await?;
 
     // Create budgets table
-    client.execute(
-        r#"
+    client
+        .execute(
+            r#"
         CREATE TABLE IF NOT EXISTS keuangan.budgets (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             category VARCHAR NOT NULL,
@@ -30,12 +30,14 @@ pub async fn init_db(pool: &Pool) -> Result<()> {
             created_by VARCHAR
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
     // Create transactions table
-    client.execute(
-        r#"
+    client
+        .execute(
+            r#"
         CREATE TABLE IF NOT EXISTS keuangan.transactions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             transaction_code VARCHAR NOT NULL,
@@ -52,8 +54,9 @@ pub async fn init_db(pool: &Pool) -> Result<()> {
             created_by VARCHAR
         )
         "#,
-        &[],
-    ).await?;
+            &[],
+        )
+        .await?;
 
     tracing::info!("Database initialized successfully");
     Ok(())

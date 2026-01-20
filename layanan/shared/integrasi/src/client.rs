@@ -26,6 +26,20 @@ pub struct MonsaktiClient {
     db_client: Option<tokio_postgres::Client>,
 }
 
+impl Clone for MonsaktiClient {
+    /// Clone untuk parallel processing - Token tidak di-share
+    /// DB client tidak di-clone untuk keamanan (diset None)
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            config: self.config.clone(),
+            current_tokens: self.current_tokens.clone(),
+            siman_token: self.siman_token.clone(),
+            db_client: None,
+        }
+    }
+}
+
 impl MonsaktiClient {
     /// Membuat klien MonSAKTI baru
     pub async fn new(config: Config) -> Result<Self, MonsaktiError> {
@@ -69,17 +83,6 @@ impl MonsaktiClient {
             siman_token: None,
             db_client,
         })
-    }
-
-    /// Clone untuk parallel processing - Token tidak di-share
-    pub fn clone(&self) -> Self {
-        Self {
-            client: self.client.clone(),
-            config: self.config.clone(),
-            current_tokens: self.current_tokens.clone(),
-            siman_token: self.siman_token.clone(),
-            db_client: None, // DB client tidak di-clone untuk keamanan
-        }
     }
 
     /// Fungsi fetch generik untuk semua endpoint dengan auto-retry pada token expired
@@ -405,7 +408,6 @@ impl MonsaktiClient {
         self.reset_token(module, tipe_data, "KL006").await
     }
 
-
     /// Simpan token baru ke database
     async fn save_token_to_db(
         &self,
@@ -499,10 +501,18 @@ impl MonsaktiClient {
                             .map(|h| {
                                 obj.get(*h)
                                     .map(|v| match v {
-                                        serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
-                                        serde_json::Value::Number(n) => std::borrow::Cow::Owned(n.to_string().into_bytes()),
-                                        serde_json::Value::Bool(b) => std::borrow::Cow::Owned(b.to_string().into_bytes()),
-                                        serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
+                                        serde_json::Value::String(s) => {
+                                            std::borrow::Cow::Borrowed(s.as_bytes())
+                                        }
+                                        serde_json::Value::Number(n) => {
+                                            std::borrow::Cow::Owned(n.to_string().into_bytes())
+                                        }
+                                        serde_json::Value::Bool(b) => {
+                                            std::borrow::Cow::Owned(b.to_string().into_bytes())
+                                        }
+                                        serde_json::Value::Null => {
+                                            std::borrow::Cow::Borrowed(&[] as &[u8])
+                                        }
                                         _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
                                     })
                                     .unwrap_or(std::borrow::Cow::Borrowed(&[]))

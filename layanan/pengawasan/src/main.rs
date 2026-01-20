@@ -1,8 +1,8 @@
-use layanan_pengawasan::{router::create_router, db};
-use std::net::SocketAddr;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tower_http::cors::CorsLayer;
 use dotenvy::dotenv;
+use layanan_pengawasan::{db, router::create_router};
+use std::net::SocketAddr;
+use tower_http::cors::CorsLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
@@ -16,7 +16,9 @@ async fn main() {
         .init();
 
     // Initialize Database
-    let pool = db::create_pool().await.expect("Failed to create database pool");
+    let pool = db::create_pool()
+        .await
+        .expect("Failed to create database pool");
 
     // Run Migrations
     tracing::info!("Running database migrations...");

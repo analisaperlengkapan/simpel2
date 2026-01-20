@@ -15,8 +15,8 @@ pub mod not_found;
 pub mod notifications;
 pub mod password_reset;
 pub mod pembinaan;
-pub mod settings;
 pub mod secrets;
+pub mod settings;
 
 pub use apps::*;
 pub use callback::*;

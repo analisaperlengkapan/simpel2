@@ -1,18 +1,21 @@
+use crate::auth::Claims;
+use crate::error::AppError;
+use crate::models::{
+    BudgetItem, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics, PaginationParams,
+    Transaction,
+};
 use axum::{
-    extract::{State, Query},
     Json,
+    extract::{Query, State},
 };
 use deadpool_postgres::Pool;
-use uuid::Uuid;
 use garde::Validate;
-use crate::models::{BudgetItem, Transaction, CreateBudgetRequest, CreateTransactionRequest, FinancialMetrics, PaginationParams};
-use crate::error::AppError;
-use crate::auth::Claims;
+use uuid::Uuid;
 
 // Dashboard Metrics
 pub async fn get_metrics(
     _claims: Claims,
-    State(pool): State<Pool>
+    State(pool): State<Pool>,
 ) -> Result<Json<FinancialMetrics>, AppError> {
     let client = pool.get().await?;
 
@@ -23,16 +26,30 @@ pub async fn get_metrics(
     let total_budget: f64 = budget_row.get("total");
     let total_realization: f64 = budget_row.get("realized");
 
-    let pending_count: i64 = client.query_one("SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Pending'", &[])
-        .await?.get(0);
+    let pending_count: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Pending'",
+            &[],
+        )
+        .await?
+        .get(0);
 
-    let approved_count: i64 = client.query_one("SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Approved'", &[])
-        .await?.get(0);
+    let approved_count: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM keuangan.transactions WHERE status = 'Approved'",
+            &[],
+        )
+        .await?
+        .get(0);
 
     let metrics = FinancialMetrics {
         total_budget,
         total_realization,
-        utilization_percentage: if total_budget > 0.0 { (total_realization / total_budget) * 100.0 } else { 0.0 },
+        utilization_percentage: if total_budget > 0.0 {
+            (total_realization / total_budget) * 100.0
+        } else {
+            0.0
+        },
         pending_transactions: pending_count,
         approved_transactions: approved_count,
         monthly_variance: 0.0, // Placeholder calculation
@@ -46,11 +63,15 @@ pub async fn get_metrics(
 // Budget Handlers
 pub async fn list_budgets(
     _claims: Claims,
-    State(pool): State<Pool>
+    State(pool): State<Pool>,
 ) -> Result<Json<Vec<BudgetItem>>, AppError> {
     let client = pool.get().await?;
 
-    let rows = client.query("SELECT * FROM keuangan.budgets ORDER BY created_at DESC", &[])
+    let rows = client
+        .query(
+            "SELECT * FROM keuangan.budgets ORDER BY created_at DESC",
+            &[],
+        )
         .await?;
 
     let budgets: Vec<BudgetItem> = rows.into_iter().map(BudgetItem::from).collect();
@@ -63,7 +84,9 @@ pub async fn create_budget(
     Json(payload): Json<CreateBudgetRequest>,
 ) -> Result<Json<BudgetItem>, AppError> {
     // Validation
-    payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+    payload
+        .validate()
+        .map_err(|e| AppError::Validation(e.to_string()))?;
 
     let client = pool.get().await?;
 
@@ -100,7 +123,7 @@ pub async fn create_budget(
 pub async fn list_transactions(
     _claims: Claims,
     Query(pagination): Query<PaginationParams>,
-    State(pool): State<Pool>
+    State(pool): State<Pool>,
 ) -> Result<Json<Vec<Transaction>>, AppError> {
     let client = pool.get().await?;
 
@@ -110,10 +133,12 @@ pub async fn list_transactions(
     // Ensure limit is reasonable
     let limit = limit.clamp(1, 100);
 
-    let rows = client.query(
-        "SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT $1 OFFSET $2",
-        &[&limit, &offset]
-    ).await?;
+    let rows = client
+        .query(
+            "SELECT * FROM keuangan.transactions ORDER BY transaction_date DESC LIMIT $1 OFFSET $2",
+            &[&limit, &offset],
+        )
+        .await?;
 
     let transactions: Vec<Transaction> = rows.into_iter().map(Transaction::from).collect();
     Ok(Json(transactions))
@@ -125,12 +150,17 @@ pub async fn create_transaction(
     Json(payload): Json<CreateTransactionRequest>,
 ) -> Result<Json<Transaction>, AppError> {
     // Validation
-    payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+    payload
+        .validate()
+        .map_err(|e| AppError::Validation(e.to_string()))?;
 
     let client = pool.get().await?;
 
     // Transaction code generation (simple)
-    let code = format!("TRX-{}", Uuid::new_v4().simple().to_string()[0..8].to_uppercase());
+    let code = format!(
+        "TRX-{}",
+        Uuid::new_v4().simple().to_string()[0..8].to_uppercase()
+    );
 
     let row = client.query_one(
         r#"

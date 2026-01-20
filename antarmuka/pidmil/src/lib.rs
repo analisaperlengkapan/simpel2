@@ -20,9 +20,9 @@ pub use components::{
 
 mod pages;
 pub use pages::{
-    CaseStatusBadge, MilitaryActionButton, MilitaryHeader as MilitaryHeaderPage, MilitarySearchInput,
-    MilitaryStatCard, PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan,
-    PidmilTersangka, PriorityBadge, ProgressBar,
+    CaseStatusBadge, MilitaryActionButton, MilitaryHeader as MilitaryHeaderPage,
+    MilitarySearchInput, MilitaryStatCard, PidmilDashboard, PidmilKasus, PidmilLaporan,
+    PidmilPenyidikan, PidmilTersangka, PriorityBadge, ProgressBar,
 };
 
 mod types;

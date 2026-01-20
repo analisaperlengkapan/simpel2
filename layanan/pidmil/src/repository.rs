@@ -26,7 +26,11 @@ impl PostgresRepository {
             .await?;
 
         // Generate case number format: PIDMIL-YYYY-XXXX (Random for demo)
-        let case_number = format!("PIDMIL-{}-{}", chrono::Utc::now().format("%Y"), Uuid::new_v4().to_string()[..4].to_uppercase());
+        let case_number = format!(
+            "PIDMIL-{}-{}",
+            chrono::Utc::now().format("%Y"),
+            Uuid::new_v4().to_string()[..4].to_uppercase()
+        );
 
         let row = client
             .query_one(
@@ -51,7 +55,10 @@ impl PostgresRepository {
     pub async fn get_all_cases(&self) -> Result<Vec<MilitaryCase>> {
         let client = self.pool.get().await?;
         let rows = client
-            .query("SELECT * FROM military_cases ORDER BY created_date DESC", &[])
+            .query(
+                "SELECT * FROM military_cases ORDER BY created_date DESC",
+                &[],
+            )
             .await?;
 
         Ok(rows.into_iter().map(MilitaryCase::from).collect())
@@ -70,7 +77,11 @@ impl PostgresRepository {
         }
     }
 
-    pub async fn create_suspect(&self, case_id: Uuid, req: CreateSuspectRequest) -> Result<MilitarySuspect> {
+    pub async fn create_suspect(
+        &self,
+        case_id: Uuid,
+        req: CreateSuspectRequest,
+    ) -> Result<MilitarySuspect> {
         let client = self.pool.get().await?;
         let stmt = client.prepare(
             "INSERT INTO military_suspects (nrp, name, rank, unit, position, case_id, status, detention_status, charges)
@@ -78,23 +89,30 @@ impl PostgresRepository {
              RETURNING *"
         ).await?;
 
-        let row = client.query_one(&stmt, &[
-            &req.nrp,
-            &req.name,
-            &req.rank,
-            &req.unit,
-            &req.position,
-            &case_id,
-            &req.status,
-            &req.detention_status,
-            &req.charges
-        ]).await?;
+        let row = client
+            .query_one(
+                &stmt,
+                &[
+                    &req.nrp,
+                    &req.name,
+                    &req.rank,
+                    &req.unit,
+                    &req.position,
+                    &case_id,
+                    &req.status,
+                    &req.detention_status,
+                    &req.charges,
+                ],
+            )
+            .await?;
 
         // Update suspect count on case
-        client.execute(
-            "UPDATE military_cases SET suspects_count = suspects_count + 1 WHERE id = $1",
-            &[&case_id]
-        ).await?;
+        client
+            .execute(
+                "UPDATE military_cases SET suspects_count = suspects_count + 1 WHERE id = $1",
+                &[&case_id],
+            )
+            .await?;
 
         Ok(MilitarySuspect::from(row))
     }
@@ -102,7 +120,10 @@ impl PostgresRepository {
     pub async fn get_suspects_by_case(&self, case_id: Uuid) -> Result<Vec<MilitarySuspect>> {
         let client = self.pool.get().await?;
         let rows = client
-            .query("SELECT * FROM military_suspects WHERE case_id = $1", &[&case_id])
+            .query(
+                "SELECT * FROM military_suspects WHERE case_id = $1",
+                &[&case_id],
+            )
             .await?;
 
         Ok(rows.into_iter().map(MilitarySuspect::from).collect())

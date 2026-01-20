@@ -1,9 +1,9 @@
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
+use serde_json::json;
 use std::collections::HashMap;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use serde_json::json;
 
 #[tokio::test]
 async fn test_monsakti_fetch_parsing_logic() {
@@ -37,9 +37,13 @@ async fn test_monsakti_fetch_parsing_logic() {
     });
     // Override base_url to ensure it hits mock
     config.base_url = mock_server.uri();
-    config.tokens.insert("ADM".to_string(), "initial_token".to_string());
+    config
+        .tokens
+        .insert("ADM".to_string(), "initial_token".to_string());
 
-    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     // 3. Perform Fetch
     let res = client.fetch("ADM", "data", vec!["var1".to_string()]).await;
