@@ -1,3 +1,5 @@
+pub mod layout;
+
 use crate::types::*;
 use leptos::prelude::*;
 

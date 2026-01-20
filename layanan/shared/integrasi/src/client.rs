@@ -83,6 +83,11 @@ impl MonsaktiClient {
         }
     }
 
+    /// Getter untuk konfigurasi (read-only access)
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Fungsi fetch generik untuk semua endpoint dengan auto-retry pada token expired
     pub async fn fetch(
         &mut self,

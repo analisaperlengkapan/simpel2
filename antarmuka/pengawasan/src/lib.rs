@@ -8,6 +8,7 @@ use leptos_router::{
 pub mod api;
 pub mod components;
 pub mod pages;
+pub mod types;
 
 #[component]
 pub fn App() -> impl IntoView {
