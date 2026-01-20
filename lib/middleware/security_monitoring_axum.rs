@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info, warn};
 
-use crate::services::pg_audit_log_store::PgAuditLogStore;
+use super::types::PgAuditLogStore;
 
 /// Configuration for security monitoring
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,9 +67,11 @@ impl SecurityMonitoringState {
     /// Log a security event
     async fn log_security_event(&self, event_type: &str, details: serde_json::Value) {
         if let Some(audit_store) = &self.audit_store {
-            let event = crate::models::audit_log::AuditLog {
+            let event = super::types::AuditLog {
+                id: uuid::Uuid::new_v4().to_string(),
                 timestamp: chrono::Utc::now(),
                 event: event_type.to_string(),
+                event_type: event_type.to_string(),
                 user_id: details
                     .get("user_id")
                     .and_then(|v| v.as_str())
@@ -78,12 +80,18 @@ impl SecurityMonitoringState {
                     .get("client_id")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
+                ip_address: details
+                    .get("ip_address")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 status: details
                     .get("status")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown")
                     .to_string(),
                 detail: Some(serde_json::to_string(&details).unwrap_or_default()),
+                details: serde_json::to_string(&details).unwrap_or_default(),
+                severity: "info".to_string(),
             };
 
             if let Err(e) = audit_store.add_log(&event).await {

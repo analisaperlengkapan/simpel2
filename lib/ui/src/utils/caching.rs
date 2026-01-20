@@ -224,6 +224,8 @@ impl CacheKeyBuilder {
         }
     }
 
+    /// Add a part to the cache key
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, part: &str) -> Self {
         self.parts.push(part.to_string());
         self

@@ -124,10 +124,6 @@ mod tests {
             .layer(tower_http::trace::TraceLayer::new_for_http())
             .layer(
                 tower::ServiceBuilder::new()
-                    .layer(tower_http::add_extension::AddExtensionLayer::new(())),
-            )
-            .layer(
-                tower::ServiceBuilder::new()
                     .layer(axum::middleware::from_fn(security_headers_middleware)),
             );
 

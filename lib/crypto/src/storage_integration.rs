@@ -195,6 +195,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires secreton/vault backend"]
     async fn test_encrypt_decrypt_roundtrip() {
         let bridge = CryptoStorageBridge::new("test-key".to_string())
             .await
@@ -212,6 +213,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires secreton/vault backend"]
     async fn test_key_rotation() {
         let bridge = CryptoStorageBridge::new("rotate-key".to_string())
             .await

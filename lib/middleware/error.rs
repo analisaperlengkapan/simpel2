@@ -1,6 +1,6 @@
-use thiserror::Error;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AuthencError {
@@ -23,7 +23,10 @@ pub enum AuthencError {
     #[error("Invalid credentials")]
     InvalidCredentials,
     #[error("Account locked: {reason}")]
-    AccountLocked { reason: String, locked_until: std::time::Instant },
+    AccountLocked {
+        reason: String,
+        locked_until: std::time::Instant,
+    },
 }
 
 impl AuthencError {
@@ -49,16 +52,31 @@ pub type Result<T> = std::result::Result<T, AuthencError>;
 impl IntoResponse for AuthencError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            AuthencError::InvalidOtpCode => (StatusCode::UNAUTHORIZED, "Invalid OTP code".to_string()),
-            AuthencError::RateLimitExceeded => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded".to_string()),
-            AuthencError::DatabaseError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", msg)),
+            AuthencError::InvalidOtpCode => {
+                (StatusCode::UNAUTHORIZED, "Invalid OTP code".to_string())
+            }
+            AuthencError::RateLimitExceeded => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "Rate limit exceeded".to_string(),
+            ),
+            AuthencError::DatabaseError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", msg),
+            ),
             AuthencError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AuthencError::AuthError(msg) => (StatusCode::UNAUTHORIZED, msg),
             AuthencError::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg),
             AuthencError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
-            AuthencError::AuthenticationFailed => (StatusCode::UNAUTHORIZED, "Authentication failed".to_string()),
-            AuthencError::InvalidCredentials => (StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()),
-            AuthencError::AccountLocked { reason, .. } => (StatusCode::FORBIDDEN, format!("Account locked: {}", reason)),
+            AuthencError::AuthenticationFailed => (
+                StatusCode::UNAUTHORIZED,
+                "Authentication failed".to_string(),
+            ),
+            AuthencError::InvalidCredentials => {
+                (StatusCode::UNAUTHORIZED, "Invalid credentials".to_string())
+            }
+            AuthencError::AccountLocked { reason, .. } => {
+                (StatusCode::FORBIDDEN, format!("Account locked: {}", reason))
+            }
         };
         (status, message).into_response()
     }

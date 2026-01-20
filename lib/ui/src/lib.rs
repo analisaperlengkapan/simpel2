@@ -17,12 +17,17 @@
 //! `-- utils/         # Utilities (validation, formatters, helpers)
 //! ```
 
-// Allow clippy warnings for common patterns in this crate
+// Allow clippy warnings for common Leptos patterns in this crate
+#![allow(clippy::unused_unit)]
+#![allow(clippy::unit_arg)]
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::useless_vec)]
 #![allow(clippy::manual_range_contains)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::empty_line_after_outer_attr)]
 
 // ============================================================================
 // MODULE DECLARATIONS

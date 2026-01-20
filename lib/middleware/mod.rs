@@ -9,6 +9,22 @@
 //! - `axum`: Enables Axum-specific middleware implementations
 //! - `actix-web`: Enables Actix-Web-specific middleware implementations (not yet implemented)
 
+// Allow certain clippy lints for this crate
+#![allow(clippy::match_like_matches_macro)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
+// Error types for middleware
+pub mod error;
+pub use error::{AuthencError, Result};
+
+// Real types for middleware (metrics, audit, JWT, mTLS)
+pub mod types;
+pub use types::{
+    AuditLog, ClientCertInfo, MfaMetrics, MfaPerformanceMonitor, MtlsConfig, PgAuditLogStore,
+    ThreatLevel, UserClaims,
+};
+
 // Axum middleware (primary implementation)
 
 /// Authentication middleware for Axum web framework
@@ -123,7 +139,7 @@ pub use rate_limit_axum::{
 
 pub use adaptive_rate_limit::{
     AdaptiveRateLimitConfig, AdaptiveRateLimitLayer, AdaptiveRateLimitMiddleware,
-    AdaptiveRateLimiter, ThreatLevel, adaptive_rate_limit_layer, adaptive_rate_limit_middleware,
+    AdaptiveRateLimiter, adaptive_rate_limit_layer, adaptive_rate_limit_middleware,
 };
 
 pub use adaptive_rate_limit_integration::{

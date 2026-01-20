@@ -11,6 +11,11 @@
 //! - **Encrypted Storage** - Wrapper adding encryption layer to any backend
 //! - **Cached Storage** - Wrapper adding caching layer for performance
 //! - **Raft** (optional) - Distributed consensus-based storage for HA clusters
+
+// Allow certain clippy lints and warnings
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 //!
 //! # Architecture
 //!

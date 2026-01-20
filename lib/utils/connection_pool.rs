@@ -95,7 +95,7 @@ impl HttpConnectionPool {
             .pool_max_idle_per_host(config.max_connections / 4) // 25% of max connections as idle
             .tcp_keepalive(Duration::from_secs(config.keep_alive_timeout_seconds))
             .build()
-            .map_err(|e| AuthencError::internal(&format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| AuthencError::internal(format!("Failed to create HTTP client: {}", e)))?;
 
         let semaphore = Arc::new(Semaphore::new(config.max_connections));
         let stats = Arc::new(Mutex::new(ConnectionPoolStats::default()));
@@ -155,7 +155,7 @@ impl HttpConnectionPool {
         for attempt in 0..=self.config.max_retries {
             let request = request_builder()
                 .build()
-                .map_err(|e| AuthencError::internal(&format!("Failed to build request: {}", e)))?;
+                .map_err(|e| AuthencError::internal(format!("Failed to build request: {}", e)))?;
 
             match timeout(
                 Duration::from_secs(self.config.request_timeout_seconds),
@@ -176,7 +176,7 @@ impl HttpConnectionPool {
                     return Ok(response);
                 }
                 Ok(Err(e)) => {
-                    last_error = Some(AuthencError::internal(&format!(
+                    last_error = Some(AuthencError::internal(format!(
                         "HTTP request failed: {}",
                         e
                     )));
@@ -291,14 +291,14 @@ impl SecretonConnectionPool {
         }
 
         let request = request_builder.build().map_err(|e| {
-            AuthencError::internal(&format!("Failed to build Secreton request: {}", e))
+            AuthencError::internal(format!("Failed to build Secreton request: {}", e))
         })?;
 
         self.pool
             .client()
             .execute(request)
             .await
-            .map_err(|e| AuthencError::internal(&format!("Secreton request failed: {}", e)))
+            .map_err(|e| AuthencError::internal(format!("Secreton request failed: {}", e)))
     }
 
     /// Execute a POST request to Secreton service
@@ -316,14 +316,14 @@ impl SecretonConnectionPool {
         }
 
         let request = request_builder.build().map_err(|e| {
-            AuthencError::internal(&format!("Failed to build Secreton request: {}", e))
+            AuthencError::internal(format!("Failed to build Secreton request: {}", e))
         })?;
 
         self.pool
             .client()
             .execute(request)
             .await
-            .map_err(|e| AuthencError::internal(&format!("Secreton request failed: {}", e)))
+            .map_err(|e| AuthencError::internal(format!("Secreton request failed: {}", e)))
     }
 
     /// Get connection pool statistics

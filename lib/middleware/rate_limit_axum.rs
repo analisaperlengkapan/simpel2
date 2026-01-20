@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tower::Service;
 use tracing::{debug, error, warn};
 
-use crate::error::AuthencError;
+use super::error::AuthencError;
 
 /// Configuration for rate limiting
 #[derive(Clone, Debug, Serialize, Deserialize)]

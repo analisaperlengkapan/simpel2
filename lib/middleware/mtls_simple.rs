@@ -1,4 +1,4 @@
 // mTLS middleware re-exports
-pub use crate::crypto::mtls::{
+pub use super::types:{
     mtls_middleware, ClientCertInfo, MtlsConfig,
 };

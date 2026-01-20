@@ -14,7 +14,7 @@ use axum::{
 use tower::Service;
 use tracing::error;
 
-use crate::error::AuthencError;
+use super::error::AuthencError;
 
 /// Middleware that enforces role-based access control
 #[derive(Clone)]
@@ -60,7 +60,7 @@ where
     }
 
     fn call(&mut self, req: Request<B>) -> Self::Future {
-        use crate::middleware::auth_middleware_axum::AuthUser;
+        use super::auth_middleware_axum::AuthUser;
 
         // Get the authenticated user from request extensions
         let user = req.extensions().get::<AuthUser>();
@@ -99,9 +99,7 @@ pub async fn rbac_middleware(
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     // Extract user claims from request extensions
-    let claims = request
-        .extensions()
-        .get::<crate::models::user::UserClaims>();
+    let claims = request.extensions().get::<super::types::UserClaims>();
 
     if claims.is_none() {
         return Err(StatusCode::UNAUTHORIZED);
@@ -172,7 +170,7 @@ where
     }
 
     fn call(&mut self, req: Request<B>) -> Self::Future {
-        use crate::middleware::auth_middleware_axum::AuthUser;
+        use super::auth_middleware_axum::AuthUser;
 
         // Get the authenticated user from request extensions
         let user = req.extensions().get::<AuthUser>();
@@ -242,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rbac_middleware() {
-        use crate::middleware::auth_middleware_axum::AuthUser;
+        use crate::auth_middleware_axum::AuthUser;
 
         // Create a test service with RBAC protection
         let app = Router::new()

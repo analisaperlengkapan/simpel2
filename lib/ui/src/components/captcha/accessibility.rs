@@ -54,7 +54,7 @@ pub fn AudioChallenge(
                         utterance.set_volume(0.8);
 
                         // Set up event handlers
-                        let set_audio_playing_clone = set_audio_playing.clone();
+                        let set_audio_playing_clone = set_audio_playing;
                         let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                             set_audio_playing_clone.set(false);
                         })
@@ -299,8 +299,8 @@ pub fn AlternativeInputMethods(
                         let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
 
                         // Set up result handler
-                        let _on_answer_clone = on_answer.clone();
-                        let set_voice_input_active_clone = set_voice_input_active.clone();
+                        let _on_answer_clone = on_answer;
+                        let set_voice_input_active_clone = set_voice_input_active;
                         let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
                             move |event: web_sys::Event| {
                                 // Extract speech result
@@ -373,7 +373,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);
@@ -539,7 +539,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                             let on_end = wasm_bindgen::closure::Closure::once_into_js(move || {
                                 let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
                             });
-                            let _ = utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
+                            utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
 
                             // Error handler
                             let resolve_error = resolve.clone();
@@ -547,7 +547,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                                 wasm_bindgen::closure::Closure::once_into_js(move || {
                                     let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
                                 });
-                            let _ = utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+                            utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
 
                             synthesis.speak(&utterance);
                         });

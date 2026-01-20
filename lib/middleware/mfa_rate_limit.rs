@@ -19,7 +19,7 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-use crate::error::AuthencError;
+use super::error::AuthencError;
 
 /// Configuration for MFA-specific rate limiting
 #[derive(Clone, Debug, Serialize, Deserialize)]

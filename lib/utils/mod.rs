@@ -1,5 +1,11 @@
 // Utility modules
 
+// Allow certain clippy lints for this crate
+#![allow(clippy::new_without_default)]
+#![allow(clippy::should_implement_trait)]
+#![allow(dead_code)]
+#![allow(private_interfaces)]
+
 /// Error types and result aliases for lib-utils
 /// Provides standard error types and Result type aliases.
 pub mod error;

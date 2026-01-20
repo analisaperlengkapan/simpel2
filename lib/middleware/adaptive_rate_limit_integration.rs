@@ -15,8 +15,8 @@ use axum::{
 use serde::Serialize;
 use tracing::warn;
 
-use crate::error::AuthencError;
-use crate::middleware::adaptive_rate_limit::AdaptiveRateLimiter;
+use super::adaptive_rate_limit::AdaptiveRateLimiter;
+use super::error::AuthencError;
 
 /// Extension trait for authentication results to integrate with adaptive rate limiting
 pub trait AuthResultExt<T> {
@@ -104,7 +104,7 @@ pub fn create_rate_limit_response(limiter: &AdaptiveRateLimiter) -> RateLimitRes
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::middleware::adaptive_rate_limit::AdaptiveRateLimitConfig;
+    use crate::adaptive_rate_limit::AdaptiveRateLimitConfig;
 
     #[tokio::test]
     async fn test_auth_result_ext() {
@@ -120,8 +120,8 @@ mod tests {
         let _ = result.record_auth_result(&limiter, "192.168.1.1");
     }
 
-    #[test]
-    fn test_create_rate_limit_response() {
+    #[tokio::test]
+    async fn test_create_rate_limit_response() {
         let config = AdaptiveRateLimitConfig::default();
         let limiter = AdaptiveRateLimiter::new(config);
 

@@ -74,6 +74,7 @@ fn load_key_from_base64(key_base64: &str) -> Result<SigningKey, String> {
 }
 
 /// Load Ed25519 signing key from file
+#[allow(clippy::collapsible_if)]
 fn load_key_from_file(path: &str) -> Result<SigningKey, String> {
     let key_bytes = std::fs::read(path).map_err(|e| format!("Failed to read key file: {}", e))?;
 

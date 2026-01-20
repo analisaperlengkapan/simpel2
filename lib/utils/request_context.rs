@@ -54,46 +54,46 @@ impl RequestContext {
 /// 4. True-Client-IP (Akamai)
 pub fn extract_ip_address(headers: &HeaderMap) -> Option<String> {
     // Try X-Forwarded-For first (most common)
-    if let Some(forwarded) = headers.get("x-forwarded-for") {
-        if let Ok(value) = forwarded.to_str() {
-            // Take the first IP in the list (original client)
-            if let Some(first_ip) = value.split(',').next() {
-                let trimmed = first_ip.trim();
-                // Validate it's a proper IP address
-                if trimmed.parse::<IpAddr>().is_ok() {
-                    return Some(trimmed.to_string());
-                }
+    if let Some(forwarded) = headers.get("x-forwarded-for")
+        && let Ok(value) = forwarded.to_str()
+    {
+        // Take the first IP in the list (original client)
+        if let Some(first_ip) = value.split(',').next() {
+            let trimmed = first_ip.trim();
+            // Validate it's a proper IP address
+            if trimmed.parse::<IpAddr>().is_ok() {
+                return Some(trimmed.to_string());
             }
         }
     }
 
     // Try X-Real-IP
-    if let Some(real_ip) = headers.get("x-real-ip") {
-        if let Ok(value) = real_ip.to_str() {
-            let trimmed = value.trim();
-            if trimmed.parse::<IpAddr>().is_ok() {
-                return Some(trimmed.to_string());
-            }
+    if let Some(real_ip) = headers.get("x-real-ip")
+        && let Ok(value) = real_ip.to_str()
+    {
+        let trimmed = value.trim();
+        if trimmed.parse::<IpAddr>().is_ok() {
+            return Some(trimmed.to_string());
         }
     }
 
     // Try CF-Connecting-IP (Cloudflare)
-    if let Some(cf_ip) = headers.get("cf-connecting-ip") {
-        if let Ok(value) = cf_ip.to_str() {
-            let trimmed = value.trim();
-            if trimmed.parse::<IpAddr>().is_ok() {
-                return Some(trimmed.to_string());
-            }
+    if let Some(cf_ip) = headers.get("cf-connecting-ip")
+        && let Ok(value) = cf_ip.to_str()
+    {
+        let trimmed = value.trim();
+        if trimmed.parse::<IpAddr>().is_ok() {
+            return Some(trimmed.to_string());
         }
     }
 
     // Try True-Client-IP (Akamai)
-    if let Some(true_ip) = headers.get("true-client-ip") {
-        if let Ok(value) = true_ip.to_str() {
-            let trimmed = value.trim();
-            if trimmed.parse::<IpAddr>().is_ok() {
-                return Some(trimmed.to_string());
-            }
+    if let Some(true_ip) = headers.get("true-client-ip")
+        && let Ok(value) = true_ip.to_str()
+    {
+        let trimmed = value.trim();
+        if trimmed.parse::<IpAddr>().is_ok() {
+            return Some(trimmed.to_string());
         }
     }
 

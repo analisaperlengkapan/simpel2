@@ -51,7 +51,7 @@ fn get_jwt_secret() -> Result<Vec<u8>, String> {
     #[cfg(debug_assertions)]
     {
         log::warn!("JWT_SECRET not set! Using insecure default. DO NOT USE IN PRODUCTION!");
-        return Ok(b"test-secret-for-development-only-change-in-production".to_vec());
+        Ok(b"test-secret-for-development-only-change-in-production".to_vec())
     }
 
     #[cfg(not(debug_assertions))]
@@ -192,7 +192,7 @@ pub fn verify_jwt(token: &str) -> Result<Claims, String> {
 /// * `skip_blacklist_check` - If true, skips blacklist validation (used for cached results)
 /// # Returns
 /// A `Result` containing the decoded `Claims` on success, or an error string on failure
-fn verify_jwt_internal(token: &str, skip_blacklist_check: bool) -> Result<Claims, String> {
+fn verify_jwt_internal(token: &str, _skip_blacklist_check: bool) -> Result<Claims, String> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         return Err("Invalid JWT format".to_string());
@@ -407,12 +407,12 @@ pub fn verify_jwt_with_validation(token: &str) -> crate::error::Result<ExtendedC
     }
 
     // Check not before if present
-    if let Some(nbf) = claims.nbf {
-        if nbf > now {
-            return Err(crate::error::AuthencError::unauthorized(
-                "Token not yet valid",
-            ));
-        }
+    if let Some(nbf) = claims.nbf
+        && nbf > now
+    {
+        return Err(crate::error::AuthencError::unauthorized(
+            "Token not yet valid",
+        ));
     }
 
     Ok(claims)

@@ -228,7 +228,7 @@ pub fn InputValidationFeedback(
                 }
             }
             _ => {
-                if value.len() >= 1 {
+                if !value.is_empty() {
                     ("valid", "Answer received", "text-green-600")
                 } else {
                     ("idle", "Enter your answer", "text-gray-500")

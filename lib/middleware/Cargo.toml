@@ -31,6 +31,7 @@ thiserror = { workspace = true }
 # HTTP types
 http = { workspace = true }
 http-body = { workspace = true }
+http-body-util = { workspace = true }
 
 # Async utilities
 async-trait = { workspace = true }
@@ -40,6 +41,25 @@ futures-util = { workspace = true }
 # Concurrency
 dashmap = { workspace = true }
 parking_lot = { version = "0.12" }
+
+# URL encoding
+urlencoding = { workspace = true }
+
+# Regex
+regex = { workspace = true }
+
+# Compression
+flate2 = { workspace = true }
+
+# Encoding
+base64 = { workspace = true }
+
+# Random
+rand = { workspace = true }
+
+# Crypto for JWT
+sha2 = { workspace = true }
+hmac = { workspace = true }
 
 # Metrics
 metrics = { workspace = true, optional = true }

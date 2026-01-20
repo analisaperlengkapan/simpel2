@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
 
-use crate::error::AuthencError;
+use super::error::AuthencError;
 
 // Local result type for middleware that can return Response errors
 
@@ -63,19 +63,18 @@ pub async fn auth_middleware(
 }
 
 /// Extract and validate the JWT token
-fn validate_token(token: &str, _secret: &str) -> Result<AuthUser, AuthencError> {
-    // Use Ed25519 JWT verification
-    let claims = crate::utils::crypto::jwt::verify_jwt(token).map_err(|e| {
+fn validate_token(token: &str, secret: &str) -> Result<AuthUser, AuthencError> {
+    // Use types JWT verification
+    let claims = crate::types::jwt::verify_jwt(token, secret.as_bytes()).map_err(|e| {
         error!("JWT validation failed: {}", e);
         AuthencError::unauthorized("Invalid token")
     })?;
 
     // For now, create a basic AuthUser from the claims
-    // TODO: In the future, we should store more user info in JWT or fetch from DB
     Ok(AuthUser {
         id: claims.sub,
-        email: "user@example.com".to_string(), // TODO: Get from JWT or DB
-        roles: vec!["user".to_string()],       // TODO: Get from JWT or DB
+        email: claims.email,
+        roles: claims.roles,
     })
 }
 
@@ -246,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_user_extension() {
-        use crate::utils::crypto::jwt::generate_jwt;
+        use crate::types::jwt::generate_jwt;
 
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
@@ -265,7 +264,14 @@ mod tests {
             .layer(axum::middleware::from_fn_with_state(state, auth_middleware));
 
         // Generate a valid JWT token
-        let token = generate_jwt("test-user-id").expect("Failed to generate token");
+        let token = generate_jwt(
+            "test-user-id",
+            "user@example.com",
+            &["user".to_string()],
+            b"test-secret",
+            3600,
+        )
+        .expect("Failed to generate token");
 
         let response = app
             .oneshot(
@@ -292,7 +298,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_require_auth_extension() {
-        use crate::utils::crypto::jwt::generate_jwt;
+        use crate::types::jwt::generate_jwt;
 
         let state = Arc::new(AuthState {
             jwt_secret: "test-secret".to_string(),
@@ -325,7 +331,14 @@ mod tests {
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
         // Test with valid authentication
-        let token = generate_jwt("test-user-id").expect("Failed to generate token");
+        let token = generate_jwt(
+            "test-user-id",
+            "user@example.com",
+            &["user".to_string()],
+            b"test-secret",
+            3600,
+        )
+        .expect("Failed to generate token");
 
         let response = app
             .oneshot(

@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 
-use secreton_crypto::{
+use lib_crypto::{
     AlgorithmId, CryptoError, SecurityParams,
     encryption::{Aes256GcmCipher, ChaCha20Poly1305Cipher, SymmetricCipher},
     generate_random_bytes,

@@ -317,10 +317,10 @@ pub fn check_password_history(
 
     // Check if password matches any in history
     for hash in password_history.iter().take(check_count) {
-        if let Ok(matches) = verify_password(hash, password) {
-            if matches {
-                return true;
-            }
+        if let Ok(matches) = verify_password(hash, password)
+            && matches
+        {
+            return true;
         }
     }
 
