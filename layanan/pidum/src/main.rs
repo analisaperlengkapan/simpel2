@@ -1,17 +1,19 @@
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
+use std::env;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
-use std::env;
 
 mod handlers;
 mod models;
 
-use handlers::{AppState, create_perkara, get_perkara_detail, list_perkara, add_comment, get_timeline};
+use handlers::{
+    AppState, add_comment, create_perkara, get_perkara_detail, get_timeline, list_perkara,
+};
 
 #[tokio::main]
 async fn main() {
@@ -57,7 +59,10 @@ async fn main() {
         .route("/api/v1/pidum/health", get(health_check))
         .route("/api/v1/pidum/status", get(status))
         // Perkara routes
-        .route("/api/v1/pidum/perkara", get(list_perkara).post(create_perkara))
+        .route(
+            "/api/v1/pidum/perkara",
+            get(list_perkara).post(create_perkara),
+        )
         .route("/api/v1/pidum/perkara/:id", get(get_perkara_detail))
         .route("/api/v1/pidum/perkara/:id/comments", post(add_comment))
         .route("/api/v1/pidum/perkara/:id/timeline", get(get_timeline))

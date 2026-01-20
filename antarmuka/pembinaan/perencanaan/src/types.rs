@@ -1,6 +1,6 @@
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{NaiveDate, DateTime, Utc};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ApiErrorResponse {

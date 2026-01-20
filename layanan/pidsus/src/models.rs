@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use garde::Validate;
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use postgres_types::{ToSql, FromSql};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSql, FromSql)]
 #[postgres(name = "special_crime_type")]

@@ -25,11 +25,15 @@ impl PidmilService {
         self.repo.get_case_by_id(id).await
     }
 
-    pub async fn create_suspect(&self, case_id: Uuid, req: CreateSuspectRequest) -> Result<MilitarySuspect> {
+    pub async fn create_suspect(
+        &self,
+        case_id: Uuid,
+        req: CreateSuspectRequest,
+    ) -> Result<MilitarySuspect> {
         if let Some(_) = self.repo.get_case_by_id(case_id).await? {
-             self.repo.create_suspect(case_id, req).await
+            self.repo.create_suspect(case_id, req).await
         } else {
-             Err(anyhow::anyhow!("Case not found"))
+            Err(anyhow::anyhow!("Case not found"))
         }
     }
 

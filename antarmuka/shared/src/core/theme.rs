@@ -24,7 +24,6 @@ impl ThemeMode {
             Self::System => "system",
         }
     }
-
 }
 
 impl std::str::FromStr for ThemeMode {

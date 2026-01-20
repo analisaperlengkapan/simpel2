@@ -11,11 +11,11 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
 // Import application modules
+pub mod api;
 pub mod app;
 pub mod components;
 pub mod pages;
 pub mod types;
-pub mod api;
 
 // Re-export the main App component
 pub use app::App;

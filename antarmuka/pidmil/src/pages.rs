@@ -1,7 +1,7 @@
+use crate::api::{CreateCasePayload, create_case, fetch_cases};
 use crate::types::*;
-use leptos::prelude::*;
-use crate::api::{fetch_cases, create_case, CreateCasePayload};
 use chrono::Utc;
+use leptos::prelude::*;
 
 // ... [Keep existing dumb components like MilitaryHeader, CaseStatusBadge, etc.]
 // I will just paste them back or import them if I could split the file, but for now I will paste the whole file content
@@ -162,7 +162,10 @@ pub fn MilitaryActionButton(
 
 /// Progress Bar Component
 #[component]
-pub fn ProgressBar(#[prop()] percentage: u8, #[prop(optional)] color: Option<String>) -> impl IntoView {
+pub fn ProgressBar(
+    #[prop()] percentage: u8,
+    #[prop(optional)] color: Option<String>,
+) -> impl IntoView {
     let color_class = color.unwrap_or_else(|| "red".to_string());
     let progress_class = format!("bg-{color_class}-600");
     let bg_class = format!("bg-{color_class}-200");
@@ -192,11 +195,8 @@ pub fn PidmilDashboard() -> impl IntoView {
     });
 
     // Use LocalResource for fetching recent cases
-    let cases_resource = LocalResource::new(
-        move || async move {
-            fetch_cases().await.unwrap_or_default()
-        }
-    );
+    let cases_resource =
+        LocalResource::new(move || async move { fetch_cases().await.unwrap_or_default() });
 
     view! {
         <div class="space-y-6">
@@ -284,18 +284,13 @@ pub fn PidmilDashboard() -> impl IntoView {
 #[component]
 pub fn PidmilKasus() -> impl IntoView {
     // Resource for cases
-    let cases_resource = LocalResource::new(
-        move || async move {
-            fetch_cases().await.unwrap_or_default()
-        }
-    );
+    let cases_resource =
+        LocalResource::new(move || async move { fetch_cases().await.unwrap_or_default() });
 
     // Action for creating a case
     let create_case_action = Action::new_local(|input: &CreateCasePayload| {
         let payload = input.clone();
-        async move {
-            create_case(payload).await
-        }
+        async move { create_case(payload).await }
     });
 
     view! {
@@ -475,7 +470,7 @@ pub fn PidmilLaporan() -> impl IntoView {
 #[component]
 pub fn PidmilPenyidikan() -> impl IntoView {
     // Mock data
-     let (investigations, _set_investigations) = signal(vec![Investigation {
+    let (investigations, _set_investigations) = signal(vec![Investigation {
         id: "1".to_string(),
         case_id: "PIDMIL-2024-001".to_string(),
         investigator_name: "Mayor CPI Budi Santoso".to_string(),
