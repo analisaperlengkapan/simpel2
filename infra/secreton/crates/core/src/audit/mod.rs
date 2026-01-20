@@ -187,11 +187,46 @@ pub struct AuditLog {
 }
 
 /// Status of an audited action
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuditStatus {
     Success,
     Failure,
     Denied,
+}
+
+/// Query parameters for audit logs
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct AuditQuery {
+    pub action: Option<String>,
+    pub actor: Option<String>,
+    pub resource_type: Option<String>,
+    pub resource_id: Option<String>,
+    pub status: Option<AuditStatus>,
+    pub start_time: Option<chrono::DateTime<Utc>>,
+    pub end_time: Option<chrono::DateTime<Utc>>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+impl AuditQuery {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn action(mut self, action: impl Into<String>) -> Self {
+        self.action = Some(action.into());
+        self
+    }
+
+    pub fn actor(mut self, actor: impl Into<String>) -> Self {
+        self.actor = Some(actor.into());
+        self
+    }
+
+    pub fn status(mut self, status: AuditStatus) -> Self {
+        self.status = Some(status);
+        self
+    }
 }
 
 /// Audit error type
@@ -199,12 +234,23 @@ pub enum AuditStatus {
 pub enum AuditError {
     #[error("Audit logging failed: {0}")]
     LoggingError(String),
+    #[error("Audit query failed: {0}")]
+    QueryError(String),
 }
 
 /// Trait for audit log backends
 #[async_trait::async_trait]
 pub trait AuditBackend: Send + Sync + 'static {
     async fn log(&self, entry: AuditLog) -> Result<(), AuditError>;
+
+    /// Query audit logs
+    ///
+    /// Default implementation returns "not supported"
+    async fn query(&self, _query: &AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        Err(AuditError::QueryError(
+            "Query not supported by this backend".to_string(),
+        ))
+    }
 }
 
 /// In-memory audit log backend (for testing/demo)
@@ -218,6 +264,56 @@ impl AuditBackend for MemoryBackend {
     async fn log(&self, entry: AuditLog) -> Result<(), AuditError> {
         self.logs.write().push(entry);
         Ok(())
+    }
+
+    async fn query(&self, query: &AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        let logs = self.logs.read();
+        let filtered: Vec<AuditLog> = logs
+            .iter()
+            .filter(|entry| {
+                if let Some(action) = &query.action {
+                    if entry.action != *action {
+                        return false;
+                    }
+                }
+                if let Some(actor) = &query.actor {
+                    if entry.actor.as_ref() != Some(actor) {
+                        return false;
+                    }
+                }
+                if let Some(resource_type) = &query.resource_type {
+                    if entry.resource_type != *resource_type {
+                        return false;
+                    }
+                }
+                if let Some(resource_id) = &query.resource_id {
+                    if entry.resource_id != *resource_id {
+                        return false;
+                    }
+                }
+                if let Some(status) = &query.status {
+                    if entry.status != *status {
+                        return false;
+                    }
+                }
+                if let Some(start_time) = &query.start_time {
+                    if entry.timestamp < *start_time {
+                        return false;
+                    }
+                }
+                if let Some(end_time) = &query.end_time {
+                    if entry.timestamp > *end_time {
+                        return false;
+                    }
+                }
+                true
+            })
+            .skip(query.offset.unwrap_or(0))
+            .take(query.limit.unwrap_or(usize::MAX))
+            .cloned()
+            .collect();
+
+        Ok(filtered)
     }
 }
 
@@ -252,6 +348,22 @@ impl AuditLogger {
         }
 
         Ok(())
+    }
+
+    /// Query audit logs
+    pub async fn query(&self, query: &AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        for backend in &self.backends {
+            match backend.query(query).await {
+                Ok(logs) => return Ok(logs),
+                Err(AuditError::QueryError(_)) => continue, // Try next backend
+                Err(e) => return Err(e),                    // Propagate other errors
+            }
+        }
+
+        // If no backend supports query or all failed with QueryError
+        Err(AuditError::QueryError(
+            "No backend supports querying".to_string(),
+        ))
     }
 
     /// Log a namespace-scoped audit event
@@ -376,5 +488,86 @@ impl AuditLogBuilder {
             namespace: self.namespace,
             metadata: self.metadata,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_memory_backend_query() {
+        let backend = MemoryBackend::default();
+
+        // Add some logs
+        let log1 = AuditLog {
+            id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            action: "login".to_string(),
+            actor: Some("user1".to_string()),
+            resource_type: "auth".to_string(),
+            resource_id: "session1".to_string(),
+            status: AuditStatus::Success,
+            ip: Some("127.0.0.1".to_string()),
+            user_agent: None,
+            namespace: None,
+            metadata: HashMap::new(),
+        };
+
+        let log2 = AuditLog {
+            id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            action: "read".to_string(),
+            actor: Some("user1".to_string()),
+            resource_type: "secret".to_string(),
+            resource_id: "secret1".to_string(),
+            status: AuditStatus::Success,
+            ip: Some("127.0.0.1".to_string()),
+            user_agent: None,
+            namespace: None,
+            metadata: HashMap::new(),
+        };
+
+        let log3 = AuditLog {
+            id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            action: "login".to_string(),
+            actor: Some("user2".to_string()),
+            resource_type: "auth".to_string(),
+            resource_id: "session2".to_string(),
+            status: AuditStatus::Failure,
+            ip: Some("127.0.0.2".to_string()),
+            user_agent: None,
+            namespace: None,
+            metadata: HashMap::new(),
+        };
+
+        backend.log(log1).await.unwrap();
+        backend.log(log2).await.unwrap();
+        backend.log(log3).await.unwrap();
+
+        // Query by actor
+        let query = AuditQuery::new().actor("user1");
+        let results = backend.query(&query).await.unwrap();
+        assert_eq!(results.len(), 2);
+
+        // Query by action
+        let query = AuditQuery::new().action("login");
+        let results = backend.query(&query).await.unwrap();
+        assert_eq!(results.len(), 2);
+
+        // Query by status
+        let query = AuditQuery::new().status(AuditStatus::Failure);
+        let results = backend.query(&query).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].actor, Some("user2".to_string()));
+
+        // Query with limit
+        let query = AuditQuery {
+            limit: Some(1),
+            ..Default::default()
+        };
+        let results = backend.query(&query).await.unwrap();
+        assert_eq!(results.len(), 1);
     }
 }

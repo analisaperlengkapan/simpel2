@@ -683,7 +683,9 @@ impl ServiceContainer {
         pool: deadpool_postgres::Pool,
     ) -> Self {
         let crypto = Arc::new(CryptoEngine::new());
-        let audit = Arc::new(AuditLogger::new(vec![]));
+        // Use MemoryBackend for mock audit logs
+        let memory_backend = Arc::new(secreton_core::audit::MemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![memory_backend]));
 
         let seal_config = SealConfig {
             seal_type: "shamir".to_string(),

@@ -66,19 +66,59 @@ pub fn create_routes() -> Router<AppState> {
 pub struct AuditQuery {
     pub user_id: Option<String>,
     pub action: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+    pub status: Option<String>,
 }
 
 pub async fn get_audit_logs(
-    State(_state): State<AppState>,
-    Query(_query): Query<AuditQuery>,
+    State(state): State<AppState>,
+    Query(query): Query<AuditQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<AuditLog>>>> {
-    // TODO: Implement audit log retrieval with filtering
-    // Currently the AuditLogger only supports writing logs, not querying them
-    // Need to implement audit backend with query capabilities
-    let entries: Vec<AuditLog> = vec![];
-    Ok(Json(ApiResponse::success(entries)))
+    let mut core_query = secreton_core::audit::AuditQuery::new();
+
+    if let Some(user_id) = query.user_id {
+        core_query = core_query.actor(user_id);
+    }
+    if let Some(action) = query.action {
+        core_query = core_query.action(action);
+    }
+    if let Some(start_time) = query.start_time {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
+            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
+        }
+    }
+    if let Some(end_time) = query.end_time {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
+            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
+        }
+    }
+    if let Some(status) = query.status {
+        let status = match status.to_lowercase().as_str() {
+            "success" => Some(secreton_core::audit::AuditStatus::Success),
+            "failure" => Some(secreton_core::audit::AuditStatus::Failure),
+            "denied" => Some(secreton_core::audit::AuditStatus::Denied),
+            _ => None,
+        };
+        if let Some(s) = status {
+            core_query = core_query.status(s);
+        }
+    }
+    // Enforce default limit to prevent DoS (default 100, max 1000)
+    core_query.limit = Some(query.limit.unwrap_or(100).min(1000));
+    core_query.offset = query.offset;
+
+    let logs = state
+        .audit
+        .query(&core_query)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+
+    Ok(Json(ApiResponse::success(logs)))
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,17 +126,95 @@ pub struct AuditExportQuery {
     pub format: Option<String>,
     pub user_id: Option<String>,
     pub action: Option<String>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+    pub status: Option<String>,
+    pub limit: Option<usize>,
 }
 
 pub async fn export_audit_logs(
-    State(_state): State<AppState>,
-    Query(_query): Query<AuditExportQuery>,
+    State(state): State<AppState>,
+    Query(query): Query<AuditExportQuery>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    // TODO: Implement audit log export with filtering and format conversion
-    // Currently the AuditLogger only supports writing logs, not exporting them
-    // Need to implement audit backend with export capabilities
-    let data = String::from("[]");
+    let mut core_query = secreton_core::audit::AuditQuery::new();
+
+    if let Some(user_id) = query.user_id {
+        core_query = core_query.actor(user_id);
+    }
+    if let Some(action) = query.action {
+        core_query = core_query.action(action);
+    }
+    if let Some(start_time) = query.start_time {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&start_time) {
+            core_query.start_time = Some(dt.with_timezone(&chrono::Utc));
+        }
+    }
+    if let Some(end_time) = query.end_time {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&end_time) {
+            core_query.end_time = Some(dt.with_timezone(&chrono::Utc));
+        }
+    }
+    if let Some(status) = query.status {
+        let status = match status.to_lowercase().as_str() {
+            "success" => Some(secreton_core::audit::AuditStatus::Success),
+            "failure" => Some(secreton_core::audit::AuditStatus::Failure),
+            "denied" => Some(secreton_core::audit::AuditStatus::Denied),
+            _ => None,
+        };
+        if let Some(s) = status {
+            core_query = core_query.status(s);
+        }
+    }
+    // Enforce default limit to prevent DoS (default 1000, max 10000 for export)
+    core_query.limit = Some(query.limit.unwrap_or(1000).min(10000));
+
+    let logs = state
+        .audit
+        .query(&core_query)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+
+    let format = query.format.unwrap_or_else(|| "json".to_string());
+    let data = match format.to_lowercase().as_str() {
+        "csv" => {
+            let mut csv = String::from("id,timestamp,action,actor,resource_type,resource_id,status,ip,user_agent\n");
+            for log in logs {
+                let status_str = match log.status {
+                    secreton_core::audit::AuditStatus::Success => "success",
+                    secreton_core::audit::AuditStatus::Failure => "failure",
+                    secreton_core::audit::AuditStatus::Denied => "denied",
+                };
+                csv.push_str(&format!(
+                    "{},{},{},{},{},{},{},{},{}\n",
+                    log.id,
+                    log.timestamp.to_rfc3339(),
+                    escape_csv(&log.action),
+                    escape_csv(log.actor.as_deref().unwrap_or("")),
+                    escape_csv(&log.resource_type),
+                    escape_csv(&log.resource_id),
+                    status_str,
+                    escape_csv(log.ip.as_deref().unwrap_or("")),
+                    escape_csv(log.user_agent.as_deref().unwrap_or(""))
+                ));
+            }
+            csv
+        }
+        _ => serde_json::to_string_pretty(&logs).map_err(|e| ApiError::Internal {
+            message: format!("Failed to serialize logs: {}", e),
+        })?,
+    };
+
     Ok(Json(ApiResponse::success(data)))
+}
+
+fn escape_csv(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -106,6 +224,64 @@ mod tests {
     use crate::services::ServiceContainer;
     use axum_test::TestServer;
     use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_export_audit_logs_direct() {
+        use secreton_storage::MemoryBackend;
+
+        // Create dummy pool (mock logic inside ServiceContainer or irrelevant)
+        let config = tokio_postgres::Config::new();
+        let mgr_config = deadpool_postgres::ManagerConfig {
+            recycling_method: deadpool_postgres::RecyclingMethod::Verified,
+        };
+        let mgr =
+            deadpool_postgres::Manager::from_config(config, tokio_postgres::NoTls, mgr_config);
+        let pool = deadpool_postgres::Pool::builder(mgr)
+            .max_size(1)
+            .build()
+            .unwrap();
+
+        // Create services
+        let storage = Arc::new(MemoryBackend::new());
+        let services = Arc::new(ServiceContainer::new_mock(storage, pool));
+
+        // Log some events
+        let log = secreton_core::audit::AuditLog {
+            id: uuid::Uuid::new_v4(),
+            timestamp: chrono::Utc::now(),
+            action: "test_action".to_string(),
+            actor: Some("test_user".to_string()),
+            resource_type: "test".to_string(),
+            resource_id: "123".to_string(),
+            status: secreton_core::audit::AuditStatus::Success,
+            ip: None,
+            user_agent: None,
+            namespace: None,
+            metadata: HashMap::new(),
+        };
+        services.audit.log(log).await.unwrap();
+
+        // Call handler
+        let query = AuditExportQuery {
+            format: Some("csv".to_string()),
+            user_id: None,
+            action: None,
+            start_time: None,
+            end_time: None,
+            status: None,
+            limit: None,
+        };
+
+        let result = export_audit_logs(State(services), Query(query)).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        let body = response.0;
+        assert!(body.success);
+        let csv = body.data.unwrap();
+        assert!(csv.contains("test_action"));
+        assert!(csv.contains("test_user"));
+        assert!(csv.contains("success"));
+    }
 
     async fn server_with_routes() -> TestServer {
         let config = ApiConfig::default();
