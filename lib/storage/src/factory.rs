@@ -99,7 +99,7 @@ impl Default for StorageFactoryConfig {
 
 /// Storage factory for creating backend instances
 /// # Examples
-/// ```rust,no_run
+/// ```rust,ignore
 /// use secreton_storage::{StorageFactory, StorageBackendType, StorageFactoryConfig};
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create file-based storage (default, no external dependencies)

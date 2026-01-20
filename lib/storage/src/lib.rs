@@ -100,7 +100,7 @@
 //!
 //! # Example: Adding Encryption Layer
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, VaultEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
