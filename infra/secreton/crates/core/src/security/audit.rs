@@ -542,55 +542,6 @@ impl AdvancedAuditSystem {
         Ok(event_id)
     }
 
-    /// Create and sign an audit entry for digital signature verification and audit integrity
-    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
-        // Get next sequence number
-        let sequence_number = {
-            let mut counter = self.sequence_counter.lock().unwrap();
-            *counter += 1;
-            *counter
-        };
-
-        // Get previous entry hash for chain integrity
-        let previous_hash = if sequence_number > 1 {
-            match self
-                .storage
-                .retrieve_entries(sequence_number - 1, sequence_number - 1)
-                .await
-            {
-                Ok(entries) if !entries.is_empty() => entries[0].entry_hash.clone(),
-                _ => vec![0; 32], // Genesis hash
-            }
-        } else {
-            vec![0; 32] // Genesis hash
-        };
-
-        // Create entry hash
-        let entry_data =
-            serde_json::to_vec(&event).map_err(|e| SecurityAuditError::SerializationError {
-                message: e.to_string(),
-            })?;
-
-        let mut hasher = Sha256::new();
-        hasher.update(&entry_data);
-        hasher.update(&previous_hash);
-        hasher.update(sequence_number.to_le_bytes());
-        hasher.update(self.node_id.as_bytes());
-        let entry_hash = hasher.finalize().to_vec();
-
-        // Sign the entry
-        let signature = self.signing_key.sign(&entry_hash).as_ref().to_vec();
-
-        Ok(SignedAuditEntry {
-            event,
-            sequence_number,
-            previous_hash,
-            entry_hash,
-            signature,
-            node_id: self.node_id.clone(),
-        })
-    }
-
     /// Verify the integrity of an audit entry
     pub fn verify_entry(&self, entry: &SignedAuditEntry) -> Result<bool, SecurityAuditError> {
         // Verify signature

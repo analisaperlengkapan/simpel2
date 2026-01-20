@@ -40,6 +40,7 @@ rustls-native-certs.workspace = true
 # Cryptography
 argon2.workspace = true
 rand.workspace = true
+ring.workspace = true
 x509-parser.workspace = true
 aes-gcm.workspace = true
 sha2.workspace = true

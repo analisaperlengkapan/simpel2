@@ -218,8 +218,7 @@
 /// Optimized traits
 pub mod optimized_traits;
 
-// TODO: audit needs missing dependencies (ring, sha2, zeroize)
-// pub mod audit;
+pub mod audit;
 
 pub mod fips_compliance;
 
