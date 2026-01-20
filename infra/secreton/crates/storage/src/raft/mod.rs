@@ -51,7 +51,7 @@ impl StorageBackend for RaftCluster {
 
     async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
         let response = self
-            .propose_command(StateMachineCommand::DeleteById(id))
+            .propose_command(StateMachineCommand::Delete(id))
             .await?;
         match response {
             StateMachineResponse::Deleted(deleted) => Ok(deleted),
@@ -100,15 +100,44 @@ impl StorageBackend for RaftCluster {
 
     async fn health_check(&self) -> StorageResult<HealthStatus> {
         let metrics = self.raft.metrics().borrow().clone();
-        let is_healthy = metrics.state != openraft::ServerState::Shutdown;
+        let mut is_healthy = metrics.state != openraft::ServerState::Shutdown;
+
+        let start = std::time::Instant::now();
+        // Ping the cluster by ensuring linearizability (read consistency)
+        // This confirms we are connected to the leader and can process reads
+        // Add a timeout to prevent hanging if the cluster is unresponsive
+        let ping_result = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            self.raft.ensure_linearizable(),
+        )
+        .await;
+
+        let response_time_ms = start.elapsed().as_secs_f64() * 1000.0;
+        let mut error_msg = None;
+
+        match ping_result {
+            Ok(Ok(_)) => {
+                // Success - linearizable read confirmed
+            }
+            Ok(Err(e)) => {
+                // Raft internal error
+                is_healthy = false;
+                error_msg = Some(e.to_string());
+            }
+            Err(_) => {
+                // Timeout
+                is_healthy = false;
+                error_msg = Some("Health check timed out after 3s".to_string());
+            }
+        }
 
         Ok(HealthStatus {
             is_healthy,
-            response_time_ms: 0.0, // TODO: Measure ping time
+            response_time_ms,
             connections_active: 0,
             connections_idle: 0,
-            last_error: None,
-            uptime_seconds: 0, // TODO: Track uptime
+            last_error: error_msg,
+            uptime_seconds: 0, // TODO: Track uptime (requires start time field in RaftCluster)
         })
     }
 
