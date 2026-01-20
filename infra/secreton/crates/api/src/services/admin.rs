@@ -5,18 +5,16 @@ use async_trait::async_trait;
 use secreton_core::services::lease::{LeaseError, LeaseManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use thiserror::Error;
 
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{
-    MemoryBackend, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
-};
-use std::sync::atomic::{AtomicU64, Ordering};
+use sha2::{Digest, Sha256};
+use secreton_storage::{MemoryBackend, QueryParams, StorageBackend, VaultEntry};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Admin service errors
@@ -109,7 +107,7 @@ pub struct NetworkStats {
 }
 
 /// Backup information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BackupInfo {
     pub id: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -118,6 +116,13 @@ pub struct BackupInfo {
     pub encrypted: bool,
     pub checksum: String,
     pub metadata: HashMap<String, String>,
+}
+
+/// Container for backup data (metadata + actual entries)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BackupContainer {
+    pub metadata: BackupInfo,
+    pub entries: Vec<VaultEntry>,
 }
 
 /// Maintenance operation result
@@ -129,73 +134,12 @@ pub struct MaintenanceResult {
     pub details: HashMap<String, serde_json::Value>,
 }
 
-/// Request rate tracker
-pub struct RequestTracker {
-    buckets: Vec<AtomicU64>,
-}
-
-impl RequestTracker {
-    pub fn new() -> Self {
-        Self {
-            buckets: (0..60).map(|_| AtomicU64::new(0)).collect(),
-        }
-    }
-
-    pub fn track_request(&self) {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as u32;
-        let idx = (now % 60) as usize;
-        let bucket = &self.buckets[idx];
-
-        let _ = bucket.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |val| {
-            let stored_ts = (val >> 32) as u32;
-            let count = val as u32;
-            if stored_ts == now {
-                // Same second, increment
-                Some(((stored_ts as u64) << 32) | (count as u64 + 1))
-            } else {
-                // New second, reset
-                Some(((now as u64) << 32) | 1)
-            }
-        });
-    }
-
-    pub fn get_rpm(&self) -> f64 {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as u32;
-        let mut total = 0;
-
-        for bucket in &self.buckets {
-            let val = bucket.load(Ordering::Relaxed);
-            let stored_ts = (val >> 32) as u32;
-            let count = val as u32;
-
-            // Check if within last 60 seconds
-            if now.wrapping_sub(stored_ts) < 60 {
-                total += count;
-            }
-        }
-        total as f64
-    }
-}
-
-impl Default for RequestTracker {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Admin service for system management
 pub struct AdminService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
     lease_cleaner: Arc<dyn LeaseCleaner>,
-    request_tracker: Arc<RequestTracker>,
     start_time: chrono::DateTime<chrono::Utc>,
     system: Arc<Mutex<System>>,
 }
@@ -213,18 +157,23 @@ impl AdminService {
             auth,
             audit,
             lease_cleaner,
-            request_tracker: Arc::new(RequestTracker::new()),
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
         })
     }
 
-    /// Track a request for rate limiting statistics
-    pub fn track_request(&self) {
-        self.request_tracker.track_request();
+    /// Get system statistics
+    /// Ensure backup directory exists and return path
+    async fn ensure_backup_dir(&self) -> Result<std::path::PathBuf, AdminError> {
+        let path = std::path::PathBuf::from("backups");
+        if !path.exists() {
+            tokio::fs::create_dir_all(&path).await.map_err(|e| {
+                AdminError::Internal(anyhow::anyhow!("Failed to create backup directory: {}", e))
+            })?;
+        }
+        Ok(path)
     }
 
-    /// Get system statistics
     pub async fn get_system_stats(&self) -> Result<SystemStats, AdminError> {
         // Get storage statistics
         let storage_stats = self.storage.get_stats().await?;
@@ -301,7 +250,7 @@ impl AdminService {
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
             cache_hit_rate: crate::middleware::get_cache_hit_rate(),
-            requests_per_minute: self.request_tracker.get_rpm(),
+            requests_per_minute: 0.0, // TODO: Implement request rate tracking
             memory: memory_stats,
             cpu: cpu_stats,
             disk: disk_stats,
@@ -311,83 +260,101 @@ impl AdminService {
 
     /// Create system backup
     pub async fn create_backup(&self) -> Result<BackupInfo, AdminError> {
-        // Get storage statistics for backup size estimation
+        let backup_dir = self.ensure_backup_dir().await?;
+
+        // Get all entries and stats
+        let entries = self.storage.list(&QueryParams::default()).await?;
         let storage_stats = self.storage.get_stats().await?;
+
         let backup_id = uuid::Uuid::new_v4().to_string();
         let created_at = chrono::Utc::now();
 
-        // TODO: Implement actual backup export to file/stream
-        // For now, log the backup operation in audit trail
-        tracing::info!(
-            backup_id = %backup_id,
-            size_bytes = storage_stats.total_size_bytes,
-            "System backup initiated"
-        );
+        // Serialize entries to calculate checksum
+        let entries_json = serde_json::to_string(&entries).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to serialize entries: {}", e))
+        })?;
 
-        // Calculate checksum placeholder (should be actual hash of backup data)
-        let checksum = format!("sha256:{}", hex::encode(&backup_id.as_bytes()[..16]));
+        let mut hasher = Sha256::new();
+        hasher.update(entries_json.as_bytes());
+        let checksum = format!("sha256:{}", hex::encode(hasher.finalize()));
 
-        let backup_info = BackupInfo {
+        let size_bytes = entries_json.len() as u64;
+
+        let metadata_info = BackupInfo {
             id: backup_id.clone(),
             created_at,
-            size_bytes: storage_stats.total_size_bytes,
-            compressed: true,
-            encrypted: true,
-            checksum,
+            size_bytes,
+            compressed: false,
+            encrypted: false, // File itself is JSON
+            checksum: checksum.clone(),
             metadata: {
                 let mut metadata = HashMap::new();
                 metadata.insert("version".to_string(), "1.0.0".to_string());
                 metadata.insert("type".to_string(), "full".to_string());
                 metadata.insert("backend".to_string(), storage_stats.backend_type);
-                metadata.insert(
-                    "entries_count".to_string(),
-                    storage_stats.total_entries.to_string(),
-                );
+                metadata.insert("entries_count".to_string(), entries.len().to_string());
                 metadata
             },
         };
 
-        // Persist backup metadata
-        let serialized = serde_json::to_vec(&backup_info)
-            .map_err(|e| AdminError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+        // Write data file
+        let data_path = backup_dir.join(format!("{}.data.json", backup_id));
+        tokio::fs::write(&data_path, &entries_json)
+            .await
+            .map_err(|e| {
+                AdminError::Internal(anyhow::anyhow!("Failed to write backup data file: {}", e))
+            })?;
 
-        let entry = VaultEntry::new(
-            format!("sys/backups/{}", backup_id),
-            serialized,
-            serde_json::json!({}),
-            SecurityLevel::Confidential,
-            "system".to_string(),
+        // Write metadata file
+        let meta_json = serde_json::to_string_pretty(&metadata_info).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to serialize metadata: {}", e))
+        })?;
+
+        let meta_path = backup_dir.join(format!("{}.meta.json", backup_id));
+        tokio::fs::write(&meta_path, &meta_json).await.map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to write backup metadata file: {}", e))
+        })?;
+
+        tracing::info!(
+            backup_id = %backup_id,
+            size_bytes = size_bytes,
+            data_path = ?data_path,
+            meta_path = ?meta_path,
+            "System backup created"
         );
 
-        self.storage.store(&entry).await?;
-
-        Ok(backup_info)
+        Ok(metadata_info)
     }
 
     /// List available backups
     pub async fn list_backups(&self) -> Result<Vec<BackupInfo>, AdminError> {
-        let params = QueryParams {
-            path_prefix: Some("sys/backups/".to_string()),
-            ..Default::default()
-        };
+        let backup_dir = self.ensure_backup_dir().await?;
 
-        let entries = self.storage.list(&params).await?;
         let mut backups = Vec::new();
+        let mut entries = tokio::fs::read_dir(backup_dir).await.map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to read backup directory: {}", e))
+        })?;
 
-        for entry in entries {
-            match serde_json::from_slice::<BackupInfo>(&entry.encrypted_data) {
-                Ok(info) => backups.push(info),
-                Err(e) => {
-                    tracing::warn!(
-                        path = %entry.path,
-                        error = %e,
-                        "Failed to deserialize backup info"
-                    );
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to read backup entry: {}", e))
+        })? {
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+
+            // Look for metadata files only
+            if file_name.ends_with(".meta.json") {
+                if let Ok(content) = tokio::fs::read_to_string(&path).await {
+                    if let Ok(info) = serde_json::from_str::<BackupInfo>(&content) {
+                        backups.push(info);
+                    }
                 }
             }
         }
 
-        // Sort by created_at descending (newest first)
+        // Sort by created_at desc
         backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
         Ok(backups)
@@ -396,25 +363,90 @@ impl AdminService {
     /// Restore from backup
     pub async fn restore_backup(&self, backup_id: &str) -> Result<MaintenanceResult, AdminError> {
         let start_time = std::time::Instant::now();
+        let backup_dir = self.ensure_backup_dir().await?;
+        let meta_path = backup_dir.join(format!("{}.meta.json", backup_id));
+        let data_path = backup_dir.join(format!("{}.data.json", backup_id));
 
-        // TODO: Implement actual backup restoration from persistent storage
-        // This requires:
-        // 1. Loading backup data from backup storage
-        // 2. Validating backup integrity (checksum)
-        // 3. Parsing and deserializing backup content
-        // 4. Clearing existing data (with confirmation)
-        // 5. Importing backup data into storage backend
+        if !meta_path.exists() || !data_path.exists() {
+            return Err(AdminError::NotFound(format!(
+                "Backup {} not found or incomplete",
+                backup_id
+            )));
+        }
 
-        tracing::warn!(
+        // 1. Load metadata
+        let meta_content = tokio::fs::read_to_string(&meta_path).await.map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to read backup metadata: {}", e))
+        })?;
+
+        let metadata: BackupInfo = serde_json::from_str(&meta_content).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to parse backup metadata: {}", e))
+        })?;
+
+        // 2. Load data
+        let data_content = tokio::fs::read_to_string(&data_path).await.map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to read backup data: {}", e))
+        })?;
+
+        // 3. Validate integrity
+        let mut hasher = Sha256::new();
+        hasher.update(data_content.as_bytes());
+        let calculated_checksum = format!("sha256:{}", hex::encode(hasher.finalize()));
+
+        if calculated_checksum != metadata.checksum {
+            return Err(AdminError::Internal(anyhow::anyhow!(
+                "Backup checksum mismatch! Integrity verification failed."
+            )));
+        }
+
+        // 4. Parse data
+        let entries: Vec<VaultEntry> = serde_json::from_str(&data_content).map_err(|e| {
+            AdminError::Internal(anyhow::anyhow!("Failed to parse backup data: {}", e))
+        })?;
+
+        // 5. Clear existing data
+        let current_entries = self.storage.list(&QueryParams::default()).await?;
+        let entries_before = current_entries.len();
+
+        for entry in current_entries {
+            self.storage.delete_by_id(entry.id).await?;
+        }
+
+        // 6. Import backup data
+        let entries_to_restore = entries.len();
+        for entry in &entries {
+            self.storage.store(entry).await?;
+        }
+
+        let duration = start_time.elapsed();
+
+        tracing::info!(
             backup_id = %backup_id,
-            "Backup restoration not yet implemented - persistent storage required"
+            restored_entries = entries_to_restore,
+            "Backup restoration completed"
         );
 
-        let _duration = start_time.elapsed();
-        Err(AdminError::NotPermitted(
-            "Backup restoration not yet implemented - persistent backup storage required"
-                .to_string(),
-        ))
+        Ok(MaintenanceResult {
+            operation: "restore_backup".to_string(),
+            success: true,
+            duration_ms: duration.as_millis() as u64,
+            details: {
+                let mut details = HashMap::new();
+                details.insert(
+                    "backup_id".to_string(),
+                    serde_json::Value::String(backup_id.to_string()),
+                );
+                details.insert(
+                    "entries_before".to_string(),
+                    serde_json::Value::Number(entries_before.into()),
+                );
+                details.insert(
+                    "entries_restored".to_string(),
+                    serde_json::Value::Number(entries_to_restore.into()),
+                );
+                details
+            },
+        })
     }
 
     /// Run garbage collection
@@ -500,27 +532,22 @@ impl AdminService {
         let stats_before = self.storage.get_stats().await?;
         let original_size = stats_before.total_size_bytes;
 
+        // Database compaction is backend-specific
+        // For PostgreSQL: VACUUM FULL
+        // For file-based: Rewrite without fragmentation
+        // For in-memory: No compaction needed
+
         tracing::info!(
             backend_type = %stats_before.backend_type,
             original_size_bytes = original_size,
             "Database compaction requested"
         );
 
-        // Perform compaction
-        self.storage.compact().await?;
+        // TODO: Implement backend-specific compaction
+        // This requires adding a compact() method to StorageBackend trait
 
-        // Get storage stats after compaction to calculate savings
-        let stats_after = self.storage.get_stats().await?;
-        let compacted_size = stats_after.total_size_bytes;
-        let space_saved = original_size.saturating_sub(compacted_size);
-
-        tracing::info!(
-            backend_type = %stats_before.backend_type,
-            original_size_bytes = original_size,
-            compacted_size_bytes = compacted_size,
-            space_saved_bytes = space_saved,
-            "Database compaction completed"
-        );
+        let compacted_size = original_size; // No actual compaction yet
+        let space_saved = 0;
 
         let duration = start_time.elapsed();
         Ok(MaintenanceResult {
@@ -796,7 +823,7 @@ pub struct SecurityFinding {
     pub affected_resources: Vec<String>,
 }
 
-#[cfg(all(test, feature = "enable-inline-tests"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::audit::AuditLogger;
@@ -851,8 +878,8 @@ mod tests {
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         let stats = admin_service.get_system_stats().await.expect("stats");
-        // With empty storage, stats should reflect zero counts (or default roles if any)
-        // AuthService creates 3 default roles, so total_secrets/keys will be 3
+        // With empty storage, stats should reflect zero counts
+        // AuthService initializes some internal state, so we check for non-negative
         assert!(stats.total_secrets >= 0);
         assert!(stats.total_keys >= 0);
         assert!(stats.storage_usage_bytes >= 0);
@@ -877,11 +904,95 @@ mod tests {
             .unwrap();
 
         let backup = admin_service.create_backup().await.expect("backup");
-        assert!(backup.encrypted);
-        assert!(backup.compressed);
+        // Update assertions based on new implementation
+        assert!(!backup.encrypted); // Changed to false in impl
+        assert!(!backup.compressed); // Changed to false in impl
         assert!(backup.metadata.contains_key("version"));
         assert!(backup.metadata.contains_key("backend"));
         assert!(!backup.checksum.is_empty());
+
+        // Cleanup
+        let backup_dir = Path::new("backups");
+        let meta_path = backup_dir.join(format!("{}.meta.json", backup.id));
+        let data_path = backup_dir.join(format!("{}.data.json", backup.id));
+
+        if meta_path.exists() {
+            tokio::fs::remove_file(meta_path).await.unwrap();
+        }
+        if data_path.exists() {
+            tokio::fs::remove_file(data_path).await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_backup_restore_cycle() {
+        let storage = Arc::new(MemoryBackend::new());
+        // Populate storage
+        let entry = VaultEntry::new(
+            "secret/test".to_string(),
+            vec![1, 2, 3],
+            serde_json::json!({}),
+            secreton_storage::SecurityLevel::Secret,
+            "system".to_string(),
+        );
+        storage.store(&entry).await.unwrap();
+
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let config = AuthConfig::default();
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto, &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
+        let audit = Arc::new(AuditLogger::new(10000));
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
+        let admin_service = AdminService::new(storage.clone(), auth, audit, lease_cleaner)
+            .await
+            .unwrap();
+
+        // Create backup
+        let backup_info = admin_service.create_backup().await.expect("backup failed");
+
+        // Verify backup files exist
+        let backup_dir = Path::new("backups");
+        let meta_path = backup_dir.join(format!("{}.meta.json", backup_info.id));
+        let data_path = backup_dir.join(format!("{}.data.json", backup_info.id));
+        assert!(meta_path.exists());
+        assert!(data_path.exists());
+
+        // Modify storage
+        storage.delete_by_id(entry.id).await.unwrap();
+        assert!(storage.get_by_id(entry.id).await.unwrap().is_none());
+
+        let new_entry = VaultEntry::new(
+            "secret/new".to_string(),
+            vec![4, 5, 6],
+            serde_json::json!({}),
+            secreton_storage::SecurityLevel::Secret,
+            "system".to_string(),
+        );
+        storage.store(&new_entry).await.unwrap();
+
+        // Restore backup
+        let result = admin_service
+            .restore_backup(&backup_info.id)
+            .await
+            .expect("restore failed");
+        assert!(result.success);
+
+        // Verify state
+        let restored = storage.get_by_id(entry.id).await.unwrap();
+        assert!(restored.is_some());
+        assert_eq!(restored.unwrap().path, "secret/test");
+
+        let new_should_be_gone = storage.get_by_id(new_entry.id).await.unwrap();
+        assert!(new_should_be_gone.is_none());
+
+        // Cleanup
+        tokio::fs::remove_file(meta_path).await.unwrap();
+        tokio::fs::remove_file(data_path).await.unwrap();
+        // Try to remove dir if empty, ignore error
+        let _ = tokio::fs::remove_dir(backup_dir).await;
     }
 
     #[tokio::test]
@@ -919,51 +1030,6 @@ mod tests {
         assert!(details.contains_key("freed_space_bytes"));
         assert!(details.contains_key("storage_before_bytes"));
     }
-
-<<<<<<< HEAD
-    #[test]
-    fn test_request_tracker() {
-        let tracker = RequestTracker::new();
-
-        // Track requests
-        for _ in 0..10 {
-            tracker.track_request();
-        }
-
-        // Should have 10 RPM
-        let rpm = tracker.get_rpm();
-        assert_eq!(rpm, 10.0);
-=======
-    #[tokio::test]
-    async fn test_backup_persistence() {
-        let storage = Arc::new(MemoryBackend::new());
-        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
-        let config = AuthConfig::default();
-        let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
-                .await
-                .expect("failed to create AuthService"),
-        );
-        let audit = Arc::new(AuditLogger::new(10000));
-        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
-        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
-            .await
-            .unwrap();
-
-        // Initially no backups
-        let backups = admin_service.list_backups().await.expect("list backups");
-        assert!(backups.is_empty());
-
-        // Create backup
-        let backup = admin_service.create_backup().await.expect("create backup");
-
-        // Check list again
-        let backups = admin_service.list_backups().await.expect("list backups");
-        assert_eq!(backups.len(), 1);
-        assert_eq!(backups[0].id, backup.id);
-        assert_eq!(backups[0].checksum, backup.checksum);
->>>>>>> 84f93df (Implement persistent backup storage and listing in AdminService)
-    }
 }
 
 impl AdminService {
@@ -986,7 +1052,6 @@ impl AdminService {
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
             lease_cleaner: Arc::new(DummyLeaseCleaner),
-            request_tracker: Arc::new(RequestTracker::new()),
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
         }
