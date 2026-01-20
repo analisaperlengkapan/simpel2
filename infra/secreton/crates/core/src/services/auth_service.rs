@@ -1,7 +1,7 @@
 //! Authentication service for user management and token validation.
 
 use anyhow::Result;
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -336,11 +336,13 @@ impl AuthService {
 
     /// Validate access token
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
-        use jsonwebtoken::{decode, DecodingKey, Validation};
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
-        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
-            |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
-        )?);
+        let mut validation = Validation::new(
+            Algorithm::from_str(&self.config.jwt.algorithm).map_err(|e| {
+                AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e))
+            })?,
+        );
 
         // Validation requires setting audience and issuer
         validation.set_audience(&[&self.config.jwt.audience]);
@@ -349,8 +351,8 @@ impl AuthService {
         // DecodingKey from secret
         let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
 
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .map_err(|e| match e.kind() {
+        let token_data =
+            decode::<Claims>(token, &decoding_key, &validation).map_err(|e| match e.kind() {
                 jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
                 _ => AuthError::InvalidToken,
             })?;
@@ -376,8 +378,8 @@ impl AuthService {
             full_name: claims.full_name,
             is_active: claims.is_active,
             is_superuser: claims.is_superuser,
-            created_at: chrono::Utc::now(), // Approximation
-            updated_at: chrono::Utc::now(), // Approximation
+            created_at: chrono::Utc::now(),       // Approximation
+            updated_at: chrono::Utc::now(),       // Approximation
             last_login: Some(chrono::Utc::now()), // Active now
             mfa_enabled: claims.mfa_enabled,
             roles: claims.roles.into_iter().collect(),
@@ -475,11 +477,13 @@ impl AuthService {
 
     /// Get user by ID
     pub async fn get_user(&self, user_id: &str) -> Result<User, AuthError> {
-        let uuid = Uuid::parse_str(user_id)
-            .map_err(|_| AuthError::UserNotFound)?;
+        let uuid = Uuid::parse_str(user_id).map_err(|_| AuthError::UserNotFound)?;
 
         let path = format!("auth/users/{}", uuid);
-        let entry = self.storage.get_by_path(&path).await
+        let entry = self
+            .storage
+            .get_by_path(&path)
+            .await
             .map_err(|e| AuthError::Internal(format!("Failed to retrieve user: {}", e)))?;
 
         match entry {
@@ -491,16 +495,23 @@ impl AuthService {
     /// Get user by username
     pub async fn get_user_by_username(&self, username: &str) -> Result<User, AuthError> {
         let path = format!("auth/usernames/{}", username);
-        let index_entry = self.storage.get_by_path(&path).await
-            .map_err(|e| AuthError::Internal(format!("Failed to retrieve user index: {}", e)))?;
+        let index_entry =
+            self.storage.get_by_path(&path).await.map_err(|e| {
+                AuthError::Internal(format!("Failed to retrieve user index: {}", e))
+            })?;
 
         match index_entry {
             Some(entry) => {
-                let uuid_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
-                    .map_err(|e| AuthError::Internal(format!("Failed to decrypt user index: {}", e)))?;
+                let uuid_bytes =
+                    self.crypto
+                        .decrypt_simple(&entry.encrypted_data)
+                        .map_err(|e| {
+                            AuthError::Internal(format!("Failed to decrypt user index: {}", e))
+                        })?;
 
-                let uuid_str = String::from_utf8(uuid_bytes)
-                    .map_err(|e| AuthError::Internal(format!("Invalid UUID string in index: {}", e)))?;
+                let uuid_str = String::from_utf8(uuid_bytes).map_err(|e| {
+                    AuthError::Internal(format!("Invalid UUID string in index: {}", e))
+                })?;
 
                 self.get_user(&uuid_str).await
             }
@@ -580,7 +591,10 @@ impl AuthService {
                 "Role '{}' not found",
                 role_name
             ))),
-            Err(e) => Err(AuthError::Internal(format!("Failed to retrieve role: {}", e))),
+            Err(e) => Err(AuthError::Internal(format!(
+                "Failed to retrieve role: {}",
+                e
+            ))),
         }
     }
 
@@ -696,9 +710,12 @@ impl AuthService {
                 1,
                 30,
                 Secret::Raw(secret_str.into_bytes()).to_bytes().unwrap(),
-            ).unwrap();
+            )
+            .unwrap();
 
-            let valid = totp.check_current(code).map_err(|e| AuthError::Internal(format!("Failed to verify code: {}", e)))?;
+            let valid = totp
+                .check_current(code)
+                .map_err(|e| AuthError::Internal(format!("Failed to verify code: {}", e)))?;
             if valid {
                 Ok(())
             } else {
@@ -707,7 +724,9 @@ impl AuthService {
         } else {
             // If MFA is enabled but no secret is found, we cannot verify the code.
             // This is a system inconsistency or setup issue.
-            Err(AuthError::Internal("MFA enabled but no secret found".to_string()))
+            Err(AuthError::Internal(
+                "MFA enabled but no secret found".to_string(),
+            ))
         }
     }
 
@@ -715,29 +734,40 @@ impl AuthService {
     async fn get_mfa_secret(&self, user_id: &str) -> Result<Option<String>, AuthError> {
         let path = format!("sys/mfa/{}/totp", user_id);
 
-        if let Some(entry) = self.storage.get_by_path(&path).await.map_err(|e| AuthError::Internal(e.to_string()))? {
+        if let Some(entry) = self
+            .storage
+            .get_by_path(&path)
+            .await
+            .map_err(|e| AuthError::Internal(e.to_string()))?
+        {
             // Derive key using PBKDF2 with user ID as salt
             let key = secreton_crypto::key_derivation::derive_key_pbkdf2(
                 self.config.jwt.secret.as_bytes(),
                 user_id.as_bytes(),
                 10000,
-                32
-            ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+                32,
+            )
+            .map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
 
             // Decrypt the secret
             let encrypted = secreton_crypto::EncryptedData {
                 algorithm: AlgorithmId::Aes256Gcm, // Assuming AES-256-GCM as standard
-                nonce: entry.encryption_metadata["nonce"].as_str()
+                nonce: entry.encryption_metadata["nonce"]
+                    .as_str()
                     .and_then(|s| hex::decode(s).ok())
                     .unwrap_or_default(),
                 ciphertext: entry.encrypted_data,
                 tag: None,
             };
 
-            let secret_bytes = self.crypto.decrypt(&encrypted, &key)
+            let secret_bytes = self
+                .crypto
+                .decrypt(&encrypted, &key)
                 .map_err(|e| AuthError::Internal(format!("Decryption failed: {}", e)))?;
 
-            Ok(Some(String::from_utf8(secret_bytes).map_err(|_| AuthError::Internal("Invalid UTF-8 in secret".to_string()))?))
+            Ok(Some(String::from_utf8(secret_bytes).map_err(|_| {
+                AuthError::Internal("Invalid UTF-8 in secret".to_string())
+            })?))
         } else {
             Ok(None)
         }
@@ -752,11 +782,14 @@ impl AuthService {
             self.config.jwt.secret.as_bytes(),
             user_id.as_bytes(),
             10000,
-            32
-        ).map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
+            32,
+        )
+        .map_err(|e| AuthError::Internal(format!("Key derivation failed: {}", e)))?;
 
         // Encrypt secret
-        let encrypted = self.crypto.encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
+        let encrypted = self
+            .crypto
+            .encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
             .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
 
         let entry = VaultEntry::new(
@@ -770,15 +803,17 @@ impl AuthService {
             "system".to_string(),
         );
 
-        self.storage.store(&entry).await.map_err(|e| AuthError::Internal(e.to_string()))?;
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(|e| AuthError::Internal(e.to_string()))?;
         Ok(())
     }
 
     /// Create access token (JWT)
     fn create_access_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
         let now = chrono::Utc::now();
-        let expiration = now
-            + chrono::Duration::seconds(self.config.jwt.expiration as i64);
+        let expiration = now + chrono::Duration::seconds(self.config.jwt.expiration as i64);
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
@@ -817,8 +852,7 @@ impl AuthService {
     /// Create refresh token
     fn create_refresh_token(&self, user: &User, session_id: &str) -> Result<String, AuthError> {
         let now = chrono::Utc::now();
-        let expiration = now
-            + chrono::Duration::seconds(self.config.jwt.refresh_expiration as i64);
+        let expiration = now + chrono::Duration::seconds(self.config.jwt.refresh_expiration as i64);
 
         let mut roles: Vec<String> = user.roles.iter().cloned().collect();
         roles.sort();
@@ -867,12 +901,16 @@ impl AuthService {
     async fn store_user(&self, user: &User) -> Result<(), AuthError> {
         // Store user entry
         let entry = self.encrypt_user(user)?;
-        self.storage.store(&entry).await
+        self.storage
+            .store(&entry)
+            .await
             .map_err(|e| AuthError::Internal(format!("Failed to store user: {}", e)))?;
 
         // Store username index
         let uuid_bytes = user.id.to_string().into_bytes();
-        let encrypted_uuid = self.crypto.encrypt_simple(&uuid_bytes)
+        let encrypted_uuid = self
+            .crypto
+            .encrypt_simple(&uuid_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user index: {}", e)))?;
 
         let index_entry = VaultEntry::new(
@@ -883,7 +921,9 @@ impl AuthService {
             "system".to_string(),
         );
 
-        self.storage.store(&index_entry).await
+        self.storage
+            .store(&index_entry)
+            .await
             .map_err(|e| AuthError::Internal(format!("Failed to store user index: {}", e)))?;
         Ok(())
     }
@@ -922,8 +962,9 @@ impl AuthService {
 
     /// Update last login timestamp
     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
-        // TODO: Implement last login update
-        Ok(())
+        let mut user = self.get_user(user_id).await?;
+        user.last_login = Some(chrono::Utc::now());
+        self.store_user(&user).await
     }
 
     /// Count total users
@@ -955,7 +996,9 @@ impl AuthService {
         let user_bytes = serde_json::to_vec(&stored_user)
             .map_err(|e| AuthError::Internal(format!("Failed to serialize user: {}", e)))?;
 
-        let encrypted_data = self.crypto.encrypt_simple(&user_bytes)
+        let encrypted_data = self
+            .crypto
+            .encrypt_simple(&user_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user: {}", e)))?;
 
         let entry = VaultEntry::new(
@@ -971,7 +1014,9 @@ impl AuthService {
 
     /// Decrypt user from storage
     fn decrypt_user(&self, entry: VaultEntry) -> Result<User, AuthError> {
-        let decrypted_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+        let decrypted_bytes = self
+            .crypto
+            .decrypt_simple(&entry.encrypted_data)
             .map_err(|e| AuthError::Internal(format!("Failed to decrypt user: {}", e)))?;
 
         let stored_user: StoredUser = serde_json::from_slice(&decrypted_bytes)
