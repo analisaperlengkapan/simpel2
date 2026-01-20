@@ -89,6 +89,7 @@ mod tests {
                 None,
                 vec!["user".to_string()],
                 None,
+                true,
             )
             .await;
 
@@ -116,6 +117,7 @@ mod tests {
             None,
             vec!["user".to_string()],
             None,
+            true,
         ).await.expect("Failed to create user");
 
         let app = create_routes()

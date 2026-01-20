@@ -106,15 +106,13 @@ pub type AppState = Arc<ServiceContainer>;
 // Re-export common types
 pub use secret::ListQuery;
 
-/// Create the complete router by combining protected and unprotected routes
+/// Create the complete API router
 pub fn create_router(
     config: &ApiConfig,
     services: Arc<ServiceContainer>,
 ) -> Router {
-    let protected = create_protected_router(config, services.clone());
-    let unprotected = create_unprotected_router(config, services);
-
-    protected.merge(unprotected)
+    create_protected_router(config, services.clone())
+        .merge(create_unprotected_router(config, services))
 }
 
 /// Create the main application router for protected routes
