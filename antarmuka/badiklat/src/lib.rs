@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::all)]
+
 //! # SIMPelv2 Badiklat - Training & Education System
 //!
 //! Modern Leptos 0.7.8 microfrontend for Kejaksaan RI training management.
