@@ -3,6 +3,10 @@
 //! Microservice untuk dashboard, analytics, dan real-time metrics
 //! untuk semua unit kerja dalam superapp SIMPelv2
 
+#![allow(deprecated)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 mod aggregator;
 mod analytics;
 mod charts;

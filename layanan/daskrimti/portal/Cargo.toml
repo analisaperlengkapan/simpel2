@@ -72,3 +72,5 @@ charts = []
 name = "simpelv2-portal"
 path = "src/main.rs"
 
+[build-dependencies]
+tonic-prost-build = { workspace = true }
