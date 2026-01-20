@@ -374,11 +374,11 @@ pub fn create_satker_routes() -> Router<Arc<SatkerAppState>> {
         // Satker CRUD
         .route("/satkers", get(list_satkers))
         .route("/satkers", post(create_satker))
-        .route("/satkers/:code", get(get_satker))
-        .route("/satkers/:code", put(update_satker))
+        .route("/satkers/{code}", get(get_satker))
+        .route("/satkers/{code}", put(update_satker))
         .route("/satkers/roots", get(get_root_satkers))
         // Hierarchy queries
-        .route("/satkers/:code/hierarchy", get(get_satker_hierarchy))
+        .route("/satkers/{code}/hierarchy", get(get_satker_hierarchy))
         // Authorization checks
         .route("/satkers/check-access", post(check_satker_access))
         .route(
@@ -386,11 +386,11 @@ pub fn create_satker_routes() -> Router<Arc<SatkerAppState>> {
             post(validate_cross_satker_operation),
         )
         .route(
-            "/satkers/users/:user_id/accessible",
+            "/satkers/users/{user_id}/accessible",
             get(get_accessible_satkers),
         )
         .route(
-            "/satkers/users/:user_id/can-manage/:satker_code",
+            "/satkers/users/{user_id}/can-manage/{satker_code}",
             get(check_satker_management),
         )
 }

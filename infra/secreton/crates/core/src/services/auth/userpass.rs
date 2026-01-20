@@ -126,7 +126,7 @@ impl UserPassUser {
     pub fn verify_password(&self, password: &str) -> Result<bool, UserPassError> {
         use secreton_crypto::hashing::password::verify_password_argon2;
 
-        verify_password_argon2(&self.password_hash, password)
+        verify_password_argon2(password, &self.password_hash)
             .map_err(|e| UserPassError::HashingError(e.to_string()))
     }
 

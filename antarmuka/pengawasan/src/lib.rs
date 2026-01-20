@@ -1,10 +1,14 @@
-use leptos::prelude::*;
-use leptos_router::{components::{Router, Routes, Route}, path};
 use crate::pages::{dashboard::Dashboard, schedules::Schedules};
+use leptos::prelude::*;
+use leptos_router::{
+    components::{Route, Router, Routes},
+    path,
+};
 
 pub mod api;
 pub mod components;
 pub mod pages;
+pub mod types;
 
 #[component]
 pub fn App() -> impl IntoView {

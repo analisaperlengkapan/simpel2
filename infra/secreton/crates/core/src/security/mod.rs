@@ -218,8 +218,10 @@
 /// Optimized traits
 pub mod optimized_traits;
 
+// Audit module - enhanced with HMAC chain for tamper-proof storage
 pub mod audit;
 
+// FIPS 140-3 compliance module for government security standards
 pub mod fips_compliance;
 
 // TODO: seal_wrapping needs missing dependencies (ring, flate2, fips_compliance)

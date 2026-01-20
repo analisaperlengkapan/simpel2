@@ -658,21 +658,23 @@ async fn evaluate_sentinel_policy(
             continue;
         }
 
-        // Check for explicit allow/deny
-        if line.contains("allow") || line.contains("pass") || line == "true" {
-            debug!(
-                "Sentinel policy '{}' allows access (found: {})",
-                policy.name, line
-            );
-            return true;
-        }
-
-        if line.contains("deny") || line.contains("fail") || line == "false" {
-            debug!(
-                "Sentinel policy '{}' denies access (found: {})",
-                policy.name, line
-            );
-            return false;
+        // Check for context conditions FIRST (before allow/deny)
+        if line.contains("context.") {
+            if let Some(ctx) = context {
+                if !evaluate_context_condition(line, ctx) {
+                    debug!(
+                        "Sentinel policy '{}' context condition failed: {}",
+                        policy.name, line
+                    );
+                    return false;
+                }
+            } else {
+                debug!(
+                    "Sentinel policy '{}' requires context but none provided",
+                    policy.name
+                );
+                return false;
+            }
         }
 
         // Check for path matching
@@ -713,23 +715,21 @@ async fn evaluate_sentinel_policy(
             continue;
         }
 
-        // Check for context conditions
-        if line.contains("context.") {
-            if let Some(ctx) = context {
-                if !evaluate_context_condition(line, ctx) {
-                    debug!(
-                        "Sentinel policy '{}' context condition failed: {}",
-                        policy.name, line
-                    );
-                    continue;
-                }
-            } else {
-                debug!(
-                    "Sentinel policy '{}' requires context but none provided",
-                    policy.name
-                );
-                return false;
-            }
+        // Check for explicit allow/deny (checked AFTER conditions)
+        if line.contains("allow") || line.contains("pass") || line == "true" {
+            debug!(
+                "Sentinel policy '{}' allows access (found: {})",
+                policy.name, line
+            );
+            return true;
+        }
+
+        if line.contains("deny") || line.contains("fail") || line == "false" {
+            debug!(
+                "Sentinel policy '{}' denies access (found: {})",
+                policy.name, line
+            );
+            return false;
         }
     }
 

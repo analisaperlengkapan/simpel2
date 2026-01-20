@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde_json::json;
 use thiserror::Error;
@@ -33,15 +33,24 @@ impl IntoResponse for AppError {
         let (status, message) = match &self {
             AppError::Db(e) => {
                 error!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
-            },
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                )
+            }
             AppError::Pool(e) => {
                 error!("Pool error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database pool error".to_string())
-            },
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database pool error".to_string(),
+                )
+            }
             AppError::Validation(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
-            AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            AppError::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Authentication(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::Authorization(msg) => (StatusCode::FORBIDDEN, msg.clone()),

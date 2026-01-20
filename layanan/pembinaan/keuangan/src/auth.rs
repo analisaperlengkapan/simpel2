@@ -2,7 +2,7 @@ use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts},
 };
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -44,8 +44,7 @@ where
         let token = &auth_str[7..];
 
         // Get JWT secret from environment or config
-        let jwt_secret = std::env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "secret".to_string());
+        let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
 
         let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
         let validation = Validation::new(Algorithm::HS256);

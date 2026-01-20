@@ -3,7 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
-use crate::utils::api::{get_system_metrics, SystemMetrics};
+use crate::utils::api::get_system_metrics;
 use leptos::prelude::*;
 
 /// Dashboard page component - main user dashboard with statistics
@@ -15,9 +15,7 @@ pub fn DashboardPage(
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
     // Resource to fetch real system metrics
-    let metrics_resource = LocalResource::new(
-        move || async move { get_system_metrics().await }
-    );
+    let metrics_resource = LocalResource::new(move || async move { get_system_metrics().await });
 
     // Get current time for greeting
     let greeting = {

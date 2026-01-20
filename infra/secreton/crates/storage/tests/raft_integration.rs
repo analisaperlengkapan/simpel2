@@ -19,6 +19,7 @@ fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterC
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true, // Bootstrap for tests
     }
 }
 
@@ -105,6 +106,7 @@ async fn test_leader_election() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -137,6 +139,7 @@ async fn test_basic_consensus() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;
@@ -174,6 +177,7 @@ async fn test_log_replication() -> StorageResult<()> {
         heartbeat_interval_ms: 150,
         max_payload_entries: 100,
         enable_tick: true,
+        bootstrap: true,
     };
 
     let cluster = RaftCluster::new(config).await?;

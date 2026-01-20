@@ -1,0 +1,432 @@
+# GitLab CI/CD Configuration for Bidirectional Sync with GitHub
+# This file should be included in .gitlab-ci.yml
+#
+# Usage in .gitlab-ci.yml:
+#   include:
+#     - local: '.gitlab/ci/sync-to-github.yml'
+#
+# Required CI/CD Variables (Settings > CI/CD > Variables):
+#   - GITHUB_TOKEN: GitHub PAT with repo and pull_requests:write permissions
+#   - GITHUB_REPO: Repository in format "owner/repo" (e.g., "analisaperlengkapan/simpel2")
+
+# Sync stage definition
+stages:
+  - sync
+
+# Sync configuration variables
+variables:
+  # Sync identification markers
+  SYNC_PREFIX_GITHUB: "[github-sync]"
+  SYNC_PREFIX_GITLAB: "[gitlab-sync]"
+  SYNC_AUTHOR_EMAIL: "gitlab-github-sync@kejaksaan.go.id"
+  SYNC_AUTHOR_NAME: "GitLab-GitHub Sync Bot"
+
+  # GitHub configuration
+  GITHUB_API_URL: "https://api.github.com"
+  GITHUB_REPO: "analisaperlengkapan/simpel2"
+
+# ===========================================================================
+# Job: Sync to GitHub
+# Creates a Pull Request on GitHub when changes are pushed to GitLab main
+# ===========================================================================
+sync-to-github:
+  stage: sync
+  image: alpine:3.19
+
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 100
+
+  before_script:
+    - apk add --no-cache git curl jq openssh-client ca-certificates
+
+  script:
+    - |
+      echo "=========================================="
+      echo "🔄 GitLab → GitHub Bidirectional Sync"
+      echo "=========================================="
+      echo ""
+
+      # ========================================
+      # Step 1: Check if this is a sync commit
+      # ========================================
+      echo "📋 Step 1: Checking commit origin..."
+
+      COMMIT_MSG="$CI_COMMIT_MESSAGE"
+      COMMIT_AUTHOR="$GITLAB_USER_EMAIL"
+
+      echo "  Commit: $CI_COMMIT_SHORT_SHA"
+      echo "  Message: $COMMIT_MSG"
+      echo "  Author: $COMMIT_AUTHOR"
+
+      # Check for sync markers (multiple detection methods)
+      IS_SYNC=false
+
+      # Method 1: Check commit message prefix
+      if echo "$COMMIT_MSG" | grep -q "$SYNC_PREFIX_GITHUB"; then
+        IS_SYNC=true
+        echo ""
+        echo "⏭️ SKIP: Commit contains GitHub sync prefix"
+        exit 0
+      fi
+
+      # Method 2: Check for sync skip directive
+      if echo "$COMMIT_MSG" | grep -qE "\[(ci skip:sync|skip sync)\]"; then
+        IS_SYNC=true
+        echo ""
+        echo "⏭️ SKIP: Commit contains sync skip directive"
+        exit 0
+      fi
+
+      # Method 3: Check if branch is a sync branch
+      if echo "$CI_COMMIT_REF_NAME" | grep -q "^sync/"; then
+        IS_SYNC=true
+        echo ""
+        echo "⏭️ SKIP: This is a sync branch"
+        exit 0
+      fi
+
+      echo "  Origin: ✅ Original commit (not from sync)"
+      echo ""
+
+      # ========================================
+      # Step 2: Configure Git
+      # ========================================
+      echo "📋 Step 2: Configuring Git..."
+
+      git config --global user.email "$SYNC_AUTHOR_EMAIL"
+      git config --global user.name "$SYNC_AUTHOR_NAME"
+      git config --global init.defaultBranch main
+
+      echo "  ✅ Git configured"
+      echo ""
+
+      # ========================================
+      # Step 3: Add GitHub remote
+      # ========================================
+      echo "📋 Step 3: Adding GitHub remote..."
+
+      # Validate GITHUB_TOKEN is set
+      if [ -z "$GITHUB_TOKEN" ]; then
+        echo "  ❌ ERROR: GITHUB_TOKEN is not set"
+        echo "  Please configure GITHUB_TOKEN in CI/CD Variables"
+        exit 1
+      fi
+
+      # Add GitHub remote with token authentication
+      GITHUB_REMOTE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
+      git remote add github "$GITHUB_REMOTE_URL" 2>/dev/null || git remote set-url github "$GITHUB_REMOTE_URL"
+
+      echo "  ✅ GitHub remote added"
+      echo ""
+
+      # ========================================
+      # Step 4: Fetch GitHub main branch
+      # ========================================
+      echo "📋 Step 4: Fetching GitHub main branch..."
+
+      MAX_RETRIES=3
+      RETRY_COUNT=0
+
+      while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if git fetch github main --depth=100 2>&1; then
+          echo "  ✅ Successfully fetched GitHub main"
+          break
+        else
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "  ⚠️ Fetch failed, retry $RETRY_COUNT of $MAX_RETRIES"
+          sleep 5
+        fi
+      done
+
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        echo "  ❌ Failed to fetch GitHub main after $MAX_RETRIES attempts"
+        exit 1
+      fi
+      echo ""
+
+      # ========================================
+      # Step 5: Compare branches
+      # ========================================
+      echo "📋 Step 5: Comparing branches..."
+
+      GITLAB_SHA=$(git rev-parse HEAD)
+      GITHUB_SHA=$(git rev-parse github/main 2>/dev/null || echo "FETCH_FAILED")
+
+      echo "  GitLab main: $GITLAB_SHA"
+      echo "  GitHub main: $GITHUB_SHA"
+
+      if [ "$GITHUB_SHA" = "FETCH_FAILED" ]; then
+        echo ""
+        echo "  ⚠️ Could not determine GitHub main SHA"
+        exit 0
+      fi
+
+      if [ "$GITLAB_SHA" = "$GITHUB_SHA" ]; then
+        echo ""
+        echo "  ✅ Branches are already in sync!"
+        exit 0
+      fi
+
+      # Count commits ahead and behind
+      COMMITS_AHEAD=$(git rev-list --count github/main..HEAD 2>/dev/null || echo "0")
+      COMMITS_BEHIND=$(git rev-list --count HEAD..github/main 2>/dev/null || echo "0")
+
+      echo "  Commits ahead of GitHub: $COMMITS_AHEAD"
+      echo "  Commits behind GitHub: $COMMITS_BEHIND"
+      echo ""
+
+      # ========================================
+      # Step 6: Determine sync action
+      # ========================================
+      echo "📋 Step 6: Determining sync action..."
+
+      if [ "$COMMITS_AHEAD" -gt 0 ] && [ "$COMMITS_BEHIND" -eq 0 ]; then
+        echo "  📤 GitLab is ahead - will create GitHub PR"
+      elif [ "$COMMITS_BEHIND" -gt 0 ] && [ "$COMMITS_AHEAD" -eq 0 ]; then
+        echo "  📥 GitHub is ahead - GitHub workflow will handle this"
+        exit 0
+      else
+        echo "  ⚠️ Branches have DIVERGED"
+        echo "     GitLab unique: $COMMITS_AHEAD commits"
+        echo "     GitHub unique: $COMMITS_BEHIND commits"
+        echo ""
+        echo "  Manual intervention required!"
+        exit 1
+      fi
+      echo ""
+
+      # ========================================
+      # Step 7: Create sync branch
+      # ========================================
+      echo "📋 Step 7: Creating sync branch..."
+
+      TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      SYNC_BRANCH="sync/from-gitlab-${TIMESTAMP}-${CI_PIPELINE_ID}"
+
+      echo "  Branch name: $SYNC_BRANCH"
+
+      git checkout -b "$SYNC_BRANCH"
+
+      echo "  ✅ Sync branch created"
+      echo ""
+
+      # ========================================
+      # Step 8: Push sync branch to GitHub
+      # ========================================
+      echo "📋 Step 8: Pushing sync branch to GitHub..."
+
+      git push github "$SYNC_BRANCH" --force
+
+      echo "  ✅ Sync branch pushed to GitHub"
+      echo ""
+
+      # ========================================
+      # Step 9: Create Pull Request via GitHub API
+      # ========================================
+      echo "📋 Step 9: Creating Pull Request..."
+
+      # Get commit list for PR description
+      COMMIT_LIST=$(git log github/main..HEAD --oneline --no-merges | head -20)
+
+      # Build PR body
+      PR_BODY="## 🔄 Automated Sync from GitLab
+
+      **Source:** GitLab \`main\` branch
+      **Target:** GitHub \`main\` branch
+      **Commits:** ${COMMITS_AHEAD}
+      **Pipeline:** [#${CI_PIPELINE_ID}](${CI_PIPELINE_URL})
+
+      ### Commits Included
+
+      \`\`\`
+      ${COMMIT_LIST}
+      \`\`\`
+
+      ### Original Commit
+
+      - **SHA:** \`${CI_COMMIT_SHA}\`
+      - **Message:** ${CI_COMMIT_TITLE}
+      - **Author:** ${GITLAB_USER_NAME}
+      - **Timestamp:** ${CI_COMMIT_TIMESTAMP}
+
+      ---
+      *This PR was created automatically by the [GitLab bidirectional sync pipeline](${CI_PIPELINE_URL}).*
+
+      **⚠️ Review carefully before merging to ensure no conflicts with GitHub-specific changes.**"
+
+      # Create PR via GitHub API
+      RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n \
+          --arg title "${SYNC_PREFIX_GITLAB} Sync from GitLab (${COMMITS_AHEAD} commits)" \
+          --arg body "$PR_BODY" \
+          --arg head "$SYNC_BRANCH" \
+          --arg base "main" \
+          '{
+            title: $title,
+            body: $body,
+            head: $head,
+            base: $base,
+            maintainer_can_modify: true
+          }'
+        )" \
+        "${GITHUB_API_URL}/repos/${GITHUB_REPO}/pulls")
+
+      HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+      BODY=$(echo "$RESPONSE" | sed '$d')
+
+      echo "  API Response: $HTTP_CODE"
+
+      if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+        PR_URL=$(echo "$BODY" | jq -r '.html_url')
+        PR_NUMBER=$(echo "$BODY" | jq -r '.number')
+
+        echo ""
+        echo "  ✅ Pull Request created successfully!"
+        echo "     URL: $PR_URL"
+        echo "     Number: #$PR_NUMBER"
+
+      elif [ "$HTTP_CODE" -eq 422 ]; then
+        # Check if PR already exists
+        if echo "$BODY" | jq -r '.errors[].message' 2>/dev/null | grep -q "A pull request already exists"; then
+          echo ""
+          echo "  ℹ️ A pull request for this branch already exists"
+
+          # Get existing PR
+          EXISTING_PR=$(curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPO}/pulls?head=${GITHUB_REPO%%/*}:${SYNC_BRANCH}&state=open" \
+            | jq -r '.[0]')
+
+          if [ "$EXISTING_PR" != "null" ] && [ -n "$EXISTING_PR" ]; then
+            PR_URL=$(echo "$EXISTING_PR" | jq -r '.html_url')
+            echo "     Existing PR: $PR_URL"
+          fi
+        else
+          echo ""
+          echo "  ❌ Failed to create Pull Request"
+          echo "     Response: $BODY"
+          exit 1
+        fi
+      else
+        echo ""
+        echo "  ❌ Failed to create Pull Request"
+        echo "     Response: $BODY"
+        exit 1
+      fi
+
+      echo ""
+      echo "=========================================="
+      echo "✅ Sync completed successfully!"
+      echo "=========================================="
+
+  # Add labels to PR if configured
+  after_script:
+    - |
+      if [ -n "$PR_NUMBER" ] && [ -n "$GITHUB_TOKEN" ]; then
+        curl -s -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"labels":["sync","automated","gitlab-origin"]}' \
+          "${GITHUB_API_URL}/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/labels" \
+          || true
+      fi
+
+  rules:
+    # Only run on main branch pushes
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"'
+      when: on_success
+    # Allow manual trigger
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "main"'
+      when: manual
+    # Never run on other branches or scheduled pipelines
+    - when: never
+
+  # Allow failure to not block other jobs
+  allow_failure: true
+
+  # Timeout for the job
+  timeout: 15 minutes
+
+  # Retry configuration
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# ===========================================================================
+# Job: Check Sync Status (Scheduled)
+# Periodically checks if repositories are in sync
+# ===========================================================================
+check-sync-status:
+  stage: sync
+  image: alpine:3.19
+
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 50
+
+  before_script:
+    - apk add --no-cache git curl jq ca-certificates
+
+  script:
+    - |
+      echo "=========================================="
+      echo "📊 Sync Status Check"
+      echo "=========================================="
+      echo ""
+
+      # Configure Git
+      git config --global user.email "$SYNC_AUTHOR_EMAIL"
+      git config --global user.name "$SYNC_AUTHOR_NAME"
+
+      # Add GitHub remote
+      GITHUB_REMOTE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git"
+      git remote add github "$GITHUB_REMOTE_URL" 2>/dev/null || true
+
+      # Fetch both branches
+      git fetch origin main --depth=50
+      git fetch github main --depth=50
+
+      # Compare
+      GITLAB_SHA=$(git rev-parse origin/main)
+      GITHUB_SHA=$(git rev-parse github/main)
+
+      echo "GitLab main: $GITLAB_SHA"
+      echo "GitHub main: $GITHUB_SHA"
+      echo ""
+
+      if [ "$GITLAB_SHA" = "$GITHUB_SHA" ]; then
+        echo "✅ Repositories are IN SYNC"
+      else
+        COMMITS_DIFF=$(git rev-list --count $GITHUB_SHA...$GITLAB_SHA 2>/dev/null || echo "unknown")
+        echo "⚠️ Repositories are OUT OF SYNC"
+        echo "   Commit difference: $COMMITS_DIFF"
+
+        # Check direction
+        if git merge-base --is-ancestor github/main origin/main; then
+          echo "   GitLab is ahead of GitHub"
+        elif git merge-base --is-ancestor origin/main github/main; then
+          echo "   GitHub is ahead of GitLab"
+        else
+          echo "   Branches have diverged"
+        fi
+      fi
+
+  rules:
+    # Run on schedule
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success
+    # Allow manual trigger
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+    - when: never
+
+  allow_failure: true
+  timeout: 5 minutes

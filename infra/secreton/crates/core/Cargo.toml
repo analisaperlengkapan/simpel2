@@ -37,6 +37,9 @@ tokio-postgres-rustls.workspace = true
 rustls.workspace = true
 rustls-native-certs.workspace = true
 
+# Cache
+redis.workspace = true
+
 # Cryptography
 argon2.workspace = true
 rand.workspace = true
@@ -96,10 +99,21 @@ secreton-storage.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 wiremock = "0.6"
+proptest.workspace = true
 
 [features]
 default = []
 test-utils = []
+
+# Forward storage backend features
+postgres = ["secreton-storage/postgres"]
+
+# gRPC utilities (for correlation context integration)
+grpc = []
+
+# WASM policy engine support (future feature)
+# Note: Requires wasmtime dependency when enabled
+wasm = []
 
 # DEPRECATED: Legacy web framework support
 # These features enable deprecated code that depends on web frameworks.

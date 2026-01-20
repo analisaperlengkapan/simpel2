@@ -24,6 +24,7 @@ pub struct RaftClusterConfigBuilder {
     heartbeat_interval_ms: u64,
     max_payload_entries: u64,
     enable_tick: bool,
+    bootstrap: bool,
 }
 
 impl RaftClusterConfigBuilder {
@@ -37,6 +38,7 @@ impl RaftClusterConfigBuilder {
             heartbeat_interval_ms: defaults.heartbeat_interval_ms,
             max_payload_entries: defaults.max_payload_entries,
             enable_tick: defaults.enable_tick,
+            bootstrap: defaults.bootstrap,
         }
     }
 
@@ -64,6 +66,12 @@ impl RaftClusterConfigBuilder {
         self
     }
 
+    /// Set whether to bootstrap this node as initial cluster
+    pub fn bootstrap(mut self, bootstrap: bool) -> Self {
+        self.bootstrap = bootstrap;
+        self
+    }
+
     /// Add a peer to the cluster
     pub fn add_peer(mut self, node_id: NodeId, address: String) -> Self {
         self.peers.insert(node_id, address);
@@ -85,6 +93,7 @@ impl RaftClusterConfigBuilder {
             heartbeat_interval_ms: self.heartbeat_interval_ms,
             max_payload_entries: self.max_payload_entries,
             enable_tick: self.enable_tick,
+            bootstrap: self.bootstrap,
         };
 
         // Validate before returning
@@ -135,10 +144,8 @@ mod tests {
             .build();
 
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("heartbeat_interval_ms must be less than")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("heartbeat_interval_ms must be less than"));
     }
 }

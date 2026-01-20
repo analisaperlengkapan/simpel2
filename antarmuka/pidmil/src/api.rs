@@ -1,5 +1,5 @@
+use crate::types::MilitaryCase;
 use gloo_net::http::Request;
-use crate::types::{MilitaryCase, MilitarySuspect};
 use serde::{Deserialize, Serialize};
 
 // This URL should be configurable, but for now we point to the backend service

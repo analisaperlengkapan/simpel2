@@ -21,9 +21,9 @@ use shared_microfrontend::components::auth::{
 use shared_microfrontend::prelude::*;
 
 // Import local types and api
-use crate::types::*;
 use crate::api::fetch_cases;
 use crate::components::DatunFooter;
+use crate::types::*;
 
 /// Komponen utama aplikasi Datun SIMPelv2
 #[component]
@@ -113,7 +113,10 @@ pub fn DatunDashboard(
     // Stats calculation
     let total_cases = cases.len();
     let total_pemulihan: f64 = cases.iter().filter_map(|c| c.nilai_pemulihan).sum();
-    let on_process = cases.iter().filter(|c| c.status == CaseStatus::Proses).count();
+    let on_process = cases
+        .iter()
+        .filter(|c| c.status == CaseStatus::Proses)
+        .count();
 
     // Group by Service Type
     let grouped_cases = cases.clone().into_iter().fold(

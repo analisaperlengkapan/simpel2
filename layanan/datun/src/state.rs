@@ -1,5 +1,5 @@
+use crate::models::{CaseStatus, DatunCase, ServiceType};
 use std::sync::{Arc, RwLock};
-use crate::models::{DatunCase, ServiceType, CaseStatus};
 
 /// Shared application state
 #[derive(Clone)]
@@ -23,7 +23,8 @@ impl AppState {
                 status: CaseStatus::Proses,
                 tim_jpn: vec!["Andi SH".to_string(), "Budi SH".to_string()],
                 nilai_pemulihan: Some(15_000_000_000.0),
-                posisi_kasus: "Tergugat tidak menyelesaikan pekerjaan sesuai deadline kontrak".to_string(),
+                posisi_kasus: "Tergugat tidak menyelesaikan pekerjaan sesuai deadline kontrak"
+                    .to_string(),
                 updated_at: "2025-02-01T10:00:00Z".to_string(),
             },
             DatunCase {
@@ -65,7 +66,13 @@ impl AppState {
     }
 
     /// Update a case
-    pub fn update_case(&self, id: &str, status: Option<CaseStatus>, tim_jpn: Option<Vec<String>>, nilai: Option<f64>) -> Option<DatunCase> {
+    pub fn update_case(
+        &self,
+        id: &str,
+        status: Option<CaseStatus>,
+        tim_jpn: Option<Vec<String>>,
+        nilai: Option<f64>,
+    ) -> Option<DatunCase> {
         let mut cases = self.cases.write().unwrap();
         if let Some(case) = cases.iter_mut().find(|c| c.id == id) {
             if let Some(s) = status {

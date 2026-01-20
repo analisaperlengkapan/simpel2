@@ -4,7 +4,7 @@
 
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
-use crate::utils::api::{create_secret, delete_secret, list_secrets, SecretListItem, SecretMetadata};
+use crate::utils::api::{SecretMetadata, create_secret, delete_secret, list_secrets};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use std::collections::HashMap;
@@ -19,12 +19,10 @@ pub fn SecretsPage(
 ) -> impl IntoView {
     // Resources
     let (refresh_trigger, set_refresh_trigger) = signal(0);
-    let secrets_resource = LocalResource::new(
-        move || async move {
-            let _ = refresh_trigger.get(); // Depend on signal
-            list_secrets().await
-        }
-    );
+    let secrets_resource = LocalResource::new(move || async move {
+        let _ = refresh_trigger.get(); // Depend on signal
+        list_secrets().await
+    });
 
     // Form State
     let (is_modal_open, set_is_modal_open) = signal(false);
@@ -74,7 +72,9 @@ pub fn SecretsPage(
             {
                 match delete_secret(&path).await {
                     Ok(_) => set_refresh_trigger.update(|n| *n += 1),
-                    Err(e) => { let _ = gloo_utils::window().alert_with_message(&format!("Error: {}", e)); },
+                    Err(e) => {
+                        let _ = gloo_utils::window().alert_with_message(&format!("Error: {}", e));
+                    }
                 }
             }
         });

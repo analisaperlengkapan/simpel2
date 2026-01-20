@@ -739,3 +739,80 @@ impl Default for AwsEngine {
         Self::new()
     }
 }
+
+// Enhanced methods for lease integration
+impl AwsEngine {
+    /// Generate credentials with lease integration
+    pub async fn generate_credentials_with_lease(
+        &self,
+        request: AwsCredentialsRequest,
+        lease_manager: &crate::services::lease::LeaseManager,
+        user: &str,
+    ) -> Result<(AwsCredentials, crate::services::lease::EnhancedLease), AwsError> {
+        // Generate credentials
+        let credentials = self.generate_credentials(request.clone()).await?;
+
+        // Get role for TTL info
+        let role = {
+            let roles = self.roles.read().await;
+            roles
+                .get(&request.role_name)
+                .ok_or_else(|| AwsError::RoleNotFound(request.role_name.clone()))?
+                .clone()
+        };
+
+        let ttl_secs = request.ttl.unwrap_or(role.default_ttl) as i64;
+        let max_ttl = role.max_ttl as i64;
+
+        let resource_path = format!("aws/creds/{}", request.role_name);
+        let lease = lease_manager
+            .create_lease(
+                user,
+                &resource_path,
+                "aws",
+                "default", // namespace
+                ttl_secs,
+                max_ttl,
+                true,                             // renewable
+                None,                             // no parent
+                None,                             // no max_renewals
+                None,                             // no revoke_callback
+                std::collections::HashMap::new(), // empty metadata
+            )
+            .await
+            .map_err(|e| {
+                AwsError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))
+            })?;
+
+        Ok((credentials, lease))
+    }
+
+    /// Revoke credentials with lease
+    pub async fn revoke_credentials_with_lease(
+        &self,
+        lease_id: &str,
+        lease_manager: &crate::services::lease::LeaseManager,
+    ) -> Result<(), AwsError> {
+        // Revoke credentials
+        self.revoke_credentials(lease_id).await?;
+
+        // Revoke lease
+        lease_manager.revoke_lease(lease_id).await.map_err(|e| {
+            AwsError::RevocationFailed(format!("Failed to revoke lease: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    /// List all active credentials
+    pub async fn list_active_credentials(&self) -> Vec<String> {
+        let tracked_users = self.tracked_users.read().await;
+        tracked_users.keys().cloned().collect()
+    }
+
+    /// Get credential details by lease ID
+    pub async fn get_credential_details(&self, lease_id: &str) -> Option<String> {
+        let tracked_users = self.tracked_users.read().await;
+        tracked_users.get(lease_id).map(|user| user.user_name.clone())
+    }
+}

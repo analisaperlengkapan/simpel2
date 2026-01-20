@@ -1,9 +1,9 @@
 use crate::{llm::LlmService, ocr::OcrService, rag::RagService};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
-use dashmap::DashMap;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -13,7 +13,7 @@ pub struct AppState {
     pub ocr_service: OcrService,
     pub rag_service: RagService,
     pub job_queue: Arc<Mutex<JobQueue>>,
-    pub http_client: reqwest::Client,
+    pub model_registry: Arc<RwLock<ModelRegistry>>,
 }
 
 #[derive(Clone, Debug)]
@@ -57,27 +57,21 @@ pub struct ModelMetadata {
 }
 
 pub struct ModelRegistry {
-    pub models: DashMap<String, ModelMetadata>,
-}
-
-impl Default for ModelRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub models: HashMap<String, ModelMetadata>,
 }
 
 impl ModelRegistry {
     pub fn new() -> Self {
-        Self { models: DashMap::new() }
+        Self { models: HashMap::new() }
     }
-    pub fn add_model(&self, meta: ModelMetadata) {
+    pub fn add_model(&mut self, meta: ModelMetadata) {
         self.models.insert(meta.id.clone(), meta);
     }
-    pub fn get_model(&self, id: &str) -> Option<ModelMetadata> {
-        self.models.get(id).map(|m| m.clone())
+    pub fn get_model(&self, id: &str) -> Option<&ModelMetadata> {
+        self.models.get(id)
     }
-    pub fn approve_model(&self, id: &str, user: &str) -> bool {
-        if let Some(mut m) = self.models.get_mut(id) {
+    pub fn approve_model(&mut self, id: &str, user: &str) -> bool {
+        if let Some(m) = self.models.get_mut(id) {
             m.status = "approved".to_string();
             m.approved_by = Some(user.to_string());
             true
@@ -85,5 +79,4 @@ impl ModelRegistry {
             false
         }
     }
-    // dst, bisa dikembangkan
 }

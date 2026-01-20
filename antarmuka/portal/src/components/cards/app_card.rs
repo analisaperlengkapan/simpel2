@@ -34,9 +34,7 @@ pub fn AppCard(
             }
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
-            {
-
-            }
+            {}
         }
     };
 
@@ -56,9 +54,7 @@ pub fn AppCard(
             }
             // Suppress unused variables when not targeting wasm32
             #[cfg(not(target_arch = "wasm32"))]
-            {
-
-            }
+            {}
         }
     };
 

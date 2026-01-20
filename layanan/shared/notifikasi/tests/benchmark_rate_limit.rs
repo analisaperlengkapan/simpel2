@@ -1,8 +1,8 @@
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use dashmap::DashMap;
 use std::time::Instant;
+use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn bench_mutex_vs_dashmap() {
@@ -32,7 +32,6 @@ async fn bench_mutex_vs_dashmap() {
     let duration_mutex = start.elapsed();
     println!("Mutex<HashMap> duration: {:?}", duration_mutex);
 
-
     // DashMap Benchmark
     let dash_map: Arc<DashMap<String, u32>> = Arc::new(DashMap::new());
     let start = Instant::now();
@@ -55,8 +54,14 @@ async fn bench_mutex_vs_dashmap() {
     println!("DashMap duration: {:?}", duration_dashmap);
 
     if duration_dashmap < duration_mutex {
-        println!("Success: DashMap is {:.2}x faster", duration_mutex.as_secs_f64() / duration_dashmap.as_secs_f64());
+        println!(
+            "Success: DashMap is {:.2}x faster",
+            duration_mutex.as_secs_f64() / duration_dashmap.as_secs_f64()
+        );
     } else {
-        println!("Warning: DashMap was not faster (Mutex: {:?}, DashMap: {:?})", duration_mutex, duration_dashmap);
+        println!(
+            "Warning: DashMap was not faster (Mutex: {:?}, DashMap: {:?})",
+            duration_mutex, duration_dashmap
+        );
     }
 }

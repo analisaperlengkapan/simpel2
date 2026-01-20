@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::components::layout::Layout;
+use leptos::prelude::*;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {

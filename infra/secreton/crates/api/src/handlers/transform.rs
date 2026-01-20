@@ -13,7 +13,8 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::transform::{
-    Alphabet, TransformRole, Transformation, TransformationType,
+    Alphabet, MaskingPattern, TokenizationAuditStats, TransformRole, Transformation,
+    TransformationType,
 };
 
 use super::AppState;
@@ -33,6 +34,11 @@ pub fn create_routes() -> Router<AppState> {
         // Encode/Decode operations
         .route("/encode/:role/:transformation", post(encode_value))
         .route("/decode/:role/:transformation", post(decode_value))
+        // Batch operations
+        .route("/batch/encode/:role/:transformation", post(batch_encode_values))
+        .route("/batch/decode/:role/:transformation", post(batch_decode_values))
+        // Audit endpoint
+        .route("/audit", get(get_audit_statistics))
 }
 
 /// Request to create transformation
@@ -44,6 +50,7 @@ pub struct CreateTransformationRequest {
     pub alphabet: Option<Alphabet>,
     pub tweak_source: Option<String>,
     pub masking_char: Option<char>,
+    pub masking_pattern: Option<MaskingPattern>,
 }
 
 /// Request to create role
@@ -66,6 +73,19 @@ pub struct EncodeDecodeResponse {
     pub result: String,
 }
 
+/// Request for batch encode/decode
+#[derive(Debug, Deserialize)]
+pub struct BatchEncodeDecodeRequest {
+    pub values: Vec<String>,
+    pub tweak: Option<String>,
+}
+
+/// Response for batch encode/decode
+#[derive(Debug, Serialize)]
+pub struct BatchEncodeDecodeResponse {
+    pub results: Vec<String>,
+}
+
 /// Create transformation
 /// # Endpoint
 /// `POST /v1/transform/transformation`
@@ -81,6 +101,7 @@ async fn create_transformation(
     transformation.alphabet = request.alphabet;
     transformation.tweak_source = request.tweak_source;
     transformation.masking_char = request.masking_char;
+    transformation.masking_pattern = request.masking_pattern;
 
     match state
         .transform_engine
@@ -270,6 +291,114 @@ async fn decode_value(
         Err(e) => {
             error!("Failed to decode value: {:?}", e);
             Err(ApiError::bad_request(format!("Decode failed: {}", e)))
+        }
+    }
+}
+
+/// Batch encode values
+///
+/// # Endpoint
+/// `POST /v1/transform/batch/encode/:role/:transformation`
+#[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name, count = request.values.len()))]
+async fn batch_encode_values(
+    State(state): State<AppState>,
+    Path((role_name, transformation_name)): Path<(String, String)>,
+    Json(request): Json<BatchEncodeDecodeRequest>,
+) -> ApiResult<Json<ApiResponse<BatchEncodeDecodeResponse>>> {
+    info!(
+        "Batch encoding {} values with role: {}, transformation: {}",
+        request.values.len(),
+        role_name,
+        transformation_name
+    );
+
+    match state
+        .transform_engine
+        .batch_encode(
+            &role_name,
+            &transformation_name,
+            &request.values,
+            request.tweak.as_deref(),
+        )
+        .await
+    {
+        Ok(results) => {
+            info!("Batch encoded {} values successfully", results.len());
+            Ok(Json(ApiResponse::success(BatchEncodeDecodeResponse {
+                results,
+            })))
+        }
+        Err(e) => {
+            error!("Failed to batch encode values: {:?}", e);
+            Err(ApiError::bad_request(format!("Batch encode failed: {}", e)))
+        }
+    }
+}
+
+/// Batch decode values
+///
+/// # Endpoint
+/// `POST /v1/transform/batch/decode/:role/:transformation`
+#[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name, count = request.values.len()))]
+async fn batch_decode_values(
+    State(state): State<AppState>,
+    Path((role_name, transformation_name)): Path<(String, String)>,
+    Json(request): Json<BatchEncodeDecodeRequest>,
+) -> ApiResult<Json<ApiResponse<BatchEncodeDecodeResponse>>> {
+    info!(
+        "Batch decoding {} values with role: {}, transformation: {}",
+        request.values.len(),
+        role_name,
+        transformation_name
+    );
+
+    match state
+        .transform_engine
+        .batch_decode(
+            &role_name,
+            &transformation_name,
+            &request.values,
+            request.tweak.as_deref(),
+        )
+        .await
+    {
+        Ok(results) => {
+            info!("Batch decoded {} values successfully", results.len());
+            Ok(Json(ApiResponse::success(BatchEncodeDecodeResponse {
+                results,
+            })))
+        }
+        Err(e) => {
+            error!("Failed to batch decode values: {:?}", e);
+            Err(ApiError::bad_request(format!("Batch decode failed: {}", e)))
+        }
+    }
+}
+
+/// Get tokenization audit statistics
+///
+/// # Endpoint
+/// `GET /v1/transform/audit`
+#[tracing::instrument(skip(state))]
+async fn get_audit_statistics(
+    State(state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<TokenizationAuditStats>>> {
+    info!("Getting tokenization audit statistics");
+
+    match state.transform_engine.get_audit_statistics().await {
+        Ok(stats) => {
+            info!(
+                "Retrieved audit statistics: {} total tokens",
+                stats.total_tokens
+            );
+            Ok(Json(ApiResponse::success(stats)))
+        }
+        Err(e) => {
+            error!("Failed to get audit statistics: {:?}", e);
+            Err(ApiError::internal(format!(
+                "Failed to get audit statistics: {}",
+                e
+            )))
         }
     }
 }

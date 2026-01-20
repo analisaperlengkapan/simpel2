@@ -66,8 +66,12 @@ impl ServiceType {
 
     pub fn color_class(&self) -> &'static str {
         match self {
-            Self::BantuanHukumLitigasi | Self::BantuanHukumNonLitigasi => "text-blue-600 bg-blue-50",
-            Self::LegalOpinion | Self::LegalAssistance | Self::LegalAudit => "text-purple-600 bg-purple-50",
+            Self::BantuanHukumLitigasi | Self::BantuanHukumNonLitigasi => {
+                "text-blue-600 bg-blue-50"
+            }
+            Self::LegalOpinion | Self::LegalAssistance | Self::LegalAudit => {
+                "text-purple-600 bg-purple-50"
+            }
             Self::PenegakanHukum => "text-red-600 bg-red-50",
             Self::TindakanHukumLain => "text-orange-600 bg-orange-50",
             Self::PelayananHukum => "text-green-600 bg-green-50",

@@ -1,6 +1,6 @@
-use leptos::prelude::*;
 use crate::types::*;
-use wasm_bindgen::events::Event;
+use leptos::prelude::*;
+use web_sys::Event;
 
 /// Header khusus untuk PIDSUS dengan tema merah Kejaksaan
 #[component]

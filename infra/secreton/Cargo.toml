@@ -12,6 +12,7 @@ members = [
     "crates/cli",
     "crates/hsm",
     "crates/grpc",
+    "crates/k8s-operator",
 ]
 
 [workspace.package]
@@ -124,6 +125,11 @@ slog-async = "2.8"
 # CLI
 clap = { version = "4.5.50", features = ["derive"] }
 
+# Kubernetes client
+kube = { version = "0.97", features = ["runtime", "derive", "client", "ws"] }
+k8s-openapi = { version = "0.23", features = ["v1_31"] }
+schemars = "0.8"
+
 # Additional crypto
 pbkdf2 = "0.12"
 hkdf = "0.12"
@@ -177,7 +183,7 @@ totp-rs = { version = "5.7", default-features = false }
 data-encoding = "2.6"
 
 # Format-Preserving Encryption (FPE) - FF3-1 for Transform engine
-fpe = "0.6"
+fpe = "0.6.1"
 
 # SSH key generation and certificate signing
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }
@@ -229,7 +235,7 @@ secreton-grpc = { path = "crates/grpc" }
 
 [package]
 name = "secreton"
-version = "1.0.0"
+version = "0.1.0"
 edition = "2024"
 authors = ["Cipherce Security Team <security@cipherce.io>"]
 license = "Apache-2.0"
@@ -311,6 +317,9 @@ clap.workspace = true
 criterion.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
 
 # Shamir Secret Sharing (for tests)
 num-bigint.workspace = true

@@ -40,6 +40,7 @@ pub enum KeyAlgorithm {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CaType {
     Root,
+    Intermediate,
 }
 
 /// CA Certificate storage
@@ -52,19 +53,29 @@ pub struct CertificateAuthority {
     pub serial_counter: u64,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
+    pub parent_ca: Option<String>, // Name of parent CA for intermediate CAs
 }
 
-/// PKI Role (certificate template)
+/// Certificate template (enhanced PKI role with constraints)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PkiRole {
+pub struct CertificateTemplate {
     pub name: String,
     pub ttl: Duration,
     pub max_ttl: Duration,
     pub allow_any_name: bool,
     pub allowed_domains: Vec<String>,
+    pub key_usage: Vec<String>,
+    pub ext_key_usage: Vec<String>,
+    pub require_cn: bool,
+    pub allow_localhost: bool,
+    pub allow_ip_sans: bool,
+    pub server_flag: bool,
+    pub client_flag: bool,
+    pub code_signing_flag: bool,
+    pub email_protection_flag: bool,
 }
 
-impl Default for PkiRole {
+impl Default for CertificateTemplate {
     fn default() -> Self {
         Self {
             name: String::new(),
@@ -72,9 +83,21 @@ impl Default for PkiRole {
             max_ttl: Duration::days(365),
             allow_any_name: false,
             allowed_domains: Vec::new(),
+            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            ext_key_usage: vec!["ServerAuth".to_string()],
+            require_cn: true,
+            allow_localhost: false,
+            allow_ip_sans: false,
+            server_flag: true,
+            client_flag: false,
+            code_signing_flag: false,
+            email_protection_flag: false,
         }
     }
 }
+
+/// PKI Role (certificate template) - alias for backward compatibility
+pub type PkiRole = CertificateTemplate;
 
 /// Issued certificate response
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,12 +124,49 @@ pub struct RevokedCertificate {
     pub revoked_at: DateTime<Utc>,
 }
 
+/// OCSP certificate status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum OcspStatus {
+    Good,
+    Revoked,
+    Unknown,
+}
+
+/// OCSP response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OcspResponse {
+    pub serial_number: String,
+    pub status: OcspStatus,
+    pub this_update: DateTime<Utc>,
+    pub next_update: DateTime<Utc>,
+    pub revocation_time: Option<DateTime<Utc>>,
+}
+
+/// Certificate renewal configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenewalConfig {
+    pub enabled: bool,
+    pub threshold_days: i64,
+    pub check_interval_seconds: u64,
+}
+
+impl Default for RenewalConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            threshold_days: 30,
+            check_interval_seconds: 3600, // Check every hour
+        }
+    }
+}
+
 /// PKI Secrets Engine
 pub struct PkiEngine {
     cas: Arc<RwLock<HashMap<String, CertificateAuthority>>>,
     roles: Arc<RwLock<HashMap<String, PkiRole>>>,
     issued_certificates: Arc<RwLock<HashMap<String, IssuedCertificate>>>,
     revoked_certificates: Arc<RwLock<HashMap<String, RevokedCertificate>>>,
+    renewal_config: Arc<RwLock<RenewalConfig>>,
 }
 
 impl PkiEngine {
@@ -117,7 +177,108 @@ impl PkiEngine {
             roles: Arc::new(RwLock::new(HashMap::new())),
             issued_certificates: Arc::new(RwLock::new(HashMap::new())),
             revoked_certificates: Arc::new(RwLock::new(HashMap::new())),
+            renewal_config: Arc::new(RwLock::new(RenewalConfig::default())),
         }
+    }
+
+    /// Create new PKI engine with custom renewal configuration
+    pub fn with_renewal_config(renewal_config: RenewalConfig) -> Self {
+        Self {
+            cas: Arc::new(RwLock::new(HashMap::new())),
+            roles: Arc::new(RwLock::new(HashMap::new())),
+            issued_certificates: Arc::new(RwLock::new(HashMap::new())),
+            revoked_certificates: Arc::new(RwLock::new(HashMap::new())),
+            renewal_config: Arc::new(RwLock::new(renewal_config)),
+        }
+    }
+
+    /// Update renewal configuration
+    pub async fn set_renewal_config(&self, config: RenewalConfig) {
+        let mut renewal_config = self.renewal_config.write().await;
+        *renewal_config = config;
+    }
+
+    /// Get renewal configuration
+    pub async fn get_renewal_config(&self) -> RenewalConfig {
+        self.renewal_config.read().await.clone()
+    }
+
+    /// Generate Intermediate CA signed by parent CA
+    pub async fn generate_intermediate_ca(
+        &self,
+        common_name: String,
+        ttl_days: i64,
+        parent_ca_name: &str,
+    ) -> Result<CertificateAuthority, PkiError> {
+        // Get parent CA
+        let mut cas = self.cas.write().await;
+        let parent_ca = cas
+            .get_mut(parent_ca_name)
+            .ok_or_else(|| PkiError::CaNotFound(parent_ca_name.to_string()))?;
+
+        // Parse parent CA key pair
+        let parent_key_pair = KeyPair::from_pem(&parent_ca.private_key_pem).map_err(|e| {
+            PkiError::GenerationFailed(format!("Failed to parse parent CA key: {}", e))
+        })?;
+
+        // Reconstruct parent CA certificate params for signing
+        let mut parent_dn = DistinguishedName::new();
+        parent_dn.push(DnType::CommonName, parent_ca.name.clone());
+
+        let mut parent_params = CertificateParams::default();
+        parent_params.distinguished_name = parent_dn;
+        parent_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+
+        // Reconstruct parent CA certificate
+        let parent_cert = parent_params
+            .self_signed(&parent_key_pair)
+            .map_err(|e| {
+                PkiError::GenerationFailed(format!("Failed to reconstruct parent CA: {}", e))
+            })?;
+
+        // Create intermediate CA distinguished name
+        let mut dn = DistinguishedName::new();
+        dn.push(DnType::CommonName, common_name.clone());
+
+        // Create intermediate CA certificate params with path length constraint
+        let mut params = CertificateParams::default();
+        params.distinguished_name = dn;
+        params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Constrained(0)); // Path length = 0
+
+        // Generate intermediate CA key pair
+        let key_pair = KeyPair::generate().map_err(|e| {
+            PkiError::GenerationFailed(format!("Failed to generate intermediate CA key: {}", e))
+        })?;
+
+        // Sign intermediate CA with parent CA
+        let cert = params
+            .signed_by(&key_pair, &parent_cert, &parent_key_pair)
+            .map_err(|e| {
+                PkiError::GenerationFailed(format!("Failed to sign intermediate CA: {}", e))
+            })?;
+
+        let certificate_pem = cert.pem();
+        let private_key_pem = key_pair.serialize_pem();
+
+        let created_at = Utc::now();
+        let expires_at = created_at + Duration::days(ttl_days);
+
+        let intermediate_name = format!("intermediate-{}", common_name);
+        let ca = CertificateAuthority {
+            name: intermediate_name.clone(),
+            ca_type: CaType::Intermediate,
+            certificate_pem,
+            private_key_pem,
+            serial_counter: 1,
+            created_at,
+            expires_at,
+            parent_ca: Some(parent_ca_name.to_string()),
+        };
+
+        // Store intermediate CA
+        cas.insert(intermediate_name, ca.clone());
+
+        Ok(ca)
     }
 
     /// Generate Root CA
@@ -159,6 +320,7 @@ impl PkiEngine {
             serial_counter: 1,
             created_at,
             expires_at,
+            parent_ca: None,
         };
 
         // Store CA
@@ -188,11 +350,21 @@ impl PkiEngine {
         role_name: &str,
         request: IssueCertificateRequest,
     ) -> Result<IssuedCertificate, PkiError> {
-        // Get role
-        let roles = self.roles.read().await;
-        let role = roles
-            .get(role_name)
-            .ok_or_else(|| PkiError::RoleNotFound(role_name.to_string()))?;
+        // Get role and clone it to avoid holding the lock
+        let role = {
+            let roles = self.roles.read().await;
+            roles
+                .get(role_name)
+                .ok_or_else(|| PkiError::RoleNotFound(role_name.to_string()))?
+                .clone()
+        }; // Lock is dropped here
+
+        // Validate common name requirement
+        if role.require_cn && request.common_name.is_empty() {
+            return Err(PkiError::InvalidConfig(
+                "Common name is required by template".to_string(),
+            ));
+        }
 
         // Validate domain
         if !role.allow_any_name && !role.allowed_domains.is_empty() {
@@ -208,7 +380,23 @@ impl PkiEngine {
             }
         }
 
-        // Get CA
+        // Validate localhost
+        if !role.allow_localhost && request.common_name == "localhost" {
+            return Err(PkiError::InvalidConfig(
+                "Localhost not allowed by template".to_string(),
+            ));
+        }
+
+        // Validate TTL against max_ttl
+        let requested_ttl = request.ttl.unwrap_or(role.ttl);
+        if requested_ttl > role.max_ttl {
+            return Err(PkiError::InvalidConfig(format!(
+                "Requested TTL {:?} exceeds maximum {:?}",
+                requested_ttl, role.max_ttl
+            )));
+        }
+
+        // Get CA (now safe to acquire write lock)
         let mut cas = self.cas.write().await;
         let ca = cas
             .get_mut("root")
@@ -323,6 +511,163 @@ impl PkiEngine {
     pub async fn generate_crl(&self) -> Result<Vec<RevokedCertificate>, PkiError> {
         let revoked = self.revoked_certificates.read().await;
         Ok(revoked.values().cloned().collect())
+    }
+
+    /// Get OCSP status for a certificate
+    pub async fn get_ocsp_status(&self, serial_number: &str) -> Result<OcspResponse, PkiError> {
+        let now = Utc::now();
+        let next_update = now + Duration::hours(24);
+
+        // Check if certificate is revoked
+        let revoked = self.revoked_certificates.read().await;
+        if let Some(revoked_cert) = revoked.get(serial_number) {
+            return Ok(OcspResponse {
+                serial_number: serial_number.to_string(),
+                status: OcspStatus::Revoked,
+                this_update: now,
+                next_update,
+                revocation_time: Some(revoked_cert.revoked_at),
+            });
+        }
+
+        // Check if certificate exists and is valid
+        let issued = self.issued_certificates.read().await;
+        if let Some(cert) = issued.get(serial_number) {
+            // Check if certificate has expired
+            if cert.expires_at < now {
+                return Ok(OcspResponse {
+                    serial_number: serial_number.to_string(),
+                    status: OcspStatus::Revoked,
+                    this_update: now,
+                    next_update,
+                    revocation_time: Some(cert.expires_at),
+                });
+            }
+
+            return Ok(OcspResponse {
+                serial_number: serial_number.to_string(),
+                status: OcspStatus::Good,
+                this_update: now,
+                next_update,
+                revocation_time: None,
+            });
+        }
+
+        // Certificate not found
+        Ok(OcspResponse {
+            serial_number: serial_number.to_string(),
+            status: OcspStatus::Unknown,
+            this_update: now,
+            next_update,
+            revocation_time: None,
+        })
+    }
+
+    /// Check certificates that need renewal
+    pub async fn check_certificates_for_renewal(&self) -> Result<Vec<String>, PkiError> {
+        let config = self.renewal_config.read().await;
+        if !config.enabled {
+            return Ok(vec![]);
+        }
+
+        let threshold = Duration::days(config.threshold_days);
+        let now = Utc::now();
+        let renewal_deadline = now + threshold;
+
+        let issued = self.issued_certificates.read().await;
+        let revoked = self.revoked_certificates.read().await;
+
+        let mut certificates_to_renew = Vec::new();
+
+        for (serial, cert) in issued.iter() {
+            // Skip revoked certificates
+            if revoked.contains_key(serial) {
+                continue;
+            }
+
+            // Check if certificate expires within threshold
+            if cert.expires_at <= renewal_deadline {
+                certificates_to_renew.push(serial.clone());
+            }
+        }
+
+        Ok(certificates_to_renew)
+    }
+
+    /// Renew a certificate by serial number
+    pub async fn renew_certificate(
+        &self,
+        serial_number: &str,
+        role_name: &str,
+    ) -> Result<IssuedCertificate, PkiError> {
+        // Get the original certificate
+        let issued = self.issued_certificates.read().await;
+        let original_cert = issued
+            .get(serial_number)
+            .ok_or_else(|| PkiError::CertificateNotFound(serial_number.to_string()))?;
+
+        // Extract common name from the original certificate
+        // For simplicity, we'll use a placeholder. In production, you'd parse the cert.
+        let common_name = format!("renewed-{}", serial_number);
+
+        drop(issued);
+
+        // Issue a new certificate with the same parameters
+        let request = IssueCertificateRequest {
+            common_name,
+            alt_names: vec![],
+            ttl: None,
+        };
+
+        // Issue new certificate
+        let new_cert = self.issue_certificate(role_name, request).await?;
+
+        // Revoke the old certificate
+        self.revoke_certificate(serial_number).await?;
+
+        Ok(new_cert)
+    }
+
+    /// Start automatic renewal background task
+    /// Returns a handle that can be used to stop the task
+    pub fn start_renewal_scheduler(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            loop {
+                let config = self.renewal_config.read().await.clone();
+
+                if !config.enabled {
+                    // If renewal is disabled, check again in 1 hour
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+                    continue;
+                }
+
+                // Check for certificates that need renewal
+                match self.check_certificates_for_renewal().await {
+                    Ok(serials) => {
+                        if !serials.is_empty() {
+                            tracing::info!(
+                                "Found {} certificates approaching expiration",
+                                serials.len()
+                            );
+                            // In production, you would trigger renewal here
+                            // For now, we just log the certificates
+                            for serial in serials {
+                                tracing::info!("Certificate {} needs renewal", serial);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to check certificates for renewal: {}", e);
+                    }
+                }
+
+                // Sleep for the configured interval
+                tokio::time::sleep(tokio::time::Duration::from_secs(
+                    config.check_interval_seconds,
+                ))
+                .await;
+            }
+        })
     }
 }
 

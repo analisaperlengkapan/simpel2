@@ -232,9 +232,30 @@ pub mod migrate;
 
 // pub use api::*; // Avoid conflicts with local structs
 pub use application::*;
-pub use bootstrap::*;
-pub use dynamic::*;
+
+// Re-export bootstrap config (StorageConfig renamed to BootstrapStorageConfig to avoid conflict)
+pub use bootstrap::{
+    AwsKmsSealConfig, AzureKvSealConfig, BootstrapConfig, FileStorageConfig, GcpKmsSealConfig,
+    GrpcListenerConfig, HttpListenerConfig, ListenerConfig, PostgresStorageConfig,
+    RaftPerformanceConfig, RaftRetryJoin, RaftStorageConfig, SealConfigBootstrap, SealType,
+    SealTypeConfig, ShamirSealConfig, StorageBackend, StorageBackendConfig, TelemetryConfig,
+    TlsConfig,
+};
+/// Alias for bootstrap StorageConfig to avoid naming conflict with dynamic::StorageConfig
+pub use bootstrap::StorageConfig as BootstrapStorageConfig;
+
+// Re-export dynamic config (explicit to avoid ambiguity)
+pub use dynamic::{
+    CacheConfig, CryptoMode, DynamicConfig, DynamicConfigManager, LoadMetrics,
+    PerformanceProfile, PerformanceProfiler, SecurityConfig, ThreatLevel,
+};
+/// Dynamic storage configuration (runtime adjustable)
+pub use dynamic::StorageConfig as DynamicStorageConfig;
+
+// Re-export MFA policy loader
 pub use mfa_policy_loader::*;
+
+// Re-export migrate
 pub use migrate::*;
 
 #[derive(Debug, Deserialize, Clone)]

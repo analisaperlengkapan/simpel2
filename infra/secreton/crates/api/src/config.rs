@@ -46,6 +46,10 @@ pub struct ApiConfig {
     /// Database configuration
     #[serde(default)]
     pub database: DatabaseConfig,
+
+    /// Storage backend configuration
+    #[serde(default)]
+    pub storage: StorageConfig,
 }
 
 /// HTTP server configuration
@@ -106,6 +110,10 @@ pub struct AuthConfig {
 
     /// Session configuration
     pub session: SessionConfig,
+
+    /// Password policy configuration
+    #[serde(default)]
+    pub password_policy: PasswordPolicyConfig,
 
     /// Multi-factor authentication
     pub mfa: MfaConfig,
@@ -204,6 +212,37 @@ pub enum SessionStore {
     Memory,
     Redis { url: String },
     Database { table: String },
+}
+
+/// Password policy configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordPolicyConfig {
+    /// Minimum password length
+    pub min_length: u8,
+
+    /// Require uppercase characters
+    pub require_uppercase: bool,
+
+    /// Require lowercase characters
+    pub require_lowercase: bool,
+
+    /// Require numbers
+    pub require_numbers: bool,
+
+    /// Require special characters
+    pub require_special: bool,
+}
+
+impl Default for PasswordPolicyConfig {
+    fn default() -> Self {
+        Self {
+            min_length: 8,
+            require_uppercase: true,
+            require_lowercase: true,
+            require_numbers: true,
+            require_special: true,
+        }
+    }
 }
 
 /// Cookie configuration
@@ -745,6 +784,58 @@ pub struct LogRotationConfig {
     pub frequency: String,
 }
 
+/// Storage backend configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageConfig {
+    /// Storage backend type: "raft", "memory", "postgres", "file", "redis", "consul"
+    /// Default: "raft" (Raft consensus for HA)
+    pub backend: String,
+
+    /// Raft cluster configuration
+    #[serde(default)]
+    pub raft: RaftConfig,
+
+    /// PostgreSQL backend URL (if backend = "postgres")
+    pub postgres_url: Option<String>,
+
+    /// File storage path (if backend = "file")
+    pub file_path: Option<String>,
+
+    /// Redis connection URL (if backend = "redis")
+    pub redis_url: Option<String>,
+
+    /// Consul address (if backend = "consul")
+    pub consul_address: Option<String>,
+
+    /// Consul path prefix (if backend = "consul")
+    pub consul_path: Option<String>,
+}
+
+/// Raft cluster configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RaftConfig {
+    /// Node ID for this Raft node
+    pub node_id: u64,
+
+    /// Bind address for Raft cluster communication
+    pub bind_address: SocketAddr,
+
+    /// List of peer nodes: "node_id=http://address:port"
+    pub peers: Vec<String>,
+
+    /// Snapshot interval in seconds
+    pub snapshot_interval: u64,
+
+    /// Election timeout in milliseconds
+    pub election_timeout_ms: u64,
+
+    /// Heartbeat interval in milliseconds
+    pub heartbeat_interval_ms: u64,
+
+    /// Data directory for Raft logs and snapshots
+    pub data_dir: PathBuf,
+}
+
 /// Database configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseConfig {
@@ -768,6 +859,38 @@ pub struct DatabaseConfig {
 
     /// Connection timeout in seconds
     pub connection_timeout: u64,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            // Default to Raft for HA and safety
+            backend: "raft".to_string(),
+            raft: RaftConfig::default(),
+            postgres_url: None,
+            file_path: None,
+            redis_url: None,
+            consul_address: None,
+            consul_path: None,
+        }
+    }
+}
+
+impl Default for RaftConfig {
+    fn default() -> Self {
+        Self {
+            node_id: 1,
+            // Safe: hardcoded localhost address is always valid
+            bind_address: "127.0.0.1:7000"
+                .parse()
+                .expect("hardcoded localhost address is valid"),
+            peers: vec![],
+            snapshot_interval: 3600, // 1 hour
+            election_timeout_ms: 1500,
+            heartbeat_interval_ms: 150,
+            data_dir: PathBuf::from("/var/lib/secreton/raft"),
+        }
+    }
 }
 
 impl Default for DatabaseConfig {
@@ -1102,93 +1225,12 @@ impl Default for LoggingConfig {
 
 /// ApiConfig methods for loading and managing configuration
 impl ApiConfig {
-    /// Load configuration with hierarchy: default.toml → production.toml → env vars
-    /// This is the recommended way to load configuration for production deployments.
-    pub fn load() -> Result<Self, String> {
-        // 1. Try to load default config
-        let mut config = if PathBuf::from("config/default.toml").exists() {
-            Self::from_file("config/default.toml")?
-        } else {
-            Self::default()
-        };
-
-        // 2. Override with environment-specific config (production.toml)
-        let env = std::env::var("SECRETON_ENV").unwrap_or_else(|_| "production".to_string());
-        let env_config_path = format!("config/{}.toml", env);
-        if PathBuf::from(&env_config_path).exists() {
-            let env_config = Self::from_file(&env_config_path)?;
-            config.merge(env_config);
-        }
-
-        // 3. Override with environment variables (for secrets)
-        config.apply_env_overrides()?;
-
-        // 4. Validate final configuration
-        config.validate()?;
-
-        Ok(config)
-    }
-
-    /// Load configuration from a TOML file
-    pub fn from_file(path: &str) -> Result<Self, String> {
-        let contents = std::fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read config file {}: {}", path, e))?;
-
-        toml::from_str(&contents)
-            .map_err(|e| format!("Failed to parse config file {}: {}", path, e))
-    }
-
-    /// Merge another config into this one (other config takes precedence)
-    fn merge(&mut self, other: Self) {
-        // HTTP config
-        if other.http.bind_address.port() != 8080 {
-            self.http.bind_address = other.http.bind_address;
-        }
-        self.http.timeout = other.http.timeout;
-        self.http.max_body_size = other.http.max_body_size;
-
-        // gRPC config
-        self.grpc = other.grpc;
-
-        // Auth config (except secrets)
-        if other.auth.jwt.secret != "change-this-secret-in-production" {
-            self.auth.jwt.secret = other.auth.jwt.secret;
-        }
-        self.auth.jwt.expiration = other.auth.jwt.expiration;
-        self.auth.jwt.issuer = other.auth.jwt.issuer;
-
-        // Database config (except credentials)
-        if other.database.host != "localhost" {
-            self.database.host = other.database.host;
-        }
-        if other.database.port != 5432 {
-            self.database.port = other.database.port;
-        }
-        if other.database.database != "secreton" {
-            self.database.database = other.database.database;
-        }
-
-        // Other configs
-        self.rate_limit = other.rate_limit;
-        self.tls = other.tls;
-        self.monitoring = other.monitoring;
-        self.cors = other.cors;
-        self.logging = other.logging;
-        self.hsm = other.hsm;
-    }
-
-    /// Apply environment variable overrides (for secrets and runtime config)
-    fn apply_env_overrides(&mut self) -> Result<(), String> {
+    /// Apply environment variable overrides
+    pub fn apply_env_overrides(&mut self) -> Result<(), String> {
         // HTTP server
         if let Ok(port) = std::env::var("HTTP_PORT") {
             let port: u16 = port.parse().map_err(|_| "Invalid HTTP_PORT".to_string())?;
             let ip = self.http.bind_address.ip();
-            self.http.bind_address = SocketAddr::new(ip, port);
-        }
-
-        if let Ok(host) = std::env::var("HTTP_HOST") {
-            let ip: std::net::IpAddr = host.parse().map_err(|_| "Invalid HTTP_HOST".to_string())?;
-            let port = self.http.bind_address.port();
             self.http.bind_address = SocketAddr::new(ip, port);
         }
 
@@ -1199,88 +1241,9 @@ impl ApiConfig {
             self.grpc.bind_address = SocketAddr::new(ip, port);
         }
 
-        // Database configuration
-        if let Ok(db_url) = std::env::var("DATABASE_URL") {
-            // Parse database URL: postgres://user:pass@host:port/database
-            if let Ok(url) = url::Url::parse(&db_url) {
-                if let Some(host) = url.host_str() {
-                    self.database.host = host.to_string();
-                }
-                if let Some(port) = url.port() {
-                    self.database.port = port;
-                }
-                if !url.username().is_empty() {
-                    self.database.username = url.username().to_string();
-                }
-                if let Some(password) = url.password() {
-                    self.database.password = password.to_string();
-                }
-                if let Some(mut segments) = url.path_segments()
-                    && let Some(db) = segments.next()
-                {
-                    self.database.database = db.trim_start_matches('/').to_string();
-                }
-            }
-        }
-
-        // JWT secret (CRITICAL: must be set in production)
-        if let Ok(secret) = std::env::var("JWT_SECRET") {
-            self.auth.jwt.secret = secret;
-        }
-
-        // TLS configuration
-        if let Ok(cert_path) = std::env::var("TLS_CERT_PATH")
-            && let Some(ref mut tls) = self.tls
-        {
-            tls.cert_file = PathBuf::from(cert_path);
-        }
-
-        if let Ok(key_path) = std::env::var("TLS_KEY_PATH")
-            && let Some(ref mut tls) = self.tls
-        {
-            tls.key_file = PathBuf::from(key_path);
-        }
-
         // Log level
         if let Ok(level) = std::env::var("LOG_LEVEL") {
             self.logging.level = level;
-        }
-
-        Ok(())
-    }
-
-    /// Validate configuration
-    fn validate(&self) -> Result<(), String> {
-        // Only enforce strict validation in production
-        let is_production = std::env::var("SECRETON_ENV")
-            .unwrap_or_else(|_| "production".to_string())
-            == "production";
-
-        // Validate JWT secret
-        if self.auth.jwt.secret == "change-this-secret-in-production" {
-            return Err("JWT_SECRET must be set (use environment variable)".to_string());
-        }
-
-        if self.auth.jwt.secret.len() < 32 {
-            return Err("JWT secret must be at least 32 characters long".to_string());
-        }
-
-        // Validate database credentials (only in production)
-        if is_production && self.database.password == "secreton" {
-            return Err("Database password must be changed in production (use DATABASE_URL environment variable)".to_string());
-        }
-
-        // Validate TLS configuration if enabled
-        if let Some(ref tls) = self.tls {
-            if !tls.cert_file.exists() {
-                return Err(format!(
-                    "TLS certificate file not found: {:?}",
-                    tls.cert_file
-                ));
-            }
-            if !tls.key_file.exists() {
-                return Err(format!("TLS key file not found: {:?}", tls.key_file));
-            }
         }
 
         Ok(())
@@ -1417,6 +1380,7 @@ mod tests {
             },
             hsm: HsmConfig::default(),
             database: DatabaseConfig::default(),
+            storage: StorageConfig::default(),
         }
     }
 

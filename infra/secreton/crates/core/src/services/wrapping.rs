@@ -44,6 +44,8 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
+use crate::utils::{base64_decode, base64_encode};
+
 /// Maximum size for wrapped data (1MB)
 const MAX_WRAPPED_DATA_SIZE: usize = 1024 * 1024;
 
@@ -479,8 +481,8 @@ impl WrappingService {
         // Store key and nonce in metadata (in production, use Transit engine or HSM)
         let metadata = serde_json::json!({
             "algorithm": "aes-256-gcm",
-            "key": base64::encode(key_bytes),
-            "nonce": base64::encode(nonce_bytes),
+            "key": base64_encode(key_bytes),
+            "nonce": base64_encode(nonce_bytes),
         });
 
         Ok((ciphertext, metadata))
@@ -502,9 +504,9 @@ impl WrappingService {
             WrappingError::DecryptionFailed("Missing nonce in metadata".to_string())
         })?;
 
-        let key_bytes = base64::decode(key_b64)
+        let key_bytes = base64_decode(key_b64)
             .map_err(|e| WrappingError::DecryptionFailed(format!("Invalid key encoding: {}", e)))?;
-        let nonce_bytes = base64::decode(nonce_b64).map_err(|e| {
+        let nonce_bytes = base64_decode(nonce_b64).map_err(|e| {
             WrappingError::DecryptionFailed(format!("Invalid nonce encoding: {}", e))
         })?;
 

@@ -1,7 +1,4 @@
-use axum::{
-    routing::{get, post, put},
-    Router,
-};
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
@@ -26,7 +23,10 @@ async fn main() {
         .route("/api/v1/datun/status", get(status))
         // Case Management Routes
         .route("/api/v1/datun/cases", get(get_cases).post(create_case))
-        .route("/api/v1/datun/cases/:id", get(get_case_by_id).put(update_case))
+        .route(
+            "/api/v1/datun/cases/:id",
+            get(get_case_by_id).put(update_case),
+        )
         .with_state(state)
         // Enable CORS for frontend integration
         .layer(CorsLayer::permissive());

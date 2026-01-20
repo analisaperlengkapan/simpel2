@@ -112,10 +112,24 @@ pub struct MultiDbConfig {
 /// Secreton configuration for external secret management
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretonConfig {
+    /// Whether Secreton integration is enabled
+    #[serde(default)]
+    pub enabled: bool,
     /// Secreton service endpoint URL
+    #[serde(alias = "url", default)]
     pub endpoint: String,
     /// Authentication token for Secreton service
+    #[serde(default)]
     pub token: String,
+    /// Mount path in Secreton
+    #[serde(default)]
+    pub mount_path: String,
+    /// Key rotation interval in seconds
+    #[serde(default)]
+    pub key_rotation_interval: u64,
+    /// List of secrets to load
+    #[serde(default)]
+    pub secrets_to_load: Vec<String>,
 }
 
 /// Redis configuration for caching
@@ -366,6 +380,10 @@ pub use dynamic::{
 pub mod mfa_fallback;
 pub use mfa_fallback::MfaFallbackConfig;
 
+/// Hybrid configuration loader for multi-source configuration
+pub mod hybrid_loader;
+pub use hybrid_loader::{ConfigLoaderConfig, HybridConfigLoader};
+
 /// Cluster configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterConfig {
@@ -488,6 +506,10 @@ pub struct AppConfig {
 
     /// Federation configuration for user federation
     pub federation: Option<FederationConfig>,
+
+    /// Configuration loader settings (for hybrid config approach)
+    #[serde(default)]
+    pub config_loader: crate::config::hybrid_loader::ConfigLoaderConfig,
 }
 
 /// Backwards-compatibility alias for older tests and integrations
@@ -862,8 +884,12 @@ impl AppConfig {
     /// Load configuration with hierarchy: default.toml → production.toml → env vars
     /// This is the recommended way to load configuration for production deployments.
     pub fn load() -> Result<Self> {
-        // 1. Try to load default config
-        let mut config = if PathBuf::from("config/default.toml").exists() {
+        // 1. Try to load from authenc.toml first (primary config file)
+        let mut config = if PathBuf::from("authenc.toml").exists() {
+            Self::from_file("authenc.toml")?
+        } else if PathBuf::from("/app/authenc.toml").exists() {
+            Self::from_file("/app/authenc.toml")?
+        } else if PathBuf::from("config/default.toml").exists() {
             Self::from_file("config/default.toml")?
         } else {
             Self::default()
@@ -892,7 +918,7 @@ impl AppConfig {
             AuthencError::validation(&format!("Failed to read config file {}: {}", path, e))
         })?;
 
-        serde_json::from_str(&contents).map_err(|e| {
+        toml::from_str(&contents).map_err(|e| {
             AuthencError::validation(&format!("Failed to parse config file {}: {}", path, e))
         })
     }
@@ -944,21 +970,19 @@ impl AppConfig {
 
     /// Apply environment variable overrides (for secrets and runtime config)
     fn apply_env_overrides(&mut self) -> Result<()> {
-        let mut config = Self::default();
-
         // Server configuration
         if let Ok(host) = env::var("HOST") {
-            config.server.host = host;
+            self.server.host = host;
         }
 
         if let Ok(port) = env::var("PORT") {
-            config.server.port = port
+            self.server.port = port
                 .parse()
                 .map_err(|_| AuthencError::validation("Invalid PORT"))?;
         }
 
         if let Ok(workers) = env::var("WORKERS") {
-            config.server.workers = Some(
+            self.server.workers = Some(
                 workers
                     .parse()
                     .map_err(|_| AuthencError::validation("Invalid WORKERS"))?,
@@ -967,15 +991,15 @@ impl AppConfig {
 
         // TLS configuration
         if let Ok(tls_enabled) = env::var("TLS_ENABLED") {
-            config.server.tls_enabled = tls_enabled.parse().unwrap_or(false);
+            self.server.tls_enabled = tls_enabled.parse().unwrap_or(false);
         }
 
         if let Ok(cert_path) = env::var("TLS_CERT_PATH") {
-            config.server.tls_cert_path = Some(cert_path);
+            self.server.tls_cert_path = Some(cert_path);
         }
 
         if let Ok(key_path) = env::var("TLS_KEY_PATH") {
-            config.server.tls_key_path = Some(key_path);
+            self.server.tls_key_path = Some(key_path);
         }
 
         // Database configuration
@@ -984,32 +1008,51 @@ impl AppConfig {
             // Format: postgres://username:password@host:port/database
             if let Ok(url) = url::Url::parse(&db_url) {
                 if let Some(host) = url.host_str() {
-                    config.database.host = host.to_string();
+                    self.database.host = host.to_string();
                 }
                 if let Some(port) = url.port() {
-                    config.database.port = port;
+                    self.database.port = port;
                 }
                 if !url.username().is_empty() {
-                    config.database.username = url.username().to_string();
+                    self.database.username = url.username().to_string();
                 }
                 if let Some(password) = url.password() {
-                    config.database.password = password.to_string();
+                    self.database.password = password.to_string();
                 }
                 if let Some(mut segments) = url.path_segments() {
                     if let Some(db) = segments.next() {
-                        config.database.database = db.trim_start_matches('/').to_string();
+                        self.database.database = db.trim_start_matches('/').to_string();
                     }
                 }
             }
         }
 
+        // Individual database environment variables (fallback)
+        if let Ok(host) = env::var("DB_HOST") {
+            self.database.host = host;
+        }
+        if let Ok(port) = env::var("DB_PORT") {
+            if let Ok(p) = port.parse() {
+                self.database.port = p;
+            }
+        }
+        if let Ok(user) = env::var("DB_USER") {
+            self.database.username = user;
+        }
+        if let Ok(password) = env::var("DB_PASSWORD") {
+            self.database.password = password;
+        }
+        if let Ok(name) = env::var("DB_NAME") {
+            self.database.database = name;
+        }
+
         // Security configuration
         if let Ok(secret) = env::var("JWT_SECRET") {
-            config.security.jwt_secret = secret;
+            self.security.jwt_secret = secret;
         }
 
         if let Ok(allow_origins) = env::var("CORS_ALLOWED_ORIGINS") {
-            config.server.cors_allowed_origins = allow_origins
+            self.server.cors_allowed_origins = allow_origins
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
@@ -1018,7 +1061,7 @@ impl AppConfig {
         // Observability configuration
         if let Ok(log_level) = env::var("LOG_LEVEL") {
             if let Ok(level) = log_level.parse::<Level>() {
-                config.observability.log_level = level;
+                self.observability.log_level = level;
             }
         }
 
@@ -1223,6 +1266,7 @@ impl Default for AppConfig {
             clustering: ClusterConfig::default(),
             key_rotation: None,
             federation: None,
+            config_loader: ConfigLoaderConfig::default(),
         }
     }
 }

@@ -133,12 +133,13 @@ pub fn ProtectedRoute(
         if !auth_check.is_authenticated() {
             auth_check.redirect_to_login();
         } else if let Some(ref permission) = perm_check
-            && !auth_check.has_permission(permission) {
-                // User doesn't have required permission, show error or redirect
-                if let Some(window) = web_sys::window() {
-                    let _ = window.location().set_href("/unauthorized");
-                }
+            && !auth_check.has_permission(permission)
+        {
+            // User doesn't have required permission, show error or redirect
+            if let Some(window) = web_sys::window() {
+                let _ = window.location().set_href("/unauthorized");
             }
+        }
     });
 
     let auth_show = auth;

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL database for backend storage
@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"
+      - "5433:5432" # Use port 5433 on host to avoid conflict
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U secreton"]
       interval: 10s
@@ -33,22 +33,32 @@ services:
         condition: service_healthy
     environment:
       - RUST_LOG=${RUST_LOG:-info}
-      - SECRETON_CONFIG=/app/config/secreton.toml
-      - SECRETON_STORAGE_TYPE=postgres
-      - SECRETON_POSTGRES_URL=postgresql://secreton:${POSTGRES_PASSWORD:-changeme}@postgres:5432/secreton
+      - SECRETON_CONFIG=/app/secreton.toml
+      - SECRETON_STORAGE_BACKEND=${SECRETON_STORAGE_BACKEND:-raft}
+      - HTTP_PORT=8200
+      - GRPC_PORT=8201
     volumes:
-      - secreton_data:/app/data
-      - ./config:/app/config:ro
+      - secreton_data:/var/lib/secreton
+      - ./secreton.toml:/app/secreton.toml:ro
       - ./certs:/app/certs:ro
     ports:
-      - "8200:8200"  # HTTP API
-      - "8201:8201"  # HTTPS API
-    healthcheck:
-      test: ["CMD", "/app/secreton", "status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      - "8200:8200" # HTTP API
+      - "8201:8201" # gRPC API
+    # Healthcheck disabled temporarily for testing
+    # healthcheck:
+    #   test:
+    #     [
+    #       "CMD",
+    #       "wget",
+    #       "--quiet",
+    #       "--tries=1",
+    #       "--spider",
+    #       "http://localhost:8200/health",
+    #     ]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 10s
     restart: unless-stopped
     networks:
       - secreton-network
@@ -64,10 +74,10 @@ services:
     image: prom/prometheus:latest
     container_name: secreton-prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus

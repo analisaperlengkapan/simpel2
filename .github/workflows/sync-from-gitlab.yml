@@ -1,0 +1,532 @@
+name: Bidirectional Sync - GitLab to GitHub
+
+on:
+  # This workflow is triggered by a webhook from GitLab
+  # Configure a webhook in GitLab: Settings > Webhooks > Add webhook
+  # URL: https://api.github.com/repos/OWNER/REPO/dispatches
+  # Secret Token: GITHUB_WEBHOOK_SECRET
+  # Trigger: Merge request events (merged state)
+  repository_dispatch:
+    types: [gitlab-sync]
+
+  # Also run on schedule to catch any missed syncs
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Force sync even if no differences detected'
+        required: false
+        default: false
+        type: boolean
+
+# Allow only one sync job to run at a time to prevent race conditions
+concurrency:
+  group: bidirectional-sync-gitlab-to-github
+  cancel-in-progress: false
+
+env:
+  SYNC_BRANCH_PREFIX: "sync/gitlab-to-github"
+  SYNC_COMMIT_MARKER: "[gitlab-sync]"
+  SYNC_AUTHOR_EMAIL: "gitlab-sync-bot@kejaksaan.go.id"
+  SYNC_AUTHOR_NAME: "GitLab Sync Bot"
+
+jobs:
+  check-gitlab-changes:
+    name: Check for GitLab changes
+    runs-on: self-hosted
+    outputs:
+      has_differences: ${{ steps.compare.outputs.has_diff }}
+      gitlab_ahead: ${{ steps.compare.outputs.gitlab_ahead }}
+      github_ahead: ${{ steps.compare.outputs.github_ahead }}
+      diverged: ${{ steps.compare.outputs.diverged }}
+      commits_ahead: ${{ steps.compare.outputs.commits_ahead }}
+      sync_branch_name: ${{ steps.compare.outputs.sync_branch }}
+      is_sync_commit: ${{ steps.check_source.outputs.is_sync }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config --global user.email "${{ env.SYNC_AUTHOR_EMAIL }}"
+          git config --global user.name "${{ env.SYNC_AUTHOR_NAME }}"
+
+      - name: Fetch GitLab remote
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          # Add GitLab as a remote
+          git remote add gitlab "$GITLAB_MIRROR_URL" 2>/dev/null || \
+            git remote set-url gitlab "$GITLAB_MIRROR_URL"
+
+          # Fetch GitLab main branch
+          echo "Fetching GitLab main branch..."
+          git fetch gitlab main --tags 2>&1 | grep -v "password" || true
+
+      - name: Check if latest GitLab commit is a sync commit
+        id: check_source
+        run: |
+          GITLAB_HEAD_MSG=$(git log gitlab/main -1 --format="%s" 2>/dev/null || echo "")
+          GITLAB_HEAD_AUTHOR=$(git log gitlab/main -1 --format="%ae" 2>/dev/null || echo "")
+
+          echo "GitLab HEAD message: $GITLAB_HEAD_MSG"
+          echo "GitLab HEAD author: $GITLAB_HEAD_AUTHOR"
+
+          IS_SYNC="false"
+
+          # Check for sync markers to prevent loops
+          if [[ "$GITLAB_HEAD_MSG" == *"[github-sync]"* ]] || \
+             [[ "$GITLAB_HEAD_MSG" == *"[skip sync]"* ]] || \
+             [[ "$GITLAB_HEAD_MSG" == *"[ci skip:sync]"* ]]; then
+            IS_SYNC="true"
+            echo "⚠️ Latest GitLab commit is from GitHub sync - skipping"
+          fi
+
+          # Check author email for bot accounts
+          if [[ "$GITLAB_HEAD_AUTHOR" == *"github-sync-bot"* ]] || \
+             [[ "$GITLAB_HEAD_AUTHOR" == *"sync-bot"* ]]; then
+            IS_SYNC="true"
+            echo "⚠️ Latest GitLab commit is from sync bot - skipping"
+          fi
+
+          echo "is_sync=$IS_SYNC" >> $GITHUB_OUTPUT
+
+      - name: Compare branches
+        id: compare
+        if: steps.check_source.outputs.is_sync != 'true'
+        run: |
+          set +e  # Don't exit on error, we handle it
+
+          GITHUB_MAIN=$(git rev-parse origin/main)
+          GITLAB_MAIN=$(git rev-parse gitlab/main 2>/dev/null)
+
+          if [ -z "$GITLAB_MAIN" ]; then
+            echo "⚠️ Could not fetch GitLab main"
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "GitHub main: $GITHUB_MAIN"
+          echo "GitLab main: $GITLAB_MAIN"
+
+          if [ "$GITHUB_MAIN" = "$GITLAB_MAIN" ]; then
+            echo "✅ Branches are in sync"
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+            echo "github_ahead=false" >> $GITHUB_OUTPUT
+            echo "gitlab_ahead=false" >> $GITHUB_OUTPUT
+            echo "diverged=false" >> $GITHUB_OUTPUT
+            echo "commits_ahead=0" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Branches differ"
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+
+            # Find merge base
+            MERGE_BASE=$(git merge-base $GITHUB_MAIN $GITLAB_MAIN 2>/dev/null || echo "")
+
+            if [ -z "$MERGE_BASE" ]; then
+              echo "❌ No common ancestor found"
+              echo "diverged=true" >> $GITHUB_OUTPUT
+              echo "github_ahead=false" >> $GITHUB_OUTPUT
+              echo "gitlab_ahead=false" >> $GITHUB_OUTPUT
+              echo "commits_ahead=unknown" >> $GITHUB_OUTPUT
+            elif [ "$MERGE_BASE" = "$GITHUB_MAIN" ]; then
+              COMMITS_AHEAD=$(git rev-list --count $GITHUB_MAIN..$GITLAB_MAIN)
+              echo "📈 GitLab is ahead of GitHub by $COMMITS_AHEAD commits"
+              echo "gitlab_ahead=true" >> $GITHUB_OUTPUT
+              echo "github_ahead=false" >> $GITHUB_OUTPUT
+              echo "diverged=false" >> $GITHUB_OUTPUT
+              echo "commits_ahead=$COMMITS_AHEAD" >> $GITHUB_OUTPUT
+            elif [ "$MERGE_BASE" = "$GITLAB_MAIN" ]; then
+              COMMITS_AHEAD=$(git rev-list --count $GITLAB_MAIN..$GITHUB_MAIN)
+              echo "📉 GitHub is ahead of GitLab by $COMMITS_AHEAD commits"
+              echo "gitlab_ahead=false" >> $GITHUB_OUTPUT
+              echo "github_ahead=true" >> $GITHUB_OUTPUT
+              echo "diverged=false" >> $GITHUB_OUTPUT
+              echo "commits_ahead=$COMMITS_AHEAD" >> $GITHUB_OUTPUT
+            else
+              GITHUB_AHEAD=$(git rev-list --count $MERGE_BASE..$GITHUB_MAIN)
+              GITLAB_AHEAD=$(git rev-list --count $MERGE_BASE..$GITLAB_MAIN)
+              echo "⚠️ Branches have diverged! GitHub ahead: $GITHUB_AHEAD, GitLab ahead: $GITLAB_AHEAD"
+              echo "diverged=true" >> $GITHUB_OUTPUT
+              echo "github_ahead=true" >> $GITHUB_OUTPUT
+              echo "gitlab_ahead=true" >> $GITHUB_OUTPUT
+              echo "commits_ahead=$GITLAB_AHEAD" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          # Generate sync branch name with timestamp
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SYNC_BRANCH="${{ env.SYNC_BRANCH_PREFIX }}-${TIMESTAMP}"
+          echo "sync_branch=$SYNC_BRANCH" >> $GITHUB_OUTPUT
+
+  create-github-pr:
+    name: Create Pull Request on GitHub
+    runs-on: self-hosted
+    needs: check-gitlab-changes
+    if: |
+      needs.check-gitlab-changes.outputs.is_sync_commit != 'true' &&
+      needs.check-gitlab-changes.outputs.has_differences == 'true' &&
+      needs.check-gitlab-changes.outputs.gitlab_ahead == 'true' &&
+      needs.check-gitlab-changes.outputs.diverged != 'true'
+    env:
+      SYNC_BRANCH: ${{ needs.check-gitlab-changes.outputs.sync_branch_name }}
+      COMMITS_AHEAD: ${{ needs.check-gitlab-changes.outputs.commits_ahead }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config --global user.email "${{ env.SYNC_AUTHOR_EMAIL }}"
+          git config --global user.name "${{ env.SYNC_AUTHOR_NAME }}"
+
+      - name: Fetch GitLab remote
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          git remote add gitlab "$GITLAB_MIRROR_URL" 2>/dev/null || \
+            git remote set-url gitlab "$GITLAB_MIRROR_URL"
+          git fetch gitlab main --tags 2>&1 | grep -v "password" || true
+
+      - name: Create sync branch from GitLab main
+        run: |
+          # Create a branch from GitLab's main
+          git checkout -b "$SYNC_BRANCH" gitlab/main
+
+          # Push the sync branch to GitHub
+          echo "Pushing sync branch to GitHub..."
+          git push origin "$SYNC_BRANCH" --force
+
+          echo "✅ Sync branch pushed: $SYNC_BRANCH"
+
+      - name: Check for existing PRs
+        id: check_pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${process.env.SYNC_BRANCH}`
+            });
+
+            if (prs.length > 0) {
+              console.log(`PR already exists: ${prs[0].html_url}`);
+              core.setOutput('pr_exists', 'true');
+              core.setOutput('pr_url', prs[0].html_url);
+              core.setOutput('pr_number', prs[0].number);
+            } else {
+              // Also check for any gitlab-sync labeled PRs
+              const { data: syncPrs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+
+              const existingSyncPr = syncPrs.find(pr =>
+                pr.labels.some(l => l.name === 'gitlab-sync')
+              );
+
+              if (existingSyncPr) {
+                console.log(`Existing sync PR found: ${existingSyncPr.html_url}`);
+                core.setOutput('pr_exists', 'true');
+                core.setOutput('pr_url', existingSyncPr.html_url);
+                core.setOutput('pr_number', existingSyncPr.number);
+              } else {
+                core.setOutput('pr_exists', 'false');
+              }
+            }
+
+      - name: Create Pull Request
+        id: create_pr
+        if: steps.check_pr.outputs.pr_exists != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const syncBranch = process.env.SYNC_BRANCH;
+            const commitsAhead = process.env.COMMITS_AHEAD;
+
+            // Get commit log for description
+            const { execSync } = require('child_process');
+            let commitLog = '';
+            try {
+              commitLog = execSync('git log --oneline -10 HEAD', { encoding: 'utf8' });
+            } catch (e) {
+              commitLog = 'See commits for details';
+            }
+
+            const title = `${{ env.SYNC_COMMIT_MARKER }} Sync from GitLab main`;
+            const body = `## Automated Sync from GitLab
+
+            This pull request synchronizes changes from GitLab main branch to GitHub main branch.
+
+            **Source:** GitLab main
+            **Trigger:** ${context.eventName === 'schedule' ? 'Scheduled sync check' : 'GitLab webhook / Manual trigger'}
+            **Commits ahead:** ${commitsAhead}
+
+            ### Recent commits:
+            \`\`\`
+            ${commitLog}
+            \`\`\`
+
+            ---
+            ⚠️ **Auto-generated by GitHub Actions**
+
+            If this PR is merged, a \`[github-sync]\` marker will be detected to prevent sync loops.
+            `;
+
+            try {
+              const { data: pr } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                head: syncBranch,
+                base: 'main'
+              });
+
+              console.log(`PR created: ${pr.html_url}`);
+
+              // Add labels
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ['gitlab-sync', 'automated']
+              });
+
+              core.setOutput('pr_number', pr.number);
+              core.setOutput('pr_url', pr.html_url);
+              core.setOutput('success', 'true');
+
+            } catch (error) {
+              console.error(`Failed to create PR: ${error.message}`);
+              core.setOutput('success', 'false');
+              core.setOutput('error', error.message);
+              core.setFailed(error.message);
+            }
+
+      - name: Enable auto-merge if configured
+        if: steps.create_pr.outputs.success == 'true' && vars.AUTO_MERGE_SYNC == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.create_pr.outputs.pr_number }};
+
+            try {
+              // Enable auto-merge using GraphQL (not available in REST API)
+              const query = `
+                mutation EnableAutoMerge($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: MERGE
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `;
+
+              // Get PR node ID
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+
+              await github.graphql(query, {
+                pullRequestId: pr.node_id
+              });
+
+              console.log('Auto-merge enabled');
+            } catch (error) {
+              console.log(`Could not enable auto-merge: ${error.message}`);
+              // Non-fatal error
+            }
+
+      - name: Generate summary
+        if: always()
+        run: |
+          if [ "${{ steps.create_pr.outputs.success }}" = "true" ]; then
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ GitHub Pull Request Created
+
+          | Property | Value |
+          |----------|-------|
+          | PR URL | ${{ steps.create_pr.outputs.pr_url }} |
+          | Source Branch | \`${{ env.SYNC_BRANCH }}\` |
+          | Target Branch | \`main\` |
+          | Commits Synced | ${{ env.COMMITS_AHEAD }} |
+          | Timestamp | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |
+
+          The pull request has been created. Please review and merge to complete the sync.
+          EOF
+          elif [ "${{ steps.check_pr.outputs.pr_exists }}" = "true" ]; then
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ℹ️ Existing Pull Request Found
+
+          An open pull request already exists for syncing GitLab to GitHub.
+
+          **PR URL:** ${{ steps.check_pr.outputs.pr_url }}
+
+          Please merge the existing PR before a new one can be created.
+          EOF
+          else
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ❌ Failed to Create Pull Request
+
+          Error: ${{ steps.create_pr.outputs.error }}
+
+          Please check the workflow logs for details.
+          EOF
+          fi
+
+  already-in-sync:
+    name: Report sync status
+    runs-on: self-hosted
+    needs: check-gitlab-changes
+    if: |
+      needs.check-gitlab-changes.outputs.is_sync_commit != 'true' &&
+      needs.check-gitlab-changes.outputs.has_differences == 'false'
+    steps:
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Repositories Already in Sync
+
+          | Property | Value |
+          |----------|-------|
+          | Status | GitHub and GitLab are in sync |
+          | Check Time | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |
+          | Trigger | ${{ github.event_name }} |
+
+          No synchronization needed - both repositories have the same main branch.
+          EOF
+
+  skip-sync-commit:
+    name: Skip sync commit
+    runs-on: self-hosted
+    needs: check-gitlab-changes
+    if: needs.check-gitlab-changes.outputs.is_sync_commit == 'true'
+    steps:
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ⏭️ Skipped - Sync Commit Detected
+
+          | Property | Value |
+          |----------|-------|
+          | Status | Latest GitLab commit is from GitHub sync |
+          | Action | Skipped to prevent infinite loop |
+          | Timestamp | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |
+
+          The latest commit on GitLab main appears to be from a previous GitHub sync.
+          Skipping this sync to prevent an infinite loop.
+          EOF
+
+  handle-diverged:
+    name: Handle diverged branches
+    runs-on: self-hosted
+    needs: check-gitlab-changes
+    if: |
+      needs.check-gitlab-changes.outputs.is_sync_commit != 'true' &&
+      needs.check-gitlab-changes.outputs.diverged == 'true'
+    steps:
+      - name: Create issue for manual resolution
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '⚠️ GitHub and GitLab branches have diverged - Manual resolution required';
+            const body = `
+            ## Branch Divergence Detected (from GitLab sync check)
+
+            The main branches of GitHub and GitLab have diverged and require manual resolution.
+
+            **Detection Source:** GitLab to GitHub sync workflow
+            **Detection time:** ${new Date().toISOString()}
+
+            **Recommended Actions:**
+            1. Review the changes on both repositories
+            2. Determine which changes should take precedence
+            3. Manually merge the changes and push to both repositories
+            4. Add \`[skip sync]\` marker to the commit message to prevent automatic sync
+
+            **Commands to investigate:**
+            \`\`\`bash
+            # Clone and add both remotes
+            git clone <github-url> && cd simpel2
+            git remote add gitlab <gitlab-url>
+            git fetch --all
+
+            # Compare branches
+            git log origin/main..gitlab/main --oneline
+            git log gitlab/main..origin/main --oneline
+
+            # Find common ancestor
+            git merge-base origin/main gitlab/main
+            \`\`\`
+
+            /cc @${context.actor}
+            `;
+
+            // Check if similar issue exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'sync-conflict'
+            });
+
+            const existingIssue = issues.data.find(i =>
+              i.title.includes('diverged') &&
+              (Date.now() - new Date(i.created_at).getTime()) < 86400000 // 24 hours
+            );
+
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['sync-conflict', 'needs-attention']
+              });
+            }
+
+  github-ahead:
+    name: Handle GitHub ahead scenario
+    runs-on: self-hosted
+    needs: check-gitlab-changes
+    if: |
+      needs.check-gitlab-changes.outputs.is_sync_commit != 'true' &&
+      needs.check-gitlab-changes.outputs.has_differences == 'true' &&
+      needs.check-gitlab-changes.outputs.github_ahead == 'true' &&
+      needs.check-gitlab-changes.outputs.gitlab_ahead != 'true'
+    steps:
+      - name: Generate summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ℹ️ GitHub is Ahead of GitLab
+
+          | Property | Value |
+          |----------|-------|
+          | Status | GitHub main is ahead |
+          | Commits Ahead | ${{ needs.check-gitlab-changes.outputs.commits_ahead }} |
+          | Action Required | Push to GitHub main will trigger sync to GitLab |
+
+          GitHub has commits that are not in GitLab. The GitHub to GitLab workflow should handle this automatically.
+          EOF

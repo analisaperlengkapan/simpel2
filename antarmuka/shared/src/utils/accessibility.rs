@@ -257,13 +257,17 @@ pub fn FocusTrap(
     // Setup focus trap when active
     Effect::new(move |_| {
         if active.get()
-            && let Some(container) = container_ref.get() {
-                // Focus first focusable element
-                if let Ok(focusable) = container.query_selector(FOCUSABLE_ELEMENTS_SELECTOR)
-                    && let Some(element) = focusable {
-                        let _ = element.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
-                    }
+            && let Some(container) = container_ref.get()
+        {
+            // Focus first focusable element
+            if let Ok(focusable) = container.query_selector(FOCUSABLE_ELEMENTS_SELECTOR)
+                && let Some(element) = focusable
+            {
+                let _ = element
+                    .dyn_ref::<web_sys::HtmlElement>()
+                    .map(|el| el.focus());
             }
+        }
     });
 
     view! {
@@ -293,7 +297,7 @@ pub fn FocusTrap(
                             {
                                 if ev.shift_key() {
                                     // Shift+Tab: wrap to last element if current is first
-                                    let is_first = first.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    let is_first = first.as_ref().is_some_and(|n| active_element.is_same_node(Some(n)));
                                     if is_first {
                                         ev.prevent_default();
                                         if let Some(last_el) = last {
@@ -302,7 +306,7 @@ pub fn FocusTrap(
                                     }
                                 } else {
                                     // Tab: wrap to first element if current is last
-                                    let is_last = last.as_ref().map_or(false, |n| active_element.is_same_node(Some(n)));
+                                    let is_last = last.as_ref().is_some_and(|n| active_element.is_same_node(Some(n)));
                                     if is_last {
                                         ev.prevent_default();
                                         if let Some(first_el) = first {

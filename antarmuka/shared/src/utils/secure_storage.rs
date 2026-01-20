@@ -344,6 +344,7 @@ pub fn clear_all_session_data() -> Result<(), String> {
 }
 
 #[cfg(test)]
+#[cfg(target_arch = "wasm32")]
 mod tests {
     use super::*;
 

@@ -1,0 +1,40 @@
+# Read-Only Policy
+#
+# This policy grants read-only access to secrets stored in the vault.
+# It's suitable for applications that need to retrieve secrets but should
+# not be able to modify or delete them.
+#
+# Use case: Production applications, monitoring tools, read-only dashboards
+
+# Policy metadata
+name = "read-only"
+description = "Read-only access to all secrets"
+namespace = "default"
+
+# Rule 1: Allow reading secrets from the KV secrets engine
+# This grants read access to all secrets under the secret/data/ path
+[[rules]]
+effect = "allow"
+path = "secret/data/*"
+capabilities = ["read"]
+
+# Rule 2: Allow listing secrets to discover available paths
+# This enables applications to enumerate secrets without reading their values
+[[rules]]
+effect = "allow"
+path = "secret/metadata/*"
+capabilities = ["list"]
+
+# Rule 3: Allow reading secret metadata (versions, timestamps, etc.)
+# Metadata access is useful for auditing and version management
+[[rules]]
+effect = "allow"
+path = "secret/metadata/*"
+capabilities = ["read"]
+
+# Rule 4: Deny any write operations to ensure read-only access
+# This explicit deny prevents accidental privilege escalation
+[[rules]]
+effect = "deny"
+path = "secret/*"
+capabilities = ["create", "update", "delete"]

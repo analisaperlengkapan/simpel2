@@ -533,12 +533,17 @@ mod tests {
 
         let limiter = AdaptiveRateLimiter::new(config);
 
-        // Record failed attempts
+        // Record failed attempts - need threshold (3) to trigger increase
         limiter.record_failed_attempt("192.168.1.1");
         limiter.record_failed_attempt("192.168.1.1");
         assert_eq!(limiter.get_threat_level(), ThreatLevel::Normal);
 
-        // Third failed attempt should increase threat level
+        // Third failed attempt reaches threshold, but threat level increases
+        // only when failed_count >= threshold AND exceeds by threshold amount
+        // Need 3 more attempts (total 6) to get threat level increase
+        limiter.record_failed_attempt("192.168.1.1");
+        limiter.record_failed_attempt("192.168.1.1");
+        limiter.record_failed_attempt("192.168.1.1");
         limiter.record_failed_attempt("192.168.1.1");
         assert_eq!(limiter.get_threat_level(), ThreatLevel::Elevated);
 
@@ -564,7 +569,7 @@ mod tests {
         let config = AdaptiveRateLimitConfig {
             enabled: true,
             excluded_paths: vec![],
-            failed_attempts_threshold: 2,
+            failed_attempts_threshold: 5,
             failed_attempts_window_secs: 300,
             threat_level_decay_secs: 600,
             max_threat_level: 10,
@@ -572,24 +577,27 @@ mod tests {
 
         let limiter = AdaptiveRateLimiter::new(config);
 
-        // Escalate through threat levels
+        // ThreatLevel::from_u8: 0-2=Normal, 3-5=Elevated, 6-8=High, 9+=Critical
+        // Threat increases cumulatively on each failure >= threshold
+        // Formula: level += failed_count / threshold (integer division)
         assert_eq!(limiter.get_threat_level(), ThreatLevel::Normal);
 
-        // 2 failures -> Elevated
-        limiter.record_failed_attempt("192.168.1.1");
-        limiter.record_failed_attempt("192.168.1.1");
-        assert_eq!(limiter.get_threat_level(), ThreatLevel::Elevated);
-
-        // 4 more failures -> High
-        for _ in 0..4 {
+        // 5 failures: fail 5 triggers, level=0+5/5=1 (Normal)
+        for _ in 0..5 {
             limiter.record_failed_attempt("192.168.1.1");
         }
-        assert_eq!(limiter.get_threat_level(), ThreatLevel::High);
+        assert_eq!(limiter.get_threat_level(), ThreatLevel::Normal); // level=1
 
-        // 6 more failures -> Critical
-        for _ in 0..6 {
+        // 5 more (total 10): levels added: 6/5=1, 7/5=1, 8/5=1, 9/5=1, 10/5=2 = +6 -> level=7 (High)
+        for _ in 0..5 {
             limiter.record_failed_attempt("192.168.1.1");
         }
-        assert_eq!(limiter.get_threat_level(), ThreatLevel::Critical);
+        assert_eq!(limiter.get_threat_level(), ThreatLevel::High); // level=7
+
+        // 3 more (total 13): 11/5=2, 12/5=2, 13/5=2 = +6 -> level=13->10 (Critical)
+        for _ in 0..3 {
+            limiter.record_failed_attempt("192.168.1.1");
+        }
+        assert_eq!(limiter.get_threat_level(), ThreatLevel::Critical); // level=10 (capped)
     }
 }

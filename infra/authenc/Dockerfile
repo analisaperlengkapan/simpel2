@@ -1,39 +1,82 @@
-# Use the official Rust image as the base image for building
-FROM rust:1.90-slim AS builder
+# ============================================================================
+# Multi-stage build for optimized production Docker image
+# ============================================================================
 
-# Install build dependencies
+# Stage 1: Builder - Use Debian trixie for consistent GLIBC version
+FROM rust:1.90-slim-bookworm AS builder
+
+# Install build dependencies (including protobuf for gRPC)
 RUN apt-get update && \
-    apt-get install -y pkg-config libssl-dev && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    g++ \
+    gcc \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    protobuf-compiler && \
     rm -rf /var/lib/apt/lists/*
-
-# Set the working directory inside the container
-WORKDIR /app
-
-# Copy the Cargo files
-COPY Cargo.toml Cargo.lock* ./
-
-# Copy all necessary directories
-COPY src ./src
-COPY benches ./benches
-COPY config ./config
-
-# Build the application in release mode (skip benches)
-RUN cargo build --release --bins
-
-# Use a minimal base image for the runtime
-FROM debian:13.2-slim
-
-# Install necessary runtime dependencies (if any)
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Copy the compiled binary from the builder stage
+# Copy Cargo files
+COPY Cargo.toml Cargo.lock* ./
+
+# Copy build.rs for proto compilation
+COPY build.rs ./
+
+# Create proto directory and copy proto files
+COPY proto ./proto
+
+# Copy source code
+COPY src ./src
+COPY benches ./benches
+
+# Build in release mode with optimizations
+# Use RUSTFLAGS to ensure compatibility
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+RUN cargo build --release --bins
+
+# Stage 2: Runtime - Use same base as builder for GLIBC compatibility
+FROM debian:trixie-slim
+
+# Install runtime dependencies only (including curl for healthcheck)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
+# Create non-root user for security
+RUN useradd -m -u 1000 authenc
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder
 COPY --from=builder /app/target/release/authenc /app/authenc
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Copy configuration files
+COPY authenc.toml /app/authenc.toml
 
-# Command to run the application
+# Copy migration files for auto-migration on startup
+COPY migrations /app/migrations
+
+# Create config directory for environment-specific overrides
+RUN mkdir -p /app/config && chown -R authenc:authenc /app
+
+# Switch to non-root user
+USER authenc
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8088/health || exit 1
+
+# Expose ports
+EXPOSE 8088 9088 9090
+
+# Run the application
 CMD ["./authenc"]

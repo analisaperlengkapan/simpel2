@@ -120,8 +120,8 @@ mod tests {
         let _ = result.record_auth_result(&limiter, "192.168.1.1");
     }
 
-    #[test]
-    fn test_create_rate_limit_response() {
+    #[tokio::test]
+    async fn test_create_rate_limit_response() {
         let config = AdaptiveRateLimitConfig::default();
         let limiter = AdaptiveRateLimiter::new(config);
 
