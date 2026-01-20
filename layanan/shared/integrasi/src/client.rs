@@ -9,6 +9,7 @@ use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
 use tokio_postgres::NoTls;
 use tracing::{error, info, warn};
 
@@ -481,7 +482,6 @@ impl MonsaktiClient {
         data: &serde_json::Value,
         filename: P,
     ) -> Result<(), MonsaktiError> {
-        use tokio::io::AsyncWriteExt;
         let path = Path::new(&self.config.output_dir).join(filename);
 
         // Check data validity
