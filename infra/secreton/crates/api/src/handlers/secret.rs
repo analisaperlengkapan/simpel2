@@ -80,12 +80,17 @@ pub async fn get_audit_logs(
     State(state): State<AppState>,
     Query(query): Query<AuditQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<AuditLog>>>> {
-    let status = query.status.and_then(|s| match s.to_lowercase().as_str() {
-        "success" => Some(secreton_core::audit::AuditStatus::Success),
-        "failure" => Some(secreton_core::audit::AuditStatus::Failure),
-        "denied" => Some(secreton_core::audit::AuditStatus::Denied),
-        _ => None,
-    });
+    let status = match query.status.as_deref() {
+        Some(s) => match s.to_lowercase().as_str() {
+            "success" => Some(secreton_core::audit::AuditStatus::Success),
+            "failure" => Some(secreton_core::audit::AuditStatus::Failure),
+            "denied" => Some(secreton_core::audit::AuditStatus::Denied),
+            _ => return Err(ApiError::BadRequest {
+                message: format!("Invalid status: {}. Must be success, failure, or denied.", s),
+            }),
+        },
+        None => None,
+    };
 
     let core_query = secreton_core::audit::AuditQuery {
         action: query.action,
@@ -233,6 +238,52 @@ mod tests {
         assert_eq!(key.name, "signing-key");
         assert_eq!(key.algorithm, "Ed25519");
         assert!(key.public_key.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_audit_logs_returns_filtered_results() {
+        let server = server_with_routes().await;
+
+        // 1. Generate some audit activity by creating a secret
+        let payload = serde_json::json!({
+            "data": {"foo": "bar"},
+            "metadata": {"owner": "test-user"},
+            "ttl": 300
+        });
+
+        server.post("/data/app%2Faudit-test")
+            .add_header("Authorization", "Bearer token")
+            .json(&payload)
+            .await
+            .assert_status_ok();
+
+        // 2. Query logs filtering by action "secret_created"
+        let response = server.get("/audit")
+            .add_query_param("action", "secret_created")
+            .add_query_param("status", "success")
+            .add_header("Authorization", "Bearer token")
+            .await;
+
+        response.assert_status_ok();
+
+        let body: ApiResponse<Vec<AuditLog>> = response.json();
+        assert!(body.success);
+        let logs = body.data.expect("logs");
+
+        // Note: The memory backend in test environment might be shared or fresh per test depending on implementation.
+        // Assuming fresh or at least containing our new log.
+        assert!(!logs.is_empty(), "Should have at least one log");
+        let log = logs.first().unwrap();
+        assert_eq!(log.action, "secret_created");
+        assert_eq!(log.status, secreton_core::audit::AuditStatus::Success);
+
+        // 3. Test invalid status returns bad request
+        let response_invalid = server.get("/audit")
+            .add_query_param("status", "invalid_status")
+            .add_header("Authorization", "Bearer token")
+            .await;
+
+        response_invalid.assert_status_bad_request();
     }
 }
 

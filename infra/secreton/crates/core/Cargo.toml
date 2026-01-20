@@ -46,6 +46,7 @@ aes-gcm.workspace = true
 sha2.workspace = true
 zeroize.workspace = true
 hmac.workspace = true
+ring.workspace = true
 flate2.workspace = true
 
 # TOTP/OTP support
