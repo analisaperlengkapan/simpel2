@@ -185,6 +185,7 @@ ssh-encoding = "0.2"
 
 # AWS SDK for secrets engine
 aws-config = "1.5"
+aws-sdk-s3 = "1.45"
 aws-sdk-iam = "1.45"
 aws-sdk-sts = "1.45"
 aws-types = "1.3"
