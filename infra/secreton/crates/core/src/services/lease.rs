@@ -980,6 +980,63 @@ impl LeaseManager {
         })
     }
 
+    /// Get active lease breakdown by resource type and namespace
+    pub async fn get_active_lease_breakdown(
+        &self,
+    ) -> Result<(HashMap<String, usize>, HashMap<String, usize>), LeaseError> {
+        let client = self.pool.get().await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+        })?;
+
+        // Query by resource type
+        let resource_query = r#"
+            SELECT resource_type, COUNT(*) as count
+            FROM leases
+            WHERE status = 'active'
+            GROUP BY resource_type
+        "#;
+
+        let resource_rows = client.query(resource_query, &[]).await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to query resource stats: {}", e))
+        })?;
+
+        let mut by_resource_type = HashMap::new();
+        for row in resource_rows {
+            let resource_type: String = row.try_get("resource_type").map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get resource_type: {}", e))
+            })?;
+            let count: i64 = row
+                .try_get("count")
+                .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
+            by_resource_type.insert(resource_type, count as usize);
+        }
+
+        // Query by namespace
+        let namespace_query = r#"
+            SELECT namespace, COUNT(*) as count
+            FROM leases
+            WHERE status = 'active'
+            GROUP BY namespace
+        "#;
+
+        let namespace_rows = client.query(namespace_query, &[]).await.map_err(|e| {
+            LeaseError::StorageError(format!("Failed to query namespace stats: {}", e))
+        })?;
+
+        let mut by_namespace = HashMap::new();
+        for row in namespace_rows {
+            let namespace: String = row
+                .try_get("namespace")
+                .map_err(|e| LeaseError::StorageError(format!("Failed to get namespace: {}", e)))?;
+            let count: i64 = row
+                .try_get("count")
+                .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
+            by_namespace.insert(namespace, count as usize);
+        }
+
+        Ok((by_resource_type, by_namespace))
+    }
+
     /// Execute revoke callback via HTTP webhook
     async fn execute_revoke_callback(&self, callback_url: &str, lease: &EnhancedLease) {
         let payload = serde_json::json!({

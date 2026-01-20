@@ -772,31 +772,14 @@ pub async fn get_lease_stats(
             message: format!("Failed to get lease stats: {}", e),
         })?;
 
-    // TODO: Implement breakdown by resource type and namespace
-    let active_leases = state
+    // Implement breakdown by resource type and namespace using optimized DB aggregation
+    let (by_resource_type, by_namespace) = state
         .lease_manager
-        .list_leases(
-            None,
-            None,
-            None,
-            Some("active".to_string()),
-            None,
-            None,
-        )
+        .get_active_lease_breakdown()
         .await
         .map_err(|e| ApiError::Internal {
-            message: format!("Failed to list active leases for stats: {}", e),
+            message: format!("Failed to get lease breakdown stats: {}", e),
         })?;
-
-    let mut by_resource_type = HashMap::new();
-    let mut by_namespace = HashMap::new();
-
-    for lease in active_leases {
-        *by_resource_type
-            .entry(lease.resource_type)
-            .or_insert(0) += 1;
-        *by_namespace.entry(lease.namespace).or_insert(0) += 1;
-    }
 
     // Log audit event
     let mut metadata = HashMap::new();
