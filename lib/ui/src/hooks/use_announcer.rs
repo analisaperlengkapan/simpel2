@@ -11,8 +11,8 @@ use std::time::Duration;
 /// Hook for announcing messages to screen readers
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_announcer::{use_announcer, Announcer};
-/// use shared_microfrontend::utils::accessibility::AriaLive;
+/// use lib_ui::hooks::use_announcer::{use_announcer, Announcer};
+/// use lib_ui::utils::accessibility::AriaLive;
 /// use leptos::prelude::*;
 ///
 /// # fn example() {

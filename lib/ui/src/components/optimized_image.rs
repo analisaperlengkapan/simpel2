@@ -13,7 +13,7 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::components::OptimizedImage;
+/// use lib_ui::components::OptimizedImage;
 /// use leptos::prelude::*;
 ///
 /// #[component]

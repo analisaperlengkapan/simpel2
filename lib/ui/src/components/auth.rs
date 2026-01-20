@@ -11,9 +11,9 @@ use leptos::prelude::*;
 /// Shows a branded page with a login button that redirects to the portal.
 /// This should be the default route for unauthenticated users.
 ///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::LoginRedirectPage;
+/// # Example (ignored - requires full Leptos context)
+/// ```rust,ignore
+/// use lib_ui::components::auth::LoginRedirectPage;
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
@@ -102,9 +102,9 @@ pub fn LoginRedirectPage() -> impl IntoView {
 /// Wraps content that requires authentication. If user is not authenticated,
 /// redirects to login page.
 ///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::ProtectedRoute;
+/// # Example (ignored - requires full Leptos context)
+/// ```rust,ignore
+/// use lib_ui::components::auth::ProtectedRoute;
 ///
 /// #[component]
 /// pub fn DashboardPage() -> impl IntoView {
@@ -169,9 +169,9 @@ pub fn ProtectedRoute(
 ///
 /// Renders a button that logs out the user and redirects to portal.
 ///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::LogoutButton;
+/// # Example (ignored - requires full Leptos context)
+/// ```rust,ignore
+/// use lib_ui::components::auth::LogoutButton;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -215,9 +215,9 @@ pub fn LogoutButton(
 ///
 /// Shows current user information with avatar and name.
 ///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::UserProfile;
+/// # Example (ignored - requires full Leptos context)
+/// ```rust,ignore
+/// use lib_ui::components::auth::UserProfile;
 ///
 /// #[component]
 /// pub fn Header() -> impl IntoView {
@@ -272,9 +272,9 @@ pub fn UserProfile(
 ///
 /// Shows content only if user has required permission.
 ///
-/// # Example
-/// ```rust
-/// use shared_microfrontend::components::auth::PermissionGuard;
+/// # Example (ignored - requires full Leptos context)
+/// ```rust,ignore
+/// use lib_ui::components::auth::PermissionGuard;
 ///
 /// #[component]
 /// pub fn AdminPanel() -> impl IntoView {

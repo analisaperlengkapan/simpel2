@@ -236,8 +236,8 @@ pub fn EmptyState(
 // ============================================================================
 // Avatar component has been moved to optimized_image.rs for better
 // image optimization with lazy loading and error handling.
-// Use: use shared_microfrontend::prelude::*; or
-//      use shared_microfrontend::components::optimized_image::Avatar;
+// Use: use lib_ui::prelude::*; or
+//      use lib_ui::components::optimized_image::Avatar;
 
 // ============================================================================
 // PAGINATION COMPONENT

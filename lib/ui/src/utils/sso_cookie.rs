@@ -203,7 +203,7 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::utils::sso_cookie::init_auth_from_sso_cookie;
+/// use lib_ui::utils::sso_cookie::init_auth_from_sso_cookie;
 /// use leptos::prelude::*;
 ///
 /// #[component]
@@ -253,7 +253,7 @@ pub fn init_auth_from_sso_cookie() {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::utils::sso_cookie::setup_sso_session_monitor;
+/// use lib_ui::utils::sso_cookie::setup_sso_session_monitor;
 /// use leptos::prelude::*;
 ///
 /// #[component]

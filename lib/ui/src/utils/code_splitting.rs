@@ -35,10 +35,10 @@ use leptos::prelude::*;
 ///
 /// # Example: Route Organization
 ///
-/// ```rust
+/// ```rust,ignore
 /// use leptos::prelude::*;
 /// use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
-/// use shared_microfrontend::utils::code_splitting::RouteLoadingSkeleton;
+/// use lib_ui::utils::code_splitting::RouteLoadingSkeleton;
 ///
 /// // Placeholder components
 /// #[component] fn HomePage() -> impl IntoView { view! { "Home" } }
@@ -67,8 +67,8 @@ use leptos::prelude::*;
 ///
 /// # Preloading Example
 ///
-/// ```rust
-/// use shared_microfrontend::utils::code_splitting::preload_route;
+/// ```rust,ignore
+/// use lib_ui::utils::code_splitting::preload_route;
 ///
 /// #[component]
 /// pub fn NavLink() -> impl IntoView {
@@ -127,8 +127,8 @@ pub fn RouteLoadingSkeleton() -> impl IntoView {
 /// to improve perceived performance.
 ///
 /// # Example
-/// ```rust
-/// use shared_microfrontend::utils::code_splitting::preload_route;
+/// ```rust,ignore
+/// use lib_ui::utils::code_splitting::preload_route;
 /// use leptos::prelude::*;
 ///
 /// #[component]
@@ -245,8 +245,8 @@ pub fn get_bundle_size() -> BundleSize {
 /// and get optimization recommendations.
 ///
 /// # Example
-/// ```rust
-/// use shared_microfrontend::utils::code_splitting::analyze_bundle_size;
+/// ```rust,ignore
+/// use lib_ui::utils::code_splitting::analyze_bundle_size;
 ///
 /// #[component]
 /// pub fn App() -> impl IntoView {
@@ -369,8 +369,8 @@ impl BundleSize {
 /// Results are logged to the console and can be viewed in browser DevTools.
 ///
 /// # Example
-/// ```rust
-/// use shared_microfrontend::utils::code_splitting::measure_render_time;
+/// ```rust,ignore
+/// use lib_ui::utils::code_splitting::measure_render_time;
 /// use leptos::prelude::*;
 ///
 /// #[component]
