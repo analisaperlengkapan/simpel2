@@ -373,7 +373,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);

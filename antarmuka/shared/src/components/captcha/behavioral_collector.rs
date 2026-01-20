@@ -454,7 +454,7 @@ extern "C" {
     fn clear_interval(handle: i32);
 }
 
-fn set_interval<F>(mut f: F, duration: std::time::Duration) -> i32
+fn set_interval<F>(f: F, duration: std::time::Duration) -> i32
 where
     F: FnMut() + 'static,
 {

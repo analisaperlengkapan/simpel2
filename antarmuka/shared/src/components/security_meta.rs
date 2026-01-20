@@ -148,10 +148,10 @@ pub fn generate_csp_nonce() -> String {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        use rand::{Rng, thread_rng};
-        let mut rng = thread_rng();
+        use rand::Rng;
+        let mut rng = rand::rng();
         (0..16)
-            .map(|_| format!("{:02x}", rng.r#gen::<u8>()))
+            .map(|_| format!("{:02x}", rng.random::<u8>()))
             .collect::<String>()
     }
 }

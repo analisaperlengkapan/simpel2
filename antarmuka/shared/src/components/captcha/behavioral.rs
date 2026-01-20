@@ -50,6 +50,7 @@ impl Drop for WindowListener {
     }
 }
 
+#[allow(dead_code)]
 struct SendWindowListener(WindowListener);
 unsafe impl Send for SendWindowListener {}
 unsafe impl Sync for SendWindowListener {}
