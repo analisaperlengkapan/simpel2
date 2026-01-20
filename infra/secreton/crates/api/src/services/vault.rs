@@ -290,13 +290,24 @@ impl VaultService {
 
         let entry = secreton_storage::VaultEntry::new(
             format!("keys/{}", key_name),
-            metadata,
+            metadata.clone(),
             serde_json::json!({}),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
 
+        // Also store versioned entry
+        let mut version_entry = secreton_storage::VaultEntry::new(
+            format!("keys/{}/versions/{}", key_name, key_info.version),
+            metadata,
+            serde_json::json!({}),
+            SecurityLevel::Confidential,
+            user_id.to_string(),
+        );
+        version_entry.created_at = entry.created_at;
+
         self.storage.store(&entry).await?;
+        self.storage.store(&version_entry).await?;
 
         Ok(key_info)
     }
@@ -463,10 +474,63 @@ impl VaultService {
 
         let mut key_infos = Vec::new();
         for entry in entries {
+            // Filter out version entries (they contain "/versions/")
+            if entry.path.contains("/versions/") {
+                continue;
+            }
+
             if let Ok(key_info) = serde_json::from_slice::<KeyInfo>(&entry.encrypted_data) {
                 key_infos.push(key_info);
             }
         }
+
+        Ok(key_infos)
+    }
+
+    /// List key versions
+    pub async fn list_key_versions(&self, key_id: &str, user_id: &str) -> Result<Vec<KeyInfo>, VaultError> {
+        // Log audit trail
+        let _ = self
+            .audit
+            .log(AuditLog {
+                id: uuid::Uuid::new_v4(),
+                timestamp: chrono::Utc::now(),
+                action: "list_versions".to_string(),
+                actor: Some(user_id.to_string()),
+                resource_type: "key".to_string(),
+                resource_id: format!("keys/{}/versions", key_id),
+                status: AuditStatus::Success,
+                ip: None,
+                user_agent: None,
+                namespace: None,
+                metadata: HashMap::new(),
+            })
+            .await;
+
+        // List key versions from storage
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some(format!("keys/{}/versions/", key_id)),
+            security_level: None,
+            tags: Vec::new(),
+            owner_id: None,
+            metadata_filters: std::collections::HashMap::new(),
+            include_expired: false,
+            limit: Some(1000),
+            offset: None,
+            sort_by: None,
+            sort_order: None,
+        };
+        let entries = self.storage.list(&params).await?;
+
+        let mut key_infos = Vec::new();
+        for entry in entries {
+            if let Ok(key_info) = serde_json::from_slice::<KeyInfo>(&entry.encrypted_data) {
+                key_infos.push(key_info);
+            }
+        }
+
+        // Sort by version descending
+        key_infos.sort_by(|a, b| b.version.cmp(&a.version));
 
         Ok(key_infos)
     }
@@ -503,14 +567,26 @@ impl VaultService {
 
         let mut entry = secreton_storage::VaultEntry::new(
             format!("keys/{}", key_id),
-            metadata,
+            metadata.clone(),
             serde_json::json!({}),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
         entry.updated_at = chrono::Utc::now();
 
+        // Also store versioned entry
+        let mut version_entry = secreton_storage::VaultEntry::new(
+            format!("keys/{}/versions/{}", key_id, key_info.version),
+            metadata,
+            serde_json::json!({}),
+            SecurityLevel::Confidential,
+            user_id.to_string(),
+        );
+        version_entry.created_at = entry.created_at;
+        version_entry.updated_at = entry.updated_at;
+
         self.storage.store(&entry).await?;
+        self.storage.store(&version_entry).await?;
 
         Ok(key_info)
     }

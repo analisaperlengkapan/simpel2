@@ -204,6 +204,58 @@ mod tests {
         assert_eq!(key.algorithm, "Ed25519");
         assert!(key.public_key.is_some());
     }
+
+    #[tokio::test]
+    async fn test_key_versioning() {
+        let server = server_with_routes().await;
+        // 1. Create a key
+        let create_request = serde_json::json!({
+            "name": "versioned-key",
+            "key_type": "AES",
+            "algorithm": "AES-256-GCM",
+            "usage": ["encrypt", "decrypt"],
+            "exportable": false
+        });
+
+        let response = server.post("/keys")
+            .add_header("Authorization", "Bearer token")
+            .json(&create_request)
+            .await;
+        response.assert_status_ok();
+        let key: ApiResponse<KeyResponse> = response.json();
+        let key_id = key.data.unwrap().name; // Use name as ID for now
+
+        // 2. List versions (should be 1)
+        let response = server.get(&format!("/keys/{}/versions", key_id))
+            .add_header("Authorization", "Bearer token")
+            .await;
+        response.assert_status_ok();
+        let body: ApiResponse<Vec<KeyResponse>> = response.json();
+        let versions = body.data.expect("versions list");
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].version, 1);
+
+        // 3. Rotate key
+        let response = server.post(&format!("/keys/{}/rotate", key_id))
+            .add_header("Authorization", "Bearer token")
+            .await;
+        response.assert_status_ok();
+        let body: ApiResponse<KeyResponse> = response.json();
+        assert_eq!(body.data.unwrap().version, 2);
+
+        // 4. List versions (should be 2)
+        let response = server.get(&format!("/keys/{}/versions", key_id))
+            .add_header("Authorization", "Bearer token")
+            .await;
+        response.assert_status_ok();
+        let body: ApiResponse<Vec<KeyResponse>> = response.json();
+        let versions = body.data.expect("versions list");
+        assert_eq!(versions.len(), 2);
+
+        // Check versions are 2 and 1 (sorted descending)
+        assert_eq!(versions[0].version, 2);
+        assert_eq!(versions[1].version, 1);
+    }
 }
 
 /// Query parameters for listing operations
@@ -910,16 +962,55 @@ pub async fn delete_key(
 }
 
 pub async fn list_key_versions(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(key_id): Path<String>,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
     tracing::debug!(key_id = %key_id, "Listing key versions");
 
-    // TODO: Implement key versioning in key store
-    // Key versioning is important for key rotation and historical access
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
 
-    // For now, return empty list
-    Ok(Json(ApiResponse::success(vec![])))
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
+    // List key versions using vault service
+    let key_infos = state
+        .vault
+        .list_key_versions(&key_id, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list key versions: {}", e),
+        })?;
+
+    let keys: Vec<KeyResponse> = key_infos
+        .into_iter()
+        .map(|key_info| KeyResponse {
+            id: key_info.id,
+            name: key_info.name,
+            key_type: key_info.key_type.clone(),
+            algorithm: key_info.key_type,
+            size: 256,
+            usage: vec!["sign".to_string(), "verify".to_string()],
+            metadata: KeyMetadata::default(),
+            version: key_info.version,
+            created_at: key_info.created_at,
+            status: "active".to_string(),
+            public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+        })
+        .collect();
+
+    Ok(Json(ApiResponse::success(keys)))
 }
 
 // Policy management handlers
