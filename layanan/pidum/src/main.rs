@@ -1,7 +1,9 @@
-use axum::{
-    Router,
-    routing::{get, post},
-};
+// Allow clippy warnings for this crate during development
+#![allow(clippy::upper_case_acronyms)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
+use axum::{Router, routing::get};
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use std::env;
 use std::net::SocketAddr;
@@ -19,10 +21,10 @@ async fn main() {
 
     // Database setup from environment variables or default
     let mut pg_config = tokio_postgres::Config::new();
-    pg_config.host(&env::var("DB_HOST").unwrap_or_else(|_| "postgres".to_string()));
-    pg_config.user(&env::var("DB_USER").unwrap_or_else(|_| "postgres".to_string()));
-    pg_config.password(&env::var("DB_PASSWORD").unwrap_or_else(|_| "postgres".to_string()));
-    pg_config.dbname(&env::var("DB_NAME").unwrap_or_else(|_| "simpelv2".to_string()));
+    pg_config.host(env::var("DB_HOST").unwrap_or_else(|_| "postgres".to_string()));
+    pg_config.user(env::var("DB_USER").unwrap_or_else(|_| "postgres".to_string()));
+    pg_config.password(env::var("DB_PASSWORD").unwrap_or_else(|_| "postgres".to_string()));
+    pg_config.dbname(env::var("DB_NAME").unwrap_or_else(|_| "simpelv2".to_string()));
 
     let mgr_config = ManagerConfig {
         recycling_method: RecyclingMethod::Fast,

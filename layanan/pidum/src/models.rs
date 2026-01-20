@@ -39,15 +39,15 @@ impl From<String> for PerkaraStatus {
     }
 }
 
-impl ToString for PerkaraStatus {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for PerkaraStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SPDP => "SPDP".to_string(),
-            Self::P18 => "P-18".to_string(),
-            Self::P19 => "P-19".to_string(),
-            Self::P21 => "P-21".to_string(),
-            Self::Tahap2 => "Tahap 2".to_string(),
-            Self::Lainnya(s) => s.clone(),
+            Self::SPDP => write!(f, "SPDP"),
+            Self::P18 => write!(f, "P-18"),
+            Self::P19 => write!(f, "P-19"),
+            Self::P21 => write!(f, "P-21"),
+            Self::Tahap2 => write!(f, "Tahap 2"),
+            Self::Lainnya(s) => write!(f, "{}", s),
         }
     }
 }
