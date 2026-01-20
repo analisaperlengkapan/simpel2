@@ -3,7 +3,6 @@
 use super::*;
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
-use std::collections::HashMap;
 use std::path::Path;
 
 /// PostgreSQL backend for audit logs
@@ -28,17 +27,8 @@ impl PostgreSqlBackend {
                     status TEXT NOT NULL,
                     ip TEXT,
                     user_agent TEXT,
-                    metadata JSONB,
-                    namespace TEXT
+                    metadata JSONB
                 )",
-                &[],
-            )
-            .await?;
-
-        // Ensure namespace column exists (for migration of existing tables)
-        client
-            .execute(
-                "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS namespace TEXT",
                 &[],
             )
             .await?;
@@ -63,8 +53,8 @@ impl AuditBackend for PostgreSqlBackend {
             .execute(
                 "INSERT INTO audit_logs (
                 id, timestamp, action, actor_id, resource_type,
-                resource_id, status, ip, user_agent, metadata, namespace
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                resource_id, status, ip, user_agent, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                 &[
                     &entry.id,
                     &entry.timestamp,
@@ -80,7 +70,6 @@ impl AuditBackend for PostgreSqlBackend {
                     &entry.ip,
                     &entry.user_agent,
                     &metadata,
-                    &entry.namespace,
                 ],
             )
             .await
@@ -89,93 +78,87 @@ impl AuditBackend for PostgreSqlBackend {
         Ok(())
     }
 
-    async fn query(&self, query: AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+    async fn query(&self, query: &AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
         let client = self
             .pool
             .get()
             .await
-            .map_err(|e| AuditError::LoggingError(e.to_string()))?;
+            .map_err(|e| AuditError::QueryError(e.to_string()))?;
 
-        let mut query_str = "SELECT id, timestamp, action, actor_id, resource_type, resource_id, status, ip, user_agent, metadata, namespace FROM audit_logs WHERE 1=1".to_string();
+        let mut sql = "SELECT id, timestamp, action, actor_id, resource_type, resource_id, status, ip, user_agent, metadata FROM audit_logs WHERE 1=1".to_string();
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
         let mut param_idx = 1;
 
-        if let Some(action) = query.action {
-            query_str.push_str(&format!(" AND action = ${}", param_idx));
+        if let Some(action) = &query.action {
+            sql.push_str(&format!(" AND action = ${}", param_idx));
             params.push(Box::new(action));
             param_idx += 1;
         }
 
-        if let Some(actor) = query.actor {
-            query_str.push_str(&format!(" AND actor_id = ${}", param_idx));
+        if let Some(actor) = &query.actor {
+            sql.push_str(&format!(" AND actor_id = ${}", param_idx));
             params.push(Box::new(actor));
             param_idx += 1;
         }
 
-        if let Some(resource_type) = query.resource_type {
-            query_str.push_str(&format!(" AND resource_type = ${}", param_idx));
+        if let Some(resource_type) = &query.resource_type {
+            sql.push_str(&format!(" AND resource_type = ${}", param_idx));
             params.push(Box::new(resource_type));
             param_idx += 1;
         }
 
-        if let Some(resource_id) = query.resource_id {
-            query_str.push_str(&format!(" AND resource_id = ${}", param_idx));
+        if let Some(resource_id) = &query.resource_id {
+            sql.push_str(&format!(" AND resource_id = ${}", param_idx));
             params.push(Box::new(resource_id));
             param_idx += 1;
         }
 
-        if let Some(status) = query.status {
+        if let Some(status) = &query.status {
+            sql.push_str(&format!(" AND status = ${}", param_idx));
             let status_str = match status {
                 AuditStatus::Success => "success",
                 AuditStatus::Failure => "failure",
                 AuditStatus::Denied => "denied",
             };
-            query_str.push_str(&format!(" AND status = ${}", param_idx));
-            params.push(Box::new(status_str.to_string()));
+            params.push(Box::new(status_str));
             param_idx += 1;
         }
 
-        if let Some(start_time) = query.start_time {
-            query_str.push_str(&format!(" AND timestamp >= ${}", param_idx));
+        if let Some(start_time) = &query.start_time {
+            sql.push_str(&format!(" AND timestamp >= ${}", param_idx));
             params.push(Box::new(start_time));
             param_idx += 1;
         }
 
-        if let Some(end_time) = query.end_time {
-            query_str.push_str(&format!(" AND timestamp <= ${}", param_idx));
+        if let Some(end_time) = &query.end_time {
+            sql.push_str(&format!(" AND timestamp <= ${}", param_idx));
             params.push(Box::new(end_time));
             param_idx += 1;
         }
 
-        if let Some(namespace) = query.namespace {
-            query_str.push_str(&format!(" AND namespace = ${}", param_idx));
-            params.push(Box::new(namespace));
-            param_idx += 1;
-        }
-
-        // Order by timestamp desc
-        query_str.push_str(" ORDER BY timestamp DESC");
+        sql.push_str(" ORDER BY timestamp DESC");
 
         if let Some(limit) = query.limit {
-            query_str.push_str(&format!(" LIMIT ${}", param_idx));
+            sql.push_str(&format!(" LIMIT ${}", param_idx));
             params.push(Box::new(limit as i64));
             param_idx += 1;
         }
 
         if let Some(offset) = query.offset {
-            query_str.push_str(&format!(" OFFSET ${}", param_idx));
+            sql.push_str(&format!(" OFFSET ${}", param_idx));
             params.push(Box::new(offset as i64));
+            param_idx += 1;
         }
 
-        let db_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+        let params_slice: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
             .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
             .collect();
 
         let rows = client
-            .query(&query_str, &db_params)
+            .query(&sql, &params_slice)
             .await
-            .map_err(|e| AuditError::LoggingError(e.to_string()))?;
+            .map_err(|e| AuditError::QueryError(e.to_string()))?;
 
         let mut logs = Vec::new();
         for row in rows {
@@ -187,16 +170,9 @@ impl AuditBackend for PostgreSqlBackend {
                 _ => AuditStatus::Failure, // Fallback
             };
 
-            let metadata_val: Option<serde_json::Value> = row.try_get("metadata").ok();
-            let metadata = if let Some(val) = metadata_val {
-                 serde_json::from_value(val).unwrap_or_default()
-            } else {
-                 if let Ok(s) = row.try_get::<_, String>("metadata") {
-                     serde_json::from_str(&s).unwrap_or_default()
-                 } else {
-                     HashMap::new()
-                 }
-            };
+            let metadata_val: serde_json::Value = row.get("metadata");
+            let metadata: HashMap<String, String> =
+                serde_json::from_value(metadata_val).unwrap_or_default();
 
             logs.push(AuditLog {
                 id: row.get("id"),
@@ -208,7 +184,7 @@ impl AuditBackend for PostgreSqlBackend {
                 status,
                 ip: row.get("ip"),
                 user_agent: row.get("user_agent"),
-                namespace: row.try_get("namespace").ok(),
+                namespace: None,
                 metadata,
             });
         }
