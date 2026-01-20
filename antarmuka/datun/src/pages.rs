@@ -46,7 +46,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn DashboardPage() -> impl IntoView {
     // Fetch cases from API using local resource (CSR)
-    let cases_resource = LocalResource::new(|| fetch_cases());
+    let cases_resource = LocalResource::new(fetch_cases);
 
     let content = move || {
         view! {
