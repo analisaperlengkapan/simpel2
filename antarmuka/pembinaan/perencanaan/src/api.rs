@@ -1,4 +1,6 @@
-use crate::types::{ApiErrorResponse, CreateRencanaRequest, RencanaPengadaan, UpdateRencanaRequest};
+use crate::types::{
+    ApiErrorResponse, CreateRencanaRequest, RencanaPengadaan, UpdateRencanaRequest,
+};
 use gloo_net::http::Request;
 use leptos::*;
 use uuid::Uuid;
@@ -39,7 +41,10 @@ pub async fn create_rencana(req: CreateRencanaRequest) -> Result<RencanaPengadaa
     handle_response(resp).await
 }
 
-pub async fn update_rencana(id: Uuid, req: UpdateRencanaRequest) -> Result<RencanaPengadaan, String> {
+pub async fn update_rencana(
+    id: Uuid,
+    req: UpdateRencanaRequest,
+) -> Result<RencanaPengadaan, String> {
     let resp = Request::put(&format!("{}/pengadaan/{}", API_BASE_URL, id))
         .json(&req)
         .map_err(|e| e.to_string())?

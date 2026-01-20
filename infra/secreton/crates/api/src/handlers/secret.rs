@@ -17,8 +17,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
-    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
-    helpers::create_audit_log, services::vault::{SecretMetadata, KeyMetadata},
+    ApiError, ApiResponse, ApiResult,
+    extractors::AuthenticatedUser,
+    handlers::AppState,
+    helpers::create_audit_log,
+    services::vault::{KeyMetadata, SecretMetadata},
 };
 use secreton_core::audit::AuditLog;
 
@@ -134,14 +137,16 @@ mod tests {
             "ttl": 3600
         });
 
-        let put_response = server.post("/data/app%2Fconfig")
+        let put_response = server
+            .post("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
         put_response.assert_status_ok();
 
         // Now retrieve it
-        let response = server.get("/data/app%2Fconfig")
+        let response = server
+            .get("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -167,7 +172,8 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/data/app%2Fadmin")
+        let response = server
+            .post("/data/app%2Fadmin")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
@@ -191,7 +197,8 @@ mod tests {
             "exportable": true
         });
 
-        let response = server.post("/keys")
+        let response = server
+            .post("/keys")
             .add_header("Authorization", "Bearer token")
             .json(&request)
             .await;
@@ -220,7 +227,8 @@ mod tests {
             }
         });
 
-        let create_response = server.post("/keys")
+        let create_response = server
+            .post("/keys")
             .add_header("Authorization", "Bearer token")
             .json(&create_payload)
             .await;
@@ -236,7 +244,8 @@ mod tests {
             "purpose": "testing updates"
         });
 
-        let update_response = server.put(&format!("/keys/{}", key_id))
+        let update_response = server
+            .put(&format!("/keys/{}", key_id))
             .add_header("Authorization", "Bearer token")
             .json(&update_payload)
             .await;
@@ -245,18 +254,25 @@ mod tests {
         // 3. Verify update in response
         let updated_key: ApiResponse<KeyResponse> = update_response.json();
         let metadata = updated_key.data.unwrap().metadata;
-        assert_eq!(metadata.description, Some("Updated description".to_string()));
+        assert_eq!(
+            metadata.description,
+            Some("Updated description".to_string())
+        );
         assert!(metadata.tags.contains(&"updated".to_string()));
         assert_eq!(metadata.owner, Some("new-owner".to_string()));
 
         // 4. Verify persistence with get_key
-        let get_response = server.get(&format!("/keys/{}", key_id))
+        let get_response = server
+            .get(&format!("/keys/{}", key_id))
             .add_header("Authorization", "Bearer token")
             .await;
         get_response.assert_status_ok();
         let fetched_key: ApiResponse<KeyResponse> = get_response.json();
         let fetched_metadata = fetched_key.data.unwrap().metadata;
-        assert_eq!(fetched_metadata.description, Some("Updated description".to_string()));
+        assert_eq!(
+            fetched_metadata.description,
+            Some("Updated description".to_string())
+        );
     }
 }
 
@@ -433,8 +449,24 @@ pub struct PolicyResponse {
 pub async fn get_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
-    user: AuthenticatedUser,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
     // Retrieve secret from vault service
     let secret_data = state
         .vault
@@ -466,7 +498,7 @@ pub async fn create_secret(
     let expires_at = request
         .ttl
         .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
-    
+
     // Prepare metadata with default owner if not provided
     let mut metadata = request.metadata.clone().unwrap_or_default();
     if metadata.owner.is_none() {
@@ -874,14 +906,29 @@ pub async fn hash_data(
     Ok(Json(ApiResponse::success(response)))
 }
 
-
 // Key management handlers
 pub async fn update_key(
     State(state): State<AppState>,
     Path(key_id): Path<String>,
-    user: AuthenticatedUser,
+    headers: axum::http::HeaderMap,
     Json(metadata): Json<KeyMetadata>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
     // Update key metadata using vault service
     let key_info = state
         .vault
@@ -915,8 +962,24 @@ pub async fn update_key(
 pub async fn delete_key(
     State(state): State<AppState>,
     Path(key_id): Path<String>,
-    user: AuthenticatedUser,
+    headers: axum::http::HeaderMap,
 ) -> ApiResult<Json<ApiResponse<()>>> {
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
     // Key deletion should be done carefully with audit trail
     tracing::info!(key_id = %key_id, user_id = %user.id, "Key deletion requested");
 

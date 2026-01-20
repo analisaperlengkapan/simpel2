@@ -1,9 +1,9 @@
 //! API Client for fetching data from the backend.
 
+use crate::features::auth::AuthService;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use crate::features::auth::AuthService;
 
 /// System statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -153,7 +153,10 @@ pub async fn create_secret(
     if api_resp.success {
         Ok(api_resp.data.ok_or("No data received")?)
     } else {
-        Err(api_resp.error.map(|e| e.message).unwrap_or_else(|| "Unknown error".to_string()))
+        Err(api_resp
+            .error
+            .map(|e| e.message)
+            .unwrap_or_else(|| "Unknown error".to_string()))
     }
 }
 
@@ -179,7 +182,10 @@ pub async fn delete_secret(path: &str) -> Result<(), String> {
     if api_resp.success {
         Ok(())
     } else {
-        Err(api_resp.error.map(|e| e.message).unwrap_or_else(|| "Unknown error".to_string()))
+        Err(api_resp
+            .error
+            .map(|e| e.message)
+            .unwrap_or_else(|| "Unknown error".to_string()))
     }
 }
 
@@ -203,6 +209,9 @@ async fn fetch_api<T: for<'de> Deserialize<'de>>(endpoint: &str) -> Result<T, St
     if api_resp.success {
         Ok(api_resp.data.ok_or("No data received")?)
     } else {
-        Err(api_resp.error.map(|e| e.message).unwrap_or_else(|| "Unknown error".to_string()))
+        Err(api_resp
+            .error
+            .map(|e| e.message)
+            .unwrap_or_else(|| "Unknown error".to_string()))
     }
 }

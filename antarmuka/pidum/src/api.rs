@@ -39,9 +39,7 @@ pub async fn create_comment(id: Uuid, req: CreateCommentRequest) -> Result<Perka
         return Err(format!("Error {}: {}", status, text));
     }
 
-    resp.json()
-        .await
-        .map_err(|e| e.to_string())
+    resp.json().await.map_err(|e| e.to_string())
 }
 
 pub async fn create_perkara(req: CreatePerkaraRequest) -> Result<Perkara, String> {

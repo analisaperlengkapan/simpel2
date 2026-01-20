@@ -66,18 +66,16 @@ pub async fn rate_limit_middleware(
     let mut response = next.run(req).await;
 
     // Add Rate Limit Headers
-    response.headers_mut().insert(
-        "X-RateLimit-Limit",
-        limit.to_string().parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("X-RateLimit-Limit", limit.to_string().parse().unwrap());
     response.headers_mut().insert(
         "X-RateLimit-Remaining",
         remaining.to_string().parse().unwrap(),
     );
-    response.headers_mut().insert(
-        "X-RateLimit-Reset",
-        reset_secs.to_string().parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("X-RateLimit-Reset", reset_secs.to_string().parse().unwrap());
 
     Ok(response)
 }

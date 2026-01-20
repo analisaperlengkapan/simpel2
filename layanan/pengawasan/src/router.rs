@@ -1,9 +1,5 @@
-use axum::{
-    routing::get,
-    Router,
-    response::IntoResponse,
-};
-use crate::handlers::{AppState, list_schedules, create_schedule, get_schedule};
+use crate::handlers::{AppState, create_schedule, get_schedule, list_schedules};
+use axum::{Router, response::IntoResponse, routing::get};
 use deadpool_postgres::Pool;
 
 async fn health_check() -> impl IntoResponse {

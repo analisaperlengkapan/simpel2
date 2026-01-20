@@ -1,15 +1,18 @@
-use std::sync::Arc;
-use std::collections::HashMap;
-use tokio::sync::Mutex;
 use dashmap::DashMap;
-use std::time::{SystemTime, UNIX_EPOCH, Instant};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 // Baseline: Mutex<HashMap>
 type MutexState = Arc<Mutex<HashMap<String, (u32, u64)>>>;
 
 async fn mutex_rate_limit(state: MutexState, ip: String, limit: u32) -> bool {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let mut lock = state.lock().await;
     let val = lock.entry(ip).or_insert((0, now));
 
@@ -30,7 +33,10 @@ async fn mutex_rate_limit(state: MutexState, ip: String, limit: u32) -> bool {
 type DashMapState = Arc<DashMap<String, (u32, u64)>>;
 
 fn dashmap_rate_limit(state: DashMapState, ip: String, limit: u32) -> bool {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     // Use DashMap's entry API
     let mut entry = state.entry(ip).or_insert((0, now));
     let val = entry.value_mut();
@@ -63,7 +69,10 @@ async fn benchmark_rate_limit_contention() {
     }
     let ips = Arc::new(ips);
 
-    println!("Starting benchmark with {} requests, {} IPs...", num_requests, num_ips);
+    println!(
+        "Starting benchmark with {} requests, {} IPs...",
+        num_requests, num_ips
+    );
 
     // --- Benchmark Mutex ---
     let state_mutex = Arc::new(Mutex::new(HashMap::new()));
@@ -106,5 +115,8 @@ async fn benchmark_rate_limit_contention() {
     let improvement = duration_mutex.as_secs_f64() / duration_dashmap.as_secs_f64();
     println!("Improvement: {:.2}x", improvement);
 
-    assert!(duration_dashmap < duration_mutex, "DashMap should be faster than Mutex under contention");
+    assert!(
+        duration_dashmap < duration_mutex,
+        "DashMap should be faster than Mutex under contention"
+    );
 }

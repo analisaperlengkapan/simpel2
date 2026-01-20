@@ -94,8 +94,8 @@ impl VaultService {
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Extract metadata
-        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
-            .unwrap_or_default();
+        let metadata: SecretMetadata =
+            serde_json::from_value(entry.metadata.clone()).unwrap_or_default();
 
         Ok(SecretData {
             path: path.to_string(),

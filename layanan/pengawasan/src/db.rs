@@ -1,7 +1,7 @@
-use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
-use tokio_postgres::NoTls;
-use std::env;
 use anyhow::Result;
+use deadpool_postgres::{Config, ManagerConfig, Pool, RecyclingMethod, Runtime};
+use std::env;
+use tokio_postgres::NoTls;
 
 pub async fn create_pool() -> Result<Pool> {
     let mut cfg = Config::new();

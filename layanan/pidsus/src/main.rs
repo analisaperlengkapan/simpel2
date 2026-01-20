@@ -1,7 +1,4 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
@@ -14,8 +11,8 @@ mod models;
 mod repository;
 
 use config::Config;
-use repository::Repository;
 use handlers::AppState;
+use repository::Repository;
 
 #[tokio::main]
 async fn main() {
@@ -43,8 +40,14 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(handlers::health_check))
         .route("/api/v1/pidsus/health", get(handlers::health_check))
-        .route("/api/v1/pidsus/dashboard/stats", get(handlers::get_dashboard_stats))
-        .route("/api/v1/pidsus/cases", get(handlers::list_cases).post(handlers::create_case))
+        .route(
+            "/api/v1/pidsus/dashboard/stats",
+            get(handlers::get_dashboard_stats),
+        )
+        .route(
+            "/api/v1/pidsus/cases",
+            get(handlers::list_cases).post(handlers::create_case),
+        )
         .route("/api/v1/pidsus/cases/:id", get(handlers::get_case))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use garde::Validate;
-use postgres_types::{ToSql, FromSql};
+use postgres_types::{FromSql, ToSql};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "case_status")]

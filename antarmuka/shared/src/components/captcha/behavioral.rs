@@ -3,13 +3,13 @@
 //! Components for collecting and analyzing user behavioral data
 
 use super::types::*;
-use leptos::prelude::*;
-use std::collections::VecDeque;
 use gloo_timers::callback::Interval;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 use leptos::ev;
+use leptos::prelude::*;
 use std::collections::HashMap;
+use std::collections::VecDeque;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 /// Wrapper to make types Send + Sync for StoredValue in WASM
 struct SendWrapper<T>(T);
@@ -26,10 +26,8 @@ impl WindowListener {
     fn new(event_name: &'static str, callback: impl FnMut(web_sys::MouseEvent) + 'static) -> Self {
         let closure = Closure::wrap(Box::new(callback) as Box<dyn FnMut(_)>);
         if let Some(window) = web_sys::window() {
-            let _ = window.add_event_listener_with_callback(
-                event_name,
-                closure.as_ref().unchecked_ref(),
-            );
+            let _ = window
+                .add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref());
         }
 
         Self {
@@ -168,7 +166,7 @@ pub fn use_behavioral_collector() -> (ReadSignal<BehavioralData>, WriteSignal<Be
                     timestamp: now,
                     duration: 0,
                 });
-                 if s.keystroke_timings.len() > 50 {
+                if s.keystroke_timings.len() > 50 {
                     s.keystroke_timings.pop_front();
                 }
             });
@@ -289,7 +287,7 @@ pub fn KeystrokeAnalyzer(on_data_collected: Callback<Vec<KeystrokeEvent>>) -> im
             let event = KeystrokeEvent {
                 key,
                 timestamp: start,
-                duration
+                duration,
             };
 
             set_keystroke_events.update(|events| events.push(event));
