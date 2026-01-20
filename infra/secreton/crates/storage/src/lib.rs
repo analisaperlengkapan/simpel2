@@ -1,6 +1,6 @@
 //! Secreton Storage Abstraction Layer
 //!
-//! This crate provides a unified storage interface for the Secreton vault system,
+//! This crate provides a unified storage interface for the Secreton secret management system,
 //! enabling seamless switching between different backend implementations without
 //! changing application code.
 //!
@@ -57,7 +57,7 @@
 //! ```rust,no_run
 //! # #[cfg(feature = "postgres")]
 //! # {
-//! use secreton_storage::{StorageBackend, PostgresBackend, VaultEntry, SecurityLevel};
+//! use secreton_storage::{StorageBackend, PostgresBackend, SecretEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -66,7 +66,7 @@
 //! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(backend);
 //!
 //! // Create and store an entry
-//! let entry = VaultEntry {
+//! let entry = SecretEntry {
 //!     id: uuid::Uuid::new_v4(),
 //!     path: "app/config".to_string(),
 //!     encrypted_data: b"secret-value".to_vec(),
@@ -96,10 +96,10 @@
 //! # Example: Adding Encryption Layer
 //!
 //! ```rust,no_run
-//! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, VaultEntry, SecurityLevel};
+//! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, SecretEntry, SecurityLevel};
 //! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn example() -> Result<(), Box<dyn std::error.Error>> {
 //! // Create base backend
 //! let base_backend = MemoryBackend::new();
 //!
@@ -109,7 +109,7 @@
 //! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(encrypted);
 //!
 //! // All operations use the encryption wrapper
-//! let entry = VaultEntry {
+//! let entry = SecretEntry {
 //!     id: uuid::Uuid::new_v4(),
 //!     path: "sensitive/data".to_string(),
 //!     encrypted_data: b"plaintext".to_vec(),
@@ -235,7 +235,7 @@ pub use raft::{
 // Re-export factory
 pub use factory::{StorageBackendType, StorageFactory, StorageFactoryConfig};
 
-/// Encryption metadata for vault entries
+/// Encryption metadata for secret entries
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionMetadata {
     /// Encryption algorithm used
@@ -254,9 +254,9 @@ pub struct EncryptionMetadata {
 
 // SecurityLevel is now re-exported from secreton-types (see line 164)
 
-/// Vault entry for storing secrets
+/// Secret entry for storing secrets
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultEntry {
+pub struct SecretEntry {
     /// Unique identifier for the entry
     pub id: Uuid,
     /// Path to the secret
@@ -283,8 +283,8 @@ pub struct VaultEntry {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-impl VaultEntry {
-    /// Create a new vault entry
+impl SecretEntry {
+    /// Create a new secret entry
     pub fn new(
         path: String,
         encrypted_data: Vec<u8>,
@@ -596,7 +596,7 @@ impl StorageError {
     }
 }
 
-/// Simple key-value storage backend trait (HashiCorp Vault-style)
+/// Simple key-value storage backend trait
 /// This is the core trait for physical storage backends. All data is pre-encrypted
 /// before being passed to the backend (untrusted storage principle).
 #[async_trait]
@@ -623,33 +623,33 @@ pub trait KvBackend: Send + Sync {
     async fn health_check(&self) -> StorageResult<HealthStatus>;
 }
 
-/// High-level storage backend trait for VaultEntry operations
-/// This trait provides structured access to vault entries with metadata,
+/// High-level storage backend trait for SecretEntry operations
+/// This trait provides structured access to secret entries with metadata,
 /// versioning, and advanced querying capabilities.
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
-    /// Store a vault entry
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()>;
+    /// Store a secret entry
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()>;
 
-    /// Retrieve a vault entry by ID
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>>;
+    /// Retrieve a secret entry by ID
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>>;
 
-    /// Retrieve a vault entry by path
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>>;
+    /// Retrieve a secret entry by path
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>>;
 
-    /// Update an existing vault entry
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()>;
+    /// Update an existing secret entry
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()>;
 
-    /// Delete a vault entry by ID
+    /// Delete a secret entry by ID
     async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool>;
 
-    /// Delete a vault entry by path
+    /// Delete a secret entry by path
     async fn delete_by_path(&self, path: &str) -> StorageResult<bool>;
 
-    /// List vault entries with filtering
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>>;
+    /// List secret entries with filtering
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>>;
 
-    /// Count vault entries matching query
+    /// Count secret entries matching query
     async fn count(&self, params: &QueryParams) -> StorageResult<u64>;
 
     /// Check if path exists
@@ -693,10 +693,10 @@ pub struct BackendMetrics {
 #[async_trait]
 pub trait StorageTransaction: Send + Sync {
     /// Store entry within transaction
-    async fn store(&mut self, entry: &VaultEntry) -> StorageResult<()>;
+    async fn store(&mut self, entry: &SecretEntry) -> StorageResult<()>;
 
     /// Update entry within transaction
-    async fn update(&mut self, entry: &VaultEntry) -> StorageResult<()>;
+    async fn update(&mut self, entry: &SecretEntry) -> StorageResult<()>;
 
     /// Delete entry within transaction
     async fn delete(&mut self, id: Uuid) -> StorageResult<bool>;
@@ -795,9 +795,9 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_vault_entry_initialization_defaults() {
+    fn test_secret_entry_initialization_defaults() {
         let owner = Uuid::new_v4();
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             "secret/path".to_string(),
             vec![1, 2, 3],
             serde_json::json!({

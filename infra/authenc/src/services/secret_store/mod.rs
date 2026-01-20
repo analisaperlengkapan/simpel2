@@ -8,7 +8,7 @@ use std::path::Path;
 /// Legacy secret provider trait for service-level secret management
 /// Note: For main secret management, use crate::secreton_client module
 #[async_trait]
-pub trait VaultProvider: Send + Sync {
+pub trait SecretStoreProvider: Send + Sync {
     /// Retrieve a secret by key
     async fn get_secret(&self, key: &str) -> Result<Option<String>>;
 
@@ -22,27 +22,27 @@ pub trait VaultProvider: Send + Sync {
     async fn list_secrets(&self) -> Result<Vec<String>>;
 }
 
-/// File-based vault provider for Kubernetes secrets
-pub struct FileVaultProvider {
+/// File-based secret store provider for Kubernetes secrets
+pub struct FileSecretStoreProvider {
     /// Base directory path for storing secrets
     base_path: String,
 }
 
-impl FileVaultProvider {
-    /// Creates a new file-based vault provider.
+impl FileSecretStoreProvider {
+    /// Creates a new file-based secret store provider.
     ///
     /// # Arguments
     /// * `base_path` - The base directory path where secrets will be stored
     ///
     /// # Returns
-    /// A new `FileVaultProvider` instance.
+    /// A new `FileSecretStoreProvider` instance.
     pub fn new(base_path: String) -> Self {
         Self { base_path }
     }
 }
 
 #[async_trait]
-impl VaultProvider for FileVaultProvider {
+impl SecretStoreProvider for FileSecretStoreProvider {
     async fn get_secret(&self, key: &str) -> Result<Option<String>> {
         let file_path = Path::new(&self.base_path).join(key);
         if file_path.exists() {
@@ -83,8 +83,8 @@ impl VaultProvider for FileVaultProvider {
     }
 }
 
-/// Java KeyStore-based vault provider
-pub struct KeyStoreVaultProvider {
+/// Java KeyStore-based secret store provider
+pub struct KeyStoreSecretProvider {
     /// Path to the Java KeyStore file
     keystore_path: String,
     /// Password for the KeyStore
@@ -93,8 +93,8 @@ pub struct KeyStoreVaultProvider {
     key_password: String,
 }
 
-impl KeyStoreVaultProvider {
-    /// Creates a new KeyStore-based vault provider.
+impl KeyStoreSecretProvider {
+    /// Creates a new KeyStore-based secret store provider.
     ///
     /// # Arguments
     /// * `keystore_path` - Path to the Java KeyStore file
@@ -102,7 +102,7 @@ impl KeyStoreVaultProvider {
     /// * `key_password` - Password for individual keys in the KeyStore
     ///
     /// # Returns
-    /// A new `KeyStoreVaultProvider` instance.
+    /// A new `KeyStoreSecretProvider` instance.
     pub fn new(keystore_path: String, keystore_password: String, key_password: String) -> Self {
         Self {
             keystore_path,
@@ -113,7 +113,7 @@ impl KeyStoreVaultProvider {
 }
 
 #[async_trait]
-impl VaultProvider for KeyStoreVaultProvider {
+impl SecretStoreProvider for KeyStoreSecretProvider {
     async fn get_secret(&self, key: &str) -> Result<Option<String>> {
         use openssl::pkcs12::Pkcs12;
         use std::fs;
@@ -219,26 +219,26 @@ impl VaultProvider for KeyStoreVaultProvider {
     }
 }
 
-// Note: HashiCorp Vault and Azure Key Vault providers have been removed
+// Note: Legacy providers have been removed
 // This project uses Secreton (internal secret management system) only
 
-// Legacy vault service struct for backward compatibility
+// Legacy secret store service struct for backward compatibility
 /// Main secreton service
 #[derive(Clone)]
-pub struct VaultService {
+pub struct SecretStoreService {
     /// Map of provider names to secreton provider implementations
-    providers: std::collections::HashMap<String, std::sync::Arc<dyn VaultProvider>>,
+    providers: std::collections::HashMap<String, std::sync::Arc<dyn SecretStoreProvider>>,
 }
 
-impl VaultService {
-    /// Creates a new secreton service with no providers configured.
+impl SecretStoreService {
+    /// Creates a new secret store service with no providers configured.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use authenc::services::vault::VaultService;
+    /// use authenc::services::secret_store::SecretStoreService;
     ///
-    /// let service = VaultService::new();
+    /// let service = SecretStoreService::new();
     /// ```
     pub fn new() -> Self {
         Self {
@@ -247,7 +247,7 @@ impl VaultService {
     }
 
     /// Add a secreton provider
-    pub fn add_provider(&mut self, name: String, provider: std::sync::Arc<dyn VaultProvider>) {
+    pub fn add_provider(&mut self, name: String, provider: std::sync::Arc<dyn SecretStoreProvider>) {
         self.providers.insert(name, provider);
     }
 
@@ -289,7 +289,7 @@ impl VaultService {
     }
 }
 
-impl Default for VaultService {
+impl Default for SecretStoreService {
     fn default() -> Self {
         Self::new()
     }
@@ -297,30 +297,30 @@ impl Default for VaultService {
 
 // Configuration structures
 
-/// Secreton configuration
+/// Secret store configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultConfig {
+pub struct SecretStoreConfig {
     /// Whether secreton functionality is enabled
     pub enabled: bool,
     /// Provider configurations
-    pub providers: Vec<VaultProviderConfig>,
+    pub providers: Vec<SecretStoreProviderConfig>,
 }
 
-/// Secreton provider configuration
+/// Secret store provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultProviderConfig {
-    /// Type of secreton provider to use
-    pub provider_type: VaultProviderType,
+pub struct SecretStoreProviderConfig {
+    /// Type of secret store provider to use
+    pub provider_type: SecretStoreProviderType,
     /// Additional provider-specific configuration
     pub config: HashMap<String, String>,
 }
 
-/// Secreton provider types
+/// Secret store provider types
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum VaultProviderType {
-    /// File-based secreton provider for local secret storage
+pub enum SecretStoreProviderType {
+    /// File-based secret store provider for local secret storage
     File,
-    /// Java KeyStore-based secreton provider
+    /// Java KeyStore-based secret store provider
     KeyStore,
     /// Secreton service (primary)
     Secreton,
@@ -362,7 +362,7 @@ impl CustomKeyResolver {
     /// # Examples
     ///
     /// ```no_run
-    /// use authenc::services::vault::CustomKeyResolver;
+    /// use authenc::services::secret_store::CustomKeyResolver;
     ///
     /// let resolver = CustomKeyResolver::new("myapp".to_string(), ":".to_string());
     /// assert_eq!(resolver.resolve_key("master", "db_password"), "myapp:master:db_password");
