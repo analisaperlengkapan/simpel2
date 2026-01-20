@@ -43,6 +43,12 @@ pub enum MfaError {
 
     #[error("Recovery code already used")]
     RecoveryCodeUsed,
+
+    #[error("Email code expired")]
+    EmailCodeExpired,
+
+    #[error("Invalid email code")]
+    InvalidEmailCode,
 }
 
 /// MFA method type
@@ -98,6 +104,15 @@ pub struct MfaConfig {
     /// Used recovery codes
     pub used_recovery_codes: Vec<String>,
 
+    /// Email address for MFA
+    pub email_address: Option<String>,
+
+    /// Pending email verification code
+    pub pending_email_code: Option<String>,
+
+    /// Expiry for pending email code
+    pub pending_email_code_expires_at: Option<DateTime<Utc>>,
+
     /// Created at
     pub created_at: DateTime<Utc>,
 
@@ -117,6 +132,9 @@ impl MfaConfig {
             totp_key_name: None,
             recovery_codes: Self::generate_recovery_codes(),
             used_recovery_codes: Vec::new(),
+            email_address: None,
+            pending_email_code: None,
+            pending_email_code_expires_at: None,
             created_at: Utc::now(),
             last_used_at: None,
             enforced: false,
@@ -362,6 +380,95 @@ impl MfaService {
     pub async fn cleanup_history(&self, max_age_seconds: i64) -> usize {
         self.totp_engine.cleanup_history(max_age_seconds).await
     }
+
+    /// Request email setup/verification code
+    #[instrument(skip(self), fields(user_id = %user_id, email = %email, operation = "request_email_setup"))]
+    pub async fn request_email_setup(&self, user_id: &str, email: &str) -> Result<(), MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .entry(user_id.to_string())
+            .or_insert_with(|| MfaConfig::new(user_id.to_string()));
+
+        // Generate 6-digit code
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let code: String = (0..6).map(|_| rng.gen_range(0..10).to_string()).collect();
+
+        // Store in config
+        config.pending_email_code = Some(code.clone());
+        config.pending_email_code_expires_at = Some(Utc::now() + chrono::Duration::minutes(10));
+        config.email_address = Some(email.to_string());
+
+        self.send_email_code(user_id, email, &code).await;
+
+        Ok(())
+    }
+
+    /// Send email code (mock implementation)
+    async fn send_email_code(&self, user_id: &str, email: &str, code: &str) {
+        tracing::info!(
+            target: "mfa_email",
+            user_id = %user_id,
+            email = %email,
+            code = %code,
+            "Sending MFA verification email"
+        );
+        // In a real implementation, we would call an email service here.
+    }
+
+    /// Verify email code (for setup or login)
+    #[instrument(skip(self, code), fields(user_id = %user_id, operation = "verify_email_code"))]
+    pub async fn verify_email_code(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .get_mut(user_id)
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        // Check expiration
+        if let Some(expires_at) = config.pending_email_code_expires_at {
+            if Utc::now() > expires_at {
+                return Err(MfaError::EmailCodeExpired);
+            }
+        } else {
+            return Err(MfaError::InvalidEmailCode);
+        }
+
+        // Check code
+        if let Some(pending_code) = &config.pending_email_code {
+            if pending_code == code {
+                // Valid!
+                // Enable Email method if not enabled
+                if !config.enabled_methods.contains(&MfaMethodType::Email) {
+                    config.enabled_methods.push(MfaMethodType::Email);
+                }
+
+                // Clear pending
+                config.pending_email_code = None;
+                config.pending_email_code_expires_at = None;
+                config.last_used_at = Some(Utc::now());
+
+                return Ok(true);
+            }
+        }
+
+        Err(MfaError::InvalidEmailCode)
+    }
+
+    /// Disable Email MFA
+    #[instrument(skip(self), fields(user_id = %user_id, operation = "disable_email"))]
+    pub async fn disable_email(&self, user_id: &str) -> Result<(), MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .get_mut(user_id)
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        config.email_address = None;
+        config.pending_email_code = None;
+        config.pending_email_code_expires_at = None;
+        config.enabled_methods.retain(|m| *m != MfaMethodType::Email);
+
+        Ok(())
+    }
 }
 
 impl Default for MfaService {
@@ -459,5 +566,41 @@ mod tests {
 
         assert_ne!(old_codes, new_codes);
         assert_eq!(new_codes.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_email_mfa_flow() {
+        let service = MfaService::new();
+        let user_id = "user_email_test";
+        let email = "test@example.com";
+
+        // 1. Request setup
+        service.request_email_setup(user_id, email).await.unwrap();
+
+        // 2. Inspect config (since we can't see the log easily, we peak at config)
+        let config = service.get_config(user_id).await.unwrap();
+        assert_eq!(config.email_address, Some(email.to_string()));
+        assert!(config.pending_email_code.is_some());
+
+        let code = config.pending_email_code.unwrap();
+
+        // 3. Verify with wrong code
+        let result = service.verify_email_code(user_id, "000000").await;
+        assert!(result.is_err());
+
+        // 4. Verify with correct code
+        let result = service.verify_email_code(user_id, &code).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // 5. Check enabled
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(config.enabled_methods.contains(&MfaMethodType::Email));
+        assert!(config.pending_email_code.is_none());
+
+        // 6. Disable
+        service.disable_email(user_id).await.unwrap();
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(!config.enabled_methods.contains(&MfaMethodType::Email));
     }
 }

@@ -541,17 +541,26 @@ pub async fn setup_mfa(
             }
         }
         "email" => {
-            if request.email.is_none() {
-                return Err(ApiError::Validation {
-                    message: "Email is required for email MFA method".to_string(),
-                    field: Some("email".to_string()),
-                    details: None,
-                });
+            let email = request.email.as_ref().ok_or(ApiError::Validation {
+                message: "Email is required for email MFA method".to_string(),
+                field: Some("email".to_string()),
+                details: None,
+            })?;
+
+            state
+                .mfa
+                .request_email_setup(&user_id, email)
+                .await
+                .map_err(|e| ApiError::Internal {
+                    message: format!("Failed to initiate email MFA: {}", e),
+                })?;
+
+            MfaSetupResponse {
+                method: "email".to_string(),
+                secret: None,
+                qr_code: None,
+                backup_codes: vec![],
             }
-            // TODO: Implement email MFA setup
-            return Err(ApiError::NotImplemented(
-                "Email MFA not yet implemented".to_string(),
-            ));
         }
         "sms" => {
             if request.phone_number.is_none() {
@@ -632,6 +641,16 @@ pub async fn verify_mfa(
                 .await
                 .map_err(|e| ApiError::Authentication {
                     message: format!("Failed to verify TOTP code: {}", e),
+                })?
+        }
+        "email" => {
+            // Verify email code
+            state
+                .mfa
+                .verify_email_code(&user_id, &request.code)
+                .await
+                .map_err(|e| ApiError::Authentication {
+                    message: format!("Failed to verify email code: {}", e),
                 })?
         }
         "recovery" => {
