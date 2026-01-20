@@ -348,6 +348,208 @@ pub async fn list_namespaces(
     Ok(Json(ApiResponse::success(response)))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::ServiceContainer;
+    use secreton_storage::MemoryBackend;
+    use std::sync::Arc;
+    use axum::extract::State;
+    use deadpool_postgres::{Config, Runtime};
+
+    #[tokio::test]
+    async fn test_delete_namespace_cascade_stub() {
+        // Setup mock storage
+        let storage = Arc::new(MemoryBackend::new());
+
+        // Setup dummy pool (will fail to connect, verifying graceful handling)
+        let mut cfg = Config::new();
+        cfg.dbname = Some("test".to_string());
+        // Set short timeout to avoid hanging
+        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
+        pool_cfg.timeouts.create = Some(std::time::Duration::from_millis(10));
+        pool_cfg.timeouts.wait = Some(std::time::Duration::from_millis(10));
+        cfg.pool = Some(pool_cfg);
+
+        // Create a pool that points to nowhere (default config uses localhost/5432)
+        // If there is a postgres running locally, this might connect!
+        // To ensure failure, set invalid port.
+        cfg.port = Some(0);
+
+        let pool = cfg
+            .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+            .unwrap();
+
+        // Create service container
+        let services = Arc::new(ServiceContainer::new_mock(storage.clone(), pool));
+
+        // Initialize hierarchy with a namespace to delete
+        let mut hierarchy =
+            NamespaceHierarchy::new("Kejaksaan Agung RI".to_string(), "admin".to_string());
+        hierarchy
+            .add_wilayah(
+                "wilayah-test".to_string(),
+                "Test Wilayah".to_string(),
+                "admin".to_string(),
+            )
+            .unwrap();
+        hierarchy
+            .add_satker(
+                "satker-test".to_string(),
+                "Test Satker".to_string(),
+                "wilayah-test".to_string(),
+                "admin".to_string(),
+            )
+            .unwrap();
+
+        // Update state
+        services.namespace.update_hierarchy(hierarchy.clone());
+
+        // Create request context
+        let claims = JwtClaims {
+            sub: "admin".to_string(),
+            name: "Admin".to_string(),
+            email: "admin@example.com".to_string(),
+            satker_code: None,
+            wilayah_code: Some("TEST".to_string()),
+            admin_level: AdminLevel::Wilayah,
+            roles: vec!["admin".to_string()],
+            permissions: vec!["*".to_string()],
+            exp: 9999999999,
+            iat: 0,
+            iss: "authenc".to_string(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "test-req".to_string(),
+            jwt_claims: Some(claims),
+            client_ip: None,
+            user_agent: None,
+        };
+
+        // Call delete_namespace
+        // We delete the satker
+        let result = delete_namespace(
+            State(services.clone()), // Use clone of Arc
+            Extension(context),
+            Path("satker-test".to_string()),
+        )
+        .await;
+
+        // Verify success
+        assert!(
+            result.is_ok(),
+            "delete_namespace should succeed even if DB is unavailable"
+        );
+
+        // Verify hierarchy update
+        let updated_hierarchy = services.namespace.hierarchy();
+        assert!(updated_hierarchy.get_namespace("satker-test").is_none());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::ServiceContainer;
+    use secreton_storage::MemoryBackend;
+    use std::sync::Arc;
+    use axum::extract::State;
+    use deadpool_postgres::{Config, Runtime};
+
+    #[tokio::test]
+    async fn test_delete_namespace_cascade_stub() {
+        // Setup mock storage
+        let storage = Arc::new(MemoryBackend::new());
+
+        // Setup dummy pool (will fail to connect, verifying graceful handling)
+        let mut cfg = Config::new();
+        cfg.dbname = Some("test".to_string());
+        // Set short timeout to avoid hanging
+        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
+        pool_cfg.timeouts.create = Some(std::time::Duration::from_millis(10));
+        pool_cfg.timeouts.wait = Some(std::time::Duration::from_millis(10));
+        cfg.pool = Some(pool_cfg);
+
+        // Create a pool that points to nowhere (default config uses localhost/5432)
+        // If there is a postgres running locally, this might connect!
+        // To ensure failure, set invalid port.
+        cfg.port = Some(0);
+
+        let pool = cfg
+            .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+            .unwrap();
+
+        // Create service container
+        let services = Arc::new(ServiceContainer::new_mock(storage.clone(), pool));
+
+        // Initialize hierarchy with a namespace to delete
+        let mut hierarchy =
+            NamespaceHierarchy::new("Kejaksaan Agung RI".to_string(), "admin".to_string());
+        hierarchy
+            .add_wilayah(
+                "wilayah-test".to_string(),
+                "Test Wilayah".to_string(),
+                "admin".to_string(),
+            )
+            .unwrap();
+        hierarchy
+            .add_satker(
+                "satker-test".to_string(),
+                "Test Satker".to_string(),
+                "wilayah-test".to_string(),
+                "admin".to_string(),
+            )
+            .unwrap();
+
+        // Update state
+        services.namespace.update_hierarchy(hierarchy.clone());
+
+        // Create request context
+        let claims = JwtClaims {
+            sub: "admin".to_string(),
+            name: "Admin".to_string(),
+            email: "admin@example.com".to_string(),
+            satker_code: None,
+            wilayah_code: Some("TEST".to_string()),
+            admin_level: AdminLevel::Wilayah,
+            roles: vec!["admin".to_string()],
+            permissions: vec!["*".to_string()],
+            exp: 9999999999,
+            iat: 0,
+            iss: "authenc".to_string(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "test-req".to_string(),
+            jwt_claims: Some(claims),
+            client_ip: None,
+            user_agent: None,
+        };
+
+        // Call delete_namespace
+        // We delete the satker
+        let result = delete_namespace(
+            State(services.clone()), // Use clone of Arc
+            Extension(context),
+            Path("satker-test".to_string()),
+        )
+        .await;
+
+        // Verify success
+        assert!(
+            result.is_ok(),
+            "delete_namespace should succeed even if DB is unavailable"
+        );
+
+        // Verify hierarchy update
+        let updated_hierarchy = services.namespace.hierarchy();
+        assert!(updated_hierarchy.get_namespace("satker-test").is_none());
+    }
+}
+
 /// Create a new namespace with parent validation
 /// POST /v1/sys/namespaces
 /// Authorization:
@@ -768,7 +970,42 @@ pub async fn delete_namespace(
     // Update state
     state.namespace.update_hierarchy(hierarchy.clone());
 
-    // TODO: Cascade delete related resources (policies, quotas, etc.)
+    // Cascade delete related resources (policies)
+    // We attempt to delete policies associated with this namespace.
+    // This is a best-effort operation; if the database is unavailable, we log a warning but do not fail the request
+    // since the namespace itself has already been successfully removed from the hierarchy.
+    if let Ok(client) = state.pool.get().await {
+        // Delete policies where namespace matches
+        match client
+            .execute("DELETE FROM policies WHERE namespace = $1", &[&id])
+            .await
+        {
+            Ok(count) => {
+                if count > 0 {
+                    tracing::info!(
+                        user_id = %claims.sub,
+                        namespace_id = %id,
+                        deleted_count = count,
+                        "Cascade deleted policies"
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::error!(
+                    user_id = %claims.sub,
+                    namespace_id = %id,
+                    error = %e,
+                    "Failed to cascade delete policies"
+                );
+            }
+        }
+    } else {
+        tracing::warn!(
+            user_id = %claims.sub,
+            namespace_id = %id,
+            "Could not acquire database connection to cascade delete policies"
+        );
+    }
 
     // Audit log
     tracing::info!(
