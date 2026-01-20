@@ -70,17 +70,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         warn!("Metrics recorder could not be installed");
     }
 
+    info!("Creating Global Metrics...");
+    let metrics = Arc::new(secreton_api::metrics::GlobalMetrics::new());
+
     info!("Creating API state...");
     // Create API state for REST server (includes ServiceContainer)
     let api_state = ApiState {
         transit: TransitApiState {
             engine: Arc::clone(&transit_engine),
             config: config.auth.mtls.clone().map(Arc::new),
+            metrics: Arc::clone(&metrics),
         },
-        kv: KVApiState { engine: kv_engine },
+        kv: KVApiState {
+            engine: kv_engine,
+            metrics: Arc::clone(&metrics),
+        },
         pki: PkiApiState::default(),
         services: Arc::clone(&services),
         prometheus_handle,
+        metrics: Arc::clone(&metrics),
     };
 
     info!("Creating router...");
@@ -93,8 +101,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let grpc_enabled = config.grpc.enabled;
 
     // Create gRPC service (shared state with REST)
-    let grpc_service =
-        SecretonGrpcService::new(services.storage.clone(), Arc::clone(&transit_engine));
+    let grpc_service = SecretonGrpcService::new(
+        services.storage.clone(),
+        Arc::clone(&transit_engine),
+        Some(Arc::clone(&metrics.grpc_requests_total)),
+    );
 
     // Start both servers concurrently
     info!("🚀 Starting Secreton servers...");

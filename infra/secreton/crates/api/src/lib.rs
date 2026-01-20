@@ -48,6 +48,7 @@ pub struct ApiState {
     pub pki: PkiApiState,
     pub services: std::sync::Arc<crate::services::ServiceContainer>,
     pub prometheus_handle: Option<metrics_exporter_prometheus::PrometheusHandle>,
+    pub metrics: std::sync::Arc<crate::metrics::GlobalMetrics>,
 }
 
 #[derive(Clone)]
@@ -115,6 +116,10 @@ pub fn create_api_router(state: ApiState) -> Router {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::auth_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::metrics_middleware,
         ));
 
     Router::new()
@@ -139,26 +144,8 @@ pub async fn get_prometheus_metrics(State(state): State<ApiState>) -> String {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MetricsResponse {
-    pub rest_requests_total: u64,
-    pub grpc_requests_total: u64,
-    pub transit_operations_total: u64,
-    pub kv_operations_total: u64,
-    pub active_connections: u64,
-    pub uptime_seconds: u64,
-}
-
-pub async fn get_metrics() -> Json<MetricsResponse> {
-    // TODO: Implement actual metrics collection
-    Json(MetricsResponse {
-        rest_requests_total: 0,
-        grpc_requests_total: 0,
-        transit_operations_total: 0,
-        kv_operations_total: 0,
-        active_connections: 0,
-        uptime_seconds: 0,
-    })
+pub async fn get_metrics(State(state): State<ApiState>) -> Json<crate::metrics::MetricsResponse> {
+    Json(state.metrics.snapshot())
 }
 
 pub async fn health_check() -> Json<HealthResponse> {
