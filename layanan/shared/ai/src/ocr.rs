@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub struct OcrService;
 
 impl OcrService {
