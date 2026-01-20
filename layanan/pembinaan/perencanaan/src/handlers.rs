@@ -1,8 +1,8 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use deadpool_postgres::Pool;
 use uuid::Uuid;
@@ -57,7 +57,10 @@ pub async fn list_rencana(
 ) -> Result<Json<Vec<RencanaPengadaan>>, ApiError> {
     let client = state.pool.get().await?;
     let rows = client
-        .query("SELECT * FROM perencanaan_pengadaan ORDER BY created_at DESC", &[])
+        .query(
+            "SELECT * FROM perencanaan_pengadaan ORDER BY created_at DESC",
+            &[],
+        )
         .await?;
 
     let plans: Vec<RencanaPengadaan> = rows.iter().map(RencanaPengadaan::from_row).collect();
@@ -143,8 +146,10 @@ pub async fn update_rencana(
     params.push(Box::new(id));
 
     // Convert params to slice for query method
-    let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
-        params.iter().map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync)).collect();
+    let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect();
 
     let row = client.query_one(&query, &params_refs).await?;
 

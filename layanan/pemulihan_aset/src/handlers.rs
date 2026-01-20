@@ -1,15 +1,17 @@
+use crate::db::DB;
+use crate::model::{Asset, Case, CreateAssetRequest, CreateCaseRequest};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
-use uuid::Uuid;
 use garde::Validate;
-use crate::db::DB;
-use crate::model::{Case, Asset, CreateCaseRequest, CreateAssetRequest};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
+use uuid::Uuid;
 
-pub async fn list_cases(State(db): State<DB>) -> Result<Json<Vec<Case>>, (StatusCode, Json<Value>)> {
+pub async fn list_cases(
+    State(db): State<DB>,
+) -> Result<Json<Vec<Case>>, (StatusCode, Json<Value>)> {
     match db.list_cases().await {
         Ok(cases) => Ok(Json(cases)),
         Err(e) => Err((

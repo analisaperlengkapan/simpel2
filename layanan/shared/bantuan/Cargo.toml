@@ -39,6 +39,9 @@ opentelemetry-otlp = { workspace = true }
 prometheus = { workspace = true }
 sentry = { workspace = true }
 
+# Rate limiting
+dashmap = { workspace = true }
+
 # Utilities
 uuid = { workspace = true }
 time = { workspace = true }

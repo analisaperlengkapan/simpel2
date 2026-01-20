@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use garde::Validate;
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use postgres_types::{ToSql, FromSql};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSql, FromSql)]
 #[postgres(name = "special_crime_type")]
@@ -50,15 +50,16 @@ pub enum ClassificationLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum RelatedAgency {
-    KPK,
-    BNN,
-    BNPT,
-    PPATK,
-    KLHK,
+    Kpk,
+    Bnn,
+    Bnpt,
+    Ppatk,
+    Klhk,
     Polri,
-    TNI,
-    BEA,
+    Tni,
+    Bea,
 }
 
 // Request Models

@@ -654,7 +654,7 @@ pub fn ChallengeInput(
             let mut error_msg = "Verification failed".to_string();
 
             // Make API call to Authenc
-             match web_sys::window() {
+            match web_sys::window() {
                 Some(window) => {
                     use wasm_bindgen::{JsCast, JsValue};
                     use web_sys::{Request, RequestInit, RequestMode, Response};
@@ -670,31 +670,41 @@ pub fn ChallengeInput(
 
                     match Request::new_with_str_and_init(&verify_url, &opts) {
                         Ok(request) => {
-                             let _ = request.headers().set("Content-Type", "application/json");
+                            let _ = request.headers().set("Content-Type", "application/json");
 
-                             match wasm_bindgen_futures::JsFuture::from(
+                            match wasm_bindgen_futures::JsFuture::from(
                                 window.fetch_with_request(&request),
-                            ).await {
+                            )
+                            .await
+                            {
                                 Ok(resp_value) => {
                                     let resp: Response = resp_value.dyn_into().unwrap();
-                                     if resp.ok() {
-                                         if let Ok(json) = wasm_bindgen_futures::JsFuture::from(resp.json().unwrap()).await {
-                                             if let Ok(val_resp) = serde_wasm_bindgen::from_value::<ValidationResponse>(json) {
-                                                 if val_resp.success {
-                                                     success = true;
-                                                 } else {
-                                                     error_msg = val_resp.message;
-                                                 }
-                                             }
-                                         }
-                                     } else {
-                                         error_msg = format!("API error: {}", resp.status());
-                                     }
+                                    if resp.ok() {
+                                        if let Ok(json) = wasm_bindgen_futures::JsFuture::from(
+                                            resp.json().unwrap(),
+                                        )
+                                        .await
+                                        {
+                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                                ValidationResponse,
+                                            >(
+                                                json
+                                            ) {
+                                                if val_resp.success {
+                                                    success = true;
+                                                } else {
+                                                    error_msg = val_resp.message;
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        error_msg = format!("API error: {}", resp.status());
+                                    }
                                 }
                                 Err(_) => {
                                     error_msg = "Network error".to_string();
                                 }
-                             }
+                            }
                         }
                         Err(_) => {
                             error_msg = "Request creation failed".to_string();
@@ -704,7 +714,7 @@ pub fn ChallengeInput(
                 None => {
                     error_msg = "Window not available".to_string();
                 }
-             }
+            }
 
             if success {
                 set_validation_status.set(ValidationStatus::Success);

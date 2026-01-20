@@ -1,7 +1,7 @@
-use deadpool_postgres::{Pool, Client};
+use crate::model::{Asset, Case, CreateAssetRequest, CreateCaseRequest};
 use anyhow::Result;
+use deadpool_postgres::{Client, Pool};
 use uuid::Uuid;
-use crate::model::{Case, Asset, CreateCaseRequest, CreateAssetRequest};
 
 #[derive(Clone)]
 pub struct DB {

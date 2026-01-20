@@ -1,12 +1,12 @@
 use crate::error::MonsaktiError;
-use serde_json::{Value, Number};
-use tokio_postgres::Client;
-use tracing::{debug, error, info, warn};
-use uuid::Uuid;
-use tokio_postgres::types::{IsNull, Type, ToSql};
-use bytes::{BytesMut, BufMut};
+use bytes::{BufMut, BytesMut};
+use serde_json::{Number, Value};
 use std::error::Error;
 use std::io::Write;
+use tokio_postgres::Client;
+use tokio_postgres::types::{IsNull, ToSql, Type};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 /// Optimized SQL parameter wrapper to avoid allocations
 #[derive(Debug, Clone)]
@@ -24,7 +24,11 @@ pub enum SqlParam<'a> {
 }
 
 impl<'a> ToSql for SqlParam<'a> {
-    fn to_sql(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+    fn to_sql(
+        &self,
+        ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
         match self {
             SqlParam::RefString(s) => s.to_sql(ty, out),
             SqlParam::OwnedString(s) => s.to_sql(ty, out),
@@ -38,7 +42,7 @@ impl<'a> ToSql for SqlParam<'a> {
                 let mut writer = out.writer();
                 write!(writer, "{}", n)?;
                 Ok(IsNull::No)
-            },
+            }
             SqlParam::JsonToText(v) => {
                 let writer = out.writer();
                 serde_json::to_writer(writer, v)?;
@@ -48,16 +52,26 @@ impl<'a> ToSql for SqlParam<'a> {
     }
 
     fn accepts(ty: &Type) -> bool {
-        matches!(*ty,
-            Type::VARCHAR | Type::TEXT | Type::BPCHAR | Type::NAME | Type::UNKNOWN |
-            Type::INT8 |
-            Type::UUID |
-            Type::JSON | Type::JSONB
+        matches!(
+            *ty,
+            Type::VARCHAR
+                | Type::TEXT
+                | Type::BPCHAR
+                | Type::NAME
+                | Type::UNKNOWN
+                | Type::INT8
+                | Type::UUID
+                | Type::JSON
+                | Type::JSONB
         )
     }
 
-    fn to_sql_checked(&self, ty: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
-         match self {
+    fn to_sql_checked(
+        &self,
+        ty: &Type,
+        out: &mut BytesMut,
+    ) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
+        match self {
             SqlParam::RefString(s) => s.to_sql_checked(ty, out),
             SqlParam::OwnedString(s) => s.to_sql_checked(ty, out),
             SqlParam::I64(n) => n.to_sql_checked(ty, out),
@@ -73,10 +87,7 @@ impl<'a> ToSql for SqlParam<'a> {
 }
 
 /// Helper untuk konversi JSON value ke PostgreSQL parameter - SIMPLIFIED for TEXT columns
-pub fn json_to_sql_param<'a>(
-    value: &'a Value,
-    column_name: &str,
-) -> SqlParam<'a> {
+pub fn json_to_sql_param<'a>(value: &'a Value, column_name: &str) -> SqlParam<'a> {
     match value {
         Value::String(s) => {
             // Special handling for api_id column - convert to i64
@@ -90,9 +101,10 @@ pub fn json_to_sql_param<'a>(
 
             // Try to parse as UUID for id/parent_id/satker_id columns only
             if (column_name == "id" || column_name.ends_with("_id"))
-                && let Ok(uuid) = Uuid::parse_str(s) {
-                    return SqlParam::Uuid(uuid);
-                }
+                && let Ok(uuid) = Uuid::parse_str(s)
+            {
+                return SqlParam::Uuid(uuid);
+            }
 
             // Everything else is TEXT - keep as string ref
             SqlParam::RefString(s.as_str())
@@ -114,11 +126,7 @@ pub fn json_to_sql_param<'a>(
         }
         Value::Bool(b) => {
             // Convert bool to string for TEXT columns
-            SqlParam::RefString(if *b {
-                "true"
-            } else {
-                "false"
-            })
+            SqlParam::RefString(if *b { "true" } else { "false" })
         }
         Value::Null => {
             // For api_id column, return NULL as Option<i64>
@@ -193,9 +201,10 @@ pub async fn bulk_insert_postgres(
     // Check if ANY object in the data has a non-null 'id' field
     let has_valid_id = data.iter().any(|item| {
         if let Some(obj) = item.as_object()
-            && let Some(id_val) = obj.get("id").or_else(|| obj.get("ID")) {
-                return !id_val.is_null();
-            }
+            && let Some(id_val) = obj.get("id").or_else(|| obj.get("ID"))
+        {
+            return !id_val.is_null();
+        }
         false
     });
 
@@ -424,7 +433,7 @@ mod tests {
         let v = json!("not-a-number");
         let p = json_to_sql_param(&v, "api_id");
         match p {
-            SqlParam::NullI64 => {},
+            SqlParam::NullI64 => {}
             _ => panic!("Expected NullI64"),
         }
 
@@ -451,7 +460,7 @@ mod tests {
         let v = json!(null);
         let p = json_to_sql_param(&v, "description");
         match p {
-            SqlParam::NullString => {},
+            SqlParam::NullString => {}
             _ => panic!("Expected NullString"),
         }
 

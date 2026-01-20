@@ -6,6 +6,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::future::Future;
+use std::io::Read;
 use std::path::Path;
 use std::pin::Pin;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -483,9 +484,9 @@ impl MonsaktiClient {
 
     /// Fetch data with ureq (synchronous client)
     fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
+        let response = ureq::get(url)
+            .set("Authorization", &format!("Bearer {}", token))
+            .set("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -494,15 +495,13 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .body_mut()
-                .read_to_string()
+                .into_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
 
         let json: serde_json::Value = response
-            .body_mut()
-            .read_json()
+            .into_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         Ok(json)
@@ -516,9 +515,9 @@ impl MonsaktiClient {
             token: String,
         }
 
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
+        let response = ureq::get(url)
+            .set("Authorization", &format!("Bearer {}", token))
+            .set("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -534,8 +533,7 @@ impl MonsaktiClient {
         }
 
         let tokens: Vec<TokenItem> = response
-            .body_mut()
-            .read_json()
+            .into_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         if tokens.is_empty() {
@@ -638,10 +636,18 @@ impl MonsaktiClient {
                             .map(|h| {
                                 obj.get(*h)
                                     .map(|v| match v {
-                                        serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
-                                        serde_json::Value::Number(n) => std::borrow::Cow::Owned(n.to_string().into_bytes()),
-                                        serde_json::Value::Bool(b) => std::borrow::Cow::Owned(b.to_string().into_bytes()),
-                                        serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
+                                        serde_json::Value::String(s) => {
+                                            std::borrow::Cow::Borrowed(s.as_bytes())
+                                        }
+                                        serde_json::Value::Number(n) => {
+                                            std::borrow::Cow::Owned(n.to_string().into_bytes())
+                                        }
+                                        serde_json::Value::Bool(b) => {
+                                            std::borrow::Cow::Owned(b.to_string().into_bytes())
+                                        }
+                                        serde_json::Value::Null => {
+                                            std::borrow::Cow::Borrowed(&[] as &[u8])
+                                        }
                                         _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
                                     })
                                     .unwrap_or(std::borrow::Cow::Borrowed(&[]))

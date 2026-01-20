@@ -1,13 +1,13 @@
+use crate::errors::{AppError, AppResult};
+use crate::models::{CreateScheduleRequest, SupervisionSchedule};
 use axum::{
-    extract::{Path, State},
     Json,
+    extract::{Path, State},
 };
-use uuid::Uuid;
 use chrono::Utc;
-use crate::models::{SupervisionSchedule, CreateScheduleRequest};
-use crate::errors::{AppResult, AppError};
 use deadpool_postgres::Pool;
 use garde::Validate;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -23,20 +23,27 @@ impl AppState {
 pub async fn list_schedules(
     State(state): State<AppState>,
 ) -> AppResult<Json<Vec<SupervisionSchedule>>> {
-    let client = state.db.get().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
+    let client = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
     let rows = client
         .query("SELECT id, title, scheduled_at, location, created_at FROM schedules ORDER BY scheduled_at DESC", &[])
         .await
         .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
-    let schedules: Vec<SupervisionSchedule> = rows.iter().map(|row| SupervisionSchedule {
-        id: row.get("id"),
-        title: row.get("title"),
-        scheduled_at: row.get("scheduled_at"),
-        location: row.get("location"),
-        created_at: row.get("created_at"),
-    }).collect();
+    let schedules: Vec<SupervisionSchedule> = rows
+        .iter()
+        .map(|row| SupervisionSchedule {
+            id: row.get("id"),
+            title: row.get("title"),
+            scheduled_at: row.get("scheduled_at"),
+            location: row.get("location"),
+            created_at: row.get("created_at"),
+        })
+        .collect();
 
     Ok(Json(schedules))
 }
@@ -49,7 +56,11 @@ pub async fn create_schedule(
         return Err(AppError::BadRequest(e.to_string()));
     }
 
-    let client = state.db.get().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
+    let client = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
     let schedule = SupervisionSchedule {
         id: Uuid::new_v4(),
@@ -71,23 +82,28 @@ pub async fn get_schedule(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<SupervisionSchedule>> {
-    let client = state.db.get().await.map_err(|e| AppError::InternalServerError(e.to_string()))?;
+    let client = state
+        .db
+        .get()
+        .await
+        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
     let row = client
-        .query_opt("SELECT id, title, scheduled_at, location, created_at FROM schedules WHERE id = $1", &[&id])
+        .query_opt(
+            "SELECT id, title, scheduled_at, location, created_at FROM schedules WHERE id = $1",
+            &[&id],
+        )
         .await
         .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
     match row {
-        Some(row) => {
-            Ok(Json(SupervisionSchedule {
-                id: row.get("id"),
-                title: row.get("title"),
-                scheduled_at: row.get("scheduled_at"),
-                location: row.get("location"),
-                created_at: row.get("created_at"),
-            }))
-        },
+        Some(row) => Ok(Json(SupervisionSchedule {
+            id: row.get("id"),
+            title: row.get("title"),
+            scheduled_at: row.get("scheduled_at"),
+            location: row.get("location"),
+            created_at: row.get("created_at"),
+        })),
         None => Err(AppError::NotFound("Schedule not found".into())),
     }
 }

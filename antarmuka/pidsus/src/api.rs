@@ -1,6 +1,6 @@
+use crate::types::{PidsusStatistics, SpecialCase};
 use gloo_net::http::Request;
 use leptos::prelude::*;
-use crate::types::{SpecialCase, PidsusStatistics};
 
 const API_BASE_URL: &str = "/pidsus/api/v1/pidsus"; // Via Nginx proxy
 

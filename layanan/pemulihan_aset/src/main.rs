@@ -1,14 +1,17 @@
-use axum::{Router, routing::{get, post}};
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
+use std::env;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use deadpool_postgres::{Config, ManagerConfig, RecyclingMethod, Runtime};
 use tokio_postgres::NoTls;
-use std::env;
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{Any, CorsLayer};
 
 mod db;
-mod model;
 mod handlers;
+mod model;
 
 use db::DB;
 
@@ -19,17 +22,24 @@ async fn main() {
     // Setup connection pool
     let mut cfg = Config::new();
     cfg.host = Some(env::var("DB_HOST").unwrap_or("localhost".to_string()));
-    cfg.port = Some(env::var("DB_PORT").unwrap_or("5432".to_string()).parse().unwrap());
+    cfg.port = Some(
+        env::var("DB_PORT")
+            .unwrap_or("5432".to_string())
+            .parse()
+            .unwrap(),
+    );
     cfg.user = Some(env::var("DB_USER").unwrap_or("postgres".to_string()));
     cfg.password = Some(env::var("DB_PASSWORD").unwrap_or("postgres".to_string()));
     cfg.dbname = Some(env::var("DB_NAME").unwrap_or("simpelv2_pemulihan_aset".to_string()));
 
     // Use ManagerConfig to set recycling method if needed
     cfg.manager = Some(ManagerConfig {
-        recycling_method: RecyclingMethod::Fast
+        recycling_method: RecyclingMethod::Fast,
     });
 
-    let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).expect("Failed to create pool");
+    let pool = cfg
+        .create_pool(Some(Runtime::Tokio1), NoTls)
+        .expect("Failed to create pool");
     let db = DB::new(pool);
 
     let cors = CorsLayer::new()
@@ -42,10 +52,19 @@ async fn main() {
         .route("/api/v1/pemulihan_aset/health", get(health_check))
         .route("/api/v1/pemulihan_aset/status", get(status))
         // Case routes
-        .route("/api/v1/pemulihan_aset/cases", get(handlers::list_cases).post(handlers::create_case))
+        .route(
+            "/api/v1/pemulihan_aset/cases",
+            get(handlers::list_cases).post(handlers::create_case),
+        )
         // Asset routes
-        .route("/api/v1/pemulihan_aset/cases/:case_id/assets", get(handlers::list_assets))
-        .route("/api/v1/pemulihan_aset/assets", post(handlers::create_asset))
+        .route(
+            "/api/v1/pemulihan_aset/cases/:case_id/assets",
+            get(handlers::list_assets),
+        )
+        .route(
+            "/api/v1/pemulihan_aset/assets",
+            post(handlers::create_asset),
+        )
         .layer(cors)
         .with_state(db);
 

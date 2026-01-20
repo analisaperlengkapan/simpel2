@@ -9,7 +9,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Result<Self, config::ConfigError> {
+    pub fn from_env() -> Result<Self, ConfigError> {
         // Load .env file if it exists
         dotenvy::dotenv().ok();
 
@@ -18,8 +18,7 @@ impl Config {
             .parse()
             .unwrap_or(3000);
 
-        let database_url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set");
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
         let database_pool_size = env::var("DATABASE_POOL_SIZE")
             .unwrap_or_else(|_| "10".to_string())
@@ -35,8 +34,6 @@ impl Config {
 }
 
 // Minimal error placeholder since we aren't using the config crate fully yet
-pub mod config {
-    #[derive(Debug, thiserror::Error)]
-    #[error("Config error")]
-    pub struct ConfigError;
-}
+#[derive(Debug, thiserror::Error)]
+#[error("Config error")]
+pub struct ConfigError;

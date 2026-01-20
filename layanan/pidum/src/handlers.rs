@@ -1,16 +1,18 @@
+use crate::models::{
+    CreateCommentRequest, CreatePerkaraRequest, Perkara, PerkaraComment, PerkaraTimeline,
+};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
-use deadpool_postgres::Pool;
-use uuid::Uuid;
 use chrono::Utc;
-use crate::models::{CreatePerkaraRequest, Perkara, CreateCommentRequest, PerkaraComment, PerkaraTimeline};
+use deadpool_postgres::Pool;
 use garde::Validate;
 use serde::Deserialize;
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -28,7 +30,10 @@ pub async fn list_perkara(
     Query(params): Query<Pagination>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let limit = params.limit.unwrap_or(10);
@@ -37,7 +42,7 @@ pub async fn list_perkara(
     let rows = client
         .query(
             "SELECT * FROM perkara ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-            &[&(limit as i64), &(offset as i64)]
+            &[&(limit as i64), &(offset as i64)],
         )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -56,11 +61,17 @@ pub async fn create_perkara(
     }
 
     let mut client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let tx = client.transaction().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Transaction error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Transaction error: {}", e),
+        )
     })?;
 
     let id = Uuid::new_v4();
@@ -90,21 +101,29 @@ pub async fn create_perkara(
     // Auto-create timeline event
     let timeline_id = Uuid::new_v4();
     tx.execute(
-            "INSERT INTO perkara_timeline (id, perkara_id, action_type, description, created_at)
+        "INSERT INTO perkara_timeline (id, perkara_id, action_type, description, created_at)
              VALUES ($1, $2, $3, $4, $5)",
-            &[
-                &timeline_id,
-                &perkara.id,
-                &"CREATED".to_string(),
-                &format!("Perkara created with status {}", perkara.status.to_string()),
-                &now
-            ],
+        &[
+            &timeline_id,
+            &perkara.id,
+            &"CREATED".to_string(),
+            &format!("Perkara created with status {}", perkara.status.to_string()),
+            &now,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to create timeline: {}", e),
         )
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create timeline: {}", e)))?;
+    })?;
 
     tx.commit().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to commit transaction: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to commit transaction: {}", e),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(perkara)))
@@ -120,11 +139,17 @@ pub async fn add_comment(
     }
 
     let mut client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let tx = client.transaction().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Transaction error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Transaction error: {}", e),
+        )
     })?;
 
     // Verify perkara exists (could be skipped if we trust FK, but good for returning 404)
@@ -169,7 +194,10 @@ pub async fn add_comment(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update timeline: {}", e)))?;
 
     tx.commit().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to commit transaction: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to commit transaction: {}", e),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(comment)))
@@ -181,7 +209,10 @@ pub async fn get_timeline(
     Query(params): Query<Pagination>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let limit = params.limit.unwrap_or(20).min(100); // Cap at 100
@@ -210,7 +241,10 @@ pub async fn get_perkara_detail(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let client = state.pool.get().await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let row = client

@@ -3,6 +3,7 @@ use std::env;
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct AppConfig {
+    #[allow(dead_code)]
     pub server_host: String,
     pub server_port: u16,
     pub database_url: String,
