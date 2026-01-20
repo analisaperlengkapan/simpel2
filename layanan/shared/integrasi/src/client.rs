@@ -481,11 +481,12 @@ impl MonsaktiClient {
         data: &serde_json::Value,
         filename: P,
     ) -> Result<(), MonsaktiError> {
+        use tokio::io::AsyncWriteExt;
         let path = Path::new(&self.config.output_dir).join(filename);
 
-        // Check data validity before spawning blocking task
+        // Check data validity
         let array = match data.as_array() {
-            Some(arr) if !arr.is_empty() => arr.clone(),
+            Some(arr) if !arr.is_empty() => arr,
             Some(_) => {
                 warn!("Tidak ada data untuk disimpan");
                 return Ok(());
@@ -497,42 +498,66 @@ impl MonsaktiClient {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        // Offload blocking I/O to a blocking thread
-        tokio::task::spawn_blocking(move || -> Result<(), MonsaktiError> {
-            let mut wtr = csv::Writer::from_path(&path)?;
-            if let Some(first) = array.first()
-                && let Some(obj) = first.as_object()
-            {
-                let headers: Vec<&String> = obj.keys().collect();
-                wtr.write_record(&headers)?;
+        let file = tokio::fs::File::create(&path).await?;
+        let mut writer = tokio::io::BufWriter::new(file);
 
-                for item in &array {
-                    if let Some(obj) = item.as_object() {
-                        let row: Vec<std::borrow::Cow<'_, [u8]>> = headers
-                            .iter()
-                            .map(|h| {
-                                obj.get(*h)
-                                    .map(|v| match v {
-                                        serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
-                                        serde_json::Value::Number(n) => std::borrow::Cow::Owned(n.to_string().into_bytes()),
-                                        serde_json::Value::Bool(b) => std::borrow::Cow::Owned(b.to_string().into_bytes()),
-                                        serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
-                                        _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
-                                    })
-                                    .unwrap_or(std::borrow::Cow::Borrowed(&[]))
-                            })
-                            .collect();
+        if let Some(first) = array.first()
+            && let Some(obj) = first.as_object()
+        {
+            let headers: Vec<&String> = obj.keys().collect();
+
+            // Reusable buffer for CSV formatting
+            let mut csv_buffer = Vec::new();
+
+            // Write headers
+            {
+                let mut wtr = csv::WriterBuilder::new().from_writer(&mut csv_buffer);
+                wtr.write_record(&headers)?;
+                wtr.flush()?;
+            }
+            writer.write_all(&csv_buffer).await?;
+            csv_buffer.clear();
+
+            for item in array {
+                if let Some(obj) = item.as_object() {
+                    let row: Vec<std::borrow::Cow<'_, [u8]>> = headers
+                        .iter()
+                        .map(|h| {
+                            obj.get(*h)
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => {
+                                        std::borrow::Cow::Borrowed(s.as_bytes())
+                                    }
+                                    serde_json::Value::Number(n) => {
+                                        std::borrow::Cow::Owned(n.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Bool(b) => {
+                                        std::borrow::Cow::Owned(b.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Null => {
+                                        std::borrow::Cow::Borrowed(&[] as &[u8])
+                                    }
+                                    _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
+                                })
+                                .unwrap_or(std::borrow::Cow::Borrowed(&[]))
+                        })
+                        .collect();
+
+                    {
+                        let mut wtr = csv::WriterBuilder::new()
+                            .has_headers(false)
+                            .from_writer(&mut csv_buffer);
                         wtr.write_record(&row)?;
+                        wtr.flush()?;
                     }
+                    writer.write_all(&csv_buffer).await?;
+                    csv_buffer.clear();
                 }
             }
-            wtr.flush()?;
-            info!("CSV disimpan ke: {}", path.display());
-            Ok(())
-        })
-        .await
-        .map_err(|e| MonsaktiError::IoError(std::io::Error::other(e)))??;
+        }
 
+        writer.flush().await?;
+        info!("CSV disimpan ke: {}", path.display());
         Ok(())
     }
 
