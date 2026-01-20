@@ -4,7 +4,9 @@
 
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
-use crate::utils::api::{SecretMetadata, create_secret, delete_secret, list_secrets};
+use crate::utils::api::{
+    SecretListItem, SecretMetadata, create_secret, delete_secret, list_secrets,
+};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use std::collections::HashMap;

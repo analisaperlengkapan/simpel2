@@ -35,7 +35,6 @@ clap = { version = "4.5", features = ["derive"] }
 sha2 = "0.10"
 futures = { workspace = true }
 bytes = "1.10"
-ureq = { workspace = true }
 
 [dev-dependencies]
 wiremock = "0.6"
