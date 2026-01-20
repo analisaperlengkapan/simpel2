@@ -677,6 +677,71 @@ impl LeaseManager {
         rows.iter().map(|row| self.row_to_lease(row)).collect()
     }
 
+    /// Count leases with filtering
+    #[instrument(skip(self), fields(
+        user_id = ?user_id,
+        namespace = ?namespace,
+        resource_type = ?resource_type,
+        status = ?status,
+        operation = "count_leases"
+    ))]
+    pub async fn count_leases(
+        &self,
+        user_id: Option<String>,
+        namespace: Option<String>,
+        resource_type: Option<String>,
+        status: Option<String>,
+    ) -> Result<u64, LeaseError> {
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
+
+        let mut query = String::from(r#"SELECT COUNT(*) FROM leases WHERE 1=1"#);
+
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut param_count = 1;
+
+        if let Some(user) = user_id {
+            query.push_str(&format!(" AND user_id = ${}", param_count));
+            params.push(Box::new(user));
+            param_count += 1;
+        }
+
+        if let Some(ns) = namespace {
+            query.push_str(&format!(" AND namespace = ${}", param_count));
+            params.push(Box::new(ns));
+            param_count += 1;
+        }
+
+        if let Some(rt) = resource_type {
+            query.push_str(&format!(" AND resource_type = ${}", param_count));
+            params.push(Box::new(rt));
+            param_count += 1;
+        }
+
+        if let Some(st) = status {
+            query.push_str(&format!(" AND status = ${}", param_count));
+            params.push(Box::new(st));
+        }
+
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let row = client
+            .query_one(&query, &param_refs[..])
+            .await
+            .map_err(|e| LeaseError::StorageError(format!("Failed to count leases: {}", e)))?;
+
+        let count: i64 = row
+            .try_get(0)
+            .map_err(|e| LeaseError::StorageError(format!("Failed to get count: {}", e)))?;
+
+        Ok(count as u64)
+    }
+
     /// Get expired leases
     pub async fn get_expired_leases(&self) -> Result<Vec<EnhancedLease>, LeaseError> {
         let client =

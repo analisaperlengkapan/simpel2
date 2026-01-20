@@ -673,8 +673,8 @@ pub async fn list_leases(
     let leases = state
         .lease_manager
         .list_leases(
-            filter_user,
-            filter_namespace,
+            filter_user.clone(),
+            filter_namespace.clone(),
             query.resource_type.clone(),
             query.status.clone(),
             Some(query.limit),
@@ -686,8 +686,18 @@ pub async fn list_leases(
         })?;
 
     // Get total count (for pagination)
-    // TODO: Implement count query in LeaseManager
-    let total = leases.len() as u64;
+    let total = state
+        .lease_manager
+        .count_leases(
+            filter_user,
+            filter_namespace,
+            query.resource_type.clone(),
+            query.status.clone(),
+        )
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to count leases: {}", e),
+        })?;
 
     // Convert to response format
     let items: Vec<LookupLeaseResponse> =
