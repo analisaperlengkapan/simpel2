@@ -13,6 +13,7 @@ pub struct AppState {
     pub ocr_service: OcrService,
     pub rag_service: RagService,
     pub job_queue: Arc<Mutex<JobQueue>>,
+    pub http_client: reqwest::Client,
 }
 
 #[derive(Clone, Debug)]

@@ -7,7 +7,6 @@ use validator::Validate;
 use serde::Deserialize;
 use crate::models::{ModelRegistry, ModelMetadata};
 use chrono::Utc;
-use reqwest::Client;
 use once_cell::sync::Lazy;
 
 static REGISTRY: Lazy<ModelRegistry> = Lazy::new(|| ModelRegistry::new());
@@ -47,7 +46,7 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<serde_js
     };
     // Cek Qdrant
     let qdrant_url = std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
-    let qdrant_ok = Client::new().get(format!("{}/collections", qdrant_url)).send().await.map(|r| r.status().is_success()).unwrap_or(false);
+    let qdrant_ok = state.http_client.get(format!("{}/collections", qdrant_url)).send().await.map(|r| r.status().is_success()).unwrap_or(false);
     // Cek model ready (dummy: assume always ready)
     let model_ok = true;
     let all_ok = db_ok && qdrant_ok && model_ok;
@@ -212,6 +211,7 @@ mod tests {
             ocr_service: crate::ocr::OcrService,
             rag_service: crate::rag::RagService,
             job_queue: job_queue.clone(),
+            http_client: reqwest::Client::new(),
         };
         let (status, _) = health(State(state)).await;
         assert_eq!(status, StatusCode::OK);
@@ -241,6 +241,7 @@ mod tests {
             ocr_service: crate::ocr::OcrService,
             rag_service: crate::rag::RagService,
             job_queue: job_queue.clone(),
+            http_client: reqwest::Client::new(),
         };
         let payload = json!({"job_type": "test", "data": "abc"});
         let (status, resp) = enqueue_job(State(state.clone()), axum::Json(payload)).await;
