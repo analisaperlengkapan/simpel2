@@ -260,6 +260,93 @@ impl AuthService {
         })
     }
 
+    /// Login external user (OAuth/OIDC)
+    pub async fn login_external(
+        &self,
+        email: &str,
+        full_name: Option<String>,
+        provider_metadata: HashMap<String, String>,
+        ip_address: &str,
+        user_agent: &str,
+    ) -> Result<AuthToken, AuthError> {
+        // Use email as username for external users
+        let username = email;
+
+        // Try to find user
+        let mut user = match self.get_user_by_username(username).await {
+            Ok(mut u) => {
+                // User exists, update metadata
+                u.metadata.extend(provider_metadata);
+                u
+            }
+            Err(AuthError::UserNotFound) => {
+                // Create new user
+                let password = Uuid::new_v4().to_string(); // Random password
+                let roles = vec!["user".to_string()]; // Default role
+
+                self.create_user(
+                    username,
+                    email,
+                    &password,
+                    full_name.as_deref(),
+                    roles,
+                    Some(provider_metadata),
+                    true, // is_active
+                )
+                .await?
+            }
+            Err(e) => return Err(e),
+        };
+
+        if !user.is_active {
+            return Err(AuthError::InvalidCredentials);
+        }
+
+        // Update last login
+        user.last_login = Some(chrono::Utc::now());
+        self.store_user(&user).await?;
+
+        // Generate tokens
+        let session_id = Uuid::new_v4().to_string();
+
+        let (access_token, refresh_token, expires_in) = {
+            let config = self
+                .config
+                .read()
+                .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+            let access_token = self.create_access_token(&user, &session_id, &config)?;
+            let refresh_token = self.create_refresh_token(&user, &session_id, &config)?;
+            (
+                access_token,
+                refresh_token,
+                config.jwt.expiration.as_secs(),
+            )
+        };
+
+        // Store session
+        let session = Session {
+            id: session_id,
+            user_id: user.username.clone(),
+            token: access_token.clone(),
+            refresh_token: Some(refresh_token.clone()),
+            ip_address: ip_address.to_string(),
+            user_agent: user_agent.to_string(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(expires_in as i64),
+            last_accessed: chrono::Utc::now(),
+        };
+
+        self.store_session(&session, &user.id.to_string()).await?;
+
+        Ok(AuthToken {
+            access_token,
+            refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in,
+            user,
+        })
+    }
+
     /// Validate access token
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
         use jsonwebtoken::{decode, DecodingKey, Validation};
