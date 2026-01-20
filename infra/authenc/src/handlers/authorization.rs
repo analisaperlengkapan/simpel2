@@ -67,7 +67,7 @@ pub struct CheckPermissionRequest {
 pub struct PermissionResponse {
     pub decision: Decision,
     pub reason: Option<String>,
-} 
+}
 
 /// Mewakili struktur data `ListPoliciesQuery`.
 #[derive(Deserialize)]
