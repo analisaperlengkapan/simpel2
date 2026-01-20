@@ -772,9 +772,14 @@ pub async fn get_lease_stats(
             message: format!("Failed to get lease stats: {}", e),
         })?;
 
-    // TODO: Implement breakdown by resource type and namespace
-    let by_resource_type = HashMap::new();
-    let by_namespace = HashMap::new();
+    // Implement breakdown by resource type and namespace using optimized DB aggregation
+    let (by_resource_type, by_namespace) = state
+        .lease_manager
+        .get_active_lease_breakdown()
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to get lease breakdown stats: {}", e),
+        })?;
 
     // Log audit event
     let mut metadata = HashMap::new();
