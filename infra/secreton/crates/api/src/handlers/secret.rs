@@ -9,16 +9,19 @@
 use axum::{
     Router,
     extract::{Path, Query, State},
+    http::HeaderMap,
     response::Json,
     routing::{delete, get, post, put},
 };
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
     helpers::create_audit_log, services::vault::SecretMetadata,
+    services::ServiceContainer,
 };
 use secreton_core::audit::AuditLog;
 
@@ -385,9 +388,9 @@ pub struct PolicyResponse {
 
 /// Secret operations
 pub async fn get_secret(
-    State(state): State<AppState>,
+    State(state): State<Arc<ServiceContainer>>,
     Path(path): Path<String>,
-    headers: axum::http::HeaderMap,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
     // Extract user from token
     let token = headers

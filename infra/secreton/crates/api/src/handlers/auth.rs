@@ -13,13 +13,14 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
-    helpers::extract_client_ip,
+    helpers::extract_client_ip, services::ServiceContainer,
 };
 
 /// Create authentication routes
@@ -274,7 +275,7 @@ pub struct SessionInfo {
 
 /// User login endpoint
 pub async fn login(
-    State(state): State<AppState>,
+    State(state): State<Arc<ServiceContainer>>,
     headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
@@ -509,7 +510,7 @@ pub async fn refresh_token(
 
 /// Verify token validity
 pub async fn verify_token(
-    State(state): State<AppState>,
+    State(state): State<Arc<ServiceContainer>>,
     Json(request): Json<VerifyTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UserInfo>>> {
     // Validate token using AuthService
@@ -539,7 +540,7 @@ pub async fn verify_token(
 
 /// Setup MFA for user
 pub async fn setup_mfa(
-    State(state): State<AppState>,
+    State(state): State<Arc<ServiceContainer>>,
     headers: HeaderMap,
     user: AuthenticatedUser,
     Json(request): Json<MfaSetupRequest>,
@@ -676,7 +677,7 @@ pub async fn setup_mfa(
 
 /// Verify MFA code
 pub async fn verify_mfa(
-    State(state): State<AppState>,
+    State(state): State<Arc<ServiceContainer>>,
     headers: HeaderMap,
     user: AuthenticatedUser,
     Json(request): Json<MfaVerifyRequest>,
