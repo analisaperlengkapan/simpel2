@@ -19,6 +19,7 @@ async fn test_save_to_csv_performance() {
         tokens: HashMap::new(),
         output_dir: "./output_test_perf".to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     };
     let client = MonsaktiClient::new(config).await.expect("Failed to create client");
 

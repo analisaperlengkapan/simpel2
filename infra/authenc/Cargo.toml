@@ -1,8 +1,8 @@
-[workspace]
-resolver = "2"
-members = ["."]
+# Note: This crate is now part of the main simpelv2 workspace
+# Individual workspace section removed for single-workspace consolidation
 
-[workspace.package]
+[package]
+name = "authenc"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
@@ -14,12 +14,6 @@ homepage = "https://simpel.kejaksaan.go.id"
 documentation = "https://docs.simpel.kejaksaan.go.id/authenc"
 keywords = ["iam", "authentication", "authorization", "security", "rust"]
 categories = ["authentication", "cryptography", "web-programming"]
-
-[package]
-name = "authenc"
-version.workspace = true
-edition.workspace = true
-description.workspace = true
 
 [lib]
 path = "src/lib.rs"
