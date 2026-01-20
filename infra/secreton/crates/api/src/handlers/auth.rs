@@ -145,7 +145,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mfa_setup_rejects_unsupported_method() {
+    async fn test_mfa_setup_sms_success() {
+        let server = create_test_server().await;
+        let request = MfaSetupRequest {
+            method: "sms".to_string(),
+            phone_number: Some("+1234567890".to_string()),
+            email: None,
+        };
+
+        let response = server
+            .post("/mfa/setup")
+            .add_header("X-Test-User-Id", uuid::Uuid::new_v4().to_string())
+            .json(&request)
+            .await;
+
+        response.assert_status_ok();
+        let body: ApiResponse<MfaSetupResponse> = response.json();
+        assert!(body.success);
+        let data = body.data.expect("setup response");
+        assert_eq!(data.method, "sms");
+        assert_eq!(data.backup_codes.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_mfa_setup_sms_validation_failure() {
         let server = create_test_server().await;
         let request = MfaSetupRequest {
             method: "sms".to_string(),
@@ -164,6 +187,24 @@ mod tests {
         assert!(!body.success);
         let error = body.error.expect("error payload");
         assert_eq!(error.code, "INVALID_REQUEST");
+    }
+
+    #[tokio::test]
+    async fn test_mfa_setup_rejects_unsupported_method() {
+        let server = create_test_server().await;
+        let request = MfaSetupRequest {
+            method: "webauthn".to_string(),
+            phone_number: None,
+            email: None,
+        };
+
+        let response = server
+            .post("/mfa/setup")
+            .add_header("X-Test-User-Id", uuid::Uuid::new_v4().to_string())
+            .json(&request)
+            .await;
+
+        response.assert_status(StatusCode::NOT_IMPLEMENTED);
     }
 
     #[tokio::test]
@@ -202,7 +243,7 @@ pub struct MfaSetupRequest {
 }
 
 /// MFA setup response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MfaSetupResponse {
     pub method: String,
     pub secret: Option<String>,  // For TOTP
@@ -554,17 +595,38 @@ pub async fn setup_mfa(
             ));
         }
         "sms" => {
-            if request.phone_number.is_none() {
+            if let Some(phone) = &request.phone_number {
+                // Initiate SMS setup
+                let _code = state
+                    .mfa
+                    .initiate_sms_setup(&user_id, phone.clone())
+                    .await
+                    .map_err(|e| ApiError::Internal {
+                        message: format!("Failed to initiate SMS setup: {}", e),
+                    })?;
+
+                // Get recovery codes
+                let mfa_config = state
+                    .mfa
+                    .get_config(&user_id)
+                    .await
+                    .ok_or_else(|| ApiError::Internal {
+                        message: "Failed to retrieve MFA configuration".to_string(),
+                    })?;
+
+                MfaSetupResponse {
+                    method: "sms".to_string(),
+                    secret: None,
+                    qr_code: None,
+                    backup_codes: mfa_config.recovery_codes.clone(),
+                }
+            } else {
                 return Err(ApiError::Validation {
                     message: "Phone number is required for SMS MFA method".to_string(),
                     field: Some("phone_number".to_string()),
                     details: None,
                 });
             }
-            // TODO: Implement SMS MFA setup
-            return Err(ApiError::NotImplemented(
-                "SMS MFA not yet implemented".to_string(),
-            ));
         }
         "webauthn" => {
             // TODO: Implement WebAuthn MFA setup
@@ -632,6 +694,16 @@ pub async fn verify_mfa(
                 .await
                 .map_err(|e| ApiError::Authentication {
                     message: format!("Failed to verify TOTP code: {}", e),
+                })?
+        }
+        "sms" => {
+            // Verify SMS code
+            state
+                .mfa
+                .verify_sms_setup(&user_id, &request.code)
+                .await
+                .map_err(|e| ApiError::Authentication {
+                    message: format!("Failed to verify SMS code: {}", e),
                 })?
         }
         "recovery" => {

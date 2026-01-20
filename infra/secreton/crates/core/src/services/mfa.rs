@@ -43,6 +43,12 @@ pub enum MfaError {
 
     #[error("Recovery code already used")]
     RecoveryCodeUsed,
+
+    #[error("Invalid SMS code")]
+    InvalidSmsCode,
+
+    #[error("SMS code expired")]
+    SmsExpired,
 }
 
 /// MFA method type
@@ -98,6 +104,12 @@ pub struct MfaConfig {
     /// Used recovery codes
     pub used_recovery_codes: Vec<String>,
 
+    /// Phone number for SMS MFA
+    pub phone_number: Option<String>,
+
+    /// Pending SMS verification (code, phone, expires_at)
+    pub pending_sms_verification: Option<(String, String, DateTime<Utc>)>,
+
     /// Created at
     pub created_at: DateTime<Utc>,
 
@@ -117,6 +129,8 @@ impl MfaConfig {
             totp_key_name: None,
             recovery_codes: Self::generate_recovery_codes(),
             used_recovery_codes: Vec::new(),
+            phone_number: None,
+            pending_sms_verification: None,
             created_at: Utc::now(),
             last_used_at: None,
             enforced: false,
@@ -265,6 +279,73 @@ impl MfaService {
         }
 
         Ok(response.valid)
+    }
+
+    /// Initiate SMS MFA setup
+    #[instrument(skip(self), fields(
+        user_id = %user_id,
+        phone_number = %phone_number,
+        operation = "initiate_sms_setup"
+    ))]
+    pub async fn initiate_sms_setup(
+        &self,
+        user_id: &str,
+        phone_number: String,
+    ) -> Result<String, MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .entry(user_id.to_string())
+            .or_insert_with(|| MfaConfig::new(user_id.to_string()));
+
+        // Generate random 6-digit code
+        use rand::Rng;
+        let code = format!("{:06}", rand::thread_rng().gen_range(0..1000000));
+        let expires_at = Utc::now() + chrono::Duration::minutes(10);
+
+        // Store phone number in pending state until verified
+        config.pending_sms_verification = Some((code.clone(), phone_number.clone(), expires_at));
+
+        // Mock sending SMS
+        tracing::info!(
+            "Sending SMS code {} to phone number {}",
+            code,
+            phone_number
+        );
+
+        Ok(code)
+    }
+
+    /// Verify SMS setup code
+    #[instrument(skip(self, code), fields(
+        user_id = %user_id,
+        operation = "verify_sms_setup"
+    ))]
+    pub async fn verify_sms_setup(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .get_mut(user_id)
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        if let Some((pending_code, pending_phone, expires_at)) = &config.pending_sms_verification {
+            if Utc::now() > *expires_at {
+                return Err(MfaError::SmsExpired);
+            }
+            if pending_code != code {
+                return Err(MfaError::InvalidSmsCode);
+            }
+
+            // Valid - enable SMS MFA and save phone number
+            config.phone_number = Some(pending_phone.clone());
+            if !config.enabled_methods.contains(&MfaMethodType::SMS) {
+                config.enabled_methods.push(MfaMethodType::SMS);
+            }
+            config.pending_sms_verification = None;
+            config.last_used_at = Some(Utc::now());
+
+            Ok(true)
+        } else {
+            Err(MfaError::NotConfigured("SMS Setup not initiated".to_string()))
+        }
     }
 
     /// Verify recovery code
@@ -459,5 +540,33 @@ mod tests {
 
         assert_ne!(old_codes, new_codes);
         assert_eq!(new_codes.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_sms_setup_flow() {
+        let service = MfaService::new();
+        let user_id = "user_sms";
+        let phone = "+1234567890".to_string();
+
+        // Initiate setup
+        let code = service
+            .initiate_sms_setup(user_id, phone.clone())
+            .await
+            .unwrap();
+        assert_eq!(code.len(), 6);
+
+        // Verify with wrong code
+        let result = service.verify_sms_setup(user_id, "000000").await;
+        assert!(matches!(result, Err(MfaError::InvalidSmsCode)));
+
+        // Verify with correct code
+        let result = service.verify_sms_setup(user_id, &code).await;
+        assert!(matches!(result, Ok(true)));
+
+        // Check enabled methods
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(config.enabled_methods.contains(&MfaMethodType::SMS));
+        assert_eq!(config.phone_number, Some(phone));
+        assert!(config.pending_sms_verification.is_none());
     }
 }
