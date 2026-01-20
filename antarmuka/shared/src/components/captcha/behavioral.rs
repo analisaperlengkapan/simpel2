@@ -8,6 +8,8 @@ use std::collections::VecDeque;
 use gloo_timers::callback::Interval;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use leptos::ev;
+use std::collections::HashMap;
 
 /// Wrapper to make types Send + Sync for StoredValue in WASM
 struct SendWrapper<T>(T);
@@ -256,52 +258,53 @@ pub fn MouseTracker(on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoVi
     }
 }
 
-/// Keystroke dynamics analyzer
+/// Keystroke dynamics analyzer with duration tracking
 #[component]
 pub fn KeystrokeAnalyzer(on_data_collected: Callback<Vec<KeystrokeEvent>>) -> impl IntoView {
-    let keystroke_events = StoredValue::new(VecDeque::<KeystrokeEvent>::new());
+    let (keystroke_events, set_keystroke_events) = signal(Vec::<KeystrokeEvent>::new());
+    let pending_keys = StoredValue::new(HashMap::<String, u64>::new());
 
-    Effect::new(move |_| {
-        let _ = window_event_listener(leptos::ev::keydown, move |ev| {
-            keystroke_events.update_value(|events| {
-                events.push_back(KeystrokeEvent {
-                    key: ev.key(),
-                    timestamp: js_sys::Date::now() as u64,
-                    duration: 0,
-                });
-                if events.len() > 50 {
-                    events.pop_front();
-                }
-            });
+    // Keydown listener to capture press start time
+    let on_keydown = move |ev: web_sys::KeyboardEvent| {
+        let key = ev.key();
+        let timestamp = js_sys::Date::now() as u64;
+
+        pending_keys.update_value(|map| {
+            map.entry(key).or_insert(timestamp);
+        });
+    };
+
+    // Keyup listener to calculate duration and record event
+    let on_keyup = move |ev: web_sys::KeyboardEvent| {
+        let key = ev.key();
+        let timestamp = js_sys::Date::now() as u64;
+
+        let mut start_time = None;
+        pending_keys.update_value(|map| {
+            start_time = map.remove(&key);
         });
 
-         let _ = window_event_listener(leptos::ev::keyup, move |ev| {
-            keystroke_events.update_value(|events| {
-                events.push_back(KeystrokeEvent {
-                    key: ev.key(),
-                    timestamp: js_sys::Date::now() as u64,
-                    duration: 0,
-                });
-                if events.len() > 50 {
-                    events.pop_front();
-                }
-            });
-        });
-    });
+        if let Some(start) = start_time {
+            let duration = timestamp.saturating_sub(start);
+            let event = KeystrokeEvent {
+                key,
+                timestamp: start,
+                duration
+            };
 
-    Effect::new(move |_| {
-        let _handle = StoredValue::new(SendWrapper(Interval::new(1000, move || {
-            keystroke_events.with_value(|events| {
-                if !events.is_empty() {
-                    on_data_collected.run(events.iter().cloned().collect());
-                }
-            });
-        })));
-    });
+            set_keystroke_events.update(|events| events.push(event));
+            on_data_collected.run(keystroke_events.get_untracked());
+        }
+    };
+
+    // Attach listeners to window
+    // leptos::window_event_listener automatically handles cleanup when component is dropped
+    let _ = window_event_listener(ev::keydown, on_keydown);
+    let _ = window_event_listener(ev::keyup, on_keyup);
 
     view! {
-        <div class="keystroke-analyzer">
-            // Component for keystroke analysis
+        <div class="keystroke-analyzer" style="display: none;">
+            // Component for keystroke analysis (invisible)
         </div>
     }
 }
