@@ -508,21 +508,22 @@ impl MonsaktiClient {
 
                 for item in &array {
                     if let Some(obj) = item.as_object() {
-                        let row: Vec<std::borrow::Cow<'_, [u8]>> = headers
-                            .iter()
-                            .map(|h| {
-                                obj.get(*h)
-                                    .map(|v| match v {
-                                        serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
-                                        serde_json::Value::Number(n) => std::borrow::Cow::Owned(n.to_string().into_bytes()),
-                                        serde_json::Value::Bool(b) => std::borrow::Cow::Owned(b.to_string().into_bytes()),
-                                        serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
-                                        _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
-                                    })
-                                    .unwrap_or(std::borrow::Cow::Borrowed(&[]))
-                            })
-                            .collect();
-                        wtr.write_record(&row)?;
+                        let row = headers.iter().map(|h| {
+                            obj.get(*h)
+                                .map(|v| match v {
+                                    serde_json::Value::String(s) => std::borrow::Cow::Borrowed(s.as_bytes()),
+                                    serde_json::Value::Number(n) => {
+                                        std::borrow::Cow::Owned(n.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Bool(b) => {
+                                        std::borrow::Cow::Owned(b.to_string().into_bytes())
+                                    }
+                                    serde_json::Value::Null => std::borrow::Cow::Borrowed(&[] as &[u8]),
+                                    _ => std::borrow::Cow::Owned(v.to_string().into_bytes()),
+                                })
+                                .unwrap_or(std::borrow::Cow::Borrowed(&[]))
+                        });
+                        wtr.write_record(row)?;
                     }
                 }
             }
