@@ -72,6 +72,7 @@ impl MonsaktiClient {
     }
 
     /// Clone untuk parallel processing - Token tidak di-share
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),

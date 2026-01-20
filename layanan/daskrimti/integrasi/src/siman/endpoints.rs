@@ -338,7 +338,7 @@ pub async fn fetch_all_assets_with_pagination(
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
-    let response = client.fetch_siman_row_count(category.clone()).await?;
+    let response = client.fetch_siman_row_count(category).await?;
 
     let total_count = if let Some(data) = response.data {
         if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
@@ -378,10 +378,7 @@ pub async fn fetch_all_assets_with_pagination(
             current_id, end_id, total_count
         );
 
-        match client
-            .fetch_siman_data(category.clone(), current_id, end_id)
-            .await
-        {
+        match client.fetch_siman_data(category, current_id, end_id).await {
             Ok(response) => {
                 if let Some(data) = response.data {
                     // Extract results array
