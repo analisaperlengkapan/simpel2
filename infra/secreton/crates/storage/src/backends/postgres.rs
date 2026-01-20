@@ -591,6 +591,28 @@ impl StorageBackend for PostgresBackend {
         Ok(rows_affected)
     }
 
+    async fn compact(&self) -> StorageResult<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| StorageError::ConnectionFailed {
+                source: None,
+                message: format!("Failed to get connection: {}", e),
+            })?;
+
+        // Run VACUUM to reclaim storage and update statistics
+        client
+            .execute("VACUUM", &[])
+            .await
+            .map_err(|e| StorageError::QueryFailed {
+                source: None,
+                message: format!("Failed to vacuum database: {}", e),
+            })?;
+
+        Ok(())
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

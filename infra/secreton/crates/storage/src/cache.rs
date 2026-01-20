@@ -475,6 +475,10 @@ where
         Ok(count)
     }
 
+    async fn compact(&self) -> StorageResult<()> {
+        self.storage.compact().await
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
