@@ -250,6 +250,47 @@ impl LeaseManager {
         })
     }
 
+    /// Helper to build filter query and parameters
+    fn build_filter_query(
+        &self,
+        user_id: Option<String>,
+        namespace: Option<String>,
+        resource_type: Option<String>,
+        status: Option<String>,
+    ) -> (
+        String,
+        Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>>,
+    ) {
+        let mut query = String::from(" WHERE 1=1");
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut param_count = 1;
+
+        if let Some(user) = user_id {
+            query.push_str(&format!(" AND user_id = ${}", param_count));
+            params.push(Box::new(user));
+            param_count += 1;
+        }
+
+        if let Some(ns) = namespace {
+            query.push_str(&format!(" AND namespace = ${}", param_count));
+            params.push(Box::new(ns));
+            param_count += 1;
+        }
+
+        if let Some(rt) = resource_type {
+            query.push_str(&format!(" AND resource_type = ${}", param_count));
+            params.push(Box::new(rt));
+            param_count += 1;
+        }
+
+        if let Some(st) = status {
+            query.push_str(&format!(" AND status = ${}", param_count));
+            params.push(Box::new(st));
+        }
+
+        (query, params)
+    }
+
     /// Create lease with validation and storage persistence
     #[instrument(skip(self, metadata), fields(
         user = %user,
@@ -614,42 +655,21 @@ impl LeaseManager {
                 LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
             })?;
 
+        let (filter_clause, mut params) =
+            self.build_filter_query(user_id, namespace, resource_type, status);
+
         let mut query = String::from(
             r#"
             SELECT id, user_id, resource, resource_type, namespace, status, issued_at, expired_at,
                    last_renewed_at, renewable, max_ttl, renew_count, max_renewals, parent_id,
                    revoke_callback, metadata
             FROM leases
-            WHERE 1=1
         "#,
         );
+        query.push_str(&filter_clause);
 
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
-        let mut param_count = 1;
-
-        if let Some(user) = user_id {
-            query.push_str(&format!(" AND user_id = ${}", param_count));
-            params.push(Box::new(user));
-            param_count += 1;
-        }
-
-        if let Some(ns) = namespace {
-            query.push_str(&format!(" AND namespace = ${}", param_count));
-            params.push(Box::new(ns));
-            param_count += 1;
-        }
-
-        if let Some(rt) = resource_type {
-            query.push_str(&format!(" AND resource_type = ${}", param_count));
-            params.push(Box::new(rt));
-            param_count += 1;
-        }
-
-        if let Some(st) = status {
-            query.push_str(&format!(" AND status = ${}", param_count));
-            params.push(Box::new(st));
-            param_count += 1;
-        }
+        // param_count needs to continue from where build_filter_query left off
+        let mut param_count = params.len() + 1;
 
         query.push_str(" ORDER BY created_at DESC");
 
@@ -697,33 +717,11 @@ impl LeaseManager {
                 LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
             })?;
 
-        let mut query = String::from(r#"SELECT COUNT(*) FROM leases WHERE 1=1"#);
+        let (filter_clause, params) =
+            self.build_filter_query(user_id, namespace, resource_type, status);
 
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
-        let mut param_count = 1;
-
-        if let Some(user) = user_id {
-            query.push_str(&format!(" AND user_id = ${}", param_count));
-            params.push(Box::new(user));
-            param_count += 1;
-        }
-
-        if let Some(ns) = namespace {
-            query.push_str(&format!(" AND namespace = ${}", param_count));
-            params.push(Box::new(ns));
-            param_count += 1;
-        }
-
-        if let Some(rt) = resource_type {
-            query.push_str(&format!(" AND resource_type = ${}", param_count));
-            params.push(Box::new(rt));
-            param_count += 1;
-        }
-
-        if let Some(st) = status {
-            query.push_str(&format!(" AND status = ${}", param_count));
-            params.push(Box::new(st));
-        }
+        let mut query = String::from("SELECT COUNT(*) FROM leases");
+        query.push_str(&filter_clause);
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
