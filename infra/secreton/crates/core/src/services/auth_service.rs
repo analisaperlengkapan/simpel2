@@ -281,7 +281,7 @@ impl AuthService {
         user_agent: &str,
     ) -> Result<AuthToken, AuthError> {
         // Get user from storage
-        let user = self.get_user_by_username(username).await?;
+        let mut user = self.get_user_by_username(username).await?;
 
         if !user.is_active {
             return Err(AuthError::InvalidCredentials);
@@ -323,7 +323,7 @@ impl AuthService {
         self.store_session(&session).await?;
 
         // Update last login
-        self.update_last_login(&user.id.to_string()).await?;
+        self.update_last_login(&mut user).await?;
 
         Ok(AuthToken {
             access_token,
@@ -961,10 +961,9 @@ impl AuthService {
     }
 
     /// Update last login timestamp
-    async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
-        let mut user = self.get_user(user_id).await?;
+    async fn update_last_login(&self, user: &mut User) -> Result<(), AuthError> {
         user.last_login = Some(chrono::Utc::now());
-        self.store_user(&user).await
+        self.store_user(user).await
     }
 
     /// Count total users
