@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_jwt_claims_parsing() {
         use crate::features::auth::AuthService;
-        use base64::{engine::general_purpose, Engine as _};
+        use base64::{Engine as _, engine::general_purpose};
 
         // Create a dummy JWT
         // Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9

@@ -78,6 +78,7 @@ impl AxumApp {
                 "/metrics".to_string(),
                 "/.well-known/".to_string(), // OIDC discovery endpoints
                 "/api/v1/csrf/token".to_string(), // CSRF token endpoint
+                "/api/v1/captcha/challenge".to_string(), // CAPTCHA challenge generation
             ],
         };
         let csrf_state = Arc::new(CsrfState::new(csrf_config));

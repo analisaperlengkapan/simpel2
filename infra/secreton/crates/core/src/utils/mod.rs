@@ -309,13 +309,29 @@ pub mod correlation;
 /// LRU cache implementation with TTL support optimized for secrets
 pub mod cache;
 
+/// Encoding utilities (base64, hex, etc.)
+pub mod encoding;
+
 /// Memory optimization utilities and secure memory management for secrets
 pub mod memory;
 
 /// Common validation utilities to reduce code duplication
 pub mod validation;
 
-// Re-exports for convenience
-pub use cache::*;
-pub use memory::*;
+// Re-export cache types (SensitivityLevel from cache takes precedence)
+pub use cache::{
+    SecretCacheStats, SecretLruCache, SensitivityLevel, ThreadSafeSecretCache,
+};
+
+// Re-export encoding utilities
+pub use encoding::{base64_decode, base64_decode_url, base64_encode, base64_encode_url};
+
+// Re-export memory types (but not SensitivityLevel to avoid conflict)
+pub use memory::{
+    SecretMemoryPool, SecretMemoryStats, SecureSecretMemory, SecureSecretString,
+};
+// Re-export memory's SensitivityLevel with an alias for explicit usage
+pub use memory::SensitivityLevel as MemorySensitivityLevel;
+
+// Re-export validation
 pub use validation::*;

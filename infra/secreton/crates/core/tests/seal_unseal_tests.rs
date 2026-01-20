@@ -24,7 +24,8 @@ async fn test_initialize_3_of_5_configuration() {
         created_at: Utc::now(),
     };
 
-    let service = SealService::new(config);
+    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let service = SealService::with_storage(config, storage);
 
     // Initialize vault
     let shares = service.initialize().await.unwrap();
@@ -32,18 +33,27 @@ async fn test_initialize_3_of_5_configuration() {
     // Verify correct number of shares generated
     assert_eq!(shares.len(), 5, "Should generate 5 shares");
 
-    // Verify vault is unsealed after initialization
+    // Verify vault is SEALED after initialization (security best practice)
     assert!(
-        service.is_unsealed().await,
-        "Vault should be unsealed after initialization"
+        service.is_sealed().await,
+        "Vault should remain sealed after initialization"
     );
 
     // Verify status
     let status = service.status().await;
-    assert_eq!(status.state, SealState::Unsealed);
+    assert_eq!(status.state, SealState::Sealed);
     assert_eq!(status.total_shares, 5);
     assert_eq!(status.threshold, 3);
     assert!(status.initialized);
+
+    // Now unseal with threshold shares to verify it works
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
+    // Verify vault is now unsealed
+    assert!(service.is_unsealed().await, "Vault should be unsealed after providing threshold shares");
 }
 
 /// Test initialization with 5-of-7 configuration
@@ -56,7 +66,8 @@ async fn test_initialize_5_of_7_configuration() {
         created_at: Utc::now(),
     };
 
-    let service = SealService::new(config);
+    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let service = SealService::with_storage(config, storage);
 
     // Initialize vault
     let shares = service.initialize().await.unwrap();
@@ -64,17 +75,26 @@ async fn test_initialize_5_of_7_configuration() {
     // Verify correct number of shares generated
     assert_eq!(shares.len(), 7, "Should generate 7 shares");
 
-    // Verify vault is unsealed after initialization
+    // Verify vault is SEALED after initialization (security best practice)
     assert!(
-        service.is_unsealed().await,
-        "Vault should be unsealed after initialization"
+        service.is_sealed().await,
+        "Vault should remain sealed after initialization"
     );
 
     // Verify status
     let status = service.status().await;
-    assert_eq!(status.state, SealState::Unsealed);
+    assert_eq!(status.state, SealState::Sealed);
     assert_eq!(status.total_shares, 7);
     assert_eq!(status.threshold, 5);
+
+    // Now unseal with threshold shares to verify it works
+    for share in shares.iter().take(5) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
+    // Verify vault is now unsealed
+    assert!(service.is_unsealed().await, "Vault should be unsealed after providing threshold shares");
 }
 
 /// Test unseal with exactly threshold shares (3 of 5)
@@ -92,6 +112,13 @@ async fn test_unseal_with_exactly_threshold_shares() {
 
     // Initialize and get shares
     let shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service.get_master_key().await.unwrap();
 
     // Seal the vault
@@ -140,6 +167,13 @@ async fn test_unseal_with_more_than_threshold_shares() {
 
     // Initialize and get shares
     let shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service.get_master_key().await.unwrap();
 
     // Seal the vault
@@ -192,6 +226,13 @@ async fn test_unseal_with_different_share_combinations() {
 
     // Initialize and get shares
     let shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service.get_master_key().await.unwrap();
 
     // Test different combinations of 3 shares
@@ -242,11 +283,10 @@ async fn test_unseal_with_invalid_share() {
 
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let _shares = service.initialize().await.unwrap();
 
-    // Seal the vault
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Try to unseal with invalid share (random bytes)
     let invalid_share = vec![0u8; 100];
@@ -280,11 +320,10 @@ async fn test_unseal_with_tampered_share() {
 
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let shares = service.initialize().await.unwrap();
 
-    // Seal the vault
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Tamper with a share by modifying bytes
     let mut tampered_share_bytes = shares[0].to_bytes().unwrap();
@@ -317,23 +356,35 @@ async fn test_unseal_with_wrong_share_from_different_vault() {
     };
 
     // Create first vault
-    let service1 = SealService::new(config.clone());
+    let storage1 = Arc::new(InMemoryVaultStateStorage::new());
+    let service1 = SealService::with_storage(config.clone(), storage1);
     let _shares1 = service1.initialize().await.unwrap();
-    service1.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Create second vault with different master key
-    let service2 = SealService::new(config);
+    let storage2 = Arc::new(InMemoryVaultStateStorage::new());
+    let service2 = SealService::with_storage(config, storage2);
     let shares2 = service2.initialize().await.unwrap();
-    service2.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Try to unseal first vault with shares from second vault
+    // NOTE: In plain Shamir (without VSS), shares from vault2 will reconstruct vault2's master key.
+    // When used to decrypt vault1's encrypted master key, decryption will fail.
+    // However, we need to provide all threshold shares before the decryption is attempted.
+    let mut unseal_results = Vec::new();
     for share in shares2.iter().take(3) {
         let share_bytes = share.to_bytes().unwrap();
         let result = service1.unseal_with_share(&share_bytes).await;
-
-        // Should fail with share verification error
-        assert!(result.is_err(), "Should reject shares from different vault");
+        unseal_results.push(result);
     }
+
+    // The last share (when threshold is met) should fail with decryption error
+    let last_result = unseal_results.last().unwrap();
+    assert!(
+        last_result.is_err(),
+        "Shares from different vault should fail to decrypt. Got: {:?}",
+        last_result
+    );
 
     // First vault should still be sealed
     assert!(
@@ -352,10 +403,17 @@ async fn test_seal_clears_master_key_from_memory() {
         created_at: Utc::now(),
     };
 
-    let service = SealService::new(config);
+    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let service = SealService::with_storage(config, storage);
 
     // Initialize
-    let _shares = service.initialize().await.unwrap();
+    let shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
 
     // Verify master key is available when unsealed
     assert!(
@@ -388,10 +446,17 @@ async fn test_seal_clears_master_key_from_memory() {
 #[tokio::test]
 async fn test_double_seal_returns_error() {
     let config = SealConfig::default();
-    let service = SealService::new(config);
+    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let service = SealService::with_storage(config, storage);
 
-    // Initialize
-    let _shares = service.initialize().await.unwrap();
+    // Initialize (vault remains sealed)
+    let shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
 
     // First seal should succeed
     assert!(service.seal().await.is_ok(), "First seal should succeed");
@@ -549,6 +614,13 @@ async fn test_persistence_restart_after_unseal() {
 
     // Initialize and get shares
     let shares = service1.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service1.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service1.get_master_key().await.unwrap();
 
     // Seal the vault
@@ -602,6 +674,13 @@ async fn test_persistence_multiple_restart_cycles() {
     // Initialize first service
     let service1 = SealService::with_storage(config.clone(), storage.clone());
     let shares = service1.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service1.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service1.get_master_key().await.unwrap();
     service1.seal().await.unwrap();
 
@@ -645,10 +724,10 @@ async fn test_persistence_configuration_preserved() {
 
     let storage = Arc::new(InMemoryVaultStateStorage::new());
 
-    // Initialize first service
+    // Initialize first service (vault remains sealed)
     let service1 = SealService::with_storage(config.clone(), storage.clone());
     let _shares = service1.initialize().await.unwrap();
-    service1.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Create new service and load
     let service2 = SealService::with_storage(
@@ -676,11 +755,10 @@ async fn test_insufficient_shares_keeps_vault_sealed() {
 
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let shares = service.initialize().await.unwrap();
 
-    // Seal
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization, no need to seal again
 
     // Provide only 2 shares (need 3)
     for share in shares.iter().take(2) {
@@ -707,11 +785,10 @@ async fn test_reset_unseal_progress() {
     let config = SealConfig::default();
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let shares = service.initialize().await.unwrap();
 
-    // Seal
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Provide 2 shares
     for share in shares.iter().take(2) {
@@ -739,11 +816,10 @@ async fn test_duplicate_shares_ignored() {
     let config = SealConfig::default();
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed after initialization)
     let shares = service.initialize().await.unwrap();
 
-    // Seal
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization, no need to seal again
 
     // Provide same share multiple times
     let share_bytes = shares[0].to_bytes().unwrap();
@@ -770,7 +846,14 @@ async fn test_master_key_rotation() {
     let service = SealService::with_storage(config, storage);
 
     // Initialize
-    let _initial_shares = service.initialize().await.unwrap();
+    let initial_shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first to get the master key
+    for share in initial_shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
+
     let original_master_key = service.get_master_key().await.unwrap();
 
     // Rotate master key
@@ -806,11 +889,10 @@ async fn test_rotation_fails_when_sealed() {
     let config = SealConfig::default();
     let service = SealService::new(config);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let _shares = service.initialize().await.unwrap();
 
-    // Seal
-    service.seal().await.unwrap();
+    // Vault is already sealed after initialization
 
     // Try to rotate while sealed
     let result = service.rotate_master_key().await;
@@ -828,10 +910,17 @@ async fn test_rotation_fails_when_sealed() {
 #[tokio::test]
 async fn test_old_shares_invalid_after_rotation() {
     let config = SealConfig::default();
-    let service = SealService::new(config);
+    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let service = SealService::with_storage(config, storage);
 
-    // Initialize
+    // Initialize (vault remains sealed)
     let old_shares = service.initialize().await.unwrap();
+
+    // Unseal the vault first to rotate
+    for share in old_shares.iter().take(3) {
+        let share_bytes = share.to_bytes().unwrap();
+        service.unseal_with_share(&share_bytes).await.unwrap();
+    }
 
     // Rotate
     let _new_shares = service.rotate_master_key().await.unwrap();
@@ -840,13 +929,23 @@ async fn test_old_shares_invalid_after_rotation() {
     service.seal().await.unwrap();
 
     // Try to unseal with old shares
+    // NOTE: In plain Shamir (without VSS), old shares will reconstruct the old master key.
+    // When used to decrypt the new encrypted master key, decryption will fail.
+    // However, we need to provide all threshold shares before the decryption is attempted.
+    let mut unseal_results = Vec::new();
     for share in old_shares.iter().take(3) {
         let share_bytes = share.to_bytes().unwrap();
         let result = service.unseal_with_share(&share_bytes).await;
-
-        // Should fail with verification error
-        assert!(result.is_err(), "Old shares should not work after rotation");
+        unseal_results.push(result);
     }
+
+    // The last share (when threshold is met) should fail with decryption error
+    let last_result = unseal_results.last().unwrap();
+    assert!(
+        last_result.is_err(),
+        "Old shares should fail to decrypt new master key after rotation. Got: {:?}",
+        last_result
+    );
 
     // Vault should still be sealed
     assert!(service.is_sealed().await);

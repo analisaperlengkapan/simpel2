@@ -33,6 +33,15 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: true,
             allowed_domains: vec![],
+            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            ext_key_usage: vec!["ServerAuth".to_string()],
+            require_cn: true,
+            allow_localhost: false,
+            allow_ip_sans: false,
+            server_flag: true,
+            client_flag: false,
+            code_signing_flag: false,
+            email_protection_flag: false,
         };
         let role_result = engine.create_role(role).await;
         assert!(role_result.is_ok());
@@ -86,6 +95,15 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: false,
             allowed_domains: vec!["example.com".to_string()],
+            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            ext_key_usage: vec!["ServerAuth".to_string()],
+            require_cn: true,
+            allow_localhost: false,
+            allow_ip_sans: false,
+            server_flag: true,
+            client_flag: false,
+            code_signing_flag: false,
+            email_protection_flag: false,
         };
         engine.create_role(role).await.unwrap();
 
@@ -166,6 +184,15 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: false,
             allowed_domains: vec!["example.com".to_string()],
+            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            ext_key_usage: vec!["ServerAuth".to_string()],
+            require_cn: true,
+            allow_localhost: false,
+            allow_ip_sans: false,
+            server_flag: true,
+            client_flag: false,
+            code_signing_flag: false,
+            email_protection_flag: false,
         };
         engine.create_role(role).await.unwrap();
 

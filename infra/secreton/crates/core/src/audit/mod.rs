@@ -170,19 +170,30 @@ pub use backends::*;
 pub use middleware::*;
 
 /// Audit log entry
+///
+/// Enhanced to meet Requirement 12.1: Include timestamp, actor, action, resource, client IP
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLog {
     pub id: Uuid,
+    /// Timestamp in UTC (Requirement 12.1)
     pub timestamp: chrono::DateTime<Utc>,
+    /// Action performed (Requirement 12.1)
     pub action: String,
+    /// Actor/user performing the action (Requirement 12.1)
     pub actor: Option<String>,
+    /// Resource type being accessed (Requirement 12.1)
     pub resource_type: String,
+    /// Resource identifier (Requirement 12.1)
     pub resource_id: String,
+    /// Status of the operation
     pub status: AuditStatus,
+    /// Client IP address (Requirement 12.1)
     pub ip: Option<String>,
+    /// User agent string for additional context
     pub user_agent: Option<String>,
     /// Namespace ID for the resource (e.g., "satker-kja001")
     pub namespace: Option<String>,
+    /// Additional metadata for context
     pub metadata: HashMap<String, String>,
 }
 

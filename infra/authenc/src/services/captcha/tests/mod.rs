@@ -2,6 +2,7 @@
 
 pub mod error_handling_tests;
 pub mod integration_tests;
+pub mod property_tests;
 pub mod security_tests;
 
 // Re-export test utilities for use in other test modules
@@ -155,7 +156,9 @@ mod all_tests {
     }
 
     /// Performance benchmark test
+    /// Note: This is a performance benchmark, ignored in regular CI runs
     #[tokio::test]
+    #[ignore = "Performance benchmark - run manually with --ignored"]
     async fn benchmark_captcha_operations() {
         use crate::services::captcha::{
             enhanced_service::EnhancedCaptchaService, fallback::FallbackConfig, retry::RetryConfig,

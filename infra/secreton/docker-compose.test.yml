@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  postgres:
+    ports:
+      - "5433:5432" # Use different port to avoid conflict
+
+  secreton:
+    environment:
+      - DATABASE_URL=postgresql://secreton:secreton_pass@postgres:5432/secreton
+    ports:
+      - "8200:8200"
+      - "8201:8201"

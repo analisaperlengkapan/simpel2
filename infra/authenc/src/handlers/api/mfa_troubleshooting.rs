@@ -23,7 +23,7 @@ use uuid::Uuid;
 pub fn create_mfa_troubleshooting_routes() -> Router<Arc<crate::app::AppState>> {
     Router::new()
         // Admin troubleshooting tools
-        .route("/admin/diagnose/:user_id", post(admin_diagnose_user_mfa))
+        .route("/admin/diagnose/{user_id}", post(admin_diagnose_user_mfa))
         .route("/admin/health-check", get(admin_mfa_health_check))
         .route("/admin/system-status", get(get_mfa_system_status))
         .route("/admin/fix-common-issues", post(fix_common_mfa_issues))

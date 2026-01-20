@@ -7946,10 +7946,17 @@ use uuid::Uuid;
 
 /// Store a user event in the database
 pub async fn store_event(db: &Database, event: &Event) -> Result<()> {
-    let details_json = serde_json::to_string(&event.details).map_err(|e| {
+    // Convert details HashMap to JSON Value for JSONB column
+    let details_json: serde_json::Value = serde_json::to_value(&event.details).map_err(|e| {
         error!("Failed to serialize event details: {}", e);
         AuthencError::validation("Failed to serialize event details")
     })?;
+
+    // Parse IP address to proper type, or use null if invalid
+    let ip_addr: Option<std::net::IpAddr> = event
+        .ip_address
+        .as_ref()
+        .and_then(|ip| ip.parse().ok());
 
     let query = r#"
             INSERT INTO events (
@@ -7971,7 +7978,7 @@ pub async fn store_event(db: &Database, event: &Event) -> Result<()> {
             &event.client_id,
             &event.user_id,
             &event.session_id,
-            &event.ip_address,
+            &ip_addr,
             &event.error,
             &details_json,
         ],

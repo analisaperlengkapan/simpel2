@@ -3,6 +3,9 @@
 //! Provides authentication, rate limiting, request tracing,
 //! and other middleware functionality.
 
+// Export rate limiting middleware module
+pub mod rate_limit;
+
 use axum::{
     Json,
     extract::{Request, State},

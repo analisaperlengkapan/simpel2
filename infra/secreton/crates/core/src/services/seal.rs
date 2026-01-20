@@ -209,11 +209,11 @@ pub struct SealStatus {
 }
 
 impl SealStatus {
-    fn new(config: &SealConfig, state: SealState, progress: usize) -> Self {
+    fn new(config: &SealConfig, state: SealState, progress: usize, initialized: bool) -> Self {
         Self {
             state,
             seal_type: config.seal_type.clone(),
-            initialized: true,
+            initialized,
             total_shares: config.secret_shares,
             threshold: config.secret_threshold,
             progress,
@@ -576,7 +576,12 @@ impl SealService {
         let state = self.state.read().await;
         let shares = self.unseal_shares.read().await;
 
-        SealStatus::new(&config, state.clone(), shares.len())
+        // Check if vault is initialized by checking if commitment exists
+        let commitment = self.commitment.read().await;
+        let initialized = commitment.is_some();
+        drop(commitment);
+
+        SealStatus::new(&config, state.clone(), shares.len(), initialized)
     }
 
     /// Seal the vault - clears master key from memory

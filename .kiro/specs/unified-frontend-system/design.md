@@ -760,6 +760,200 @@ pub enum AppStatus {
 }
 ```
 
+## Correctness Properties
+
+*A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+
+### Authentication & Session Properties
+
+**Property 1: Session Sharing Consistency**
+*For any* authenticated user session stored in localStorage, all microfrontends accessing that session SHALL receive identical session data without requiring re-authentication.
+**Validates: Requirements 3.7, 10.3**
+
+**Property 2: Session Expiry Enforcement**
+*For any* session with an `expires_at` timestamp in the past, the system SHALL redirect the user to the login page and clear the invalid session from localStorage.
+**Validates: Requirements 3.8, 11.5**
+
+**Property 3: MFA Enforcement**
+*For any* user without MFA enabled, successful password authentication SHALL trigger the MFA setup flow before granting access to protected resources.
+**Validates: Requirements 3.4, 4.2**
+
+**Property 4: OAuth Callback Processing**
+*For any* valid OAuth callback with authorization code and state parameter, the Portal SHALL exchange the code for tokens and redirect to the origin microfrontend with a valid session.
+**Validates: Requirements 4.8**
+
+**Property 5: Login Redirect from Microfrontend**
+*For any* unauthenticated user accessing a microfrontend, clicking the login button SHALL redirect to Portal with the current URL as `return_url` parameter.
+**Validates: Requirements 3.1, 3.2**
+
+### UI Consistency Properties
+
+**Property 6: Design Token Consistency**
+*For any* component rendered across different microfrontends, the same CSS variables (colors, spacing, typography) SHALL be applied consistently.
+**Validates: Requirements 1.1, 1.2**
+
+**Property 7: Theme Switching Consistency**
+*For any* theme change (light/dark), all rendered components SHALL update their styling within 100ms without page reload.
+**Validates: Requirements 1.5, 18.1, 18.5**
+
+**Property 8: Theme Preference Persistence**
+*For any* user theme preference saved to localStorage, subsequent page loads SHALL restore the same theme preference.
+**Validates: Requirements 18.4**
+
+### Responsive Design Properties
+
+**Property 9: Mobile Layout Adaptation**
+*For any* viewport width less than 640px, the layout SHALL switch to mobile-optimized single-column layout with touch targets of at least 44x44px.
+**Validates: Requirements 5.1, 5.5**
+
+**Property 10: Tablet Layout Adaptation**
+*For any* viewport width between 640px and 1024px, the layout SHALL adapt to medium-screen layout with appropriate spacing.
+**Validates: Requirements 5.2**
+
+**Property 11: Desktop Layout Optimization**
+*For any* viewport width greater than 1024px, the layout SHALL utilize multi-column layouts and expanded navigation.
+**Validates: Requirements 5.3**
+
+**Property 12: Orientation Change Handling**
+*For any* device orientation change, the layout SHALL adapt within 300ms without content loss or layout breakage.
+**Validates: Requirements 5.4**
+
+### Performance Properties
+
+**Property 13: Virtual Scrolling for Large Lists**
+*For any* list with more than 100 items, only the visible items plus a small buffer SHALL be rendered in the DOM.
+**Validates: Requirements 7.2, 9.4**
+
+**Property 14: SPA Navigation**
+*For any* navigation between routes within the Portal or microfrontend, the transition SHALL occur without full page reload.
+**Validates: Requirements 4.5, 10.1**
+
+**Property 15: Lazy Loading Images**
+*For any* image below the viewport fold, the image SHALL have `loading="lazy"` attribute and load only when approaching the viewport.
+**Validates: Requirements 5.6, 9.5**
+
+**Property 16: Bundle Size Constraint**
+*For any* production build, the gzipped WASM bundle SHALL be less than 400KB.
+**Validates: Requirements 9.3**
+
+### Accessibility Properties
+
+**Property 17: ARIA Labels on Interactive Elements**
+*For any* interactive element (button, link, input), there SHALL be an accessible name via `aria-label`, `aria-labelledby`, or visible text content.
+**Validates: Requirements 8.1**
+
+**Property 18: Focus Indicator Visibility**
+*For any* focusable element receiving keyboard focus, there SHALL be a visible focus indicator with at least 2px outline.
+**Validates: Requirements 8.2**
+
+**Property 19: Image Alt Text**
+*For any* `<img>` element, there SHALL be an `alt` attribute with descriptive text or empty string for decorative images.
+**Validates: Requirements 8.3**
+
+**Property 20: Color Contrast Compliance**
+*For any* text content, the color contrast ratio SHALL be at least 4.5:1 for normal text and 3:1 for large text (18px+ or 14px+ bold).
+**Validates: Requirements 8.4**
+
+**Property 21: Accessible Error Messages**
+*For any* form field with validation error, the error message SHALL be associated via `aria-describedby` and announced to screen readers.
+**Validates: Requirements 8.5**
+
+**Property 22: Reduced Motion Support**
+*For any* animation, when `prefers-reduced-motion: reduce` is set, the animation SHALL be disabled or significantly reduced.
+**Validates: Requirements 7.7**
+
+### Security Properties
+
+**Property 23: HTTPS Enforcement**
+*For any* API request from the frontend, the request URL SHALL use HTTPS protocol.
+**Validates: Requirements 11.1**
+
+**Property 24: Input Sanitization**
+*For any* user input rendered in the DOM, the content SHALL be sanitized to prevent XSS attacks.
+**Validates: Requirements 11.3**
+
+**Property 25: CSRF Token Inclusion**
+*For any* form submission or state-changing API request, a valid CSRF token SHALL be included in the request headers.
+**Validates: Requirements 11.4**
+
+**Property 26: Session Timeout**
+*For any* session inactive for more than 30 minutes, the system SHALL automatically log out the user and clear session data.
+**Validates: Requirements 11.5**
+
+**Property 27: CSP Header Presence**
+*For any* page response, Content-Security-Policy headers SHALL be present with strict directives.
+**Validates: Requirements 11.7**
+
+### Localization Properties
+
+**Property 28: Indonesian Date Format**
+*For any* date displayed to users, the format SHALL be DD/MM/YYYY (Indonesian standard).
+**Validates: Requirements 17.2**
+
+**Property 29: Indonesian Number Format**
+*For any* number with thousands, the separator SHALL be a period (.) following Indonesian convention.
+**Validates: Requirements 17.3**
+
+**Property 30: Indonesian Currency Format**
+*For any* currency amount in Rupiah, the format SHALL be "Rp X.XXX.XXX" with period as thousands separator.
+**Validates: Requirements 17.4**
+
+**Property 31: Translation Fallback**
+*For any* missing translation key, the system SHALL display the default language text and log a warning to console.
+**Validates: Requirements 17.6**
+
+### Search & Filter Properties
+
+**Property 32: Fuzzy Search Tolerance**
+*For any* search query with minor typos (1-2 character differences), the search SHALL return relevant results.
+**Validates: Requirements 19.1**
+
+**Property 33: Search Result Highlighting**
+*For any* search result, the matching terms SHALL be visually highlighted in the result text.
+**Validates: Requirements 19.4**
+
+**Property 34: Global Search Performance**
+*For any* global search query, results SHALL be returned within 500ms.
+**Validates: Requirements 4.3, 19.3**
+
+### Error Isolation Properties
+
+**Property 35: Microfrontend Error Isolation**
+*For any* JavaScript error occurring in one microfrontend, other microfrontends and the Portal SHALL continue functioning normally.
+**Validates: Requirements 10.5, 14.6**
+
+**Property 36: Module Load Failure Fallback**
+*For any* microfrontend that fails to load, the Portal SHALL display a fallback UI with retry option instead of crashing.
+**Validates: Requirements 10.6**
+
+### Real-time & Collaboration Properties
+
+**Property 37: Real-time UI Updates**
+*For any* data change received via WebSocket, the UI SHALL update within 1 second without manual refresh.
+**Validates: Requirements 20.2**
+
+**Property 38: Offline Queue Sync**
+*For any* action queued while offline, the action SHALL be automatically synced when connection is restored within 5 seconds.
+**Validates: Requirements 6.2, 20.6**
+
+**Property 39: Presence Indicator Accuracy**
+*For any* online user, the presence indicator SHALL show online status; for offline users, it SHALL show offline status.
+**Validates: Requirements 20.1**
+
+### Monitoring Properties
+
+**Property 40: Error Logging with Context**
+*For any* unhandled error, the error SHALL be logged with stack trace, user context, and timestamp to the monitoring service.
+**Validates: Requirements 12.1**
+
+**Property 41: Core Web Vitals Tracking**
+*For any* page load, LCP, FID, and CLS metrics SHALL be measured and sent to the analytics service.
+**Validates: Requirements 12.2**
+
+**Property 42: API Response Time Monitoring**
+*For any* API call, the response time SHALL be recorded and available for monitoring.
+**Validates: Requirements 12.4**
+
 ## Error Handling
 
 ### Error Types
@@ -917,8 +1111,175 @@ mod integration_tests {
 }
 ```
 
-## Performance Optimization
+### Property-Based Testing
 
+Property-based testing validates that correctness properties hold across all valid inputs. We use `proptest` crate for Rust property-based testing.
+
+**Testing Framework:** `proptest` (https://crates.io/crates/proptest)
+
+**Configuration:** Each property test runs a minimum of 100 iterations.
+
+**Property Test Format:**
+```rust
+use proptest::prelude::*;
+
+// **Feature: unified-frontend-system, Property 28: Indonesian Date Format**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_indonesian_date_format(
+        year in 2000i32..2100,
+        month in 1u32..=12,
+        day in 1u32..=28
+    ) {
+        let date = NaiveDate::from_ymd_opt(year, month, day).unwrap();
+        let formatted = format_date(&date);
+
+        // Property: Date format SHALL be DD/MM/YYYY
+        let parts: Vec<&str> = formatted.split('/').collect();
+        prop_assert_eq!(parts.len(), 3);
+        prop_assert_eq!(parts[0].len(), 2); // DD
+        prop_assert_eq!(parts[1].len(), 2); // MM
+        prop_assert_eq!(parts[2].len(), 4); // YYYY
+    }
+}
+
+// **Feature: unified-frontend-system, Property 29: Indonesian Number Format**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_indonesian_number_format(num in 1000i64..1_000_000_000) {
+        let formatted = format_number(num);
+
+        // Property: Thousands separator SHALL be period (.)
+        if num >= 1000 {
+            prop_assert!(formatted.contains('.'));
+        }
+
+        // Property: Parsing back should give same number
+        let parsed: i64 = formatted.replace('.', "").parse().unwrap();
+        prop_assert_eq!(parsed, num);
+    }
+}
+
+// **Feature: unified-frontend-system, Property 30: Indonesian Currency Format**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_indonesian_currency_format(amount in 0i64..1_000_000_000_000) {
+        let fo format_currency(amount);
+
+        // Property: Currency SHALL start with "Rp"
+        prop_assert!(formatted.starts_with("Rp"));
+
+        // Property: Thousands separator SHALL be period
+        if amount >= 1000 {
+            prop_assert!(formatted.contains('.'));
+        }
+    }
+}
+
+// **Feature: unified-frontend-system, Property 1: Session Sharing Consistency**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_session_sharing_consistency(
+        user_id in "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}",
+        username in "[a-z]+@kejaksaan\\.go\\.id",
+        token in "[A-Za-z0-9]{64}"
+    ) {
+et session = UserSession {
+            id: user_id.clone(),
+            username: username.clone(),
+            access_token: token.clone(),
+            // ... other fields
+        };
+
+        // Store session
+        store_session(&session);
+
+        // Property: All reads SHALL return identical data
+        let read1 = get_session();
+        let read2 = get_session();
+
+        prop_assert_eq!(read1.as_ref().map(|s| &s.id), Some(&user_id));
+        prop_assert_eq!(read1.as_ref().map(|s| &s.id), read2.as_ref().map(|s| &s.id));
+    }
+}
+
+// **Feature: unified-frontend-system, Property 2: Session Expiry Enforcement**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_session_expiry_enforcement(
+        hours_ago in 1i64..1000
+    ) {
+        let expired_session = UserSession {
+            expires_at: Utc::now() - Duration::hours(hours_ago),
+            // ... other fields
+        };
+
+        // Property: Expired session SHALL be invalid
+        propt!(!expired_session.is_valid());
+    }
+}
+
+// **Feature: unified-frontend-system, Property 13: Virtual Scrolling for Large Lists**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_virtual_scroll_renders_only_visible(
+        total_items in 101usize..10000,
+        viewport_height in 300.0f64..1000.0,
+        item_height in 30.0f64..100.0
+    ) {
+        let visible_count = (viewport_height / item_height).ceil() as usize;
+        let buffer = 2; // Buffer items above/below viewport
+        let max_rendered = visible_count + buffer * 2;
+
+        // Property: Rendered items SHALL be less than total for large lists
+        prop_assert!(max_rendered < total_items);
+    }
+}
+
+// **Feature: unified-frontend-system, Property 32: Fuzzy Search Tolerance**
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    #[test]
+    fn test_fuzzy_search_tolerance(
+        query in "[a-z]{4,10}",
+        typo_pos in 0usize..4
+    ) {
+        // Create query with 1 typo
+        let mut chars: Vec<char> = query.chars().collect();
+        if typo_pos < chars.len() {
+            chars[typo_pos] = 'x'; // Introduce typo
+        }
+        let typo_query: String = chars.into_iter().collect();
+
+        let items = vec![query.clone()];
+        let results = fuzzy_search(&typo_query, &items);
+
+        // Property: Search with 1 typo SHALL still find the item
+        prop_assert!(!results.is_empty());
+    }
+}
+```
+
+**Property Test Tagging Convention:**
+Each property-based test MUST include a comment with the format:
+`// **Feature: {feature_name}, Property {number}: {property_text}**`
+
+This links the test to the corresponding correctness property in the design document.
+
+## Performance Optimization
 ### Code Splitting Strategy
 
 ```rust

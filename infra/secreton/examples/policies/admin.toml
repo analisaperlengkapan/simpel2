@@ -1,0 +1,86 @@
+# Administrator Policy
+#
+# This policy grants full administrative access to the Secreton vault.
+# It includes the 'sudo' capability which allows performing privileged
+# operations such as seal/unseal, policy management, and system configuration.
+#
+# Use case: Vault administrators, DevOps engineers, security team leads
+#
+# WARNING: This policy grants unrestricted access. Assign carefully and
+# consider requiring MFA for production environments.
+
+# Policy metadata
+name = "admin"
+description = "Full administrative access with sudo capability"
+namespace = "default"
+
+# Rule 1: Full access to all secrets
+# Administrators can create, read, update, delete, and list all secrets
+[[rules]]
+effect = "allow"
+path = "secret/*"
+capabilities = ["*"]
+
+# Rule 2: Full access to transit encryption engine
+# Allows managing encryption keys and performing cryptographic operations
+[[rules]]
+effect = "allow"
+path = "transit/*"
+capabilities = ["*"]
+
+# Rule 3: Full access to PKI (certificate management)
+# Enables certificate issuance, revocation, and CA management
+[[rules]]
+effect = "allow"
+path = "pki/*"
+capabilities = ["*"]
+
+# Rule 4: System policy management
+# Allows creating, updating, and deleting access policies
+[[rules]]
+effect = "allow"
+path = "sys/policies/*"
+capabilities = ["*"]
+
+# Rule 5: Authentication management
+# Enables managing auth methods and user accounts
+[[rules]]
+effect = "allow"
+path = "auth/*"
+capabilities = ["*"]
+
+# Rule 6: Token management
+# Allows creating, revoking, and managing authentication tokens
+[[rules]]
+effect = "allow"
+path = "auth/token/*"
+capabilities = ["*"]
+
+# Rule 7: System configuration and status
+# Grants access to seal status, health checks, and system configuration
+[[rules]]
+effect = "allow"
+path = "sys/*"
+capabilities = ["*"]
+
+# Rule 8: Audit log access
+# Enables viewing and managing audit logs
+[[rules]]
+effect = "allow"
+path = "sys/audit/*"
+capabilities = ["*"]
+
+# Rule 9: Namespace management (for multi-tenant deployments)
+# Allows creating and managing namespaces
+[[rules]]
+effect = "allow"
+path = "sys/namespaces/*"
+capabilities = ["*"]
+
+# Rule 10: Sudo capability for privileged operations
+# This special rule grants the 'sudo' capability which is required for
+# sensitive operations like seal/unseal, rekey, and system configuration
+[[rules]]
+effect = "allow"
+path = "*"
+capabilities = ["sudo"]

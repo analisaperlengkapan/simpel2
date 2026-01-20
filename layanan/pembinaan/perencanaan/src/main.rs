@@ -4,8 +4,8 @@ mod handlers;
 mod models;
 
 use axum::{
-    routing::{get, put},
     Router,
+    routing::{get, put},
 };
 use deadpool_postgres::{Config, Runtime};
 use std::net::SocketAddr;
@@ -43,8 +43,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(health_check))
         .route("/api/v1/perencanaan/health", get(health_check))
-        .route("/api/v1/perencanaan/pengadaan", get(handlers::list_rencana).post(handlers::create_rencana))
-        .route("/api/v1/perencanaan/pengadaan/:id", put(handlers::update_rencana).delete(handlers::delete_rencana))
+        .route(
+            "/api/v1/perencanaan/pengadaan",
+            get(handlers::list_rencana).post(handlers::create_rencana),
+        )
+        .route(
+            "/api/v1/perencanaan/pengadaan/:id",
+            put(handlers::update_rencana).delete(handlers::delete_rencana),
+        )
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);

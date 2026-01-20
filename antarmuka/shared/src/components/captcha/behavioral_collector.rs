@@ -423,24 +423,18 @@ fn generate_webgl_fingerprint(window: &Window) -> Option<String> {
     // Get WebGL parameters for fingerprinting
     let mut fingerprint_parts = Vec::new();
 
-    if let Ok(vendor) = gl
-        .get_parameter(web_sys::WebGlRenderingContext::VENDOR)
-    {
+    if let Ok(vendor) = gl.get_parameter(web_sys::WebGlRenderingContext::VENDOR) {
         fingerprint_parts.push(format!("vendor:{}", vendor.as_string().unwrap_or_default()));
     }
 
-    if let Ok(renderer) = gl
-        .get_parameter(web_sys::WebGlRenderingContext::RENDERER)
-    {
+    if let Ok(renderer) = gl.get_parameter(web_sys::WebGlRenderingContext::RENDERER) {
         fingerprint_parts.push(format!(
             "renderer:{}",
             renderer.as_string().unwrap_or_default()
         ));
     }
 
-    if let Ok(version) = gl
-        .get_parameter(web_sys::WebGlRenderingContext::VERSION)
-    {
+    if let Ok(version) = gl.get_parameter(web_sys::WebGlRenderingContext::VERSION) {
         fingerprint_parts.push(format!(
             "version:{}",
             version.as_string().unwrap_or_default()
@@ -460,7 +454,7 @@ extern "C" {
     fn clear_interval(handle: i32);
 }
 
-fn set_interval<F>(mut f: F, duration: std::time::Duration) -> i32
+fn set_interval<F>(f: F, duration: std::time::Duration) -> i32
 where
     F: FnMut() + 'static,
 {

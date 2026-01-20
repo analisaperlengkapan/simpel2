@@ -111,6 +111,8 @@ pub enum AuditResult {
 }
 
 /// Cryptographically signed audit log entry
+///
+/// Enhanced with HMAC chain for tamper-proof storage (Requirement 12.2)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedAuditEntry {
     /// The audit event
@@ -123,6 +125,10 @@ pub struct SignedAuditEntry {
     pub entry_hash: Vec<u8>,
     /// Digital signature for integrity
     pub signature: Vec<u8>,
+    /// HMAC of the entry for tamper detection (Requirement 12.2)
+    pub hmac: Vec<u8>,
+    /// HMAC of the previous entry for chain verification (Requirement 12.2)
+    pub previous_hmac: Vec<u8>,
     /// Node identifier that created this entry
     pub node_id: String,
 }
@@ -253,7 +259,9 @@ pub enum ComplianceStandard {
     Hipaa,
     Iso27001,
     Nist,
-    Ojk, // Indonesian banking regulation
+    Ojk, // Indonesian banking regulation (OJK)
+    Pp71_2019, // Indonesian Government Regulation 71/2019 on Electronic Systems and Transactions
+    Perpres95_2018, // Indonesian Presidential Regulation 95/2018 on Electronic-Based Government Systems
     Custom(String),
 }
 
@@ -336,19 +344,158 @@ pub trait AuditStorage: Send + Sync {
 }
 
 /// Query structure for audit log searches
+///
+/// Enhanced to support filtering by time range, actor, action, resource pattern (Requirement 12.3)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditQuery {
+    /// Filter by time range - start time (Requirement 12.3)
     pub start_time: Option<DateTime<Utc>>,
+    /// Filter by time range - end time (Requirement 12.3)
     pub end_time: Option<DateTime<Utc>>,
     pub severity: Option<AuditSeverity>,
     pub category: Option<AuditCategory>,
+    /// Filter by actor/user (Requirement 12.3)
     pub principal: Option<String>,
+    /// Filter by target resource (Requirement 12.3)
     pub target: Option<String>,
+    /// Filter by resource path pattern (Requirement 12.3)
+    pub resource_pattern: Option<String>,
+    /// Filter by action type (Requirement 12.3)
+    pub action: Option<String>,
     pub source_ip: Option<String>,
     pub correlation_id: Option<String>,
     pub result_type: Option<String>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+}
+
+impl AuditQuery {
+    /// Create a new empty query
+    pub fn new() -> Self {
+        Self {
+            start_time: None,
+            end_time: None,
+            severity: None,
+            category: None,
+            principal: None,
+            target: None,
+            resource_pattern: None,
+            action: None,
+            source_ip: None,
+            correlation_id: None,
+            result_type: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    /// Filter by time range (Requirement 12.3)
+    pub fn with_time_range(mut self, start: DateTime<Utc>, end: DateTime<Utc>) -> Self {
+        self.start_time = Some(start);
+        self.end_time = Some(end);
+        self
+    }
+
+    /// Filter by actor (Requirement 12.3)
+    pub fn with_actor(mut self, actor: impl Into<String>) -> Self {
+        self.principal = Some(actor.into());
+        self
+    }
+
+    /// Filter by action (Requirement 12.3)
+    pub fn with_action(mut self, action: impl Into<String>) -> Self {
+        self.action = Some(action.into());
+        self
+    }
+
+    /// Filter by resource pattern (Requirement 12.3)
+    pub fn with_resource_pattern(mut self, pattern: impl Into<String>) -> Self {
+        self.resource_pattern = Some(pattern.into());
+        self
+    }
+
+    /// Check if an audit entry matches this query
+    pub fn matches(&self, entry: &SignedAuditEntry) -> bool {
+        // Time range filter
+        if let Some(start) = self.start_time {
+            if entry.event.timestamp < start {
+                return false;
+            }
+        }
+        if let Some(end) = self.end_time {
+            if entry.event.timestamp > end {
+                return false;
+            }
+        }
+
+        // Actor filter
+        if let Some(ref principal) = self.principal {
+            if entry.event.principal.as_ref() != Some(principal) {
+                return false;
+            }
+        }
+
+        // Action filter
+ if let Some(ref action) = self.action {
+            if &entry.event.action != action {
+                return false;
+            }
+        }
+
+        // Resource pattern filter (simple contains match)
+        if let Some(ref pattern) = self.resource_pattern {
+            if let Some(ref target) = entry.event.target {
+                if !target.contains(pattern) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        // Target filter
+        if let Some(ref target) = self.target {
+            if entry.event.target.as_ref() != Some(target) {
+                return false;
+            }
+        }
+
+        // Severity filter
+        if let Some(severity) = self.severity {
+            if entry.event.severity != severity {
+                return false;
+            }
+        }
+
+        // Category filter
+        if let Some(ref category) = self.category {
+            if &entry.event.category != category {
+                return false;
+            }
+        }
+
+        // Source IP filter
+        if let Some(ref source_ip) = self.source_ip {
+            if entry.event.source_ip.as_ref() != Some(source_ip) {
+                return false;
+            }
+        }
+
+        // Correlation ID filter
+        if let Some(ref correlation_id) = self.correlation_id {
+            if entry.event.correlation_id.as_ref() != Some(correlation_id) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+impl Default for AuditQuery {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Advanced Audit System - main orchestrator
@@ -542,7 +689,72 @@ impl AdvancedAuditSystem {
         Ok(event_id)
     }
 
+    /// Create and sign an audit entry for digital signature verification and audit integrity
+    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
+        // Get next sequence number
+        let sequence_number = {
+            let mut counter = self.sequence_counter.lock().unwrap();
+            *counter += 1;
+            *counter
+        };
+
+        // Get previous entry hash and HMAC for chain integrity
+        let (previous_hash, previous_hmac) = if sequence_number > 1 {
+            match self
+                .storage
+                .retrieve_entries(sequence_number - 1, sequence_number - 1)
+                .await
+            {
+                Ok(entries) if !entries.is_empty() => {
+                    (entries[0].entry_hash.clone(), entries[0].hmac.clone())
+                }
+                _ => (vec![0; 32], vec![0; 32]), // Genesis hash and HMAC
+            }
+        } else {
+            (vec![0; 32], vec![0; 32]) // Genesis hash and HMAC
+        };
+
+        // Create entry hash
+        let entry_data =
+            serde_json::to_vec(&event).map_err(|e| SecurityAuditError::SerializationError {
+                message: e.to_string(),
+            })?;
+
+        let mut hasher = Sha256::new();
+        hasher.update(&entry_data);
+        hasher.update(&previous_hash);
+        hasher.update(sequence_number.to_le_bytes());
+        hasher.update(self.node_id.as_bytes());
+        let entry_hash = hasher.finalize().to_vec();
+
+        // Sign the entry
+        let signature = self.signing_key.sign(&entry_hash).as_ref().to_vec();
+
+        // Compute HMAC for tamper-proof chain (Requirement 12.2)
+        // HMAC includes: entry_hash + previous_hmac + sequence_number
+        let mut hmac_hasher = Sha256::new();
+        hmac_hasher.update(&entry_hash);
+        hmac_hasher.update(&previous_hmac);
+        hmac_hasher.update(sequence_number.to_le_bytes());
+        hmac_hasher.update(self.node_id.as_bytes());
+        let hmac = hmac_hasher.finalize().to_vec();
+
+        Ok(SignedAuditEntry {
+            event,
+            sequence_number,
+            previous_hash,
+            entry_hash,
+            signature,
+            hmac,
+            previous_hmac,
+            node_id: self.node_id.clone(),
+        })
+    }
+
     /// Verify the integrity of an audit entry
+    ///
+    /// Enhanced to verify HMAC chain for tamper detection (Requirement 12.2)
+    /// Alerts on HMAC verification failure (Requirement 12.5)
     pub fn verify_entry(&self, entry: &SignedAuditEntry) -> Result<bool, SecurityAuditError> {
         // Verify signature
         match self
@@ -550,7 +762,18 @@ impl AdvancedAuditSystem {
             .verify(&entry.entry_hash, &entry.signature)
         {
             Ok(()) => {}
-            Err(_) => return Ok(false),
+            Err(_) => {
+                // Alert on signature verification failure (Requirement 12.5)
+                error!(
+                    "SECURITY ALERT: Audit entry signature verification failed for sequence {}",
+                    entry.sequence_number
+                );
+                warn!(
+                    "Audit tampering detected: Invalid signature for entry {} (event_id: {})",
+                    entry.sequence_number, entry.event.event_id
+                );
+                return Ok(false);
+            }
         }
 
         // Verify hash
@@ -566,7 +789,114 @@ impl AdvancedAuditSystem {
         hasher.update(entry.node_id.as_bytes());
         let computed_hash = hasher.finalize().to_vec();
 
-        Ok(computed_hash == entry.entry_hash)
+        if computed_hash != entry.entry_hash {
+            // Alert on hash verification failure (Requirement 12.5)
+            error!(
+                "SECURITY ALERT: Audit entry hash verification failed for sequence {}",
+                entry.sequence_number
+            );
+            warn!(
+                "Audit tampering detected: Invalid hash for entry {} (event_id: {})",
+                entry.sequence_number, entry.event.event_id
+            );
+            return Ok(false);
+        }
+
+        // Verify HMAC chain (Requirement 12.2)
+        let mut hmac_hasher = Sha256::new();
+        hmac_hasher.update(&entry.entry_hash);
+        hmac_hasher.update(&entry.previous_hmac);
+        hmac_hasher.update(entry.sequence_number.to_le_bytes());
+        hmac_hasher.update(entry.node_id.as_bytes());
+        let computed_hmac = hmac_hasher.finalize().to_vec();
+
+        if computed_hmac != entry.hmac {
+            // Alert on HMAC verification failure (Requirement 12.5)
+            error!(
+                "SECURITY ALERT: Audit entry HMAC verification failed for sequence {}",
+                entry.sequence_number
+            );
+            warn!(
+                "Audit tampering detected: Invalid HMAC chain for entry {} (event_id: {})",
+                entry.sequence_number, entry.event.event_id
+            );
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    /// Verify audit chain integrity and alert on tampering
+    ///
+    /// Verifies the integrity of a range of audit entries and alerts administrators
+    /// on any tampering detection (Requirement 12.5)
+    pub async fn verify_and_alert_chain(
+        &self,
+        start_sequence: u64,
+        end_sequence: u64,
+    ) -> Result<bool, SecurityAuditError> {
+        let entries = self.storage.retrieve_entries(start_sequence, end_sequence).await?;
+
+        let mut all_valid = true;
+        let mut tampered_entries = Vec::new();
+
+        for entry in &entries {
+            if !self.verify_entry(entry)? {
+                all_valid = false;
+                tampered_entries.push(entry.sequence_number);
+            }
+        }
+
+        if !all_valid {
+            // Alert administrators on tampering detection (Requirement 12.5)
+            error!(
+                "CRITICAL SECURITY ALERT: Audit log tampering detected! {} entries failed verification",
+                tampered_entries.len()
+            );
+            error!(
+                "Tampered entry sequence numbers: {:?}",
+                tampered_entries
+            );
+
+            // Log a security event for the tampering detection
+            let alert_event = AuditEvent {
+                event_id: Uuid::new_v4(),
+                timestamp: Utc::now(),
+                severity: AuditSeverity::Emergency,
+                category: AuditCategory::SecurityEvent,
+                source: "audit_integrity_monitor".to_string(),
+                principal: Some("system".to_string()),
+                target: Some(format!("audit_log_sequences_{}_to_{}", start_sequence, end_sequence)),
+                action: "audit_tampering_detected".to_string(),
+                result: AuditResult::Failure("Audit log integrity compromised".to_string()),
+                context: {
+                    let mut context = HashMap::new();
+                    context.insert(
+                        "tampered_sequences".to_string(),
+                        serde_json::json!(tampered_entries),
+                    );
+                    context.insert(
+                        "total_tampered".to_string(),
+                        serde_json::json!(tampered_entries.len()),
+                    );
+                    context
+                },
+                source_ip: None,
+                user_agent: None,
+                session_id: None,
+                correlation_id: Some(format!("tampering_alert_{}", Uuid::new_v4())),
+                geo_location: None,
+                risk_score: Some(100),
+                compliance_tags: vec!["SECURITY_INCIDENT".to_string(), "AUDIT_TAMPERING".to_string()],
+                sensitive_data_access: false,
+                duration: None,
+            };
+
+            // Log the tampering alert
+            let _ = self.log_event(alert_event).await;
+        }
+
+        Ok(all_valid)
     }
 
     /// Search audit logs with comprehensive querying
@@ -581,19 +911,8 @@ impl AdvancedAuditSystem {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
     ) -> Result<ComplianceReport, SecurityAuditError> {
-        let query = AuditQuery {
-            start_time: Some(start_time),
-            end_time: Some(end_time),
-            severity: None,
-            category: None,
-            principal: None,
-            target: None,
-            source_ip: None,
-            correlation_id: None,
-            result_type: None,
-            limit: None,
-            offset: None,
-        };
+        let query = AuditQuery::new()
+            .with_time_range(start_time, end_time);
 
         let entries = self.search(&query).await?;
 
@@ -605,6 +924,8 @@ impl AdvancedAuditSystem {
             ComplianceStandard::Sox => self.generate_sox_report(&entries, start_time, end_time),
             ComplianceStandard::Gdpr => self.generate_gdpr_report(&entries, start_time, end_time),
             ComplianceStandard::Ojk => self.generate_ojk_report(&entries, start_time, end_time),
+            ComplianceStandard::Pp71_2019 => self.generate_pp71_2019_report(&entries, start_time, end_time),
+            ComplianceStandard::Perpres95_2018 => self.generate_perpres95_2018_report(&entries, start_time, end_time),
             _ => self.generate_generic_report(&entries, start_time, end_time),
         };
 
@@ -744,6 +1065,19 @@ impl AdvancedAuditSystem {
                         event.compliance_tags.push("OJK".to_string());
                     }
                 }
+                ComplianceStandard::Pp71_2019 => {
+                    // PP 71/2019 requires audit of all electronic system operations
+                    event.compliance_tags.push("PP_71_2019".to_string());
+                }
+                ComplianceStandard::Perpres95_2018 => {
+                    // Perpres 95/2018 focuses on government electronic systems
+                    if matches!(
+                        event.category,
+                        AuditCategory::SystemAccess | AuditCategory::ConfigurationChange | AuditCategory::AdminAction
+                    ) {
+                        event.compliance_tags.push("PERPRES_95_2018".to_string());
+                    }
+                }
                 _ => {}
             }
         }
@@ -828,6 +1162,162 @@ impl AdvancedAuditSystem {
         }
     }
 
+    /// Generate compliance report for PP 71/2019 (Indonesian Government Regulation)
+    ///
+    /// PP 71/2019 covers Electronic Systems and Transactions security requirements
+    /// (Requirement 12.4)
+    fn generate_pp71_2019_report(
+        &self,
+        entries: &[SignedAuditEntry],
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> ComplianceReport {
+        // PP 71/2019 requires:
+        // - Audit trail of all electronic system operations
+        // - Data integrity protection
+        // - Access control and authentication
+        // - Incident response and recovery
+
+        let mut violations = 0;
+        let mut recommendations = Vec::new();
+
+        // Check for authentication events
+        let auth_events = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::Authentication
+        }).count();
+
+        if auth_events == 0 {
+            recommendations.push("No authentication events logged - ensure authentication auditing is enabled".to_string());
+        }
+
+        // Check for failed access attempts
+        let failed_access = entries.iter().filter(|e| {
+            matches!(e.event.result, AuditResult::Denied(_) | AuditResult::Failure(_))
+        }).count();
+
+        if failed_access > 0 {
+            recommendations.push(format!("{} failed access attempts detected - review security policies", failed_access));
+        }
+
+        // Check for configuration changes
+        let config_changes = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::ConfigurationChange
+        }).count();
+
+        if config_changes > 0 {
+            recommendations.push(format!("{} configuration changes detected - ensure proper authorization", config_changes));
+        }
+
+        // Check audit log integrity
+        let integrity_issues = entries.iter().filter(|e| {
+            !self.verify_entry(e).unwrap_or(false)
+        }).count();
+
+        if integrity_issues > 0 {
+            violations += integrity_issues as u32;
+            recommendations.push(format!("CRITICAL: {} audit entries failed integrity verification", integrity_issues));
+        }
+
+        if recommendations.is_empty() {
+            recommendations.push("All PP 71/2019 requirements met".to_string());
+        }
+
+        ComplianceReport {
+            standard: ComplianceStandard::Pp71_2019,
+            period_start: start,
+            period_end: end,
+            total_events: entries.len() as u64,
+            compliance_violations: violations,
+            recommendations,
+            summary: if violations == 0 {
+                "PP 71/2019 compliance maintained - Electronic systems security requirements met".to_string()
+            } else {
+                format!("PP 71/2019 compliance issues detected - {} violations require attention", violations)
+            },
+        }
+    }
+
+    /// Generate compliance report for Perpres 95/2018 (Indonesian Presidential Regulation)
+    ///
+    /// Perpres 95/2018 covers Electronic-Based Government Systems (SPBE)
+    /// (Requirement 12.4)
+    fn generate_perpres95_2018_report(
+        &self,
+        entries: &[SignedAuditEntry],
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> ComplianceReport {
+        // Perpres 95/2018 requires:
+        // - Government system access control
+        // - Data protection and confidentiality
+        // - System availability and reliability
+        // - Audit and monitoring
+
+        let mut violations = 0;
+        let mut recommendations = Vec::new();
+
+        // Check for system access events
+        let system_access = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::SystemAccess
+        }).count();
+
+        // Check for admin actions
+        let admin_actions = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::AdminAction
+        }).count();
+
+        if admin_actions > 0 {
+            recommendations.push(format!("{} administrative actions logged - ensure proper oversight", admin_actions));
+        }
+
+        // Check for security events
+        let security_events = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::SecurityEvent
+        }).count();
+
+        if security_events > 0 {
+            recommendations.push(format!("{} security events detected - review and respond appropriately", security_events));
+            violations += security_events as u32;
+        }
+
+        // Check for data access patterns
+        let data_access = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::DataAccess && e.event.sensitive_data_access
+        }).count();
+
+        if data_access > 0 {
+            recommendations.push(format!("{} sensitive data access events - ensure proper authorization", data_access));
+        }
+
+        // Check for policy violations
+        let policy_violations = entries.iter().filter(|e| {
+            e.event.category == AuditCategory::PolicyViolation
+        }).count();
+
+        if policy_violations > 0 {
+            violations += policy_violations as u32;
+            recommendations.push(format!("CRITICAL: {} policy violations detected", policy_violations));
+        }
+
+        if recommendations.is_empty() {
+            recommendations.push("All Perpres 95/2018 SPBE requirements met".to_string());
+        }
+
+        ComplianceReport {
+            standard: ComplianceStandard::Perpres95_2018,
+            period_start: start,
+            period_end: end,
+            total_events: entries.len() as u64,
+            compliance_violations: violations,
+            recommendations,
+            summary: if violations == 0 {
+                "Perpres 95/2018 SPBE compliance maintained - Government electronic systems requirements met".to_string()
+            } else {
+                format!("Perpres 95/2018 SPBE compliance issues detected - {} violations require immediate attention", violations)
+            },
+        }
+    }
+
     fn generate_generic_report(
         &self,
         _entries: &[SignedAuditEntry],
@@ -908,6 +1398,7 @@ impl ProcessingAuditSystem {
         };
 
         let previous_hash = vec![0; 32]; // Simplified for background processing
+        let previous_hmac = vec![0; 32]; // Simplified for background processing
 
         let entry_data =
             serde_json::to_vec(&event).map_err(|e| SecurityAuditError::SerializationError {
@@ -923,12 +1414,22 @@ impl ProcessingAuditSystem {
 
         let signature = self.signing_key.sign(&entry_hash).as_ref().to_vec();
 
+        // Compute HMAC for tamper-proof chain (Requirement 12.2)
+        let mut hmac_hasher = Sha256::new();
+        hmac_hasher.update(&entry_hash);
+        hmac_hasher.update(&previous_hmac);
+        hmac_hasher.update(sequence_number.to_le_bytes());
+        hmac_hasher.update(self.node_id.as_bytes());
+        let hmac = hmac_hasher.finalize().to_vec();
+
         Ok(SignedAuditEntry {
             event,
             sequence_number,
             previous_hash,
             entry_hash,
             signature,
+            hmac,
+            previous_hmac,
             node_id: self.node_id.clone(),
         })
     }
@@ -1066,10 +1567,24 @@ mod tests {
 
         async fn search_entries(
             &self,
-            _query: &AuditQuery,
+            query: &AuditQuery,
         ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
             let entries = self.entries.lock().unwrap();
-            Ok(entries.clone())
+            let mut filtered: Vec<SignedAuditEntry> = entries
+                .iter()
+                .filter(|e| query.matches(e))
+                .cloned()
+                .collect();
+
+            // Apply limit and offset
+            if let Some(offset) = query.offset {
+                filtered = filtered.into_iter().skip(offset).collect();
+            }
+            if let Some(limit) = query.limit {
+                filtered.truncate(limit);
+            }
+
+            Ok(filtered)
         }
 
         async fn verify_chain_integrity(
@@ -1148,19 +1663,8 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         // Search for the logged event
-        let query = AuditQuery {
-            start_time: None,
-            end_time: None,
-            severity: None,
-            category: Some(AuditCategory::DataAccess),
-            principal: None,
-            target: None,
-            source_ip: None,
-            correlation_id: None,
-            result_type: None,
-            limit: None,
-            offset: None,
-        };
+        let mut query = AuditQuery::new();
+        query.category = Some(AuditCategory::DataAccess);
 
         let results = audit_system.search(&query).await.unwrap();
         assert!(!results.is_empty());

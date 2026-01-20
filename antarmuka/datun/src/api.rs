@@ -1,5 +1,5 @@
-use gloo_net::http::Request;
 use crate::types::DatunCase;
+use gloo_net::http::Request;
 
 /// Fetch all cases from the backend
 pub async fn fetch_cases() -> Result<Vec<DatunCase>, String> {

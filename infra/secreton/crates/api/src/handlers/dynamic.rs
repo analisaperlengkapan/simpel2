@@ -23,21 +23,21 @@ use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRol
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Credential generation
-        .route("/database/creds/{role}", get(generate_database_credentials))
+        .route("/database/creds/:role", get(generate_database_credentials))
         // Role management
         .route("/database/roles", get(list_database_roles))
-        .route("/database/roles/{role}", post(create_database_role))
-        .route("/database/roles/{role}", get(get_database_role))
-        .route("/database/roles/{role}", put(update_database_role))
-        .route("/database/roles/{role}", delete(delete_database_role))
+        .route("/database/roles/:role", post(create_database_role))
+        .route("/database/roles/:role", get(get_database_role))
+        .route("/database/roles/:role", put(update_database_role))
+        .route("/database/roles/:role", delete(delete_database_role))
         // Connection management
         .route(
-            "/database/config/{name}",
+            "/database/config/:name",
             post(configure_database_connection),
         )
-        .route("/database/config/{name}", get(get_database_connection))
+        .route("/database/config/:name", get(get_database_connection))
         .route(
-            "/database/config/{name}",
+            "/database/config/:name",
             delete(delete_database_connection),
         )
 }

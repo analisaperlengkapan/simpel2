@@ -236,9 +236,10 @@ pub fn init_auth_from_sso_cookie() {
 
         // Also save to localStorage for persistence
         if let Some(storage) = window().and_then(|w| w.local_storage().ok()).flatten()
-            && let Ok(json) = serde_json::to_string(&user_session) {
-                let _ = storage.set_item("user_session", &json);
-            }
+            && let Ok(json) = serde_json::to_string(&user_session)
+        {
+            let _ = storage.set_item("user_session", &json);
+        }
 
         // Set in auth context (after localStorage to avoid move issue)
         auth.session.set(Some(user_session));

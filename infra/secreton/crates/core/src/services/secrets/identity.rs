@@ -18,6 +18,8 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
+use crate::utils::base64_encode;
+
 /// Identity engine errors
 #[derive(Debug, thiserror::Error)]
 pub enum IdentityError {
@@ -530,7 +532,7 @@ impl IdentityEngine {
         // For now, return base64-encoded JSON
         let json =
             serde_json::to_string(&token).map_err(|e| IdentityError::Internal(e.to_string()))?;
-        Ok(format!("secreton_id_token.{}", base64::encode(json)))
+        Ok(format!("secreton_id_token.{}", base64_encode(json)))
     }
 
     /// Get entity groups

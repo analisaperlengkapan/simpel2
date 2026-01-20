@@ -48,7 +48,7 @@ impl PgAuditLogStore {
         let client = self.pool.get().await?;
         let ts: std::time::SystemTime = log.timestamp.into();
         client.execute(
-            "INSERT INTO audit_logs (timestamp, event, user_id, client_id, status, detail) VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO authenc.audit_logs (timestamp, event, user_id, client_id, status, detail) VALUES ($1, $2, $3, $4, $5, $6)",
             &[&ts, &log.event, &log.user_id, &log.client_id, &log.status, &log.detail],
         ).await?;
         Ok(())
@@ -61,7 +61,7 @@ impl PgAuditLogStore {
     /// * `Err(anyhow::Error)` if database query fails
     pub async fn all(&self) -> Result<Vec<AuditLog>> {
         let client = self.pool.get().await?;
-        let rows = client.query("SELECT timestamp, event, user_id, client_id, status, detail FROM audit_logs ORDER BY timestamp DESC", &[]).await?;
+        let rows = client.query("SELECT timestamp, event, user_id, client_id, status, detail FROM authenc.audit_logs ORDER BY timestamp DESC", &[]).await?;
         Ok(rows
             .into_iter()
             .map(|row| {

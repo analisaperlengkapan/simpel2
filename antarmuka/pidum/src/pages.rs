@@ -1,10 +1,9 @@
-use leptos::prelude::*;
-use leptos_router::hooks::use_params_map;
 use crate::api::*;
 use crate::types::*;
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, Utc};
+use leptos::prelude::*;
+use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
-use shared_microfrontend::prelude::*;
 
 // Use shared component for consistency
 #[component]
@@ -65,10 +64,12 @@ pub fn PerkaraDetail() -> impl IntoView {
     let detail_resource = LocalResource::new(move || {
         let id_s = id_str();
         async move {
-            if id_s.is_empty() { return Err("ID Missing".to_string()); }
+            if id_s.is_empty() {
+                return Err("ID Missing".to_string());
+            }
             match Uuid::parse_str(&id_s) {
                 Ok(uuid) => fetch_perkara_detail(uuid).await,
-                Err(_) => Err("Invalid UUID".to_string())
+                Err(_) => Err("Invalid UUID".to_string()),
             }
         }
     });
@@ -78,10 +79,12 @@ pub fn PerkaraDetail() -> impl IntoView {
         let id_s = id_str();
         timeline_update_trigger.get(); // Depend on trigger
         async move {
-            if id_s.is_empty() { return Err("ID Missing".to_string()); }
+            if id_s.is_empty() {
+                return Err("ID Missing".to_string());
+            }
             match Uuid::parse_str(&id_s) {
                 Ok(uuid) => fetch_timeline(uuid).await,
-                Err(_) => Err("Invalid UUID".to_string())
+                Err(_) => Err("Invalid UUID".to_string()),
             }
         }
     });
@@ -97,17 +100,17 @@ pub fn PerkaraDetail() -> impl IntoView {
         let id_s = id_str();
 
         leptos::task::spawn_local(async move {
-             if let Ok(uuid) = Uuid::parse_str(&id_s) {
-                 let req = CreateCommentRequest {
-                     content,
-                     user_name: Some("Petugas Kejaksaan".to_string()),
-                 };
-                 if create_comment(uuid, req).await.is_ok() {
-                     set_comment_content.set("".to_string());
-                     set_timeline_update_trigger.update(|n| *n += 1); // Triggers timeline reload
-                 }
-             }
-             set_is_submitting.set(false);
+            if let Ok(uuid) = Uuid::parse_str(&id_s) {
+                let req = CreateCommentRequest {
+                    content,
+                    user_name: Some("Petugas Kejaksaan".to_string()),
+                };
+                if create_comment(uuid, req).await.is_ok() {
+                    set_comment_content.set("".to_string());
+                    set_timeline_update_trigger.update(|n| *n += 1); // Triggers timeline reload
+                }
+            }
+            set_is_submitting.set(false);
         });
     };
 

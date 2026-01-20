@@ -117,6 +117,7 @@ pub struct SshRole {
     pub allowed_users: Vec<String>,
     pub default_ttl: i64,
     pub max_ttl: i64,
+    pub min_ttl: i64,
     pub allowed_extensions: HashMap<String, String>,
     pub allow_user_certificates: bool,
     pub allow_host_certificates: bool,
@@ -130,13 +131,31 @@ impl SshRole {
             key_type,
             default_user,
             allowed_users: vec![],
-            default_ttl: 3600,
-            max_ttl: 86400,
+            default_ttl: 28800, // 8 hours
+            max_ttl: 86400,     // 24 hours
+            min_ttl: 60,        // 1 minute
             allowed_extensions: HashMap::new(),
             allow_user_certificates: true,
             allow_host_certificates: false,
             created_at: Utc::now(),
         }
+    }
+
+    /// Validate TTL against role bounds
+    pub fn validate_ttl(&self, ttl: i64) -> Result<(), SshError> {
+        if ttl < self.min_ttl {
+            return Err(SshError::InvalidConfig(format!(
+                "TTL {} is below minimum TTL {}",
+                ttl, self.min_ttl
+            )));
+        }
+        if ttl > self.max_ttl {
+            return Err(SshError::InvalidConfig(format!(
+                "TTL {} exceeds maximum TTL {}",
+                ttl, self.max_ttl
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -187,12 +206,35 @@ pub struct SshCertificate {
     pub cert_type: String,
 }
 
+/// SSH certificate metadata for audit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshCertificateMetadata {
+    pub serial_number: String,
+    pub cert_type: String,
+    pub principals: Vec<String>,
+    pub valid_after: DateTime<Utc>,
+    pub valid_before: DateTime<Utc>,
+    pub extensions: HashMap<String, String>,
+    pub ca_name: String,
+    pub role_name: String,
+    pub issued_at: DateTime<Utc>,
+}
+
+/// Host certificate signing request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SshHostCertificateRequest {
+    pub public_key: String,
+    pub hostnames: Vec<String>,
+    pub ttl: Option<i64>,
+}
+
 /// SSH Secrets Engine
 pub struct SshEngine {
     pool: Option<Pool>,
     roles: Arc<RwLock<HashMap<String, SshRole>>>,
     cas: Arc<RwLock<HashMap<String, SshCa>>>,
     otps: Arc<RwLock<HashMap<String, SshOtp>>>,
+    certificates: Arc<RwLock<HashMap<String, SshCertificateMetadata>>>,
 }
 
 impl SshEngine {
@@ -202,6 +244,7 @@ impl SshEngine {
             roles: Arc::new(RwLock::new(HashMap::new())),
             cas: Arc::new(RwLock::new(HashMap::new())),
             otps: Arc::new(RwLock::new(HashMap::new())),
+            certificates: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -211,6 +254,7 @@ impl SshEngine {
             roles: Arc::new(RwLock::new(HashMap::new())),
             cas: Arc::new(RwLock::new(HashMap::new())),
             otps: Arc::new(RwLock::new(HashMap::new())),
+            certificates: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -409,12 +453,10 @@ impl SshEngine {
             .ok_or_else(|| SshError::RoleNotFound(role_name.to_string()))?;
 
         let ttl = request.ttl.unwrap_or(role.default_ttl);
-        if ttl > role.max_ttl {
-            return Err(SshError::InvalidConfig(format!(
-                "TTL {} exceeds max TTL {}",
-                ttl, role.max_ttl
-            )));
-        }
+
+        // Validate TTL against role bounds (Requirement 7.1)
+        role.validate_ttl(ttl)?;
+
         drop(roles);
 
         // Parse public key
@@ -424,9 +466,28 @@ impl SshEngine {
         // Generate serial number
         let serial = rand::thread_rng().r#gen::<u64>();
 
+        let now = Utc::now();
+        let valid_before = now + Duration::seconds(ttl);
+
+        // Merge role extensions with request extensions (Requirement 7.3)
+        let roles = self.roles.read().await;
+        let role = roles
+            .get(role_name)
+            .ok_or_else(|| SshError::RoleNotFound(role_name.to_string()))?;
+
+        let mut extensions = role.allowed_extensions.clone();
+        if let Some(req_extensions) = request.extensions {
+            for (key, value) in req_extensions {
+                if role.allowed_extensions.contains_key(&key) {
+                    extensions.insert(key, value);
+                }
+            }
+        }
+        drop(roles);
+
         // Create certificate (simplified - full implementation would use ssh-key certificate builder)
         let signed_key = format!(
-            "ssh-{}-cert-v01@openssh.com {} serial={} type={} principals={} valid_from=now valid_to={}",
+            "ssh-{}-cert-v01@openssh.com {} serial={} type={} principals={} valid_from={} valid_to={} extensions={}",
             request.cert_type,
             public_key
                 .to_openssh()
@@ -434,8 +495,27 @@ impl SshEngine {
             serial,
             request.cert_type,
             request.valid_principals.join(","),
-            ttl
+            now.timestamp(),
+            valid_before.timestamp(),
+            extensions.keys().cloned().collect::<Vec<_>>().join(",")
         );
+
+        // Store certificate metadata for audit (Requirement 7.5)
+        let metadata = SshCertificateMetadata {
+            serial_number: serial.to_string(),
+            cert_type: request.cert_type.clone(),
+            principals: request.valid_principals.clone(),
+            valid_after: now,
+            valid_before,
+            extensions: extensions.clone(),
+            ca_name: ca_name.to_string(),
+            role_name: role_name.to_string(),
+            issued_at: now,
+        };
+
+        let mut certificates = self.certificates.write().await;
+        certificates.insert(serial.to_string(), metadata);
+        drop(certificates);
 
         info!("Signed SSH certificate with serial: {}", serial);
 
@@ -477,6 +557,110 @@ impl SshEngine {
     pub async fn list_cas(&self) -> Vec<String> {
         let cas = self.cas.read().await;
         cas.keys().cloned().collect()
+    }
+
+    /// Sign SSH host certificate (Requirement 7.4)
+    pub async fn sign_host_certificate(
+        &self,
+        ca_name: &str,
+        role_name: &str,
+        request: SshHostCertificateRequest,
+    ) -> Result<SshCertificate, SshError> {
+        // Get CA
+        let cas = self.cas.read().await;
+        let ca = cas
+            .get(ca_name)
+            .ok_or_else(|| SshError::CaNotFound(ca_name.to_string()))?;
+        let _ca_private_key = ca.private_key.clone();
+        drop(cas);
+
+        // Get role and validate it allows host certificates
+        let roles = self.roles.read().await;
+        let role = roles
+            .get(role_name)
+            .ok_or_else(|| SshError::RoleNotFound(role_name.to_string()))?;
+
+        if !role.allow_host_certificates {
+            return Err(SshError::InvalidConfig(
+                "Role does not allow host certificates".to_string(),
+            ));
+        }
+
+        let ttl = request.ttl.unwrap_or(role.default_ttl);
+
+        // Validate TTL against role bounds
+        role.validate_ttl(ttl)?;
+
+        drop(roles);
+
+        // Parse public key
+        let public_key = PublicKey::from_openssh(&request.public_key)
+            .map_err(|e| SshError::SshKeyError(e.to_string()))?;
+
+        // Generate serial number
+        let serial = rand::thread_rng().r#gen::<u64>();
+
+        let now = Utc::now();
+        let valid_before = now + Duration::seconds(ttl);
+
+        // Create host certificate
+        let signed_key = format!(
+            "ssh-host-cert-v01@openssh.com {} serial={} type=host principals={} valid_from={} valid_to={}",
+            public_key
+                .to_openssh()
+                .map_err(|e| SshError::SshKeyError(e.to_string()))?,
+            serial,
+            request.hostnames.join(","),
+            now.timestamp(),
+            valid_before.timestamp()
+        );
+
+        // Store certificate metadata for audit
+        let metadata = SshCertificateMetadata {
+            serial_number: serial.to_string(),
+            cert_type: "host".to_string(),
+            principals: request.hostnames.clone(),
+            valid_after: now,
+            valid_before,
+            extensions: HashMap::new(),
+            ca_name: ca_name.to_string(),
+            role_name: role_name.to_string(),
+            issued_at: now,
+        };
+
+        let mut certificates = self.certificates.write().await;
+        certificates.insert(serial.to_string(), metadata);
+        drop(certificates);
+
+        info!("Signed SSH host certificate with serial: {}", serial);
+
+        Ok(SshCertificate {
+            signed_key,
+            serial_number: serial.to_string(),
+            cert_type: "host".to_string(),
+        })
+    }
+
+    /// Get audit information for all active certificates (Requirement 7.5)
+    pub async fn get_certificate_audit(&self) -> Vec<SshCertificateMetadata> {
+        let certificates = self.certificates.read().await;
+        let now = Utc::now();
+
+        // Return only active (not expired) certificates
+        certificates
+            .values()
+            .filter(|cert| cert.valid_before > now)
+            .cloned()
+            .collect()
+    }
+
+    /// Get audit information for a specific certificate
+    pub async fn get_certificate_metadata(
+        &self,
+        serial_number: &str,
+    ) -> Option<SshCertificateMetadata> {
+        let certificates = self.certificates.read().await;
+        certificates.get(serial_number).cloned()
     }
 }
 

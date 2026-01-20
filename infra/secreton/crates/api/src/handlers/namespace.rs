@@ -45,12 +45,12 @@ pub fn create_routes() -> Router<AppState> {
         .route("/namespaces", post(create_namespace))
         .route("/namespaces", get(list_namespaces))
         .route(
-            "/namespaces/{id}",
+            "/namespaces/:id",
             get(get_namespace)
                 .put(update_namespace)
                 .delete(delete_namespace),
         )
-        .route("/namespaces/{id}/stats", get(get_namespace_stats))
+        .route("/namespaces/:id/stats", get(get_namespace_stats))
 }
 
 // ============================================================================

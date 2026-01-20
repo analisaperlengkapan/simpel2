@@ -25,10 +25,10 @@ pub fn create_routes() -> Router<AppState> {
         .route("/rabbitmq/roles", get(list_roles))
         .route("/rabbitmq/roles/:role_name", get(get_role))
         .route("/rabbitmq/roles/:role_name", delete(delete_role))
-        .route("/rabbitmq/creds/:role_name", post(generate_credentials))
-        .route("/rabbitmq/creds/:username/revoke", post(revoke_credentials))
+        .route("/rabbitmq/creds", post(generate_credentials))
         .route("/rabbitmq/creds", get(list_credentials))
         .route("/rabbitmq/creds/:username", get(get_credential_info))
+        .route("/rabbitmq/creds/:username/revoke", post(revoke_credentials))
 }
 
 /// Configure RabbitMQ connection

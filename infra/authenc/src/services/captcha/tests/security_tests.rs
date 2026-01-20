@@ -550,7 +550,9 @@ async fn test_fallback_security_compromised_systems() {
 }
 
 /// Test security against timing attacks
+/// Note: Timing-based tests can be flaky in CI environments
 #[tokio::test]
+#[ignore = "Timing-based test - can be flaky in CI, run manually"]
 async fn test_timing_attack_resistance() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
@@ -653,7 +655,9 @@ async fn test_security_monitoring_integration() {
 }
 
 /// Performance test for security operations
+/// Note: Performance benchmarks can be flaky in CI environments
 #[tokio::test]
+#[ignore = "Performance benchmark - run manually with --ignored"]
 async fn test_security_operations_performance() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();

@@ -19,6 +19,8 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
+use crate::utils::base64_encode;
+
 /// Azure Secrets Engine errors
 #[derive(Debug, thiserror::Error)]
 pub enum AzureError {
@@ -519,7 +521,7 @@ impl AzureEngine {
             .clone();
 
         // Generate OAuth2 access token
-        let access_token = format!("eyJ0eXAi.{}", base64::encode(Uuid::new_v4().to_string()));
+        let access_token = format!("eyJ0eXAi.{}", base64_encode(Uuid::new_v4().to_string()));
 
         info!(
             "Generated Azure OAuth2 access token for role: {}",

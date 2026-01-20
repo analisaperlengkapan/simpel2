@@ -373,7 +373,7 @@ pub fn AlternativeInputMethods(
 #[component]
 pub fn AlternativeInputs(
     challenge_type: ChallengeType,
-    on_answer: Callback<String>,
+    _on_answer: Callback<String>,
 ) -> impl IntoView {
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);
@@ -485,10 +485,9 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                 let promise = js_sys::Promise::new(&mut |resolve, _reject| {
                     // Success handler (ended)
                     let resolve_success = resolve.clone();
-                    let on_ended =
-                        wasm_bindgen::closure::Closure::once_into_js(move || {
-                            let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
-                        });
+                    let on_ended = wasm_bindgen::closure::Closure::once_into_js(move || {
+                        let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                    });
                     let _ = audio.add_event_listener_with_callback(
                         "ended",
                         on_ended.as_ref().unchecked_ref(),
@@ -496,10 +495,9 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
 
                     // Error handler
                     let resolve_error = resolve.clone();
-                    let on_error =
-                        wasm_bindgen::closure::Closure::once_into_js(move || {
-                            let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
-                        });
+                    let on_error = wasm_bindgen::closure::Closure::once_into_js(move || {
+                        let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                    });
                     let _ = audio.add_event_listener_with_callback(
                         "error",
                         on_error.as_ref().unchecked_ref(),
@@ -525,9 +523,7 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
             }
         } else {
             // Use Text-to-Speech
-            if let Ok(speech_synthesis) =
-                js_sys::Reflect::get(&window, &"speechSynthesis".into())
-            {
+            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
                 if !speech_synthesis.is_undefined() {
                     // Safe cast using dyn_into if possible, or unchecked_into if we trust window property
                     // Using unchecked_into for now as it's standard for this property,
@@ -540,25 +536,18 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
                         let promise = js_sys::Promise::new(&mut |resolve, _reject| {
                             // Success handler
                             let resolve_success = resolve.clone();
-                            let on_end = wasm_bindgen::closure::Closure::once_into_js(
-                                move || {
-                                    let _ =
-                                        resolve_success.call0(&wasm_bindgen::JsValue::NULL);
-                                },
-                            );
-                            let _ = utterance
-                                .set_onend(Some(on_end.as_ref().unchecked_ref()));
+                            let on_end = wasm_bindgen::closure::Closure::once_into_js(move || {
+                                let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
+                            });
+                            let _ = utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
 
                             // Error handler
                             let resolve_error = resolve.clone();
-                            let on_error = wasm_bindgen::closure::Closure::once_into_js(
-                                move || {
-                                    let _ =
-                                        resolve_error.call0(&wasm_bindgen::JsValue::NULL);
-                                },
-                            );
-                            let _ = utterance
-                                .set_onerror(Some(on_error.as_ref().unchecked_ref()));
+                            let on_error =
+                                wasm_bindgen::closure::Closure::once_into_js(move || {
+                                    let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                                });
+                            let _ = utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
 
                             synthesis.speak(&utterance);
                         });

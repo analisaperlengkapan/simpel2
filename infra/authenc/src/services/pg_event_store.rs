@@ -103,8 +103,15 @@ impl PgEventStoreProvider {
 #[async_trait]
 impl EventStoreProvider for PgEventStoreProvider {
     async fn store_event(&self, event: &Event) -> Result<()> {
-        let details_json =
-            serde_json::to_string(&event.details).map_err(|e| Error::validation(e.to_string()))?;
+        // Convert details HashMap to JSON Value for JSONB column
+        let details_json: serde_json::Value =
+            serde_json::to_value(&event.details).map_err(|e| Error::validation(e.to_string()))?;
+
+        // Parse IP address to proper type, or use null if invalid
+        let ip_addr: Option<std::net::IpAddr> = event
+            .ip_address
+            .as_ref()
+            .and_then(|ip| ip.parse().ok());
 
         let query = r#"
             INSERT INTO events (
@@ -125,7 +132,7 @@ impl EventStoreProvider for PgEventStoreProvider {
                     &event.client_id,
                     &event.user_id,
                     &event.session_id,
-                    &event.ip_address,
+                    &ip_addr,
                     &event.error,
                     &details_json,
                 ],

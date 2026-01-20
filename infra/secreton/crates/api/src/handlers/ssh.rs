@@ -13,7 +13,8 @@ use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
 use secreton_core::services::secrets::ssh::{
-    SshCertificate, SshCertificateRequest, SshKeyPair, SshKeyType, SshRole,
+    SshCertificate, SshCertificateMetadata, SshCertificateRequest, SshHostCertificateRequest,
+    SshKeyPair, SshKeyType, SshRole,
 };
 
 use super::AppState;
@@ -22,9 +23,9 @@ use super::AppState;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Role management
-        .route("/role", post(create_role))
-        .route("/role", get(list_roles))
-        .route("/role/:name", get(get_role))
+        .route("/roles", post(create_role))
+        .route("/roles", get(list_roles))
+        .route("/roles/:name", get(get_role))
         // CA management
         .route("/ca", post(create_ca))
         .route("/ca", get(list_cas))
@@ -33,9 +34,12 @@ pub fn create_routes() -> Router<AppState> {
         .route("/creds/:role", post(generate_keypair))
         // Certificate signing
         .route("/sign/:ca/:role", post(sign_certificate))
+        .route("/sign-host/:ca/:role", post(sign_host_certificate))
         // OTP operations
         .route("/otp/generate", post(generate_otp))
         .route("/otp/verify", post(verify_otp))
+        // Audit
+        .route("/audit", get(get_certificate_audit))
 }
 
 /// Request to create role
@@ -47,6 +51,7 @@ pub struct CreateRoleRequest {
     pub allowed_users: Option<Vec<String>>,
     pub default_ttl: Option<i64>,
     pub max_ttl: Option<i64>,
+    pub min_ttl: Option<i64>,
 }
 
 /// Request to create CA
@@ -104,6 +109,9 @@ async fn create_role(
     }
     if let Some(max_ttl) = request.max_ttl {
         role.max_ttl = max_ttl;
+    }
+    if let Some(min_ttl) = request.min_ttl {
+        role.min_ttl = min_ttl;
     }
 
     match state.ssh_engine.create_role(role.clone()).await {
@@ -322,4 +330,53 @@ async fn verify_otp(
             )))
         }
     }
+}
+
+/// Sign SSH host certificate
+///
+/// # Endpoint
+/// `POST /v1/ssh/sign-host/:ca/:role`
+///
+/// Requirement 7.4: Sign host public keys for server identity
+#[tracing::instrument(skip(state, request), fields(ca = %ca, role = %role))]
+async fn sign_host_certificate(
+    State(state): State<AppState>,
+    Path((ca, role)): Path<(String, String)>,
+    Json(request): Json<SshHostCertificateRequest>,
+) -> ApiResult<Json<ApiResponse<SshCertificate>>> {
+    info!("Signing SSH host certificate with CA: {}, role: {}", ca, role);
+
+    match state
+        .ssh_engine
+        .sign_host_certificate(&ca, &role, request)
+        .await
+    {
+        Ok(certificate) => {
+            info!("SSH host certificate signed successfully");
+            Ok(Json(ApiResponse::success(certificate)))
+        }
+        Err(e) => {
+            error!("Failed to sign SSH host certificate: {:?}", e);
+            Err(ApiError::bad_request(format!(
+                "Failed to sign SSH host certificate: {}",
+                e
+            )))
+        }
+    }
+}
+
+/// Get SSH certificate audit
+///
+/// # Endpoint
+/// `GET /v1/ssh/audit`
+///
+/// Requirement 7.5: Return all active certificates with metadata
+#[tracing::instrument(skip(state))]
+async fn get_certificate_audit(
+    State(state): State<AppState>,
+) -> ApiResult<Json<ApiResponse<Vec<SshCertificateMetadata>>>> {
+    info!("Getting SSH certificate audit");
+
+    let certificates = state.ssh_engine.get_certificate_audit().await;
+    Ok(Json(ApiResponse::success(certificates)))
 }

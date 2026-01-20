@@ -71,9 +71,9 @@ pub struct DecryptResponse {
 pub fn create_transit_router(state: TransitApiState) -> Router {
     Router::new()
         .route("/keys", get(list_keys))
-        .route("/keys/{key_name}", post(create_key))
-        .route("/encrypt/{key_name}", post(encrypt_data))
-        .route("/decrypt/{key_name}", post(decrypt_data))
+        .route("/keys/:key_name", post(create_key))
+        .route("/encrypt/:key_name", post(encrypt_data))
+        .route("/decrypt/:key_name", post(decrypt_data))
         .with_state(state)
 }
 

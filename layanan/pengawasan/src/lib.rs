@@ -1,5 +1,5 @@
-pub mod errors;
-pub mod models;
-pub mod handlers;
-pub mod router;
 pub mod db;
+pub mod errors;
+pub mod handlers;
+pub mod models;
+pub mod router;

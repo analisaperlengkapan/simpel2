@@ -1,11 +1,11 @@
+use layanan_integrasi::StorageStrategy;
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::{endpoints::fetch_all_assets_with_pagination, SimanAssetCategory};
-use layanan_integrasi::StorageStrategy;
+use layanan_integrasi::siman::{SimanAssetCategory, endpoints::fetch_all_assets_with_pagination};
+use std::collections::HashMap;
+use std::time::Instant;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use std::time::Instant;
-use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_siman_assets_pagination_performance() {
@@ -30,7 +30,9 @@ async fn test_siman_assets_pagination_performance() {
     let total_rows = 10000;
 
     Mock::given(method("GET"))
-        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*"))
+        .and(path_regex(
+            r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "results": [
                 { "RCOUNT": total_rows }
@@ -56,9 +58,10 @@ async fn test_siman_assets_pagination_performance() {
 
     Mock::given(method("POST"))
         .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getAset.*"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(response_body)
-            .set_delay(response_delay)
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(response_body)
+                .set_delay(response_delay),
         )
         .mount(&mock_server)
         .await;
@@ -78,10 +81,14 @@ async fn test_siman_assets_pagination_performance() {
         siman_concurrency_limit: 20,
     };
 
-    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     // Use JsonFile strategy to avoid DB.
-    let storage = StorageStrategy::JsonFile { base_dir: "./output_test".to_string() };
+    let storage = StorageStrategy::JsonFile {
+        base_dir: "./output_test".to_string(),
+    };
 
     // Clean up output dir if exists
     let _ = tokio::fs::remove_dir_all("./output_test").await;
@@ -89,7 +96,9 @@ async fn test_siman_assets_pagination_performance() {
     println!("Starting performance test for fetch_all_assets_with_pagination...");
     let start = Instant::now();
 
-    let result = fetch_all_assets_with_pagination(&mut client, &storage, SimanAssetCategory::AlatBesar).await;
+    let result =
+        fetch_all_assets_with_pagination(&mut client, &storage, SimanAssetCategory::AlatBesar)
+            .await;
     let duration = start.elapsed();
 
     // Clean up
@@ -97,6 +106,9 @@ async fn test_siman_assets_pagination_performance() {
 
     assert!(result.is_ok(), "Fetching failed: {:?}", result.err());
     let (success, failed) = result.unwrap();
-    println!("Fetched: {} success, {} failed in {:?}", success, failed, duration);
+    println!(
+        "Fetched: {} success, {} failed in {:?}",
+        success, failed, duration
+    );
     println!("PERFORMANCE_RESULT: {} ms", duration.as_millis());
 }

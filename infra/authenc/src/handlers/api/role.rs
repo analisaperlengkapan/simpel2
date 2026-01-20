@@ -33,6 +33,7 @@ pub fn create_role_routes() -> Router<Arc<AppState>> {
 /// Get all roles in the specified realm
 pub async fn get_roles(
     State(state): State<Arc<AppState>>,
+    _auth: AuthBearer,
     Path(realm): Path<String>,
 ) -> Result<Json<Vec<Role>>, StatusCode> {
     // Get realm by name to get the UUID
