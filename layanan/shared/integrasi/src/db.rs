@@ -244,6 +244,10 @@ pub async fn bulk_insert_postgres(
         "🔄 [BULK INSERT] Processing {} records in chunks of 100...",
         data.len()
     );
+
+    // Reuse vector allocation for params to reduce memory churn
+    let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
+
     for (chunk_idx, chunk) in data.chunks(100).enumerate() {
         info!(
             "📦 [BULK INSERT] Processing chunk {}, {} records",
@@ -263,7 +267,7 @@ pub async fn bulk_insert_postgres(
                 );
 
                 // Konversi nilai JSON ke parameter PostgreSQL
-                let mut params: Vec<SqlParam> = Vec::new();
+                params.clear();
                 for col in &columns {
                     // Handle mapping: api_id in DB comes from id in JSON
                     let json_key = if col == "api_id" { "id" } else { col.as_str() };
