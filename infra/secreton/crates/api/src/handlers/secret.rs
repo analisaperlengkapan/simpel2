@@ -17,8 +17,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
-    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
-    helpers::create_audit_log, services::vault::SecretMetadata,
+    ApiError, ApiResponse, ApiResult,
+    extractors::AuthenticatedUser,
+    handlers::AppState,
+    helpers::create_audit_log,
+    services::vault::{KeyMetadata, SecretMetadata},
 };
 use secreton_core::audit::AuditLog;
 
@@ -310,14 +313,16 @@ mod tests {
             "ttl": 3600
         });
 
-        let put_response = server.post("/data/app%2Fconfig")
+        let put_response = server
+            .post("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
         put_response.assert_status_ok();
 
         // Now retrieve it
-        let response = server.get("/data/app%2Fconfig")
+        let response = server
+            .get("/data/app%2Fconfig")
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -343,7 +348,8 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/data/app%2Fadmin")
+        let response = server
+            .post("/data/app%2Fadmin")
             .add_header("Authorization", "Bearer token")
             .json(&payload)
             .await;
@@ -367,7 +373,8 @@ mod tests {
             "exportable": true
         });
 
-        let response = server.post("/keys")
+        let response = server
+            .post("/keys")
             .add_header("Authorization", "Bearer token")
             .json(&request)
             .await;
@@ -432,6 +439,69 @@ mod tests {
         assert_eq!(versions[0].version, 2);
         assert_eq!(versions[1].version, 1);
     }
+
+    #[tokio::test]
+    async fn test_update_key_metadata() {
+        let server = server_with_routes().await;
+        // 1. Create a key
+        let create_payload = serde_json::json!({
+            "name": "metadata-test-key",
+            "key_type": "Ed25519",
+            "algorithm": "Ed25519",
+            "usage": ["sign"],
+            "metadata": {
+                "description": "Initial description",
+                "tags": ["initial"]
+            }
+        });
+
+        let create_response = server
+            .post("/keys")
+            .add_header("Authorization", "Bearer token")
+            .json(&create_payload)
+            .await;
+        create_response.assert_status_ok();
+        let created_key: ApiResponse<KeyResponse> = create_response.json();
+        let key_id = created_key.data.unwrap().id;
+
+        // 2. Update metadata
+        let update_payload = serde_json::json!({
+            "description": "Updated description",
+            "tags": ["updated", "test"],
+            "owner": "new-owner",
+            "purpose": "testing updates"
+        });
+
+        let update_response = server
+            .put(&format!("/keys/{}", key_id))
+            .add_header("Authorization", "Bearer token")
+            .json(&update_payload)
+            .await;
+        update_response.assert_status_ok();
+
+        // 3. Verify update in response
+        let updated_key: ApiResponse<KeyResponse> = update_response.json();
+        let metadata = updated_key.data.unwrap().metadata;
+        assert_eq!(
+            metadata.description,
+            Some("Updated description".to_string())
+        );
+        assert!(metadata.tags.contains(&"updated".to_string()));
+        assert_eq!(metadata.owner, Some("new-owner".to_string()));
+
+        // 4. Verify persistence with get_key
+        let get_response = server
+            .get(&format!("/keys/{}", key_id))
+            .add_header("Authorization", "Bearer token")
+            .await;
+        get_response.assert_status_ok();
+        let fetched_key: ApiResponse<KeyResponse> = get_response.json();
+        let fetched_metadata = fetched_key.data.unwrap().metadata;
+        assert_eq!(
+            fetched_metadata.description,
+            Some("Updated description".to_string())
+        );
+    }
 }
 
 /// Query parameters for listing operations
@@ -481,14 +551,6 @@ pub struct CreateKeyRequest {
     pub usage: Vec<String>,
     pub metadata: Option<KeyMetadata>,
     pub exportable: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct KeyMetadata {
-    pub description: Option<String>,
-    pub tags: Vec<String>,
-    pub owner: Option<String>,
-    pub purpose: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -664,7 +726,7 @@ pub async fn create_secret(
     let expires_at = request
         .ttl
         .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
-    
+
     // Prepare metadata with default owner if not provided
     let mut metadata = request.metadata.clone().unwrap_or_default();
     if metadata.owner.is_none() {
@@ -809,7 +871,12 @@ pub async fn create_key(
     // Create key using vault service
     let key_info = state
         .vault
-        .create_key(&request.name, &request.key_type, &user.id.to_string())
+        .create_key(
+            &request.name,
+            &request.key_type,
+            request.metadata.clone().unwrap_or_default(),
+            &user.id.to_string(),
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to create key: {}", e),
@@ -822,7 +889,7 @@ pub async fn create_key(
         algorithm: request.algorithm,
         size: request.size.unwrap_or(256),
         usage: request.usage,
-        metadata: request.metadata.unwrap_or_default(),
+        metadata: key_info.metadata,
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
@@ -857,7 +924,7 @@ pub async fn get_key(
         algorithm: key_info.key_type,
         size: 256,
         usage: vec!["sign".to_string(), "verify".to_string()],
-        metadata: KeyMetadata::default(),
+        metadata: key_info.metadata,
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
@@ -890,7 +957,7 @@ pub async fn list_keys(
             algorithm: key_info.key_type,
             size: 256,
             usage: vec!["sign".to_string()],
-            metadata: KeyMetadata::default(),
+            metadata: key_info.metadata,
             version: key_info.version,
             created_at: key_info.created_at,
             status: "active".to_string(),
@@ -922,7 +989,7 @@ pub async fn rotate_key(
         algorithm: key_info.key_type,
         size: 256,
         usage: vec!["sign".to_string(), "verify".to_string()],
-        metadata: KeyMetadata::default(),
+        metadata: key_info.metadata,
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
@@ -1067,22 +1134,57 @@ pub async fn hash_data(
     Ok(Json(ApiResponse::success(response)))
 }
 
-
 // Key management handlers
 pub async fn update_key(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(key_id): Path<String>,
-    Json(_payload): Json<serde_json::Value>,
+    headers: axum::http::HeaderMap,
+    Json(metadata): Json<KeyMetadata>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // Key updates are typically metadata changes (description, tags, etc.)
-    // The actual key material should not change - use rotation instead
-    tracing::warn!(key_id = %key_id, "Key update requested but not fully implemented");
+    // Extract user from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
 
-    // For now, return the current key info
-    // TODO: Implement metadata updates in key store
-    Err(ApiError::BadRequest {
-        message: "Key updates not supported. Use key rotation to change key material.".to_string(),
-    })
+    // Validate token and get user
+    let user = state
+        .auth
+        .validate_token(token)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Authentication required: {}", e),
+        })?;
+
+    // Update key metadata using vault service
+    let key_info = state
+        .vault
+        .update_key(&key_id, metadata, &user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to update key: {}", e),
+        })?;
+
+    let key = KeyResponse {
+        id: key_info.id.clone(),
+        name: key_info.name,
+        key_type: key_info.key_type.clone(),
+        algorithm: key_info.key_type,
+        size: 256,
+        usage: vec!["sign".to_string(), "verify".to_string()],
+        metadata: key_info.metadata,
+        version: key_info.version,
+        created_at: key_info.created_at,
+        status: "active".to_string(),
+        public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+    };
+
+    // Audit log
+    let audit_entry = create_audit_log("key_updated", &user.username, "key", &key.id);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(key)))
 }
 
 pub async fn delete_key(

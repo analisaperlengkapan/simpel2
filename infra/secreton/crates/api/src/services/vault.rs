@@ -94,8 +94,8 @@ impl VaultService {
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Extract metadata
-        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
-            .unwrap_or_default();
+        let metadata: SecretMetadata =
+            serde_json::from_value(entry.metadata.clone()).unwrap_or_default();
 
         Ok(SecretData {
             path: path.to_string(),
@@ -251,6 +251,7 @@ impl VaultService {
         &self,
         key_name: &str,
         key_type: &str,
+        metadata: KeyMetadata,
         user_id: &str,
     ) -> Result<KeyInfo, VaultError> {
         // Log audit trail
@@ -290,6 +291,7 @@ impl VaultService {
             version: 1,
             created_at: now,
             public_key,
+            metadata: KeyMetadata::default(),
         };
 
         // Serialize and store key metadata
@@ -316,6 +318,57 @@ impl VaultService {
 
         self.storage.store(&entry).await?;
         self.storage.store(&version_entry).await?;
+
+        Ok(key_info)
+    }
+
+    /// Update key metadata
+    pub async fn update_key(
+        &self,
+        key_id: &str,
+        metadata: KeyMetadata,
+        user_id: &str,
+    ) -> Result<KeyInfo, VaultError> {
+        // Log audit trail
+        let _ = self
+            .audit
+            .log(AuditLog {
+                id: uuid::Uuid::new_v4(),
+                timestamp: chrono::Utc::now(),
+                action: "update".to_string(),
+                actor: Some(user_id.to_string()),
+                resource_type: "key".to_string(),
+                resource_id: format!("keys/{}", key_id),
+                status: AuditStatus::Success,
+                ip: None,
+                user_agent: None,
+                namespace: None,
+                metadata: HashMap::new(),
+            })
+            .await;
+
+        // Get existing key
+        let mut key_info = self.get_key(key_id, user_id).await?;
+
+        // Update metadata
+        key_info.metadata = metadata;
+
+        // Store updated key info
+        let metadata_bytes = serde_json::to_vec(&key_info)
+            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+
+        // We use the existing VaultEntry but update the payload
+        let mut entry = secreton_storage::VaultEntry::new(
+            format!("keys/{}", key_info.name),
+            metadata_bytes,
+            serde_json::json!({}),
+            SecurityLevel::Confidential,
+            user_id.to_string(),
+        );
+        entry.version = key_info.version;
+        entry.updated_at = chrono::Utc::now();
+
+        self.storage.store(&entry).await?;
 
         Ok(key_info)
     }
@@ -778,6 +831,15 @@ pub struct SecretData {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+/// Key metadata
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct KeyMetadata {
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+    pub owner: Option<String>,
+    pub purpose: Option<String>,
+}
+
 /// Key information
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KeyInfo {
@@ -788,6 +850,8 @@ pub struct KeyInfo {
     pub created_at: chrono::DateTime<chrono::Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<String>,
+    #[serde(default)]
+    pub metadata: KeyMetadata,
 }
 
 /// Encryption result
