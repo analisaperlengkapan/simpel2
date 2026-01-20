@@ -1,27 +1,18 @@
 use crate::error::AppError;
 use axum::{extract::State, http::Request, middleware::Next, response::Response};
-use dashmap::DashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use moka::future::Cache;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 #[allow(dead_code)]
-pub struct RateLimitInner {
-    pub map: DashMap<String, (u32, u64)>,
-    pub last_cleanup: AtomicU64,
-}
+pub type RateLimitState = Cache<String, Arc<AtomicU32>>;
 
 #[allow(dead_code)]
-pub type RateLimitState = Arc<RateLimitInner>;
-
-#[allow(dead_code)]
-impl RateLimitInner {
-    pub fn new() -> Self {
-        Self {
-            map: DashMap::new(),
-            last_cleanup: AtomicU64::new(0),
-        }
-    }
+pub fn new_rate_limiter() -> RateLimitState {
+    Cache::builder()
+        .time_to_live(Duration::from_secs(60))
+        .build()
 }
 
 #[allow(dead_code)]
@@ -37,40 +28,117 @@ pub async fn rate_limit_middleware(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
         .to_string();
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
 
-    // Cleanup logic: Run at most once every 60 seconds
-    // This prevents the map from growing indefinitely (memory leak protection)
-    let last = state.last_cleanup.load(Ordering::Relaxed);
-    if now > last + 60 {
-        // Try to update last_cleanup. Only one thread will succeed.
-        if state
-            .last_cleanup
-            .compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed)
-            .is_ok()
-        {
-            // Remove entries older than 60 seconds
-            // retain is efficient in DashMap as it works on shards
-            state.map.retain(|_, (_, timestamp)| now - *timestamp <= 60);
-        }
+    // Use moka's get_with to atomically get or initialize the counter.
+    // moka handles the TTL (60s). If expired, it's gone, so get_with creates new.
+    let counter = state.get_with(ip, async {
+        Arc::new(AtomicU32::new(0))
+    }).await;
+
+    // Increment and check
+    let count = counter.fetch_add(1, Ordering::SeqCst) + 1;
+    if count > limit {
+        return Err(AppError::RateLimit);
     }
-
-    // Use DashMap's entry API which locks only the specific bucket/entry
-    let mut entry = state.map.entry(ip).or_insert((0, now));
-    let val = entry.value_mut();
-
-    if now - val.1 > 60 {
-        *val = (1, now);
-    } else {
-        if val.0 >= limit {
-            return Err(AppError::RateLimit);
-        }
-        val.0 += 1;
-    }
-    drop(entry); // Explicitly drop to release the lock early
 
     Ok(next.run(req).await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use tokio::sync::Mutex;
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH, Instant};
+    use dashmap::DashMap;
+
+    #[tokio::test]
+    async fn benchmark_rate_limit_implementations() {
+        let concurrency = 50;
+        let requests_per_task = 1000;
+        let total_requests = concurrency * requests_per_task;
+
+        println!("Benchmarking {} total requests with concurrency {}", total_requests, concurrency);
+
+        // 1. Mutex<HashMap> (Baseline)
+        let mutex_map: Arc<Mutex<HashMap<String, (u32, u64)>>> = Arc::new(Mutex::new(HashMap::new()));
+        let start = Instant::now();
+        let mut handles = vec![];
+
+        for i in 0..concurrency {
+            let map = mutex_map.clone();
+            handles.push(tokio::spawn(async move {
+                for _ in 0..requests_per_task {
+                    let ip = format!("192.168.1.{}", i % 10); // Simulate some contention on same IPs
+                    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                    let mut lock = map.lock().await;
+                    let val = lock.entry(ip).or_insert((0, now));
+                    if now - val.1 > 60 {
+                        *val = (1, now);
+                    } else {
+                        val.0 += 1;
+                    }
+                }
+            }));
+        }
+        for handle in handles {
+            handle.await.unwrap();
+        }
+        let duration = start.elapsed();
+        println!("Mutex<HashMap>: {:?}", duration);
+
+
+        // 2. DashMap (Previous)
+        let dash_map: Arc<DashMap<String, (u32, u64)>> = Arc::new(DashMap::new());
+        let start = Instant::now();
+        let mut handles = vec![];
+
+        for i in 0..concurrency {
+            let map = dash_map.clone();
+            handles.push(tokio::spawn(async move {
+                for _ in 0..requests_per_task {
+                    let ip = format!("192.168.1.{}", i % 10);
+                    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+                    let mut entry = map.entry(ip).or_insert((0, now));
+                    let val = entry.value_mut();
+                    if now - val.1 > 60 {
+                        *val = (1, now);
+                    } else {
+                        val.0 += 1;
+                    }
+                }
+            }));
+        }
+        for handle in handles {
+            handle.await.unwrap();
+        }
+        let duration = start.elapsed();
+        println!("DashMap: {:?}", duration);
+
+        // 3. moka (New)
+        let moka_cache: RateLimitState = new_rate_limiter();
+
+        let start = Instant::now();
+        let mut handles = vec![];
+
+        for i in 0..concurrency {
+            let cache = moka_cache.clone();
+            handles.push(tokio::spawn(async move {
+                for _ in 0..requests_per_task {
+                    let ip = format!("192.168.1.{}", i % 10);
+                    let counter = cache.get_with(ip, async {
+                        Arc::new(AtomicU32::new(0))
+                    }).await;
+                    counter.fetch_add(1, Ordering::Relaxed);
+                }
+            }));
+        }
+        for handle in handles {
+            handle.await.unwrap();
+        }
+        let duration = start.elapsed();
+        println!("moka (TTL=60s): {:?}", duration);
+    }
 }
