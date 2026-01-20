@@ -930,7 +930,10 @@ impl AuthService {
             serde_json::json!({"method": "simple", "type": "session"}),
             SecurityLevel::Confidential,
             session.user_id.clone(),
-        );
+        )
+        .with_expiration(session.expires_at)
+        .add_metadata("ip_address".to_string(), serde_json::json!(session.ip_address))
+        .add_metadata("user_agent".to_string(), serde_json::json!(session.user_agent));
 
         self.storage
             .store(&entry)
