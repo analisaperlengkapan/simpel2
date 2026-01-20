@@ -10,10 +10,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::instrument;
+
+use secreton_crypto::{AlgorithmId, CryptoEngine};
+use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
 
 use crate::services::secrets::totp::{TotpEngine, TotpKeyCreateRequest, TotpValidationRequest};
 
@@ -43,6 +44,12 @@ pub enum MfaError {
 
     #[error("Recovery code already used")]
     RecoveryCodeUsed,
+
+    #[error("Email code expired")]
+    EmailCodeExpired,
+
+    #[error("Invalid email code")]
+    InvalidEmailCode,
 }
 
 /// MFA method type
@@ -98,6 +105,15 @@ pub struct MfaConfig {
     /// Used recovery codes
     pub used_recovery_codes: Vec<String>,
 
+    /// Email address for MFA
+    pub email_address: Option<String>,
+
+    /// Pending email verification code
+    pub pending_email_code: Option<String>,
+
+    /// Expiry for pending email code
+    pub pending_email_code_expires_at: Option<DateTime<Utc>>,
+
     /// Created at
     pub created_at: DateTime<Utc>,
 
@@ -117,6 +133,9 @@ impl MfaConfig {
             totp_key_name: None,
             recovery_codes: Self::generate_recovery_codes(),
             used_recovery_codes: Vec::new(),
+            email_address: None,
+            pending_email_code: None,
+            pending_email_code_expires_at: None,
             created_at: Utc::now(),
             last_used_at: None,
             enforced: false,
@@ -143,25 +162,86 @@ impl MfaConfig {
 
 /// MFA service with TotpEngine integration
 pub struct MfaService {
-    configs: Arc<RwLock<HashMap<String, MfaConfig>>>,
+    storage: Arc<dyn StorageBackend + Send + Sync>,
+    crypto: Arc<CryptoEngine>,
     totp_engine: Arc<TotpEngine>,
 }
 
 impl MfaService {
     /// Create new MFA service
-    pub fn new() -> Self {
+    pub fn new(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+    ) -> Self {
         Self {
-            configs: Arc::new(RwLock::new(HashMap::new())),
+            storage,
+            crypto,
             totp_engine: Arc::new(TotpEngine::new()),
         }
     }
 
     /// Create MFA service with existing TotpEngine
-    pub fn with_totp_engine(totp_engine: Arc<TotpEngine>) -> Self {
+    pub fn with_totp_engine(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+        totp_engine: Arc<TotpEngine>,
+    ) -> Self {
         Self {
-            configs: Arc::new(RwLock::new(HashMap::new())),
+            storage,
+            crypto,
             totp_engine,
         }
+    }
+
+    /// Helper to get config path
+    fn get_config_path(user_id: &str) -> String {
+        format!("sys/mfa/{}/config", user_id)
+    }
+
+    /// Helper to load config
+    async fn load_config(&self, user_id: &str) -> Result<Option<MfaConfig>, MfaError> {
+        let path = Self::get_config_path(user_id);
+        match self.storage.get_by_path(&path).await {
+            Ok(Some(entry)) => {
+                let decrypted_bytes = self
+                    .crypto
+                    .decrypt_simple(&entry.encrypted_data)
+                    .map_err(|_| MfaError::InvalidSecret)?;
+
+                let config: MfaConfig = serde_json::from_slice(&decrypted_bytes).map_err(|_| {
+                    MfaError::NotConfigured(format!("Invalid config data for {}", user_id))
+                })?;
+                Ok(Some(config))
+            }
+            Ok(None) => Ok(None),
+            Err(_) => Err(MfaError::NotConfigured(
+                "Storage error retrieving config".to_string(),
+            )),
+        }
+    }
+
+    /// Helper to save config
+    async fn save_config(&self, config: &MfaConfig) -> Result<(), MfaError> {
+        let path = Self::get_config_path(&config.user_id);
+        let data = serde_json::to_vec(config).map_err(|_| MfaError::InvalidSecret)?;
+
+        let encrypted_data = self
+            .crypto
+            .encrypt_simple(&data)
+            .map_err(|_| MfaError::InvalidSecret)?;
+
+        let entry = VaultEntry::new(
+            path,
+            encrypted_data,
+            serde_json::json!({"method": "simple", "type": "mfa_config"}),
+            SecurityLevel::Confidential, // MFA config contains recovery codes
+            "system".to_string(),
+        );
+
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(|_| MfaError::InvalidSecret) // Generalize error for now
     }
 
     /// Enable TOTP for user (delegates to TotpEngine)
@@ -177,11 +257,10 @@ impl MfaService {
         issuer: String,
         account_name: String,
     ) -> Result<TotpSetupResponse, MfaError> {
-        let mut configs = self.configs.write().await;
-
-        let config = configs
-            .entry(user_id.to_string())
-            .or_insert_with(|| MfaConfig::new(user_id.to_string()));
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .unwrap_or_else(|| MfaConfig::new(user_id.to_string()));
 
         if config.totp_key_name.is_some() {
             return Err(MfaError::AlreadyConfigured("TOTP".to_string()));
@@ -209,6 +288,8 @@ impl MfaService {
         config.totp_key_name = Some(key_name);
         config.enabled_methods.push(MfaMethodType::TOTP);
 
+        self.save_config(&config).await?;
+
         Ok(TotpSetupResponse {
             secret: totp_response.secret,
             qr_code_url: totp_response.qr_code_url,
@@ -224,18 +305,16 @@ impl MfaService {
         operation = "verify_totp"
     ))]
     pub async fn verify_totp(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
-        let key_name = {
-            let configs = self.configs.read().await;
-            let config = configs
-                .get(user_id)
-                .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
-            config
-                .totp_key_name
-                .as_ref()
-                .ok_or_else(|| MfaError::NotConfigured("TOTP".to_string()))?
-                .clone()
-        };
+        let key_name = config
+            .totp_key_name
+            .as_ref()
+            .ok_or_else(|| MfaError::NotConfigured("TOTP".to_string()))?
+            .clone();
 
         // Delegate to TotpEngine for validation
         let request = TotpValidationRequest {
@@ -258,10 +337,8 @@ impl MfaService {
 
         // Update last used if valid
         if response.valid {
-            let mut configs = self.configs.write().await;
-            if let Some(config) = configs.get_mut(user_id) {
-                config.last_used_at = Some(Utc::now());
-            }
+            config.last_used_at = Some(Utc::now());
+            self.save_config(&config).await?;
         }
 
         Ok(response.valid)
@@ -273,9 +350,9 @@ impl MfaService {
         operation = "verify_recovery_code"
     ))]
     pub async fn verify_recovery_code(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
-        let mut configs = self.configs.write().await;
-        let config = configs
-            .get_mut(user_id)
+        let mut config = self
+            .load_config(user_id)
+            .await?
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
         // Check if already used
@@ -292,6 +369,8 @@ impl MfaService {
         config.used_recovery_codes.push(code.to_string());
         config.last_used_at = Some(Utc::now());
 
+        self.save_config(&config).await?;
+
         Ok(true)
     }
 
@@ -301,42 +380,35 @@ impl MfaService {
         operation = "disable_totp"
     ))]
     pub async fn disable_totp(&self, user_id: &str) -> Result<(), MfaError> {
-        let key_name = {
-            let configs = self.configs.read().await;
-            let config = configs
-                .get(user_id)
-                .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
-            config.totp_key_name.clone()
-        };
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        let key_name = config.totp_key_name.clone();
 
         // Delete TOTP key from TotpEngine if exists
         if let Some(key_name) = key_name {
             let _ = self.totp_engine.delete_key(&key_name).await;
         }
 
-        // Update MFA config
-        let mut configs = self.configs.write().await;
-        let config = configs
-            .get_mut(user_id)
-            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
-
         config.totp_key_name = None;
         config.enabled_methods.retain(|m| *m != MfaMethodType::TOTP);
+
+        self.save_config(&config).await?;
 
         Ok(())
     }
 
     /// Get MFA configuration
     pub async fn get_config(&self, user_id: &str) -> Option<MfaConfig> {
-        let configs = self.configs.read().await;
-        configs.get(user_id).cloned()
+        self.load_config(user_id).await.unwrap_or(None)
     }
 
     /// Check if MFA is configured for user
     pub async fn is_configured(&self, user_id: &str) -> bool {
-        let configs = self.configs.read().await;
-        configs
-            .get(user_id)
+        self.get_config(user_id)
+            .await
             .map(|c| !c.enabled_methods.is_empty())
             .unwrap_or(false)
     }
@@ -347,13 +419,15 @@ impl MfaService {
         operation = "regenerate_recovery_codes"
     ))]
     pub async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>, MfaError> {
-        let mut configs = self.configs.write().await;
-        let config = configs
-            .get_mut(user_id)
+        let mut config = self
+            .load_config(user_id)
+            .await?
             .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
 
         config.recovery_codes = MfaConfig::generate_recovery_codes();
         config.used_recovery_codes.clear();
+
+        self.save_config(&config).await?;
 
         Ok(config.recovery_codes.clone())
     }
@@ -362,21 +436,120 @@ impl MfaService {
     pub async fn cleanup_history(&self, max_age_seconds: i64) -> usize {
         self.totp_engine.cleanup_history(max_age_seconds).await
     }
-}
 
-impl Default for MfaService {
-    fn default() -> Self {
-        Self::new()
+    /// Request email setup/verification code
+    #[instrument(skip(self), fields(user_id = %user_id, email = %email, operation = "request_email_setup"))]
+    pub async fn request_email_setup(&self, user_id: &str, email: &str) -> Result<(), MfaError> {
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .unwrap_or_else(|| MfaConfig::new(user_id.to_string()));
+
+        // Generate 6-digit code
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let code: String = (0..6).map(|_| rng.gen_range(0..10).to_string()).collect();
+
+        // Store in config
+        config.pending_email_code = Some(code.clone());
+        config.pending_email_code_expires_at = Some(Utc::now() + chrono::Duration::minutes(10));
+        config.email_address = Some(email.to_string());
+
+        self.send_email_code(user_id, email, &code).await;
+
+        self.save_config(&config).await?;
+
+        Ok(())
+    }
+
+    /// Send email code (mock implementation)
+    async fn send_email_code(&self, user_id: &str, email: &str, code: &str) {
+        tracing::info!(
+            target: "mfa_email",
+            user_id = %user_id,
+            email = %email,
+            code = %code,
+            "Sending MFA verification email"
+        );
+        // In a real implementation, we would call an email service here.
+    }
+
+    /// Verify email code (for setup or login)
+    #[instrument(skip(self, code), fields(user_id = %user_id, operation = "verify_email_code"))]
+    pub async fn verify_email_code(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        // Check expiration
+        if let Some(expires_at) = config.pending_email_code_expires_at {
+            if Utc::now() > expires_at {
+                return Err(MfaError::EmailCodeExpired);
+            }
+        } else {
+            return Err(MfaError::InvalidEmailCode);
+        }
+
+        // Check code
+        let valid = if let Some(pending_code) = &config.pending_email_code {
+            pending_code == code
+        } else {
+            false
+        };
+
+        if valid {
+            // Valid!
+            // Enable Email method if not enabled
+            if !config.enabled_methods.contains(&MfaMethodType::Email) {
+                config.enabled_methods.push(MfaMethodType::Email);
+            }
+
+            // Clear pending
+            config.pending_email_code = None;
+            config.pending_email_code_expires_at = None;
+            config.last_used_at = Some(Utc::now());
+
+            self.save_config(&config).await?;
+            return Ok(true);
+        }
+
+        Err(MfaError::InvalidEmailCode)
+    }
+
+    /// Disable Email MFA
+    #[instrument(skip(self), fields(user_id = %user_id, operation = "disable_email"))]
+    pub async fn disable_email(&self, user_id: &str) -> Result<(), MfaError> {
+        let mut config = self
+            .load_config(user_id)
+            .await?
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        config.email_address = None;
+        config.pending_email_code = None;
+        config.pending_email_code_expires_at = None;
+        config.enabled_methods.retain(|m| *m != MfaMethodType::Email);
+
+        self.save_config(&config).await?;
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use secreton_storage::MemoryBackend;
+
+    fn create_test_service() -> MfaService {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        MfaService::new(storage, crypto)
+    }
 
     #[tokio::test]
     async fn test_enable_totp() {
-        let service = MfaService::new();
+        let service = create_test_service();
 
         let response = service
             .enable_totp(
@@ -395,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_recovery_codes() {
-        let service = MfaService::new();
+        let service = create_test_service();
 
         service
             .enable_totp(
@@ -418,7 +591,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_recovery_code() {
-        let service = MfaService::new();
+        let service = create_test_service();
 
         service
             .enable_totp(
@@ -443,7 +616,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_regenerate_recovery_codes() {
-        let service = MfaService::new();
+        let service = create_test_service();
 
         service
             .enable_totp(
@@ -459,5 +632,41 @@ mod tests {
 
         assert_ne!(old_codes, new_codes);
         assert_eq!(new_codes.len(), 10);
+    }
+
+    #[tokio::test]
+    async fn test_email_mfa_flow() {
+        let service = create_test_service();
+        let user_id = "user_email_test";
+        let email = "test@example.com";
+
+        // 1. Request setup
+        service.request_email_setup(user_id, email).await.unwrap();
+
+        // 2. Inspect config (since we can't see the log easily, we peak at config)
+        let config = service.get_config(user_id).await.unwrap();
+        assert_eq!(config.email_address, Some(email.to_string()));
+        assert!(config.pending_email_code.is_some());
+
+        let code = config.pending_email_code.unwrap();
+
+        // 3. Verify with wrong code
+        let result = service.verify_email_code(user_id, "000000").await;
+        assert!(result.is_err());
+
+        // 4. Verify with correct code
+        let result = service.verify_email_code(user_id, &code).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // 5. Check enabled
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(config.enabled_methods.contains(&MfaMethodType::Email));
+        assert!(config.pending_email_code.is_none());
+
+        // 6. Disable
+        service.disable_email(user_id).await.unwrap();
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(!config.enabled_methods.contains(&MfaMethodType::Email));
     }
 }
