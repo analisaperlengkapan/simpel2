@@ -1,7 +1,6 @@
 use crate::components::layout::AuthLayout;
 use crate::features::auth::{AuthService, MfaSetupData};
 use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
 use shared_microfrontend::components::captcha::Captcha;
 use shared_microfrontend::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -16,9 +15,9 @@ pub fn MfaSetupPage() -> impl IntoView {
     let (is_loading, set_is_loading) = signal(false);
     let (is_generating, set_is_generating) = signal(true);
     let (captcha_token, set_captcha_token) = signal(None::<String>);
-    let (show_captcha, set_show_captcha) = signal(false);
+    let (show_captcha, _set_show_captcha) = signal(false);
     let _ = captcha_token;
-    let (_risk_score, set_risk_score) = signal(0.0f64);
+    let (_risk_score, _set_risk_score) = signal(0.0f64);
 
     let navigate = leptos_router::hooks::use_navigate();
     let navigate_clone = navigate.clone();

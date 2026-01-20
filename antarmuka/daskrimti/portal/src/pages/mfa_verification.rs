@@ -6,7 +6,6 @@ use crate::components::layout::AuthLayout;
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos_router;
-use serde::{Deserialize, Serialize};
 use shared_microfrontend::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
@@ -128,7 +127,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     }
 
                                     // Check if temp_token is available
-                                    let temp_token = match temp_token_value.get() {
+                                    let _temp_token = match temp_token_value.get() {
                                         Some(token) => token,
                                         None => {
                                             set_error_message.set("No authentication token found. Please log in again.".to_string());
@@ -139,7 +138,7 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     set_is_loading.set(true);
                                     set_error_message.set(String::new());
 
-                                    let navigate = leptos_router::hooks::use_navigate();
+                                    let _navigate = leptos_router::hooks::use_navigate();
 
                                     spawn_local(async move {
                                         match AuthService::verify_mfa(&code).await {

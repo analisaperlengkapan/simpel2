@@ -143,7 +143,7 @@ pub struct LoginResponse {
 // Thread-local storage for temporary credentials (password) during MFA flow
 // Safe in WASM as it's single-threaded
 thread_local! {
-    static CACHED_CREDENTIALS: std::cell::RefCell<Option<LoginCredentials>> = std::cell::RefCell::new(None);
+    static CACHED_CREDENTIALS: std::cell::RefCell<Option<LoginCredentials>> = const { std::cell::RefCell::new(None) };
 }
 
 /// Authentication service

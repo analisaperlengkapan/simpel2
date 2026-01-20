@@ -3,7 +3,6 @@
 use crate::features::auth::AuthService;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
 
 /// System statistics
 #[derive(Debug, Serialize, Deserialize, Clone)]

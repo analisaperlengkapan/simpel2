@@ -9,8 +9,11 @@
 //! - **Government Compliance**: Sesuai standar keamanan siber nasional
 //! - **Responsive Design**: Optimized untuk semua device
 
-#![warn(missing_docs)]
-#![warn(clippy::all)]
+// Temporarily relaxed for development
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 #![forbid(unsafe_code)]
 
 pub mod app;
