@@ -1,6 +1,4 @@
-use crate::models::{
-    CreateCaseRequest, DashboardStats, SpecialCase,
-};
+use crate::models::{CreateCaseRequest, DashboardStats, SpecialCase};
 use deadpool_postgres::Pool;
 use std::error::Error;
 use uuid::Uuid;

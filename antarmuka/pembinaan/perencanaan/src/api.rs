@@ -2,7 +2,6 @@ use crate::types::{
     ApiErrorResponse, CreateRencanaRequest, RencanaPengadaan, UpdateRencanaRequest,
 };
 use gloo_net::http::Request;
-use leptos::*;
 use uuid::Uuid;
 
 const API_BASE_URL: &str = "http://localhost:8080/api/v1/perencanaan";

@@ -526,8 +526,7 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .body_mut()
-                .read_to_string()
+                .into_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
