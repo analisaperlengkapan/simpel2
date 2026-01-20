@@ -1,6 +1,10 @@
 // SIMPEL Pemulihan Aset - Microfrontend
 // Sistem Informasi Pemulihan Aset Negara untuk Kejaksaan RI
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::all)]
+
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
