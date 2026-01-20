@@ -245,6 +245,16 @@ pub async fn bulk_insert_postgres(
         data.len()
     );
 
+    // Prepare query once (optimization: hoisted out of loop)
+    let placeholders: Vec<String> =
+        (1..=columns.len()).map(|i| format!("${}", i)).collect();
+    let query = format!(
+        "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
+        table_name,
+        columns.join(", "),
+        placeholders.join(", ")
+    );
+
     // Reuse vector allocation for params to reduce memory churn
     let mut params: Vec<SqlParam> = Vec::with_capacity(columns.len());
 
@@ -256,16 +266,6 @@ pub async fn bulk_insert_postgres(
         );
         for item in chunk {
             if let Some(obj) = item.as_object() {
-                // Build query dengan placeholders
-                let placeholders: Vec<String> =
-                    (1..=columns.len()).map(|i| format!("${}", i)).collect();
-                let query = format!(
-                    "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
-                    table_name,
-                    columns.join(", "),
-                    placeholders.join(", ")
-                );
-
                 // Konversi nilai JSON ke parameter PostgreSQL
                 params.clear();
                 for col in &columns {
@@ -280,6 +280,9 @@ pub async fn bulk_insert_postgres(
                 }
 
                 // Convert to references for execute
+                // Note: We cannot easily reuse param_refs vector due to borrow checker constraints
+                // (referencing 'params' which is mutable across iterations).
+                // However, Vec<&dyn ToSql> allocation is cheap compared to the data itself.
                 let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
                     .iter()
                     .map(|p| p as &(dyn tokio_postgres::types::ToSql + Sync))
