@@ -1,3 +1,8 @@
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::module_inception)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use axum::{Router, routing::get};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
