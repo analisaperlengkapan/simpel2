@@ -24,6 +24,8 @@ pub struct Config {
     pub output_dir: String,
     /// Konfigurasi database opsional
     pub db_config: Option<String>,
+    /// Batas concurrency untuk SIMAN fetch (default: 20)
+    pub siman_concurrency_limit: usize,
 }
 
 impl Config {
@@ -51,6 +53,11 @@ impl Config {
 
         let output_dir = std::env::var("OUTPUT_DIR").unwrap_or_else(|_| "./data".to_string());
         let db_config = std::env::var("DATABASE_URL").ok();
+
+        let siman_concurrency_limit = std::env::var("SIMAN_CONCURRENCY_LIMIT")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(20);
 
         let mut tokens = HashMap::new();
         for module in &[
@@ -86,6 +93,7 @@ impl Config {
             tokens,
             output_dir,
             db_config,
+            siman_concurrency_limit,
         })
     }
 }

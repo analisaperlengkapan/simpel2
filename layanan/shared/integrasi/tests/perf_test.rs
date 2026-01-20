@@ -59,6 +59,7 @@ async fn test_siman_pagination_performance() {
         tokens: HashMap::new(),
         output_dir: "./output".to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     };
 
     let mut client = MonsaktiClient::new(config)

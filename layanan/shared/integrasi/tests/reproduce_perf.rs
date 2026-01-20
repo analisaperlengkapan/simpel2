@@ -75,6 +75,7 @@ async fn test_siman_assets_pagination_performance() {
         tokens: HashMap::new(),
         output_dir: "./output_test".to_string(), // Use a test output dir
         db_config: None,
+        siman_concurrency_limit: 20,
     };
 
     let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");

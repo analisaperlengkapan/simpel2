@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokens: HashMap::new(),
         output_dir: "./bench_output".to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     };
 
     // Initialize client

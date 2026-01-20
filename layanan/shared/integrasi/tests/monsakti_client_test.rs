@@ -34,6 +34,7 @@ async fn test_monsakti_fetch_parsing_logic() {
         tokens: HashMap::new(),
         output_dir: ".".to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     });
     // Override base_url to ensure it hits mock
     config.base_url = mock_server.uri();

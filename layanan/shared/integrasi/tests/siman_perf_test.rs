@@ -1,109 +1,98 @@
-use layanan_integrasi::StorageStrategy;
-use layanan_integrasi::client::MonsaktiClient;
-use layanan_integrasi::config::Config;
-use layanan_integrasi::siman::SimanAssetCategory;
-use layanan_integrasi::siman::endpoints::fetch_all_assets_with_pagination;
+use layanan_integrasi::siman::{fetch_all_assets_with_pagination, SimanAssetCategory};
+use layanan_integrasi::{Config, MonsaktiClient, StorageStrategy};
 use std::collections::HashMap;
-use std::fs;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
-async fn test_siman_pagination_pipeline_perf() {
+async fn test_parallel_fetching_performance() {
+    // 1. Start a mock server
     let mock_server = MockServer::start().await;
 
-    // Mock Token Endpoint
+    // 2. Setup Mock Responses
+
+    // Mock Authentication (SIMAN Token)
     Mock::given(method("POST"))
-        .and(path("/connect/token"))
+        .and(path("/token"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "access_token": "mock_token",
-            "token_type": "Bearer",
-            "expires_in": 3600
+            "expires_in": 3600,
+            "token_type": "Bearer"
         })))
         .mount(&mock_server)
         .await;
 
-    // Mock Row Count Endpoint
-    // Return 5000 items. Chunk size is 1000, so 5 batches.
+    // Mock Row Count
+    // Return 50,000 records to generate 50 chunks (chunk_size=1000)
     Mock::given(method("GET"))
-        .and(path_regex(
-            r"^/gateway/SLDKSimanKL/2.0/getRowCount/TEST_BA/SIMAN2_M_ASET_.*",
-        ))
+        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getRowCount/.*"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-             "results": [
-                { "RCOUNT": 5000 }
-             ]
+            "results": [
+                {
+                    "RCOUNT": 50000
+                }
+            ]
         })))
         .mount(&mock_server)
         .await;
 
     // Mock Data Endpoint
-    let response_delay = std::time::Duration::from_millis(100);
-    // Return a few items per request
-    let items = vec![serde_json::json!({"id": 1}), serde_json::json!({"id": 2})];
-    let response_body = serde_json::json!({
-        "results": items
-    });
-
+    // Simulate 100ms latency per request
     Mock::given(method("POST"))
-        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/getAset.*"))
+        .and(path_regex(r"^/gateway/SLDKSimanKL/2.0/.*"))
         .respond_with(
             ResponseTemplate::new(200)
-                .set_body_json(response_body)
-                .set_delay(response_delay),
+                .set_body_json(serde_json::json!({
+                    "results": [
+                        {"id_aset": "1", "nama_aset": "Dummy Asset 1"},
+                        {"id_aset": "2", "nama_aset": "Dummy Asset 2"}
+                    ]
+                }))
+                .set_delay(Duration::from_millis(100)),
         )
         .mount(&mock_server)
         .await;
 
-    // Prepare temp output dir
-    let output_dir = format!("/tmp/siman_perf_test_{}", uuid::Uuid::new_v4());
-    fs::create_dir_all(&output_dir).unwrap();
-
-    // Manual Config
+    // 3. Configure Client
     let config = Config {
-        base_url: "http://localhost".to_string(),
-        mysimkari_base_url: "http://localhost".to_string(),
+        base_url: "http://mock".to_string(),
+        mysimkari_base_url: "http://mock".to_string(),
         siman_base_url: mock_server.uri(),
-        siman_token_url: format!("{}/connect/token", mock_server.uri()),
+        siman_token_url: format!("{}/token", mock_server.uri()),
         siman_client_id: Some("mock_client".to_string()),
         siman_client_secret: Some("mock_secret".to_string()),
-        siman_ba_key: Some("TEST_BA".to_string()),
+        siman_ba_key: Some("mock_ba_key".to_string()),
         tokens: HashMap::new(),
-        output_dir: output_dir.clone(),
+        output_dir: std::env::temp_dir().to_string_lossy().to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     };
 
-    let mut client = MonsaktiClient::new(config)
-        .await
-        .expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
 
-    // Use JsonFile storage strategy
+    // 4. Run Benchmark
+    let start_time = Instant::now();
+    let category = SimanAssetCategory::Tanah;
+
     let storage = StorageStrategy::JsonFile {
-        base_dir: output_dir.clone(),
+        base_dir: std::env::temp_dir().join("siman_test").to_string_lossy().to_string(),
     };
 
-    println!("Starting performance test (pipeline)...");
-    let start = Instant::now();
+    let result = fetch_all_assets_with_pagination(&mut client, &storage, category).await;
 
-    // This will fetch 5000 records in chunks of 1000.
-    // 5 requests. Each 100ms.
-    // Concurrency 5.
-    // If save is fast: time should be around 100ms + overhead.
-    // If save is slow (implicit in file IO, but might be fast on tmpfs): we will see.
-    let result =
-        fetch_all_assets_with_pagination(&mut client, &storage, SimanAssetCategory::AlatBesar)
-            .await;
-    let duration = start.elapsed();
+    let elapsed = start_time.elapsed();
 
-    assert!(result.is_ok(), "Fetching failed: {:?}", result.err());
+    println!("Total execution time: {:?}", elapsed);
+
+    assert!(result.is_ok());
     let (success, failed) = result.unwrap();
-    println!(
-        "Fetched: {} success, {} failed in {:?}",
-        success, failed, duration
-    );
-    println!("PERFORMANCE_RESULT: {} ms", duration.as_millis());
+    println!("Success: {}, Failed: {}", success, failed);
 
-    // Cleanup
-    let _ = fs::remove_dir_all(&output_dir);
+    // 50 chunks * 100ms = 5000ms (Serial)
+    // 50 chunks * 100ms / 5 = 1000ms (Current Parallel)
+    // 50 chunks * 100ms / 20 = 250ms (Target Parallel)
+
+    // Assert that it is at least faster than serial
+    assert!(elapsed < Duration::from_secs(4), "Should be faster than serial execution (5s)");
 }
