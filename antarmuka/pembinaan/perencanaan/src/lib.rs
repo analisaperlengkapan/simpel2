@@ -3,6 +3,10 @@
 //! Sistem Informasi Manajemen Perencanaan BMN (Barang Milik Negara)
 //! Mengelola perencanaan pengadaan, pemeliharaan, dan pengembangan aset negara
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::all)]
+
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::{Route, Router, Routes};

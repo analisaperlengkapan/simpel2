@@ -3,6 +3,10 @@
 //! Sistem Informasi Manajemen Keuangan untuk Kejaksaan RI
 //! menggunakan Leptos CSR SPA WASM
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::all)]
+
 use leptos::mount::mount_to_body;
 use leptos::prelude::*;
 use leptos_meta::*;

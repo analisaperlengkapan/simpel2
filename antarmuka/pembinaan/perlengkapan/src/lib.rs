@@ -13,6 +13,10 @@
 // ## Features
 // - Modern authentication flow via Portal SSO
 // - Comprehensive asset management (Bank Aset)
+
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(clippy::all)]
 // - Supply chain integration
 // - Procurement workflow (Pengadaan)
 // - Maintenance tracking (Pemeliharaan)
