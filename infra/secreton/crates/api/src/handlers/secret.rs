@@ -66,19 +66,49 @@ pub fn create_routes() -> Router<AppState> {
 pub struct AuditQuery {
     pub user_id: Option<String>,
     pub action: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
+    pub resource_type: Option<String>,
+    pub resource_id: Option<String>,
+    pub status: Option<String>,
+    pub start_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub end_time: Option<chrono::DateTime<chrono::Utc>>,
+    pub namespace: Option<String>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
 pub async fn get_audit_logs(
-    State(_state): State<AppState>,
-    Query(_query): Query<AuditQuery>,
+    State(state): State<AppState>,
+    Query(query): Query<AuditQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<AuditLog>>>> {
-    // TODO: Implement audit log retrieval with filtering
-    // Currently the AuditLogger only supports writing logs, not querying them
-    // Need to implement audit backend with query capabilities
-    let entries: Vec<AuditLog> = vec![];
-    Ok(Json(ApiResponse::success(entries)))
+    let status = query.status.and_then(|s| match s.to_lowercase().as_str() {
+        "success" => Some(secreton_core::audit::AuditStatus::Success),
+        "failure" => Some(secreton_core::audit::AuditStatus::Failure),
+        "denied" => Some(secreton_core::audit::AuditStatus::Denied),
+        _ => None,
+    });
+
+    let core_query = secreton_core::audit::AuditQuery {
+        action: query.action,
+        actor: query.user_id,
+        resource_type: query.resource_type,
+        resource_id: query.resource_id,
+        status,
+        start_time: query.start_time,
+        end_time: query.end_time,
+        namespace: query.namespace,
+        limit: query.limit,
+        offset: query.offset,
+    };
+
+    let logs = state
+        .audit
+        .query(core_query)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Audit query failed: {}", e),
+        })?;
+
+    Ok(Json(ApiResponse::success(logs)))
 }
 
 #[derive(Debug, Deserialize)]

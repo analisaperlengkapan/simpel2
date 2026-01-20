@@ -199,12 +199,94 @@ pub enum AuditStatus {
 pub enum AuditError {
     #[error("Audit logging failed: {0}")]
     LoggingError(String),
+    #[error("Operation not supported by this backend")]
+    NotSupported,
+}
+
+/// Query parameters for audit logs
+#[derive(Debug, Clone, Default)]
+pub struct AuditQuery {
+    pub action: Option<String>,
+    pub actor: Option<String>,
+    pub resource_type: Option<String>,
+    pub resource_id: Option<String>,
+    pub status: Option<AuditStatus>,
+    pub start_time: Option<chrono::DateTime<Utc>>,
+    pub end_time: Option<chrono::DateTime<Utc>>,
+    pub namespace: Option<String>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+impl AuditQuery {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn action(mut self, action: impl Into<String>) -> Self {
+        self.action = Some(action.into());
+        self
+    }
+
+    pub fn actor(mut self, actor: impl Into<String>) -> Self {
+        self.actor = Some(actor.into());
+        self
+    }
+
+    pub fn resource_type(mut self, resource_type: impl Into<String>) -> Self {
+        self.resource_type = Some(resource_type.into());
+        self
+    }
+
+    pub fn status(mut self, status: AuditStatus) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    pub fn status_failed(mut self) -> Self {
+        self.status = Some(AuditStatus::Failure);
+        self
+    }
+
+    pub fn since_hours(mut self, hours: i64) -> Self {
+        self.start_time = Some(Utc::now() - chrono::Duration::hours(hours));
+        self
+    }
+
+    pub fn start_time(mut self, start_time: Option<chrono::DateTime<Utc>>) -> Self {
+        self.start_time = start_time;
+        self
+    }
+
+    pub fn end_time(mut self, end_time: Option<chrono::DateTime<Utc>>) -> Self {
+        self.end_time = end_time;
+        self
+    }
+
+    pub fn namespace(mut self, namespace: impl Into<String>) -> Self {
+        self.namespace = Some(namespace.into());
+        self
+    }
+
+    pub fn limit(mut self, limit: Option<usize>) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    pub fn offset(mut self, offset: Option<usize>) -> Self {
+        self.offset = offset;
+        self
+    }
 }
 
 /// Trait for audit log backends
 #[async_trait::async_trait]
 pub trait AuditBackend: Send + Sync + 'static {
     async fn log(&self, entry: AuditLog) -> Result<(), AuditError>;
+
+    async fn query(&self, _query: AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        Err(AuditError::NotSupported)
+    }
 }
 
 /// In-memory audit log backend (for testing/demo)
@@ -218,6 +300,59 @@ impl AuditBackend for MemoryBackend {
     async fn log(&self, entry: AuditLog) -> Result<(), AuditError> {
         self.logs.write().push(entry);
         Ok(())
+    }
+
+    async fn query(&self, query: AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        let logs = self.logs.read();
+        let filtered: Vec<AuditLog> = logs.iter().filter(|log| {
+            if let Some(ref action) = query.action {
+                if &log.action != action { return false; }
+            }
+            if let Some(ref actor) = query.actor {
+                if log.actor.as_ref() != Some(actor) { return false; }
+            }
+            if let Some(ref resource_type) = query.resource_type {
+                if &log.resource_type != resource_type { return false; }
+            }
+            if let Some(ref resource_id) = query.resource_id {
+                if &log.resource_id != resource_id { return false; }
+            }
+            if let Some(status) = query.status {
+                // Approximate status check since AuditStatus doesn't impl PartialEq automatically
+                let log_status_str = match log.status {
+                    AuditStatus::Success => "Success",
+                    AuditStatus::Failure => "Failure",
+                    AuditStatus::Denied => "Denied",
+                };
+                let query_status_str = match status {
+                    AuditStatus::Success => "Success",
+                    AuditStatus::Failure => "Failure",
+                    AuditStatus::Denied => "Denied",
+                };
+                if log_status_str != query_status_str { return false; }
+            }
+            if let Some(start_time) = query.start_time {
+                if log.timestamp < start_time { return false; }
+            }
+            if let Some(end_time) = query.end_time {
+                if log.timestamp > end_time { return false; }
+            }
+            if let Some(ref namespace) = query.namespace {
+                if log.namespace.as_ref() != Some(namespace) { return false; }
+            }
+            true
+        }).cloned().collect();
+
+        // Apply pagination
+        let start = query.offset.unwrap_or(0);
+        let end = start + query.limit.unwrap_or(filtered.len());
+
+        if start >= filtered.len() {
+            return Ok(vec![]);
+        }
+
+        let end = std::cmp::min(end, filtered.len());
+        Ok(filtered[start..end].to_vec())
     }
 }
 
@@ -252,6 +387,19 @@ impl AuditLogger {
         }
 
         Ok(())
+    }
+
+    /// Query audit logs
+    pub async fn query(&self, query: AuditQuery) -> Result<Vec<AuditLog>, AuditError> {
+        for backend in &self.backends {
+            match backend.query(query.clone()).await {
+                Ok(logs) => return Ok(logs),
+                Err(AuditError::NotSupported) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+        // If no backend supports querying or no backends are configured
+        Ok(vec![])
     }
 
     /// Log a namespace-scoped audit event
