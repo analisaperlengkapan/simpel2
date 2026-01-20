@@ -3,6 +3,11 @@
 //! Service untuk menangani bantuan pengguna, FAQ, ticketing system,
 //! dan chatbot berbasis AI.
 
+#![allow(clippy::too_many_arguments)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(deprecated)]
+
 mod analytics;
 mod audit;
 mod captcha;
