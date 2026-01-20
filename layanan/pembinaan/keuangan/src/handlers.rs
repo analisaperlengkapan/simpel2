@@ -179,13 +179,15 @@ pub async fn create_transaction(
     ).await?;
 
     // If it's an expense and linked to a budget, update the realized amount
-    if payload.transaction_type == "Expense" {
-        if let Some(budget_id) = payload.budget_item_id {
-            let _ = client.execute(
+    if payload.transaction_type == "Expense"
+        && let Some(budget_id) = payload.budget_item_id
+    {
+        let _ = client
+            .execute(
                 "UPDATE keuangan.budgets SET realized_amount = realized_amount + $1 WHERE id = $2",
                 &[&payload.amount, &budget_id],
-            ).await;
-        }
+            )
+            .await;
     }
 
     Ok(Json(Transaction::from(row)))
