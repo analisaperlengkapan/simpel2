@@ -18,6 +18,8 @@ use crate::{
     handlers::{AppState, ListQuery},
 };
 
+use secreton_core::services::seal::SealState;
+
 /// Create administrative routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
@@ -351,6 +353,24 @@ mod tests {
         let body: ApiResponse<UserResponse> = response.json();
         let fetched_user = body.data.expect("user payload");
         assert_eq!(fetched_user.email, "updated@example.com");
+    }
+
+    #[tokio::test]
+    async fn test_run_security_scan() {
+        let server = server_with_routes().await;
+        let response = server.post("/security/scan").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<SecurityScanResult> = response.json();
+        assert!(body.success);
+        let result = body.data.expect("scan result payload");
+
+        // Check for expected findings with default config
+        // Default JWT secret is "change-this-secret-in-production"
+        assert!(result.findings.iter().any(|f| f.title == "Default JWT Secret"));
+
+        // Vault status should be Sealed by default in mock environment
+        assert!(result.findings.iter().any(|f| f.title == "Vault is Sealed"));
     }
 }
 
@@ -819,23 +839,135 @@ pub async fn get_system_status(
 
 /// Security endpoints
 pub async fn run_security_scan(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SecurityScanResult>>> {
-    // TODO: Implement security scan
+    let mut findings = Vec::new();
+
+    // 1. Check Vault Seal Status
+    let seal_status = state.seal.status().await;
+    if seal_status.state == SealState::Sealed {
+        findings.push(SecurityFinding {
+            severity: "info".to_string(),
+            category: "status".to_string(),
+            title: "Vault is Sealed".to_string(),
+            description: "The vault is currently sealed. Secret operations are unavailable."
+                .to_string(),
+            recommendation: "Unseal the vault to resume normal operations.".to_string(),
+            affected_resources: vec!["vault".to_string()],
+        });
+    }
+
+    // Check for weak seal configuration
+    // Default is 5 shares, threshold 3. If significantly lower, warn.
+    if seal_status.total_shares < 3 || seal_status.threshold < 2 {
+        findings.push(SecurityFinding {
+            severity: "high".to_string(),
+            category: "configuration".to_string(),
+            title: "Weak Seal Configuration".to_string(),
+            description: format!(
+                "Seal configuration uses {} shares with threshold {}. This provides low redundancy and security.",
+                seal_status.total_shares, seal_status.threshold
+            ),
+            recommendation: "Re-initialize or rekey the vault with at least 5 shares and threshold 3."
+                .to_string(),
+            affected_resources: vec!["seal".to_string()],
+        });
+    }
+
+    // 2. Check Authentication Configuration
+    if !state.config.auth.mfa.enabled {
+        findings.push(SecurityFinding {
+            severity: "high".to_string(),
+            category: "configuration".to_string(),
+            title: "MFA Disabled".to_string(),
+            description: "Multi-Factor Authentication is disabled globally.".to_string(),
+            recommendation: "Enable MFA in configuration to improve security.".to_string(),
+            affected_resources: vec!["auth".to_string()],
+        });
+    }
+
+    if state.config.auth.jwt.secret == "change-this-secret-in-production" {
+        findings.push(SecurityFinding {
+            severity: "critical".to_string(),
+            category: "configuration".to_string(),
+            title: "Default JWT Secret".to_string(),
+            description: "The system is using the default JWT signing secret.".to_string(),
+            recommendation: "Change the JWT_SECRET environment variable immediately.".to_string(),
+            affected_resources: vec!["auth".to_string(), "jwt".to_string()],
+        });
+    }
+
+    if state.config.auth.jwt.algorithm == "none" {
+        findings.push(SecurityFinding {
+            severity: "critical".to_string(),
+            category: "configuration".to_string(),
+            title: "Insecure JWT Algorithm".to_string(),
+            description: "The JWT algorithm is set to 'none', which disables signature verification."
+                .to_string(),
+            recommendation: "Set JWT algorithm to HS256, RS256 or similar.".to_string(),
+            affected_resources: vec!["auth".to_string(), "jwt".to_string()],
+        });
+    }
+
+    // 3. Check Database Configuration
+    if state.config.database.password == "secreton" {
+        findings.push(SecurityFinding {
+            severity: "critical".to_string(),
+            category: "configuration".to_string(),
+            title: "Default Database Password".to_string(),
+            description: "The database connection is using the default password.".to_string(),
+            recommendation: "Change the database password in production.".to_string(),
+            affected_resources: vec!["database".to_string()],
+        });
+    }
+
+    if state.config.database.host == "localhost" || state.config.database.host == "127.0.0.1" {
+        findings.push(SecurityFinding {
+            severity: "low".to_string(),
+            category: "configuration".to_string(),
+            title: "Database on Localhost".to_string(),
+            description: "Database is running on localhost. For high availability, use a separate database server."
+                .to_string(),
+            recommendation: "Deploy database on a separate secure host.".to_string(),
+            affected_resources: vec!["database".to_string()],
+        });
+    }
+
+    // 4. Check TLS Configuration
+    if state.config.tls.is_none() {
+        findings.push(SecurityFinding {
+            severity: "high".to_string(),
+            category: "configuration".to_string(),
+            title: "TLS Disabled".to_string(),
+            description: "API server is running without TLS encryption.".to_string(),
+            recommendation: "Configure TLS certificate and key to enable HTTPS.".to_string(),
+            affected_resources: vec!["api".to_string(), "network".to_string()],
+        });
+    }
+
+    // 5. Check Logging Configuration
+    if state.config.logging.level.eq_ignore_ascii_case("trace")
+        || state.config.logging.level.eq_ignore_ascii_case("debug")
+    {
+        findings.push(SecurityFinding {
+            severity: "medium".to_string(),
+            category: "configuration".to_string(),
+            title: "Verbose Logging Enabled".to_string(),
+            description: format!(
+                "Logging level is set to '{}', which may expose sensitive information in logs.",
+                state.config.logging.level
+            ),
+            recommendation: "Set log level to 'info' or 'warn' in production.".to_string(),
+            affected_resources: vec!["logging".to_string()],
+        });
+    }
+
     let scan_result = SecurityScanResult {
         scan_id: uuid::Uuid::new_v4().to_string(),
         status: "completed".to_string(),
-        started_at: chrono::Utc::now() - chrono::Duration::minutes(5),
+        started_at: chrono::Utc::now(),
         completed_at: Some(chrono::Utc::now()),
-        findings: vec![SecurityFinding {
-            severity: "low".to_string(),
-            category: "configuration".to_string(),
-            title: "Default admin password".to_string(),
-            description: "The default admin password should be changed".to_string(),
-            recommendation: "Change the default admin password to a strong, unique password"
-                .to_string(),
-            affected_resources: vec!["admin".to_string()],
-        }],
+        findings,
     };
 
     Ok(Json(ApiResponse::success(scan_result)))

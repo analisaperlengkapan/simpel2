@@ -153,6 +153,12 @@ impl AdminService {
         })
     }
 
+    /// Track a request for RPM calculation
+    pub fn track_request(&self) {
+        // TODO: Implement request tracking
+        // For now, no-op to satisfy middleware
+    }
+
     /// Get system statistics
     pub async fn get_system_stats(&self) -> Result<SystemStats, AdminError> {
         // Get storage statistics
