@@ -348,6 +348,24 @@ impl DatabaseSecretsEngine {
         Ok(())
     }
 
+    /// Get database role
+    pub async fn get_role(&self, name: &str) -> Option<DatabaseRole> {
+        let roles = self.roles.read().await;
+        roles.get(name).cloned()
+    }
+
+    /// List database roles
+    pub async fn list_roles(&self) -> Vec<String> {
+        let roles = self.roles.read().await;
+        roles.keys().cloned().collect()
+    }
+
+    /// Delete database role
+    pub async fn delete_role(&self, name: &str) -> Result<bool, DatabaseError> {
+        let mut roles = self.roles.write().await;
+        Ok(roles.remove(name).is_some())
+    }
+
     /// Generate credentials for a role
     pub async fn generate_credentials(
         &self,
