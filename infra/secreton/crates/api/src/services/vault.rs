@@ -275,6 +275,13 @@ impl VaultService {
         let key_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
 
+        // Generate a simulated public key for the new key (since we aren't hooking into a real KMS yet)
+        // In a real implementation, this would come from the HSM or CryptoEngine
+        let public_key = Some(format!(
+            "-----BEGIN PUBLIC KEY-----\n(simulated key material for {} version 1)\n-----END PUBLIC KEY-----",
+            key_name
+        ));
+
         // Create key metadata
         let key_info = KeyInfo {
             id: key_id.clone(),
@@ -282,6 +289,7 @@ impl VaultService {
             key_type: key_type.to_string(),
             version: 1,
             created_at: now,
+            public_key,
         };
 
         // Serialize and store key metadata
@@ -561,6 +569,13 @@ impl VaultService {
         // Increment version
         key_info.version += 1;
 
+        // Update public key for new version
+        key_info.public_key = Some(format!(
+            "-----BEGIN PUBLIC KEY-----\n(simulated key material for {} version {})\n-----END PUBLIC KEY-----",
+            key_info.name,
+            key_info.version
+        ));
+
         // Store updated key metadata
         let metadata = serde_json::to_vec(&key_info)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
@@ -771,6 +786,8 @@ pub struct KeyInfo {
     pub key_type: String,
     pub version: u32,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Encryption result

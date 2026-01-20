@@ -650,7 +650,7 @@ pub async fn create_key(
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
-        public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+        public_key: key_info.public_key,
     };
 
     // Audit log
@@ -685,7 +685,7 @@ pub async fn get_key(
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
-        public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+        public_key: key_info.public_key,
     };
 
     Ok(Json(ApiResponse::success(key)))
@@ -718,7 +718,7 @@ pub async fn list_keys(
             version: key_info.version,
             created_at: key_info.created_at,
             status: "active".to_string(),
-            public_key: None,
+            public_key: key_info.public_key,
         })
         .collect();
 
@@ -750,7 +750,7 @@ pub async fn rotate_key(
         version: key_info.version,
         created_at: key_info.created_at,
         status: "active".to_string(),
-        public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+        public_key: key_info.public_key,
     };
 
     // Audit log
@@ -1006,7 +1006,7 @@ pub async fn list_key_versions(
             version: key_info.version,
             created_at: key_info.created_at,
             status: "active".to_string(),
-            public_key: Some("-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----".to_string()),
+            public_key: key_info.public_key,
         })
         .collect();
 
