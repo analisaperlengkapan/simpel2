@@ -885,25 +885,68 @@ pub async fn oauth_login(
 
 /// OAuth callback handler
 pub async fn oauth_callback(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(provider): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
-    // TODO: Implement OAuth callback
-    // 1. Verify state parameter
-    // 2. Exchange code for access token
-    // 3. Fetch user information
-    // 4. Create/update user account
-    // 5. Generate JWT tokens
+    // 1. Extract and validate parameters
+    let code = params.get("code").ok_or(ApiError::Validation {
+        message: "Missing 'code' parameter".to_string(),
+        field: Some("code".to_string()),
+        details: None,
+    })?;
 
+    let state_token = params.get("state").ok_or(ApiError::Validation {
+        message: "Missing 'state' parameter".to_string(),
+        field: Some("state".to_string()),
+        details: None,
+    })?;
+
+    // 2. Verify state against storage (CSRF protection)
+    let state_path = format!("sys/oauth/states/{}", state_token);
+
+    // Retrieve and immediately delete to prevent reuse (best practice)
+    let state_entry = match state.storage.get_by_path(&state_path).await {
+        Ok(Some(entry)) => {
+            // Delete state
+            let _ = state.storage.delete_by_path(&state_path).await;
+            entry
+        },
+        Ok(None) => return Err(ApiError::Authentication {
+            message: "Invalid or expired OAuth state".to_string(),
+        }),
+        Err(e) => return Err(ApiError::Internal {
+            message: format!("Failed to verify OAuth state: {}", e),
+        }),
+    };
+
+    // Verify provider matches
+    let stored_provider = state_entry.metadata.get("provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if stored_provider != provider {
+        return Err(ApiError::Authentication {
+            message: "OAuth state provider mismatch".to_string(),
+        });
+    }
+
+    // 3. TODO: Exchange code for access token using provider config
+    // let oauth_config = state.config.auth.oauth2.as_ref().unwrap();
+    // let provider_config = oauth_config.providers.iter().find(|p| p.name == provider).unwrap();
+    // ...
+
+    tracing::info!(provider = %provider, "OAuth callback validated successfully");
+
+    // Mock response for now until full token exchange is implemented
     let response = LoginResponse {
         access_token: "oauth_jwt_token".to_string(),
         refresh_token: "oauth_refresh_token".to_string(),
         token_type: "Bearer".to_string(),
         expires_in: 3600,
         user: UserInfo {
-            username: "oauth_user".to_string(),
-            email: Some("oauth@example.com".to_string()),
+            username: format!("oauth_{}", provider),
+            email: Some(format!("user@{}.example.com", provider)),
             display_name: Some("OAuth User".to_string()),
             groups: vec![],
             policies: vec!["default".to_string()],
