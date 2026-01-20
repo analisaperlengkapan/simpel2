@@ -37,6 +37,8 @@ use crate::{
     services::namespace_persistence,
 };
 
+use secreton_storage::QueryParams;
+
 /// Create namespace routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
@@ -697,8 +699,58 @@ pub async fn delete_namespace(
     }
 
     // Check if namespace has active resources (secrets, leases, etc.)
-    // TODO: Query storage backend for active resources
-    // For now, we'll allow deletion if no children
+    // Get namespace for resource check
+    let namespace = hierarchy
+        .get_namespace(&id)
+        .ok_or_else(|| CoreError::not_found(format!("namespace: {}", id)))?;
+
+    // Check for active secrets
+    let secret_params = QueryParams {
+        path_prefix: Some(format!("{}/", namespace.path)),
+        security_level: None,
+        tags: Vec::new(),
+        owner_id: None,
+        metadata_filters: HashMap::new(),
+        include_expired: false,
+        limit: Some(1),
+        offset: None,
+        sort_by: None,
+        sort_order: None,
+    };
+
+    let secrets = state
+        .storage
+        .list(&secret_params)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to list secrets: {}", e),
+        })?;
+
+    if !secrets.is_empty() {
+        return Err(ApiError::Conflict {
+            resource: format!("namespace {} with active secrets", id),
+        });
+    }
+
+    // Check for active leases
+    let lease_count = state
+        .lease_manager
+        .count_leases(
+            None,
+            Some(namespace.id.clone()),
+            None,
+            Some("active".to_string()),
+        )
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to count leases: {}", e),
+        })?;
+
+    if lease_count > 0 {
+        return Err(ApiError::Conflict {
+            resource: format!("namespace {} with {} active leases", id, lease_count),
+        });
+    }
 
     // Remove namespace from hierarchy
     hierarchy.delete_namespace(&id)?;
