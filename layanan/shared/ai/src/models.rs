@@ -3,7 +3,9 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
+use tokio::sync::RwLock;
 
+#[derive(Clone)]
 pub struct AppState {
     pub pool: Pool,
     pub config: crate::config::Config,
@@ -11,6 +13,7 @@ pub struct AppState {
     pub ocr_service: OcrService,
     pub rag_service: RagService,
     pub job_queue: Arc<Mutex<JobQueue>>,
+    pub model_registry: Arc<RwLock<ModelRegistry>>,
 }
 
 #[derive(Clone, Debug)]

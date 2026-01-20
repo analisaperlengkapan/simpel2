@@ -5,13 +5,9 @@ use crate::models::AppState;
 use uuid::Uuid;
 use validator::Validate;
 use serde::Deserialize;
-use crate::models::{ModelRegistry, ModelMetadata};
+use crate::models::ModelMetadata;
 use chrono::Utc;
 use reqwest::Client;
-use tokio::sync::RwLock;
-use once_cell::sync::Lazy;
-
-static REGISTRY: Lazy<RwLock<ModelRegistry>> = Lazy::new(|| RwLock::new(ModelRegistry::new()));
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct GenerateTextRequest {
@@ -69,7 +65,7 @@ macro_rules! not_implemented {
     };
 }
 
-pub async fn generate_text(State(state): State<AppState>, Json(payload): Json<GenerateTextRequest>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn generate_text(State(_state): State<AppState>, Json(payload): Json<GenerateTextRequest>) -> (StatusCode, Json<serde_json::Value>) {
     if let Err(e) = payload.validate() {
         return (StatusCode::BAD_REQUEST, Json(json!({"error": format!("Validation error: {}", e)})));
     }
@@ -105,9 +101,9 @@ pub async fn download_model(_: State<AppState>, Path(_): Path<String>) -> (Statu
     (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "Not implemented"})))
 }
 
-pub async fn approve_model(State(_): State<AppState>, Path(id): Path<String>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn approve_model(State(state): State<AppState>, Path(id): Path<String>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
     let user = payload["user"].as_str().unwrap_or("admin");
-    if REGISTRY.write().await.approve_model(&id, user) {
+    if state.model_registry.write().await.approve_model(&id, user) {
         (StatusCode::OK, Json(json!({"model_id": id, "status": "approved", "approved_by": user})))
     } else {
         (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
@@ -192,11 +188,13 @@ mod tests {
     use axum::extract::State;
     use serde_json::json;
     use std::sync::{Arc, Mutex};
-    use crate::models::{AppState, JobQueue};
+    use tokio::sync::RwLock;
+    use crate::models::{AppState, JobQueue, ModelRegistry};
 
     #[tokio::test]
     async fn test_health() {
         let job_queue = Arc::new(Mutex::new(JobQueue::new()));
+        let model_registry = Arc::new(RwLock::new(ModelRegistry::new()));
         let pool_config = deadpool_postgres::Config {
             user: Some("user".to_string()),
             password: Some("pass".to_string()),
@@ -212,6 +210,7 @@ mod tests {
             ocr_service: crate::ocr::OcrService,
             rag_service: crate::rag::RagService,
             job_queue: job_queue.clone(),
+            model_registry: model_registry.clone(),
         };
         let (status, _) = health(State(state)).await;
         assert_eq!(status, StatusCode::OK);
@@ -223,6 +222,7 @@ mod tests {
         // I will keep it as is, but it might fail to compile if I don't import everything.
         // It imports AppState, JobQueue.
         let job_queue = Arc::new(Mutex::new(JobQueue::new()));
+        let model_registry = Arc::new(RwLock::new(ModelRegistry::new()));
         let pool_config = deadpool_postgres::Config {
             user: Some("user".to_string()),
             password: Some("pass".to_string()),
@@ -240,6 +240,7 @@ mod tests {
             ocr_service: crate::ocr::OcrService,
             rag_service: crate::rag::RagService,
             job_queue: job_queue.clone(),
+            model_registry: model_registry.clone(),
         };
         let payload = json!({"job_type": "test", "data": "abc"});
         let (status, resp) = enqueue_job(State(state.clone()), axum::Json(payload)).await;
@@ -251,7 +252,7 @@ mod tests {
     }
 }
 
-pub async fn register_model(State(_): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn register_model(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
     let id = Uuid::new_v4().to_string();
     let meta = ModelMetadata {
         id: id.clone(),
@@ -262,12 +263,12 @@ pub async fn register_model(State(_): State<AppState>, Json(payload): Json<serde
         created_at: Utc::now(),
         approved_by: None,
     };
-    REGISTRY.write().await.add_model(meta);
+    state.model_registry.write().await.add_model(meta);
     (StatusCode::OK, Json(json!({"model_id": id, "status": "draft"})))
 }
 
-pub async fn get_model(State(_): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
-    if let Some(meta) = REGISTRY.read().await.get_model(&id) {
+pub async fn get_model(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+    if let Some(meta) = state.model_registry.read().await.get_model(&id) {
         let response = json!({
             "id": meta.id,
             "name": meta.name,
