@@ -58,5 +58,3 @@ cfg_aliases = "0.2"
 wasm-bindgen-test = { workspace = true }
 console_error_panic_hook = { workspace = true }
 tokio-test = { workspace = true }
-
-# Optimasi compile time dan runtime
