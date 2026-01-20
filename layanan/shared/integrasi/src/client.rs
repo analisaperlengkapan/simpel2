@@ -127,78 +127,6 @@ impl MonsaktiClient {
                 );
             }
 
-            // Try dengan ureq untuk data fetch juga
-            info!("Using ureq for data fetch...");
-            let url_clone = url.clone();
-            let token_clone = token.clone();
-
-            let ureq_result = tokio::task::spawn_blocking(move || {
-                Self::fetch_with_ureq_static(&url_clone, &token_clone)
-            })
-            .await;
-
-            match ureq_result {
-                Ok(Ok(json_response)) => {
-                    info!("✓ ureq data fetch SUCCESS!");
-
-                    // MonSAKTI response format: [[{"TOKEN":"..."}], [data, data, ...]]
-                    // Parse as array dan extract token + data
-                    if let Some(arr) = json_response.as_array()
-                        && arr.len() >= 2
-                    {
-                        // Element 0: token array
-                        let mut new_token_opt = None;
-                        if let Some(token_arr) = arr[0].as_array()
-                            && let Some(token_obj) = token_arr.first()
-                            && let Some(token_str) = token_obj.get("TOKEN").and_then(|t| t.as_str())
-                        {
-                            new_token_opt = Some(token_str.to_string());
-                            info!("Memperbarui token untuk modul {}", module);
-                            self.current_tokens
-                                .insert(module.to_string(), token_str.to_string());
-
-                            // Save token baru ke database
-                            if let Some(db) = &self.db_client {
-                                match self.save_token_to_db(db, module, token_str).await {
-                                    Ok(_) => info!(
-                                        "✓ Token dari response disimpan ke database (modul: {})",
-                                        module
-                                    ),
-                                    Err(e) => warn!(
-                                        "⚠ Gagal simpan token dari response ke database: {:?}",
-                                        e
-                                    ),
-                                }
-                            }
-                        }
-
-                        // Element 1: data array
-                        let data_value = arr[1].clone();
-
-                        return Ok(MonsaktiResponse {
-                            new_token: new_token_opt,
-                            data: Some(data_value),
-                            error: None,
-                        });
-                    }
-
-                    // Fallback: treat as plain JSON
-                    return Ok(MonsaktiResponse {
-                        new_token: None,
-                        data: Some(json_response),
-                        error: None,
-                    });
-                }
-                Ok(Err(e)) => {
-                    warn!(
-                        "⚠ ureq data fetch failed: {}, trying reqwest fallback...",
-                        e
-                    );
-                }
-                Err(e) => {
-                    warn!("⚠ ureq spawn failed: {:?}, trying reqwest fallback...", e);
-                }
-            }
 
             let response = self
                 .client
@@ -244,7 +172,56 @@ impl MonsaktiClient {
                 )));
             }
 
-            let result: MonsaktiResponse = response.json().await?;
+            let json_response: serde_json::Value = response.json().await?;
+
+            // Coba parsing format Array khusus MonSAKTI: [[{"TOKEN":"..."}], [data, data, ...]]
+            if let Some(arr) = json_response.as_array()
+                && arr.len() >= 2
+            {
+                // Element 0: token array
+                let mut new_token_opt = None;
+                if let Some(token_arr) = arr[0].as_array()
+                    && let Some(token_obj) = token_arr.first()
+                    && let Some(token_str) = token_obj.get("TOKEN").and_then(|t| t.as_str())
+                {
+                    new_token_opt = Some(token_str.to_string());
+                    info!("Memperbarui token untuk modul {}", module);
+                    self.current_tokens
+                        .insert(module.to_string(), token_str.to_string());
+
+                    // Save token baru ke database
+                    if let Some(db) = &self.db_client {
+                        match self.save_token_to_db(db, module, token_str).await {
+                            Ok(_) => info!(
+                                "✓ Token dari response disimpan ke database (modul: {})",
+                                module
+                            ),
+                            Err(e) => warn!(
+                                "⚠ Gagal simpan token dari response ke database: {:?}",
+                                e
+                            ),
+                        }
+                    }
+                }
+
+                // Element 1: data array
+                let data_value = arr[1].clone();
+
+                return Ok(MonsaktiResponse {
+                    new_token: new_token_opt,
+                    data: Some(data_value),
+                    error: None,
+                });
+            }
+
+            // Fallback: parse sebagai MonsaktiResponse standar (JSON Object)
+            // Jika gagal parse sebagai MonsaktiResponse, bungkus JSON raw ke dalam data
+            let result: MonsaktiResponse = serde_json::from_value(json_response.clone())
+                .unwrap_or_else(|_| MonsaktiResponse {
+                    new_token: None,
+                    data: Some(json_response),
+                    error: None,
+                });
 
             if let Some(error_msg) = &result.error {
                 if error_msg.contains("Token Expired")
@@ -374,45 +351,6 @@ impl MonsaktiClient {
         );
         info!("Token length: {} bytes", token.len());
 
-        // Try dengan ureq (synchronous client) untuk comparison
-        info!("Testing with ureq (synchronous HTTP client)...");
-        let url_clone = url.clone();
-        let token_clone = token.clone();
-
-        let ureq_result = tokio::task::spawn_blocking(move || {
-            Self::try_reset_with_ureq_static(&url_clone, &token_clone)
-        })
-        .await;
-
-        match ureq_result {
-            Ok(Ok(new_token)) => {
-                info!("✓ ureq SUCCESS! Got token from ureq");
-                info!(
-                    "Token baru (20 karakter): {}...",
-                    &new_token.chars().take(20).collect::<String>()
-                );
-
-                // Update cache
-                self.current_tokens
-                    .insert(module.to_string(), new_token.clone());
-
-                // Save to database
-                if let Some(db) = &self.db_client {
-                    match self.save_token_to_db(db, module, &new_token).await {
-                        Ok(_) => info!("✓ Token baru disimpan ke database (modul: {})", module),
-                        Err(e) => warn!("⚠ Gagal simpan token ke database: {:?}", e),
-                    }
-                }
-
-                return Ok(new_token);
-            }
-            Ok(Err(e)) => {
-                warn!("⚠ ureq failed: {}, falling back to reqwest...", e);
-            }
-            Err(e) => {
-                warn!("⚠ ureq spawn failed: {:?}, falling back to reqwest...", e);
-            }
-        }
 
         let response = self
             .client
@@ -481,69 +419,6 @@ impl MonsaktiClient {
         self.reset_token(module, tipe_data, "KL006").await
     }
 
-    /// Fetch data with ureq (synchronous client)
-    fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
-            .call()
-            .map_err(|e| format!("ureq request error: {}", e))?;
-
-        let status = response.status();
-        tracing::info!("ureq data fetch response status: {}", status);
-
-        if status != 200 {
-            let body = response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| format!("Read body error: {}", e))?;
-            return Err(format!("ureq HTTP {}: {}", status, body));
-        }
-
-        let json: serde_json::Value = response
-            .body_mut()
-            .read_json()
-            .map_err(|e| format!("JSON parse error: {}", e))?;
-
-        Ok(json)
-    }
-
-    /// Try reset token with ureq (synchronous client) for debugging - static version
-    fn try_reset_with_ureq_static(url: &str, token: &str) -> Result<String, String> {
-        #[derive(serde::Deserialize)]
-        struct TokenItem {
-            #[serde(rename = "TOKEN")]
-            token: String,
-        }
-
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
-            .call()
-            .map_err(|e| format!("ureq request error: {}", e))?;
-
-        let status = response.status();
-        tracing::info!("ureq response status: {}", status);
-
-        if status != 200 {
-            let body = response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| format!("Read body error: {}", e))?;
-            return Err(format!("ureq HTTP {}: {}", status, body));
-        }
-
-        let tokens: Vec<TokenItem> = response
-            .body_mut()
-            .read_json()
-            .map_err(|e| format!("JSON parse error: {}", e))?;
-
-        if tokens.is_empty() {
-            return Err("Empty token array".to_string());
-        }
-
-        Ok(tokens[0].token.clone())
-    }
 
     /// Simpan token baru ke database
     async fn save_token_to_db(
