@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 // Core modules
 pub mod audit;
 pub mod client;
@@ -39,13 +41,14 @@ pub use db::{bulk_insert_postgres, save_to_database};
 
 // API module exports
 pub use monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
-pub use mysimkari::mysimkari::{get_satker, pegawai_satker};
+pub use mysimkari::api::{get_satker, pegawai_satker};
 
 // SIMAN module exports
 pub use siman::{
     SimanAssetCategory, SimanDataRequest, SimanResponse, SimanTokenResponse,
-    fetch_all_aset_paginated, get_aset_alat_besar, get_aset_alat_persenjataan,
-    get_aset_angkutan_bermotor, get_aset_bangunan_air, get_aset_by_category,
+    fetch_all_aset_paginated, fetch_all_assets_with_pagination, get_aset_alat_besar,
+    get_aset_alat_persenjataan, get_aset_angkutan_bermotor, get_aset_bangunan_air,
+    get_aset_by_category,
     get_aset_gedung_bangunan, get_aset_instalasi_jaringan, get_aset_jalan_jembatan, get_aset_kdp,
     get_aset_khusus_tik, get_aset_non_tik, get_aset_rumah, get_aset_tak_berwujud, get_aset_tanah,
     get_aset_tetap_lainnya, get_aset_tetap_renovasi, get_row_count,

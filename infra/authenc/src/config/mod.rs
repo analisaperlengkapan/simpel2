@@ -367,7 +367,6 @@ use crate::middleware::adaptive_rate_limit::AdaptiveRateLimitConfig;
 use crate::middleware::rate_limit_axum::RateLimitConfig;
 
 /// Dynamic configuration management for adaptive security and performance
-///
 /// This module provides runtime configuration adjustment based on system load,
 /// threat levels, and performance metrics. It enables the system to adapt
 /// security posture and resource allocation dynamically.
@@ -724,23 +723,19 @@ impl DatabaseConfig {
 }
 
 /// Security configuration for the authentication platform
-///
 /// This struct contains all security-related configuration parameters for the
 /// authentication platform, including JWT settings, password policies, rate limiting,
 /// and brute force protection. All fields have sensible defaults and can be
 /// configured via environment variables or configuration files.
-///
 /// # Security Considerations
 /// - JWT secrets should be cryptographically secure random values
 /// - Password policies should follow industry best practices
 /// - Rate limiting helps prevent DoS attacks
 /// - Brute force protection prevents credential stuffing attacks
 /// - All timeouts and limits should be tuned for your security requirements
-///
 /// # Example
 /// ```rust
 /// use authenc::config::BasicSecurityConfig;
-///
 /// let config = BasicSecurityConfig {
 ///     jwt_secret: "your-secure-jwt-secret".to_string(),
 ///     jwt_expiry: 3600, // 1 hour

@@ -16,7 +16,6 @@ use uuid::Uuid;
 // ============================================================================
 
 /// List all client scopes in a realm
-///
 /// GET /api/v1/realms/{realm_id}/client-scopes
 #[axum::debug_handler]
 pub async fn list_client_scopes(
@@ -42,7 +41,6 @@ pub struct ListScopesQuery {
 }
 
 /// Get a specific client scope
-///
 /// GET /api/v1/realms/{realm_id}/client-scopes/{scope_id}
 #[axum::debug_handler]
 pub async fn get_client_scope(
@@ -60,7 +58,6 @@ pub async fn get_client_scope(
 }
 
 /// Create a new client scope
-///
 /// POST /api/v1/realms/{realm_id}/client-scopes
 #[axum::debug_handler]
 pub async fn create_client_scope(
@@ -78,7 +75,6 @@ pub async fn create_client_scope(
 }
 
 /// Update a client scope
-///
 /// PUT /api/v1/realms/{realm_id}/client-scopes/{scope_id}
 #[axum::debug_handler]
 pub async fn update_client_scope(
@@ -96,7 +92,6 @@ pub async fn update_client_scope(
 }
 
 /// Delete a client scope
-///
 /// DELETE /api/v1/realms/{realm_id}/client-scopes/{scope_id}
 #[axum::debug_handler]
 pub async fn delete_client_scope(
@@ -121,7 +116,6 @@ pub async fn delete_client_scope(
 // ============================================================================
 
 /// Get all scopes assigned to a client
-///
 /// GET /api/v1/clients/{client_id}/scopes
 #[axum::debug_handler]
 pub async fn get_client_scopes(
@@ -159,7 +153,6 @@ pub struct ClientScopesResponse {
 }
 
 /// Assign scopes to a client
-///
 /// PUT /api/v1/clients/{client_id}/scopes
 #[axum::debug_handler]
 pub async fn assign_client_scopes(
@@ -177,7 +170,6 @@ pub async fn assign_client_scopes(
 }
 
 /// Get default scopes for a client
-///
 /// GET /api/v1/clients/{client_id}/default-scopes
 #[axum::debug_handler]
 pub async fn get_client_default_scopes(
@@ -195,7 +187,6 @@ pub async fn get_client_default_scopes(
 }
 
 /// Get optional scopes for a client
-///
 /// GET /api/v1/clients/{client_id}/optional-scopes
 #[axum::debug_handler]
 pub async fn get_client_optional_scopes(
@@ -217,7 +208,6 @@ pub async fn get_client_optional_scopes(
 // ============================================================================
 
 /// Check if user consent is required for scopes
-///
 /// POST /api/v1/users/{user_id}/clients/{client_id}/consent/check
 #[axum::debug_handler]
 pub async fn check_user_consent(
@@ -240,7 +230,6 @@ pub struct CheckConsentRequest {
 }
 
 /// Grant user consent for scopes
-///
 /// POST /api/v1/users/{user_id}/clients/{client_id}/consent
 #[axum::debug_handler]
 pub async fn grant_user_consent(
@@ -282,7 +271,6 @@ pub struct GrantConsentRequestBody {
 }
 
 /// Get consented scopes for a user and client
-///
 /// GET /api/v1/users/{user_id}/clients/{client_id}/consents
 #[axum::debug_handler]
 pub async fn get_user_consents(
@@ -300,7 +288,6 @@ pub async fn get_user_consents(
 }
 
 /// Revoke user consent for scopes
-///
 /// DELETE /api/v1/users/{user_id}/clients/{client_id}/consents
 #[axum::debug_handler]
 pub async fn revoke_user_consent(
@@ -329,7 +316,6 @@ pub struct RevokeConsentRequest {
 // ============================================================================
 
 /// Validate requested scopes for a client
-///
 /// POST /api/v1/clients/{client_id}/validate-scopes
 #[axum::debug_handler]
 pub async fn validate_scopes(
@@ -366,7 +352,6 @@ pub struct ValidateScopesRequest {
 // ============================================================================
 
 /// Get standard OIDC scopes for a realm
-///
 /// GET /api/v1/realms/{realm_id}/client-scopes/standard
 #[axum::debug_handler]
 pub async fn get_standard_scopes(
@@ -384,7 +369,6 @@ pub async fn get_standard_scopes(
 }
 
 /// Initialize standard scopes for a realm
-///
 /// POST /api/v1/realms/{realm_id}/client-scopes/initialize
 #[axum::debug_handler]
 pub async fn initialize_standard_scopes(

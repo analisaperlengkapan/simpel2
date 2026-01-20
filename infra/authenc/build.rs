@@ -30,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Configure tonic-build
-    tonic_build::configure()
+    // Configure tonic-prost-build (tonic 0.14+)
+    tonic_prost_build::configure()
         // Set the output directory for generated code
         .build_server(true)
         .build_client(true)

@@ -603,6 +603,10 @@ impl AppState {
             tracing::info!("User sync scheduler not configured");
         }
 
+        // Clone Arc references needed for later field initializers before moving
+        let config_ref = config.clone();
+        let database_ref = database.clone();
+
         Ok(Self {
             config: config.clone(),
             database: database.clone(),
@@ -646,47 +650,53 @@ impl AppState {
             federation_manager,
             user_sync_service: user_sync_service.clone(),
             uma_policy_store: Arc::new(crate::services::uma_policy_store::UmaPolicyStore::new(
-                database.clone(),
+                database_ref.clone(),
             )),
             uma_delegation_policy_store: Arc::new(
-                crate::services::uma_policy_store::UmaDelegationPolicyStore::new(database.clone()),
+                crate::services::uma_policy_store::UmaDelegationPolicyStore::new(
+                    database_ref.clone(),
+                ),
             ),
             uma_policy_engine: Arc::new(crate::services::uma::PolicyEngine::new(
-                database.clone(),
+                database_ref.clone(),
                 resource_store.clone(),
             )),
             uma_rpt_service: Arc::new(
                 crate::services::uma::RptService::new(
                     "authenc".to_string(), // issuer
                     // In production, load signing keys from Secreton
-                    jsonwebtoken::EncodingKey::from_secret(config.security.jwt_secret.as_bytes()),
-                    jsonwebtoken::DecodingKey::from_secret(config.security.jwt_secret.as_bytes()),
+                    jsonwebtoken::EncodingKey::from_secret(
+                        config_ref.security.jwt_secret.as_bytes(),
+                    ),
+                    jsonwebtoken::DecodingKey::from_secret(
+                        config_ref.security.jwt_secret.as_bytes(),
+                    ),
                 )
                 .with_lifetime(3600),
             ), // token lifetime: 1 hour
             uma_permission_endpoint: {
                 let uma_policy_store = Arc::new(
-                    crate::services::uma_policy_store::UmaPolicyStore::new(database.clone()),
+                    crate::services::uma_policy_store::UmaPolicyStore::new(database_ref.clone()),
                 );
                 let uma_rpt_service = Arc::new(
                     crate::services::uma::RptService::new(
                         "authenc".to_string(),
                         jsonwebtoken::EncodingKey::from_secret(
-                            config.security.jwt_secret.as_bytes(),
+                            config_ref.security.jwt_secret.as_bytes(),
                         ),
                         jsonwebtoken::DecodingKey::from_secret(
-                            config.security.jwt_secret.as_bytes(),
+                            config_ref.security.jwt_secret.as_bytes(),
                         ),
                     )
                     .with_lifetime(3600),
                 );
                 let uma_policy_engine = Arc::new(crate::services::uma::PolicyEngine::new(
-                    database.clone(),
+                    database_ref.clone(),
                     resource_store.clone(),
                 ));
 
                 Arc::new(crate::services::uma::PermissionEndpoint::new(
-                    database.clone(),
+                    database_ref.clone(),
                     resource_store.clone(),
                     permission_ticket_store.clone(),
                     uma_policy_engine,
@@ -697,7 +707,10 @@ impl AppState {
             },
             uma_claims_gathering: Arc::new(tokio::sync::Mutex::new(
                 crate::services::uma::ClaimsGatheringService::new(
-                    format!("https://{}:{}", config.server.host, config.server.port), // base_url
+                    format!(
+                        "https://{}:{}",
+                        config_ref.server.host, config_ref.server.port
+                    ), // base_url
                 ),
             )),
             uma_resource_owner_auth: Arc::new(crate::services::uma::ResourceOwnerAuthService::new(

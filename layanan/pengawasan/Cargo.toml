@@ -15,4 +15,9 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v4"] }
+chrono = { workspace = true, features = ["serde"] }
+garde = { workspace = true, features = ["derive"] }
+deadpool-postgres = { workspace = true }
+tokio-postgres = { workspace = true, features = ["with-uuid-1", "with-chrono-0_4"] }
+dotenvy = { workspace = true }

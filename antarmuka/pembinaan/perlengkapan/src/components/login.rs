@@ -33,6 +33,7 @@ mod auth_service {
     use super::*;
 
     /// Store authentication token in localStorage
+    #[allow(dead_code)]
     pub fn store_token(token: &str) -> Result<(), String> {
         window()
             .ok_or("Window not available")?
@@ -44,6 +45,7 @@ mod auth_service {
     }
 
     /// Check if user is authenticated
+    #[allow(dead_code)]
     pub fn is_authenticated() -> bool {
         if let Some(window) = window()
             && let Ok(Some(storage)) = window.local_storage()
@@ -55,18 +57,15 @@ mod auth_service {
 }
 
 /// Login Page Component untuk SIMPEL Perlengkapan
-///
 /// ## Architecture
 /// Menggunakan portal-microfrontend untuk SSO authentication.
 /// Flow: LoginPage -> Portal SSO -> Callback -> Dashboard
-///
 /// ## Features
 /// - Shared components dari shared-microfrontend (Logo)
 /// - Responsive design
 /// - Accessible (WCAG 2.1 AA compliant)
 /// - Loading states dengan feedback visual
 /// - Error handling yang proper
-///
 /// ## Development Mode
 /// Untuk development, tombol login akan simulasi auth dan redirect ke dashboard.
 /// Untuk production, akan redirect ke portal SSO.

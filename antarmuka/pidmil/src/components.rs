@@ -3,11 +3,16 @@ use leptos::prelude::*;
 
 /// Military Case Header Component
 #[component]
+#[allow(dead_code)]
 pub fn MilitaryHeader(
     #[prop(into)] title: String,
     #[prop(optional)] subtitle: Option<String>,
     #[prop(optional)] actions: Option<Vec<(String, String)>>,
 ) -> impl IntoView {
+    // Suppress unused warning since fields are used in template macro
+    let _ = &title;
+    let _ = &subtitle;
+    let _ = &actions;
     view! {
         <div class="bg-white border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">

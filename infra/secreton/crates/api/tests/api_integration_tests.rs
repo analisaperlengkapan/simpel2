@@ -16,7 +16,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use secreton_api::{ApiState, KVApiState, TransitApiState, create_api_router};
+use secreton_api::{ApiState, KVApiState, TransitApiState, PkiApiState, create_api_router};
 use serde_json::json;
 use tower::ServiceExt;
 
@@ -24,6 +24,9 @@ fn create_test_app() -> axum::Router {
     let state = ApiState {
         transit: TransitApiState::default(),
         kv: KVApiState::default(),
+        pki: PkiApiState::default(),
+        services: std::sync::Arc::new(secreton_api::services::ServiceContainer::default()),
+        prometheus_handle: None,
     };
 
     create_api_router(state)

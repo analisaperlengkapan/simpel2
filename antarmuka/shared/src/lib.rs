@@ -17,6 +17,13 @@
 //! `-- utils/         # Utilities (validation, formatters, helpers)
 //! ```
 
+// Allow clippy warnings for common patterns in this crate
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+
 // ============================================================================
 // MODULE DECLARATIONS
 // ============================================================================

@@ -363,7 +363,6 @@ impl TokenResetLog {
 }
 
 /// Helper functions untuk query audit logs
-
 /// Get recent failed API calls
 pub async fn get_recent_failed_calls(db: &Client, limit: i64) -> Result<Vec<Value>, MonsaktiError> {
     let query = r#"

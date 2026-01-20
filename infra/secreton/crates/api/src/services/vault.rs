@@ -93,12 +93,18 @@ impl VaultService {
         let decrypted_data = serde_json::from_slice(&entry.encrypted_data)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
+        // Extract metadata
+        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
+            .unwrap_or_default();
+
         Ok(SecretData {
             path: path.to_string(),
             data: decrypted_data,
+            metadata,
             version: entry.version,
             created_at: entry.created_at,
             updated_at: entry.updated_at,
+            expires_at: entry.expires_at,
         })
     }
 
@@ -107,7 +113,9 @@ impl VaultService {
         &self,
         path: &str,
         data: HashMap<String, String>,
+        metadata: SecretMetadata,
         user_id: &str,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<SecretData, VaultError> {
         // Log audit trail
         let _ = self
@@ -143,12 +151,16 @@ impl VaultService {
         let mut entry = secreton_storage::VaultEntry::new(
             path.to_string(),
             serialized,
-            serde_json::json!({}),
+            serde_json::to_value(&metadata).unwrap_or(serde_json::json!({})),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
         entry.version = version;
         entry.updated_at = now;
+
+        if let Some(expires) = expires_at {
+            entry = entry.with_expiration(expires);
+        }
 
         // Store in storage
         self.storage.store(&entry).await?;
@@ -156,9 +168,11 @@ impl VaultService {
         Ok(SecretData {
             path: path.to_string(),
             data,
+            metadata,
             version,
             created_at: now,
             updated_at: now,
+            expires_at,
         })
     }
 
@@ -652,14 +666,25 @@ impl VaultService {
     }
 }
 
+/// Secret metadata
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct SecretMetadata {
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+    pub owner: Option<String>,
+    pub classification: Option<String>,
+}
+
 /// Secret data structure
 #[derive(Debug, Serialize)]
 pub struct SecretData {
     pub path: String,
     pub data: HashMap<String, String>,
+    pub metadata: SecretMetadata,
     pub version: u32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Key information
@@ -737,12 +762,13 @@ mod tests {
             .await
             .expect("Failed to create VaultService");
 
-        // First create a secret
         let mut data = HashMap::new();
         data.insert("key1".to_string(), "value1".to_string());
-        let _ = service.put_secret("app/config", data, "user1").await;
+        service
+            .put_secret("app/config", data, Default::default(), "user1", None)
+            .await
+            .expect("Failed to put secret");
 
-        // Then retrieve it
         let secret = service.get_secret("app/config", "user1").await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
@@ -762,11 +788,47 @@ mod tests {
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
-        let secret = service.put_secret("app/admin", data, "user1").await;
+        let secret = service
+            .put_secret("app/admin", data, Default::default(), "user1", None)
+            .await;
         assert!(secret.is_ok());
         let secret = secret.unwrap();
         assert_eq!(secret.path, "app/admin");
         assert!(secret.data.contains_key("username"));
+    }
+
+    #[tokio::test]
+    async fn test_put_secret_with_expiration() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
+        let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
+        let service = VaultService::new(storage, crypto, audit)
+            .await
+            .expect("Failed to create VaultService");
+
+        let mut data = HashMap::new();
+        data.insert("key".to_string(), "value".to_string());
+
+        let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
+        let secret = service
+            .put_secret(
+                "app/expiring",
+                data,
+                Default::default(),
+                "user1",
+                Some(expires_at),
+            )
+            .await;
+
+        assert!(secret.is_ok());
+        let secret = secret.unwrap();
+        assert_eq!(secret.expires_at, Some(expires_at));
+
+        // Verify we can retrieve it with expiration
+        let retrieved = service.get_secret("app/expiring", "user1").await;
+        assert!(retrieved.is_ok());
+        assert_eq!(retrieved.unwrap().expires_at, Some(expires_at));
     }
 
     #[tokio::test]
@@ -782,7 +844,6 @@ mod tests {
         let result = service.encrypt("key1", "plaintext", "user1").await;
         assert!(result.is_ok());
         let result = result.unwrap();
-        // Ciphertext should be a non-empty base64 string
         assert!(!result.ciphertext.is_empty());
         assert_eq!(result.key_version, 1);
     }

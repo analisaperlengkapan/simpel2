@@ -272,10 +272,8 @@ impl UserFederationProvider for LdapFederationProvider {
 }
 
 /// Kerberos Federation Provider
-///
 /// Provides authentication against Kerberos Key Distribution Center (KDC).
 /// Supports Kerberos ticket-based authentication for enterprise environments.
-///
 /// # Security Considerations
 /// - Uses secure Kerberos protocol for authentication
 /// - Supports keytab-based authentication for service accounts
@@ -287,10 +285,8 @@ pub struct KerberosFederationProvider {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Configuration for Kerberos federation provider
-///
 /// Defines the parameters required to connect to a Kerberos Key Distribution Center (KDC)
 /// and configure Kerberos-based authentication for enterprise users.
-///
 /// # Fields
 /// * `realm` - The Kerberos realm (domain) for authentication
 /// * `kdc_server` - Address of the Key Distribution Center server
@@ -298,7 +294,6 @@ pub struct KerberosFederationProvider {
 /// * `service_principal` - Kerberos service principal name
 /// * `allow_password_auth` - Whether to allow password-based authentication
 /// * `update_password` - Whether to update passwords in Kerberos database
-///
 /// # Security Considerations
 /// - Keytab files contain sensitive service credentials
 /// - Service principals should have minimal required permissions
@@ -399,10 +394,8 @@ impl UserFederationProvider for KerberosFederationProvider {
 }
 
 /// Social Login Provider trait
-///
 /// Defines the interface for social login providers (OAuth2/OIDC).
 /// Implementations handle the OAuth2 flow for various social platforms.
-///
 /// # Security Considerations
 /// - All OAuth2 flows must use PKCE (Proof Key for Code Exchange)
 /// - State parameters must be validated to prevent CSRF attacks
@@ -471,10 +464,8 @@ pub struct SocialLoginResult {
 }
 
 /// Google OAuth2 Provider
-///
 /// Implements OAuth2 authentication flow for Google accounts.
 /// Supports OpenID Connect for identity verification.
-///
 /// # Security Considerations
 /// - Uses Google's secure OAuth2 endpoints
 /// - Supports OpenID Connect for verified identity claims
@@ -640,10 +631,8 @@ impl SocialLoginProvider for GoogleOAuth2Provider {
 }
 
 /// GitHub OAuth2 Provider
-///
 /// Implements OAuth2 authentication flow for GitHub accounts.
 /// Provides access to GitHub user profile and email information.
-///
 /// # Security Considerations
 /// - Uses GitHub's secure OAuth2 endpoints
 /// - Requires user consent for requested scopes
@@ -858,10 +847,8 @@ impl SocialLoginProvider for GitHubOAuth2Provider {
 }
 
 /// SAML Identity Provider
-///
 /// Implements SAML 2.0 authentication for enterprise identity providers.
 /// Handles SAML assertions and single sign-on (SSO) flows.
-///
 /// # Security Considerations
 /// - Validates SAML assertion signatures using configured certificates
 /// - Supports secure SAML metadata exchange
@@ -875,10 +862,8 @@ pub struct SamlIdentityProvider {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Configuration for SAML Identity Provider
-///
 /// Defines the SAML 2.0 configuration for connecting to an enterprise identity provider.
 /// Includes metadata, certificates, and attribute mappings for SAML authentication.
-///
 /// # Fields
 /// * `entity_id` - Unique identifier for the SAML entity
 /// * `sso_url` - Single sign-on service URL
@@ -887,7 +872,6 @@ pub struct SamlIdentityProvider {
 /// * `name_id_policy` - SAML NameID policy format
 /// * `authn_context_class_refs` - Authentication context class references
 /// * `attribute_mappings` - Mapping of SAML attributes to user profile fields
-///
 /// # Security Considerations
 /// - Signing certificates must be valid and properly chained
 /// - SAML metadata should be exchanged securely
@@ -983,11 +967,9 @@ impl UserFederationProvider for SamlIdentityProvider {
 }
 
 /// Advanced Federation Registry
-///
 /// Central registry for managing multiple federation providers.
 /// Supports both user federation providers (LDAP, Kerberos, SAML) and social login providers (OAuth2).
 /// Provides unified interface for authentication across different provider types.
-///
 /// # Security Considerations
 /// - Provider configurations contain sensitive credentials
 /// - Registry should be initialized securely at startup

@@ -1,20 +1,21 @@
-//! # SIMPelv2 Datun - Criminal Prosecution System
+//! # SIMPelv2 Datun - Perdata dan Tata Usaha Negara
 //!
-//! Modern Leptos 0.7.8 microfrontend for Kejaksaan RI criminal prosecution management.
+//! Modern Leptos 0.7.8 microfrontend for Kejaksaan RI Civil & Administrative Law management.
 //!
 //! ## Features
-//! - **Case Management**: Comprehensive criminal case tracking and management
-//! - **Investigation Support**: Tools for investigation coordination and evidence tracking
-//! - **Prosecution Planning**: Strategic prosecution planning and legal analysis
-//! - **Government Compliance**: WCAG 2.1 AA accessibility and security standards
-//! - **Performance Analytics**: Case resolution metrics and prosecution effectiveness
+//! - **Case Management**: Bantuan Hukum, Pertimbangan Hukum, Penegakan Hukum
+//! - **Legal Services**: Pelayanan Hukum, Tindakan Hukum Lain
+//! - **Performance Analytics**: Pemulihan Keuangan Negara tracking
+//! - **Government Compliance**: WCAG 2.1 AA accessibility
 
-// Modern Leptos imports for 0.7.8
 use wasm_bindgen::prelude::wasm_bindgen;
 
 // Import application modules
 pub mod app;
 pub mod components;
+pub mod pages;
+pub mod types;
+pub mod api;
 
 // Re-export the main App component
 pub use app::App;

@@ -206,6 +206,7 @@ pub mod prelude;
 
 // OpenRaft consensus module (migrated from old raft)
 #[cfg(feature = "raft-consensus")]
+#[cfg(feature = "raft-consensus")]
 pub mod raft;
 
 // Re-export essential backends
@@ -596,7 +597,6 @@ impl StorageError {
 }
 
 /// Simple key-value storage backend trait (HashiCorp Vault-style)
-///
 /// This is the core trait for physical storage backends. All data is pre-encrypted
 /// before being passed to the backend (untrusted storage principle).
 #[async_trait]
@@ -624,7 +624,6 @@ pub trait KvBackend: Send + Sync {
 }
 
 /// High-level storage backend trait for VaultEntry operations
-///
 /// This trait provides structured access to vault entries with metadata,
 /// versioning, and advanced querying capabilities.
 #[async_trait]
@@ -667,6 +666,12 @@ pub trait StorageBackend: Send + Sync {
 
     /// Run migrations
     async fn migrate(&self) -> StorageResult<()>;
+
+    /// Delete expired entries
+    async fn delete_expired(&self) -> StorageResult<u64>;
+
+    /// Compact the storage backend to reclaim space
+    async fn compact(&self) -> StorageResult<()>;
 
     /// Downcast to concrete type for specialized operations
     ///

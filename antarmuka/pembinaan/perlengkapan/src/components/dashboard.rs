@@ -15,6 +15,13 @@ pub struct User {
     pub avatar: Option<String>,
 }
 
+#[allow(dead_code)]
+impl User {
+    pub fn new(name: String, role: String, avatar: Option<String>) -> Self {
+        Self { name, role, avatar }
+    }
+}
+
 /// Dashboard layout component for SIMPEL Perlengkapan
 #[component]
 pub fn DashboardLayout(
@@ -159,69 +166,5 @@ pub fn DashboardLayout(
     }
 }
 
-/// Sidebar item component
-#[component]
-fn SidebarItem(
-    icon: &'static str,
-    title: &'static str,
-    href: &'static str,
-    expanded: ReadSignal<bool>,
-) -> impl IntoView {
-    view! {
-        <a
-            href=href
-            class="flex items-center p-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors group"
-        >
-            <i class=format!("{} text-lg", icon)></i>
-            {move || expanded.get().then(|| view! {
-                <span class="ml-3 font-medium">{title}</span>
-            })}
-        </a>
-    }
-}
-
-/// Sidebar section with expandable submenu
-#[component]
-fn SidebarSection(
-    title: &'static str,
-    icon: &'static str,
-    expanded: ReadSignal<bool>,
-    items: Vec<(String, String)>,
-) -> impl IntoView {
-    let (section_open, set_section_open) = signal(false);
-
-    view! {
-        <div class="space-y-1">
-            <button
-                class="w-full flex items-center justify-between p-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                on:click=move |_| set_section_open.update(|open| *open = !*open)
-            >
-                <div class="flex items-center">
-                    <i class=format!("{} text-lg", icon)></i>
-                    {move || expanded.get().then(|| view! {
-                        <span class="ml-3 font-medium">{title}</span>
-                    })}
-                </div>
-                {move || expanded.get().then(|| view! {
-                    <i class=move || format!(
-                        "fas fa-chevron-{} text-xs transition-transform",
-                        if section_open.get() { "down" } else { "right" }
-                    )></i>
-                })}
-            </button>
-
-            {move || (section_open.get() && expanded.get()).then(|| view! {
-                <div class="ml-6 space-y-1">
-                    {items.iter().map(|(name, href)| view! {
-                        <a
-                            href=href.clone()
-                            class="block p-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        >
-                            {name.clone()}
-                        </a>
-                    }).collect::<Vec<_>>()}
-                </div>
-            })}
-        </div>
-    }
-}
+// Sidebar components removed as they are unused.
+// Use shared components or re-implement when needed.

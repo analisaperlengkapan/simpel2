@@ -123,6 +123,175 @@ mod tests {
         assert!(config.security.mfa_enabled);
         assert_eq!(config.api.version, "1.0.0");
     }
+
+    #[tokio::test]
+    async fn test_get_system_metrics_returns_real_uptime() {
+        let server = server_with_routes().await;
+
+        // Sleep briefly to ensure uptime > 0 (1.1s to be safe vs 1s granularity)
+        tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
+        let response = server.get("/metrics").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<SystemMetrics> = response.json();
+        assert!(body.success);
+        let metrics = body.data.expect("metrics payload");
+
+        // Uptime should be > 0 since we slept
+        assert!(metrics.uptime > 0, "Uptime should be greater than 0");
+        // And definitely not the hardcoded 86400 (1 day)
+        assert!(metrics.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+    }
+
+    #[tokio::test]
+    async fn test_get_system_status_returns_real_uptime() {
+        let server = server_with_routes().await;
+
+        // Sleep briefly (1.1s)
+        tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
+        let response = server.get("/status").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<SystemStatus> = response.json();
+        assert!(body.success);
+        let status = body.data.expect("status payload");
+
+        assert!(status.uptime > 0, "Uptime should be greater than 0");
+        assert!(status.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+    }
+
+    #[tokio::test]
+    async fn test_get_user_retrieves_real_data() {
+        // Initialize services
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create a test user via auth service
+        let user = services
+            .auth
+            .create_user(
+                "realuser",
+                "real@example.com",
+                "password123",
+                Some("Real User"),
+                vec!["user".to_string()],
+                None,
+                true,
+            )
+            .await
+            .expect("Failed to create user");
+
+        // Start server with these services
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        // Fetch the user via API
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        assert!(body.success);
+        let fetched_user = body.data.expect("user payload");
+
+        assert_eq!(fetched_user.id, user.id.to_string());
+        assert_eq!(fetched_user.username, "realuser");
+        assert_eq!(fetched_user.email, "real@example.com");
+        assert_eq!(fetched_user.full_name, Some("Real User".to_string()));
+        assert!(fetched_user.roles.contains(&"user".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_get_user_with_multiple_roles_and_permissions() {
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Create user with multiple roles (admin has "*", user has basic)
+        let user = services
+            .auth
+            .create_user(
+                "poweruser",
+                "power@example.com",
+                "password123",
+                None,
+                vec!["admin".to_string(), "user".to_string()],
+                None,
+                true,
+            )
+            .await
+            .expect("Failed to create user");
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        let fetched_user = body.data.expect("user payload");
+
+        // Admin role should grant "*" permission
+        assert!(fetched_user.permissions.contains(&"*".to_string()));
+        // Roles should be sorted
+        assert_eq!(fetched_user.roles, vec!["admin".to_string(), "user".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_not_found() {
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        // Random UUID
+        let random_id = uuid::Uuid::new_v4();
+        let response = server.get(&format!("/users/{}", random_id)).await;
+
+        // Should return 404
+        response.assert_status_not_found();
+    }
+
+    #[tokio::test]
+    async fn test_create_user_persists() {
+        let server = server_with_routes().await;
+        let request = CreateUserRequest {
+            username: "newuser".to_string(),
+            email: "new@example.com".to_string(),
+            password: "password123".to_string(),
+            full_name: Some("New User".to_string()),
+            roles: vec!["user".to_string()],
+            enabled: Some(true),
+            metadata: None,
+        };
+
+        let response = server.post("/users").json(&request).await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<UserResponse> = response.json();
+        assert!(body.success);
+        let user = body.data.expect("user payload");
+        assert_eq!(user.username, "newuser");
+
+        // Verify we can fetch it
+        let response = server.get(&format!("/users/{}", user.id)).await;
+        response.assert_status_ok();
+        let body: ApiResponse<UserResponse> = response.json();
+        assert_eq!(body.data.unwrap().username, "newuser");
+    }
 }
 
 /// User management models
@@ -359,7 +528,7 @@ pub async fn list_users(
 }
 
 pub async fn create_user(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(request): Json<CreateUserRequest>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
     // Validate input
@@ -373,50 +542,78 @@ pub async fn create_user(
         return Err(ApiError::bad_request("Invalid email format"));
     }
 
-    // TODO: Implement using StorageBackend trait instead of direct database access
-    // Placeholder implementation
-    let user_id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now();
-    let enabled = request.enabled.unwrap_or(true);
-    let permissions = calculate_permissions_from_roles(&request.roles);
+    // Use AuthService to create user
+    let user = state
+        .auth
+        .create_user(
+            &request.username,
+            &request.email,
+            &request.password,
+            request.full_name.as_deref(),
+            request.roles,
+            request.metadata,
+            request.enabled.unwrap_or(true),
+        )
+        .await?;
 
-    let user = UserResponse {
-        id: user_id,
-        username: request.username,
-        email: request.email,
-        full_name: request.full_name,
-        enabled,
-        roles: request.roles,
+    // Collect and sort roles
+    let mut roles: Vec<String> = user.roles.into_iter().collect();
+    roles.sort();
+
+    // Calculate permissions
+    let permissions = calculate_permissions_from_roles(&roles);
+
+    let response = UserResponse {
+        id: user.id.to_string(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        enabled: user.is_active,
+        roles,
         permissions,
-        last_login: None,
-        created_at: now,
-        updated_at: now,
-        metadata: request.metadata.unwrap_or_default(),
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        metadata: user.metadata,
     };
 
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn get_user(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<UserResponse>>> {
-    // TODO: Implement user retrieval
-    let user = UserResponse {
-        id: user_id,
-        username: "testuser".to_string(),
-        email: "test@example.com".to_string(),
-        full_name: Some("Test User".to_string()),
-        enabled: true,
-        roles: vec!["user".to_string()],
-        permissions: vec!["read".to_string()],
-        last_login: Some(chrono::Utc::now()),
-        created_at: chrono::Utc::now() - chrono::Duration::days(7),
-        updated_at: chrono::Utc::now(),
-        metadata: HashMap::new(),
+    let user = state.auth.get_user(&user_id).await?;
+
+    // Collect and sort roles
+    let mut roles: Vec<String> = user.roles.into_iter().collect();
+    roles.sort();
+
+    // Calculate permissions
+    let permissions = calculate_permissions_from_roles(&roles);
+
+    // Build metadata
+    let mut metadata = HashMap::new();
+    metadata.insert("namespace".to_string(), user.namespace);
+    metadata.insert("is_superuser".to_string(), user.is_superuser.to_string());
+    metadata.insert("mfa_enabled".to_string(), user.mfa_enabled.to_string());
+
+    let response = UserResponse {
+        id: user.id.to_string(),
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        enabled: user.is_active,
+        roles,
+        permissions,
+        last_login: user.last_login,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        metadata,
     };
 
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::success(response)))
 }
 
 pub async fn update_user(
@@ -482,40 +679,47 @@ pub async fn get_config(
 
 /// System monitoring endpoints
 pub async fn get_system_metrics(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SystemMetrics>>> {
-    // TODO: Implement metrics collection
+    // Get stats from admin service
+    let stats = state
+        .admin
+        .get_system_stats()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    // Use actual collected metrics
     let metrics = SystemMetrics {
-        uptime: 86400, // 1 day in seconds
+        uptime: stats.uptime_seconds,
         memory_usage: MemoryMetrics {
-            total: 16 * 1024 * 1024 * 1024, // 16GB
-            used: 8 * 1024 * 1024 * 1024,   // 8GB
-            free: 8 * 1024 * 1024 * 1024,   // 8GB
-            cached: 2 * 1024 * 1024 * 1024, // 2GB
+            total: stats.memory.total,
+            used: stats.memory.used,
+            free: stats.memory.free,
+            cached: stats.memory.cached,
         },
         cpu_usage: CpuMetrics {
-            cores: 8,
-            usage_percent: 25.5,
-            load_average: [1.2, 1.5, 1.8],
+            cores: stats.cpu.cores,
+            usage_percent: stats.cpu.usage_percent,
+            load_average: stats.cpu.load_average,
         },
         disk_usage: DiskMetrics {
-            total: 1024 * 1024 * 1024 * 1024, // 1TB
-            used: 256 * 1024 * 1024 * 1024,   // 256GB
-            free: 768 * 1024 * 1024 * 1024,   // 768GB
-            usage_percent: 25.0,
+            total: stats.disk.total,
+            used: stats.disk.used,
+            free: stats.disk.free,
+            usage_percent: stats.disk.usage_percent,
         },
         network: NetworkMetrics {
-            bytes_sent: 1024 * 1024 * 1024,
-            bytes_received: 2 * 1024 * 1024 * 1024,
-            packets_sent: 1000000,
-            packets_received: 2000000,
+            bytes_sent: stats.network.bytes_sent,
+            bytes_received: stats.network.bytes_received,
+            packets_sent: stats.network.packets_sent,
+            packets_received: stats.network.packets_received,
         },
         vault: VaultMetrics {
-            total_secrets: 1500,
-            total_keys: 75,
-            total_policies: 25,
-            active_sessions: 42,
-            operations_per_second: 150.5,
+            total_secrets: stats.total_secrets,
+            total_keys: stats.total_keys,
+            total_policies: 25, // Placeholder - policy count not yet in stats
+            active_sessions: stats.active_sessions,
+            operations_per_second: stats.requests_per_minute / 60.0,
         },
     };
 
@@ -523,13 +727,19 @@ pub async fn get_system_metrics(
 }
 
 pub async fn get_system_status(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<SystemStatus>>> {
-    // TODO: Implement status check
+    // Get stats from admin service to get actual uptime
+    let stats = state
+        .admin
+        .get_system_stats()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
     let status = SystemStatus {
         status: "healthy".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        uptime: 86400,
+        uptime: stats.uptime_seconds,
         components: ComponentStatus {
             database: "healthy".to_string(),
             cache: "healthy".to_string(),

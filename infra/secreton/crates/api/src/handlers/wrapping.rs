@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, extractors::Namespace};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -89,10 +89,8 @@ pub struct WrapDataResponse {
 }
 
 /// Wrap data with one-time token
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/wrap`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -100,7 +98,6 @@ pub struct WrapDataResponse {
 ///   "ttl": 300
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -117,11 +114,9 @@ pub struct WrapDataResponse {
 #[instrument(skip(state, request), fields(ttl = request.ttl))]
 pub async fn wrap_data(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<WrapDataRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context (TODO: implement proper auth extraction)
-    let namespace = "default"; // Placeholder - should come from JWT
-
     // Validate TTL
     if request.ttl == 0 {
         return Err(ApiError::BadRequest {
@@ -139,7 +134,7 @@ pub async fn wrap_data(
     let wrap_request = WrapRequest {
         data: request.data.clone(),
         ttl: Duration::from_secs(request.ttl),
-        namespace: namespace.to_string(),
+        namespace: namespace.clone(),
     };
 
     // Wrap the data
@@ -174,8 +169,8 @@ pub async fn wrap_data(
         "Wrapped data with one-time token"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_wraps_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_wraps_total", "namespace" => namespace.clone()).increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
@@ -209,17 +204,14 @@ pub struct UnwrapTokenResponse {
 }
 
 /// Unwrap token and retrieve data (one-time use)
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/unwrap`
-///
 /// # Request Body
 /// ```json
 /// {
 ///   "token": "wrap_abc123..."
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -234,11 +226,9 @@ pub struct UnwrapTokenResponse {
 #[instrument(skip(state, request), fields(token = %request.token))]
 pub async fn unwrap_token(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<UnwrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<UnwrapTokenResponse>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -249,7 +239,7 @@ pub async fn unwrap_token(
     // Lookup token first to get metadata
     let token_info = state
         .wrapping_service
-        .lookup(&request.token, namespace)
+        .lookup(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -264,7 +254,7 @@ pub async fn unwrap_token(
     // Unwrap the token
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -292,8 +282,8 @@ pub async fn unwrap_token(
         "Successfully unwrapped token (one-time use)"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_unwraps_total", 1, "namespace" => namespace, "status" => "success");
+    // Add metrics
+    metrics::counter!("secreton_wrapping_unwraps_total", "namespace" => namespace.clone(), "status" => "success").increment(1);
 
     let response = UnwrapTokenResponse {
         data,
@@ -305,10 +295,8 @@ pub async fn unwrap_token(
 }
 
 /// Lookup token metadata without unwrapping
-///
 /// # Endpoint
 /// `GET /v1/sys/wrapping/lookup/{token}`
-///
 /// # Response
 /// ```json
 /// {
@@ -328,10 +316,8 @@ pub async fn unwrap_token(
 pub async fn lookup_token(
     State(state): State<AppState>,
     Path(token): Path<String>,
+    Namespace(namespace): Namespace,
 ) -> ApiResult<Json<ApiResponse<WrappedTokenInfo>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -342,7 +328,7 @@ pub async fn lookup_token(
     // Lookup token metadata
     let token_info = state
         .wrapping_service
-        .lookup(&token, namespace)
+        .lookup(&token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -362,8 +348,8 @@ pub async fn lookup_token(
         "Looked up wrapping token metadata"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_lookups_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_lookups_total", "namespace" => namespace.clone()).increment(1);
 
     Ok(Json(ApiResponse::success(token_info)))
 }
@@ -379,10 +365,8 @@ pub struct RewrapTokenRequest {
 }
 
 /// Rewrap token with new TTL
-///
 /// # Endpoint
 /// `POST /v1/sys/wrapping/rewrap`
-///
 /// # Request Body
 /// ```json
 /// {
@@ -390,7 +374,6 @@ pub struct RewrapTokenRequest {
 ///   "ttl": 600
 /// }
 /// ```
-///
 /// # Response
 /// ```json
 /// {
@@ -407,11 +390,9 @@ pub struct RewrapTokenRequest {
 #[instrument(skip(state, request), fields(token = %request.token, new_ttl = request.ttl))]
 pub async fn rewrap_token(
     State(state): State<AppState>,
+    Namespace(namespace): Namespace,
     Json(request): Json<RewrapTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<WrapDataResponse>>> {
-    // Extract namespace from auth context
-    let namespace = "default"; // Placeholder
-
     // Validate token format
     if !request.token.starts_with("wrap_") {
         return Err(ApiError::BadRequest {
@@ -435,7 +416,7 @@ pub async fn rewrap_token(
     // Unwrap the original token to get data
     let data = state
         .wrapping_service
-        .unwrap(&request.token, namespace)
+        .unwrap(&request.token, &namespace)
         .await
         .map_err(|e| match e {
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
@@ -487,8 +468,8 @@ pub async fn rewrap_token(
         "Rewrapped token with new TTL"
     );
 
-    // TODO: Add metrics
-    // metrics::counter!("secreton_wrapping_rewraps_total", 1, "namespace" => namespace);
+    // Add metrics
+    metrics::counter!("secreton_wrapping_rewraps_total", "namespace" => namespace.clone()).increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
@@ -515,4 +496,5 @@ mod tests {
         assert!("wrap_abc123".starts_with("wrap_"));
         assert!(!"invalid_token".starts_with("wrap_"));
     }
+
 }

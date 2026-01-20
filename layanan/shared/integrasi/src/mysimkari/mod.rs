@@ -1,1 +1,1 @@
-pub mod mysimkari;
+pub mod api;

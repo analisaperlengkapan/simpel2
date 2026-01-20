@@ -10,7 +10,6 @@ use tokio_postgres::{Client, Statement};
 use tracing::{debug, error, warn};
 
 /// Prepared statement cache
-///
 /// Thread-safe cache for prepared statements using DashMap for concurrent access.
 /// Automatically prepares statements on first use and reuses them for subsequent calls.
 #[derive(Clone)]

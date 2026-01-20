@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
-    helpers::create_audit_log,
+    helpers::create_audit_log, services::vault::SecretMetadata,
 };
 use secreton_core::audit::AuditLog;
 
@@ -26,19 +26,19 @@ use secreton_core::audit::AuditLog;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Secret operations
-        .route("/data/*path", get(get_secret))
-        .route("/data/*path", post(create_secret))
-        .route("/data/*path", put(update_secret))
-        .route("/data/*path", delete(delete_secret))
+        .route("/data/{path}", get(get_secret))
+        .route("/data/{path}", post(create_secret))
+        .route("/data/{path}", put(update_secret))
+        .route("/data/{path}", delete(delete_secret))
         .route("/secrets", get(list_secrets))
         // Key operations
         .route("/keys", get(list_keys))
         .route("/keys", post(create_key))
-        .route("/keys/:key_id", get(get_key))
-        .route("/keys/:key_id", put(update_key))
-        .route("/keys/:key_id", delete(delete_key))
-        .route("/keys/:key_id/rotate", post(rotate_key))
-        .route("/keys/:key_id/versions", get(list_key_versions))
+        .route("/keys/{key_id}", get(get_key))
+        .route("/keys/{key_id}", put(update_key))
+        .route("/keys/{key_id}", delete(delete_key))
+        .route("/keys/{key_id}/rotate", post(rotate_key))
+        .route("/keys/{key_id}/versions", get(list_key_versions))
         // Encryption operations
         .route("/encrypt", post(encrypt_data))
         .route("/decrypt", post(decrypt_data))
@@ -47,19 +47,19 @@ pub fn create_routes() -> Router<AppState> {
         .route("/hash", post(hash_data))
         // Policy operations
         .route("/policies", get(list_policies))
-        .route("/policies/:name", get(get_policy))
-        .route("/policies/:name", post(create_policy))
-        .route("/policies/:name", put(update_policy))
-        .route("/policies/:name", delete(delete_policy))
+        .route("/policies/{name}", get(get_policy))
+        .route("/policies/{name}", post(create_policy))
+        .route("/policies/{name}", put(update_policy))
+        .route("/policies/{name}", delete(delete_policy))
         // Audit operations
         .route("/audit", get(get_audit_logs))
         .route("/audit/export", get(export_audit_logs))
         // Backup operations
         .route("/backup", post(create_backup))
         .route("/backup", get(list_backups))
-        .route("/backup/:backup_id", get(get_backup))
-        .route("/backup/:backup_id/restore", post(restore_backup))
-        .route("/backup/:backup_id", delete(delete_backup))
+        .route("/backup/{backup_id}", get(get_backup))
+        .route("/backup/{backup_id}/restore", post(restore_backup))
+        .route("/backup/{backup_id}", delete(delete_backup))
 }
 
 #[derive(Debug, Deserialize)]
@@ -122,7 +122,28 @@ mod tests {
     #[tokio::test]
     async fn test_get_secret_returns_placeholder_data() {
         let server = server_with_routes().await;
-        let response = server.get("/data/app/config").await;
+        // First put a secret so we can retrieve it
+        let payload = serde_json::json!({
+            "data": {"key1": "value1"},
+            "metadata": {
+                "description": "Config",
+                "tags": ["config"],
+                "owner": "dev",
+                "classification": "confidential"
+            },
+            "ttl": 3600
+        });
+
+        let put_response = server.post("/data/app%2Fconfig")
+            .add_header("Authorization", "Bearer token")
+            .json(&payload)
+            .await;
+        put_response.assert_status_ok();
+
+        // Now retrieve it
+        let response = server.get("/data/app%2Fconfig")
+            .add_header("Authorization", "Bearer token")
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();
@@ -146,7 +167,10 @@ mod tests {
             "ttl": 90
         });
 
-        let response = server.post("/data/app/admin").json(&payload).await;
+        let response = server.post("/data/app%2Fadmin")
+            .add_header("Authorization", "Bearer token")
+            .json(&payload)
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<SecretResponse> = response.json();
@@ -167,7 +191,10 @@ mod tests {
             "exportable": true
         });
 
-        let response = server.post("/keys").json(&request).await;
+        let response = server.post("/keys")
+            .add_header("Authorization", "Bearer token")
+            .json(&request)
+            .await;
         response.assert_status_ok();
 
         let body: ApiResponse<KeyResponse> = response.json();
@@ -194,14 +221,6 @@ pub struct CreateSecretRequest {
     pub data: HashMap<String, String>,
     pub metadata: Option<SecretMetadata>,
     pub ttl: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SecretMetadata {
-    pub description: Option<String>,
-    pub tags: Vec<String>,
-    pub owner: Option<String>,
-    pub classification: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -398,16 +417,11 @@ pub async fn get_secret(
     let secret = SecretResponse {
         path: secret_data.path,
         data: secret_data.data,
-        metadata: SecretMetadata {
-            description: None, // TODO: Add metadata field to SecretData
-            tags: vec![],
-            owner: Some(user.username.clone()),
-            classification: Some("confidential".to_string()),
-        },
+        metadata: secret_data.metadata,
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: None, // TODO: Add expires_at to SecretData
+        expires_at: secret_data.expires_at,
     };
 
     Ok(Json(ApiResponse::success(secret)))
@@ -419,10 +433,26 @@ pub async fn create_secret(
     user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    let expires_at = request
+        .ttl
+        .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
+    
+    // Prepare metadata with default owner if not provided
+    let mut metadata = request.metadata.clone().unwrap_or_default();
+    if metadata.owner.is_none() {
+        metadata.owner = Some(user.username.clone());
+    }
+
     // Create secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            metadata.clone(),
+            &user.id.to_string(),
+            expires_at,
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to create secret: {}", e),
@@ -431,13 +461,11 @@ pub async fn create_secret(
     let secret = SecretResponse {
         path: secret_data.path,
         data: secret_data.data,
-        metadata: request.metadata.unwrap_or_default(),
+        metadata,
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: request
-            .ttl
-            .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
+        expires_at: secret_data.expires_at,
     };
 
     // Audit log
@@ -453,10 +481,20 @@ pub async fn update_secret(
     user: AuthenticatedUser,
     Json(request): Json<CreateSecretRequest>,
 ) -> ApiResult<Json<ApiResponse<SecretResponse>>> {
+    let expires_at = request
+        .ttl
+        .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
+
     // Update secret using vault service
     let secret_data = state
         .vault
-        .put_secret(&path, request.data.clone(), &user.id.to_string())
+        .put_secret(
+            &path,
+            request.data.clone(),
+            request.metadata.clone().unwrap_or_default(),
+            &user.id.to_string(),
+            expires_at,
+        )
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to update secret: {}", e),
@@ -469,9 +507,7 @@ pub async fn update_secret(
         version: secret_data.version,
         created_at: secret_data.created_at,
         updated_at: secret_data.updated_at,
-        expires_at: request
-            .ttl
-            .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64)),
+        expires_at: secret_data.expires_at,
     };
 
     // Audit log
@@ -803,21 +839,10 @@ pub async fn hash_data(
     Ok(Json(ApiResponse::success(response)))
 }
 
-/// Default implementations for metadata
-impl Default for SecretMetadata {
-    fn default() -> Self {
-        Self {
-            description: None,
-            tags: vec![],
-            owner: None,
-            classification: None,
-        }
-    }
-}
 
 // Key management handlers
 pub async fn update_key(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(key_id): Path<String>,
     Json(_payload): Json<serde_json::Value>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
@@ -885,7 +910,7 @@ pub async fn delete_key(
 }
 
 pub async fn list_key_versions(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
     tracing::debug!(key_id = %key_id, "Listing key versions");

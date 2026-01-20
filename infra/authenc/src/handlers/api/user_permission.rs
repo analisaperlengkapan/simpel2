@@ -12,27 +12,21 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Create Axum router for user permission API endpoints
-///
 /// This function creates and configures an Axum router with user permission-related
 /// API endpoints. The router includes routes for retrieving user permissions
 /// based on their roles and associated permissions.
-///
 /// # Returns
 /// An Axum `Router` configured with user permission endpoints
-///
 /// # Routes
 /// - `GET /realms/{realm}/users/{user_id}/permissions` - Get user permissions
-///
 /// # Dependencies
 /// Requires `AppState` to be available in the application state
-///
 /// # Example
 /// ```rust
 /// use authenc::handlers::api::user_permission::create_user_permission_routes;
 /// use authenc::app::AppState;
 /// use authenc::config::AppConfig;
 /// use std::sync::Arc;
-///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let config = AppConfig::default();
 /// let state = Arc::new(AppState::new(config).await?);
@@ -48,28 +42,22 @@ pub fn create_user_permission_routes() -> Router<Arc<AppState>> {
 }
 
 /// Get permissions for a specific user in a realm
-///
 /// This handler retrieves all permissions associated with a user within a specific
 /// realm. It combines user roles and role permissions to determine the complete
 /// set of permissions the user has.
-///
 /// # Arguments
 /// * `State(state)` - Application state
 /// * `Path((realm, user_id))` - URL path parameters for realm and user ID
 /// * `auth` - Authentication bearer token
-///
 /// # Returns
 /// A `Result` containing a JSON array of permission strings on success,
 /// or an HTTP status code on error
-///
 /// # Security Considerations
 /// - Validates that the requesting user has permission to view the target user's permissions
 /// - Should implement proper authorization checks
 /// - Rate limiting should be applied to prevent abuse
-///
 /// # Implementation
 /// Retrieves user permissions through UserRole and RolePermission tables.
-///
 /// # Example
 /// ```http
 /// GET /realms/my-realm/users/user123/permissions

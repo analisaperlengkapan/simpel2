@@ -1,7 +1,7 @@
 //! Audit logging for vault operations
 //! Tracks all secret access, modifications, and deletions for compliance
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -111,6 +111,7 @@ impl AuditEvent {
 #[derive(Clone)]
 pub struct AuditLogger {
     /// Core audit logger
+    #[allow(dead_code)]
     core_logger: Arc<secreton_core::audit::AuditLogger>,
     /// In-memory event buffer for API-specific events
     events: Arc<RwLock<VecDeque<AuditEvent>>>,
@@ -237,6 +238,22 @@ impl AuditLogger {
         let mut events = self.events.write().await;
         events.clear();
         info!("Audit log cleared");
+    }
+
+    /// Clean expired events from the buffer
+    pub async fn cleanup_expired_events(&self, retention: Duration) -> usize {
+        let cutoff = Utc::now() - retention;
+        let mut events = self.events.write().await;
+        let initial_len = events.len();
+
+        // Retain only events newer than cutoff
+        events.retain(|event| event.timestamp >= cutoff);
+
+        let removed = initial_len - events.len();
+        if removed > 0 {
+            info!("Cleaned up {} expired audit events", removed);
+        }
+        removed
     }
 }
 

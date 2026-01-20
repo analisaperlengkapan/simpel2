@@ -110,9 +110,27 @@ impl NamespaceAccessControl {
     /// * `Ok(false)` if access is denied
     /// * `Err` if namespace doesn't exist or other error
     pub fn check_access(&self, claims: &JwtClaims, namespace_id: &str) -> Result<bool, CoreError> {
+        Self::verify_access(&self.hierarchy, claims, namespace_id)
+    }
+
+    /// Verify if user has access to a specific namespace (static version)
+    ///
+    /// # Arguments
+    /// * `hierarchy` - Reference to namespace hierarchy
+    /// * `claims` - JWT claims from Authenc
+    /// * `namespace_id` - Target namespace ID to check access for
+    ///
+    /// # Returns
+    /// * `Ok(true)` if access is allowed
+    /// * `Ok(false)` if access is denied
+    /// * `Err` if namespace doesn't exist or other error
+    pub fn verify_access(
+        hierarchy: &NamespaceHierarchy,
+        claims: &JwtClaims,
+        namespace_id: &str,
+    ) -> Result<bool, CoreError> {
         // Validate namespace exists
-        let namespace = self
-            .hierarchy
+        let namespace = hierarchy
             .get_namespace(namespace_id)
             .ok_or_else(|| CoreError::not_found(format!("namespace: {}", namespace_id)))?;
 
@@ -130,18 +148,18 @@ impl NamespaceAccessControl {
             }
             AdminLevel::Wilayah => {
                 // Wilayah admin has access to their wilayah and all child satkers
-                self.check_wilayah_access(claims, namespace)
+                Self::check_wilayah_access(hierarchy, claims, namespace)
             }
             AdminLevel::Satker => {
                 // Satker admin has access only to their own satker
-                self.check_satker_access(claims, namespace)
+                Self::check_satker_access(hierarchy, claims, namespace)
             }
         }
     }
 
     /// Check wilayah-level access
     fn check_wilayah_access(
-        &self,
+        hierarchy: &NamespaceHierarchy,
         claims: &JwtClaims,
         namespace: &Namespace,
     ) -> Result<bool, CoreError> {
@@ -158,7 +176,7 @@ impl NamespaceAccessControl {
         }
 
         // Check if target namespace is a child of this wilayah
-        let ancestors = self.hierarchy.get_ancestors(&namespace.id);
+        let ancestors = hierarchy.get_ancestors(&namespace.id);
         for ancestor in ancestors {
             if ancestor.id == wilayah_namespace_id {
                 return Ok(true);
@@ -170,7 +188,7 @@ impl NamespaceAccessControl {
 
     /// Check satker-level access
     fn check_satker_access(
-        &self,
+        _hierarchy: &NamespaceHierarchy,
         claims: &JwtClaims,
         namespace: &Namespace,
     ) -> Result<bool, CoreError> {

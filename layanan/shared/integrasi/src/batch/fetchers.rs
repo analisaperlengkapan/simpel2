@@ -3,7 +3,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::monsakti::{adm, ang, ast, ben, glp, kom, pem, per};
-use crate::mysimkari::mysimkari;
+use crate::mysimkari::api;
 use crate::storage::StorageStrategy;
 use tracing::{debug, error, info, warn};
 
@@ -167,16 +167,13 @@ pub async fn fetch_ang(
     // Ref STS
     if let Ok(data) = ang::ref_sts(client, kode_kl, kdsatker).await {
         // Extract latest STS history code
-        if let Some(array) = data.as_array() {
-            if let Some(latest) = array.last() {
-                if let Some(obj) = latest.as_object() {
-                    if let Some(sts) = obj.get("KODE_STS_HISTORY") {
-                        if let Some(sts_str) = sts.as_str() {
-                            kode_sts_history = sts_str.to_string();
-                        }
-                    }
-                }
-            }
+        if let Some(array) = data.as_array()
+            && let Some(latest) = array.last()
+            && let Some(obj) = latest.as_object()
+            && let Some(sts) = obj.get("KODE_STS_HISTORY")
+            && let Some(sts_str) = sts.as_str()
+        {
+            kode_sts_history = sts_str.to_string();
         }
         storage
             .save(client, "ang", "ref_sts", &data, &context)
@@ -499,7 +496,7 @@ pub async fn fetch_mysimkari(
     info!("Fetching MySIMKARI data...");
 
     // Get Satker
-    if let Ok(data) = mysimkari::get_satker(client).await {
+    if let Ok(data) = api::get_satker(client).await {
         storage
             .save_with_table(client, "mysimkari_satker", &data, "global")
             .await?;
@@ -507,44 +504,37 @@ pub async fn fetch_mysimkari(
         // Fetch pegawai untuk setiap satker
         if let Some(array) = data.as_array() {
             for item in array {
-                if let Some(obj) = item.as_object() {
-                    if let Some(id) = obj.get("id") {
-                        if let Some(id_str) = id.as_str() {
-                            match mysimkari::pegawai_satker(client, id_str).await {
-                                Ok(mut pegawai_data) => {
-                                    // Inject satker_id ke setiap pegawai record
-                                    if let Some(pegawai_array) = pegawai_data.as_array_mut() {
-                                        for pegawai in pegawai_array {
-                                            if let Some(pegawai_obj) = pegawai.as_object_mut() {
-                                                // Add satker_id if not exists
-                                                if !pegawai_obj.contains_key("satker_id") {
-                                                    pegawai_obj.insert(
-                                                        "satker_id".to_string(),
-                                                        id.clone(),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }
+                let Some(obj) = item.as_object() else {
+                    continue;
+                };
+                let Some(id) = obj.get("id") else { continue };
+                let Some(id_str) = id.as_str() else { continue };
 
-                                    storage
-                                        .save_with_table(
-                                            client,
-                                            "mysimkari_pegawai",
-                                            &pegawai_data,
-                                            "global",
-                                        )
-                                        .await?;
-                                }
-                                Err(e) => {
-                                    warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
+                match api::pegawai_satker(client, id_str).await {
+                    Ok(mut pegawai_data) => {
+                        // Inject satker_id ke setiap pegawai record
+                        if let Some(pegawai_array) = pegawai_data.as_array_mut() {
+                            for pegawai in pegawai_array.iter_mut() {
+                                if let Some(pegawai_obj) = pegawai.as_object_mut() {
+                                    // Add satker_id if not exists
+                                    if !pegawai_obj.contains_key("satker_id") {
+                                        pegawai_obj.insert("satker_id".to_string(), id.clone());
+                                    }
                                 }
                             }
-                            // Rate limiting
-                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                         }
+
+                        storage
+                            .save_with_table(client, "mysimkari_pegawai", &pegawai_data, "global")
+                            .await?;
+                    }
+                    Err(e) => {
+                        warn!("MySIMKARI pegawai_satker failed for {}: {}", id_str, e)
                     }
                 }
+
+                // Rate limiting
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
         }
     }

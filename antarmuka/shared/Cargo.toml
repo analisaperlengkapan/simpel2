@@ -46,6 +46,8 @@ gloo-storage = { workspace = true }
 urlencoding = "2.1"
 uuid = { workspace = true }
 base64 = { workspace = true }
+rand = { workspace = true }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 [build-dependencies]
 # Build-time optimizations

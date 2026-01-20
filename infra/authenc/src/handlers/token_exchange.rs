@@ -70,13 +70,11 @@ impl From<AuthencError> for TokenExchangeError {
 }
 
 /// OAuth 2.0 Token Exchange endpoint (RFC 8693)
-///
 /// Exchanges one type of token for another. Supports:
 /// - Access token → Access token (scope reduction, audience change)
 /// - Refresh token → Access token
 /// - ID token → Access token
 /// - Token delegation with actor tokens
-///
 /// # Request Parameters (POST /oauth2/token/exchange)
 /// - `grant_type`: Must be "urn:ietf:params:oauth:grant-type:token-exchange"
 /// - `subject_token`: The token to be exchanged
@@ -87,10 +85,8 @@ impl From<AuthencError> for TokenExchangeError {
 /// - `resource`: (Optional) Target resource identifier
 /// - `audience`: (Optional) Target audience identifier
 /// - `scope`: (Optional) Requested scopes
-///
 /// # Authentication
 /// Requires client authentication via HTTP Basic Auth or client credentials
-///
 /// # Response
 /// - `200 OK`: Token exchange successful
 /// - `400 Bad Request`: Invalid request parameters
@@ -173,7 +169,6 @@ pub async fn token_exchange_endpoint(
 }
 
 /// Extract client credentials from Authorization header
-///
 /// Supports:
 /// - HTTP Basic Auth: Authorization: Basic base64(client_id:client_secret)
 /// - Bearer token: Authorization: Bearer <token> (for service accounts)
@@ -341,7 +336,6 @@ fn create_token_exchange_service(state: &Arc<AppState>) -> Result<TokenExchangeS
 }
 
 /// Token exchange discovery metadata
-///
 /// Returns OAuth 2.0 metadata for token exchange capabilities
 #[debug_handler]
 pub async fn token_exchange_metadata() -> Json<TokenExchangeMetadata> {

@@ -208,7 +208,8 @@ impl NotificationContext {
 ///
 /// # Example
 /// ```rust
-/// use shared_microfrontend::hooks::use_notifications;
+/// use shared_microfrontend::hooks::use_notifications::use_notifications;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn MyComponent() -> impl IntoView {
@@ -400,28 +401,22 @@ where
         loop {
             gloo_timers::future::TimeoutFuture::new(10_000).await;
 
-            let categories = [
-                NotificationCategory::Info,
+            let categories = [NotificationCategory::Info,
                 NotificationCategory::Success,
                 NotificationCategory::Warning,
-                NotificationCategory::Error,
-            ];
+                NotificationCategory::Error];
 
-            let titles = [
-                "Pembaruan Sistem",
+            let titles = ["Pembaruan Sistem",
                 "Dokumen Baru",
                 "Peringatan Keamanan",
                 "Tugas Selesai",
-                "Pesan Baru",
-            ];
+                "Pesan Baru"];
 
-            let messages = [
-                "Sistem telah diperbarui ke versi terbaru",
+            let messages = ["Sistem telah diperbarui ke versi terbaru",
                 "Dokumen baru telah ditambahkan ke sistem",
                 "Harap perbarui password Anda",
                 "Tugas Anda telah selesai diproses",
-                "Anda memiliki pesan baru dari administrator",
-            ];
+                "Anda memiliki pesan baru dari administrator"];
 
             let category = categories[counter % categories.len()].clone();
             let title = titles[counter % titles.len()].to_string();

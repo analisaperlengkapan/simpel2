@@ -1,5 +1,4 @@
 /// Integration test for JWKS endpoint
-///
 /// This test verifies that the JWKS endpoint is properly configured
 /// and returns valid Ed25519 public keys in JWK format.
 

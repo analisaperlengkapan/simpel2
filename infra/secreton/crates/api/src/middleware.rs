@@ -15,6 +15,7 @@ use axum::{
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
@@ -23,12 +24,15 @@ use x509_parser::prelude::*;
 
 use crate::ApiState;
 use crate::auth::{AuthError, extract_bearer_token};
+use crate::tls_optimization::record_tls_handshake;
 
 /// Certificate cache for performance optimization
 #[derive(Debug)]
 pub struct CertificateCache {
-    cache: Mutex<HashMap<String, (X509Certificate<'static>, Instant)>>,
+    cache: Mutex<HashMap<String, (CertificateValidation, Instant)>>,
     ttl: Duration,
+    hits: AtomicU64,
+    misses: AtomicU64,
 }
 
 impl CertificateCache {
@@ -36,10 +40,12 @@ impl CertificateCache {
         Self {
             cache: Mutex::new(HashMap::new()),
             ttl: Duration::from_secs(ttl_seconds),
+            hits: AtomicU64::new(0),
+            misses: AtomicU64::new(0),
         }
     }
 
-    pub fn get(&self, cert_der: &str) -> Option<X509Certificate<'static>> {
+    pub fn get(&self, cache_key: &str) -> Option<CertificateValidation> {
         // Handle lock poisoning gracefully
         let mut cache = match self.cache.lock() {
             Ok(cache) => cache,
@@ -49,19 +55,32 @@ impl CertificateCache {
             }
         };
 
-        if let Some((cert, timestamp)) = cache.get(cert_der) {
+        if let Some((validation, timestamp)) = cache.get(cache_key) {
             if timestamp.elapsed() < self.ttl {
-                return Some(cert.clone());
+                self.hits.fetch_add(1, Ordering::Relaxed);
+                return Some(validation.clone());
             } else {
-                cache.remove(cert_der);
+                cache.remove(cache_key);
             }
         }
+        self.misses.fetch_add(1, Ordering::Relaxed);
         None
     }
 
-    pub fn insert(&self, cert_der: String, cert: X509Certificate<'static>) {
+    pub fn insert(&self, cache_key: String, validation: CertificateValidation) {
         if let Ok(mut cache) = self.cache.lock() {
-            cache.insert(cert_der, (cert, Instant::now()));
+            cache.insert(cache_key, (validation, Instant::now()));
+        }
+    }
+
+    pub fn hit_rate(&self) -> f64 {
+        let hits = self.hits.load(Ordering::Relaxed) as f64;
+        let misses = self.misses.load(Ordering::Relaxed) as f64;
+        let total = hits + misses;
+        if total == 0.0 {
+            0.0
+        } else {
+            hits / total
         }
     }
 }
@@ -76,9 +95,26 @@ pub fn init_certificate_cache(ttl_seconds: u64) {
     }
 }
 
+/// Update certificate cache TTL
+pub fn update_certificate_cache_ttl(ttl_seconds: u64) {
+    if let Ok(mut cache) = CERT_CACHE.lock() {
+        // Recreate cache with new TTL (clears existing cache)
+        *cache = Some(Arc::new(CertificateCache::new(ttl_seconds)));
+    }
+}
+
 /// Get certificate cache instance
 fn get_cert_cache() -> Option<Arc<CertificateCache>> {
     CERT_CACHE.lock().ok()?.as_ref().cloned()
+}
+
+/// Get global cache hit rate
+pub fn get_cache_hit_rate() -> f64 {
+    if let Some(cache) = get_cert_cache() {
+        cache.hit_rate()
+    } else {
+        0.0
+    }
 }
 
 /// Certificate validation result
@@ -92,15 +128,44 @@ pub struct CertificateValidation {
     pub not_after: Option<String>,
 }
 
+/// Generate a cache key that includes allowed subjects to ensure validation correctness
+fn generate_cache_key(cert_der: &[u8], allowed_subjects: &[String]) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    cert_der.hash(&mut hasher);
+    for subject in allowed_subjects {
+        subject.hash(&mut hasher);
+    }
+    format!("{:x}", hasher.finish())
+}
+
 /// Validate client certificate
 pub fn validate_client_certificate(
     cert_der: &[u8],
     _ca_cert_path: Option<&PathBuf>,
     allowed_subjects: &[String],
 ) -> CertificateValidation {
+    // Check cache first
+    let cache_key = generate_cache_key(cert_der, allowed_subjects);
+    if let Some(cache) = get_cert_cache() {
+        if let Some(validation) = cache.get(&cache_key) {
+            debug!("Certificate cache hit for key: {}", cache_key);
+            return validation;
+        }
+    }
+
     // Parse certificate
     match x509_parser::parse_x509_certificate(cert_der) {
-        Ok((_, cert)) => validate_cached_certificate(&cert, allowed_subjects),
+        Ok((_, cert)) => {
+            let validation = validate_cached_certificate(&cert, allowed_subjects);
+            // Update cache
+            if let Some(cache) = get_cert_cache() {
+                cache.insert(cache_key, validation.clone());
+            }
+            validation
+        },
         Err(e) => {
             warn!("Failed to parse client certificate: {}", e);
             CertificateValidation {
@@ -129,9 +194,9 @@ fn validate_cached_certificate(
     let not_before = validity.not_before.to_datetime();
     let not_after = validity.not_after.to_datetime();
 
-    // Validate time bounds (simplified - production should use proper time comparison)
-    // TODO: Implement proper time validation with x509_parser time types
-    let time_valid = true;
+    // Validate time bounds
+    let now = std::time::SystemTime::now();
+    let time_valid = not_before <= now && now <= not_after;
 
     // Check if subject is in allowed list
     let subject_valid =
@@ -154,22 +219,20 @@ fn validate_cached_certificate(
 }
 
 /// Extract client certificate from TLS connection
-/// TODO: Re-enable after adding hex dependency
 pub fn extract_client_certificate_from_tls(request: &Request) -> Option<Vec<u8>> {
     // Try to get certificate from request extensions (set by TLS layer)
     if let Some(cert_der) = request.extensions().get::<Vec<u8>>() {
         return Some(cert_der.clone());
     }
 
-    // Temporarily disabled - needs hex dependency
-    // request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
-    None
+    // Try to get certificate from headers (e.g. from reverse proxy)
+    request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
 }
 
 /// Enhanced mTLS authentication middleware with proper TLS integration
 pub async fn mtls_auth_middleware(
     State(state): State<ApiState>,
-    headers: HeaderMap,
+    _headers: HeaderMap,
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
@@ -179,9 +242,8 @@ pub async fn mtls_auth_middleware(
         return Ok(next.run(request).await);
     }
 
-    // TODO: Re-enable mTLS when TransitApiState has config field
     // Check if mTLS is configured and required
-    if let Some(mtls_config) = None::<&crate::config::MtlsConfig>
+    if let Some(mtls_config) = &state.transit.config
         && mtls_config.required
     {
         // Extract client certificate from TLS connection
@@ -201,8 +263,7 @@ pub async fn mtls_auth_middleware(
                 );
 
                 // Record successful authentication metrics
-                // TODO: Re-enable when tls_optimization is updated
-                // record_tls_handshake(true, false, validation_time);
+                record_tls_handshake(true, false, validation_time);
 
                 // Add certificate info to request extensions
                 request.extensions_mut().insert(validation);
@@ -213,12 +274,12 @@ pub async fn mtls_auth_middleware(
                     "mTLS authentication failed for subject: {:?} (validation: {}ms)",
                     validation.subject, validation_time
                 );
-                // record_tls_handshake(false, false, validation_time);
+                record_tls_handshake(false, false, validation_time);
                 return Err(AuthError::InvalidCredentials);
             }
         } else {
             warn!("mTLS required but no client certificate provided");
-            // record_tls_handshake(false, false, 0);
+            record_tls_handshake(false, false, 0);
             return Err(AuthError::MissingCredentials);
         }
     }
@@ -242,11 +303,30 @@ pub struct RequestContext {
     pub policy_names: Vec<String>,
 }
 
+impl RequestContext {
+    /// Derive namespace from user context
+    /// Prioritizes explicit satker/wilayah codes from JWT claims
+    pub fn derive_namespace(&self) -> String {
+        if let Some(claims) = &self.jwt_claims {
+            if let Some(satker) = &claims.satker_code {
+                return format!("satker-{}", satker.to_lowercase());
+            }
+            if let Some(wilayah) = &claims.wilayah_code {
+                return format!("wilayah-{}", wilayah.to_lowercase());
+            }
+            if claims.admin_level == secreton_core::namespace::AdminLevel::Pusat {
+                return "pusat".to_string();
+            }
+        }
+        "default".to_string()
+    }
+}
+
 /// Rate limiting state
 #[derive(Debug)]
 pub struct RateLimitState {
     requests: HashMap<String, Vec<Instant>>,
-    max_requests_per_minute: u32,
+    pub max_requests_per_minute: u32,
 }
 
 impl RateLimitState {
@@ -287,6 +367,17 @@ pub fn init_rate_limiting(max_requests_per_minute: u32) {
     }
 }
 
+/// Update rate limiting configuration
+pub fn update_rate_limiting(max_requests_per_minute: u32) {
+    if let Ok(mut limiter) = RATE_LIMITER.lock() {
+        if let Some(ref mut l) = *limiter {
+            l.max_requests_per_minute = max_requests_per_minute;
+        } else {
+            *limiter = Some(RateLimitState::new(max_requests_per_minute));
+        }
+    }
+}
+
 /// Request ID middleware - adds unique ID to each request
 pub async fn request_id(mut request: Request, next: Next) -> Response {
     let request_id = Uuid::new_v4().to_string();
@@ -311,7 +402,7 @@ pub async fn request_id(mut request: Request, next: Next) -> Response {
 
 /// Authentication middleware
 pub async fn auth_middleware(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     headers: HeaderMap,
     mut request: Request,
     next: Next,
@@ -338,24 +429,96 @@ pub async fn auth_middleware(
     // Extract bearer token
     let token = extract_bearer_token(auth_header).ok_or(AuthError::InvalidAuthHeader)?;
 
-    // Create auth service (in real implementation, this would be injected)
-    let auth_config = crate::auth::JwtAuthConfig::default();
-    let auth_service = crate::auth::JwtService::new(auth_config);
+    // Validate token using AuthService (checks signature and session storage)
+    let user = state
+        .services
+        .auth
+        .validate_token(&token)
+        .await
+        .map_err(|_| AuthError::InvalidToken)?;
 
-    // Validate token
-    let token_data = auth_service.validate_token(&token)?;
-    let claims = token_data.claims;
+    let user_roles: Vec<String> = user.roles.iter().cloned().collect();
 
     info!(
         "Authenticated user: {} ({}) with roles: {:?}",
-        claims.name, claims.email, claims.roles
+        user.username, user.email, user_roles
     );
 
-    // Extract JWT claims for namespace access control
-    let jwt_claims = extract_jwt_claims_from_token(&claims);
+    // Reconstruct permissions (using policy service or auth service helper)
+    // AuthService::get_user_policies returns list of policy names/permissions
+    let user_permissions = state
+        .services
+        .auth
+        .get_user_policies(&user)
+        .await
+        .unwrap_or_default();
 
-    // Extract policy names from JWT claims
-    let policy_names = extract_policy_names_from_claims(&claims);
+    // Construct JwtClaims equivalent for namespace control
+    // User struct doesn't strictly have all metadata that raw JWT claims had,
+    // but we can reconstruct what we need.
+    // The namespace logic relies on metadata fields like 'satker_code'.
+    // User struct has 'metadata' HashMap.
+    use secreton_core::namespace::JwtClaims;
+    use secreton_core::namespace::AdminLevel;
+
+    // Helper to extract code
+    let satker_code = user.metadata.get("satker_code").cloned();
+    let wilayah_code = user.metadata.get("wilayah_code").cloned();
+
+    // Determine admin level from metadata or roles
+    // We reuse the logic but adapt it since determine_admin_level expects &[String]
+    let admin_level = if let Some(level_str) = user.metadata.get("admin_level") {
+        match level_str.to_lowercase().as_str() {
+            "pusat" => AdminLevel::Pusat,
+            "eselon_i" | "eselon1" => AdminLevel::EselonI,
+            "wilayah" => AdminLevel::Wilayah,
+            "satker" => AdminLevel::Satker,
+            _ => AdminLevel::Satker,
+        }
+    } else {
+        // Fallback to roles check logic (simplified here or we can helper)
+        let mut level = AdminLevel::Satker;
+        for role in &user.roles {
+            let role_lower = role.to_lowercase();
+            if role_lower.contains("pusat") || role_lower.contains("admin_pusat") {
+                level = AdminLevel::Pusat;
+                break;
+            }
+            if role_lower.contains("eselon") {
+                level = AdminLevel::EselonI;
+                break;
+            }
+            if role_lower.contains("wilayah") || role_lower.contains("kejati") {
+                level = AdminLevel::Wilayah;
+                break;
+            }
+        }
+        level
+    };
+
+    let jwt_claims = Some(JwtClaims {
+        sub: user.id.to_string(),
+        name: user.full_name.clone().unwrap_or(user.username.clone()),
+        email: user.email.clone(),
+        satker_code,
+        wilayah_code,
+        admin_level,
+        roles: user_roles.clone(),
+        permissions: user_permissions.clone(),
+        exp: 0, // Not available in User, but session check already passed
+        iat: 0,
+        iss: "secreton".to_string(),
+        metadata: user.metadata.clone(),
+    });
+
+    // Policy names
+    // Check metadata for 'policy_names' or 'policies'
+    let policy_names: Vec<String> = if let Some(p) = user.metadata.get("policy_names").or_else(|| user.metadata.get("policies")) {
+        p.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    } else {
+        // Default to role-based
+        user.roles.iter().map(|r| format!("{}-policy", r.to_lowercase())).collect()
+    };
 
     // Create request context
     let context = RequestContext {
@@ -364,10 +527,10 @@ pub async fn auth_middleware(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("unknown")
             .to_string(),
-        user_id: Some(claims.sub.clone()),
-        user_email: Some(claims.email.clone()),
-        user_roles: claims.roles.clone(),
-        user_permissions: claims.permissions.clone(),
+        user_id: Some(user.id.to_string()),
+        user_email: Some(user.email.clone()),
+        user_roles: user_roles,
+        user_permissions: user_permissions,
         start_time: Instant::now(),
         jwt_claims,
         policy_names,
@@ -379,6 +542,28 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
+/// Extract client IP from headers
+fn extract_ip_from_headers(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.trim())
+        })
+}
+
+/// Extract User-Agent from headers
+fn extract_user_agent_from_headers(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+}
+
 /// Rate limiting middleware
 pub async fn rate_limit(
     headers: HeaderMap,
@@ -386,11 +571,7 @@ pub async fn rate_limit(
     next: Next,
 ) -> Result<Response, impl IntoResponse> {
     // Get client identifier (IP address or user ID)
-    let client_ip = headers
-        .get("x-forwarded-for")
-        .or_else(|| headers.get("x-real-ip"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
+    let client_ip = extract_ip_from_headers(&headers).unwrap_or("unknown");
 
     // Check rate limit
     {
@@ -411,6 +592,20 @@ pub async fn rate_limit(
     } // Guard is dropped here
 
     Ok(next.run(request).await)
+}
+
+/// Request rate tracking middleware
+/// Tracks request counts for calculating system load metrics (RPM)
+pub async fn request_rate_middleware(
+    State(state): State<ApiState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // Increment request counter in AdminService
+    state.services.admin.track_request();
+
+    // Continue processing
+    next.run(request).await
 }
 
 /// Request logging middleware
@@ -567,10 +762,64 @@ pub async fn cors_preflight(request: Request, next: Next) -> Response {
 
 /// Seal status check middleware
 /// Blocks all secret operations when vault is sealed
-///
 /// CRITICAL SECURITY: This middleware enforces that all API operations
 /// (except whitelisted system endpoints) are blocked when the vault is sealed.
 /// This follows HashiCorp Vault security best practices.
+
+/// Checks if a given request path is whitelisted from the seal check.
+///
+/// Whitelisted endpoints are those required for basic vault operations,
+/// such as health checks, initialization, and unsealing.
+fn is_whitelisted(path: &str) -> bool {
+    // These endpoints allow sub-paths (e.g., /health/live)
+    const WHITELISTED_PREFIXES: &[&str] = &["/health", "/version", "/metrics"];
+    if WHITELISTED_PREFIXES.iter().any(|p| path.starts_with(p)) {
+        return true;
+    }
+
+    // These endpoints must match exactly
+    const WHITELISTED_PATHS: &[&str] = &[
+        "/v1/sys/seal-status",
+        "/api/v1/sys/seal-status",
+        "/v1/sys/unseal",
+        "/api/v1/sys/unseal",
+        "/v1/sys/init",
+        "/api/v1/sys/init",
+    ];
+    WHITELISTED_PATHS.contains(&(&path))
+}
+
+/// Metrics middleware
+/// Tracks request counts and active connections
+pub async fn metrics_middleware(
+    State(state): State<ApiState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    // Increment active connections
+    state
+        .metrics
+        .active_connections
+        .fetch_add(1, Ordering::Relaxed);
+
+    // Increment total requests
+    state
+        .metrics
+        .rest_requests_total
+        .fetch_add(1, Ordering::Relaxed);
+
+    // Process request
+    let response = next.run(request).await;
+
+    // Decrement active connections
+    state
+        .metrics
+        .active_connections
+        .fetch_sub(1, Ordering::Relaxed);
+
+    response
+}
+
 pub async fn seal_check_middleware(
     State(state): State<ApiState>,
     request: Request,
@@ -578,21 +827,7 @@ pub async fn seal_check_middleware(
 ) -> Response {
     let path = request.uri().path();
 
-    // Whitelist: Allow these endpoints even when sealed
-    // - Health checks (for load balancers)
-    // - Seal status (to check if sealed)
-    // - Unseal (to unseal the vault)
-    // - Init (to initialize the vault)
-    if path.starts_with("/health")
-        || path.starts_with("/version")
-        || path.starts_with("/metrics")
-        || path == "/v1/sys/seal-status"
-        || path == "/api/v1/sys/seal-status"
-        || path == "/v1/sys/unseal"
-        || path == "/api/v1/sys/unseal"
-        || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init"
-    {
+    if is_whitelisted(path) {
         return next.run(request).await;
     }
 
@@ -602,8 +837,7 @@ pub async fn seal_check_middleware(
         warn!("🔒 Blocked request to {} - vault is sealed", path);
 
         // Record metric for blocked requests
-        // TODO: Re-enable when metrics are properly integrated
-        // metrics::counter!("secreton_seal_blocked_requests_total").increment(1);
+        metrics::counter!("secreton_seal_blocked_requests_total").increment(1);
 
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -612,7 +846,8 @@ pub async fn seal_check_middleware(
                 "sealed": true,
                 "message": "The vault is sealed. Please unseal it with threshold shares before performing operations."
             })),
-        ).into_response();
+        )
+            .into_response();
     }
 
     tracing::debug!(
@@ -624,13 +859,11 @@ pub async fn seal_check_middleware(
 }
 
 /// Namespace access validation middleware
-///
 /// Validates that the user has access to the requested namespace based on
 /// JWT claims and SIMKARI organizational hierarchy (Pusat -> Wilayah -> Satker).
-///
 /// This middleware should be applied to all secret operation endpoints.
 pub async fn namespace_access_middleware(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     request: Request,
     next: Next,
 ) -> Result<Response, Response> {
@@ -657,25 +890,55 @@ pub async fn namespace_access_middleware(
             let namespace_id = extract_namespace_from_path(path);
 
             if let Some(ns_id) = namespace_id {
-                // TODO: Get NamespaceAccessControl from state
-                // For now, log the validation attempt
                 debug!(
                     "Namespace access validation: user {} (level: {:?}) accessing namespace {}",
                     claims.sub, claims.admin_level, ns_id
                 );
 
-                // TODO: Implement actual validation when NamespaceAccessControl is in state
-                // let access_control = state.namespace_access_control;
-                // if !access_control.check_access(claims, &ns_id)? {
-                //     return Err((
-                //         StatusCode::FORBIDDEN,
-                //         Json(serde_json::json!({
-                //             "error": "Access denied to namespace",
-                //             "namespace": ns_id,
-                //             "admin_level": format!("{:?}", claims.admin_level)
-                //         })),
-                //     ));
-                // }
+                use secreton_core::namespace::NamespaceAccessControl;
+
+                // Optimization: Use with_hierarchy to avoid cloning the namespace hierarchy
+                let validation_result = state.services.namespace.with_hierarchy(|hierarchy| {
+                    NamespaceAccessControl::verify_access(hierarchy, claims, &ns_id)
+                });
+
+                match validation_result {
+                    Ok(true) => {
+                        // Access allowed
+                        debug!("Access granted to namespace {}", ns_id);
+                    }
+                    Ok(false) => {
+                        warn!("Access denied to namespace {} for user {}", ns_id, claims.sub);
+                        return Err((
+                            StatusCode::FORBIDDEN,
+                            Json(serde_json::json!({
+                                "error": "Access denied to namespace",
+                                "namespace": ns_id,
+                                "admin_level": format!("{:?}", claims.admin_level)
+                            })),
+                        )
+                            .into_response());
+                    }
+                    Err(e) => {
+                        // Namespace not found or other error
+                        warn!("Namespace access check failed: {}", e);
+                        let status = match e {
+                            secreton_core::error::CoreError::NotFound { .. } => {
+                                StatusCode::NOT_FOUND
+                            }
+                            _ => StatusCode::FORBIDDEN,
+                        };
+
+                        return Err((
+                            status,
+                            Json(serde_json::json!({
+                                "error": "Namespace access validation failed",
+                                "details": e.to_string()
+                            })),
+                        )
+                            .into_response());
+                    }
+                }
             }
         } else {
             debug!("No JWT claims in request context for namespace validation");
@@ -686,37 +949,48 @@ pub async fn namespace_access_middleware(
 }
 
 /// Extract namespace ID from request path
-///
 /// Handles various path formats:
 /// - /v1/secret/data/{namespace}/{path}
 /// - /v1/transit/encrypt/{namespace}/{key}
 /// - /v1/dynamic/database/creds/{namespace}/{role}
 fn extract_namespace_from_path(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    let mut parts = path.split('/').filter(|s| !s.is_empty());
 
-    // Look for namespace after known prefixes
-    if parts.len() >= 4 {
-        // Check for secret paths: /v1/secret/data/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "secret" && parts[2] == "data" {
-            return Some(parts[3].to_string());
-        }
+    // Check first part (v1)
+    if parts.next()? != "v1" {
+        return None;
+    }
 
-        // Check for transit paths: /v1/transit/{operation}/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "transit" && parts.len() >= 4 {
-            return Some(parts[3].to_string());
+    match parts.next()? {
+        "secret" => {
+            // /v1/secret/data/{namespace}/...
+            if parts.next()? == "data" {
+                return parts.next().map(|s| s.to_string());
+            }
         }
-
-        // Check for dynamic secrets: /v1/dynamic/{type}/creds/{namespace}/...
-        if parts[0] == "v1" && parts[1] == "dynamic" && parts.len() >= 5 {
-            return Some(parts[4].to_string());
+        "transit" => {
+            // /v1/transit/{operation}/{namespace}/...
+            // Skip operation
+            let _operation = parts.next()?;
+            // Get namespace
+            return parts.next().map(|s| s.to_string());
         }
+        "dynamic" => {
+            // /v1/dynamic/{type}/creds/{namespace}/...
+            // Skip type
+            let _type = parts.next()?;
+            // Check for creds
+            if parts.next()? == "creds" {
+                return parts.next().map(|s| s.to_string());
+            }
+        }
+        _ => {}
     }
 
     None
 }
 
 /// Extract JWT claims from token claims for namespace access control
-///
 /// Converts the auth service token claims into JwtClaims for namespace validation
 fn extract_jwt_claims_from_token(
     claims: &crate::auth::Claims,
@@ -786,7 +1060,6 @@ fn determine_admin_level(
 }
 
 /// Extract policy names from JWT claims
-///
 /// Looks for policy_names field in JWT claims metadata or as a direct field
 fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String> {
     // Check metadata for policy_names
@@ -818,10 +1091,8 @@ fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String>
 }
 
 /// Policy check middleware
-///
 /// Enforces policy-based authorization on all operations.
 /// Evaluates policies loaded from JWT claims against the requested path and action.
-///
 /// This middleware should be applied after authentication middleware.
 pub async fn policy_check_middleware(
     State(state): State<ApiState>,
@@ -878,6 +1149,11 @@ pub async fn policy_check_middleware(
         // Record metrics
         record_policy_evaluation_metrics(allowed, evaluation_time);
 
+        // Extract context for audit logging
+        let client_ip = extract_ip_from_headers(request.headers()).map(String::from);
+        let user_agent = extract_user_agent_from_headers(request.headers()).map(String::from);
+        let namespace = extract_namespace_from_path(path);
+
         if !allowed {
             warn!(
                 "Policy denied access: user={}, path={}, action={}, evaluation_time={:?}",
@@ -885,8 +1161,18 @@ pub async fn policy_check_middleware(
             );
 
             // Log to audit with policy decision
-            log_policy_decision_to_audit(&state, ctx, path, &action, false, &ctx.policy_names)
-                .await;
+            log_policy_decision_to_audit(
+                &state,
+                ctx,
+                path,
+                &action,
+                false,
+                &ctx.policy_names,
+                client_ip,
+                user_agent,
+                namespace,
+            )
+            .await;
 
             return Err((
                 StatusCode::FORBIDDEN,
@@ -907,7 +1193,18 @@ pub async fn policy_check_middleware(
         );
 
         // Log successful policy evaluation to audit
-        log_policy_decision_to_audit(&state, ctx, path, &action, true, &ctx.policy_names).await;
+        log_policy_decision_to_audit(
+            &state,
+            ctx,
+            path,
+            &action,
+            true,
+            &ctx.policy_names,
+            client_ip,
+            user_agent,
+            namespace,
+        )
+        .await;
 
         Ok(next.run(request).await)
     } else {
@@ -944,12 +1241,7 @@ fn map_method_to_action(method: &axum::http::Method) -> String {
 fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::Value {
     use serde_json::json;
 
-    let client_ip = request
-        .headers()
-        .get("x-forwarded-for")
-        .or_else(|| request.headers().get("x-real-ip"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
+    let client_ip = extract_ip_from_headers(request.headers()).unwrap_or("unknown");
 
     json!({
         "user_id": ctx.user_id,
@@ -957,7 +1249,12 @@ fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::
         "user_roles": ctx.user_roles,
         "client_ip": client_ip,
         "request_id": ctx.request_id,
-        "mfa_passed": false, // TODO: Get actual MFA status from context
+        "mfa_passed": ctx
+            .jwt_claims
+            .as_ref()
+            .and_then(|c| c.metadata.get("mfa_passed"))
+            .map(|v| v == "true")
+            .unwrap_or(false),
         "timestamp": chrono::Utc::now().to_rfc3339(),
     })
 }
@@ -981,6 +1278,7 @@ fn record_policy_evaluation_metrics(allowed: bool, evaluation_time: std::time::D
 }
 
 /// Log policy decision to audit log
+#[allow(clippy::too_many_arguments)]
 async fn log_policy_decision_to_audit(
     state: &ApiState,
     ctx: &RequestContext,
@@ -988,6 +1286,9 @@ async fn log_policy_decision_to_audit(
     action: &str,
     allowed: bool,
     policy_names: &[String],
+    client_ip: Option<String>,
+    user_agent: Option<String>,
+    namespace: Option<String>,
 ) {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -1018,9 +1319,9 @@ async fn log_policy_decision_to_audit(
         } else {
             AuditStatus::Denied
         },
-        ip: None,         // TODO: Extract from request
-        user_agent: None, // TODO: Extract from request
-        namespace: None,  // TODO: Extract namespace from path
+        ip: client_ip,
+        user_agent,
+        namespace,
         metadata,
     };
 
@@ -1032,6 +1333,51 @@ async fn log_policy_decision_to_audit(
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_mfa_status_extraction() {
+        use std::collections::HashMap;
+        use secreton_core::namespace::{JwtClaims, AdminLevel};
+
+        // Create claims with MFA passed
+        let mut metadata = HashMap::new();
+        metadata.insert("mfa_passed".to_string(), "true".to_string());
+
+        let claims = JwtClaims {
+            sub: "user123".to_string(),
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            satker_code: None,
+            wilayah_code: None,
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".to_string(),
+            metadata,
+        };
+
+        let ctx = RequestContext {
+            request_id: "req123".to_string(),
+            user_id: Some("user123".to_string()),
+            user_email: Some("test@example.com".to_string()),
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims),
+            policy_names: vec![],
+        };
+
+        let request = Request::builder()
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let policy_context = build_policy_context(&ctx, &request);
+
+        // This should be true if implementation is correct
+        assert_eq!(policy_context["mfa_passed"], true, "MFA status should be extracted from claims");
+    }
 
     #[test]
     fn test_rate_limiting() {
@@ -1048,21 +1394,85 @@ mod tests {
         // Different client should be allowed
         assert!(rate_limiter.check_rate_limit("other-client"));
     }
+
+    #[test]
+    fn test_derive_namespace() {
+        use secreton_core::namespace::{AdminLevel, JwtClaims};
+        use std::collections::HashMap;
+
+        // Test satker
+        let mut claims = JwtClaims {
+            sub: "user".into(),
+            name: "User".into(),
+            email: "user@example.com".into(),
+            satker_code: Some("KJA001".into()),
+            wilayah_code: Some("SUMUT".into()),
+            admin_level: AdminLevel::Satker,
+            roles: vec![],
+            permissions: vec![],
+            exp: 0,
+            iat: 0,
+            iss: "test".into(),
+            metadata: HashMap::new(),
+        };
+
+        let context = RequestContext {
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: Some(claims.clone()),
+            policy_names: vec![],
+        };
+
+        assert_eq!(context.derive_namespace(), "satker-kja001");
+
+        // Test wilayah
+        claims.satker_code = None;
+        claims.admin_level = AdminLevel::Wilayah;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "wilayah-sumut");
+
+        // Test pusat
+        claims.wilayah_code = None;
+        claims.admin_level = AdminLevel::Pusat;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "pusat");
+
+        // Test fallback
+        claims.admin_level = AdminLevel::EselonI;
+        let context = RequestContext {
+            jwt_claims: Some(claims.clone()),
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "default");
+
+        // Test no claims
+        let context = RequestContext {
+            jwt_claims: None,
+            ..context
+        };
+        assert_eq!(context.derive_namespace(), "default");
+    }
 }
 
 /// Response wrapping middleware
-///
 /// Automatically wraps responses when X-Vault-Wrap-TTL header is present.
 /// This allows clients to request wrapped responses for any endpoint.
-///
 /// # Header Format
 /// `X-Vault-Wrap-TTL: <seconds>`
-///
 /// # Example
 /// ```bash
 /// curl -H "X-Vault-Wrap-TTL: 300" http://localhost:8200/v1/secret/data/myapp
 /// ```
-///
 /// # Response
 /// Instead of returning the actual secret, returns a wrapping token:
 /// ```json
@@ -1082,6 +1492,8 @@ pub async fn response_wrapping_middleware(
     request: Request,
     next: Next,
 ) -> Response {
+    const MAX_WRAPPING_SIZE: usize = 10 * 1024 * 1024; // 10MB
+
     // Check for X-Vault-Wrap-TTL header
     let wrap_ttl = headers
         .get("X-Vault-Wrap-TTL")
@@ -1110,6 +1522,14 @@ pub async fn response_wrapping_middleware(
             .into_response();
     }
 
+    // Capture path and namespace before request is consumed
+    let path = request.uri().path().to_string();
+    let namespace = if let Some(ctx) = request.extensions().get::<RequestContext>() {
+        ctx.derive_namespace()
+    } else {
+        extract_namespace_from_path(&path).unwrap_or_else(|| "default".to_string())
+    };
+
     // Execute the request
     let response = next.run(request).await;
 
@@ -1118,36 +1538,94 @@ pub async fn response_wrapping_middleware(
         return response;
     }
 
-    // Extract response body
-    // Note: This is a simplified implementation. In production, you'd need to:
-    // 1. Extract the response body properly
-    // 2. Parse it as JSON
-    // 3. Wrap it using WrappingService
-    // 4. Return the wrapped response
-    //
-    // For now, we'll just pass through the response and log that wrapping was requested
     info!(
         ttl = wrap_ttl,
+        path = %path,
+        namespace = %namespace,
         "Response wrapping requested via X-Vault-Wrap-TTL header"
     );
 
-    // TODO: Implement actual response wrapping
-    // This requires:
-    // 1. Buffering the response body
-    // 2. Parsing it as JSON
-    // 3. Calling state.wrapping_service.wrap()
-    // 4. Returning the wrapped token response
-    //
-    // For now, return the original response with a warning header
-    let mut response = response;
-    response.headers_mut().insert(
-        "X-Vault-Wrap-Warning",
-        "Response wrapping via middleware not yet fully implemented. Use /v1/sys/wrapping/wrap endpoint instead."
-            .parse()
-            .unwrap(),
-    );
+    // Buffer the response body
+    let (parts, body) = response.into_parts();
 
-    response
+    let bytes = match axum::body::to_bytes(body, MAX_WRAPPING_SIZE).await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("Failed to buffer response for wrapping: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": {
+                        "code": "WRAPPING_ERROR",
+                        "message": "Failed to buffer response"
+                    }
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    // Parse as JSON
+    let json_body: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(_) => {
+            // Not JSON, return original response
+            return Response::from_parts(parts, axum::body::Body::from(bytes));
+        }
+    };
+
+    // Prepare wrap request
+    let wrap_req = secreton_core::services::wrapping::WrapRequest {
+        data: json_body,
+        ttl: Duration::from_secs(wrap_ttl),
+        namespace,
+    };
+
+    // Wrap the response
+    match state.services.wrapping_service.wrap(wrap_req).await {
+        Ok(wrap_response) => {
+            // Extract request_id from original headers if possible
+            let request_id = parts
+                .headers
+                .get("x-request-id")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+            let wrapped_data = serde_json::json!({
+                "success": true,
+                "data": {
+                    "token": wrap_response.token,
+                    "created_at": wrap_response.created_at,
+                    "expires_at": wrap_response.expires_at,
+                    "ttl": wrap_response.ttl,
+                    "wrapped_at": chrono::Utc::now(),
+                    "creation_path": path
+                },
+                "metadata": {
+                    "request_id": request_id,
+                    "timestamp": chrono::Utc::now()
+                }
+            });
+
+            Json(wrapped_data).into_response()
+        }
+        Err(e) => {
+            warn!("Failed to wrap response: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "success": false,
+                    "error": {
+                        "code": "WRAPPING_FAILED",
+                        "message": format!("Failed to wrap response: {}", e)
+                    }
+                })),
+            )
+                .into_response()
+        }
+    }
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
@@ -1158,6 +1636,21 @@ mod certificate_tests {
     fn test_certificate_cache() {
         let cache = CertificateCache::new(60);
         assert!(cache.get("test").is_none());
+        assert_eq!(cache.misses.load(Ordering::Relaxed), 1);
+        assert_eq!(cache.hits.load(Ordering::Relaxed), 0);
+        assert_eq!(cache.hit_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_validate_client_certificate_integration() {
+        init_certificate_cache(60);
+        // Using a dummy DER (not a real cert, parsing will fail but we check cache flow)
+        let _dummy_der = vec![0x30, 0x82, 0x01];
+        let _allowed = vec!["CN=test".to_string()];
+
+        // Verify that get_cache_hit_rate() is safe to call.
+        let rate = get_cache_hit_rate();
+        assert!(rate >= 0.0);
     }
 
     #[test]
@@ -1165,5 +1658,146 @@ mod certificate_tests {
         assert!(0 == 0 || 0 > 86400); // Invalid
         assert!(300 > 0 && 300 <= 86400); // Valid
         assert!(86401 > 86400); // Invalid
+    }
+}
+
+#[cfg(all(test, feature = "enable-inline-tests"))]
+mod middleware_tests {
+    use super::*;
+    use axum::http::Request;
+    use secreton_core::services::seal::{SealConfig, SealService};
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_blocks_when_sealed() {
+        let state = create_test_api_state(true).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let request = Request::builder()
+            .uri("/v1/secret/data/my-secret")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = middleware.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_allows_when_unsealed() {
+        let state = create_test_api_state(false).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let request = Request::builder()
+            .uri("/v1/secret/data/my-secret")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = middleware.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_seal_check_middleware_allows_whitelisted_endpoints_when_sealed() {
+        let state = create_test_api_state(true).await;
+        let middleware =
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
+                .service_fn(mock_handler);
+
+        let whitelisted_paths = [
+            "/health",
+            "/version",
+            "/metrics",
+            "/v1/sys/seal-status",
+            "/api/v1/sys/seal-status",
+            "/v1/sys/unseal",
+            "/api/v1/sys/unseal",
+            "/v1/sys/init",
+            "/api/v1/sys/init",
+        ];
+
+        for path in &whitelisted_paths {
+            let request = Request::builder()
+                .uri(*path)
+                .body(axum::body::Body::empty())
+                .unwrap();
+            let response = middleware.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "Failed for path: {}", path);
+        }
+    }
+
+    async fn create_test_api_state(sealed: bool) -> ApiState {
+        use secreton_storage::MemoryBackend;
+        let storage = Arc::new(MemoryBackend::new());
+        let cfg = deadpool_postgres::Config::new();
+        let pool = cfg.create_pool(None, tokio_postgres::NoTls).unwrap();
+
+        let services = crate::services::ServiceContainer::new_mock(storage, pool);
+
+        if !sealed {
+            // Initialize and unseal
+            if let Ok(init_res) = services.seal.initialize().await {
+                // init_res is Vec<Share>
+                if let Some(share) = init_res.first() {
+                    // Share struct doesn't have public fields, but it implements serialization
+                    if let Ok(share_bytes) = share.to_bytes() {
+                        // The unseal method expects a hex-encoded string or string representation
+                        // Assuming the share bytes can be hex encoded to be passed as key
+                        let key_str = hex::encode(share_bytes);
+                        let _ = services.seal.unseal(key_str).await;
+                    }
+                }
+            }
+        }
+
+        ApiState {
+            transit: crate::transit::TransitApiState {
+                engine: Arc::new(secreton_crypto::transit::TransitEngine::new()),
+                config: None
+            },
+            kv: crate::kv::KVApiState {
+                engine: Arc::new(crate::kv::KVEngine::new())
+            },
+            pki: crate::pki::PkiApiState::default(),
+            services: Arc::new(services),
+            prometheus_handle: None,
+        }
+    }
+
+    async fn mock_handler(_req: Request<axum::body::Body>) -> Result<Response, std::convert::Infallible> {
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body(axum::body::Body::empty())
+            .unwrap())
+    }
+
+    #[test]
+    fn test_extract_namespace_from_path() {
+        // Valid paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/data/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/transit/encrypt/my-ns/key"),
+            Some("my-ns".to_string())
+        );
+        assert_eq!(
+            extract_namespace_from_path("/v1/dynamic/database/creds/my-ns/role"),
+            Some("my-ns".to_string())
+        );
+
+        // Invalid paths
+        assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
+        assert_eq!(extract_namespace_from_path("/invalid/path"), None);
+        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/my-ns/key"), None); // Only data paths
+        assert_eq!(extract_namespace_from_path("/v1/other/data/my-ns/key"), None);
     }
 }

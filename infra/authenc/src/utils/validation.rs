@@ -67,7 +67,6 @@ pub fn validate_username(username: &str) -> bool {
 }
 
 /// Validate password complexity
-///
 /// Requirements:
 /// - Minimum 8 characters
 /// - At least one uppercase letter
@@ -102,7 +101,6 @@ pub fn validate_phone_number(phone: &str) -> bool {
 }
 
 /// Sanitize string input to prevent injection attacks
-///
 /// This function:
 /// - Trims whitespace
 /// - Removes null bytes

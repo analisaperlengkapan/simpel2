@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 /// Security classification levels
-///
 /// Defines hierarchical security levels for data classification and access control.
 /// Higher levels can access lower levels, but not vice versa.
 #[derive(

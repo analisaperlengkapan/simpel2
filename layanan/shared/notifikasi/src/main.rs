@@ -1,25 +1,33 @@
+#[allow(unused)]
 mod audit;
 mod config;
+#[allow(unused)]
 mod email;
+#[allow(unused)]
 mod error;
 mod handlers;
+#[allow(unused)]
 mod models;
+#[allow(unused)]
 mod push;
+#[allow(unused)]
 mod queue;
+#[allow(unused)]
 mod security;
+#[allow(unused)]
 mod template;
 mod websocket;
+#[allow(unused)]
 mod whatsapp;
 
 use crate::config::AppConfig;
 use crate::security::RateLimitState;
 use axum::{Router, http::Method};
+use dashmap::DashMap;
 use deadpool_postgres::{Config, Runtime};
 use prometheus::{Encoder, Registry, TextEncoder};
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
@@ -56,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             axum::http::header::HeaderName::from_static("x-api-key"),
         ]);
     // Rate limit state
-    let rate_limit_state: RateLimitState = Arc::new(Mutex::new(HashMap::new()));
+    let rate_limit_state: RateLimitState = Arc::new(DashMap::new());
     // WebSocket state
     let ws_state = websocket::WsState::new(pool.clone());
     // Router

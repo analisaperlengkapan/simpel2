@@ -22,10 +22,10 @@ pub fn routes(
     _rate_limit_state: RateLimitState,
     ws_state: WsState,
 ) -> Router {
-    let _email = EmailService::new(app_config.clone(), pool.clone());
-    let _whatsapp = WhatsAppService::new(app_config.clone(), pool.clone());
-    let _push = PushService::new(app_config.clone(), pool.clone());
-    let _template = TemplateService::new(pool.clone());
+    let _ = EmailService::new(app_config.clone(), pool.clone());
+    let _ = WhatsAppService::new(app_config.clone(), pool.clone());
+    let _ = PushService::new(app_config.clone(), pool.clone());
+    let _ = TemplateService::new(pool.clone());
     Router::new()
         // WebSocket
         .route("/notifications/ws", get(websocket::ws_handler))

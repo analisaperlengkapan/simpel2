@@ -27,9 +27,10 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
-gloo = { workspace = true, features = ["futures", "timers", "events"] }
+gloo = { workspace = true, features = ["futures", "timers", "events", "net"] }
 gloo-timers = { workspace = true, features = ["futures"] }
 gloo-utils = { workspace = true }
+gloo-net = { version = "0.6", features = ["http"] }
 
 # Serialization - Compact binary format
 serde = { workspace = true, features = ["derive"] }
@@ -41,11 +42,9 @@ console_log = { workspace = true }
 log = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
+chrono = { workspace = true, features = ["serde", "wasm-bindgen"] }
 
 [features]
 default = ["csr"]
 csr = ["leptos/csr"]
 hydrate = ["leptos/hydrate"]
-
-# WASM Build Optimization Profile
-# Development profile with fast rebuild

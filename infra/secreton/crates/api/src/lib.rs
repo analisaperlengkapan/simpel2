@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 pub mod audit;
 pub mod auth;
 pub mod config;
-pub mod config_adapter;
 pub mod error;
 pub mod extractors;
 pub mod handlers;
@@ -23,11 +22,13 @@ pub mod response;
 // TODO: Re-enable after OpenRaft migration is complete
 // pub mod raft;
 pub mod services;
+pub mod tls_optimization;
 pub mod transit;
 
 // Re-export gRPC from separate crate
 pub use secreton_grpc as grpc;
 
+use axum::extract::State;
 pub use auth::JwtService;
 pub use error::{ApiError, ApiResult};
 pub use kv::{KVApiState, KVEngine, create_kv_router};
@@ -46,6 +47,8 @@ pub struct ApiState {
     pub kv: KVApiState,
     pub pki: PkiApiState,
     pub services: std::sync::Arc<crate::services::ServiceContainer>,
+    pub prometheus_handle: Option<metrics_exporter_prometheus::PrometheusHandle>,
+    pub metrics: std::sync::Arc<crate::metrics::GlobalMetrics>,
 }
 
 #[derive(Clone)]
@@ -92,45 +95,57 @@ pub struct TlsMetricsResponse {
 pub fn create_api_router(state: ApiState) -> Router {
     // Legacy v1 routers (transit, kv, pki)
     let v1_legacy = Router::new()
-        .nest("/transit", create_transit_router(state.transit))
-        .nest("/kv", create_kv_router(state.kv))
-        .nest("/pki", create_pki_router(state.pki));
+        .nest("/transit", create_transit_router(state.transit.clone()))
+        .nest("/kv", create_kv_router(state.kv.clone()))
+        .nest("/pki", create_pki_router(state.pki.clone()));
 
     // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)
-    // Note: handlers that need config should get it from ServiceContainer
-    let v1_handlers = handlers::create_router(
-        &config::ApiConfig::default(),
-        state.services.clone(),
-    );
+    let config = config::ApiConfig::load().unwrap_or_default();
+    let protected_routes = handlers::create_protected_router(&config, state.services.clone());
+    let unprotected_routes = handlers::create_unprotected_router(&config, state.services.clone());
+
+    let v1_handlers = protected_routes.merge(unprotected_routes);
+
+    // Combine legacy and new handlers into a single Router
+    let v1_router = v1_legacy
+        .merge(v1_handlers)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::seal_check_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::auth_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::metrics_middleware,
+        ));
 
     Router::new()
         .route("/health", get(health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
+        .route("/metrics/prometheus", get(get_prometheus_metrics))
         .route("/metrics/tls", get(get_tls_metrics))
-        .nest("/v1", v1_legacy.merge(v1_handlers))
+        .nest_service("/v1", v1_router)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::request_rate_middleware,
+        ))
+        .with_state(state)
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MetricsResponse {
-    pub rest_requests_total: u64,
-    pub grpc_requests_total: u64,
-    pub transit_operations_total: u64,
-    pub kv_operations_total: u64,
-    pub active_connections: u64,
-    pub uptime_seconds: u64,
+pub async fn get_prometheus_metrics(State(state): State<ApiState>) -> String {
+    if let Some(handle) = &state.prometheus_handle {
+        handle.render()
+    } else {
+        "# Prometheus metrics not initialized".to_string()
+    }
 }
 
-pub async fn get_metrics() -> Json<MetricsResponse> {
-    // TODO: Implement actual metrics collection
-    Json(MetricsResponse {
-        rest_requests_total: 0,
-        grpc_requests_total: 0,
-        transit_operations_total: 0,
-        kv_operations_total: 0,
-        active_connections: 0,
-        uptime_seconds: 0,
-    })
+pub async fn get_metrics(State(state): State<ApiState>) -> Json<crate::metrics::MetricsResponse> {
+    Json(state.metrics.snapshot())
 }
 
 pub async fn health_check() -> Json<HealthResponse> {
@@ -150,14 +165,14 @@ pub async fn get_version() -> Json<VersionResponse> {
 }
 
 pub async fn get_tls_metrics() -> Json<TlsMetricsResponse> {
-    // Placeholder metrics - implement when TLS monitoring is needed
+    let metrics = crate::tls_optimization::get_tls_metrics();
     Json(TlsMetricsResponse {
-        total_handshakes: 0,
-        successful_handshakes: 0,
-        session_resumptions: 0,
-        handshake_failures: 0,
-        average_handshake_time_ms: 0,
-        success_rate_percent: 0.0,
-        resumption_rate_percent: 0.0,
+        total_handshakes: metrics.total_handshakes,
+        successful_handshakes: metrics.successful_handshakes,
+        session_resumptions: metrics.session_resumptions,
+        handshake_failures: metrics.handshake_failures,
+        average_handshake_time_ms: metrics.average_handshake_time_ms,
+        success_rate_percent: metrics.get_success_rate(),
+        resumption_rate_percent: metrics.get_resumption_rate(),
     })
 }

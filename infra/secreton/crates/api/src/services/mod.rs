@@ -5,6 +5,7 @@
 
 pub mod admin;
 pub mod auth;
+pub mod namespace_persistence;
 pub mod seal_adapter;
 pub mod vault;
 
@@ -161,9 +162,13 @@ impl ServiceContainer {
         // Initialize core infrastructure
         let (storage, pool, crypto, audit) = Self::initialize_core_services(config).await?;
 
+        // Initialize lease manager early (needed for admin service)
+        let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
+        tracing::info!("✅ Lease manager initialized");
+
         // Initialize authentication services
         let (auth, admin) =
-            Self::initialize_auth_services(config, storage.clone(), crypto.clone()).await?;
+            Self::initialize_auth_services(config, storage.clone(), crypto.clone(), lease_manager.clone()).await?;
 
         // Initialize vault and seal services
         let (vault, seal, namespace) =
@@ -188,7 +193,6 @@ impl ServiceContainer {
             rabbitmq_engine,
             kafka_engine,
             rotation_engine,
-            lease_manager,
             policy,
             wrapping_service,
         ) = Self::initialize_secrets_engines(pool.clone());
@@ -253,13 +257,14 @@ impl ServiceContainer {
         config: &ApiConfig,
         storage: Arc<dyn StorageBackend + Send + Sync>,
         crypto: Arc<CryptoEngine>,
+        lease_manager: Arc<LeaseManager>,
     ) -> Result<(Arc<auth::AuthService>, Arc<admin::AdminService>)> {
         let auth =
             Arc::new(auth::AuthService::new(storage.clone(), crypto.clone(), &config.auth).await?);
 
         let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
         let admin =
-            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit).await?);
+            Arc::new(admin::AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager).await?);
 
         Ok((auth, admin))
     }
@@ -328,7 +333,22 @@ impl ServiceContainer {
             "Kejaksaan Agung RI".to_string(),
             "system".to_string(),
         ));
-        tracing::info!("✅ Namespace service initialized with root namespace");
+
+        // Load namespace hierarchy from storage
+        match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret).await
+        {
+            Ok(Some(hierarchy)) => {
+                namespace.update_hierarchy(hierarchy);
+                tracing::info!("✅ Namespace hierarchy loaded from storage");
+            }
+            Ok(None) => {
+                tracing::info!("✅ Namespace service initialized with default root namespace");
+            }
+            Err(e) => {
+                tracing::error!("❌ Failed to load namespace hierarchy: {:?}", e);
+                panic!("Failed to load namespace hierarchy from storage: {:?}", e);
+            }
+        }
 
         Ok((vault, seal, namespace))
     }
@@ -353,7 +373,6 @@ impl ServiceContainer {
         Arc<RabbitMqEngine>,
         Arc<KafkaEngine>,
         Arc<AutoRotationEngine>,
-        Arc<LeaseManager>,
         Arc<RwLock<PolicySet>>,
         Arc<WrappingService>,
     ) {
@@ -405,9 +424,6 @@ impl ServiceContainer {
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
 
-        let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
-        tracing::info!("✅ Lease manager initialized");
-
         let default_policies = vec![];
         let policy = Arc::new(RwLock::new(PolicySet::new(default_policies)));
         tracing::info!("✅ Policy service initialized");
@@ -432,7 +448,6 @@ impl ServiceContainer {
             rabbitmq_engine,
             kafka_engine,
             rotation_engine,
-            lease_manager,
             policy,
             wrapping_service,
         )

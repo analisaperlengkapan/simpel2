@@ -169,7 +169,6 @@ pub async fn detailed_health_check(
 }
 
 /// Readiness check - determines if the service is ready to accept traffic
-///
 /// CRITICAL: Returns 503 Service Unavailable if vault is sealed.
 /// This follows HashiCorp Vault best practices where Kubernetes/load balancers
 /// should not route traffic to a sealed vault instance.
@@ -365,7 +364,7 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
 
     // Test encryption/decryption with the crypto service
     let test_data = b"health_check_test_data";
-    let test_key = b"test_key_32_bytes_for_health_1!!"; // Exactly 32 bytes for AES-256
+    let test_key = b"test_key_32_bytes_for_health_01";
 
     let (status, message, mut details_map) =
         match state
@@ -639,14 +638,13 @@ async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
 }
 
 /// Check seal status
-///
 /// CRITICAL: Vault must be unsealed to be considered "ready"
 /// This follows HashiCorp Vault best practices where a sealed vault
 /// returns 503 Service Unavailable for readiness checks.
 async fn check_seal_status(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
-    // CRITICAL SECURITY FIX: Get SealService from state and check if unsealed
+    // Get SealService from state and check if unsealed
     let is_unsealed = state.seal.is_unsealed().await;
 
     let response_time = start_time.elapsed().as_millis() as u64;
@@ -741,6 +739,22 @@ mod tests {
     #[tokio::test]
     async fn test_readiness_check_marks_ready() {
         let services = create_state().await;
+
+        // Unseal the vault to make it ready
+        let shares = services
+            .seal
+            .initialize()
+            .await
+            .expect("Failed to initialize");
+        for share in shares.iter().take(3) {
+            let share_bytes = share.to_bytes().unwrap();
+            services
+                .seal
+                .unseal_with_share(&share_bytes)
+                .await
+                .expect("Failed to unseal");
+        }
+
         let result = readiness_check(axum::extract::State(services)).await;
         assert!(result.is_ok());
 

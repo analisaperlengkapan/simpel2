@@ -216,6 +216,7 @@ impl SimanAssetCategory {
 
     /// Parse dari string kategori_aset di database ke enum
     /// Returns None jika string tidak valid
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "Alat Besar" => Some(Self::AlatBesar),

@@ -223,13 +223,14 @@ use config;
 use serde::Deserialize;
 use std::path::Path;
 
+pub mod api;
 pub mod application;
 pub mod bootstrap;
 pub mod dynamic;
 pub mod mfa_policy_loader;
 pub mod migrate;
 
-// Re-export application config
+// pub use api::*; // Avoid conflicts with local structs
 pub use application::*;
 
 // Re-export bootstrap config (StorageConfig renamed to BootstrapStorageConfig to avoid conflict)

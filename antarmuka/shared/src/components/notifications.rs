@@ -13,6 +13,7 @@ use leptos::prelude::*;
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::NotificationBell;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Navbar() -> impl IntoView {
@@ -202,6 +203,7 @@ pub fn NotificationBell(
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::NotificationList;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn NotificationsPage() -> impl IntoView {

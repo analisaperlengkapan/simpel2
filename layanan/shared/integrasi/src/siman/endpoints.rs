@@ -1,6 +1,7 @@
 use crate::client::MonsaktiClient;
 use crate::error::MonsaktiError;
 use crate::siman::models::SimanAssetCategory;
+use futures::stream::{self, StreamExt};
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -16,6 +17,7 @@ use tracing::{info, warn};
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_row_count, SimanAssetCategory};
+/// use layanan_integrasi::client::MonsaktiClient;
 ///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let count = get_row_count(client, SimanAssetCategory::AlatBesar).await?;
@@ -67,6 +69,7 @@ pub async fn get_row_count(
 /// # Example
 /// ```no_run
 /// use layanan_integrasi::siman::{get_aset_by_category, SimanAssetCategory};
+/// use layanan_integrasi::client::MonsaktiClient;
 ///
 /// # async fn example(client: &mut MonsaktiClient) -> Result<(), Box<dyn std::error::Error>> {
 /// let data = get_aset_by_category(client, SimanAssetCategory::Tanah, 1, 100).await?;
@@ -121,35 +124,57 @@ pub async fn fetch_all_aset_paginated(
         return Ok(vec![]);
     }
 
-    let mut all_data = Vec::new();
+    // Generate ranges
+    let mut ranges = Vec::new();
     let mut start_id = 1u32;
-
     while start_id <= total_count as u32 {
         let end_id = (start_id + chunk_size - 1).min(total_count as u32);
+        ranges.push((start_id, end_id));
+        start_id = end_id + 1;
+    }
 
-        info!(
-            "Fetching {} records {}-{} of {}",
-            category.description(),
-            start_id,
-            end_id,
-            total_count
-        );
+    // Process concurrent requests
+    let results = stream::iter(ranges)
+        .map(|(start_id, end_id)| {
+            let mut client_clone = client.clone();
+            let category_clone = category; // SimanAssetCategory is Clone/Copy
 
-        match get_aset_by_category(client, category, start_id, end_id).await {
-            Ok(data) => {
-                all_data.extend(data);
-                start_id = end_id + 1;
-            }
-            Err(e) => {
-                warn!(
-                    "Error fetching {}-{} for {}: {}",
+            async move {
+                info!(
+                    "Fetching {} records {}-{} of {}",
+                    category_clone.description(),
                     start_id,
                     end_id,
-                    category.description(),
-                    e
+                    total_count
                 );
-                // Continue with next batch
-                start_id = end_id + 1;
+
+                get_aset_by_category(&mut client_clone, category_clone, start_id, end_id)
+                    .await
+                    .map_err(|e| {
+                        warn!(
+                            "Error fetching {}-{} for {}: {}",
+                            start_id,
+                            end_id,
+                            category_clone.description(),
+                            e
+                        );
+                        e
+                    })
+            }
+        })
+        .buffered(10) // Concurrent limit
+        .collect::<Vec<Result<Vec<Value>, MonsaktiError>>>()
+        .await;
+
+    // Collect results
+    let mut all_data = Vec::new();
+    for result in results {
+        match result {
+            Ok(data) => all_data.extend(data),
+            Err(_) => {
+                // Warning already logged in stream map
+                // Continue with partial data as per original implementation intent
+                // Original implementation: warn and continue
             }
         }
     }
@@ -336,7 +361,7 @@ pub async fn fetch_all_assets_with_pagination(
     info!("📥 Starting fetch for: {}", category.description());
 
     // Get row count
-    let response = client.fetch_siman_row_count(category.clone()).await?;
+    let response = client.fetch_siman_row_count(category).await?;
 
     let total_count = if let Some(data) = response.data {
         if let Some(results) = data.get("results").and_then(|r| r.as_array()) {
@@ -366,20 +391,58 @@ pub async fn fetch_all_assets_with_pagination(
     let mut success_count = 0usize;
     let mut failed_count = 0usize;
     let chunk_size = 1000u32; // Batch size per request - increased for faster fetching
-    let mut current_id = 1u32;
 
+    // Prepare ranges
+    let mut ranges = Vec::new();
+    let mut current_id = 1u32;
     while current_id <= total_count as u32 {
         let end_id = (current_id + chunk_size - 1).min(total_count as u32);
+        ranges.push((current_id, end_id));
+        current_id = end_id + 1;
+    }
 
-        info!(
-            "🔄 Fetching records {}-{} of {}",
-            current_id, end_id, total_count
-        );
+    // Prepare tasks with cloned clients to avoid borrow checker issues
+    // We clone the client for each task so we can use the original client for saving
+    let tasks: Vec<_> = ranges
+        .into_iter()
+        .map(|(start_id, end_id)| {
+            let client_clone = client.clone();
+            let category_clone = category;
+            (start_id, end_id, client_clone, category_clone)
+        })
+        .collect();
 
-        match client
-            .fetch_siman_data(category.clone(), current_id, end_id)
-            .await
-        {
+    // Create a channel to decouple fetching from saving
+    let (tx, mut rx) = tokio::sync::mpsc::channel(10); // Buffer size 10 to allow fetching to get ahead of saving
+
+    // Spawn the fetching task
+    tokio::spawn(async move {
+        let mut stream = stream::iter(tasks)
+            .map(
+                |(start_id, end_id, mut client_clone, category_clone)| async move {
+                    info!(
+                        "🔄 Fetching records {}-{} of {}",
+                        start_id, end_id, total_count
+                    );
+                    let result = client_clone
+                        .fetch_siman_data(category_clone, start_id, end_id)
+                        .await;
+                    (start_id, end_id, result)
+                },
+            )
+            .buffer_unordered(5); // Process up to 5 requests concurrently
+
+        while let Some(item) = stream.next().await {
+            if tx.send(item).await.is_err() {
+                // Receiver dropped, stop fetching
+                break;
+            }
+        }
+    });
+
+    // Iterate through completed tasks received from channel
+    while let Some((current_id, end_id, result)) = rx.recv().await {
+        match result {
             Ok(response) => {
                 if let Some(data) = response.data {
                     // Extract results array
@@ -459,11 +522,6 @@ pub async fn fetch_all_assets_with_pagination(
                 failed_count += (end_id - current_id + 1) as usize;
             }
         }
-
-        current_id = end_id + 1;
-
-        // Rate limiting - small delay between requests
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
     Ok((success_count, failed_count))

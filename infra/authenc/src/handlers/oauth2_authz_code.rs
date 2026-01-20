@@ -1,5 +1,4 @@
 /// OAuth2 Authorization Code Flow with PKCE Support
-///
 /// This module implements the OAuth2 authorization code flow with PKCE (RFC 7636)
 /// for enhanced security.
 use crate::{
@@ -73,7 +72,6 @@ fn verify_code_challenge(code_verifier: &str, code_challenge: &str, method: &str
 }
 
 /// OAuth2 Authorization Endpoint
-///
 /// Handles authorization requests and initiates the authorization code flow.
 /// Validates client, redirect URI, and generates authorization code with PKCE support.
 pub async fn authorize(
@@ -166,7 +164,6 @@ pub async fn authorize(
 }
 
 /// OAuth2 Token Endpoint
-///
 /// Exchanges authorization code for access token and refresh token.
 /// Validates authorization code, PKCE verifier, and client credentials.
 pub async fn token(

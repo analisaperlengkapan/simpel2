@@ -61,6 +61,7 @@ pub mod lease;
 pub mod metrics;
 pub mod mfa;
 pub mod policy;
+pub mod policy_service;
 pub mod rate_limit;
 pub mod rbac;
 pub mod revocation;
@@ -78,3 +79,11 @@ pub mod dynamic;
 
 // Secrets management
 pub mod secrets;
+
+// Refactored services from API crate
+pub mod container;
+pub mod auth_service;
+pub mod vault_service;
+pub mod admin_service;
+pub mod namespace_persistence;
+pub mod seal_adapter;

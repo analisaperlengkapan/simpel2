@@ -47,17 +47,13 @@ impl SsoState {
 }
 
 /// OIDC token endpoint with SSO cookie support
-///
 /// Exchanges authorization codes for access tokens and ID tokens,
 /// and sets secure SSO cookies for session management.
-///
 /// # Arguments
 /// * `state` - Application state containing cookie manager
 /// * `params` - Query parameters containing grant type and authorization code
-///
 /// # Returns
 /// OAuth2 token response with access token, ID token, and SSO cookie
-///
 /// # Security Considerations
 /// - Validates grant type before processing
 /// - Issues short-lived access tokens (1 hour)
@@ -126,17 +122,13 @@ pub async fn oidc_token_with_sso(
 }
 
 /// OIDC authorize endpoint with SSO cookie support
-///
 /// Handles OIDC authorization requests and sets SSO cookies.
 /// Initiates OAuth2 authorization code flow with secure session management.
-///
 /// # Arguments
 /// * `state` - Application state containing cookie manager
 /// * `params` - Authorization request parameters
-///
 /// # Returns
 /// Redirect response to client with authorization code and SSO cookie
-///
 /// # Security Considerations
 /// - Validates response type before processing
 /// - Generates secure authorization codes
@@ -198,19 +190,15 @@ pub async fn oidc_authorize_with_sso(
 }
 
 /// OIDC logout endpoint with comprehensive SSO session termination
-///
 /// Terminates SSO session, clears SSO cookie, invalidates server-side sessions,
 /// propagates logout to federated providers, and publishes logout events.
 /// Supports post-logout redirect for seamless user experience.
-///
 /// # Arguments
 /// * `state` - Application state containing cookie manager, event bus, and session store
 /// * `headers` - Request headers containing cookies and client information
 /// * `params` - Query parameters with optional post_logout_redirect_uri and id_token_hint
-///
 /// # Returns
 /// Redirect response with deleted SSO cookie
-///
 /// # Security Considerations
 /// - Clears SSO cookie with Max-Age=0
 /// - Validates post_logout_redirect_uri against registered URIs
@@ -219,7 +207,6 @@ pub async fn oidc_authorize_with_sso(
 /// - Publishes logout event for audit trail and cache invalidation
 /// - Propagates logout to federated identity providers
 /// - Logs logout event with IP address and user agent
-///
 /// # Implementation Details
 /// 1. Extract SSO session from cookie
 /// 2. Validate post_logout_redirect_uri (prevent open redirect)
@@ -353,13 +340,10 @@ pub async fn oidc_logout_with_sso(
 }
 
 /// Validate post-logout redirect URI to prevent open redirect attacks
-///
 /// # Arguments
 /// * `redirect_uri` - The redirect URI to validate
-///
 /// # Returns
 /// Validated redirect URI or error if invalid
-///
 /// # Security Considerations
 /// - Validates against whitelist of allowed domains
 /// - Prevents open redirect vulnerabilities
@@ -392,11 +376,9 @@ fn validate_post_logout_redirect_uri(redirect_uri: &str) -> Result<&str> {
 }
 
 /// Propagate logout to federated identity providers
-///
 /// # Arguments
 /// * `federation_registry` - Registry of federated identity providers
 /// * `id_token_hint` - ID token hint containing provider information
-///
 /// # Implementation Details
 /// - Extracts provider information from ID token
 /// - Calls provider-specific logout endpoints
@@ -439,17 +421,13 @@ async fn propagate_federated_logout(
 }
 
 /// Validate SSO session from cookie
-///
 /// Extracts and validates SSO session from request cookies.
 /// Used by middleware and handlers to check authentication status.
-///
 /// # Arguments
 /// * `state` - Application state containing cookie manager
 /// * `headers` - Request headers containing cookies
-///
 /// # Returns
 /// SSO session if valid, None if not present or invalid
-///
 /// # Security Considerations
 /// - Validates session expiration
 /// - Checks session integrity

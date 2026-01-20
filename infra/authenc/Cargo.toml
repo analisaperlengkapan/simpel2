@@ -48,7 +48,7 @@ default = [
     "grpc",
 ]
 axum = ["dep:axum", "dep:tower", "dep:tower-http"]
-grpc = ["dep:tonic", "dep:prost", "dep:prost-types"]
+grpc = ["dep:tonic", "dep:tonic-prost", "dep:prost", "dep:prost-types"]
 
 # Authentication features
 auth = ["dep:jsonwebtoken", "dep:argon2"]
@@ -184,14 +184,15 @@ log = "0.4.27"
 env_logger = "0.11.7"
 
 # gRPC and Protocol Buffers
-tonic = { version = "0.12", features = ["transport", "tls"], optional = true }
-prost = { version = "0.13", optional = true }
-prost-types = { version = "0.13", optional = true }
+tonic = { version = "0.14", features = ["transport", "tls-webpki-roots"], optional = true }
+tonic-prost = { version = "0.14", optional = true }
+prost = { version = "0.14", optional = true }
+prost-types = { version = "0.14", optional = true }
 
 # Cryptography
 rand = "0.8"
 rand_chacha = "0.3"
-getrandom = "0.2"                                                      # v0.3 has breaking API changes
+getrandom = "0.3"                                                      # v0.3 has breaking API changes
 aes-gcm = "0.10"
 base64 = "0.22"
 base64ct = "1.8"                                                       # Constant-time base64 for security-critical operations
@@ -223,7 +224,7 @@ aws-credential-types = "1.2.1"
 
 # TOTP (Time-based One-Time Password)
 totp-rs = { version = "5.7", default-features = false, optional = true }
-base32 = "0.4"                                                           # v0.5 has breaking API changes (RFC4648 renamed)
+base32 = "0.5"                                                           # v0.5 has breaking API changes (RFC4648 renamed)
 hmac = "0.12"
 sha1 = "0.10"
 qrcode = "0.14"
@@ -290,7 +291,7 @@ proptest = "1.5"
 # sqlx removed - using tokio-postgres + deadpool-postgres for better compile speed and flexibility
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-prost-build = "0.14"
 
 [[bench]]
 name = "performance"

@@ -10,6 +10,7 @@ use leptos::prelude::*;
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::GlobalSearchBar;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Navbar() -> impl IntoView {

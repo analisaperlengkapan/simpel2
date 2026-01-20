@@ -90,7 +90,6 @@ pub struct VerifyOtpResponse {
 }
 
 /// Create SSH role
-///
 /// # Endpoint
 /// `POST /v1/ssh/role`
 #[tracing::instrument(skip(state))]
@@ -131,7 +130,6 @@ async fn create_role(
 }
 
 /// Get SSH role
-///
 /// # Endpoint
 /// `GET /v1/ssh/role/:name`
 #[tracing::instrument(skip(state))]
@@ -151,7 +149,6 @@ async fn get_role(
 }
 
 /// List SSH roles
-///
 /// # Endpoint
 /// `GET /v1/ssh/role`
 #[tracing::instrument(skip(state))]
@@ -163,7 +160,6 @@ async fn list_roles(State(state): State<AppState>) -> ApiResult<Json<ApiResponse
 }
 
 /// Create SSH CA
-///
 /// # Endpoint
 /// `POST /v1/ssh/ca`
 #[tracing::instrument(skip(state))]
@@ -193,7 +189,6 @@ async fn create_ca(
 }
 
 /// List SSH CAs
-///
 /// # Endpoint
 /// `GET /v1/ssh/ca`
 #[tracing::instrument(skip(state))]
@@ -205,7 +200,6 @@ async fn list_cas(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<V
 }
 
 /// Get CA public key
-///
 /// # Endpoint
 /// `GET /v1/ssh/ca/:name/public_key`
 #[tracing::instrument(skip(state))]
@@ -228,7 +222,6 @@ async fn get_ca_public_key(
 }
 
 /// Generate SSH keypair
-///
 /// # Endpoint
 /// `POST /v1/ssh/creds/:role`
 #[tracing::instrument(skip(state))]
@@ -254,7 +247,6 @@ async fn generate_keypair(
 }
 
 /// Sign SSH certificate
-///
 /// # Endpoint
 /// `POST /v1/ssh/sign/:ca/:role`
 #[tracing::instrument(skip(state, request), fields(ca = %ca, role = %role))]
@@ -281,7 +273,6 @@ async fn sign_certificate(
 }
 
 /// Generate SSH OTP
-///
 /// # Endpoint
 /// `POST /v1/ssh/otp/generate`
 #[tracing::instrument(skip(state))]
@@ -313,7 +304,6 @@ async fn generate_otp(
 }
 
 /// Verify SSH OTP
-///
 /// # Endpoint
 /// `POST /v1/ssh/otp/verify`
 #[tracing::instrument(skip(state, request))]

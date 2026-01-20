@@ -3,6 +3,7 @@
 use crate::components::cards::{StatCard, StatCardData, StatColor};
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
+use crate::utils::api::{get_system_metrics, SystemMetrics};
 use leptos::prelude::*;
 
 /// Dashboard page component - main user dashboard with statistics
@@ -13,36 +14,10 @@ pub fn DashboardPage(
     /// Callback function to handle user logout
     on_logout: Box<dyn Fn()>,
 ) -> impl IntoView {
-    let stats = vec![
-        StatCardData {
-            title: "Total Sistem".to_string(),
-            value: "9".to_string(),
-            icon: "🖥️".to_string(),
-            color: StatColor::Blue,
-            trend: Some("Semua aktif".to_string()),
-        },
-        StatCardData {
-            title: "Pengguna Aktif".to_string(),
-            value: "1,234".to_string(),
-            icon: "👥".to_string(),
-            color: StatColor::Green,
-            trend: Some("+12% bulan ini".to_string()),
-        },
-        StatCardData {
-            title: "Uptime Sistem".to_string(),
-            value: "99.9%".to_string(),
-            icon: "⏱️".to_string(),
-            color: StatColor::Yellow,
-            trend: Some("30 hari terakhir".to_string()),
-        },
-        StatCardData {
-            title: "Keamanan".to_string(),
-            value: "A+".to_string(),
-            icon: "🛡️".to_string(),
-            color: StatColor::Red,
-            trend: Some("Sangat aman".to_string()),
-        },
-    ];
+    // Resource to fetch real system metrics
+    let metrics_resource = LocalResource::new(
+        move || async move { get_system_metrics().await }
+    );
 
     // Get current time for greeting
     let greeting = {
@@ -113,11 +88,84 @@ pub fn DashboardPage(
 
                 // Stats Grid - Enhanced with animations
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {stats.into_iter().map(|stat| view! {
-                        <div class="transform transition-all duration-300 hover:scale-105">
-                            <StatCard data=stat />
+                    <Suspense fallback=move || view! {
+                        <div class="col-span-4 flex justify-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
-                    }).collect_view()}
+                    }>
+                        {move || {
+                            let metrics = metrics_resource.get();
+                            let stats = match metrics {
+                                Some(Ok(m)) => vec![
+                                    StatCardData {
+                                        title: "Total Sistem".to_string(),
+                                        value: m.vault.total_secrets.to_string(), // Using secrets count as a proxy for "Sistem" complexity for now
+                                        icon: "🔐".to_string(),
+                                        color: StatColor::Blue,
+                                        trend: Some("Secrets count".to_string()),
+                                    },
+                                    StatCardData {
+                                        title: "Pengguna".to_string(),
+                                        value: "0".to_string(), // Placeholder until user count is exposed in SystemMetrics struct
+                                        icon: "👥".to_string(),
+                                        color: StatColor::Green,
+                                        trend: Some("Active users".to_string()),
+                                    },
+                                    StatCardData {
+                                        title: "Uptime".to_string(),
+                                        value: format!("{}h", m.uptime / 3600),
+                                        icon: "⏱️".to_string(),
+                                        color: StatColor::Yellow,
+                                        trend: Some("Sejak restart".to_string()),
+                                    },
+                                    StatCardData {
+                                        title: "Keys".to_string(),
+                                        value: m.vault.total_keys.to_string(),
+                                        icon: "🔑".to_string(),
+                                        color: StatColor::Red,
+                                        trend: Some("Encryption keys".to_string()),
+                                    },
+                                ],
+                                _ => vec![
+                                    // Default fallback data if fetch fails or loading
+                                    StatCardData {
+                                        title: "Status".to_string(),
+                                        value: "Online".to_string(),
+                                        icon: "🖥️".to_string(),
+                                        color: StatColor::Blue,
+                                        trend: Some("System active".to_string()),
+                                    },
+                                    StatCardData {
+                                        title: "Pengguna".to_string(),
+                                        value: "-".to_string(),
+                                        icon: "👥".to_string(),
+                                        color: StatColor::Green,
+                                        trend: None,
+                                    },
+                                    StatCardData {
+                                        title: "Uptime".to_string(),
+                                        value: "-".to_string(),
+                                        icon: "⏱️".to_string(),
+                                        color: StatColor::Yellow,
+                                        trend: None,
+                                    },
+                                    StatCardData {
+                                        title: "Security".to_string(),
+                                        value: "Active".to_string(),
+                                        icon: "🛡️".to_string(),
+                                        color: StatColor::Red,
+                                        trend: None,
+                                    },
+                                ],
+                            };
+
+                            stats.into_iter().map(|stat| view! {
+                                <div class="transform transition-all duration-300 hover:scale-105">
+                                    <StatCard data=stat />
+                                </div>
+                            }).collect_view()
+                        }}
+                    </Suspense>
                 </div>
 
                 // Main Content Grid

@@ -8,6 +8,7 @@
 
 use crate::features::auth::AuthService;
 use crate::pages::*;
+use crate::pages::secrets::SecretsPage;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use shared_microfrontend::components::BrandingProvider;
@@ -78,23 +79,23 @@ pub fn App() -> impl IntoView {
                             }
 
                             // Check if token needs refresh
-                            if AuthService::should_refresh_token(&current_session) {
-                                if let Some(refresh_token) = &current_session.refresh_token {
-                                    // Attempt token refresh
-                                    match AuthService::refresh_token(refresh_token).await {
-                                        Ok(token_response) => {
-                                            // Update session with new token
-                                            AuthService::update_session_token(&token_response);
-                                            // Reload session to update UI
-                                            set_user_session.set(AuthService::load_session());
-                                        }
-                                        Err(_) => {
-                                            // Refresh failed - logout
-                                            AuthService::broadcast_logout();
-                                            AuthService::logout();
-                                            set_user_session.set(None);
-                                            break;
-                                        }
+                            if AuthService::should_refresh_token(&current_session)
+                                && let Some(refresh_token) = &current_session.refresh_token
+                            {
+                                // Attempt token refresh
+                                match AuthService::refresh_token(refresh_token).await {
+                                    Ok(token_response) => {
+                                        // Update session with new token
+                                        AuthService::update_session_token(&token_response);
+                                        // Reload session to update UI
+                                        set_user_session.set(AuthService::load_session());
+                                    }
+                                    Err(_) => {
+                                        // Refresh failed - logout
+                                        AuthService::broadcast_logout();
+                                        AuthService::logout();
+                                        set_user_session.set(None);
+                                        break;
                                     }
                                 }
                             }
@@ -256,6 +257,20 @@ pub fn App() -> impl IntoView {
                         }.into_any(),
                     }
                 } />
+
+                <Route path=StaticSegment("secrets") view=move || {
+                    match user_session.get() {
+                        Some(session) => view! {
+                            <SecretsPage
+                                user_session=session
+                                on_logout=Box::new(handle_logout)
+                            />
+                        }.into_any(),
+                        None => view! {
+                            <LoginPage on_login_success=set_user_session />
+                        }.into_any(),
+                    }
+                } />
             </Routes>
         </Router>
 
@@ -302,8 +317,8 @@ pub fn App() -> impl IntoView {
                                 <button
                                     on:click=move |_| {
                                         // Extend session by refreshing token
-                                        if let Some(session) = user_session.get() {
-                                            if let Some(refresh_token) = &session.refresh_token {
+                                        if let Some(session) = user_session.get()
+                                            && let Some(refresh_token) = &session.refresh_token {
                                                 let refresh_token = refresh_token.clone();
                                                 spawn_local(async move {
                                                     if let Ok(token_response) = AuthService::refresh_token(&refresh_token).await {
@@ -313,7 +328,6 @@ pub fn App() -> impl IntoView {
                                                     }
                                                 });
                                             }
-                                        }
                                     }
                                     class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
                                 >

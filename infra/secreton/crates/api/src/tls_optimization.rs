@@ -3,7 +3,8 @@
 //! This module provides optimized TLS configuration with performance enhancements
 //! including session resumption, certificate caching, and optimized cipher suites.
 
-use rustls::{Certificate, PrivateKey, ServerConfig, SupportedCipherSuite};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::server::{ServerConfig, StoresServerSessions};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -26,8 +27,28 @@ impl SessionCache {
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        let mut sessions = self.sessions.lock();
+    pub fn insert(&self, key: Vec<u8>, session: Vec<u8>) {
+        let mut sessions = self.sessions.lock().unwrap();
+
+        // Remove expired entries if we're at capacity
+        if sessions.len() >= self.max_entries {
+            // let now = Instant::now();
+            // sessions.retain(|_, (_, timestamp)| timestamp.elapsed() < self.ttl);
+            // Optimization: Just remove random or oldest if we don't want to iterate all
+        }
+
+        // Remove oldest entry if still at capacity (simplified: just random for now due to HashMap)
+        if sessions.len() >= self.max_entries {
+            if let Some(oldest_key) = sessions.keys().next().cloned() {
+                sessions.remove(&oldest_key);
+            }
+        }
+
+        sessions.insert(key, (session, Instant::now()));
+    }
+
+    pub fn get_session(&self, key: &[u8]) -> Option<Vec<u8>> {
+        let mut sessions = self.sessions.lock().unwrap();
         if let Some((session, timestamp)) = sessions.get(key) {
             if timestamp.elapsed() < self.ttl {
                 return Some(session.clone());
@@ -38,44 +59,32 @@ impl SessionCache {
         None
     }
 
-    pub fn insert(&self, key: Vec<u8>, session: Vec<u8>) {
-        let mut sessions = self.sessions.lock();
-
-        // Remove expired entries if we're at capacity
-        if sessions.len() >= self.max_entries {
-            let now = Instant::now();
-            sessions.retain(|_, (_, timestamp)| timestamp.elapsed() < self.ttl);
-        }
-
-        // Remove oldest entry if still at capacity
-        if sessions.len() >= self.max_entries {
-            if let Some(oldest_key) = sessions.keys().next().cloned() {
-                sessions.remove(&oldest_key);
+    pub fn remove_session(&self, key: &[u8]) -> Option<Vec<u8>> {
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some((session, timestamp)) = sessions.remove(key) {
+            if timestamp.elapsed() < self.ttl {
+                return Some(session);
             }
         }
-
-        sessions.insert(key, (session, Instant::now()));
+        None
     }
 }
 
-impl rustls::client::ServerSessionStore for SessionCache {
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        self.get(key)
-    }
-
+impl StoresServerSessions for SessionCache {
     fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
         self.insert(key, value);
         true
     }
-}
 
-impl rustls::server::ServerSessionStore for SessionCache {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        self.get(key)
+        self.get_session(key)
     }
 
-    fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
-        self.insert(key, value);
+    fn take(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.remove_session(key)
+    }
+
+    fn can_cache(&self) -> bool {
         true
     }
 }
@@ -85,45 +94,48 @@ static SESSION_CACHE: Mutex<Option<Arc<SessionCache>>> = Mutex::new(None);
 
 /// Initialize session cache
 pub fn init_session_cache(max_entries: usize, ttl_seconds: u64) {
-    let mut cache = SESSION_CACHE.lock();
+    let mut cache = SESSION_CACHE.lock().unwrap();
     *cache = Some(Arc::new(SessionCache::new(max_entries, ttl_seconds)));
     info!("TLS session cache initialized with {} max entries, {}s TTL", max_entries, ttl_seconds);
 }
 
 /// Get session cache instance
 fn get_session_cache() -> Option<Arc<SessionCache>> {
-    SESSION_CACHE.lock().as_ref().cloned()
+    SESSION_CACHE.lock().unwrap().as_ref().cloned()
 }
 
 /// Create optimized TLS configuration for server
 pub fn create_optimized_tls_config(
-    cert_chain: Vec<Certificate>,
-    private_key: PrivateKey,
+    cert_chain: Vec<CertificateDer<'static>>,
+    private_key: PrivateKeyDer<'static>,
     min_tls_version: &str,
-    cipher_suites: &[String],
+    _cipher_suites: &[String], // Currently relying on defaults
     alpn_protocols: &[String],
 ) -> Result<ServerConfig, Box<dyn std::error::Error>> {
-    let mut config_builder = ServerConfig::builder();
+    // Note: In rustls 0.23, builder() uses default provider (ring or aws-lc-rs)
+    let config_builder = ServerConfig::builder();
 
-    // Set TLS version
-    match min_tls_version {
+    // Set TLS version and cipher suites (using safe defaults)
+    let config_builder = match min_tls_version {
         "TLS1.3" => {
-            config_builder = config_builder.with_safe_default_cipher_suites();
-            info!("Using TLS 1.3 with optimized cipher suites");
-        }
-        "TLS1.2" => {
-            config_builder = config_builder.with_safe_defaults();
-            info!("Using TLS 1.2 with safe defaults");
+            // with_safe_default_cipher_suites() is implied/default usually,
+            // but we can be explicit if needed.
+            // For now, let's use default which supports 1.3 and 1.2
+            info!("Using safe default cipher suites (TLS 1.2/1.3)");
+            config_builder.with_no_client_auth()
         }
         _ => {
             warn!("Unknown TLS version '{}', using safe defaults", min_tls_version);
-            config_builder = config_builder.with_safe_defaults();
+            config_builder.with_no_client_auth()
         }
-    }
+    };
+
+    // Build the final configuration
+    let mut config = config_builder.with_single_cert(cert_chain, private_key)?;
 
     // Add session cache for performance
     if let Some(session_cache) = get_session_cache() {
-        config_builder = config_builder.with_session_storage(Arc::new(session_cache));
+        config.session_storage = session_cache;
     }
 
     // Configure ALPN protocols
@@ -132,11 +144,8 @@ pub fn create_optimized_tls_config(
             .iter()
             .map(|s| s.as_bytes().to_vec())
             .collect();
-        config_builder = config_builder.with_alpn_protocols(alpn_protocols_bytes);
+        config.alpn_protocols = alpn_protocols_bytes;
     }
-
-    // Build the final configuration
-    let mut config = config_builder.with_single_cert(cert_chain, private_key)?;
 
     // Optimize for performance
     config.max_fragment_size = Some(16384); // 16KB fragments for better throughput
@@ -145,52 +154,6 @@ pub fn create_optimized_tls_config(
     info!("TLS configuration optimized with session resumption and ALPN support");
 
     Ok(config)
-}
-
-/// Create performance-optimized cipher suite list
-pub fn get_optimized_cipher_suites() -> Vec<SupportedCipherSuite> {
-    use rustls::SupportedCipherSuite;
-
-    // Prioritize performance-optimized cipher suites
-    vec![
-        // TLS 1.3 cipher suites (fastest)
-        rustls::cipher_suite::TLS13_AES_256_GCM_SHA384,
-        rustls::cipher_suite::TLS13_AES_128_GCM_SHA256,
-        rustls::cipher_suite::TLS13_CHACHA20_POLY1305_SHA256,
-
-        // TLS 1.2 cipher suites (fallback, hardware accelerated)
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-        rustls::cipher_suite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-    ]
-}
-
-/// Validate TLS configuration performance
-pub fn validate_tls_performance(config: &ServerConfig) -> Result<(), String> {
-    // Check if session resumption is enabled
-    if config.session_storage.is_none() {
-        warn!("Session storage not configured - performance may be reduced");
-    }
-
-    // Check cipher suites
-    let cipher_suites = get_optimized_cipher_suites();
-    let configured_suites: Vec<_> = config.cipher_suites.iter().collect();
-
-    if configured_suites.len() < cipher_suites.len() {
-        return Err(format!(
-            "Only {}/{} recommended cipher suites configured",
-            configured_suites.len(),
-            cipher_suites.len()
-        ));
-    }
-
-    // Check ALPN protocols
-    if config.alpn_protocols.is_empty() {
-        warn!("No ALPN protocols configured");
-    }
-
-    info!("TLS configuration validation passed");
-    Ok(())
 }
 
 /// Performance metrics for TLS connections
@@ -216,8 +179,10 @@ impl TlsMetrics {
         }
 
         // Update average handshake time
-        self.average_handshake_time_ms =
-            (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms) / self.total_handshakes;
+        if self.total_handshakes > 0 {
+            self.average_handshake_time_ms =
+                (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms) / self.total_handshakes;
+        }
     }
 
     pub fn get_success_rate(&self) -> f64 {
@@ -238,15 +203,28 @@ impl TlsMetrics {
 }
 
 /// Global TLS metrics
-static TLS_METRICS: Mutex<TlsMetrics> = Mutex::new(TlsMetrics::default());
+static TLS_METRICS: Mutex<TlsMetrics> = Mutex::new(TlsMetrics {
+    total_handshakes: 0,
+    successful_handshakes: 0,
+    session_resumptions: 0,
+    handshake_failures: 0,
+    average_handshake_time_ms: 0,
+});
 
 /// Record TLS handshake metrics
 pub fn record_tls_handshake(success: bool, resumption: bool, duration_ms: u64) {
-    let mut metrics = TLS_METRICS.lock();
+    let mut metrics = TLS_METRICS.lock().unwrap();
     metrics.record_handshake(success, resumption, duration_ms);
 }
 
 /// Get TLS performance metrics
 pub fn get_tls_metrics() -> TlsMetrics {
-    TLS_METRICS.lock().clone()
+    let metrics = TLS_METRICS.lock().unwrap();
+    TlsMetrics {
+        total_handshakes: metrics.total_handshakes,
+        successful_handshakes: metrics.successful_handshakes,
+        session_resumptions: metrics.session_resumptions,
+        handshake_failures: metrics.handshake_failures,
+        average_handshake_time_ms: metrics.average_handshake_time_ms,
+    }
 }

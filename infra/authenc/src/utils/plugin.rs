@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use tracing::{error, info, warn};
 
 /// Safe plugin manager using configuration-based approach instead of dynamic loading
-///
 /// This replaces unsafe dynamic library loading with a safe configuration-based system
 /// where plugins are registered at compile time or through configuration files.
 pub struct PluginManager {

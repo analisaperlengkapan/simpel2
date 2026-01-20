@@ -1,5 +1,4 @@
 /// Software Statement JWT Validator (RFC 7591 Section 2.3)
-///
 /// Validates software statements (signed JWTs containing client metadata)
 /// from trusted issuers
 use async_trait::async_trait;

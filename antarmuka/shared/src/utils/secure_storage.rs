@@ -73,13 +73,14 @@ impl SecureStorage {
 
         // Check expiry first
         let expiry_key = format!("{}{}", secure_key, SESSION_EXPIRY_SUFFIX);
-        if let Ok(Some(expiry_str)) = storage.get_item(&expiry_key)
-            && let Ok(expiry) = expiry_str.parse::<u64>()
-            && js_sys::Date::now() as u64 > expiry
-        {
-            // Expired, remove and return None
-            let _ = self.remove_secure(key);
-            return None;
+        if let Ok(Some(expiry_str)) = storage.get_item(&expiry_key) {
+            if let Ok(expiry) = expiry_str.parse::<u64>() {
+                if js_sys::Date::now() as u64 > expiry {
+                    // Expired, remove and return None
+                    let _ = self.remove_secure(key);
+                    return None;
+                }
+            }
         }
 
         // Get encrypted data
@@ -117,10 +118,10 @@ impl SecureStorage {
         let mut keys_to_remove = Vec::new();
 
         for i in 0..length {
-            if let Ok(Some(key)) = storage.key(i)
-                && key.starts_with(SESSION_KEY_PREFIX)
-            {
-                keys_to_remove.push(key);
+            if let Ok(Some(key)) = storage.key(i) {
+                if key.starts_with(SESSION_KEY_PREFIX) {
+                    keys_to_remove.push(key);
+                }
             }
         }
 
@@ -191,10 +192,10 @@ impl SecureStorage {
 /// Base64 encoding (simple implementation)
 fn base64_encode(input: &str) -> String {
     // Use browser's btoa function
-    if let Some(window) = window()
-        && let Ok(encoded) = window.btoa(input)
-    {
-        return encoded;
+    if let Some(window) = window() {
+        if let Ok(encoded) = window.btoa(input) {
+            return encoded;
+        }
     }
     input.to_string()
 }
@@ -202,10 +203,10 @@ fn base64_encode(input: &str) -> String {
 /// Base64 decoding (simple implementation)
 fn base64_decode(input: &str) -> String {
     // Use browser's atob function
-    if let Some(window) = window()
-        && let Ok(decoded) = window.atob(input)
-    {
-        return decoded;
+    if let Some(window) = window() {
+        if let Ok(decoded) = window.atob(input) {
+            return decoded;
+        }
     }
     input.to_string()
 }
@@ -348,18 +349,19 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_base64_encode_decode() {
         let input = "Hello, World!";
         let encoded = base64_encode(input);
-        let _decoded = base64_decode(&encoded);
-        // Note: This test may not work in non-browser environment
-        // assert_eq!(decoded, input);
+        let decoded = base64_decode(&encoded);
+        assert_eq!(decoded, input);
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_session_fingerprint_generation() {
         // This test requires a browser environment
-        // let fingerprint = SessionFingerprint::generate();
-        // assert!(!fingerprint.user_agent.is_empty());
+        let fingerprint = SessionFingerprint::generate();
+        assert!(!fingerprint.user_agent.is_empty());
     }
 }

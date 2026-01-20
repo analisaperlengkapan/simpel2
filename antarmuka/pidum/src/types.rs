@@ -1,57 +1,57 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Barang {
-    pub id: String,
-    pub kode_barang: String,
-    pub nama_barang: String,
-    pub kategori: String,
-    pub jumlah: i32,
-    pub satuan: String,
-    pub harga_satuan: f64,
-    pub total_harga: f64,
-    pub status: String,
-    pub lokasi: String,
-    pub tanggal_pengadaan: String,
-    pub supplier: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Pengadaan {
-    pub id: String,
-    pub nomor_pengadaan: String,
-    pub nama_pengadaan: String,
-    pub jenis_pengadaan: String,
-    pub nilai_pengadaan: f64,
-    pub status: String,
-    pub tanggal_mulai: String,
-    pub tanggal_selesai: String,
-    pub supplier: String,
-    pub progress: i32,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Laporan {
-    pub id: String,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Perkara {
+    pub id: Uuid,
+    pub nomor_perkara: String,
     pub judul: String,
-    pub jenis: String,
-    pub periode: String,
+    pub tanggal_kejadian: DateTime<Utc>,
     pub status: String,
-    pub tanggal_generate: String,
-    pub file_url: Option<String>,
+    pub deskripsi: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Statistik {
-    pub total_barang: i32,
-    pub total_nilai: f64,
-    pub pengadaan_aktif: i32,
-    pub perlu_perbaikan: i32,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct PerkaraComment {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub content: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub message: String,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct PerkaraTimeline {
+    pub id: Uuid,
+    pub perkara_id: Uuid,
+    pub action_type: String,
+    pub description: String,
+    pub user_info: Option<serde_json::Value>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CreateCommentRequest {
+    pub content: String,
+    pub user_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatePerkaraRequest {
+    pub nomor_perkara: String,
+    pub judul: String,
+    pub tanggal_kejadian: DateTime<Utc>,
+    pub status: String,
+    pub deskripsi: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerkaraStats {
+    pub total: i32,
+    pub spdp: i32,
+    pub p21: i32,
+    pub tahap_2: i32,
 }

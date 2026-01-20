@@ -306,7 +306,7 @@ fn test_secret_length_compatibility() {
         }
 
         // Verify secret is valid base32
-        let decoded = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret);
+        let decoded = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret);
         assert!(
             decoded.is_some(),
             "{}: Generated secret should be valid base32",
@@ -553,7 +553,7 @@ fn test_end_to_end_compatibility() {
         QrCode::new(&uri).expect("QR code generation should succeed");
 
         // Simulate TOTP generation (what the app would do)
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, &secret)
+        let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)
             .expect("Secret should be valid base32");
 
         let time_step = Utc::now().timestamp() as u64 / 30;

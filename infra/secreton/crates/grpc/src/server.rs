@@ -67,6 +67,8 @@ pub struct SecretonGrpcService {
     storage: Arc<dyn StorageBackend>,
     /// Transit encryption engine
     transit: Arc<TransitEngine>,
+    /// gRPC request counter
+    request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
     // TODO: Re-enable when ServiceContainer is available in grpc crate
     // /// Service container for namespace and other services
     // services: Arc<ServiceContainer>,
@@ -74,12 +76,23 @@ pub struct SecretonGrpcService {
 
 impl SecretonGrpcService {
     /// Create a new gRPC service
-    pub fn new(storage: Arc<dyn StorageBackend>, transit: Arc<TransitEngine>) -> Self {
+    pub fn new(
+        storage: Arc<dyn StorageBackend>,
+        transit: Arc<TransitEngine>,
+        request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
+    ) -> Self {
         Self {
             storage,
             transit,
+            request_counter,
             // TODO: Re-enable when ServiceContainer is available
             // services: Arc::new(ServiceContainer::new_mock(storage, pool)),
+        }
+    }
+
+    fn increment_request_count(&self) {
+        if let Some(counter) = &self.request_counter {
+            counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
     }
 
@@ -164,6 +177,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: tonic::Request<StoreSecretRequest>,
     ) -> std::result::Result<tonic::Response<StoreSecretResponse>, tonic::Status> {
+        self.increment_request_count();
         // Extract owner from request metadata before consuming request
         let owner_id = request
             .metadata()
@@ -245,6 +259,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<GetSecretRequest>,
     ) -> Result<Response<GetSecretResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Getting secret at path: {}", req.path);
@@ -287,6 +302,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<DeleteSecretRequest>,
     ) -> Result<Response<DeleteSecretResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Deleting secret at path: {}", req.path);
@@ -317,6 +333,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<ListSecretsRequest>,
     ) -> Result<Response<ListSecretsResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Listing secrets with prefix: {:?}", req.prefix);
@@ -363,6 +380,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<CreateKeyRequest>,
     ) -> Result<Response<CreateKeyResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Creating transit key: {}", req.name);
@@ -399,6 +417,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<EncryptRequest>,
     ) -> Result<Response<EncryptResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Encrypting data with key: {}", req.key_name);
@@ -432,6 +451,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<DecryptRequest>,
     ) -> Result<Response<DecryptResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Decrypting data with key: {}", req.key_name);
@@ -451,6 +471,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
     #[instrument(skip(self, request))]
     async fn sign(&self, request: Request<SignRequest>) -> Result<Response<SignResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Signing data with key: {}", req.key_name);
@@ -492,6 +513,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<VerifyRequest>,
     ) -> Result<Response<VerifyResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Verifying signature with key: {}", req.key_name);
@@ -522,6 +544,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         &self,
         request: Request<RotateKeyRequest>,
     ) -> Result<Response<RotateKeyResponse>, Status> {
+        self.increment_request_count();
         let req = request.into_inner();
 
         info!("Rotating key: {}", req.key_name);

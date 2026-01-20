@@ -33,11 +33,9 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:
@@ -125,11 +123,9 @@ jobs:
           components: llvm-tools-preview
 
       - name: Install Protocol Buffers compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
-          protoc --version
-
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
       - name: Setup Rust cache
         uses: actions/cache@v4
         with:

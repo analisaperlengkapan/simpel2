@@ -6,7 +6,6 @@ use axum::{
 };
 
 /// Middleware that adds comprehensive security headers to responses
-///
 /// This middleware adds various security headers to HTTP responses to help protect
 /// against common web vulnerabilities such as XSS, clickjacking, content sniffing,
 /// and other modern web security threats. The headers include:

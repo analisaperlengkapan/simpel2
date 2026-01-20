@@ -286,7 +286,6 @@ pub struct RetentionPolicy {
 }
 
 /// Security audit errors for enhanced compliance and monitoring features
-///
 /// Distinct from `crate::audit::SecurityAuditError` which handles basic audit logging.
 /// This error type is for advanced security features like SIEM integration,
 /// compliance validation, and anomaly detection.

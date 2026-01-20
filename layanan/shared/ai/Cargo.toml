@@ -6,6 +6,9 @@ authors = ["SIMPelv2 Team"]
 description = "AI service for SIMPelv2 - LLM, RAG, OCR, ML models"
 
 [dependencies]
+htmlescape = "0.3"
+validator = { workspace = true }
+once_cell = { workspace = true }
 # Web Framework
 axum = { workspace = true }
 tower = { workspace = true }

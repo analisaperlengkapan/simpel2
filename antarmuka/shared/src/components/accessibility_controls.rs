@@ -57,15 +57,14 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
 
     // Apply font size to document root
     Effect::new(move |_| {
-        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-            if let Some(root) = document.document_element() {
+        if let Some(document) = web_sys::window().and_then(|w| w.document())
+            && let Some(root) = document.document_element() {
                 let scale = current_size().scale_factor();
                 let _ = root.dyn_ref::<web_sys::HtmlElement>().map(|el| {
                     el.style()
                         .set_property("font-size", &format!("{}rem", scale))
                 });
             }
-        }
     });
 
     let handle_change = move |size: FontSize| {
@@ -159,15 +158,14 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
 
     // Apply high contrast mode to document
     Effect::new(move |_| {
-        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-            if let Some(root) = document.document_element() {
+        if let Some(document) = web_sys::window().and_then(|w| w.document())
+            && let Some(root) = document.document_element() {
                 if high_contrast.get() {
                     let _ = root.class_list().add_1("high-contrast");
                 } else {
                     let _ = root.class_list().remove_1("high-contrast");
                 }
             }
-        }
     });
 
     let toggle = move |_| {
@@ -223,15 +221,14 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
 
     // Apply reduced motion preference to document
     Effect::new(move |_| {
-        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-            if let Some(root) = document.document_element() {
+        if let Some(document) = web_sys::window().and_then(|w| w.document())
+            && let Some(root) = document.document_element() {
                 if reduced_motion.get() {
                     let _ = root.class_list().add_1("reduce-motion");
                 } else {
                     let _ = root.class_list().remove_1("reduce-motion");
                 }
             }
-        }
     });
 
     let toggle = move |_| {
@@ -286,15 +283,14 @@ pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> 
 
     // Apply enhanced focus indicators to document
     Effect::new(move |_| {
-        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-            if let Some(root) = document.document_element() {
+        if let Some(document) = web_sys::window().and_then(|w| w.document())
+            && let Some(root) = document.document_element() {
                 if enhanced_focus.get() {
                     let _ = root.class_list().add_1("enhanced-focus");
                 } else {
                     let _ = root.class_list().remove_1("enhanced-focus");
                 }
             }
-        }
     });
 
     let toggle = move |_| {

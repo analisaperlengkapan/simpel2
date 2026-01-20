@@ -180,8 +180,7 @@ pub struct RestoreSnapshotResponse {
 
 fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
     let is_admin = user.roles.iter().any(|role| {
-        let r = role.to_lowercase();
-        r == "admin" || r == "vault-admin"
+        role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("vault-admin")
     });
 
     if is_admin {
@@ -230,7 +229,6 @@ pub async fn get_election_stats(
 }
 
 /// Get cluster status
-///
 /// Returns comprehensive information about the Raft cluster including
 /// leader, term, membership, and health status.
 #[instrument(skip(state))]
@@ -389,13 +387,9 @@ pub async fn list_peers(
 }
 
 /// Add a new peer to the cluster
-///
 /// # Security
-///
 /// Requires admin-level access. All operations are audited.
-///
 /// # Validation
-///
 /// - Address must be valid and reachable
 /// - Node ID must not already exist in cluster
 /// - Address format must be valid (host:port)
@@ -408,10 +402,6 @@ pub async fn add_peer(
     info!("Adding peer {} at {}", request.node_id, request.address);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Validate request
     if request.address.is_empty() {
@@ -522,8 +512,18 @@ pub async fn add_peer(
     metrics::counter!("secreton_raft_peers_added").increment(1);
     metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
-    // TODO: Add audit logging
-    // audit_log.log_peer_added(request.node_id, request.address, user_id);
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("peer_added")
+        .actor(user.id.to_string())
+        .resource_type("raft_peer")
+        .resource_id(request.node_id.to_string())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("address", request.address.clone())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let response = AddPeerResponse {
         success: true,
@@ -536,13 +536,9 @@ pub async fn add_peer(
 }
 
 /// Remove a peer from the cluster
-///
 /// # Security
-///
 /// Requires admin-level access. All operations are audited.
-///
 /// # Safety Checks
-///
 /// - Prevents removal if it would break quorum (minimum 2 nodes required)
 /// - Validates node exists in cluster before removal
 /// - Cannot remove the leader node (must transfer leadership first)
@@ -555,10 +551,6 @@ pub async fn remove_peer(
     info!("Removing peer {}", node_id);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
     let raft_storage = state
@@ -661,8 +653,17 @@ pub async fn remove_peer(
     metrics::counter!("secreton_raft_peers_removed").increment(1);
     metrics::gauge!("secreton_raft_cluster_size").set(status.membership.len() as f64);
 
-    // TODO: Add audit logging
-    // audit_log.log_peer_removed(node_id, user_id);
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("peer_removed")
+        .actor(user.id.to_string())
+        .resource_type("raft_peer")
+        .resource_id(node_id.to_string())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let response = RemovePeerResponse {
         success: true,
@@ -675,14 +676,10 @@ pub async fn remove_peer(
 }
 
 /// Create a new snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. Snapshots are encrypted using Transit engine
 /// and signed for integrity verification.
-///
 /// # Process
-///
 /// 1. Trigger Raft snapshot creation
 /// 2. Compress snapshot data (gzip)
 /// 3. Encrypt compressed data using Transit engine
@@ -856,7 +853,7 @@ pub async fn create_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_created")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
@@ -886,9 +883,7 @@ pub async fn create_snapshot(
 }
 
 /// Download a snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. Returns encrypted snapshot data.
 #[instrument(skip(state))]
 pub async fn download_snapshot(
@@ -899,10 +894,6 @@ pub async fn download_snapshot(
     info!("Downloading snapshot: {:?}", params.snapshot_id);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
     let _raft_storage = state
@@ -1023,7 +1014,7 @@ pub async fn download_snapshot(
     // Audit logging
     if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
         .action("snapshot_downloaded")
-        .actor(user.id)
+        .actor(user.id.to_string())
         .resource_type("snapshot")
         .resource_id(snapshot_id.clone())
         .status(secreton_core::audit::AuditStatus::Success)
@@ -1062,9 +1053,7 @@ pub struct DownloadSnapshotQuery {
 }
 
 /// List available snapshots
-///
 /// # Security
-///
 /// Requires admin-level access.
 #[instrument(skip(state))]
 pub async fn list_snapshots(
@@ -1074,10 +1063,6 @@ pub async fn list_snapshots(
     info!("Listing available snapshots");
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Get Raft storage backend
     let _raft_storage = state
@@ -1140,14 +1125,10 @@ pub async fn list_snapshots(
 }
 
 /// Restore from a snapshot
-///
 /// # Security
-///
 /// Requires admin-level access. This is a destructive operation that replaces
 /// the current state with the snapshot state.
-///
 /// # Process
-///
 /// 1. Validate snapshot exists and integrity (checksum, signature)
 /// 2. Decrypt snapshot data
 /// 3. Decompress snapshot data
@@ -1155,9 +1136,7 @@ pub async fn list_snapshots(
 /// 5. Stop Raft operations
 /// 6. Restore state from snapshot
 /// 7. Restart Raft operations
-///
 /// # Safety
-///
 /// - Validates snapshot integrity before restoration
 /// - Checks version compatibility
 /// - Creates backup of current state before restoration
@@ -1171,10 +1150,6 @@ pub async fn restore_snapshot(
     info!("Restoring from snapshot {}", request.snapshot_id);
 
     ensure_admin(&user)?;
-
-    // TODO: Extract user from JWT and verify admin access
-    // For now, we'll proceed with the operation
-    // In production, add: verify_admin_access(&user)?;
 
     // Validate snapshot ID format
     if request.snapshot_id.is_empty() {
@@ -1370,19 +1345,21 @@ pub async fn restore_snapshot(
     metrics::counter!("secreton_raft_restores_performed").increment(1);
     metrics::gauge!("secreton_raft_restored_snapshot_size_bytes").set(size_bytes as f64);
 
-    // Audit logging (commented out - method not available)
-    // state.audit.log_event(
-    //     "snapshot_restored",
-    //     &format!("Snapshot {} restored", request.snapshot_id),
-    //     serde_json::json!({
-    //         "snapshot_id": request.snapshot_id,
-    //         "size_bytes": size_bytes,
-    //         "compressed_size_bytes": compressed_size_bytes,
-    //         "last_included_index": last_included_index,
-    //         "last_included_term": last_included_term,
-    //         "created_at": created_at.to_rfc3339(),
-    //     }),
-    // ).await;
+    // Audit logging
+    if let Ok(audit_log) = secreton_core::audit::AuditLog::builder()
+        .action("snapshot_restored")
+        .actor(user.id.to_string())
+        .resource_type("snapshot")
+        .resource_id(request.snapshot_id.clone())
+        .status(secreton_core::audit::AuditStatus::Success)
+        .metadata("size_bytes", size_bytes.to_string())
+        .metadata("compressed_size_bytes", compressed_size_bytes.to_string())
+        .metadata("last_included_index", last_included_index.to_string())
+        .metadata("last_included_term", last_included_term.to_string())
+        .build()
+    {
+        let _ = state.audit.log(audit_log).await;
+    }
 
     let snapshot_metadata = SnapshotMetadata {
         snapshot_id: request.snapshot_id.clone(),
@@ -1407,7 +1384,6 @@ pub async fn restore_snapshot(
 }
 
 /// Cleanup old snapshots based on retention policy
-///
 /// Keeps the most recent N snapshots and deletes older ones.
 /// Default retention: 10 snapshots
 async fn cleanup_old_snapshots(pool: deadpool_postgres::Pool) {
@@ -1533,5 +1509,44 @@ mod tests {
         let json = serde_json::to_string(&metadata).unwrap();
         assert!(json.contains("\"snapshot_id\":\"snapshot-123\""));
         assert!(json.contains("\"encrypted\":true"));
+    }
+
+    #[test]
+    fn test_ensure_admin_security() {
+        // Valid admin
+        let admin_user = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "admin".to_string(),
+            email: None,
+            roles: vec!["admin".to_string()],
+        };
+        assert!(ensure_admin(&admin_user).is_ok());
+
+        // Valid vault-admin
+        let vault_admin = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "vault-admin".to_string(),
+            email: None,
+            roles: vec!["vault-admin".to_string()],
+        };
+        assert!(ensure_admin(&vault_admin).is_ok());
+
+        // Invalid user
+        let regular_user = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "user".to_string(),
+            email: None,
+            roles: vec!["user".to_string()],
+        };
+        assert!(ensure_admin(&regular_user).is_err());
+
+        // Case insensitive
+        let admin_caps = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "ADMIN".to_string(),
+            email: None,
+            roles: vec!["ADMIN".to_string()],
+        };
+        assert!(ensure_admin(&admin_caps).is_ok());
     }
 }

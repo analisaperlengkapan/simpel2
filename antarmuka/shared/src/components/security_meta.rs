@@ -94,7 +94,7 @@ pub fn CspViolationReporter(#[prop(optional)] report_uri: Option<String>) -> imp
         let closure = wasm_bindgen::closure::Closure::wrap(Box::new(
             move |event: web_sys::SecurityPolicyViolationEvent| {
                 // CSP Violation detected
-                let _ = web_sys::console::warn_3(
+                web_sys::console::warn_3(
                     &"CSP Violation:".into(),
                     &event.blocked_uri().into(),
                     &event.violated_directive().into(),
@@ -178,6 +178,7 @@ mod tests {
 
     #[cfg(target_arch = "wasm32")]
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_generate_csp_nonce() {
         let nonce = generate_csp_nonce();
         assert_eq!(nonce.len(), 32); // 16 bytes = 32 hex chars

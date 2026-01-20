@@ -17,7 +17,10 @@ use std::collections::HashMap;
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState};
+use crate::{
+    ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
+    helpers::extract_client_ip,
+};
 
 /// Create authentication routes
 pub fn create_routes() -> Router<AppState> {
@@ -26,7 +29,6 @@ pub fn create_routes() -> Router<AppState> {
         .route("/logout", post(logout))
         .route("/token/refresh", post(refresh_token))
         .route("/token/verify", post(verify_token))
-        .route("/token/lookup-self", get(token_lookup_self))
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
@@ -44,6 +46,30 @@ mod tests {
     use axum::http::StatusCode;
     use axum_test::TestServer;
     use std::sync::Arc;
+    use crate::middleware::RequestContext;
+
+    async fn mock_auth_middleware(
+        req: axum::extract::Request,
+        next: axum::middleware::Next,
+    ) -> axum::response::Response {
+        let mut req = req;
+        if let Some(user_id) = req.headers().get("X-Test-User-Id") {
+            if let Ok(user_id_str) = user_id.to_str() {
+                let context = RequestContext {
+                    request_id: "test-req".to_string(),
+                    user_id: Some(user_id_str.to_string()),
+                    user_email: None,
+                    user_roles: vec![],
+                    user_permissions: vec![],
+                    start_time: std::time::Instant::now(),
+                    jwt_claims: None,
+                    policy_names: vec![],
+                };
+                req.extensions_mut().insert(context);
+            }
+        }
+        next.run(req).await
+    }
 
     async fn create_test_server() -> TestServer {
         let config = ApiConfig::default();
@@ -53,7 +79,24 @@ mod tests {
                 .expect("Failed to create services"),
         );
 
-        let app = create_routes().with_state(services);
+        // Create test user 'alice'
+        let _ = services
+            .auth
+            .create_user(
+                "alice",
+                "alice@example.com",
+                "password123",
+                None,
+                vec!["user".to_string()],
+                None,
+                true,
+            )
+            .await;
+
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
         TestServer::new(app).expect("Failed to create test server")
     }
 
@@ -66,29 +109,21 @@ mod tests {
                 .expect("Failed to create services"),
         );
 
-        // Create a test user
-        let password_hash = services.auth.hash_password("password123").unwrap_or_default();
-        let user = secreton_core::models::User {
-            id: uuid::Uuid::new_v4(),
-            username: "alice".to_string(),
-            email: "alice@example.com".to_string(),
-            password_hash,
-            full_name: Some("Alice Test".to_string()),
-            is_active: true,
-            is_superuser: false,
-            mfa_enabled: false,
-            last_login: None,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            roles: std::collections::HashSet::new(),
-            namespace: "default".to_string(),
-            is_locked: false,
-            failed_attempts: 0,
-            locked_until: None,
-        };
-        let _ = services.auth.store_user(&user).await;
+        // Create test user
+        services.auth.create_user(
+            "alice",
+            "alice@example.com",
+            "password123",
+            None,
+            vec!["user".to_string()],
+            None,
+            true,
+        ).await.expect("Failed to create user");
 
-        let app = create_routes().with_state(services);
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
         let server = TestServer::new(app).expect("Failed to create test server");
 
         let request = LoginRequest {
@@ -118,7 +153,12 @@ mod tests {
             email: None,
         };
 
-        let response = server.post("/mfa/setup").json(&request).await;
+        let response = server
+            .post("/mfa/setup")
+            .add_header("X-Test-User-Id", uuid::Uuid::new_v4().to_string())
+            .json(&request)
+            .await;
+
         response.assert_status(StatusCode::BAD_REQUEST);
         let body: ApiResponse<serde_json::Value> = response.json();
         assert!(!body.success);
@@ -198,10 +238,7 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     // Extract client info for session tracking
-    let ip_address = headers
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("unknown");
+    let ip_address = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
@@ -214,20 +251,26 @@ pub async fn login(
             &request.username,
             &request.password,
             request.mfa_code.as_deref(),
-            ip_address,
+            &ip_address,
             user_agent,
         )
         .await;
 
     match auth_result {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             // Convert User to UserInfo
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()], // TODO: Get actual policies from user
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -249,7 +292,7 @@ pub async fn login(
                 resource_type: "auth".to_string(),
                 resource_id: user_info.username.clone(),
                 status: secreton_core::audit::AuditStatus::Success,
-                ip: Some(ip_address.to_string()),
+                ip: Some(ip_address.clone()),
                 user_agent: Some(user_agent.to_string()),
                 namespace: Some(auth_token.user.namespace),
                 metadata: HashMap::new(),
@@ -287,7 +330,7 @@ pub async fn login(
                 resource_type: "auth".to_string(),
                 resource_id: request.username.clone(),
                 status: secreton_core::audit::AuditStatus::Failure,
-                ip: Some(ip_address.to_string()),
+                ip: Some(ip_address.clone()),
                 user_agent: Some(user_agent.to_string()),
                 namespace: None,
                 metadata: [("error".to_string(), e.to_string())]
@@ -317,10 +360,7 @@ pub async fn logout(
         .unwrap_or("");
 
     // Extract client info
-    let ip_address = headers
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("unknown");
+    let ip_address = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
@@ -339,8 +379,12 @@ pub async fn logout(
         "unknown".to_string()
     };
 
-    // TODO: Implement token invalidation when session storage is complete
-    // For now, client-side token removal is sufficient (JWT can't be revoked without storage)
+    // Invalidate token
+    if !token.is_empty() {
+        if let Err(e) = state.auth.revoke_token(token).await {
+            tracing::warn!("Failed to revoke token during logout: {}", e);
+        }
+    }
 
     // Audit log
     let audit_entry = secreton_core::audit::AuditLog {
@@ -351,7 +395,7 @@ pub async fn logout(
         resource_type: "auth".to_string(),
         resource_id: "session".to_string(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: Some(ip_address.to_string()),
+        ip: Some(ip_address.clone()),
         user_agent: Some(user_agent.to_string()),
         namespace: None,
         metadata: HashMap::new(),
@@ -368,17 +412,24 @@ pub async fn logout(
 /// Refresh access token
 pub async fn refresh_token(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(request): Json<RefreshTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     // Use AuthService to refresh token
     match state.auth.refresh_token(&request.refresh_token).await {
         Ok(auth_token) => {
+            let policies = state
+                .auth
+                .get_user_policies(&auth_token.user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: auth_token.user.username.clone(),
                 email: Some(auth_token.user.email.clone()),
                 display_name: auth_token.user.full_name.clone(),
                 groups: auth_token.user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
 
@@ -400,7 +451,7 @@ pub async fn refresh_token(
                 resource_type: "auth".to_string(),
                 resource_id: user_info.username.clone(),
                 status: secreton_core::audit::AuditStatus::Success,
-                ip: None,
+                ip: extract_client_ip(&headers),
                 user_agent: None,
                 namespace: Some(auth_token.user.namespace),
                 metadata: HashMap::new(),
@@ -423,12 +474,18 @@ pub async fn verify_token(
     // Validate token using AuthService
     match state.auth.validate_token(&request.token).await {
         Ok(user) => {
+            let policies = state
+                .auth
+                .get_user_policies(&user)
+                .await
+                .unwrap_or_else(|_| vec!["default".to_string()]);
+
             let user_info = UserInfo {
                 username: user.username,
                 email: Some(user.email),
                 display_name: user.full_name,
                 groups: user.roles.iter().cloned().collect(),
-                policies: vec!["default".to_string()],
+                policies,
                 metadata: HashMap::new(),
             };
             Ok(Json(ApiResponse::success(user_info)))
@@ -439,99 +496,16 @@ pub async fn verify_token(
     }
 }
 
-/// Token lookup self - get information about the current token
-///
-/// # Endpoint
-/// `GET /v1/auth/token/lookup-self`
-///
-/// # Headers
-/// - `X-Vault-Token`: The token to look up
-///
-/// # Response
-/// Returns information about the token including policies, TTL, and metadata
-pub async fn token_lookup_self(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<Json<ApiResponse<TokenLookupResponse>>> {
-    // Extract token from X-Vault-Token header (Vault convention)
-    let token = headers
-        .get("x-vault-token")
-        .or_else(|| headers.get("authorization"))
-        .and_then(|h| h.to_str().ok())
-        .map(|h| h.strip_prefix("Bearer ").unwrap_or(h))
-        .ok_or_else(|| ApiError::Authentication {
-            message: "Missing X-Vault-Token header".to_string(),
-        })?;
-
-    // Validate token and get user info
-    match state.auth.validate_token(token).await {
-        Ok(user) => {
-            let response = TokenLookupResponse {
-                accessor: format!("accessor-{}", uuid::Uuid::new_v4()),
-                creation_time: user.created_at.timestamp(),
-                creation_ttl: 2764800, // 32 days default
-                display_name: user.full_name.clone().unwrap_or_else(|| user.username.clone()),
-                entity_id: user.id.to_string(),
-                expire_time: chrono::Utc::now()
-                    .checked_add_signed(chrono::Duration::hours(24))
-                    .map(|t| t.to_rfc3339())
-                    .unwrap_or_default(),
-                explicit_max_ttl: 0,
-                id: token.to_string(),
-                issue_time: user.created_at.to_rfc3339(),
-                meta: HashMap::new(),
-                num_uses: 0,
-                orphan: false,
-                path: "auth/token/create".to_string(),
-                policies: user.roles.iter().cloned().collect(),
-                renewable: true,
-                ttl: 86400, // 24 hours
-                token_type: if user.is_superuser { "root" } else { "service" }.to_string(),
-            };
-            Ok(Json(ApiResponse::success(response)))
-        }
-        Err(e) => Err(ApiError::Authentication {
-            message: format!("Invalid token: {}", e),
-        }),
-    }
-}
-
-/// Token lookup response
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TokenLookupResponse {
-    pub accessor: String,
-    pub creation_time: i64,
-    pub creation_ttl: i64,
-    pub display_name: String,
-    pub entity_id: String,
-    pub expire_time: String,
-    pub explicit_max_ttl: i64,
-    pub id: String,
-    pub issue_time: String,
-    pub meta: HashMap<String, String>,
-    pub num_uses: i64,
-    pub orphan: bool,
-    pub path: String,
-    pub policies: Vec<String>,
-    pub renewable: bool,
-    pub ttl: i64,
-    #[serde(rename = "type")]
-    pub token_type: String,
-}
-
 /// Setup MFA for user
 pub async fn setup_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
     Json(request): Json<MfaSetupRequest>,
 ) -> ApiResult<Json<ApiResponse<MfaSetupResponse>>> {
-    // 1. Extract user ID from Authorization header (JWT token)
-    // TODO: Implement proper JWT extraction from middleware
-    // For now, use a placeholder user ID
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser (extracted from JWT by middleware)
+    let user_id = user.id.to_string();
+    let user_label = user.email.unwrap_or_else(|| format!("{}@kejaksaan.go.id", user.username));
 
     // 2. Generate MFA configuration based on method
     let response = match request.method.as_str() {
@@ -540,9 +514,9 @@ pub async fn setup_mfa(
             let totp_config = state
                 .mfa
                 .enable_totp(
-                    user_id,
+                    &user_id,
                     "Secreton Vault".to_string(),
-                    format!("{}@kejaksaan.go.id", user_id),
+                    user_label,
                 )
                 .await
                 .map_err(|e| ApiError::Internal {
@@ -553,7 +527,7 @@ pub async fn setup_mfa(
             let mfa_config =
                 state
                     .mfa
-                    .get_config(user_id)
+                    .get_config(&user_id)
                     .await
                     .ok_or_else(|| ApiError::Internal {
                         message: "Failed to retrieve MFA configuration".to_string(),
@@ -619,7 +593,7 @@ pub async fn setup_mfa(
         resource_type: "mfa".to_string(),
         resource_id: request.method.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None, // TODO: Extract from request
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())
@@ -642,13 +616,11 @@ pub async fn setup_mfa(
 pub async fn verify_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
     Json(request): Json<MfaVerifyRequest>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // 1. Extract user ID from Authorization header
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser
+    let user_id = user.id.to_string();
 
     // 2. Verify MFA code based on method
     let is_valid = match request.method.as_str() {
@@ -656,7 +628,7 @@ pub async fn verify_mfa(
             // Verify TOTP code
             state
                 .mfa
-                .verify_totp(user_id, &request.code)
+                .verify_totp(&user_id, &request.code)
                 .await
                 .map_err(|e| ApiError::Authentication {
                     message: format!("Failed to verify TOTP code: {}", e),
@@ -667,7 +639,7 @@ pub async fn verify_mfa(
             if let Some(backup_code) = &request.backup_code {
                 state
                     .mfa
-                    .verify_recovery_code(user_id, backup_code)
+                    .verify_recovery_code(&user_id, backup_code)
                     .await
                     .map_err(|e| ApiError::Authentication {
                         message: format!("Invalid recovery code: {}", e),
@@ -701,7 +673,7 @@ pub async fn verify_mfa(
             resource_type: "mfa".to_string(),
             resource_id: request.method.clone(),
             status: secreton_core::audit::AuditStatus::Failure,
-            ip: None,
+            ip: extract_client_ip(&headers),
             user_agent: headers
                 .get("User-Agent")
                 .and_then(|h| h.to_str().ok())
@@ -725,7 +697,7 @@ pub async fn verify_mfa(
         resource_type: "mfa".to_string(),
         resource_id: request.method.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())
@@ -754,15 +726,13 @@ pub async fn verify_mfa(
 pub async fn disable_mfa(
     State(state): State<AppState>,
     headers: HeaderMap,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // 1. Extract user ID from Authorization header
-    let user_id = headers
-        .get("X-User-Id")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("demo-user");
+    // 1. Extract user ID from AuthenticatedUser
+    let user_id = user.id.to_string();
 
     // 2. Check if MFA is configured for this user
-    let mfa_config = state.mfa.get_config(user_id).await;
+    let mfa_config = state.mfa.get_config(&user_id).await;
 
     if mfa_config.is_none() {
         return Err(ApiError::NotFound {
@@ -773,7 +743,7 @@ pub async fn disable_mfa(
     // 3. Disable MFA for the user (disable TOTP specifically)
     state
         .mfa
-        .disable_totp(user_id)
+        .disable_totp(&user_id)
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to disable MFA: {}", e),
@@ -784,11 +754,11 @@ pub async fn disable_mfa(
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
         action: "mfa_disabled".to_string(),
-        actor: Some(user_id.to_string()),
+        actor: Some(user_id.clone()),
         resource_type: "mfa".to_string(),
-        resource_id: user_id.to_string(),
+        resource_id: user_id.clone(),
         status: secreton_core::audit::AuditStatus::Success,
-        ip: None,
+        ip: extract_client_ip(&headers),
         user_agent: headers
             .get("User-Agent")
             .and_then(|h| h.to_str().ok())
@@ -867,49 +837,95 @@ pub async fn oauth_callback(
 
 /// List user sessions
 pub async fn list_sessions(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ApiResponse<Vec<SessionInfo>>>> {
-    // TODO: Implement session listing
-    // 1. Get current user from token
-    // 2. Fetch user sessions from storage
-    // 3. Return session information
+    // Fetch user sessions from storage
+    let sessions = state
+        .auth
+        .list_user_sessions(&user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
 
-    let sessions = vec![
-        SessionInfo {
-            id: "session-1".to_string(),
-            user_id: "user-1".to_string(),
-            ip_address: "192.168.1.1".to_string(),
-            user_agent: "Mozilla/5.0".to_string(),
-            created_at: chrono::Utc::now() - chrono::Duration::hours(2),
-            last_accessed: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
-            is_current: true,
-        },
-        SessionInfo {
-            id: "session-2".to_string(),
-            user_id: "user-1".to_string(),
-            ip_address: "10.0.0.1".to_string(),
-            user_agent: "curl/7.68.0".to_string(),
-            created_at: chrono::Utc::now() - chrono::Duration::days(1),
-            last_accessed: chrono::Utc::now() - chrono::Duration::hours(6),
-            expires_at: chrono::Utc::now() + chrono::Duration::hours(18),
-            is_current: false,
-        },
-    ];
+    // Determine current session from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
 
-    Ok(Json(ApiResponse::success(sessions)))
+    let current_jti = state.auth.get_token_id(token).unwrap_or_default();
+
+    let session_infos = sessions
+        .into_iter()
+        .map(|s| SessionInfo {
+            id: s.id.clone(),
+            user_id: s.user_id,
+            ip_address: s.ip_address,
+            user_agent: s.user_agent,
+            created_at: s.created_at,
+            last_accessed: s.last_accessed,
+            expires_at: s.expires_at,
+            is_current: s.id == current_jti,
+        })
+        .collect();
+
+    Ok(Json(ApiResponse::success(session_infos)))
 }
 
 /// Revoke a user session
 pub async fn revoke_session(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement session revocation
     // 1. Validate session belongs to current user
+    let session = state
+        .auth
+        .get_session(&session_id)
+        .await
+        .map_err(|_| ApiError::NotFound {
+            resource: "Session".to_string(),
+        })?;
+
+    // Check ownership
+    // Note: session.user_id stores username
+    if session.user_id != user.username {
+        // Allow admins to revoke any session? For now strict ownership.
+        return Err(ApiError::Forbidden);
+    }
+
     // 2. Remove session from storage
-    // 3. Invalidate associated tokens
-    // 4. Audit log
+    state
+        .auth
+        .revoke_session(&session_id)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+
+    // 3. Audit log
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "revoke_session".to_string(),
+        actor: Some(user.username.clone()),
+        resource_type: "auth".to_string(),
+        resource_id: session_id.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: extract_client_ip(&headers),
+        user_agent: headers
+            .get("User-Agent")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string()),
+        namespace: None,
+        metadata: HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     let data = serde_json::json!({
         "message": "Session successfully revoked",

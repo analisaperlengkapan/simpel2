@@ -76,14 +76,11 @@ struct AuditLogQueryParams {
 }
 
 /// List all service accounts in the specified realm
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Query Parameters
 /// - `first`: Pagination offset (default: 0)
 /// - `max`: Maximum number of results (default: 100, max: 1000)
-///
 /// # Response
 /// - `200 OK`: List of service accounts (without secrets)
 /// - `401 Unauthorized`: Missing or invalid authentication
@@ -116,10 +113,8 @@ pub async fn list_service_accounts(
 }
 
 /// Get a specific service account by ID
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `200 OK`: Service account details (without secret)
 /// - `401 Unauthorized`: Missing or invalid authentication
@@ -147,10 +142,8 @@ pub async fn get_service_account(
 }
 
 /// Create a new service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Request Body
 /// ```json
 /// {
@@ -161,7 +154,6 @@ pub async fn get_service_account(
 ///   "roles": ["role-uuid-1", "role-uuid-2"]
 /// }
 /// ```
-///
 /// # Response
 /// - `201 Created`: Service account created successfully
 /// - `400 Bad Request`: Invalid input (empty name, invalid role IDs, etc.)
@@ -170,7 +162,6 @@ pub async fn get_service_account(
 /// - `404 Not Found`: Realm not found
 /// - `409 Conflict`: Service account with same name already exists
 /// - `500 Internal Server Error`: Database error
-///
 /// # Security
 /// - Client secret is auto-generated if not provided
 /// - Client secret is returned only in this response
@@ -269,10 +260,8 @@ pub async fn create_service_account(
 }
 
 /// Update a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Request Body
 /// All fields are optional (partial update supported):
 /// ```json
@@ -283,7 +272,6 @@ pub async fn create_service_account(
 ///   "roles": ["new-role-uuid-1"]
 /// }
 /// ```
-///
 /// # Response
 /// - `200 OK`: Service account updated successfully
 /// - `400 Bad Request`: Invalid input
@@ -366,17 +354,14 @@ pub async fn update_service_account(
 }
 
 /// Delete a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `204 No Content`: Service account deleted successfully
 /// - `401 Unauthorized`: Missing or invalid authentication
 /// - `403 Forbidden`: Insufficient permissions
 /// - `404 Not Found`: Service account or realm not found
 /// - `500 Internal Server Error`: Database error
-///
 /// # Security
 /// - Deletion is audit logged automatically (database trigger)
 /// - All role assignments are removed (CASCADE)
@@ -441,17 +426,14 @@ pub async fn delete_service_account(
 }
 
 /// Regenerate client secret for a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `200 OK`: New client secret returned (only shown once)
 /// - `401 Unauthorized`: Missing or invalid authentication
 /// - `403 Forbidden`: Insufficient permissions
 /// - `404 Not Found`: Service account or realm not found
 /// - `500 Internal Server Error`: Database error
-///
 /// # Security
 /// - Old secret is immediately invalidated
 /// - New secret is auto-generated (32 characters, secure random)
@@ -522,10 +504,8 @@ pub async fn regenerate_secret(
 }
 
 /// Get roles assigned to a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `200 OK`: List of role IDs
 /// - `401 Unauthorized`: Missing or invalid authentication
@@ -556,10 +536,8 @@ pub async fn get_service_account_roles(
 }
 
 /// Assign a role to a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `204 No Content`: Role assigned successfully
 /// - `401 Unauthorized`: Missing or invalid authentication
@@ -633,10 +611,8 @@ pub async fn assign_role(
 }
 
 /// Revoke a role from a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Response
 /// - `204 No Content`: Role revoked successfully
 /// - `401 Unauthorized`: Missing or invalid authentication
@@ -703,14 +679,11 @@ pub async fn revoke_role(
 }
 
 /// Get audit log for a service account
-///
 /// # Authorization
 /// Requires admin permissions for the realm
-///
 /// # Query Parameters
 /// - `limit`: Maximum number of entries (default: 100, max: 1000)
 /// - `offset`: Pagination offset (default: 0)
-///
 /// # Response
 /// - `200 OK`: Audit log entries
 /// - `401 Unauthorized`: Missing or invalid authentication

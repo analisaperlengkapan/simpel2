@@ -330,6 +330,7 @@ async fn validate_token(token: &str) -> Result<Uuid, Box<dyn std::error::Error>>
 }
 
 /// Broadcast notification to all connected clients
+#[allow(dead_code)]
 pub async fn broadcast_notification(
     state: &WsState,
     notification: NotificationMessage,

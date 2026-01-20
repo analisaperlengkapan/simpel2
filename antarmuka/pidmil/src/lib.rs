@@ -10,14 +10,27 @@ use shared_microfrontend::components::auth::{
 };
 use wasm_bindgen::prelude::*;
 
+mod api;
+
 mod components;
-pub use components::*;
+pub use components::{
+    ActionButton, CaseCard, FormGroup, FormSelect, MilitaryHeader as MilitaryHeaderComponent,
+    SearchBox, StatsCard, StatusBadge,
+};
 
 mod pages;
-pub use pages::*;
+pub use pages::{
+    CaseStatusBadge, MilitaryActionButton, MilitaryHeader as MilitaryHeaderPage, MilitarySearchInput,
+    MilitaryStatCard, PidmilDashboard, PidmilKasus, PidmilLaporan, PidmilPenyidikan,
+    PidmilTersangka, PriorityBadge, ProgressBar,
+};
 
 mod types;
-pub use types::*;
+pub use types::{
+    ButtonVariant, CasePriority, CaseStatus, CaseType, ContactInfo, DetentionStatus, Investigation,
+    InvestigationStatus, InvestigationType, MilitaryCase, MilitaryRank, MilitaryStatistics,
+    MilitarySuspect, SuspectStatus,
+};
 
 #[component]
 pub fn App() -> impl IntoView {

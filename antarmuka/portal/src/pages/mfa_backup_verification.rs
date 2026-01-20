@@ -40,16 +40,16 @@ pub struct BackupCodeVerificationData {
 
 /// API error response structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiErrorResponse {
+pub struct BackupVerificationApiErrorResponse {
     /// Success status (false for errors)
     pub success: bool,
     /// Error details
-    pub error: ApiError,
+    pub error: BackupVerificationApiError,
 }
 
 /// API error details
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ApiError {
+pub struct BackupVerificationApiError {
     /// Error code
     pub code: String,
     /// Error message
@@ -423,7 +423,7 @@ async fn verify_backup_code(
             Ok(verification_response)
         } else {
             // Try to parse error response
-            match response.json::<ApiErrorResponse>().await {
+            match response.json::<BackupVerificationApiErrorResponse>().await {
                 Ok(error_response) => Err(error_response.error.message.into()),
                 Err(_) => Err(format!(
                     "Backup code verification failed: HTTP {}",

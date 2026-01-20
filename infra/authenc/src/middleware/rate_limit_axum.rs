@@ -189,16 +189,13 @@ impl RateLimiterState {
 }
 
 /// Middleware function for rate limiting with progressive delays
-///
 /// This middleware checks if the request should be rate limited based on the client's IP and request path.
 /// If rate limited, it returns a 429 Too Many Requests response with progressive delays to slow down attackers.
-///
 /// # Arguments
 /// * `ConnectInfo(addr)` - The client's connection info (contains IP address)
 /// * `State(state)` - The shared rate limiter state
 /// * `request` - The incoming HTTP request
 /// * `next` - The next middleware in the chain
-///
 /// # Returns
 /// The response from the next middleware, or a 429 response with delay if rate limited
 pub async fn rate_limit_middleware(

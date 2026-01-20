@@ -71,6 +71,14 @@ impl StorageBackend for EncryptedStorage {
         self.backend.migrate().await
     }
 
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        self.backend.delete_expired().await
+    }
+
+    async fn compact(&self) -> StorageResult<()> {
+        self.backend.compact().await
+    }
+
     async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
         self.backend.list(params).await
     }

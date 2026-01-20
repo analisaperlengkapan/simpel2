@@ -17,6 +17,7 @@ enum ResetState {
     /// Email sent confirmation
     EmailSent,
     /// Reset token validation
+    #[allow(dead_code)]
     ValidatingToken,
     /// New password entry
     NewPassword,
@@ -35,6 +36,9 @@ pub fn PasswordResetPage() -> impl IntoView {
     let (error_message, set_error_message) = signal(String::new());
     let (is_loading, set_is_loading) = signal(false);
     let (reset_state, set_reset_state) = signal(ResetState::RequestReset);
+
+    // Unused setter, kept for API consistency if needed later
+    let _ = set_reset_token;
 
     let navigate = leptos_router::hooks::use_navigate();
 
@@ -72,13 +76,6 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle reset request submission
     let handle_request_reset = {
-        let email = email.clone();
-        let captcha_token = captcha_token.clone();
-        let set_error_message = set_error_message.clone();
-        let set_is_loading = set_is_loading.clone();
-        let set_reset_state = set_reset_state.clone();
-        let set_captcha_token = set_captcha_token.clone();
-
         move |ev: web_sys::SubmitEvent| {
             ev.prevent_default();
 
@@ -119,12 +116,6 @@ pub fn PasswordResetPage() -> impl IntoView {
 
     // Handle new password submission
     let handle_reset_password = {
-        let new_password = new_password.clone();
-        let confirm_password = confirm_password.clone();
-        let reset_token = reset_token.clone();
-        let set_error_message = set_error_message.clone();
-        let set_is_loading = set_is_loading.clone();
-        let set_reset_state = set_reset_state.clone();
         let navigate = navigate.clone();
 
         move |ev: web_sys::SubmitEvent| {
@@ -410,6 +401,7 @@ pub fn PasswordResetPage() -> impl IntoView {
 // ============================================================================
 
 /// Get authenc API base URL
+#[allow(dead_code)]
 fn get_authenc_api_url() -> String {
     std::env::var("AUTHENC_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }

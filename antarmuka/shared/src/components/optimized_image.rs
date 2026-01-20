@@ -14,6 +14,7 @@ use leptos::prelude::*;
 /// # Example
 /// ```rust
 /// use shared_microfrontend::components::OptimizedImage;
+/// use leptos::prelude::*;
 ///
 /// #[component]
 /// pub fn Gallery() -> impl IntoView {

@@ -584,7 +584,7 @@ mod otp_integration_tests {
         // We can't predict the exact code, but we can test the verification logic
         // by generating a code and then verifying it
         let secret_bytes =
-            base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+            base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
         let code = provider
             .generate_totp_for_step(&secret_bytes, time_step, OtpAlgorithm::HmacSha1, 6)
             .unwrap();
@@ -612,7 +612,7 @@ mod otp_integration_tests {
 
         // Generate codes for previous, current, and next time steps
         let secret_bytes =
-            base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+            base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
 
         let prev_code = provider
             .generate_totp_for_step(&secret_bytes, time_step - 1, OtpAlgorithm::HmacSha1, 6)
@@ -657,7 +657,7 @@ mod otp_integration_tests {
         let provider = OtpCredentialProvider::new();
         let secret = "JBSWY3DPEHPK3PXP";
         let secret_bytes =
-            base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+            base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
 
         let current_time = chrono::Utc::now().timestamp() as u64;
         let time_step = current_time / 30;
@@ -713,7 +713,7 @@ mod otp_integration_tests {
         let provider = OtpCredentialProvider::new();
         let secret = "JBSWY3DPEHPK3PXP";
         let secret_bytes =
-            base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret).unwrap();
+            base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret).unwrap();
 
         let current_time = chrono::Utc::now().timestamp() as u64;
         let time_step = current_time / 30;

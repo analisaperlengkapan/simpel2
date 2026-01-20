@@ -121,6 +121,37 @@ impl StorageBackend for MemoryBackend {
         Ok(())
     }
 
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+        let mut deleted_count = 0;
+
+        let expired_ids: Vec<Uuid> = store
+            .values()
+            .filter(|entry| entry.is_expired())
+            .map(|entry| entry.id)
+            .collect();
+
+        for id in expired_ids {
+            if let Some(entry) = store.remove(&id) {
+                path_index.remove(&entry.path);
+                deleted_count += 1;
+            }
+        }
+
+        Ok(deleted_count)
+    }
+
+    async fn compact(&self) -> StorageResult<()> {
+        let mut store = self.store.write().await;
+        let mut path_index = self.path_index.write().await;
+
+        store.shrink_to_fit();
+        path_index.shrink_to_fit();
+
+        Ok(())
+    }
+
     async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
         let store = self.store.read().await;
 

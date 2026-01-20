@@ -56,7 +56,6 @@
 //!     // Handler logic here
 //!     Ok(Json(ApiResponse::success(
 //!         format!("Processed {}", id),
-//!         None,
 //!     )))
 //! }
 //! ```
@@ -115,14 +114,24 @@ pub type AppState = Arc<ServiceContainer>;
 // Re-export common types
 pub use secret::ListQuery;
 
-/// Create the main application router
-pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
+/// Create the complete API router
+pub fn create_router(
+    config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
+    create_protected_router(config, services.clone())
+        .merge(create_unprotected_router(config, services))
+}
+
+/// Create the main application router for protected routes
+pub fn create_protected_router(
+    _config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
     let app_state = services.clone();
 
-    // Build system routes
-    #[allow(unused_mut)]
-    let mut sys_routes = seal::create_routes()
-        .merge(namespace::create_routes())
+    // These are all the routes that should be protected by auth and seal checks
+    let protected_sys_routes = namespace::create_routes()
         .merge(lease::create_routes())
         .merge(policy::create_routes())
         .merge(wrapping::create_routes())
@@ -145,28 +154,35 @@ pub fn create_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Ro
         .nest("/inject", inject::create_routes())
         .nest("/webhooks", webhook::create_routes());
 
-    // Add raft routes if feature is enabled
-    #[cfg(feature = "raft-consensus")]
-    {
-        sys_routes = sys_routes.merge(raft::create_routes());
-    }
-
-    // Create API v1 routes (to be nested by caller, e.g. under /v1)
     Router::new()
         .route("/", get(root_handler))
         .nest("/auth", auth::create_routes())
         .nest("/secret", secret::create_routes())
         .route("/secrets", get(secret::list_secrets))
         .nest("/admin", admin::create_routes())
-        .nest("/sys", sys_routes)
+        .nest("/sys", protected_sys_routes)
         .nest("/dynamic", dynamic::create_routes())
+        .with_state(app_state)
+}
+
+/// Create a router for unprotected system routes
+pub fn create_unprotected_router(
+    _config: &ApiConfig,
+    services: Arc<ServiceContainer>,
+) -> Router {
+    let app_state = services.clone();
+
+    // Routes that must be available even when the vault is sealed
+    Router::new()
+        .nest("/sys", seal::create_routes())
         .route("/health", get(health::health_check))
         .route("/version", get(get_version))
         .route("/metrics", get(get_metrics))
         .with_state(app_state)
 }
 
-/// Root endpoint handler
+/// Root endpoint handler (Used for root path "/" if needed)
+#[allow(dead_code)]
 async fn root_handler() -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     let data = serde_json::json!({
         "service": "Secreton API",

@@ -1,8 +1,6 @@
 /// Database queries for user management
-///
 /// Contains SQL queries for user CRUD operations, authentication, and user data retrieval.
 /// All queries include soft delete filtering (deleted_at IS NULL) for data integrity.
-///
 /// # Security Considerations
 /// - Password hashes are stored securely using bcrypt/scrypt
 /// - User data is filtered by realm for multi-tenancy
@@ -109,10 +107,8 @@ pub mod users {
 }
 
 /// Database queries for realm management
-///
 /// Contains SQL queries for realm CRUD operations and multi-tenancy support.
 /// Realms provide logical separation of users, roles, and resources.
-///
 /// # Security Considerations
 /// - Realms enforce multi-tenancy isolation
 /// - Realm-scoped queries prevent data leakage between tenants
@@ -202,10 +198,8 @@ pub mod realms {
 }
 
 /// Database queries for role management
-///
 /// Contains SQL queries for role-based access control (RBAC) operations.
 /// Manages roles, user-role assignments, and permission structures.
-///
 /// # Security Considerations
 /// - Roles are scoped to realms for multi-tenancy
 /// - User-role assignments control access permissions
@@ -297,10 +291,8 @@ pub mod roles {
 }
 
 /// Database queries for audit logging
-///
 /// Contains SQL queries for comprehensive audit logging and compliance.
 /// Tracks all security-relevant actions, user activities, and system events.
-///
 /// # Security Considerations
 /// - Audit logs are immutable and append-only
 /// - All security events must be logged for compliance

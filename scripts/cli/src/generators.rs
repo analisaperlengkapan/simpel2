@@ -903,6 +903,7 @@ secrets:
 }
 
 // Kubernetes manifests generation (migrated from Python)
+#[allow(dead_code)]
 pub async fn generate_k8s_manifests(namespace: &str, services: &[&str]) -> Result<()> {
     println!("{}", "☸️  Generating Kubernetes manifests...".bright_cyan());
 
@@ -934,6 +935,7 @@ pub async fn generate_k8s_manifests(namespace: &str, services: &[&str]) -> Resul
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_namespace(namespace: &str, k8s_dir: &str) -> Result<()> {
     let content = format!(
         r#"apiVersion: v1
@@ -951,6 +953,7 @@ metadata:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_configmap(namespace: &str, k8s_dir: &str) -> Result<()> {
     let content = format!(
         r#"apiVersion: v1
@@ -972,6 +975,7 @@ data:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_secrets(namespace: &str, k8s_dir: &str) -> Result<()> {
     let content = format!(
         r#"apiVersion: v1
@@ -993,6 +997,7 @@ data:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_service(service: &str, namespace: &str, k8s_dir: &str) -> Result<()> {
     let port = get_service_port(service);
     let content = format!(
@@ -1019,6 +1024,7 @@ spec:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_deployment(service: &str, namespace: &str, k8s_dir: &str) -> Result<()> {
     let port = get_service_port(service);
     let content = format!(
@@ -1106,6 +1112,7 @@ spec:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_ingress(namespace: &str, services: &[&str], k8s_dir: &str) -> Result<()> {
     let mut content = format!(
         r#"apiVersion: networking.k8s.io/v1
@@ -1148,6 +1155,7 @@ spec:
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_k8s_kustomization(services: &[&str], k8s_dir: &str) -> Result<()> {
     let mut content = String::from(
         r#"apiVersion: kustomize.config.k8s.io/v1beta1
@@ -1189,6 +1197,7 @@ images:
 }
 
 // GitLab CI advanced generation (migrated from Python)
+#[allow(dead_code)]
 pub async fn generate_advanced_gitlab_ci(features: &[&str]) -> Result<()> {
     println!(
         "{}",
@@ -1468,6 +1477,7 @@ deploy:production:
 }
 
 // Configuration generators
+#[allow(dead_code)]
 pub async fn generate_config_files(config_type: &str, environment: &str) -> Result<()> {
     println!(
         "{}",
@@ -1493,6 +1503,7 @@ pub async fn generate_config_files(config_type: &str, environment: &str) -> Resu
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_nginx_config(environment: &str) -> Result<()> {
     let config_dir = format!("infra/nginx/{}", environment);
     fs::create_dir_all(&config_dir)?;
@@ -1509,6 +1520,7 @@ fn generate_nginx_config(environment: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_vault_config_file(environment: &str) -> Result<()> {
     let config_dir = format!("infra/vault/{}", environment);
     fs::create_dir_all(&config_dir)?;
@@ -1525,6 +1537,7 @@ fn generate_vault_config_file(environment: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_postgres_config(environment: &str) -> Result<()> {
     let config_dir = format!("infra/postgres/{}", environment);
     fs::create_dir_all(&config_dir)?;
@@ -1541,6 +1554,7 @@ fn generate_postgres_config(environment: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_monitoring_config(environment: &str) -> Result<()> {
     let config_dir = format!("infra/monitoring/{}", environment);
     fs::create_dir_all(&config_dir)?;
@@ -1574,6 +1588,7 @@ fn get_service_port(service: &str) -> u16 {
     }
 }
 
+#[allow(dead_code)]
 fn create_postgres_dev_config() -> String {
     r#"# PostgreSQL Development Configuration
 listen_addresses = '*'
@@ -1609,6 +1624,7 @@ log_error_verbosity = default
     .to_string()
 }
 
+#[allow(dead_code)]
 fn create_postgres_staging_config() -> String {
     r#"# PostgreSQL Staging Configuration
 listen_addresses = '*'
@@ -1644,6 +1660,7 @@ log_error_verbosity = default
     .to_string()
 }
 
+#[allow(dead_code)]
 fn create_postgres_prod_config() -> String {
     r#"# PostgreSQL Production Configuration
 listen_addresses = '*'
@@ -1681,6 +1698,7 @@ archive_command = 'cp %p /var/lib/postgresql/archive/%f'
     .to_string()
 }
 
+#[allow(dead_code)]
 fn create_prometheus_config(environment: &str) -> String {
     format!(
         r#"global:
@@ -1733,6 +1751,7 @@ environment: {}
     )
 }
 
+#[allow(dead_code)]
 fn create_grafana_config(environment: &str) -> String {
     format!(
         r#"[server]

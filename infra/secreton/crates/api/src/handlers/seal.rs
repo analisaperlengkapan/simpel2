@@ -187,7 +187,6 @@ pub struct RekeyStatusResponse {
 
 /// GET /v1/sys/seal-status
 /// Returns the seal status of the vault
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 #[instrument(skip(state))]
 pub async fn get_seal_status(
@@ -209,7 +208,6 @@ pub async fn get_seal_status(
 
 /// POST /v1/sys/seal
 /// Seals the vault
-///
 /// CRITICAL SECURITY: This immediately seals the vault and clears the master key from memory.
 /// All subsequent operations (except whitelisted endpoints) will be blocked until unsealed.
 ///
@@ -225,16 +223,16 @@ pub async fn seal_vault(
     // In production, this should require admin role
     let user_id = "system".to_string();
 
-    // TODO: Check if user has admin role
-    // For now, we log the user but allow the operation
-    // In production, add role check:
-    // if !state.auth.has_role(&user_id, "admin").await? {
-    //     return Err((StatusCode::FORBIDDEN, "Admin role required".to_string()));
-    // }
-    warn!(
-        "Seal operation requested by user: {} (role check not yet implemented)",
-        user_id
-    );
+    // Check if user has admin role
+    if !state
+        .auth
+        .has_role(&user_id, "admin")
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    {
+        warn!("Unauthorized seal attempt by user: {}", user_id);
+        return Err((StatusCode::FORBIDDEN, "Admin role required".to_string()));
+    }
 
     // Audit log the seal attempt
     let mut metadata = HashMap::new();
@@ -288,10 +286,8 @@ pub async fn seal_vault(
 
 /// POST /v1/sys/unseal
 /// Provides an unseal key and unseals the vault if threshold is met
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 /// Operators provide Shamir shares one at a time until threshold is reached.
-///
 /// SECURITY: Rate limited to prevent brute force attacks (max 10 attempts per 60 seconds per IP)
 #[instrument(skip(state, request))]
 pub async fn unseal_vault(
@@ -451,11 +447,9 @@ pub async fn unseal_vault(
 
 /// POST /v1/sys/init
 /// Initializes a new vault
-///
 /// CRITICAL SECURITY: This endpoint can only be called once.
 /// After initialization, the vault remains SEALED.
 /// Operators must manually unseal with threshold shares.
-///
 /// This endpoint is whitelisted and accessible even when vault is sealed.
 #[instrument(skip(state, request))]
 pub async fn initialize_vault(
@@ -749,7 +743,7 @@ async fn generate_root_token(state: &AppState) -> Result<String, String> {
 
     let now = chrono::Utc::now();
     let claims = RootTokenClaims {
-        sub: "root".to_string(),
+        sub: crate::services::auth::ROOT_USER_ID.to_string(),
         exp: (now + chrono::Duration::days(365)).timestamp(),
         iat: now.timestamp(),
         policies: vec!["root".to_string()],

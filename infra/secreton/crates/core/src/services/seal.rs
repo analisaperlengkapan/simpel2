@@ -10,7 +10,7 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 // Import Shamir Secret Sharing from crypto crate
 use secreton_crypto::shamir::{
@@ -248,7 +248,6 @@ pub struct RekeyOperation {
 /// Master key wrapper with zeroization
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 struct MasterKey {
-    #[zeroize(skip)]
     key: Option<Vec<u8>>,
 }
 
@@ -515,8 +514,8 @@ impl SealService {
         drop(config);
 
         // Generate 32-byte master key using cryptographically secure RNG
-        let mut master_key_bytes = vec![0u8; 32];
-        OsRng.fill_bytes(&mut master_key_bytes);
+        let mut master_key_bytes = Zeroizing::new(vec![0u8; 32]);
+        OsRng.fill_bytes(&mut *master_key_bytes);
 
         // Create Shamir configuration
         let shamir_config = ShamirConfig::new(threshold, num_shares)
@@ -543,7 +542,7 @@ impl SealService {
             let mut hasher = Sha256::new();
             hasher.update(&master_key_bytes);
             hasher.update(b"seal-key-derivation");
-            let seal_key = hasher.finalize().to_vec();
+            let seal_key = Zeroizing::new(hasher.finalize().to_vec());
 
             // Encrypt master key
             let (encrypted_master_key, metadata) =
@@ -559,9 +558,7 @@ impl SealService {
         // Vault remains in Sealed state
         // Operators must manually unseahold shares
 
-        // Zeroize master key bytes immediately
-        let mut master_key_bytes_mut = master_key_bytes;
-        master_key_bytes_mut.zeroize();
+        // Master key bytes are wrapped in Zeroizing, so they will be zeroized automatically on drop
 
         // Vault remains sealed - state is already Sealed, no change needed
         tracing::info!(

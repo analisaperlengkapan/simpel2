@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// User session for authentication
-///
 /// Represents an active user session with authentication tokens and metadata.
 /// Sessions track user authentication state, expiration, and security information.
-///
 /// # Fields
 /// * `id` - Unique session identifier (UUID)
 /// * `user_id` - ID of the authenticated user
@@ -18,7 +16,6 @@ use uuid::Uuid;
 /// * `ip_address` - Client IP address for security tracking
 /// * `user_agent` - Client user agent string for device identification
 /// * `revoked` - Flag indicating if session has been revoked
-///
 /// # Security Considerations
 /// - Tokens should be cryptographically secure random values
 /// - Sessions should have reasonable expiration times
@@ -56,16 +53,13 @@ pub struct Session {
 }
 
 /// Session creation request
-///
 /// Parameters required to create a new user session.
 /// Used when establishing authentication sessions after successful login.
-///
 /// # Fields
 /// * `user_id` - ID of the user for whom to create the session
 /// * `expires_in` - Session lifetime in seconds from creation
 /// * `ip_address` - Client IP address for security tracking
 /// * `user_agent` - Client user agent for device identification
-///
 /// # Security Considerations
 /// - Session expiration should be reasonable (hours, not days)
 /// - IP address tracking helps detect session hijacking
@@ -84,10 +78,8 @@ pub struct CreateSessionRequest {
 }
 
 /// Session response (without sensitive tokens)
-///
 /// Safe session information returned to clients.
 /// Excludes sensitive token data for security.
-///
 /// # Fields
 /// * `id` - Unique session identifier
 /// * `user_id` - ID of the authenticated user
@@ -96,7 +88,6 @@ pub struct CreateSessionRequest {
 /// * `last_accessed` - Last activity timestamp
 /// * `ip_address` - Client IP address (if available)
 /// * `user_agent` - Client user agent (if available)
-///
 /// # Security Considerations
 /// - Never includes actual tokens in responses
 /// - Provides necessary session metadata for client management

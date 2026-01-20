@@ -23,7 +23,6 @@ pub struct MfaBackupInputProps {
 }
 
 /// MFA Backup Code Input Component
-///
 /// Provides a user-friendly interface for entering backup codes with:
 /// - Automatic formatting (adds dashes)
 /// - Input validation

@@ -30,15 +30,17 @@ impl CsrfToken {
         let mut bytes = [0u8; 32];
 
         // Use crypto.getRandomValues for secure random generation
-        if let Some(window) = window()
-            && let Ok(crypto) = window.crypto()
-            && crypto.get_random_values_with_u8_array(&mut bytes).is_ok()
-        {
-            // Convert bytes to hex string
-            return bytes
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<String>();
+        if let Some(window) = window() {
+            if let Ok(crypto) = window.crypto() {
+                let _array = js_sys::Uint8Array::new_with_length(32);
+                if crypto.get_random_values_with_u8_array(&mut bytes).is_ok() {
+                    // Convert bytes to hex string
+                    return bytes
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<String>();
+                }
+            }
         }
 
         // Fallback to Math.random (less secure, but better than nothing)
@@ -356,6 +358,7 @@ mod tests {
 
     #[cfg(target_arch = "wasm32")]
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_csrf_token_generation() {
         let token = CsrfToken::generate();
         assert_eq!(token.value().len(), 64); // 32 bytes = 64 hex chars
@@ -371,6 +374,7 @@ mod tests {
 
     #[cfg(target_arch = "wasm32")]
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_double_submit_cookie() {
         let cookie = DoubleSubmitCookie::new();
         assert!(!cookie.token.is_empty());

@@ -2,17 +2,22 @@
 name = "layanan-perencanaan"
 version.workspace = true
 edition.workspace = true
-authors = ["SIMPelv2 Team"]
-description = "perencanaan service for SIMPelv2"
+publish = false
 
 [dependencies]
 axum = { workspace = true }
 tokio = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true, features = ["cors", "trace"] }
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+postgres-types = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+dotenvy = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v4"] }
+chrono = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
 anyhow = { workspace = true }
-uuid = { workspace = true }

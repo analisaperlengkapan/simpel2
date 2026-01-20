@@ -215,12 +215,14 @@ impl KVEngine {
 #[derive(Clone)]
 pub struct KVApiState {
     pub engine: std::sync::Arc<KVEngine>,
+    pub metrics: std::sync::Arc<crate::metrics::GlobalMetrics>,
 }
 
 impl Default for KVApiState {
     fn default() -> Self {
         Self {
             engine: std::sync::Arc::new(KVEngine::default()),
+            metrics: std::sync::Arc::new(crate::metrics::GlobalMetrics::new()),
         }
     }
 }
@@ -305,6 +307,10 @@ pub async fn put_secret(
         .await
     {
         Ok(version) => {
+            state
+                .metrics
+                .kv_operations_total
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!(
                 "Created secret at path '{}' version {}",
                 path, version.version
@@ -329,6 +335,10 @@ pub async fn get_secret(
 ) -> Result<Json<GetSecretResponse>, StatusCode> {
     match state.engine.get_secret(&path, None, Some("system")).await {
         Ok(Some((data, metadata))) => {
+            state
+                .metrics
+                .kv_operations_total
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!("Retrieved secret at path '{}'", path);
             let data_map = match data {
                 serde_json::Value::Object(map) => {
@@ -360,6 +370,10 @@ pub async fn delete_secret(
 ) -> Result<Json<DeleteResponse>, StatusCode> {
     match state.engine.delete_secret(&path, None).await {
         Ok(_) => {
+            state
+                .metrics
+                .kv_operations_total
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!("Deleted secret at path '{}'", path);
             Ok(Json(DeleteResponse {
                 success: true,
@@ -446,6 +460,10 @@ pub async fn destroy_secret(
 ) -> Result<Json<DeleteResponse>, StatusCode> {
     match state.engine.destroy_secret(&path, version as u64).await {
         Ok(_) => {
+            state
+                .metrics
+                .kv_operations_total
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!(
                 "Permanently destroyed secret '{}' version {}",
                 path, version

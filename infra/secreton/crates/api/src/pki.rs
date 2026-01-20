@@ -212,7 +212,6 @@ pub fn create_pki_router(state: PkiApiState) -> Router {
 // ============================================================================
 
 /// Generate root CA
-///
 /// POST /pki/ca/root
 #[axum::debug_handler]
 pub async fn generate_root_ca(
@@ -247,7 +246,6 @@ pub async fn generate_root_ca(
 }
 
 /// List all CAs
-///
 /// GET /pki/ca/list
 pub async fn list_cas(State(state): State<PkiApiState>) -> Json<ListCAsResponse> {
     let cas = state.engine.list_cas().await;
@@ -255,7 +253,6 @@ pub async fn list_cas(State(state): State<PkiApiState>) -> Json<ListCAsResponse>
 }
 
 /// Create PKI role
-///
 /// POST /pki/roles/{role_name}
 #[axum::debug_handler]
 pub async fn create_role(
@@ -294,7 +291,6 @@ pub async fn create_role(
 }
 
 /// List all roles
-///
 /// GET /pki/roles
 pub async fn list_roles(State(state): State<PkiApiState>) -> Json<ListRolesResponse> {
     let roles = state.engine.list_roles().await;
@@ -302,7 +298,6 @@ pub async fn list_roles(State(state): State<PkiApiState>) -> Json<ListRolesRespo
 }
 
 /// Issue certificate from role
-///
 /// POST /pki/issue/{role_name}
 #[axum::debug_handler]
 pub async fn issue_certificate(
@@ -357,7 +352,6 @@ pub async fn issue_certificate(
 }
 
 /// Revoke certificate
-///
 /// POST /pki/revoke
 #[axum::debug_handler]
 pub async fn revoke_certificate(
@@ -394,7 +388,6 @@ pub async fn revoke_certificate(
 }
 
 /// Get certificate by serial number
-///
 /// GET /pki/cert/{serial_number}
 #[axum::debug_handler]
 pub async fn get_certificate(
@@ -426,7 +419,6 @@ pub async fn get_certificate(
 }
 
 /// Get Certificate Revocation List (CRL)
-///
 /// GET /pki/crl
 pub async fn get_crl(State(state): State<PkiApiState>) -> Result<Json<GetCRLResponse>, StatusCode> {
     info!("Generating CRL");

@@ -20,9 +20,7 @@ use crate::backends::{ConsulBackend, ConsulConfig};
 use crate::backends::{S3Backend, S3Config};
 
 /// Storage backend type enumeration
-///
 /// # Recommendations (HashiCorp Vault-style)
-///
 /// - **Production HA**: `Consul` or `Raft` (no database required!)
 /// - **Cloud**: `S3` for AWS, Azure Blob, or GCS
 /// - **Development**: `File` or `Memory`
@@ -100,20 +98,15 @@ impl Default for StorageFactoryConfig {
 }
 
 /// Storage factory for creating backend instances
-///
 /// # Examples
-///
 /// ```rust,no_run
 /// use secreton_storage::{StorageFactory, StorageBackendType, StorageFactoryConfig};
-///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create file-based storage (default, no external dependencies)
 /// let backend = StorageFactory::create_file("/var/lib/secreton/data").await?;
-///
 /// // Create Consul storage (HA, like HashiCorp Vault)
 /// #[cfg(feature = "consul")]
 /// let backend = StorageFactory::create_consul("127.0.0.1:8500", "secreton/").await?;
-///
 /// // Create from config
 /// let config = StorageFactoryConfig::default(); // Uses file backend
 /// let backend = StorageFactory::create(config).await?;

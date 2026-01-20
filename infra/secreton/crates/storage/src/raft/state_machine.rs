@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Commands that can be applied to the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineCommand {
     /// Store a new vault entry
     Store(VaultEntry),
@@ -29,7 +29,7 @@ pub enum StateMachineCommand {
 }
 
 /// Response from state machine operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum StateMachineResponse {
     /// Operation succeeded
     Success,
@@ -48,7 +48,7 @@ pub enum StateMachineResponse {
 }
 
 /// Snapshot of the state machine
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct StateMachineSnapshot {
     /// Last applied log index
     pub last_applied_log: Option<LogId>,
