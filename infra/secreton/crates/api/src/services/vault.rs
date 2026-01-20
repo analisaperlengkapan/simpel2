@@ -275,6 +275,13 @@ impl VaultService {
         let key_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
 
+        // Generate a simulated public key for the new key (since we aren't hooking into a real KMS yet)
+        // In a real implementation, this would come from the HSM or CryptoEngine
+        let public_key = Some(format!(
+            "-----BEGIN PUBLIC KEY-----\n(simulated key material for {} version 1)\n-----END PUBLIC KEY-----",
+            key_name
+        ));
+
         // Create key metadata
         let key_info = KeyInfo {
             id: key_id.clone(),
@@ -282,6 +289,7 @@ impl VaultService {
             key_type: key_type.to_string(),
             version: 1,
             created_at: now,
+            public_key,
         };
 
         // Serialize and store key metadata
@@ -290,13 +298,24 @@ impl VaultService {
 
         let entry = secreton_storage::VaultEntry::new(
             format!("keys/{}", key_name),
-            metadata,
+            metadata.clone(),
             serde_json::json!({}),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
 
+        // Also store versioned entry
+        let mut version_entry = secreton_storage::VaultEntry::new(
+            format!("keys/{}/versions/{}", key_name, key_info.version),
+            metadata,
+            serde_json::json!({}),
+            SecurityLevel::Confidential,
+            user_id.to_string(),
+        );
+        version_entry.created_at = entry.created_at;
+
         self.storage.store(&entry).await?;
+        self.storage.store(&version_entry).await?;
 
         Ok(key_info)
     }
@@ -463,10 +482,63 @@ impl VaultService {
 
         let mut key_infos = Vec::new();
         for entry in entries {
+            // Filter out version entries (they contain "/versions/")
+            if entry.path.contains("/versions/") {
+                continue;
+            }
+
             if let Ok(key_info) = serde_json::from_slice::<KeyInfo>(&entry.encrypted_data) {
                 key_infos.push(key_info);
             }
         }
+
+        Ok(key_infos)
+    }
+
+    /// List key versions
+    pub async fn list_key_versions(&self, key_id: &str, user_id: &str) -> Result<Vec<KeyInfo>, VaultError> {
+        // Log audit trail
+        let _ = self
+            .audit
+            .log(AuditLog {
+                id: uuid::Uuid::new_v4(),
+                timestamp: chrono::Utc::now(),
+                action: "list_versions".to_string(),
+                actor: Some(user_id.to_string()),
+                resource_type: "key".to_string(),
+                resource_id: format!("keys/{}/versions", key_id),
+                status: AuditStatus::Success,
+                ip: None,
+                user_agent: None,
+                namespace: None,
+                metadata: HashMap::new(),
+            })
+            .await;
+
+        // List key versions from storage
+        let params = secreton_storage::QueryParams {
+            path_prefix: Some(format!("keys/{}/versions/", key_id)),
+            security_level: None,
+            tags: Vec::new(),
+            owner_id: None,
+            metadata_filters: std::collections::HashMap::new(),
+            include_expired: false,
+            limit: Some(1000),
+            offset: None,
+            sort_by: None,
+            sort_order: None,
+        };
+        let entries = self.storage.list(&params).await?;
+
+        let mut key_infos = Vec::new();
+        for entry in entries {
+            if let Ok(key_info) = serde_json::from_slice::<KeyInfo>(&entry.encrypted_data) {
+                key_infos.push(key_info);
+            }
+        }
+
+        // Sort by version descending
+        key_infos.sort_by(|a, b| b.version.cmp(&a.version));
 
         Ok(key_infos)
     }
@@ -497,20 +569,39 @@ impl VaultService {
         // Increment version
         key_info.version += 1;
 
+        // Update public key for new version
+        key_info.public_key = Some(format!(
+            "-----BEGIN PUBLIC KEY-----\n(simulated key material for {} version {})\n-----END PUBLIC KEY-----",
+            key_info.name,
+            key_info.version
+        ));
+
         // Store updated key metadata
         let metadata = serde_json::to_vec(&key_info)
             .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
         let mut entry = secreton_storage::VaultEntry::new(
             format!("keys/{}", key_id),
-            metadata,
+            metadata.clone(),
             serde_json::json!({}),
             SecurityLevel::Confidential,
             user_id.to_string(),
         );
         entry.updated_at = chrono::Utc::now();
 
+        // Also store versioned entry
+        let mut version_entry = secreton_storage::VaultEntry::new(
+            format!("keys/{}/versions/{}", key_id, key_info.version),
+            metadata,
+            serde_json::json!({}),
+            SecurityLevel::Confidential,
+            user_id.to_string(),
+        );
+        version_entry.created_at = entry.created_at;
+        version_entry.updated_at = entry.updated_at;
+
         self.storage.store(&entry).await?;
+        self.storage.store(&version_entry).await?;
 
         Ok(key_info)
     }
@@ -695,6 +786,8 @@ pub struct KeyInfo {
     pub key_type: String,
     pub version: u32,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Encryption result
