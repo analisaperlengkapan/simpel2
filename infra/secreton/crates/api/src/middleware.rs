@@ -380,7 +380,7 @@ pub async fn request_id(mut request: Request, next: Next) -> Response {
 
 /// Authentication middleware
 pub async fn auth_middleware(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     headers: HeaderMap,
     mut request: Request,
     next: Next,
@@ -407,24 +407,96 @@ pub async fn auth_middleware(
     // Extract bearer token
     let token = extract_bearer_token(auth_header).ok_or(AuthError::InvalidAuthHeader)?;
 
-    // Create auth service (in real implementation, this would be injected)
-    let auth_config = crate::auth::JwtAuthConfig::default();
-    let auth_service = crate::auth::JwtService::new(auth_config);
+    // Validate token using AuthService (checks signature and session storage)
+    let user = state
+        .services
+        .auth
+        .validate_token(&token)
+        .await
+        .map_err(|_| AuthError::InvalidToken)?;
 
-    // Validate token
-    let token_data = auth_service.validate_token(&token)?;
-    let claims = token_data.claims;
+    let user_roles: Vec<String> = user.roles.iter().cloned().collect();
 
     info!(
         "Authenticated user: {} ({}) with roles: {:?}",
-        claims.name, claims.email, claims.roles
+        user.username, user.email, user_roles
     );
 
-    // Extract JWT claims for namespace access control
-    let jwt_claims = extract_jwt_claims_from_token(&claims);
+    // Reconstruct permissions (using policy service or auth service helper)
+    // AuthService::get_user_policies returns list of policy names/permissions
+    let user_permissions = state
+        .services
+        .auth
+        .get_user_policies(&user)
+        .await
+        .unwrap_or_default();
 
-    // Extract policy names from JWT claims
-    let policy_names = extract_policy_names_from_claims(&claims);
+    // Construct JwtClaims equivalent for namespace control
+    // User struct doesn't strictly have all metadata that raw JWT claims had,
+    // but we can reconstruct what we need.
+    // The namespace logic relies on metadata fields like 'satker_code'.
+    // User struct has 'metadata' HashMap.
+    use secreton_core::namespace::JwtClaims;
+    use secreton_core::namespace::AdminLevel;
+
+    // Helper to extract code
+    let satker_code = user.metadata.get("satker_code").cloned();
+    let wilayah_code = user.metadata.get("wilayah_code").cloned();
+
+    // Determine admin level from metadata or roles
+    // We reuse the logic but adapt it since determine_admin_level expects &[String]
+    let admin_level = if let Some(level_str) = user.metadata.get("admin_level") {
+        match level_str.to_lowercase().as_str() {
+            "pusat" => AdminLevel::Pusat,
+            "eselon_i" | "eselon1" => AdminLevel::EselonI,
+            "wilayah" => AdminLevel::Wilayah,
+            "satker" => AdminLevel::Satker,
+            _ => AdminLevel::Satker,
+        }
+    } else {
+        // Fallback to roles check logic (simplified here or we can helper)
+        let mut level = AdminLevel::Satker;
+        for role in &user.roles {
+            let role_lower = role.to_lowercase();
+            if role_lower.contains("pusat") || role_lower.contains("admin_pusat") {
+                level = AdminLevel::Pusat;
+                break;
+            }
+            if role_lower.contains("eselon") {
+                level = AdminLevel::EselonI;
+                break;
+            }
+            if role_lower.contains("wilayah") || role_lower.contains("kejati") {
+                level = AdminLevel::Wilayah;
+                break;
+            }
+        }
+        level
+    };
+
+    let jwt_claims = Some(JwtClaims {
+        sub: user.id.to_string(),
+        name: user.full_name.clone().unwrap_or(user.username.clone()),
+        email: user.email.clone(),
+        satker_code,
+        wilayah_code,
+        admin_level,
+        roles: user_roles.clone(),
+        permissions: user_permissions.clone(),
+        exp: 0, // Not available in User, but session check already passed
+        iat: 0,
+        iss: "secreton".to_string(),
+        metadata: user.metadata.clone(),
+    });
+
+    // Policy names
+    // Check metadata for 'policy_names' or 'policies'
+    let policy_names: Vec<String> = if let Some(p) = user.metadata.get("policy_names").or_else(|| user.metadata.get("policies")) {
+        p.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    } else {
+        // Default to role-based
+        user.roles.iter().map(|r| format!("{}-policy", r.to_lowercase())).collect()
+    };
 
     // Create request context
     let context = RequestContext {
@@ -433,10 +505,10 @@ pub async fn auth_middleware(
             .and_then(|v| v.to_str().ok())
             .unwrap_or("unknown")
             .to_string(),
-        user_id: Some(claims.sub.clone()),
-        user_email: Some(claims.email.clone()),
-        user_roles: claims.roles.clone(),
-        user_permissions: claims.permissions.clone(),
+        user_id: Some(user.id.to_string()),
+        user_email: Some(user.email.clone()),
+        user_roles: user_roles,
+        user_permissions: user_permissions,
         start_time: Instant::now(),
         jwt_claims,
         policy_names,

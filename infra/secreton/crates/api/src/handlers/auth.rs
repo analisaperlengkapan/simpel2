@@ -377,8 +377,12 @@ pub async fn logout(
         "unknown".to_string()
     };
 
-    // TODO: Implement token invalidation when session storage is complete
-    // For now, client-side token removal is sufficient (JWT can't be revoked without storage)
+    // Invalidate token
+    if !token.is_empty() {
+        if let Err(e) = state.auth.revoke_token(token).await {
+            tracing::warn!("Failed to revoke token during logout: {}", e);
+        }
+    }
 
     // Audit log
     let audit_entry = secreton_core::audit::AuditLog {
@@ -831,49 +835,95 @@ pub async fn oauth_callback(
 
 /// List user sessions
 pub async fn list_sessions(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ApiResponse<Vec<SessionInfo>>>> {
-    // TODO: Implement session listing
-    // 1. Get current user from token
-    // 2. Fetch user sessions from storage
-    // 3. Return session information
+    // Fetch user sessions from storage
+    let sessions = state
+        .auth
+        .list_user_sessions(&user.id.to_string())
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
 
-    let sessions = vec![
-        SessionInfo {
-            id: "session-1".to_string(),
-            user_id: "user-1".to_string(),
-            ip_address: "192.168.1.1".to_string(),
-            user_agent: "Mozilla/5.0".to_string(),
-            created_at: chrono::Utc::now() - chrono::Duration::hours(2),
-            last_accessed: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
-            is_current: true,
-        },
-        SessionInfo {
-            id: "session-2".to_string(),
-            user_id: "user-1".to_string(),
-            ip_address: "10.0.0.1".to_string(),
-            user_agent: "curl/7.68.0".to_string(),
-            created_at: chrono::Utc::now() - chrono::Duration::days(1),
-            last_accessed: chrono::Utc::now() - chrono::Duration::hours(6),
-            expires_at: chrono::Utc::now() + chrono::Duration::hours(18),
-            is_current: false,
-        },
-    ];
+    // Determine current session from token
+    let token = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
 
-    Ok(Json(ApiResponse::success(sessions)))
+    let current_jti = state.auth.get_token_id(token).unwrap_or_default();
+
+    let session_infos = sessions
+        .into_iter()
+        .map(|s| SessionInfo {
+            id: s.id.clone(),
+            user_id: s.user_id,
+            ip_address: s.ip_address,
+            user_agent: s.user_agent,
+            created_at: s.created_at,
+            last_accessed: s.last_accessed,
+            expires_at: s.expires_at,
+            is_current: s.id == current_jti,
+        })
+        .collect();
+
+    Ok(Json(ApiResponse::success(session_infos)))
 }
 
 /// Revoke a user session
 pub async fn revoke_session(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+    headers: HeaderMap,
     Path(session_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement session revocation
     // 1. Validate session belongs to current user
+    let session = state
+        .auth
+        .get_session(&session_id)
+        .await
+        .map_err(|_| ApiError::NotFound {
+            resource: "Session".to_string(),
+        })?;
+
+    // Check ownership
+    // Note: session.user_id stores username
+    if session.user_id != user.username {
+        // Allow admins to revoke any session? For now strict ownership.
+        return Err(ApiError::Forbidden);
+    }
+
     // 2. Remove session from storage
-    // 3. Invalidate associated tokens
-    // 4. Audit log
+    state
+        .auth
+        .revoke_session(&session_id)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+
+    // 3. Audit log
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "revoke_session".to_string(),
+        actor: Some(user.username.clone()),
+        resource_type: "auth".to_string(),
+        resource_id: session_id.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: extract_client_ip(&headers),
+        user_agent: headers
+            .get("User-Agent")
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string()),
+        namespace: None,
+        metadata: HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     let data = serde_json::json!({
         "message": "Session successfully revoked",

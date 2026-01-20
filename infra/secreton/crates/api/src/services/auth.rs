@@ -1,7 +1,7 @@
 //! Authentication service for user management and token validation.
 
 use anyhow::Result;
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{encode, decode, Algorithm, EncodingKey, DecodingKey, Validation, Header};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::config::AuthConfig;
 use secreton_crypto::{CryptoEngine, AlgorithmId};
-use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use secreton_storage::{QueryParams, SecurityLevel, StorageBackend, VaultEntry};
 use totp_rs::{Algorithm as TotpAlgorithm, Secret, TOTP};
 
 // Use canonical User from core
@@ -216,7 +216,7 @@ impl AuthService {
         // Store session
         let session = Session {
             id: session_id,
-            user_id: user.username.clone(),
+            user_id: user.username.clone(), // Note: Storing username as user_id field for readability, but id in metadata
             token: access_token.clone(),
             refresh_token: Some(refresh_token.clone()),
             ip_address: ip_address.to_string(),
@@ -227,7 +227,12 @@ impl AuthService {
             last_accessed: chrono::Utc::now(),
         };
 
-        self.store_session(&session).await?;
+        // Note: session.user_id above is actually the username based on how it's assigned.
+        // We should ensure we are consistent. UserInfo returns username.
+        // For metadata querying, we might want the UUID.
+        // Let's stick to what was there: user.username.clone()
+
+        self.store_session(&session, &user.id.to_string()).await?;
 
         // Update last login
         self.update_last_login(&user.id.to_string()).await?;
@@ -269,11 +274,14 @@ impl AuthService {
             return Err(AuthError::InvalidToken);
         }
 
+        // Check if session exists (is valid/active)
+        // If session retrieval fails (e.g. not found), we consider the token invalid/revoked
+        if self.get_session(&claims.jti).await.is_err() {
+            return Err(AuthError::InvalidToken);
+        }
+
         // Reconstruct user from claims
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| AuthError::InvalidToken)?;
-
-        // Note: In a stateful system, we might check session validity or user status in DB here.
-        // For stateless/cached auth, we rely on the token signature and expiration.
 
         Ok(User {
             id: user_id,
@@ -822,15 +830,125 @@ impl AuthService {
     }
 
     /// Store session
-    async fn store_session(&self, session: &Session) -> Result<(), AuthError> {
-        // TODO: Implement session storage
+    async fn store_session(&self, session: &Session, user_uuid: &str) -> Result<(), AuthError> {
+        let session_bytes = serde_json::to_vec(session)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
+
+        let encrypted = self.crypto.encrypt_simple(&session_bytes)
+            .map_err(|e| AuthError::Internal(format!("Failed to encrypt session: {}", e)))?;
+
+        let entry = VaultEntry::new(
+            format!("auth/sessions/{}", session.id),
+            encrypted,
+            serde_json::json!({"method": "simple", "type": "session"}),
+            SecurityLevel::Internal,
+            user_uuid.to_string(),
+        )
+        .add_metadata("user_id".to_string(), serde_json::json!(user_uuid))
+        .add_metadata("username".to_string(), serde_json::json!(session.user_id))
+        .with_expiration(session.expires_at);
+
+        self.storage.store(&entry).await
+            .map_err(|e| AuthError::Internal(format!("Failed to store session: {}", e)))?;
         Ok(())
+    }
+
+    /// Revoke session
+    pub async fn revoke_session(&self, session_id: &str) -> Result<(), AuthError> {
+        let path = format!("auth/sessions/{}", session_id);
+
+        self.storage.delete_by_path(&path).await
+            .map_err(|e| AuthError::Internal(format!("Failed to revoke session: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Revoke token (invalidate session)
+    pub async fn revoke_token(&self, token: &str) -> Result<(), AuthError> {
+        use jsonwebtoken::{decode, DecodingKey, Validation};
+
+        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+            |e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)),
+        )?);
+        validation.set_audience(&[&self.config.jwt.audience]);
+        validation.set_issuer(&[&self.config.jwt.issuer]);
+        validation.validate_exp = false; // Allow revoking expired tokens
+
+        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+
+        let token_data = decode::<Claims>(token, &decoding_key, &validation)
+             .map_err(|_| AuthError::InvalidToken)?;
+
+        self.revoke_session(&token_data.claims.jti).await
+    }
+
+    /// Get token ID (jti) from token
+    pub fn get_token_id(&self, token: &str) -> Result<String, AuthError> {
+        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+            |e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)),
+        )?);
+        validation.set_audience(&[&self.config.jwt.audience]);
+        validation.set_issuer(&[&self.config.jwt.issuer]);
+        validation.validate_exp = false; // Allow expired tokens to check ID
+
+        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+
+        let token_data = decode::<Claims>(token, &decoding_key, &validation)
+             .map_err(|_| AuthError::InvalidToken)?;
+
+        Ok(token_data.claims.jti)
+    }
+
+    /// List user sessions
+    pub async fn list_user_sessions(&self, user_id: &str) -> Result<Vec<Session>, AuthError> {
+        let mut params = QueryParams::new().with_path_prefix("auth/sessions/".to_string());
+        params.metadata_filters.insert("user_id".to_string(), user_id.to_string());
+
+        let entries = self.storage.list(&params).await
+             .map_err(|e| AuthError::Internal(format!("Failed to list sessions: {}", e)))?;
+
+        let mut sessions = Vec::new();
+        for entry in entries {
+             let decrypted_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+                 .map_err(|e| AuthError::Internal(format!("Failed to decrypt session: {}", e)))?;
+             let session: Session = serde_json::from_slice(&decrypted_bytes)
+                 .map_err(|e| AuthError::Internal(format!("Failed to deserialize session: {}", e)))?;
+             sessions.push(session);
+        }
+        Ok(sessions)
+    }
+
+    /// Get session
+    pub async fn get_session(&self, session_id: &str) -> Result<Session, AuthError> {
+        let path = format!("auth/sessions/{}", session_id);
+
+        match self.storage.get_by_path(&path).await.map_err(|e| AuthError::Internal(e.to_string()))? {
+            Some(entry) => {
+                let decrypted_bytes = self.crypto.decrypt_simple(&entry.encrypted_data)
+                    .map_err(|e| AuthError::Internal(format!("Failed to decrypt session: {}", e)))?;
+
+                let session: Session = serde_json::from_slice(&decrypted_bytes)
+                    .map_err(|e| AuthError::Internal(format!("Failed to deserialize session: {}", e)))?;
+
+                Ok(session)
+            }
+            None => Err(AuthError::Internal("Session not found".to_string())),
+        }
     }
 
     /// Update last login timestamp
     async fn update_last_login(&self, user_id: &str) -> Result<(), AuthError> {
-        // TODO: Implement last login update
-        Ok(())
+        // Retrieve user
+        match self.get_user(user_id).await {
+            Ok(mut user) => {
+                user.last_login = Some(chrono::Utc::now());
+
+                // We don't have a direct update_user method that takes full user struct exposed in this impl block
+                // (only partial update). But we have store_user.
+                self.store_user(&user).await
+            }
+            Err(_) => Ok(()), // Ignore if user not found (shouldn't happen during login)
+        }
     }
 
     /// Count total users
