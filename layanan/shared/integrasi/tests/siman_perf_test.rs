@@ -66,6 +66,7 @@ async fn test_parallel_fetching_performance() {
         tokens: HashMap::new(),
         output_dir: std::env::temp_dir().to_string_lossy().to_string(),
         db_config: None,
+        siman_concurrency_limit: 20,
     };
 
     let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");

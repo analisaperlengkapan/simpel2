@@ -71,6 +71,11 @@ impl MonsaktiClient {
         })
     }
 
+    /// Mendapatkan akses ke konfigurasi
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Clone untuk parallel processing - Token tidak di-share
     pub fn clone(&self) -> Self {
         Self {

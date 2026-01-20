@@ -412,8 +412,10 @@ pub async fn fetch_all_assets_with_pagination(
         })
         .collect();
 
+    let concurrency_limit = client.config().siman_concurrency_limit;
+
     // Create a channel to decouple fetching from saving
-    let (tx, mut rx) = tokio::sync::mpsc::channel(20); // Buffer size 20 to allow fetching to get ahead of saving
+    let (tx, mut rx) = tokio::sync::mpsc::channel(concurrency_limit);
 
     // Spawn the fetching task
     tokio::spawn(async move {
@@ -430,7 +432,7 @@ pub async fn fetch_all_assets_with_pagination(
                     (start_id, end_id, result)
                 },
             )
-            .buffer_unordered(20); // Process up to 20 requests concurrently
+            .buffer_unordered(concurrency_limit);
 
         while let Some(item) = stream.next().await {
             if tx.send(item).await.is_err() {
