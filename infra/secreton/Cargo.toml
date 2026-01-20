@@ -78,7 +78,7 @@ lru = "0.16.2"
 glob = "0.3"
 urlencoding = "2.1"
 ipnetwork = "0.20"
-url = "2.4"
+url = "2.5.4"
 parking_lot = "0.12.5"
 # Disable default features to remove unmaintained json5 dependency (RUSTSEC-2025-0120)
 # We only use TOML for configuration files

@@ -19,6 +19,7 @@ tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 postgres-types = { workspace = true }
 redis = { workspace = true }
+dashmap = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
@@ -39,8 +40,7 @@ opentelemetry-otlp = { workspace = true }
 prometheus = { workspace = true }
 sentry = { workspace = true }
 
-# Rate limiting
-dashmap = { workspace = true }
+# Rate limiting - dashmap already included above in Data Structures
 
 # Utilities
 uuid = { workspace = true }

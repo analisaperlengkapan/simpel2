@@ -1,4 +1,7 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use deadpool_postgres::{Config, Runtime};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
