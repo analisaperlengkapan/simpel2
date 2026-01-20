@@ -889,31 +889,38 @@ impl AuthService {
     pub async fn revoke_token(&self, token: &str) -> Result<(), AuthError> {
         use jsonwebtoken::{decode, DecodingKey, Validation};
 
-        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+        let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+
+        let mut validation = Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(
             |e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)),
         )?);
-        validation.set_audience(&[&self.config.jwt.audience]);
-        validation.set_issuer(&[&self.config.jwt.issuer]);
+        validation.set_audience(&[&config.jwt.audience]);
+        validation.set_issuer(&[&config.jwt.issuer]);
         validation.validate_exp = false; // Allow revoking expired tokens
 
-        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+        let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
         let token_data = decode::<Claims>(token, &decoding_key, &validation)
              .map_err(|_| AuthError::InvalidToken)?;
+
+        // Drop lock before await
+        drop(config);
 
         self.revoke_session(&token_data.claims.jti).await
     }
 
     /// Get token ID (jti) from token
     pub fn get_token_id(&self, token: &str) -> Result<String, AuthError> {
-        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
+        let config = self.config.read().map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+
+        let mut validation = Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(
             |e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)),
         )?);
-        validation.set_audience(&[&self.config.jwt.audience]);
-        validation.set_issuer(&[&self.config.jwt.issuer]);
+        validation.set_audience(&[&config.jwt.audience]);
+        validation.set_issuer(&[&config.jwt.issuer]);
         validation.validate_exp = false; // Allow expired tokens to check ID
 
-        let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
+        let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
         let token_data = decode::<Claims>(token, &decoding_key, &validation)
              .map_err(|_| AuthError::InvalidToken)?;
