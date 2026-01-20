@@ -483,9 +483,9 @@ impl MonsaktiClient {
 
     /// Fetch data with ureq (synchronous client)
     fn fetch_with_ureq_static(url: &str, token: &str) -> Result<serde_json::Value, String> {
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
+        let response = ureq::get(url)
+            .set("Authorization", &format!("Bearer {}", token))
+            .set("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -494,15 +494,13 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .body_mut()
-                .read_to_string()
+                .into_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
 
         let json: serde_json::Value = response
-            .body_mut()
-            .read_json()
+            .into_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         Ok(json)
@@ -516,9 +514,9 @@ impl MonsaktiClient {
             token: String,
         }
 
-        let mut response = ureq::get(url)
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("Accept", "*/*")
+        let response = ureq::get(url)
+            .set("Authorization", &format!("Bearer {}", token))
+            .set("Accept", "*/*")
             .call()
             .map_err(|e| format!("ureq request error: {}", e))?;
 
@@ -527,15 +525,13 @@ impl MonsaktiClient {
 
         if status != 200 {
             let body = response
-                .body_mut()
-                .read_to_string()
+                .into_string()
                 .map_err(|e| format!("Read body error: {}", e))?;
             return Err(format!("ureq HTTP {}: {}", status, body));
         }
 
         let tokens: Vec<TokenItem> = response
-            .body_mut()
-            .read_json()
+            .into_json()
             .map_err(|e| format!("JSON parse error: {}", e))?;
 
         if tokens.is_empty() {

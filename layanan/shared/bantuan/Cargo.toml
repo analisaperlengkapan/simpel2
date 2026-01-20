@@ -19,6 +19,7 @@ tokio-postgres = { workspace = true }
 deadpool-postgres = { workspace = true }
 postgres-types = { workspace = true }
 redis = { workspace = true }
+dashmap = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
