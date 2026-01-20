@@ -413,7 +413,7 @@ pub async fn fetch_all_assets_with_pagination(
         .collect();
 
     // Create a channel to decouple fetching from saving
-    let (tx, mut rx) = tokio::sync::mpsc::channel(10); // Buffer size 10 to allow fetching to get ahead of saving
+    let (tx, mut rx) = tokio::sync::mpsc::channel(20); // Buffer size 20 to allow fetching to get ahead of saving
 
     // Spawn the fetching task
     tokio::spawn(async move {
@@ -430,7 +430,7 @@ pub async fn fetch_all_assets_with_pagination(
                     (start_id, end_id, result)
                 },
             )
-            .buffer_unordered(5); // Process up to 5 requests concurrently
+            .buffer_unordered(20); // Process up to 20 requests concurrently
 
         while let Some(item) = stream.next().await {
             if tx.send(item).await.is_err() {
