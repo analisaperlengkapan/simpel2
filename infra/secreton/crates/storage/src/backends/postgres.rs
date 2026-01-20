@@ -11,7 +11,7 @@ use metrics::{counter, gauge};
 use rustls::{ClientConfig, RootCertStore};
 use rustls_native_certs::load_native_certs;
 use std::time::Duration;
-use tokio_postgres::{NoTls, Row};
+use tokio_postgres::{Client, NoTls, Row};
 use tokio_postgres_rustls::MakeRustlsConnect;
 use uuid::Uuid;
 
@@ -176,52 +176,7 @@ impl StorageBackend for PostgresBackend {
                 message: format!("Failed to get connection: {}", e),
             })?;
 
-        let query = r#"
-            INSERT INTO vault_entries
-            (id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        "#;
-
-        let encryption_metadata_json =
-            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-                StorageError::SerializationError {
-                    source: None,
-                    message: format!("Failed to serialize encryption metadata: {}", e),
-                }
-            })?;
-
-        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize metadata: {}", e),
-            }
-        })?;
-
-        client
-            .execute(
-                query,
-                &[
-                    &entry.id,
-                    &entry.path,
-                    &entry.encrypted_data,
-                    &encryption_metadata_json,
-                    &(entry.security_level as i32),
-                    &metadata_json,
-                    &entry.tags,
-                    &(entry.version as i32),
-                    &entry.owner_id,
-                    &entry.created_at,
-                    &entry.updated_at,
-                    &entry.expires_at,
-                ],
-            )
-            .await
-            .map_err(|e| StorageError::QueryFailed {
-                source: None,
-                message: format!("Failed to store vault entry: {}", e),
-            })?;
-
-        Ok(())
+        execute_store(&client, entry).await
     }
 
     async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
@@ -352,58 +307,7 @@ impl StorageBackend for PostgresBackend {
                 message: format!("Failed to get connection: {}", e),
             })?;
 
-        let query = r#"
-            UPDATE vault_entries
-            SET path = $2, encrypted_data = $3, encryption_metadata = $4, security_level = $5,
-                metadata = $6, tags = $7, version = $8, updated_at = $9, expires_at = $10
-            WHERE id = $1
-        "#;
-
-        let encryption_metadata_json =
-            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-                StorageError::SerializationError {
-                    source: None,
-                    message: format!("Failed to serialize encryption metadata: {}", e),
-                }
-            })?;
-
-        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize metadata: {}", e),
-            }
-        })?;
-
-        let rows_affected = client
-            .execute(
-                query,
-                &[
-                    &entry.id,
-                    &entry.path,
-                    &entry.encrypted_data,
-                    &encryption_metadata_json,
-                    &(entry.security_level as i32),
-                    &metadata_json,
-                    &entry.tags,
-                    &(entry.version as i32),
-                    &entry.updated_at,
-                    &entry.expires_at,
-                ],
-            )
-            .await
-            .map_err(|e| StorageError::QueryFailed {
-                source: None,
-                message: format!("Failed to update vault entry: {}", e),
-            })?;
-
-        if rows_affected == 0 {
-            return Err(StorageError::NotFound {
-                resource_type: "VaultEntry".to_string(),
-                id: entry.id.to_string(),
-            });
-        }
-
-        Ok(())
+        execute_update(&client, entry).await
     }
 
     async fn delete_by_id(&self, id: Uuid) -> StorageResult<bool> {
@@ -416,18 +320,7 @@ impl StorageBackend for PostgresBackend {
                 message: format!("Failed to get connection: {}", e),
             })?;
 
-        let query = "DELETE FROM vault_entries WHERE id = $1";
-
-        let rows_affected =
-            client
-                .execute(query, &[&id])
-                .await
-                .map_err(|e| StorageError::QueryFailed {
-                    source: None,
-                    message: format!("Failed to delete vault entry: {}", e),
-                })?;
-
-        Ok(rows_affected > 0)
+        execute_delete_by_id(&client, id).await
     }
 
     async fn delete_by_path(&self, path: &str) -> StorageResult<bool> {
@@ -614,11 +507,24 @@ impl StorageBackend for PostgresBackend {
     }
 
     async fn begin_transaction(&self) -> StorageResult<Box<dyn StorageTransaction>> {
-        // TODO: Fix transaction lifetime management
-        // Currently disabled due to incompatible types between deadpool and tokio-postgres
-        Err(StorageError::TransactionNotSupported {
-            backend: "postgres".to_string(),
-        })
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| StorageError::ConnectionFailed {
+                source: None,
+                message: format!("Failed to get connection: {}", e),
+            })?;
+
+        client
+            .batch_execute("BEGIN")
+            .await
+            .map_err(|e| StorageError::TransactionFailed {
+                source: None,
+                message: format!("Failed to start transaction: {}", e),
+            })?;
+
+        Ok(Box::new(PostgresTransaction::new(client)))
     }
 
     async fn migrate(&self) -> StorageResult<()> {
@@ -736,15 +642,109 @@ impl PostgresBackend {
     }
 }
 
+// Helper functions for database operations
+async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()> {
+    let query = r#"
+        INSERT INTO vault_entries
+        (id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    "#;
+
+    let owner_uuid = Uuid::parse_str(&entry.owner_id).map_err(|e| StorageError::SerializationError {
+        source: None,
+        message: format!("Invalid owner_id (must be UUID): {}", e),
+    })?;
+
+    client
+        .execute(
+            query,
+            &[
+                &entry.id,
+                &entry.path,
+                &entry.encrypted_data,
+                &entry.encryption_metadata,
+                &(entry.security_level as i32),
+                &entry.metadata,
+                &entry.tags,
+                &(entry.version as i32),
+                &owner_uuid,
+                &entry.created_at,
+                &entry.updated_at,
+                &entry.expires_at,
+            ],
+        )
+        .await
+        .map_err(|e| StorageError::QueryFailed {
+            source: None,
+            message: format!("Failed to store vault entry: {}", e),
+        })?;
+
+    Ok(())
+}
+
+async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()> {
+    let query = r#"
+        UPDATE vault_entries
+        SET path = $2, encrypted_data = $3, encryption_metadata = $4, security_level = $5,
+            metadata = $6, tags = $7, version = $8, updated_at = $9, expires_at = $10
+        WHERE id = $1
+    "#;
+
+    let rows_affected = client
+        .execute(
+            query,
+            &[
+                &entry.id,
+                &entry.path,
+                &entry.encrypted_data,
+                &entry.encryption_metadata,
+                &(entry.security_level as i32),
+                &entry.metadata,
+                &entry.tags,
+                &(entry.version as i32),
+                &entry.updated_at,
+                &entry.expires_at,
+            ],
+        )
+        .await
+        .map_err(|e| StorageError::QueryFailed {
+            source: None,
+            message: format!("Failed to update vault entry: {}", e),
+        })?;
+
+    if rows_affected == 0 {
+        return Err(StorageError::NotFound {
+            resource_type: "VaultEntry".to_string(),
+            id: entry.id.to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+async fn execute_delete_by_id(client: &Client, id: Uuid) -> StorageResult<bool> {
+    let query = "DELETE FROM vault_entries WHERE id = $1";
+
+    let rows_affected = client
+        .execute(query, &[&id])
+        .await
+        .map_err(|e| StorageError::QueryFailed {
+            source: None,
+            message: format!("Failed to delete vault entry: {}", e),
+        })?;
+
+    Ok(rows_affected > 0)
+}
+
 /// PostgreSQL transaction implementation
 pub struct PostgresTransaction {
-    transaction: Option<tokio_postgres::Transaction<'static>>,
+    client: Option<deadpool_postgres::Object>,
 }
 
 impl PostgresTransaction {
-    fn new(transaction: tokio_postgres::Transaction<'static>) -> Self {
+    fn new(client: deadpool_postgres::Object) -> Self {
         Self {
-            transaction: Some(transaction),
+            client: Some(client),
         }
     }
 }
@@ -752,159 +752,52 @@ impl PostgresTransaction {
 #[async_trait]
 impl StorageTransaction for PostgresTransaction {
     async fn store(&mut self, entry: &VaultEntry) -> StorageResult<()> {
-        let transaction =
-            self.transaction
-                .as_mut()
-                .ok_or_else(|| StorageError::TransactionFailed {
-                    message: "Transaction already committed or rolled back".to_string(),
-                    source: None,
-                })?;
-
-        let query = r#"
-            INSERT INTO vault_entries
-            (id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        "#;
-
-        let encryption_metadata_json =
-            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-                StorageError::SerializationError {
-                    source: None,
-                    message: format!("Failed to serialize encryption metadata: {}", e),
-                }
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| StorageError::TransactionFailed {
+                message: "Transaction already committed or rolled back".to_string(),
+                source: None,
             })?;
 
-        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize metadata: {}", e),
-            }
-        })?;
-
-        transaction
-            .execute(
-                query,
-                &[
-                    &entry.id,
-                    &entry.path,
-                    &entry.encrypted_data,
-                    &encryption_metadata_json,
-                    &(entry.security_level as i32),
-                    &metadata_json,
-                    &entry.tags,
-                    &(entry.version as i32),
-                    &entry.owner_id,
-                    &entry.created_at,
-                    &entry.updated_at,
-                    &entry.expires_at,
-                ],
-            )
-            .await
-            .map_err(|e| StorageError::QueryFailed {
-                source: None,
-                message: format!("Failed to store vault entry in transaction: {}", e),
-            })?;
-
-        Ok(())
+        execute_store(client, entry).await
     }
 
     async fn update(&mut self, entry: &VaultEntry) -> StorageResult<()> {
-        let transaction =
-            self.transaction
-                .as_mut()
-                .ok_or_else(|| StorageError::TransactionFailed {
-                    message: "Transaction already committed or rolled back".to_string(),
-                    source: None,
-                })?;
-
-        let query = r#"
-            UPDATE vault_entries
-            SET path = $2, encrypted_data = $3, encryption_metadata = $4, security_level = $5,
-                metadata = $6, tags = $7, version = $8, updated_at = $9, expires_at = $10
-            WHERE id = $1
-        "#;
-
-        let encryption_metadata_json =
-            serde_json::to_value(&entry.encryption_metadata).map_err(|e| {
-                StorageError::SerializationError {
-                    source: None,
-                    message: format!("Failed to serialize encryption metadata: {}", e),
-                }
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| StorageError::TransactionFailed {
+                message: "Transaction already committed or rolled back".to_string(),
+                source: None,
             })?;
 
-        let metadata_json = serde_json::to_value(&entry.metadata).map_err(|e| {
-            StorageError::SerializationError {
-                source: None,
-                message: format!("Failed to serialize metadata: {}", e),
-            }
-        })?;
-
-        let rows_affected = transaction
-            .execute(
-                query,
-                &[
-                    &entry.id,
-                    &entry.path,
-                    &entry.encrypted_data,
-                    &encryption_metadata_json,
-                    &(entry.security_level as i32),
-                    &metadata_json,
-                    &entry.tags,
-                    &(entry.version as i32),
-                    &entry.updated_at,
-                    &entry.expires_at,
-                ],
-            )
-            .await
-            .map_err(|e| StorageError::QueryFailed {
-                source: None,
-                message: format!("Failed to update vault entry in transaction: {}", e),
-            })?;
-
-        if rows_affected == 0 {
-            return Err(StorageError::NotFound {
-                resource_type: "VaultEntry".to_string(),
-                id: entry.id.to_string(),
-            });
-        }
-
-        Ok(())
+        execute_update(client, entry).await
     }
 
     async fn delete(&mut self, id: Uuid) -> StorageResult<bool> {
-        let transaction =
-            self.transaction
-                .as_mut()
-                .ok_or_else(|| StorageError::TransactionFailed {
-                    message: "Transaction already committed or rolled back".to_string(),
-                    source: None,
-                })?;
+        let client = self
+            .client
+            .as_ref()
+            .ok_or_else(|| StorageError::TransactionFailed {
+                message: "Transaction already committed or rolled back".to_string(),
+                source: None,
+            })?;
 
-        let query = "DELETE FROM vault_entries WHERE id = $1";
-
-        let rows_affected =
-            transaction
-                .execute(query, &[&id])
-                .await
-                .map_err(|e| StorageError::QueryFailed {
-                    source: None,
-                    message: format!("Failed to delete vault entry in transaction: {}", e),
-                })?;
-
-        Ok(rows_affected > 0)
+        execute_delete_by_id(client, id).await
     }
 
     async fn commit(mut self: Box<Self>) -> StorageResult<()> {
-        let transaction =
-            self.transaction
-                .take()
-                .ok_or_else(|| StorageError::TransactionFailed {
-                    message: "Transaction already committed or rolled back".to_string(),
-                    source: None,
-                })?;
+        let client = self
+            .client
+            .take()
+            .ok_or_else(|| StorageError::TransactionFailed {
+                message: "Transaction already committed or rolled back".to_string(),
+                source: None,
+            })?;
 
-        transaction
-            .commit()
+        client
+            .batch_execute("COMMIT")
             .await
             .map_err(|e| StorageError::TransactionFailed {
                 message: format!("Failed to commit transaction: {}", e),
@@ -915,16 +808,16 @@ impl StorageTransaction for PostgresTransaction {
     }
 
     async fn rollback(mut self: Box<Self>) -> StorageResult<()> {
-        let transaction =
-            self.transaction
-                .take()
-                .ok_or_else(|| StorageError::TransactionFailed {
-                    message: "Transaction already committed or rolled back".to_string(),
-                    source: None,
-                })?;
+        let client = self
+            .client
+            .take()
+            .ok_or_else(|| StorageError::TransactionFailed {
+                message: "Transaction already committed or rolled back".to_string(),
+                source: None,
+            })?;
 
-        transaction
-            .rollback()
+        client
+            .batch_execute("ROLLBACK")
             .await
             .map_err(|e| StorageError::TransactionFailed {
                 message: format!("Failed to rollback transaction: {}", e),
