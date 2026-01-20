@@ -221,8 +221,10 @@ pub mod optimized_traits;
 // TODO: audit needs missing dependencies (ring, sha2, zeroize)
 // pub mod audit;
 
+pub mod fips_compliance;
+
 // TODO: seal_wrapping needs missing dependencies (ring, flate2, fips_compliance)
-// pub mod seal_wrapping;
+pub mod seal_wrapping;
 
 // TODO: manager needs missing modules (hsm, pqcrypto, mfa, SecurityEventType, ComplianceStandard)
 // pub mod manager;
