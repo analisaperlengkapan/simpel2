@@ -1,4 +1,4 @@
-//! Vault service for business logic operations.
+//! Secret service for business logic operations.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -10,9 +10,9 @@ use crate::audit::{AuditLog, AuditLogger, AuditStatus};
 use secreton_crypto::{AlgorithmId, CryptoEngine};
 use secreton_storage::{SecurityLevel, StorageBackend};
 
-/// Vault service errors
+/// Secret service errors
 #[derive(Error, Debug)]
-pub enum VaultError {
+pub enum SecretServiceError {
     #[error("Secret not found: {path}")]
     SecretNotFound { path: String },
 
@@ -38,15 +38,15 @@ pub enum VaultError {
     Internal(#[from] anyhow::Error),
 }
 
-/// Vault service for business logic operations
-pub struct VaultService {
+/// Secret service for business logic operations
+pub struct SecretService {
     storage: Arc<dyn StorageBackend + Send + Sync>,
     crypto: Arc<CryptoEngine>,
     audit: Arc<AuditLogger>,
 }
 
-impl VaultService {
-    /// Create new vault service
+impl SecretService {
+    /// Create new secret service
     pub async fn new(
         storage: Arc<dyn StorageBackend + Send + Sync>,
         crypto: Arc<CryptoEngine>,
@@ -60,7 +60,7 @@ impl VaultService {
     }
 
     /// Get secret by path
-    pub async fn get_secret(&self, path: &str, user_id: &str) -> Result<SecretData, VaultError> {
+    pub async fn get_secret(&self, path: &str, user_id: &str) -> Result<SecretData, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -84,13 +84,13 @@ impl VaultService {
             self.storage
                 .get_by_path(path)
                 .await?
-                .ok_or_else(|| VaultError::SecretNotFound {
+                .ok_or_else(|| SecretServiceError::SecretNotFound {
                     path: path.to_string(),
                 })?;
 
         // Decrypt data
         let decrypted_data = serde_json::from_slice(&entry.encrypted_data)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Extract metadata
         let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
@@ -115,7 +115,7 @@ impl VaultService {
         metadata: SecretMetadata,
         user_id: &str,
         expires_at: Option<chrono::DateTime<chrono::Utc>>,
-    ) -> Result<SecretData, VaultError> {
+    ) -> Result<SecretData, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -136,7 +136,7 @@ impl VaultService {
 
         // Serialize data
         let serialized = serde_json::to_vec(&data)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
         // Get current version or start at 1
         let version = match self.storage.get_by_path(path).await? {
@@ -147,7 +147,7 @@ impl VaultService {
         let now = chrono::Utc::now();
 
         // Create vault entry
-        let mut entry = secreton_storage::VaultEntry::new(
+        let mut entry = secreton_storage::SecretEntry::new(
             path.to_string(),
             serialized,
             serde_json::to_value(&metadata).unwrap_or(serde_json::json!({})),
@@ -176,7 +176,7 @@ impl VaultService {
     }
 
     /// Delete secret
-    pub async fn delete_secret(&self, path: &str, user_id: &str) -> Result<(), VaultError> {
+    pub async fn delete_secret(&self, path: &str, user_id: &str) -> Result<(), SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -206,7 +206,7 @@ impl VaultService {
         &self,
         prefix: Option<&str>,
         user_id: &str,
-    ) -> Result<Vec<String>, VaultError> {
+    ) -> Result<Vec<String>, SecretServiceError> {
         // Log audit trail
         let path = prefix.unwrap_or("/");
         let _ = self
@@ -251,7 +251,7 @@ impl VaultService {
         key_name: &str,
         key_type: &str,
         user_id: &str,
-    ) -> Result<KeyInfo, VaultError> {
+    ) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -285,9 +285,9 @@ impl VaultService {
 
         // Serialize and store key metadata
         let metadata = serde_json::to_vec(&key_info)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
-        let entry = secreton_storage::VaultEntry::new(
+        let entry = secreton_storage::SecretEntry::new(
             format!("keys/{}", key_name),
             metadata,
             serde_json::json!({}),
@@ -306,7 +306,7 @@ impl VaultService {
         key_id: &str,
         plaintext: &str,
         user_id: &str,
-    ) -> Result<EncryptResult, VaultError> {
+    ) -> Result<EncryptResult, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -335,7 +335,7 @@ impl VaultService {
 
         // Serialize encrypted data to JSON then base64
         let json_data = serde_json::to_vec(&encrypted_data)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
         let ciphertext = crate::utils::encoding::base64_encode(&json_data);
 
         Ok(EncryptResult {
@@ -350,7 +350,7 @@ impl VaultService {
         key_id: &str,
         ciphertext: &str,
         user_id: &str,
-    ) -> Result<DecryptResult, VaultError> {
+    ) -> Result<DecryptResult, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -371,11 +371,11 @@ impl VaultService {
 
         // Decode base64
         let json_bytes = crate::utils::encoding::base64_decode(ciphertext)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Deserialize encrypted data
         let encrypted_data: secreton_crypto::EncryptedData = serde_json::from_slice(&json_bytes)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         // Get decryption key (in production, retrieve from key storage)
         let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
@@ -383,13 +383,13 @@ impl VaultService {
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;
         let plaintext = String::from_utf8(plaintext_bytes)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("UTF-8 decode failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("UTF-8 decode failed: {}", e)))?;
 
         Ok(DecryptResult { plaintext })
     }
 
     /// Get key by ID or name
-    pub async fn get_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, VaultError> {
+    pub async fn get_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -413,19 +413,19 @@ impl VaultService {
             .storage
             .get_by_path(&format!("keys/{}", key_id))
             .await?
-            .ok_or_else(|| VaultError::KeyNotFound {
+            .ok_or_else(|| SecretServiceError::KeyNotFound {
                 key_id: key_id.to_string(),
             })?;
 
         // Deserialize key metadata
         let key_info: KeyInfo = serde_json::from_slice(&entry.encrypted_data)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
 
         Ok(key_info)
     }
 
     /// List all keys
-    pub async fn list_keys(&self, user_id: &str) -> Result<Vec<KeyInfo>, VaultError> {
+    pub async fn list_keys(&self, user_id: &str) -> Result<Vec<KeyInfo>, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -470,7 +470,7 @@ impl VaultService {
     }
 
     /// Rotate key (create new version)
-    pub async fn rotate_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, VaultError> {
+    pub async fn rotate_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -497,9 +497,9 @@ impl VaultService {
 
         // Store updated key metadata
         let metadata = serde_json::to_vec(&key_info)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
 
-        let mut entry = secreton_storage::VaultEntry::new(
+        let mut entry = secreton_storage::SecretEntry::new(
             format!("keys/{}", key_id),
             metadata,
             serde_json::json!({}),
@@ -514,7 +514,7 @@ impl VaultService {
     }
 
     /// Delete key
-    pub async fn delete_key(&self, key_id: &str, user_id: &str) -> Result<(), VaultError> {
+    pub async fn delete_key(&self, key_id: &str, user_id: &str) -> Result<(), SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -548,7 +548,7 @@ impl VaultService {
         data: &str,
         algorithm: Option<&str>,
         user_id: &str,
-    ) -> Result<SignResult, VaultError> {
+    ) -> Result<SignResult, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -586,7 +586,7 @@ impl VaultService {
         data: &str,
         signature: &str,
         user_id: &str,
-    ) -> Result<VerifyResult, VaultError> {
+    ) -> Result<VerifyResult, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -607,7 +607,7 @@ impl VaultService {
 
         // Decode signature
         let signature_bytes = crate::utils::encoding::base64_decode(signature)
-            .map_err(|e| VaultError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
+            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Compute hash and compare (simplified implementation)
         let hash = secreton_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
@@ -625,7 +625,7 @@ impl VaultService {
         data: &str,
         algorithm: &str,
         user_id: &str,
-    ) -> Result<HashResult, VaultError> {
+    ) -> Result<HashResult, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -739,14 +739,14 @@ mod tests {
     use secreton_storage::MemoryBackend;
 
     #[tokio::test]
-    async fn test_vault_service_creation() {
+    async fn test_secret_service_creation() {
         let storage = Arc::new(MemoryBackend::new());
         let crypto = Arc::new(CryptoEngine::new());
         let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
         let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
 
-        let vault_service = VaultService::new(storage, crypto, audit).await;
-        assert!(vault_service.is_ok());
+        let service = SecretService::new(storage, crypto, audit).await;
+        assert!(service.is_ok());
     }
 
     #[tokio::test]
@@ -755,9 +755,9 @@ mod tests {
         let crypto = Arc::new(CryptoEngine::new());
         let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
         let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
-        let service = VaultService::new(storage, crypto, audit)
+        let service = SecretService::new(storage, crypto, audit)
             .await
-            .expect("Failed to create VaultService");
+            .expect("Failed to create SecretService");
 
         let mut data = HashMap::new();
         data.insert("key1".to_string(), "value1".to_string());
@@ -779,9 +779,9 @@ mod tests {
         let crypto = Arc::new(CryptoEngine::new());
         let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
         let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
-        let service = VaultService::new(storage, crypto, audit)
+        let service = SecretService::new(storage, crypto, audit)
             .await
-            .expect("Failed to create VaultService");
+            .expect("Failed to create SecretService");
 
         let mut data = HashMap::new();
         data.insert("username".to_string(), "admin".to_string());
@@ -800,9 +800,9 @@ mod tests {
         let crypto = Arc::new(CryptoEngine::new());
         let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
         let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
-        let service = VaultService::new(storage, crypto, audit)
+        let service = SecretService::new(storage, crypto, audit)
             .await
-            .expect("Failed to create VaultService");
+            .expect("Failed to create SecretService");
 
         let mut data = HashMap::new();
         data.insert("key".to_string(), "value".to_string());
@@ -834,9 +834,9 @@ mod tests {
         let crypto = Arc::new(CryptoEngine::new());
         let audit_backend: Arc<dyn AuditBackend> = Arc::new(AuditMemoryBackend::default());
         let audit = Arc::new(AuditLogger::new(vec![audit_backend]));
-        let service = VaultService::new(storage, crypto, audit)
+        let service = SecretService::new(storage, crypto, audit)
             .await
-            .expect("Failed to create VaultService");
+            .expect("Failed to create SecretService");
 
         let result = service.encrypt("key1", "plaintext", "user1").await;
         assert!(result.is_ok());
