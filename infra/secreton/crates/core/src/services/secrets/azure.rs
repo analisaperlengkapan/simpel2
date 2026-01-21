@@ -19,7 +19,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
-use crate::utils::base64_encode;
+use crate::utils::encoding::base64_encode;
 
 /// Azure Secrets Engine errors
 #[derive(Debug, thiserror::Error)]

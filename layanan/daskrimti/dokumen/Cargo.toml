@@ -37,6 +37,7 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 tokio-stream = { workspace = true }
 clamav-client = { workspace = true, optional = true }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

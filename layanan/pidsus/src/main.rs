@@ -5,7 +5,6 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 mod config;
-mod db;
 mod handlers;
 mod models;
 mod repository;
@@ -16,17 +15,19 @@ use repository::Repository;
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize tracing with shared telemetry
+    lib_common::telemetry::init_subscriber("info");
 
     // Load config
-    let config = Config::from_env().unwrap_or_else(|e| {
-        eprintln!("Failed to load config: {}", e);
-        std::process::exit(1);
-    });
+    let config = Config::from_env();
 
-    // Initialize DB pool
-    let pool = db::create_pool(&config);
+    // Initialize DB pool using shared lib_common
+    let db_config = lib_common::db::DbConfig {
+        url: config.database_url.clone(),
+        max_size: config.database_pool_size,
+    };
+    let pool = lib_common::db::create_postgres_pool(db_config)
+        .expect("Failed to create DB pool");
     let repository = Repository::new(pool);
     let app_state = AppState { repository };
 

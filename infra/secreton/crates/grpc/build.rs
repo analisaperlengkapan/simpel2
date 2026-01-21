@@ -27,7 +27,6 @@ fn main() {
     let proto_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
         .map(|p| p.join("proto"))
         .unwrap_or_else(|| std::path::PathBuf::from("proto"));
 

@@ -282,11 +282,10 @@ impl TokenManager {
 
     /// Generate cryptographically secure random token
     fn generate_random_token(&self) -> String {
-        use base64::Engine;
-        use rand::Rng;
+        use rand::Rng; // Added as per instruction
         let mut rng = rand::thread_rng();
         let random_bytes: Vec<u8> = (0..32).map(|_| rng.r#gen()).collect();
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random_bytes)
+        crate::utils::encoding::base64_encode_url(&random_bytes)
     }
 
     /// Hash token for storage (SHA-256)

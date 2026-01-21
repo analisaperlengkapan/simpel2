@@ -28,6 +28,17 @@ pub enum AppError {
     Authorization(String),
 }
 
+impl From<(StatusCode, String)> for AppError {
+    fn from((status, msg): (StatusCode, String)) -> Self {
+        match status {
+            StatusCode::UNAUTHORIZED => AppError::Authentication(msg),
+            StatusCode::FORBIDDEN => AppError::Authorization(msg),
+            StatusCode::BAD_REQUEST => AppError::BadRequest(msg),
+            _ => AppError::Internal,
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match &self {
@@ -56,10 +67,11 @@ impl IntoResponse for AppError {
             AppError::Authorization(msg) => (StatusCode::FORBIDDEN, msg.clone()),
         };
 
-        let body = Json(json!({
-            "error": message
-        }));
+        let api_error = lib_common::error::ApiError {
+            message,
+            code: None, // We can add specific error codes later
+        };
 
-        (status, body).into_response()
+        (status, axum::Json(api_error)).into_response()
     }
 }

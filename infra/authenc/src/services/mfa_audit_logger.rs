@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
+use lib_common::correlation::CorrelationId;
 
 /// MFA audit event context with enhanced security information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,7 +240,7 @@ impl MfaAuditLogger {
             success,
             error_message,
             security_metadata: HashMap::new(),
-            correlation_id: Uuid::new_v4().to_string(),
+            correlation_id: CorrelationId::new().to_string(),
         };
 
         self.log_mfa_event(context).await
@@ -271,7 +272,7 @@ impl MfaAuditLogger {
             success,
             error_message,
             security_metadata: security_metadata.unwrap_or_default(),
-            correlation_id: Uuid::new_v4().to_string(),
+            correlation_id: CorrelationId::new().to_string(),
         };
 
         self.log_mfa_event(context).await
@@ -299,7 +300,7 @@ impl MfaAuditLogger {
             success: false,
             error_message: Some("Suspicious MFA activity detected".to_string()),
             security_metadata: metadata,
-            correlation_id: Uuid::new_v4().to_string(),
+            correlation_id: CorrelationId::new().to_string(),
         };
 
         self.log_mfa_event(context).await
@@ -307,7 +308,7 @@ impl MfaAuditLogger {
 
     /// Generate correlation ID for tracking related MFA events
     pub fn generate_correlation_id() -> String {
-        Uuid::new_v4().to_string()
+        CorrelationId::new().to_string()
     }
 }
 

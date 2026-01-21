@@ -5,7 +5,7 @@
 //! SIMKARI super app authentication system.
 
 use crate::error::CoreError;
-use crate::utils::base64_encode;
+use crate::utils::encoding::base64_encode;
 use crate::models::auth::UserInfo;
 use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
 use crate::utils::correlation::CorrelationContext;

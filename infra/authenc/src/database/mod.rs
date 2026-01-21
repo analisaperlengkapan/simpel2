@@ -546,7 +546,7 @@ impl Database {
                 idle_timeout: 60,
                 max_lifetime: 120,
                 audit_log_url: None,
-                connection_timeout_seconds: 5,
+
             };
 
             if let Ok(db) = Database::new(&config).await {

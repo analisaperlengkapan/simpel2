@@ -77,7 +77,6 @@ use aes_gcm::{
 use anyhow::{Result, anyhow};
 use argon2::{Argon2, Params};
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use rand::RngCore;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
@@ -492,8 +491,8 @@ impl SecureStorage {
         // Create a key entry
         let key_entry = KeyEntry {
             id: Uuid::new_v4().to_string(),
-            key: BASE64.encode(key),
-            salt: BASE64.encode(salt),
+            key: crate::utils::encoding::base64_encode(key),
+            salt: crate::utils::encoding::base64_encode(salt),
             created_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| anyhow!("Time went backwards: {}", e))
@@ -569,8 +568,8 @@ impl SecureStorage {
         // Create and return the key entry
         Ok(KeyEntry {
             id: Uuid::new_v4().to_string(),
-            key: BASE64.encode(key),
-            salt: BASE64.encode(salt),
+            key: crate::utils::encoding::base64_encode(key),
+            salt: crate::utils::encoding::base64_encode(salt),
             created_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| anyhow!("Time went backwards: {}", e))?
@@ -683,13 +682,11 @@ impl SecureStorage {
             .ok_or_else(|| anyhow!("Current key not found in key store"))?;
 
         // Decode the key material
-        let _key_bytes = BASE64
-            .decode(&current_key_entry.key)
+        let _key_bytes = crate::utils::encoding::base64_decode(&current_key_entry.key)
             .map_err(|e| anyhow!("Failed to decode key material: {}", e))?;
 
         // Decode the salt
-        let salt_bytes = BASE64
-            .decode(&current_key_entry.salt)
+        let salt_bytes = crate::utils::encoding::base64_decode(&current_key_entry.salt)
             .map_err(|e| anyhow!("Failed to decode salt: {}", e))?;
 
         // Derive the key using the master key and stored salt
@@ -740,14 +737,13 @@ impl SecureStorage {
         result.extend_from_slice(&ciphertext);
 
         // Return as base64
-        Ok(BASE64.encode(&result))
+        Ok(crate::utils::encoding::base64_encode(&result))
     }
 
     /// Decrypt a base64-encoded ciphertext
     pub async fn decrypt(&self, encoded: &str) -> Result<Vec<u8>> {
         // Decode base64
-        let data = BASE64
-            .decode(encoded)
+        let data = crate::utils::encoding::base64_decode(encoded)
             .map_err(|e| anyhow!("Base64 decode failed: {}", e))?;
 
         // Extract key ID, nonce, and ciphertext
@@ -776,8 +772,7 @@ impl SecureStorage {
             .ok_or_else(|| anyhow!("Key not found for ID: {}", key_id))?;
 
         // The key_entry.key already contains the derived key (not master key)
-        let key = BASE64
-            .decode(&key_entry.key)
+        let key = crate::utils::encoding::base64_decode(&key_entry.key)
             .map_err(|e| anyhow!("Invalid key format: {}", e))?;
 
         // Decrypt the data directly with the derived key
@@ -922,7 +917,7 @@ impl SecureStorage {
 
         // Create a new key with the same metadata as the current key
         let new_key = Self::generate_key_entry(
-            &BASE64.decode(&current_key.key)?,
+            &crate::utils::encoding::base64_decode(&current_key.key)?,
             Some(current_key.metadata.clone()),
         )?;
 
@@ -941,8 +936,8 @@ impl SecureStorage {
             .get(&self.current_key_id)
             .ok_or_else(|| anyhow!("New key not found after creation"))?;
         let key = Self::derive_key(
-            &BASE64.decode(&current_key_entry.key)?,
-            &BASE64.decode(&current_key_entry.salt)?,
+            &crate::utils::encoding::base64_decode(&current_key_entry.key)?,
+            &crate::utils::encoding::base64_decode(&current_key_entry.salt)?,
         )?;
         let key_ref = Key::<Aes256Gcm>::from_slice(&key);
         self.current_cipher = Aes256Gcm::new(key_ref);

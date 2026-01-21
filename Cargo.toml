@@ -10,6 +10,7 @@ members = [
 
     # Shared Libraries
     "lib/ui",
+    "lib/common",
 
 
     # Frontend Microfrontends (Leptos)
@@ -44,13 +45,11 @@ members = [
     "layanan/pembinaan/perencanaan",
 
     # Backend Shared Layanan (Daskrimti)
+    "layanan/daskrimti/portal",
     "layanan/daskrimti/ai",
     "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dasbor",
     "layanan/daskrimti/dokumen",
     "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/konfigurasi",
-    "layanan/daskrimti/laporan",
     "layanan/daskrimti/notifikasi",
 
     # Infrastructure - Authenc (IAM Service)
@@ -79,10 +78,7 @@ default-members = [
     "layanan/pembinaan/perlengkapan",
     "layanan/pembinaan/perencanaan",
     "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dasbor",
     "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/konfigurasi",
-    "layanan/daskrimti/laporan",
     "layanan/daskrimti/notifikasi",
 ]
 
@@ -181,6 +177,7 @@ proc-macro2 = "1.0.103"
 
 # Frontend Shared Dependencies
 shared-microfrontend = { path = "lib/ui" }
+lib-common = { path = "lib/common" }
 regex = "1.11"
 urlencoding = "2.1"
 

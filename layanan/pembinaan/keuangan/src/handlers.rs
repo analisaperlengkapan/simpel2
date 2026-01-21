@@ -103,7 +103,7 @@ pub async fn create_budget(
             &payload.allocated_amount,
             &payload.priority,
             &payload.responsible_unit,
-            &claims.username // Store who created it (requires DB update)
+            &claims.username() // Store who created it (requires DB update)
         ],
     ).await.map_err(|e| {
         // Handle "column does not exist" gracefully if DB migration isn't run, or log error
@@ -127,11 +127,8 @@ pub async fn list_transactions(
 ) -> Result<Json<Vec<Transaction>>, AppError> {
     let client = pool.get().await?;
 
-    let limit = pagination.limit.unwrap_or(10);
-    let offset = pagination.page.map(|p| (p - 1) * limit).unwrap_or(0);
-
-    // Ensure limit is reasonable
-    let limit = limit.clamp(1, 100);
+    let limit: i64 = pagination.limit();
+    let offset: i64 = pagination.offset();
 
     let rows = client
         .query(
@@ -174,7 +171,7 @@ pub async fn create_transaction(
             &payload.amount,
             &payload.transaction_type,
             &payload.budget_item_id,
-            &claims.username
+            &claims.username()
         ],
     ).await?;
 

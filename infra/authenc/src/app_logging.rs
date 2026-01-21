@@ -11,24 +11,8 @@ use crate::error::Result;
 /// Sets up tracing subscribers with appropriate log levels and formatting.
 /// Log level can be overridden via RUST_LOG environment variable.
 pub fn initialize_logging(config: &AppConfig) -> Result<()> {
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-    let level = match config.observability.log_level.as_str() {
-        "error" => tracing::Level::ERROR,
-        "warn" => tracing::Level::WARN,
-        "info" => tracing::Level::INFO,
-        "debug" => tracing::Level::DEBUG,
-        "trace" => tracing::Level::TRACE,
-        _ => tracing::Level::INFO,
-    };
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| level.as_str().to_string()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
+    let level = config.observability.log_level.as_str();
+    lib_common::telemetry::init_subscriber(level);
     Ok(())
 }
 

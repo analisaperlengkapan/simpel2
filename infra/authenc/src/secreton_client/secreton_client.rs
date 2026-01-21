@@ -4,7 +4,6 @@
 use super::{Secret, SecretonClientTrait, SecretonError};
 use crate::models::user::SecurityContext;
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use curve25519_dalek;
 use hkdf;
 use reqwest::Client;
@@ -830,7 +829,7 @@ impl SecretonClient {
 
                 let payload = serde_json::json!({
                     "key_id": key_id,
-                    "local_x25519_public": BASE64.encode(&local_x25519_public),
+                    "local_x25519_public": crate::utils::encoding::base64_encode(&local_x25519_public),
                     "request_mlkem_encapsulation": mlkem_private.is_none(),
                 });
 
@@ -872,7 +871,7 @@ impl SecretonClient {
 
                 // If server provided combined secret, use it
                 if let Some(combined_secret_b64) = exchange_resp.combined_shared_secret {
-                    let combined_secret = BASE64.decode(&combined_secret_b64).map_err(|e| {
+                    let combined_secret = crate::utils::encoding::base64_decode(&combined_secret_b64).map_err(|e| {
                         SecretonError::InvalidFormat(format!(
                             "Invalid combined secret encoding: {}",
                             e
@@ -888,8 +887,7 @@ impl SecretonClient {
 
                 // Otherwise, perform local key exchange
                 let peer_x25519_public =
-                    BASE64
-                        .decode(&exchange_resp.peer_x25519_public)
+                    crate::utils::encoding::base64_decode(&exchange_resp.peer_x25519_public)
                         .map_err(|e| {
                             SecretonError::InvalidFormat(format!(
                                 "Invalid peer public key encoding: {}",
@@ -909,7 +907,7 @@ impl SecretonClient {
                 let combined_secret = if let (Some(mlkem_ct_b64), Some(_mlkem_priv)) =
                     (exchange_resp.mlkem_ciphertext, mlkem_private)
                 {
-                    let _mlkem_ciphertext = BASE64.decode(&mlkem_ct_b64).map_err(|e| {
+                    let _mlkem_ciphertext = crate::utils::encoding::base64_decode(&mlkem_ct_b64).map_err(|e| {
                         SecretonError::InvalidFormat(format!(
                             "Invalid ML-KEM ciphertext encoding: {}",
                             e
@@ -966,7 +964,7 @@ impl SecretonClient {
 
                 let payload = serde_json::json!({
                     "key_id": key_id,
-                    "plaintext": BASE64.encode(&plaintext),
+                    "plaintext": crate::utils::encoding::base64_encode(&plaintext),
                 });
 
                 let resp = client
@@ -1003,7 +1001,7 @@ impl SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                BASE64.decode(&encap_resp.ciphertext).map_err(|e| {
+                crate::utils::encoding::base64_decode(&encap_resp.ciphertext).map_err(|e| {
                     SecretonError::InvalidFormat(format!("Invalid ciphertext encoding: {}", e))
                 })
             }
@@ -1040,7 +1038,7 @@ impl SecretonClient {
 
                 let payload = serde_json::json!({
                     "key_id": key_id,
-                    "data": BASE64.encode(&data),
+                    "data": crate::utils::encoding::base64_encode(&data),
                     "purpose": "authentication_token",
                 });
 
@@ -1078,7 +1076,7 @@ impl SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                BASE64.decode(&sign_resp.signature).map_err(|e| {
+                crate::utils::encoding::base64_decode(&sign_resp.signature).map_err(|e| {
                     SecretonError::InvalidFormat(format!("Invalid signature encoding: {}", e))
                 })
             }
@@ -1161,12 +1159,12 @@ impl SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                let public_key = BASE64.decode(&key_resp.public_key).map_err(|e| {
+                let public_key = crate::utils::encoding::base64_decode(&key_resp.public_key).map_err(|e| {
                     SecretonError::InvalidFormat(format!("Invalid public key encoding: {}", e))
                 })?;
 
                 let private_key = if let Some(priv_key_str) = key_resp.private_key {
-                    Some(BASE64.decode(&priv_key_str).map_err(|e| {
+                    Some(crate::utils::encoding::base64_decode(&priv_key_str).map_err(|e| {
                         SecretonError::InvalidFormat(format!("Invalid private key encoding: {}", e))
                     })?)
                 } else {
@@ -1973,7 +1971,7 @@ impl super::HsmSecretonClient for SecretonClient {
 
                 let payload = serde_json::json!({
                     "key_id": key_id,
-                    "plaintext": BASE64.encode(&plaintext),
+                    "plaintext": crate::utils::encoding::base64_encode(&plaintext),
                 });
 
                 let resp = client
@@ -2012,7 +2010,7 @@ impl super::HsmSecretonClient for SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                BASE64.decode(&enc_resp.ciphertext).map_err(|e| {
+                crate::utils::encoding::base64_decode(&enc_resp.ciphertext).map_err(|e| {
                     SecretonError::InvalidFormat(format!("Invalid base64 in response: {}", e))
                 })
             }
@@ -2036,7 +2034,7 @@ impl super::HsmSecretonClient for SecretonClient {
 
                 let payload = serde_json::json!({
                     "key_id": key_id,
-                    "ciphertext": BASE64.encode(&ciphertext),
+                    "ciphertext": crate::utils::encoding::base64_encode(&ciphertext),
                 });
 
                 let resp = client
@@ -2077,7 +2075,7 @@ impl super::HsmSecretonClient for SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                BASE64.decode(&dec_resp.plaintext).map_err(|e| {
+                crate::utils::encoding::base64_decode(&dec_resp.plaintext).map_err(|e| {
                     SecretonError::InvalidFormat(format!("Invalid base64 in response: {}", e))
                 })
             }

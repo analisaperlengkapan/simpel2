@@ -544,183 +544,17 @@ fn default_sync_batch_size() -> usize {
     100
 }
 
-/// Server configuration options
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerConfig {
-    /// Host to bind the server to
-    #[serde(default = "default_host")]
-    pub host: String,
+// Re-export common config types
+pub use lib_common::config::{ServerConfig, DatabaseConfig};
 
-    /// Port to listen on (HTTP/REST)
-    #[serde(default = "default_port")]
-    pub port: u16,
+// Shim functions for defaults if they are still needed by other modules,
+// though lib_common::config types implement Default.
+//
+// Note: We might need to keep specific default functions if they differ from lib_common,
+// but for migration we will try to rely on lib_common.
 
-    /// gRPC server port
-    #[serde(default = "default_grpc_port")]
-    pub grpc_port: u16,
+// Removed: local ServerConfig and DatabaseConfig definitions.
 
-    /// Enable gRPC server
-    #[serde(default = "default_grpc_enabled")]
-    pub grpc_enabled: bool,
-
-    /// Number of worker threads to use (defaults to number of CPU cores)
-    pub workers: Option<usize>,
-
-    /// Keep-alive timeout in seconds
-    #[serde(default = "default_keep_alive")]
-    pub keep_alive: u64,
-
-    /// Client timeout in seconds
-    #[serde(default = "default_client_timeout")]
-    pub client_timeout: u64,
-
-    /// Client disconnect timeout in seconds
-    #[serde(default = "default_client_disconnect_timeout")]
-    pub client_disconnect_timeout: u64,
-
-    /// Maximum number of connections
-    #[serde(default = "default_max_connections")]
-    pub max_connections: u32,
-
-    /// Public endpoint prefix
-    #[serde(default = "default_public_prefix")]
-    pub public_prefix: String,
-
-    /// Admin endpoint prefix
-    #[serde(default = "default_admin_prefix")]
-    pub admin_prefix: String,
-
-    /// Internal endpoint prefix
-    #[serde(default = "default_internal_prefix")]
-    pub internal_prefix: String,
-
-    /// Enable TLS
-    #[serde(default)]
-    pub tls_enabled: bool,
-
-    /// Path to TLS certificate file
-    pub tls_cert_path: Option<String>,
-
-    /// Path to TLS private key file
-    pub tls_key_path: Option<String>,
-
-    /// List of allowed CORS origins
-    #[serde(default = "default_cors_origins")]
-    pub cors_allowed_origins: Vec<String>,
-}
-
-fn default_host() -> String {
-    "0.0.0.0".to_string()
-}
-
-fn default_port() -> u16 {
-    3000
-}
-
-fn default_grpc_port() -> u16 {
-    9088
-}
-
-fn default_grpc_enabled() -> bool {
-    true
-}
-
-fn default_keep_alive() -> u64 {
-    75
-}
-
-fn default_client_timeout() -> u64 {
-    30
-}
-
-fn default_client_disconnect_timeout() -> u64 {
-    5
-}
-
-fn default_cors_origins() -> Vec<String> {
-    vec!["*".to_string()]
-}
-
-fn default_max_connections() -> u32 {
-    100
-}
-
-fn default_public_prefix() -> String {
-    "/api/v1".to_string()
-}
-
-fn default_admin_prefix() -> String {
-    "/admin".to_string()
-}
-
-fn default_internal_prefix() -> String {
-    "/internal".to_string()
-}
-
-/// Database configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DatabaseConfig {
-    /// Database server hostname or IP address
-    pub host: String,
-    /// Database server port
-    pub port: u16,
-    /// Database username
-    pub username: String,
-    /// Database password
-    pub password: String,
-    /// Database name
-    pub database: String,
-    /// Maximum number of database connections
-    pub max_connections: u32,
-    /// Minimum number of idle connections to maintain
-    #[serde(default = "default_min_connections")]
-    pub min_connections: u32,
-    /// Connection timeout in seconds
-    pub connection_timeout: u64,
-    /// Idle connection timeout in seconds (how long before an idle connection is closed)
-    #[serde(default = "default_idle_timeout")]
-    pub idle_timeout: u64,
-    /// Maximum connection lifetime in seconds (how long a connection can live)
-    #[serde(default = "default_max_lifetime")]
-    pub max_lifetime: u64,
-    /// Optional audit log database URL
-    pub audit_log_url: Option<String>,
-    /// Connection timeout in seconds (alternative field)
-    pub connection_timeout_seconds: u64,
-}
-
-fn default_min_connections() -> u32 {
-    10
-}
-
-fn default_idle_timeout() -> u64 {
-    600 // 10 minutes
-}
-
-fn default_max_lifetime() -> u64 {
-    1800 // 30 minutes
-}
-
-impl DatabaseConfig {
-    /// Create a test database configuration with sensible defaults
-    #[cfg(test)]
-    pub fn test_config() -> Self {
-        Self {
-            host: "localhost".to_string(),
-            port: 5432,
-            username: "postgres".to_string(),
-            password: "postgres".to_string(),
-            database: "test_authenc".to_string(),
-            max_connections: 5,
-            min_connections: 1,
-            connection_timeout: 5,
-            idle_timeout: 60,
-            max_lifetime: 120,
-            audit_log_url: None,
-            connection_timeout_seconds: 5,
-        }
-    }
-}
 
 /// Security configuration for the authentication platform
 /// This struct contains all security-related configuration parameters for the
@@ -926,15 +760,16 @@ impl AppConfig {
     /// Merge another config into this one (other config takes precedence)
     fn merge(&mut self, other: Self) {
         // Server config
-        if other.server.host != default_host() {
+        if other.server.host != ServerConfig::default().host {
             self.server.host = other.server.host;
         }
-        if other.server.port != default_port() {
+        if other.server.port != ServerConfig::default().port {
             self.server.port = other.server.port;
         }
         if other.server.workers.is_some() {
             self.server.workers = other.server.workers;
         }
+
 
         // Database config (always override if different from defaults)
         if other.database.host != "localhost" {
@@ -1183,37 +1018,10 @@ impl AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            server: ServerConfig {
-                host: default_host(),
-                port: default_port(),
-                grpc_port: default_grpc_port(),
-                grpc_enabled: default_grpc_enabled(),
-                workers: None,
-                keep_alive: default_keep_alive(),
-                client_timeout: default_client_timeout(),
-                client_disconnect_timeout: default_client_disconnect_timeout(),
-                max_connections: default_max_connections(),
-                public_prefix: default_public_prefix(),
-                admin_prefix: default_admin_prefix(),
-                internal_prefix: default_internal_prefix(),
-                tls_enabled: false,
-                tls_cert_path: None,
-                tls_key_path: None,
-                cors_allowed_origins: default_cors_origins(),
-            },
+            server: ServerConfig::default(),
             database: DatabaseConfig {
-                host: "localhost".to_string(),
-                port: 5432,
-                username: "postgres".to_string(),
-                password: "postgres".to_string(),
                 database: "authenc".to_string(),
-                max_connections: 10,
-                min_connections: default_min_connections(),
-                connection_timeout: 30,
-                idle_timeout: default_idle_timeout(),
-                max_lifetime: default_max_lifetime(),
-                audit_log_url: None,
-                connection_timeout_seconds: 30,
+                ..DatabaseConfig::default()
             },
             security: BasicSecurityConfig {
                 jwt_secret: env::var("JWT_SECRET")

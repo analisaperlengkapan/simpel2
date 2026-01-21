@@ -1,4 +1,2 @@
-#[derive(Clone, Debug, Default)]
-pub struct Config {
-    // Dummy config
-}
+// Re-export from shared lib-common
+pub use lib_common::config::BaseServiceConfig as Config;

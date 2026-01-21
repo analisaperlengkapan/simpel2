@@ -35,6 +35,7 @@ clap = { version = "4.5", features = ["derive"] }
 sha2 = "0.10"
 futures = { workspace = true }
 bytes = "1.10"
+lib-common = { path = "../../../lib/common", features = ["telemetry", "db"] }
 
 [dev-dependencies]
 wiremock = "0.6"
@@ -50,3 +51,4 @@ path = "examples/siman_example.rs"
 [[example]]
 name = "siman_database_sync"
 path = "examples/siman_database_sync.rs"
+

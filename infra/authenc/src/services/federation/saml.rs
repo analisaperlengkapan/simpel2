@@ -243,9 +243,7 @@ impl SamlIdentityProvider {
     /// Parse SAML Response XML and extract assertion
     fn parse_saml_response(&self, saml_response: &str) -> Result<SamlAssertion> {
         // Decode base64 SAML response
-        use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(saml_response.as_bytes())
+        let decoded = crate::utils::encoding::base64_decode(saml_response.as_bytes())
             .map_err(|e| anyhow!("Failed to decode SAML response: {}", e))?;
 
         let xml = String::from_utf8(decoded)?;
@@ -541,13 +539,10 @@ impl IdentityProvider for SamlIdentityProvider {
     async fn authenticate(&self, request: &AuthRequest) -> Result<AuthResponse> {
         if let Some(saml_response) = &request.saml_assertion {
             // Decode base64 SAML response for validation
-            use base64::Engine;
-            let xml = match base64::engine::general_purpose::STANDARD
-                .decode(saml_response.as_bytes())
+            let xml = match crate::utils::encoding::base64_decode(saml_response.as_bytes())
+                .map_err(|e| anyhow!("Base64 decode failed: {}", e))
                 .and_then(|bytes| {
-                    String::from_utf8(bytes).map_err(|e| {
-                        base64::DecodeError::InvalidByte(0, e.utf8_error().valid_up_to() as u8)
-                    })
+                    String::from_utf8(bytes).map_err(|e| anyhow!("Invalid UTF-8: {}", e))
                 }) {
                 Ok(xml) => xml,
                 Err(e) => {

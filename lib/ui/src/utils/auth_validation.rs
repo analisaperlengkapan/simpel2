@@ -6,7 +6,7 @@
 //! Prinsip: Frontend validation untuk UX, Backend validation untuk security
 
 use crate::core::types::*;
-use regex::Regex;
+// usage of regex::Regex removed as we delegate to lib_common
 
 // ============================================================================
 // CONSTANTS (Sinkron dengan backend)
@@ -36,8 +36,6 @@ pub const SATKER_CODE_MAX_LENGTH: usize = 20;
 ///
 ///   Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_username`
 pub fn validate_username(username: &str) -> ValidationResult {
-    let regex = Regex::new(r"^[a-zA-Z0-9_-]{3,50}$").unwrap();
-
     if username.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
             "username",
@@ -59,7 +57,7 @@ pub fn validate_username(username: &str) -> ValidationResult {
         )]);
     }
 
-    if !regex.is_match(username) {
+    if !lib_common::validation::validate_username(username) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "username",
             "Username hanya boleh mengandung huruf, angka, underscore (_), atau hyphen (-)",
@@ -137,8 +135,6 @@ pub fn validate_password(password: &str) -> ValidationResult {
 ///
 ///   Sinkron dengan: `infra/authenc/src/utils/validation.rs::validate_satker_code`
 pub fn validate_satker_code(code: &str) -> ValidationResult {
-    let regex = Regex::new(r"^[A-Z0-9]{2,20}$").unwrap();
-
     if code.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
             "satker_code",
@@ -160,7 +156,7 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
         )]);
     }
 
-    if !regex.is_match(code) {
+    if !lib_common::validation::validate_satker_code(code) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "satker_code",
             "Kode satker harus huruf besar dan angka saja (contoh: KEJARI, KEJATI01)",
@@ -176,9 +172,13 @@ pub fn validate_satker_code(code: &str) -> ValidationResult {
 /// - Numbers only
 ///
 ///   Sinkron dengan: Backend MFA verification
+/// Validate MFA code (6 digits)
+/// Rules:
+/// - Exactly 6 digits
+/// - Numbers only
+///
+///   Sinkron dengan: Backend MFA verification
 pub fn validate_mfa_code(code: &str) -> ValidationResult {
-    let regex = Regex::new(r"^\d{6}$").unwrap();
-
     if code.is_empty() {
         return ValidationResult::invalid(vec![ValidationError::new(
             "mfa_code",
@@ -186,7 +186,7 @@ pub fn validate_mfa_code(code: &str) -> ValidationResult {
         )]);
     }
 
-    if !regex.is_match(code) {
+    if !lib_common::validation::validate_mfa_code(code) {
         return ValidationResult::invalid(vec![ValidationError::new(
             "mfa_code",
             "Kode MFA harus 6 digit angka",

@@ -264,8 +264,7 @@ impl ClaimsGatheringService {
         let json = serde_json::to_string(claims)
             .map_err(|e| AuthencError::internal(format!("Failed to serialize claims: {}", e)))?;
 
-        use base64::Engine;
-        Ok(base64::engine::general_purpose::STANDARD.encode(json.as_bytes()))
+        Ok(crate::utils::encoding::base64_encode(json.as_bytes()))
     }
 }
 

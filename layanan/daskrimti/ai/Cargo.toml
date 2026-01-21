@@ -72,6 +72,8 @@ garde = { workspace = true }
 # Crypto (for model integrity)
 sha2 = { workspace = true }
 hmac = { workspace = true }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
+

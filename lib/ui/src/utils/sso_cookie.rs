@@ -8,63 +8,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, window};
 
-/// SSO session data (matches backend SsoSession structure)
-///
-/// This structure mirrors the backend implementation in:
-/// `infra/authenc/src/utils/sso_cookie.rs`
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SsoSession {
-    /// Session ID (UUID)
-    pub session_id: String,
-
-    /// User ID
-    pub user_id: String,
-
-    /// Username
-    pub username: String,
-
-    /// User email
-    pub email: Option<String>,
-
-    /// User roles
-    pub roles: Vec<String>,
-
-    /// Session creation timestamp (ISO 8601)
-    pub created_at: String,
-
-    /// Session expiration timestamp (ISO 8601)
-    pub expires_at: String,
-
-    /// Client IP address
-    pub ip_address: Option<String>,
-
-    /// User agent
-    pub user_agent: Option<String>,
-}
-
-impl SsoSession {
-    /// Check if the session is expired
-    pub fn is_expired(&self) -> bool {
-        // Parse expires_at timestamp
-        if let Ok(expires) = chrono::DateTime::parse_from_rfc3339(&self.expires_at) {
-            let now = chrono::Utc::now();
-            expires.with_timezone(&chrono::Utc) < now
-        } else {
-            // If parsing fails, consider expired for safety
-            true
-        }
-    }
-
-    /// Check if the session is valid
-    pub fn is_valid(&self) -> bool {
-        !self.is_expired()
-    }
-
-    /// Check if user has specific role
-    pub fn has_role(&self, role: &str) -> bool {
-        self.roles.iter().any(|r| r == role)
-    }
-}
+pub use lib_common::auth::{SsoSession, UserRole};
 
 /// SSO Cookie Reader for frontend
 ///
@@ -136,10 +80,7 @@ impl SsoCookieReader {
 
     /// Decode base64 string
     fn decode_base64(&self, encoded: &str) -> Result<String, String> {
-        use base64::{Engine as _, engine::general_purpose};
-
-        let decoded_bytes = general_purpose::STANDARD
-            .decode(encoded)
+        let decoded_bytes = lib_common::encoding::base64_decode(encoded)
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         String::from_utf8(decoded_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))
@@ -158,8 +99,6 @@ impl Default for SsoCookieReader {
 /// authentication system in shared microfrontend.
 impl From<SsoSession> for crate::hooks::use_auth::UserSession {
     fn from(sso: SsoSession) -> Self {
-        use crate::hooks::use_auth::UserRole;
-
         // Determine role from roles array
         let role = if sso.has_role("admin") {
             UserRole::Admin
@@ -172,9 +111,7 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
         };
 
         // Parse expiration timestamp
-        let expires_at = chrono::DateTime::parse_from_rfc3339(&sso.expires_at)
-            .ok()
-            .map(|dt| dt.timestamp());
+        let expires_at = Some(sso.expires_at.timestamp());
 
         Self {
             id: sso.user_id.clone(),
@@ -187,7 +124,7 @@ impl From<SsoSession> for crate::hooks::use_auth::UserSession {
             captcha_validated: true, // Assume validated if SSO session exists
             mfa_enabled: false,      // Not available in SSO session
             mfa_setup_required: false,
-            created_at: Some(sso.created_at.clone()),
+            created_at: Some(sso.created_at.to_rfc3339()),
             access_token: None, // Not stored in cookie for security
             refresh_token: None,
             expires_at,
@@ -311,8 +248,8 @@ mod tests {
             username: "testuser".to_string(),
             email: Some("test@example.com".to_string()),
             roles: vec!["user".to_string()],
-            created_at: now.to_rfc3339(),
-            expires_at: future.to_rfc3339(),
+            created_at: now,
+            expires_at: future,
             ip_address: None,
             user_agent: None,
         };
@@ -322,7 +259,7 @@ mod tests {
 
         // Expired session
         let expired_session = SsoSession {
-            expires_at: past.to_rfc3339(),
+            expires_at: past,
             ..valid_session.clone()
         };
 
@@ -338,8 +275,8 @@ mod tests {
             username: "testuser".to_string(),
             email: Some("test@example.com".to_string()),
             roles: vec!["user".to_string(), "admin".to_string()],
-            created_at: chrono::Utc::now().to_rfc3339(),
-            expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
             ip_address: None,
             user_agent: None,
         };
@@ -357,8 +294,8 @@ mod tests {
             username: "testuser".to_string(),
             email: Some("test@example.com".to_string()),
             roles: vec!["admin".to_string()],
-            created_at: chrono::Utc::now().to_rfc3339(),
-            expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
+            created_at: chrono::Utc::now(),
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
             ip_address: None,
             user_agent: None,
         };

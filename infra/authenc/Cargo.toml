@@ -275,6 +275,9 @@ fluent-bundle = "0.16.0"
 unic-langid = "0.9.6"
 axum-test = "18.2.1"
 
+# Common library
+lib-common = { path = "../../lib/common", features = ["validation", "redis-cache", "telemetry", "db", "axum", "crypto", "encryption"] }
+
 [dev-dependencies]
 tempfile = "3"
 tokio-test = "0.4"

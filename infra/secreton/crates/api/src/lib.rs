@@ -133,6 +133,11 @@ pub fn create_api_router(state: ApiState) -> Router {
             state.clone(),
             middleware::request_rate_middleware,
         ))
+        // Common infrastructure layers
+        .layer(axum::middleware::from_fn(lib_common::middleware::security::security_headers))
+        .layer(lib_common::middleware::logging::RequestLogger)
+        .layer(axum::middleware::from_fn(lib_common::correlation::correlation_id_middleware))
+        .layer(lib_common::middleware::cors::standard_cors(vec!["*".to_string()]))
         .with_state(state)
 }
 

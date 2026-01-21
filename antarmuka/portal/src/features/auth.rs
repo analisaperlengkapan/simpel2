@@ -50,41 +50,7 @@ pub struct UserSession {
     pub permissions: Vec<String>,
 }
 
-/// User role enum
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub enum UserRole {
-    /// System administrator
-    Admin,
-    /// Regular user
-    #[default]
-    User,
-    /// Supervisor
-    Supervisor,
-    /// Guest (read-only)
-    Guest,
-}
-
-impl UserRole {
-    /// Get role display name in Indonesian
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::Admin => "Administrator",
-            Self::User => "Pengguna",
-            Self::Supervisor => "Supervisor",
-            Self::Guest => "Tamu",
-        }
-    }
-
-    /// Check if role has admin privileges
-    pub fn is_admin(&self) -> bool {
-        matches!(self, Self::Admin)
-    }
-
-    /// Check if role can manage users
-    pub fn can_manage_users(&self) -> bool {
-        matches!(self, Self::Admin | Self::Supervisor)
-    }
-}
+pub use lib_common::auth::UserRole;
 
 /// Login credentials
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -332,41 +298,27 @@ impl AuthService {
 
     /// Decode JWT token to extract user claims
     pub fn decode_jwt_claims(token: &str) -> Result<UserSession, String> {
-        // JWT format: header.payload.signature
+        // Note: For WASM we just do basic base64 decode of payload since we don't have the secret
+        // Full verification happens on the backend.
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             return Err("Invalid JWT format".to_string());
         }
 
-        // Decode base64 payload (part[1])
-        use base64::{Engine as _, engine::general_purpose};
-        let payload_bytes = general_purpose::URL_SAFE_NO_PAD
-            .decode(parts[1])
+        use lib_common::encoding::base64_decode;
+        let payload_bytes = base64_decode(parts[1])
             .map_err(|e| format!("Base64 decode error: {}", e))?;
 
         let payload_str =
             String::from_utf8(payload_bytes).map_err(|e| format!("UTF-8 decode error: {}", e))?;
 
+        use lib_common::jwt::Claims;
         let claims: Claims =
             serde_json::from_str(&payload_str).map_err(|e| format!("JSON parse error: {}", e))?;
 
         // Map roles
-        let role = claims
-            .realm_access
-            .as_ref()
-            .and_then(|ra| {
-                if ra.roles.contains(&"admin".to_string()) {
-                    Some(UserRole::Admin)
-                } else if ra.roles.contains(&"supervisor".to_string()) {
-                    Some(UserRole::Supervisor)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(UserRole::User);
-
+        let role = claims.get_primary_role();
         let username = claims.preferred_username.unwrap_or(claims.sub.clone());
-
         let permissions = claims.realm_access.map(|ra| ra.roles).unwrap_or_default();
 
         Ok(UserSession {
@@ -381,13 +333,13 @@ impl AuthService {
                 .unwrap_or_else(|| format!("{}@kejaksaan.go.id", username)),
             avatar: None,
             division: "Bagian Umum".to_string(),
-            captcha_validated: true, // JWT tokens from authenc indicate successful CAPTCHA validation
+            captcha_validated: true,
             mfa_enabled: claims.mfa_enabled,
             mfa_setup_required: claims.mfa_setup_required,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             access_token: Some(token.to_string()),
-            refresh_token: None, // Will be set separately if available
-            expires_at: claims.exp,
+            refresh_token: None,
+            expires_at: Some(claims.exp as i64),
             permissions,
         })
     }
@@ -988,22 +940,4 @@ pub struct MfaStatus {
     pub last_used: Option<String>,
 }
 
-// Internal structures for JWT parsing
-#[derive(Deserialize)]
-struct Claims {
-    sub: String,
-    preferred_username: Option<String>,
-    name: Option<String>,
-    email: Option<String>,
-    realm_access: Option<RealmAccess>,
-    #[serde(default)]
-    mfa_enabled: bool,
-    #[serde(default)]
-    mfa_setup_required: bool,
-    exp: Option<i64>,
-}
-
-#[derive(Deserialize)]
-struct RealmAccess {
-    roles: Vec<String>,
-}
+// Internal structures for JWT parsing removed - using lib_common::jwt::Claims

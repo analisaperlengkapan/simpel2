@@ -1,98 +1,152 @@
-use crate::error::MonsaktiError;
+use anyhow::Result;
+use lib_common::config::BaseServiceConfig;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::ops::Deref;
 
-/// Konfigurasi untuk klien MonSAKTI
-#[derive(Debug, Clone)]
+/// Configuration for the Integrasi service
+/// Extends BaseServiceConfig with fields specific to MonSAKTI, MySIMKARI, and SIMAN
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    /// URL dasar API MonSAKTI
+    /// Common service configuration (database, server, logging)
+    #[serde(flatten)]
+    pub base: BaseServiceConfig,
+
+    /// MonSAKTI API Base URL
+    #[serde(default = "default_monsakti_base_url")]
     pub base_url: String,
-    /// URL dasar API MySIMKARI
+
+    /// MySIMKARI API Base URL
+    #[serde(default = "default_mysimkari_base_url")]
     pub mysimkari_base_url: String,
-    /// URL dasar API SIMAN (Gateway Kemenkeu)
-    pub siman_base_url: String,
-    /// URL endpoint SSO Kemenkeu untuk OAuth2 token
-    pub siman_token_url: String,
-    /// Client ID untuk SIMAN OAuth2
-    pub siman_client_id: Option<String>,
-    /// Client Secret untuk SIMAN OAuth2
-    pub siman_client_secret: Option<String>,
-    /// BA_KEY (Kode Satker) untuk SIMAN API
-    pub siman_ba_key: Option<String>,
-    /// Token autentikasi untuk setiap modul
-    pub tokens: HashMap<String, String>,
-    /// Direktori output untuk file
+
+    /// Output directory for file exports
+    #[serde(default = "default_output_dir")]
     pub output_dir: String,
-    /// Konfigurasi database opsional
+
+    /// Initial tokens for modules
+    #[serde(default)]
+    pub tokens: HashMap<String, String>,
+
+    /// Database connection string (optional override or duplicate of base.database_url)
+    /// Used by client logic to determine if DB features should be enabled
     pub db_config: Option<String>,
-    /// Batas concurrency untuk SIMAN fetch (default: 20)
+
+    // === SIMAN Configuration ===
+
+    /// SIMAN OAuth2 Client ID
+    pub siman_client_id: Option<String>,
+
+    /// SIMAN OAuth2 Client Secret
+    pub siman_client_secret: Option<String>,
+
+    /// SIMAN Token Endpoint
+    #[serde(default = "default_siman_token_url")]
+    pub siman_token_url: String,
+
+    /// SIMAN BA Key (Unit Key)
+    pub siman_ba_key: Option<String>,
+
+    /// SIMAN API Base URL
+    #[serde(default = "default_siman_base_url")]
+    pub siman_base_url: String,
+
+    /// Concurrency limit for SIMAN batch operations
+    #[serde(default = "default_concurrency_limit")]
     pub siman_concurrency_limit: usize,
 }
 
-impl Config {
-    /// Membuat konfigurasi dari environment variables
-    pub fn from_env() -> Result<Self, MonsaktiError> {
-        dotenvy::dotenv().ok();
+// Allow accessing BaseServiceConfig fields directly
+impl Deref for Config {
+    type Target = BaseServiceConfig;
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
 
-        let base_url = std::env::var("MONSAKTI_BASE_URL").unwrap_or_else(|_| {
-            "https://monsakti.kemenkeu.go.id/sitp-monsakti-omspan/webservice".to_string()
-        });
+// Defaults
+fn default_monsakti_base_url() -> String {
+    "https://monsakti.kemenkeu.go.id".to_string()
+}
+
+fn default_mysimkari_base_url() -> String {
+    "https://mysimkari.kejaksaan.go.id".to_string()
+}
+
+fn default_output_dir() -> String {
+    "output".to_string()
+}
+
+fn default_siman_token_url() -> String {
+    "https://sso.kemenkeu.go.id/connect/token".to_string()
+}
+
+fn default_siman_base_url() -> String {
+    "https://api.kemenkeu.go.id".to_string()
+}
+
+fn default_concurrency_limit() -> usize {
+    5
+}
+
+impl Config {
+    /// Load configuration from environment variables
+    pub fn from_env() -> Result<Self> {
+        // Load .env file
+        let _ = dotenvy::dotenv();
+
+        // Load base config
+        let base = BaseServiceConfig::from_env();
+
+        // Load specific config
+        let base_url = std::env::var("MONSAKTI_BASE_URL")
+            .unwrap_or_else(|_| default_monsakti_base_url());
 
         let mysimkari_base_url = std::env::var("MYSIMKARI_BASE_URL")
-            .unwrap_or_else(|_| "https://mysimkari.kejaksaan.go.id/api/anbut".to_string());
+            .unwrap_or_else(|_| default_mysimkari_base_url());
 
-        // SIMAN API Configuration
-        let siman_base_url = std::env::var("SIMAN_BASE_URL")
-            .unwrap_or_else(|_| "https://api-gw.kemenkeu.go.id".to_string());
+        let output_dir = std::env::var("OUTPUT_DIR")
+            .unwrap_or_else(|_| default_output_dir());
 
-        let siman_token_url = std::env::var("SIMAN_TOKEN_URL")
-            .unwrap_or_else(|_| "https://sso.kemenkeu.go.id/connect/token".to_string());
+        // Helper to load tokens from generic env vars if needed
+        let mut tokens = HashMap::new();
+        if let Ok(token) = std::env::var("MONSAKTI_TOKEN_DEFAULT") {
+            tokens.insert("default".to_string(), token);
+        }
+        // Specific modules can be added logic here if needed, e.g. MONSAKTI_TOKEN_AST
 
+        // Set db_config from base.database_url if available
+        let db_config = if !base.database_url.is_empty() {
+             Some(base.database_url.clone())
+        } else {
+             None
+        };
+
+        // SIMAN
         let siman_client_id = std::env::var("SIMAN_CLIENT_ID").ok();
         let siman_client_secret = std::env::var("SIMAN_CLIENT_SECRET").ok();
+        let siman_token_url = std::env::var("SIMAN_TOKEN_URL")
+            .unwrap_or_else(|_| default_siman_token_url());
         let siman_ba_key = std::env::var("SIMAN_BA_KEY").ok();
-
-        let output_dir = std::env::var("OUTPUT_DIR").unwrap_or_else(|_| "./data".to_string());
-        let db_config = std::env::var("DATABASE_URL").ok();
-
+        let siman_base_url = std::env::var("SIMAN_BASE_URL")
+            .unwrap_or_else(|_| default_siman_base_url());
         let siman_concurrency_limit = std::env::var("SIMAN_CONCURRENCY_LIMIT")
             .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(20);
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_else(default_concurrency_limit);
 
-        let mut tokens = HashMap::new();
-        for module in &[
-            "ADM",
-            "ANG",
-            "PEM",
-            "BEN",
-            "KOM",
-            "AST",
-            "PER",
-            "GLP",
-            "MYSIMKARI",
-        ] {
-            let env_var = if module == &"MYSIMKARI" {
-                "MYSIMKARI_TOKEN".to_string()
-            } else {
-                format!("MONSAKTI_TOKEN_{}", module)
-            };
-            if let Ok(token) = std::env::var(&env_var) {
-                // Trim whitespace to avoid issues
-                tokens.insert(module.to_string(), token.trim().to_string());
-            }
-        }
-
-        Ok(Config {
+        Ok(Self {
+            base,
             base_url,
             mysimkari_base_url,
-            siman_base_url,
-            siman_token_url,
+            output_dir,
+            tokens,
+            db_config,
             siman_client_id,
             siman_client_secret,
+            siman_token_url,
             siman_ba_key,
-            tokens,
-            output_dir,
-            db_config,
+            siman_base_url,
             siman_concurrency_limit,
         })
     }

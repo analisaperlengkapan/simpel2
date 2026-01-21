@@ -44,7 +44,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
-use crate::utils::{base64_decode, base64_encode};
+use crate::utils::encoding::{base64_decode, base64_encode};
 
 /// Maximum size for wrapped data (1MB)
 const MAX_WRAPPED_DATA_SIZE: usize = 1024 * 1024;

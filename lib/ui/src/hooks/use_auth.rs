@@ -46,41 +46,7 @@ pub struct UserSession {
     pub permissions: Vec<String>,
 }
 
-/// User role enum
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub enum UserRole {
-    /// System administrator
-    Admin,
-    /// Regular user
-    #[default]
-    User,
-    /// Supervisor
-    Supervisor,
-    /// Guest (read-only)
-    Guest,
-}
-
-impl UserRole {
-    /// Get role display name in Indonesian
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::Admin => "Administrator",
-            Self::User => "Pengguna",
-            Self::Supervisor => "Supervisor",
-            Self::Guest => "Tamu",
-        }
-    }
-
-    /// Check if role has admin privileges
-    pub fn is_admin(&self) -> bool {
-        matches!(self, Self::Admin)
-    }
-
-    /// Check if role can manage users
-    pub fn can_manage_users(&self) -> bool {
-        matches!(self, Self::Admin | Self::Supervisor)
-    }
-}
+pub use lib_common::auth::UserRole;
 
 impl UserSession {
     /// Check if session is valid (not expired)

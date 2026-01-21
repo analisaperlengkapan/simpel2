@@ -24,21 +24,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging
-    let log_level = match cli.log_level.to_lowercase().as_str() {
-        "trace" => Level::TRACE,
-        "debug" => Level::DEBUG,
-        "info" => Level::INFO,
-        "warn" => Level::WARN,
-        "error" => Level::ERROR,
-        _ => Level::INFO,
-    };
-
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(log_level)
-        .with_target(false)
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber)?;
+    lib_common::telemetry::init_subscriber(&cli.log_level);
 
     // Load configuration
     let config = AgentConfig::load_from_file(&cli.config)?;

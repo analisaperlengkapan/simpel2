@@ -4,7 +4,6 @@
 
 use crate::services::captcha::error::CaptchaError;
 use crate::services::captcha::types::{Challenge, ChallengeType, ValidationResult};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::HashMap;
@@ -91,7 +90,7 @@ impl LocalEncryptionFallback {
             .map(|(i, b)| b ^ self.key[i % self.key.len()])
             .collect();
 
-        Ok(BASE64.encode(encrypted))
+        Ok(crate::utils::encoding::base64_encode(encrypted))
     }
 
     /// Decrypt data using local fallback decryption
@@ -105,8 +104,7 @@ impl LocalEncryptionFallback {
         }
 
         let encrypted =
-            BASE64
-                .decode(encrypted_data)
+            crate::utils::encoding::base64_decode(encrypted_data)
                 .map_err(|e| CaptchaError::ValidationFailed {
                     message: format!("Invalid encrypted data: {}", e),
                     attempts_remaining: 0,

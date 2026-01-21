@@ -9,6 +9,7 @@ use std::sync::{Arc, atomic::{AtomicBool, Ordering, AtomicU64}};
 async fn test_save_to_csv_performance() {
     // 1. Setup Client
     let config = Config {
+        base: Default::default(),
         base_url: "http://localhost".to_string(),
         mysimkari_base_url: "http://localhost".to_string(),
         siman_base_url: "http://localhost".to_string(),

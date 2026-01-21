@@ -122,8 +122,4 @@ pub struct FinancialMetrics {
     pub budget_variance: f64,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct PaginationParams {
-    pub page: Option<i64>,
-    pub limit: Option<i64>,
-}
+pub use lib_common::models::pagination::PaginationParams;

@@ -67,6 +67,9 @@ num-traits.workspace = true
 # Async utilities
 async-trait.workspace = true
 
+# Shared library
+lib-common = { path = "../../../../lib/common", features = ["crypto", "encryption"] }
+
 # Compression
 flate2.workspace = true
 

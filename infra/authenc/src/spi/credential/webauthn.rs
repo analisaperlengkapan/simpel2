@@ -8,7 +8,6 @@ use super::{
 };
 use crate::error::{AuthencError as Error, Result};
 use async_trait::async_trait;
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use webauthn_rs::prelude::{
     AuthenticationResult, AuthenticatorAttachment, CredentialID, Passkey, PasskeyAuthentication,
@@ -214,7 +213,7 @@ impl WebAuthnCredentialProvider {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let challenge_bytes: Vec<u8> = (0..32).map(|_| rng.r#gen()).collect();
-        Ok(URL_SAFE_NO_PAD.encode(&challenge_bytes))
+        Ok(crate::utils::encoding::base64_encode_url(&challenge_bytes))
     }
 
     /// Create registration options for a user with attestation support

@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
-use crate::utils::base64_encode;
+use crate::utils::encoding::base64_encode;
 
 /// Identity engine errors
 #[derive(Debug, thiserror::Error)]

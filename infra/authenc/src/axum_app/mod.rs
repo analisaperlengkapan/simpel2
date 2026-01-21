@@ -6,7 +6,7 @@
 use axum::{Router, extract::State};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::signal;
-use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
+use tower_http::compression::CompressionLayer;
 use tracing::{error, info};
 
 use crate::{
@@ -17,8 +17,6 @@ use crate::{
     middleware::{
         csrf_protection_axum::{CsrfConfig, CsrfState, csrf_protection_middleware},
         input_validation_axum::{InputValidationConfig, input_validation_middleware},
-        security_headers_axum::security_headers_middleware,
-        timeout_axum::timeout_middleware,
     },
 };
 
@@ -85,12 +83,14 @@ impl AxumApp {
 
         // Build the router with middleware and routes
         let router = create_router(state.clone())
-            // Add rate limiting first (early rejection)
+            // Add correlation ID first
+            .layer(axum::middleware::from_fn(lib_common::correlation::correlation_id_middleware))
+            // Add rate limiting (early rejection)
             .layer(RateLimitLayer::new(RateLimiterState::new(
                 rate_limit_config,
             )))
             // Add security middleware layers (order matters!)
-            .layer(axum::middleware::from_fn(security_headers_middleware))
+            .layer(axum::middleware::from_fn(lib_common::middleware::security::security_headers))
             .layer(axum::middleware::from_fn(move |req, next| {
                 let csrf_state = csrf_state.clone();
                 async move { csrf_protection_middleware(State(csrf_state), req, next).await }
@@ -99,10 +99,12 @@ impl AxumApp {
                 input_validation_middleware(Arc::new(input_validation_config.clone()), req, next)
             }))
             // Add request logging and timeout protection
-            .layer(axum::middleware::from_fn(timeout_middleware))
+            .layer(lib_common::middleware::logging::RequestLogger)
+            .layer(axum::middleware::from_fn(move |req, next| {
+                lib_common::middleware::timeout::timeout_middleware(std::time::Duration::from_secs(30), req, next)
+            }))
             // Add utility middleware layers
-            .layer(TraceLayer::new_for_http())
-            .layer(CorsLayer::permissive())
+            .layer(lib_common::middleware::cors::standard_cors(vec!["*".to_string()]))
             .layer(CompressionLayer::new());
 
         Self { state, router }
