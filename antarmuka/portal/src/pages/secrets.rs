@@ -5,7 +5,7 @@
 use crate::components::layout::MainLayout;
 use crate::features::auth::UserSession;
 use crate::utils::api::{
-    SecretListItem, SecretMetadata, create_secret, delete_secret, list_secrets,
+    SecretMetadata, create_secret, get_secret, list_secrets, delete_secret,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;

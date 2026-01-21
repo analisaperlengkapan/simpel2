@@ -4,7 +4,6 @@
 //! This module is designed to work in sync with the backend SSO cookie implementation.
 
 use leptos::prelude::Set;
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, window};
 

@@ -1,9 +1,7 @@
 use axum::{
-    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde_json::json;
 use thiserror::Error;
 use tracing::error;
 
