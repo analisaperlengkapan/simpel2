@@ -64,7 +64,7 @@ async fn health_check() -> impl axum::response::IntoResponse {
     // In a real scenario, we'd check DB health here
     report.add_check(lib_common::health::ComponentCheck {
         component: "database".to_string(),
-        status: lib_common::health::ServiceStatus::Up,
+        status: lib_common::health::ServiceStatus::Healthy,
         message: None,
     });
 
