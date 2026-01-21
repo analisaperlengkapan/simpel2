@@ -43,6 +43,7 @@ log = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }
 chrono = { workspace = true, features = ["serde", "wasm-bindgen"] }
+lib-common = { workspace = true }
 
 [features]
 default = ["csr"]

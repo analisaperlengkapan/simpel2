@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use x509_parser::prelude::*;
 
 use crate::models::auth::UserInfo;
-use crate::utils::base64_decode;
+use crate::utils::encoding::base64_decode;
 
 /// Error types for Certificate authentication
 #[derive(Debug, thiserror::Error)]

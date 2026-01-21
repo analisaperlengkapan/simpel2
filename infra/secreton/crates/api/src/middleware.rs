@@ -378,27 +378,6 @@ pub fn update_rate_limiting(max_requests_per_minute: u32) {
     }
 }
 
-/// Request ID middleware - adds unique ID to each request
-pub async fn request_id(mut request: Request, next: Next) -> Response {
-    let request_id = Uuid::new_v4().to_string();
-
-    // Add request ID to headers for downstream processing
-    request
-        .headers_mut()
-        .insert("x-request-id", request_id.parse().unwrap());
-
-    debug!("Processing request: {}", request_id);
-
-    let response = next.run(request).await;
-
-    // Add request ID to response headers
-    let mut response = response;
-    response
-        .headers_mut()
-        .insert("x-request-id", request_id.parse().unwrap());
-
-    response
-}
 
 /// Authentication middleware
 pub async fn auth_middleware(
@@ -542,27 +521,6 @@ pub async fn auth_middleware(
     Ok(next.run(request).await)
 }
 
-/// Extract client IP from headers
-fn extract_ip_from_headers(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(|s| s.trim())
-        .or_else(|| {
-            headers
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.trim())
-        })
-}
-
-/// Extract User-Agent from headers
-fn extract_user_agent_from_headers(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get("user-agent")
-        .and_then(|v| v.to_str().ok())
-}
 
 /// Rate limiting middleware
 pub async fn rate_limit(
@@ -571,7 +529,8 @@ pub async fn rate_limit(
     next: Next,
 ) -> Result<Response, impl IntoResponse> {
     // Get client identifier (IP address or user ID)
-    let client_ip = extract_ip_from_headers(&headers).unwrap_or("unknown");
+    let ctx = lib_common::context::RequestContext::from_headers(&headers);
+    let client_ip = ctx.ip_address.as_deref().unwrap_or("unknown");
 
     // Check rate limit
     {
@@ -608,67 +567,7 @@ pub async fn request_rate_middleware(
     next.run(request).await
 }
 
-/// Request logging middleware
-pub async fn request_logging(request: Request, next: Next) -> Response {
-    let method = request.method().clone();
-    let uri = request.uri().clone();
-    let start_time = Instant::now();
 
-    info!("Incoming request: {} {}", method, uri);
-
-    let response = next.run(request).await;
-
-    let duration = start_time.elapsed();
-    let status = response.status();
-
-    info!(
-        "Request completed: {} {} -> {} ({:.2}ms)",
-        method,
-        uri,
-        status.as_u16(),
-        duration.as_millis()
-    );
-
-    // Log slow requests
-    if duration > Duration::from_millis(1000) {
-        warn!(
-            "Slow request detected: {} {} took {:.2}ms",
-            method,
-            uri,
-            duration.as_millis()
-        );
-    }
-
-    response
-}
-
-/// Security headers middleware
-pub async fn security_headers(request: Request, next: Next) -> Response {
-    let mut response = next.run(request).await;
-
-    // Add security headers
-    let headers = response.headers_mut();
-
-    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
-    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
-    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
-    headers.insert(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains".parse().unwrap(),
-    );
-    headers.insert(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse().unwrap(),
-    );
-    headers.insert(
-        "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
-            .parse()
-            .unwrap(),
-    );
-
-    response
-}
 
 /// Request size limiting middleware
 pub async fn request_size_limit(
@@ -738,27 +637,6 @@ pub async fn audit_logging(request: Request, next: Next) -> Response {
     response
 }
 
-/// CORS preflight handling
-pub async fn cors_preflight(request: Request, next: Next) -> Response {
-    if request.method() == axum::http::Method::OPTIONS {
-        return axum::response::Response::builder()
-            .status(StatusCode::OK)
-            .header("Access-Control-Allow-Origin", "*")
-            .header(
-                "Access-Control-Allow-Methods",
-                "GET, POST, PUT, DELETE, OPTIONS",
-            )
-            .header(
-                "Access-Control-Allow-Headers",
-                "Content-Type, Authorization, X-Request-ID",
-            )
-            .header("Access-Control-Max-Age", "86400")
-            .body(axum::body::Body::empty())
-            .unwrap();
-    }
-
-    next.run(request).await
-}
 
 /// Seal status check middleware
 /// Blocks all secret operations when vault is sealed

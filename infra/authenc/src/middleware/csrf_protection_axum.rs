@@ -4,7 +4,6 @@ use axum::{
     http::{Response, StatusCode},
     middleware::Next,
 };
-use base64::{Engine as _, engine::general_purpose};
 use rand::{Rng, thread_rng};
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -58,7 +57,7 @@ impl CsrfState {
         let mut rng = thread_rng();
         let mut token_bytes = vec![0u8; self.config.token_length];
         rng.fill(&mut token_bytes[..]);
-        general_purpose::URL_SAFE_NO_PAD.encode(&token_bytes)
+        crate::utils::encoding::base64_encode_url(&token_bytes)
     }
 
     /// Validate CSRF token

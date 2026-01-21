@@ -21,3 +21,4 @@ uuid = { workspace = true, features = ["serde", "v4"] }
 chrono = { workspace = true, features = ["serde"] }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+lib-common = { workspace = true, features = ["telemetry", "db"] }

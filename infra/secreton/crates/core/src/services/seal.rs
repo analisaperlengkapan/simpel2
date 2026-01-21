@@ -706,9 +706,7 @@ impl SealService {
     /// Converts string key to share bytes (assumes base64 encoding)
     pub async fn unseal(&self, key: String) -> Result<SealStatus, SealError> {
         // Decode base64 key to bytes
-        use base64::{Engine as _, engine::general_purpose};
-        let share_bytes = general_purpose::STANDARD
-            .decode(&key)
+        let share_bytes = crate::utils::encoding::base64_decode(&key)
             .map_err(|_| SealError::InvalidUnsealKey)?;
         self.unseal_with_share(&share_bytes).await
     }

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::super::*;
     use serde_json::json;
 
     // We can test the parsing logic directly by using the same structs as defined in the module

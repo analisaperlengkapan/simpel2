@@ -5,87 +5,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// SSO session data stored in the cookie
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SsoSession {
-    /// Session ID
-    pub session_id: String,
-
-    /// User ID
-    pub user_id: String,
-
-    /// Username
-    pub username: String,
-
-    /// User email
-    pub email: Option<String>,
-
-    /// User roles
-    pub roles: Vec<String>,
-
-    /// Session creation timestamp
-    pub created_at: DateTime<Utc>,
-
-    /// Session expiration timestamp
-    pub expires_at: DateTime<Utc>,
-
-    /// Client IP address
-    pub ip_address: Option<String>,
-
-    /// User agent
-    pub user_agent: Option<String>,
-}
-
-impl SsoSession {
-    /// Create a new SSO session
-    pub fn new(
-        user_id: String,
-        username: String,
-        email: Option<String>,
-        roles: Vec<String>,
-        max_age_seconds: i64,
-        ip_address: Option<String>,
-        user_agent: Option<String>,
-    ) -> Self {
-        let now = Utc::now();
-        let expires_at = now + Duration::seconds(max_age_seconds);
-
-        Self {
-            session_id: Uuid::new_v4().to_string(),
-            user_id,
-            username,
-            email,
-            roles,
-            created_at: now,
-            expires_at,
-            ip_address,
-            user_agent,
-        }
-    }
-
-    /// Check if the session is expired
-    pub fn is_expired(&self) -> bool {
-        Utc::now() > self.expires_at
-    }
-
-    /// Check if the session is valid
-    pub fn is_valid(&self) -> bool {
-        !self.is_expired()
-    }
-
-    /// Serialize session to JSON string
-    pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string(self)
-            .map_err(|e| AuthencError::internal(format!("Failed to serialize SSO session: {}", e)))
-    }
-
-    /// Deserialize session from JSON string
-    pub fn from_json(json: &str) -> Result<Self> {
-        serde_json::from_str(json).map_err(|e| {
-            AuthencError::internal(format!("Failed to deserialize SSO session: {}", e))
-        })
-    }
-}
+pub use lib_common::auth::SsoSession;
 
 /// SSO Cookie Manager for secure cookie operations
 pub struct SsoCookieManager {
@@ -103,8 +23,7 @@ impl SsoCookieManager {
         let session_json = session.to_json()?;
 
         // Base64 encode the session data for cookie storage
-        use base64::{Engine as _, engine::general_purpose};
-        let encoded_session = general_purpose::STANDARD.encode(&session_json);
+        let encoded_session = crate::utils::encoding::base64_encode(&session_json);
 
         // Build cookie string with all security attributes
         let mut cookie_parts = vec![
@@ -176,8 +95,7 @@ impl SsoCookieManager {
             let cookie = cookie.trim();
             if let Some(value) = cookie.strip_prefix(&format!("{}=", self.config.name)) {
                 // Decode base64
-                use base64::{Engine as _, engine::general_purpose};
-                let decoded = general_purpose::STANDARD.decode(value).map_err(|e| {
+                let decoded = crate::utils::encoding::base64_decode(value).map_err(|e| {
                     AuthencError::internal(format!("Failed to decode cookie: {}", e))
                 })?;
 
@@ -329,7 +247,6 @@ mod tests {
         assert!(extracted.is_some());
         let extracted_session = extracted.unwrap();
         assert_eq!(extracted_session.user_id, session.user_id);
-        assert_eq!(extracted_session.username, session.username);
     }
 
     #[test]

@@ -51,9 +51,7 @@ impl AuditSignatureService {
 
     /// Create from base64-encoded secret key
     pub fn from_base64(secret_key_b64: &str) -> Result<Self, AuditSignatureError> {
-        use base64::{Engine, engine::general_purpose::STANDARD};
-        let secret_key = STANDARD
-            .decode(secret_key_b64)
+        let secret_key = crate::utils::encoding::base64_decode(secret_key_b64)
             .map_err(|e| AuditSignatureError::InvalidSignatureFormat(e.to_string()))?;
 
         if secret_key.len() < 32 {
@@ -338,10 +336,8 @@ mod tests {
 
     #[test]
     fn test_from_base64() {
-        use base64::{Engine, engine::general_purpose::STANDARD};
-
         let secret_key = b"test_secret_key_32_bytes_long!!!";
-        let secret_key_b64 = STANDARD.encode(secret_key);
+        let secret_key_b64 = crate::utils::encoding::base64_encode(secret_key);
 
         let service = AuditSignatureService::from_base64(&secret_key_b64).unwrap();
 

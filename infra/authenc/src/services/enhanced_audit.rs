@@ -6,7 +6,7 @@ use crate::models::events::{AdminEvent, Event};
 use crate::services::audit_signature::AuditSignatureService;
 use crate::utils::{
     geolocation::{GeolocationData, GeolocationService, SimpleGeolocationService},
-    payload_sanitizer::{SanitizerConfig, sanitize_payload},
+    sanitizer::{SanitizerConfig, sanitize_payload},
     request_context::RequestContext,
 };
 use axum::http::HeaderMap;
@@ -132,11 +132,9 @@ impl EnhancedAuditService {
             }
         }
 
-        if let Some(ref req_id) = context.request_context.request_id {
-            event
-                .details
-                .insert("correlation_id".to_string(), req_id.clone());
-        }
+        event
+            .details
+            .insert("correlation_id".to_string(), context.request_context.request_id.to_string());
 
         debug!(
             "Logging enhanced user event: type={}, user_id={:?}, ip={:?}",

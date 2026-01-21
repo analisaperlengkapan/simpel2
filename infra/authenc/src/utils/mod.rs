@@ -82,9 +82,14 @@ pub mod request_context;
 pub mod geolocation;
 
 /// Payload sanitization utilities for audit logging
-/// Sanitizes request/response payloads by removing PII and sensitive data.
-/// Ensures compliance with data protection regulations in audit logs.
-pub mod payload_sanitizer;
+pub mod sanitizer {
+    pub use lib_common::sanitizer::*;
+}
+
+/// Encoding utilities
+pub mod encoding {
+    pub use lib_common::encoding::*;
+}
 
 // Re-exports for convenience
 pub use auth_context::*;
@@ -93,7 +98,7 @@ pub use connection_pool::*;
 pub use geolocation::*;
 pub use i18n::*;
 pub use memory::*;
-pub use payload_sanitizer::*;
+pub use sanitizer::*;
 pub use request_context::*;
 pub use sso_cookie::*;
 pub use validation::*;

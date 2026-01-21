@@ -10,6 +10,7 @@ members = [
 
     # Shared Libraries
     "lib/ui",
+    "lib/common",
 
 
     # Frontend Microfrontends (Leptos)
@@ -44,30 +45,16 @@ members = [
     "layanan/pembinaan/perencanaan",
 
     # Backend Shared Layanan (Daskrimti)
+    "layanan/daskrimti/portal",
     "layanan/daskrimti/ai",
     "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dasbor",
     "layanan/daskrimti/dokumen",
     "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/konfigurasi",
-    "layanan/daskrimti/laporan",
     "layanan/daskrimti/notifikasi",
 
-    # Infrastructure - Authenc (IAM Service)
-    "infra/authenc",
-
-    # Infrastructure - Secreton (Secret Management)
-    "infra/secreton",
-    "infra/secreton/crates/types",
-    "infra/secreton/crates/core",
-    "infra/secreton/crates/crypto",
-    "infra/secreton/crates/storage",
-    "infra/secreton/crates/api",
-    "infra/secreton/crates/agent",
-    "infra/secreton/crates/cli",
-    "infra/secreton/crates/hsm",
-    "infra/secreton/crates/grpc",
-    "infra/secreton/crates/k8s-operator",
+    # NOTE: infra/authenc and infra/secreton are SEPARATE WORKSPACES
+    # They have their own Cargo.toml and Cargo.lock files
+    # DO NOT add them as workspace members here!
 ]
 
 default-members = [
@@ -79,10 +66,7 @@ default-members = [
     "layanan/pembinaan/perlengkapan",
     "layanan/pembinaan/perencanaan",
     "layanan/daskrimti/bantuan",
-    "layanan/daskrimti/dasbor",
     "layanan/daskrimti/integrasi",
-    "layanan/daskrimti/konfigurasi",
-    "layanan/daskrimti/laporan",
     "layanan/daskrimti/notifikasi",
 ]
 
@@ -181,6 +165,7 @@ proc-macro2 = "1.0.103"
 
 # Frontend Shared Dependencies
 shared-microfrontend = { path = "lib/ui" }
+lib-common = { path = "lib/common" }
 regex = "1.11"
 urlencoding = "2.1"
 
@@ -495,17 +480,9 @@ proptest = { version = "1.8.0", default-features = false, features = ["std"] }
 pretty_assertions = "1.4.1"
 rustc_version = "0.4"
 
-# Secreton Inter-crate Dependencies
-secreton-types = { path = "infra/secreton/crates/types" }
-secreton-core = { path = "infra/secreton/crates/core" }
-secreton-crypto = { path = "infra/secreton/crates/crypto" }
-secreton-storage = { path = "infra/secreton/crates/storage" }
-secreton-api = { path = "infra/secreton/crates/api" }
-secreton-hsm = { path = "infra/secreton/crates/hsm" }
-secreton-grpc = { path = "infra/secreton/crates/grpc" }
-secreton-agent = { path = "infra/secreton/crates/agent" }
-secreton-cli = { path = "infra/secreton/crates/cli" }
-secreton-k8s-operator = { path = "infra/secreton/crates/k8s-operator" }
+# NOTE: Secreton and Authenc inter-crate dependencies should NOT be here
+# They are separate workspaces with their own dependency management
+# If main workspace crates need to communicate with them, use gRPC
 
 [workspace.metadata.leptos]
 # Leptos configuration for all frontend projects

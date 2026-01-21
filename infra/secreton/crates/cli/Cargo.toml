@@ -30,6 +30,7 @@ flate2.workspace = true
 aes-gcm.workspace = true
 argon2.workspace = true
 urlencoding.workspace = true
+lib-common = { path = "../../../../lib/common", features = ["telemetry"] }
 
 [dev-dependencies]
 tempfile.workspace = true

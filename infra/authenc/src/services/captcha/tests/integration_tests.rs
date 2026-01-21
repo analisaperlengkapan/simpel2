@@ -32,7 +32,7 @@ impl MockSecretonClient {
         }
 
         // Simple mock encryption
-        Ok(base64::encode(data))
+        Ok(crate::utils::encoding::base64_encode(data))
     }
 
     pub async fn decrypt(&self, encrypted_data: &str) -> Result<String, String> {
@@ -43,7 +43,7 @@ impl MockSecretonClient {
         }
 
         // Simple mock decryption
-        base64::decode(encrypted_data)
+        crate::utils::encoding::base64_decode(encrypted_data)
             .map_err(|e| e.to_string())
             .and_then(|bytes| String::from_utf8(bytes).map_err(|e| e.to_string()))
     }

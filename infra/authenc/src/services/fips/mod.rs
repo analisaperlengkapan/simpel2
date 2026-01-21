@@ -1,7 +1,6 @@
 use crate::error::AuthencError;
 use anyhow::Result;
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -647,7 +646,8 @@ impl FipsKeyStoreManager {
 
         let encrypted = aes_service.encrypt(secret.as_bytes())?;
         let encrypted_json = serde_json::to_string(&encrypted)?;
-        let encrypted_b64 = BASE64.encode(encrypted_json.as_bytes());
+        let encrypted_json_bytes = encrypted_json.as_bytes();
+        let encrypted_b64 = crate::utils::encoding::base64_encode(encrypted_json_bytes);
 
         secrets.insert(alias.to_string(), encrypted_b64);
 
@@ -673,7 +673,7 @@ impl FipsKeyStoreManager {
 
         if let Some(encrypted_b64) = secrets.get(alias) {
             // Decrypt the secret
-            let encrypted_json_bytes = BASE64.decode(encrypted_b64)?;
+            let encrypted_json_bytes = crate::utils::encoding::base64_decode(encrypted_b64)?;
             let encrypted_json = String::from_utf8(encrypted_json_bytes)?;
 
             use crate::crypto::aes_gcm::{AesGcmService, EncryptedData};

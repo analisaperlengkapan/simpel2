@@ -432,8 +432,8 @@ impl ServiceContainer {
     /// Initialize optional services (HSM, MFA)
     async fn initialize_optional_services(
         config: &ApiConfig,
-        storage: Arc<dyn StorageBackend + Send + Sync>,
-        crypto: Arc<CryptoEngine>,
+        _storage: Arc<dyn StorageBackend + Send + Sync>,
+        _crypto: Arc<CryptoEngine>,
         totp_engine: Arc<TotpEngine>,
     ) -> (
         Option<Arc<HsmBackend>>,
@@ -478,8 +478,6 @@ impl ServiceContainer {
 
         // Initialize MFA service with shared TotpEngine
         let mfa = Arc::new(crate::services::mfa::MfaService::with_totp_engine(
-            storage,
-            crypto,
             totp_engine,
         ));
         tracing::info!("✅ MFA service initialized with shared TotpEngine");
@@ -759,8 +757,6 @@ impl ServiceContainer {
 
         // Initialize MFA service with shared TotpEngine
         let mfa = Arc::new(crate::services::mfa::MfaService::with_totp_engine(
-            storage.clone(),
-            crypto.clone(),
             totp_engine.clone(),
         ));
         tracing::info!("✅ MFA service initialized with shared TotpEngine (mock mode)");

@@ -3,7 +3,6 @@
 // https://www.w3.org/TR/xmldsig-core/
 
 use anyhow::{Result, anyhow};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use chrono::{DateTime, Utc};
 use openssl::hash::{Hasher, MessageDigest};
 use openssl::ocsp::{OcspCertId, OcspCertStatus, OcspRequest, OcspResponse, OcspResponseStatus};
@@ -310,8 +309,7 @@ impl XmlSignature {
                             in_reference = false;
                             // Parse digest method and value
                             current_ref.digest_method = DigestMethod::from_uri(&digest_method_uri)?;
-                            current_ref.digest_value = BASE64
-                                .decode(digest_value_text.trim())
+                            current_ref.digest_value = crate::utils::encoding::base64_decode(digest_value_text.trim())
                                 .map_err(|e| anyhow!("Failed to decode digest value: {}", e))?;
                             references.push(current_ref.clone());
                             digest_value_text.clear();
@@ -361,8 +359,7 @@ impl XmlSignature {
         let signature_method = SignatureMethod::from_uri(&sig_method)?;
 
         // Decode signature value
-        let signature_bytes = BASE64
-            .decode(signature_value.trim())
+        let signature_bytes = crate::utils::encoding::base64_decode(signature_value.trim())
             .map_err(|e| anyhow!("Failed to decode signature value: {}", e))?;
 
         // Extract raw SignedInfo XML for verification (simplified)

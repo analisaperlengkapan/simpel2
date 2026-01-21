@@ -164,14 +164,8 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging
-    let level = if cli.verbose {
-        Level::DEBUG
-    } else {
-        Level::INFO
-    };
-    let subscriber = FmtSubscriber::builder().with_max_level(level).finish();
-
-    tracing::subscriber::set_global_default(subscriber)?;
+    let level = if cli.verbose { "debug" } else { "info" };
+    lib_common::telemetry::init_subscriber(level);
 
     // Load configuration with precedence: flag > env > config file > default
     let mut config = if let Some(config_path) = &cli.config {

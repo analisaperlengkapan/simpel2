@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::utils::{base64_decode, base64_encode};
+use crate::utils::encoding::{base64_decode, base64_encode};
 
 /// Error types for transit engine
 #[derive(Debug, thiserror::Error)]

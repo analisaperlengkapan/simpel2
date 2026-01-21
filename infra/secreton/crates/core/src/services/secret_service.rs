@@ -1,7 +1,6 @@
 //! Secret service for business logic operations.
 
 use anyhow::Result;
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -337,7 +336,7 @@ impl SecretService {
         // Serialize encrypted data to JSON then base64
         let json_data = serde_json::to_vec(&encrypted_data)
             .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
-        let ciphertext = base64::engine::general_purpose::STANDARD.encode(&json_data);
+        let ciphertext = crate::utils::encoding::base64_encode(&json_data);
 
         Ok(EncryptResult {
             ciphertext,
@@ -371,8 +370,7 @@ impl SecretService {
             .await;
 
         // Decode base64
-        let json_bytes = base64::engine::general_purpose::STANDARD
-            .decode(ciphertext)
+        let json_bytes = crate::utils::encoding::base64_decode(ciphertext)
             .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Deserialize encrypted data
@@ -572,7 +570,7 @@ impl SecretService {
         // Use SHA-256 hash as signature (simplified implementation)
         // In production, use proper Ed25519 or ECDSA signing
         let hash = secreton_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
-        let signature = base64::engine::general_purpose::STANDARD.encode(&hash.hash);
+        let signature = crate::utils::encoding::base64_encode(&hash.hash);
 
         Ok(SignResult {
             signature,
@@ -608,8 +606,7 @@ impl SecretService {
             .await;
 
         // Decode signature
-        let signature_bytes = base64::engine::general_purpose::STANDARD
-            .decode(signature)
+        let signature_bytes = crate::utils::encoding::base64_decode(signature)
             .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
 
         // Compute hash and compare (simplified implementation)

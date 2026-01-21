@@ -51,11 +51,6 @@ pub mod rbac_axum;
 /// Automatically negotiates compression based on client capabilities.
 pub mod compression_axum;
 
-/// Cross-Origin Resource Sharing (CORS) middleware for Axum
-/// Handles CORS headers for cross-origin requests.
-/// Configurable allowed origins, methods, and headers.
-/// Essential for web applications making cross-origin API calls.
-pub mod cors_axum;
 
 /// Input validation middleware for Axum
 /// Validates and sanitizes incoming request data.
@@ -69,11 +64,6 @@ pub mod input_validation_axum;
 /// TLS termination and forward certificate information via headers.
 pub mod mtls;
 
-/// Security headers middleware for Axum
-/// Adds security-related HTTP headers to responses.
-/// Implements security best practices including CSP, HSTS, and XSS protection.
-/// Helps prevent common web vulnerabilities and attacks.
-pub mod security_headers_axum;
 
 /// CSRF protection middleware for Axum
 /// Prevents Cross-Site Request Forgery attacks.
@@ -87,11 +77,6 @@ pub mod csrf_protection_axum;
 /// Integrates with audit logging for compliance and forensics.
 pub mod security_monitoring_axum;
 
-/// Request timeout middleware for Axum
-/// Enforces request timeouts to prevent resource exhaustion.
-/// Configurable timeout durations per endpoint.
-/// Helps maintain system responsiveness and prevents hanging requests.
-pub mod timeout_axum;
 
 /// MFA-specific rate limiting middleware for Axum
 /// Implements specialized rate limiting for MFA operations including:
@@ -131,16 +116,13 @@ pub use adaptive_rate_limit_integration::{
 };
 
 pub use compression_axum::{ContentEncoding, compression_middleware};
-pub use cors_axum::{cors_layer, cors_middleware};
 pub use csrf_protection_axum::{
     CsrfConfig, CsrfState, csrf_protection_middleware, generate_csrf_token_response,
 };
 pub use input_validation_axum::{InputValidationConfig, input_validation_middleware};
-pub use security_headers_axum::security_headers_middleware;
 pub use security_monitoring_axum::{
     SecurityMonitoringConfig, SecurityMonitoringState, security_monitoring_middleware,
 };
-pub use timeout_axum::{TimeoutLayer, TimeoutMiddleware};
 
 // Re-exports for convenience
 pub use auth_middleware_axum::{AuthState, auth_middleware};

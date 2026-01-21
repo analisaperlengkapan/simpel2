@@ -8,8 +8,6 @@ use crate::secreton_client::SecretonClientTrait;
 use crate::secreton_client::SecretonError as VaultError;
 use crate::secreton_client::secreton_client::SecretonClient;
 use async_trait::async_trait;
-use base64;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -122,7 +120,7 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
             })?;
 
         // Encode ciphertext as base64
-        let ciphertext_b64 = BASE64.encode(&ciphertext_bytes);
+        let ciphertext_b64 = crate::utils::encoding::base64_encode(&ciphertext_bytes);
 
         Ok(EncryptedChallengeData {
             ciphertext: ciphertext_b64,
@@ -138,7 +136,7 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
         context: &SecurityContext,
     ) -> Result<String, CaptchaError> {
         // Decode base64 ciphertext
-        let ciphertext_bytes = BASE64.decode(&encrypted_data.ciphertext).map_err(|e| {
+        let ciphertext_bytes = crate::utils::encoding::base64_decode(&encrypted_data.ciphertext).map_err(|e| {
             CaptchaError::SecreonUnavailable {
                 message: format!("Invalid base64 ciphertext: {}", e),
                 fallback_available: false,

@@ -60,6 +60,7 @@ tokio-stream = { workspace = true }
 base64 = { workspace = true }
 captcha = { workspace = true }
 moka = { version = "0.12", features = ["future"] }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
@@ -77,3 +78,4 @@ webhook = []
 [[bin]]
 name = "simpelv2-bantuan"
 path = "src/main.rs"
+

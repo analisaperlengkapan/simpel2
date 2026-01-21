@@ -314,7 +314,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::utils::base64_encode;
+use crate::utils::encoding::base64_encode;
 
 /// Common SDK configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

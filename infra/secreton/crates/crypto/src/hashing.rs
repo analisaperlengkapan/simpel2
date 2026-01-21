@@ -187,35 +187,33 @@ pub mod password {
         pub iterations: u32,
     }
 
-    /// Hash password with Argon2id
+    /// Hash password with Argon2id using lib-common
     pub fn hash_password_argon2(password: &str) -> CryptoResult<PasswordHashResult> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
+        let hash = lib_common::crypto::password::hash_password(password).map_err(|e| {
+            CryptoError::HashFailed(format!("Argon2 password hashing failed: {}", e))
+        })?;
 
-        let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| {
-                CryptoError::HashFailed(format!("Argon2 password hashing failed: {}", e))
-            })?;
+        let parsed_hash = PasswordHash::new(&hash).map_err(|e| {
+            CryptoError::HashFailed(format!("Invalid password hash format: {}", e))
+        })?;
+
+        let salt_str = parsed_hash
+            .salt
+            .ok_or_else(|| CryptoError::HashFailed("Salt missing in hash".to_string()))?;
 
         Ok(PasswordHashResult {
             algorithm: AlgorithmId::Argon2id,
-            hash: password_hash.to_string(),
-            salt: salt.as_str().as_bytes().to_vec(),
-            iterations: 3, // Default Argon2 iterations
+            hash,
+            salt: salt_str.as_str().as_bytes().to_vec(),
+            iterations: 10, // Default t_cost from lib_common::crypto::password
         })
     }
 
-    /// Verify password with Argon2id
+    /// Verify password with Argon2id using lib-common
     pub fn verify_password_argon2(password: &str, hash: &str) -> CryptoResult<bool> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| CryptoError::HashFailed(format!("Invalid password hash format: {}", e)))?;
-
-        let argon2 = Argon2::default();
-        match argon2.verify_password(password.as_bytes(), &parsed_hash) {
-            Ok(()) => Ok(true),
-            Err(_) => Ok(false),
-        }
+        lib_common::crypto::password::verify_password(hash, password).map_err(|e| {
+            CryptoError::HashFailed(format!("Password verification failed: {}", e))
+        })
     }
 
     /// Hash password with PBKDF2

@@ -1,9 +1,7 @@
 use axum::{
-    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde_json::json;
 use thiserror::Error;
 use tracing::error;
 
@@ -26,6 +24,17 @@ pub enum AppError {
     Authentication(String),
     #[error("Authorization error: {0}")]
     Authorization(String),
+}
+
+impl From<(StatusCode, String)> for AppError {
+    fn from((status, msg): (StatusCode, String)) -> Self {
+        match status {
+            StatusCode::UNAUTHORIZED => AppError::Authentication(msg),
+            StatusCode::FORBIDDEN => AppError::Authorization(msg),
+            StatusCode::BAD_REQUEST => AppError::BadRequest(msg),
+            _ => AppError::Internal,
+        }
+    }
 }
 
 impl IntoResponse for AppError {
@@ -56,10 +65,11 @@ impl IntoResponse for AppError {
             AppError::Authorization(msg) => (StatusCode::FORBIDDEN, msg.clone()),
         };
 
-        let body = Json(json!({
-            "error": message
-        }));
+        let api_error = lib_common::error::ApiError {
+            message,
+            code: None, // We can add specific error codes later
+        };
 
-        (status, body).into_response()
+        (status, axum::Json(api_error)).into_response()
     }
 }

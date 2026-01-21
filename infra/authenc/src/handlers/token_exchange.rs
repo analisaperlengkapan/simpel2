@@ -187,9 +187,7 @@ async fn extract_client_credentials(
             .strip_prefix("Basic ")
             .ok_or_else(|| AuthencError::validation("Invalid Basic auth format"))?;
 
-        use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(encoded)
+        let decoded = crate::utils::encoding::base64_decode(encoded)
             .map_err(|_| AuthencError::validation("Invalid base64 encoding in Authorization"))?;
 
         let credentials = String::from_utf8(decoded)
@@ -376,7 +374,7 @@ mod tests {
         use axum::http::header::AUTHORIZATION;
 
         let mut headers = HeaderMap::new();
-        let credentials = base64::encode("test_client:test_secret");
+        let credentials = crate::utils::encoding::base64_encode("test_client:test_secret");
         headers.insert(
             AUTHORIZATION,
             format!("Basic {}", credentials).parse().unwrap(),

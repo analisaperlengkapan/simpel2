@@ -49,9 +49,5 @@ pub struct Statistik {
     pub perlu_perbaikan: i32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: Option<T>,
-    pub message: String,
-}
+// Re-export response type from lib_common
+pub use lib_common::models::response::ApiResponse;

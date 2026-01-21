@@ -7,28 +7,24 @@ mod models;
 
 use crate::config::AppConfig;
 use axum::{Router, routing::get};
-use deadpool_postgres::{Config, Runtime};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new("info"))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Shared Telemetry
+    lib_common::telemetry::init_subscriber("info");
 
     // Configuration
     let config = AppConfig::from_env();
 
-    // Database Pool
-    let mut db_cfg = Config::new();
-    db_cfg.url = Some(config.database_url.clone());
-    let pool = db_cfg
-        .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
-        .expect("Failed to create pool");
+    // Standardized Database Pool
+    let db_config = lib_common::db::DbConfig {
+        url: config.database_url.clone(),
+        max_size: 10, // Default for small services
+    };
+    let pool = lib_common::db::create_postgres_pool(db_config)
+        .expect("Failed to create database pool");
 
     // Initialize Database
     if let Err(e) = database::init_db(&pool).await {
@@ -62,6 +58,15 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn health_check() -> &'static str {
-    "Keuangan Service OK"
+async fn health_check() -> impl axum::response::IntoResponse {
+    let mut report = lib_common::health::HealthReport::new("keuangan", env!("CARGO_PKG_VERSION"));
+
+    // In a real scenario, we'd check DB health here
+    report.add_check(lib_common::health::ComponentCheck {
+        component: "database".to_string(),
+        status: lib_common::health::ServiceStatus::Healthy,
+        message: None,
+    });
+
+    axum::Json(report)
 }

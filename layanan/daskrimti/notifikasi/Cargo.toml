@@ -44,6 +44,7 @@ tokio-stream = { workspace = true }
 base64 = { workspace = true }
 mockall = { workspace = true }
 dashmap = { workspace = true }
+lib-common = { workspace = true, features = ["telemetry", "db"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -57,3 +58,4 @@ tempfile = { workspace = true }
 default = []
 whatsapp = []
 push = []
+
