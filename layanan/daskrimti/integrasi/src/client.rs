@@ -389,7 +389,7 @@ impl MonsaktiClient {
             ));
         }
 
-        let new_token = result[0].token.clone();
+        let new_token = result.remove(0).token;
 
         // Update token internal cache dengan token baru
         self.current_tokens
