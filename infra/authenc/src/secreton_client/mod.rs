@@ -161,9 +161,11 @@ pub type Vault = dyn SecretonClientTrait;
 pub type VaultError = SecretonError;
 
 // Secreton client (custom Rust-based secret manager) - primary integration
+#[cfg(feature = "grpc")]
 pub mod grpc_client;
 pub mod secreton_client;
 
+#[cfg(feature = "grpc")]
 pub use grpc_client::GrpcSecretonClient;
 
 // ...existing code for provider modules will be implemented separately...

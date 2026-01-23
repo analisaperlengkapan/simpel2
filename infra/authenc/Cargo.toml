@@ -150,6 +150,7 @@ redis = { version = "0.32.7", features = [
     "connection-manager",
     "json",
 ] }
+lru = "0.12"
 
 # Serialization & Data
 uuid = { version = "1.11.1", features = ["v4", "serde", "js"] }

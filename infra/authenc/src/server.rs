@@ -62,16 +62,24 @@ impl DualServer {
         };
 
         // Start gRPC server if enabled
-        let grpc_handle = if self.state.config.server.grpc_enabled {
-            let state = self.state.clone();
-            let addr = self.grpc_addr;
-            let shutdown_rx = shutdown_tx.subscribe();
+        let grpc_handle: Option<tokio::task::JoinHandle<()>> = if self.state.config.server.grpc_enabled {
+            #[cfg(feature = "grpc")]
+            {
+                let state = self.state.clone();
+                let addr = self.grpc_addr;
+                let shutdown_rx = shutdown_tx.subscribe();
 
-            Some(tokio::spawn(async move {
-                if let Err(e) = run_grpc_server(state, addr, shutdown_rx).await {
-                    error!("gRPC server error: {}", e);
-                }
-            }))
+                Some(tokio::spawn(async move {
+                    if let Err(e) = run_grpc_server(state, addr, shutdown_rx).await {
+                        error!("gRPC server error: {}", e);
+                    }
+                }))
+            }
+            #[cfg(not(feature = "grpc"))]
+            {
+                error!("gRPC server enabled in config but compiled without grpc feature");
+                None
+            }
         } else {
             None
         };
@@ -148,10 +156,11 @@ async fn run_http_server(
 }
 
 /// Run the gRPC server
+#[cfg(feature = "grpc")]
 async fn run_grpc_server(
     state: Arc<AppState>,
     addr: SocketAddr,
-    shutdown_rx: broadcast::Receiver<()>,
+    _shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
     use crate::grpc::{GrpcConfig, create_grpc_server};
 
