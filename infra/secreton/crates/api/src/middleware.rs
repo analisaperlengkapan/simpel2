@@ -420,7 +420,16 @@ pub async fn auth_middleware(
 ) -> Result<Response, AuthError> {
     // Skip auth for health/status endpoints
     let path = request.uri().path();
-    if path == "/health" || path == "/version" || path.starts_with("/health") {
+    if path == "/health"
+        || path == "/version"
+        || path.starts_with("/health")
+        || path == "/v1/sys/seal-status"
+        || path == "/api/v1/sys/seal-status"
+        || path == "/v1/sys/unseal"
+        || path == "/api/v1/sys/unseal"
+        || path == "/v1/sys/init"
+        || path == "/api/v1/sys/init"
+    {
         return Ok(next.run(request).await);
     }
 
