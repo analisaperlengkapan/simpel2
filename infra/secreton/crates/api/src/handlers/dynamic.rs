@@ -304,9 +304,8 @@ pub async fn create_database_role(
 pub async fn list_database_roles(
     State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    // TODO: Implement role listing in database engine
-    // For now, return empty list
-    Ok(Json(ApiResponse::success(vec![])))
+    let roles = state.database_engine.list_roles().await;
+    Ok(Json(ApiResponse::success(roles)))
 }
 
 /// Get database role details
@@ -565,5 +564,68 @@ mod tests {
         assert_eq!(default_max_idle(), 2);
         assert_eq!(default_max_lifetime(), 3600);
         assert_eq!(default_verify(), true);
+    }
+
+    #[tokio::test]
+    async fn test_list_database_roles() {
+        use crate::services::ServiceContainer;
+        use deadpool_postgres::{Config, Runtime};
+        use secreton_storage::MemoryBackend;
+        use std::sync::Arc;
+        use tokio_postgres::NoTls;
+
+        // Setup dependencies
+        let storage = Arc::new(MemoryBackend::new());
+
+        let mut cfg = Config::new();
+        cfg.url = Some("postgresql://dummy:dummy@localhost:5432/dummy".to_string());
+        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+
+        let container = ServiceContainer::new_mock(storage, pool);
+        let state = Arc::new(container);
+
+        // Configure a connection (must be done before creating a role)
+        // verify_connection = false to avoid actual connection attempt
+        let connection = DatabaseConnection {
+            name: "test-db".to_string(),
+            db_type: DatabaseType::PostgreSQL,
+            connection_url: "postgresql://localhost/test".to_string(),
+            verify_connection: false,
+            ..Default::default()
+        };
+
+        state
+            .database_engine
+            .configure_connection(connection)
+            .await
+            .unwrap();
+
+        // Create a role directly in the engine
+        let role = DatabaseRole {
+            name: "test-role".to_string(),
+            db_name: "test-db".to_string(),
+            default_ttl: 3600,
+            max_ttl: 86400,
+            creation_statements: vec!["CREATE USER {{username}}".to_string()],
+            revocation_statements: vec!["DROP USER {{username}}".to_string()],
+            rotation_statements: vec![],
+            renew_statements: vec![],
+        };
+        state.database_engine.create_role(role).await.unwrap();
+
+        // Call the handler
+        let result = list_database_roles(State(state.clone())).await;
+
+        assert!(result.is_ok());
+        let Json(response) = result.unwrap();
+        assert!(response.success);
+        let data = response.data.unwrap();
+
+        // Assert that "test-role" is present
+        assert!(
+            data.contains(&"test-role".to_string()),
+            "Role list should contain test-role, found: {:?}",
+            data
+        );
     }
 }
