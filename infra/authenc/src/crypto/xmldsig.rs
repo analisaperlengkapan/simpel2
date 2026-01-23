@@ -858,7 +858,7 @@ impl CertificateValidator {
     pub async fn validate_with_revocation(
         &self,
         cert: &X509,
-        crl_manager: Option<&mut CrlManager>,
+        crl_manager: Option<&CrlManager>,
     ) -> Result<CertificateValidationResult> {
         // First do standard validation (chain + expiration)
         let validation_result = self.validate_certificate(cert)?;
@@ -1240,7 +1240,7 @@ impl CrlManager {
     }
 
     /// Check if a certificate has been revoked
-    pub async fn check_revocation(&mut self, cert: &X509) -> Result<RevocationStatus> {
+    pub async fn check_revocation(&self, cert: &X509) -> Result<RevocationStatus> {
         // Extract CRL distribution points from certificate
         let crl_urls = self.extract_crl_distribution_points(cert)?;
 
@@ -1266,7 +1266,7 @@ impl CrlManager {
 
     /// Check revocation status using a specific CRL URL
     async fn check_revocation_with_crl(
-        &mut self,
+        &self,
         cert: &X509,
         crl_url: &str,
     ) -> Result<RevocationStatus> {
@@ -1278,7 +1278,7 @@ impl CrlManager {
     }
 
     /// Get a CRL (from cache or download)
-    async fn get_crl(&mut self, url: &str) -> Result<X509Crl> {
+    async fn get_crl(&self, url: &str) -> Result<X509Crl> {
         // Check cache first
         let crl_bytes = {
             let cache = self.cache.lock().unwrap();
@@ -1494,7 +1494,7 @@ impl CrlManager {
     }
 
     /// Clear the CRL cache
-    pub fn clear_cache(&mut self) {
+    pub fn clear_cache(&self) {
         let mut cache = self.cache.lock().unwrap();
         cache.clear();
         tracing::info!("Cleared CRL cache");
@@ -1570,7 +1570,7 @@ pub enum OcspStatus {
 pub struct OcspClient {
     /// HTTP client for OCSP requests
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    http_client: reqwest::blocking::Client,
+    http_client: reqwest::Client,
 
     /// Cache of OCSP responses (cert_id -> (response, expiration))
     response_cache: Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>,
@@ -1590,7 +1590,7 @@ impl OcspClient {
     /// - HTTP timeout: 10 seconds
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     pub fn new() -> Result<Self> {
-        let http_client = reqwest::blocking::ClientBuilder::new()
+        let http_client = reqwest::ClientBuilder::new()
             .timeout(Duration::from_secs(10))
             .build()
             .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))?;
@@ -1606,7 +1606,7 @@ impl OcspClient {
     /// Create an OCSP client with custom configuration
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
     pub fn with_config(cache_duration: Duration, timeout: Duration) -> Result<Self> {
-        let http_client = reqwest::blocking::ClientBuilder::new()
+        let http_client = reqwest::ClientBuilder::new()
             .timeout(timeout)
             .build()
             .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))?;
@@ -1628,7 +1628,7 @@ impl OcspClient {
     /// 4. Parse and verify OCSP response
     /// 5. Return certificate status
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    pub fn check_status(&mut self, cert: &X509, issuer: &X509) -> Result<OcspStatus> {
+    pub async fn check_status(&self, cert: &X509, issuer: &X509) -> Result<OcspStatus> {
         // Extract OCSP responder URL from certificate
         let ocsp_url = self.extract_ocsp_url(cert)?;
 
@@ -1642,7 +1642,7 @@ impl OcspClient {
         let request_der = self.build_ocsp_request(cert, issuer)?;
 
         // Send OCSP request
-        let response_der = self.send_ocsp_request(&ocsp_url, &request_der)?;
+        let response_der = self.send_ocsp_request(&ocsp_url, &request_der).await?;
 
         // Cache the response
         self.cache_response(&cache_key, response_der.clone());
@@ -1721,13 +1721,14 @@ impl OcspClient {
 
     /// Send OCSP request via HTTP POST
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    fn send_ocsp_request(&self, url: &str, request_der: &[u8]) -> Result<Vec<u8>> {
+    async fn send_ocsp_request(&self, url: &str, request_der: &[u8]) -> Result<Vec<u8>> {
         let response = self
             .http_client
             .post(url)
             .header("Content-Type", "application/ocsp-request")
             .body(request_der.to_vec())
             .send()
+            .await
             .map_err(|e| anyhow!("OCSP request failed: {}", e))?;
 
         if !response.status().is_success() {
@@ -1739,6 +1740,7 @@ impl OcspClient {
 
         let response_der = response
             .bytes()
+            .await
             .map_err(|e| anyhow!("Failed to read OCSP response: {}", e))?
             .to_vec();
 
@@ -1844,7 +1846,7 @@ impl OcspClient {
     }
 
     /// Cache OCSP response
-    fn cache_response(&mut self, cache_key: &str, response_der: Vec<u8>) {
+    fn cache_response(&self, cache_key: &str, response_der: Vec<u8>) {
         let mut cache = self.response_cache.lock().unwrap();
         let expiration = SystemTime::now() + self.cache_duration;
         cache.insert(cache_key.to_string(), (response_der, expiration));
@@ -1855,8 +1857,8 @@ impl OcspClient {
     /// Use this when the certificate doesn't have an AIA extension
     /// or you want to override the default responder
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    pub fn check_status_with_url(
-        &mut self,
+    pub async fn check_status_with_url(
+        &self,
         cert: &X509,
         issuer: &X509,
         ocsp_url: &str,
@@ -1871,7 +1873,7 @@ impl OcspClient {
         let request_der = self.build_ocsp_request(cert, issuer)?;
 
         // Send OCSP request
-        let response_der = self.send_ocsp_request(ocsp_url, &request_der)?;
+        let response_der = self.send_ocsp_request(ocsp_url, &request_der).await?;
 
         // Cache the response
         self.cache_response(&cache_key, response_der.clone());
@@ -1881,7 +1883,7 @@ impl OcspClient {
     }
 
     /// Clear the OCSP response cache
-    pub fn clear_cache(&mut self) {
+    pub fn clear_cache(&self) {
         let mut cache = self.response_cache.lock().unwrap();
         cache.clear();
     }

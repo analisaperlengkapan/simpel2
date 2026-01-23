@@ -62,7 +62,7 @@ impl DualServer {
         };
 
         // Start gRPC server if enabled
-        let grpc_handle: Option<tokio::task::JoinHandle<()>> = if self.state.config.server.grpc_enabled {
+        let grpc_handle = if self.state.config.server.grpc_enabled {
             #[cfg(feature = "grpc")]
             {
                 let state = self.state.clone();
@@ -77,7 +77,7 @@ impl DualServer {
             }
             #[cfg(not(feature = "grpc"))]
             {
-                error!("gRPC server enabled in config but compiled without grpc feature");
+                tracing::warn!("gRPC enabled in config but binary compiled without 'grpc' feature. gRPC server will NOT start.");
                 None
             }
         } else {
