@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
+use secreton_storage::{SecretEntry, SecurityLevel};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser, handlers::AppState,
@@ -217,7 +218,34 @@ mod tests {
 
     #[tokio::test]
     async fn test_oauth_login_returns_authorization_url() {
-        let server = create_test_server().await;
+        use crate::config::{OAuth2Config, OAuth2Provider};
+
+        let mut config = ApiConfig::default();
+        config.auth.oauth2 = Some(OAuth2Config {
+            providers: vec![OAuth2Provider {
+                name: "github".to_string(),
+                client_id: "test_client_id".to_string(),
+                client_secret: "test_client_secret".to_string(),
+                auth_url: "https://github.com/login/oauth/authorize".to_string(),
+                token_url: "https://github.com/login/oauth/access_token".to_string(),
+                user_info_url: "https://api.github.com/user".to_string(),
+            }],
+            redirect_url: "http://localhost:8200/auth/callback".to_string(),
+            scopes: vec!["read:user".to_string()],
+        });
+
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes()
+            .with_state(services)
+            .layer(axum::middleware::from_fn(mock_auth_middleware));
+
+        let server = TestServer::new(app).expect("Failed to create test server");
+
         let response = server.get("/oauth/github").await;
         response.assert_status_ok();
 
@@ -225,12 +253,12 @@ mod tests {
         assert!(body.success);
         let data = body.data.expect("oauth payload");
         assert_eq!(data["provider"], "github");
-        assert!(
-            data["auth_url"]
-                .as_str()
-                .expect("auth_url should be a string")
-                .contains("https://oauth.provider.com")
-        );
+
+        let auth_url = data["auth_url"].as_str().expect("auth_url string");
+        assert!(auth_url.starts_with("https://github.com/login/oauth/authorize"));
+        assert!(auth_url.contains("client_id=test_client_id"));
+        assert!(auth_url.contains("state="));
+        assert!(auth_url.contains("scope=read%3Auser"));
     }
 }
 
@@ -862,24 +890,82 @@ pub async fn disable_mfa(
 
 /// OAuth login redirect
 pub async fn oauth_login(
-    State(_state): State<AppState>,
-    Path(provider): Path<String>,
+    State(state): State<AppState>,
+    Path(provider_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement OAuth login
     // 1. Validate provider
+    let oauth_config = state.config.auth.oauth2.as_ref().ok_or_else(|| {
+        ApiError::Auth(crate::error::AuthError::Configuration(
+            "OAuth2 is not configured".to_string(),
+        ))
+    })?;
+
+    let provider_config = oauth_config
+        .providers
+        .iter()
+        .find(|p| p.name == provider_name)
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("OAuth provider '{}'", provider_name),
+        })?;
+
     // 2. Generate OAuth state
+    let state_token = uuid::Uuid::new_v4().to_string();
+
     // 3. Build authorization URL
+    let mut url = url::Url::parse(&provider_config.auth_url).map_err(|e| ApiError::Internal {
+        message: format!("Invalid auth URL: {}", e),
+    })?;
+
+    {
+        let mut pairs = url.query_pairs_mut();
+        pairs.append_pair("client_id", &provider_config.client_id);
+        pairs.append_pair("redirect_uri", &oauth_config.redirect_url);
+        pairs.append_pair("state", &state_token);
+        pairs.append_pair("response_type", "code");
+        if !oauth_config.scopes.is_empty() {
+            pairs.append_pair("scope", &oauth_config.scopes.join(" "));
+        }
+    }
+
+    let auth_url = url.to_string();
+
     // 4. Store state for callback verification
+    let storage_path = format!("sys/oauth/states/{}", state_token);
+    let now = chrono::Utc::now();
+    let expires_at = now + chrono::Duration::minutes(10);
 
-    let auth_url = "https://oauth.provider.com/authorize?client_id=123&state=abc".to_string();
-
+    // Store provider name in metadata/data so we know who to verify against in callback if needed
     let data = serde_json::json!({
-        "provider": provider,
-        "auth_url": auth_url,
-        "state": "abc123"
+        "provider": provider_name,
     });
 
-    Ok(Json(ApiResponse::success(data)))
+    // Store as SecretEntry
+    let entry = SecretEntry::new(
+        storage_path,
+        serde_json::to_vec(&data).map_err(|e| ApiError::Internal {
+            message: format!("Serialization failed: {}", e),
+        })?,
+        serde_json::json!({}),
+        SecurityLevel::Internal,
+        "system".to_string(),
+    )
+    .with_expiration(expires_at);
+
+    state
+        .storage
+        .store(&entry)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to store OAuth state: {}", e),
+        })?;
+
+    let response_data = serde_json::json!({
+        "provider": provider_name,
+        "auth_url": auth_url,
+        "state": state_token
+    });
+
+    Ok(Json(ApiResponse::success(response_data)))
 }
 
 /// OAuth callback handler
