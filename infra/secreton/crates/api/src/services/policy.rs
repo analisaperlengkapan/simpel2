@@ -2,8 +2,6 @@
 //!
 //! Handles policy management operations using PostgreSQL storage.
 
-use std::str::FromStr;
-
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -55,6 +53,78 @@ pub struct PolicyService {
 impl PolicyService {
     pub fn new(pool: Pool) -> Self {
         Self { pool }
+    }
+
+    pub async fn list_policy_names(
+        &self,
+        namespace: Option<String>,
+        limit: u32,
+        offset: u32,
+    ) -> Result<(Vec<String>, u64), CoreError> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Database connection error: {}", e),
+                source: None,
+            })?;
+
+        // Build query with filters
+        let mut where_clauses = vec![];
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
+        let mut param_idx = 1;
+
+        if let Some(ns) = namespace {
+            where_clauses.push(format!("namespace = ${}", param_idx));
+            params.push(Box::new(ns));
+            param_idx += 1;
+        }
+
+        let where_clause = if where_clauses.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", where_clauses.join(" AND "))
+        };
+
+        // Convert params to references for query
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+            params.iter().map(|p| p.as_ref() as _).collect();
+
+        // Count total
+        let count_query = format!("SELECT COUNT(*) FROM policies {}", where_clause);
+        let count_row = client
+            .query_one(&count_query, &param_refs)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Internal error: {}", e),
+                source: None,
+            })?;
+        let total: i64 = count_row.get(0);
+
+        let select_query = format!(
+            "SELECT name FROM policies {} ORDER BY name ASC LIMIT ${} OFFSET ${}",
+            where_clause, param_idx, param_idx + 1
+        );
+
+        // Add limit/offset to params
+        let mut query_params = param_refs;
+        let limit_i64 = limit as i64;
+        let offset_i64 = offset as i64;
+        query_params.push(&limit_i64);
+        query_params.push(&offset_i64);
+
+        let rows = client
+            .query(&select_query, &query_params)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: format!("Internal error: {}", e),
+                source: None,
+            })?;
+
+        let names = rows.iter().map(|row| row.get(0)).collect();
+
+        Ok((names, total as u64))
     }
 
     pub async fn list_policies(

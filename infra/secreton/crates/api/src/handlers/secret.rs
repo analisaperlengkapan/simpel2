@@ -1304,15 +1304,13 @@ pub async fn list_policies(
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
     // List policies via service
-    // We fetch all policies (limit 1000) and return just the names to match existing contract
+    // Use optimized list_policy_names (limit 1000 default) to match existing contract
     // This maintains "Vault-like" behavior where listing returns keys/names
-    let (policies, _total) = state
+    let (names, _total) = state
         .policy_service
-        .list_policies(None, None, None, 1000, 0)
+        .list_policy_names(None, 1000, 0)
         .await
         .map_err(ApiError::Core)?;
-
-    let names: Vec<String> = policies.into_iter().map(|p| p.name).collect();
 
     // Audit log (optional for list, but good practice)
     tracing::info!(user = %user.username, count = names.len(), "Listed policies");
