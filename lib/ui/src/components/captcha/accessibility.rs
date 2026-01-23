@@ -7,6 +7,7 @@ use crate::components::forms::Button;
 use crate::core::types::{ButtonSize, ButtonVariant};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use send_wrapper::SendWrapper;
 use wasm_bindgen::JsCast;
 
 /// Audio challenge component for visually impaired users
@@ -268,6 +269,23 @@ pub fn AlternativeInputs(
     let (selected_option, set_selected_option) = signal(None::<String>);
     let (voice_input_active, set_voice_input_active) = signal(false);
 
+    // Store recognition instance for cleanup
+    let recognition_ref = StoredValue::new(None::<SendWrapper<js_sys::Object>>);
+
+    // Cleanup on component unmount
+    on_cleanup(move || {
+        if let Some(wrapped_recognition) = recognition_ref.get_value() {
+            let recognition = wrapped_recognition.take();
+            if let Ok(abort_fn) = js_sys::Reflect::get(&recognition, &"abort".into()) {
+                let _ = js_sys::Reflect::apply(
+                    abort_fn.unchecked_ref(),
+                    &recognition,
+                    &js_sys::Array::new(),
+                );
+            }
+        }
+    });
+
     // Voice input handler
     let start_voice_input = move |_| {
         set_voice_input_active.set(true);
@@ -286,6 +304,11 @@ pub fn AlternativeInputs(
                             recognition_constructor.unchecked_ref(),
                             &js_sys::Array::new(),
                         ) {
+                            // Store reference for cleanup
+                            if let Ok(obj) = recognition.clone().dyn_into::<js_sys::Object>() {
+                                recognition_ref.set_value(Some(SendWrapper::new(obj)));
+                            }
+
                             // Configure recognition
                             let _ = js_sys::Reflect::set(
                                 &recognition,

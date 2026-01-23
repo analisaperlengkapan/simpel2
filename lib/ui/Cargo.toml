@@ -43,6 +43,7 @@ js-sys = { workspace = true }
 gloo = { workspace = true, features = ["timers", "net", "storage"] }
 gloo-timers = { workspace = true }
 gloo-storage = { workspace = true }
+send_wrapper = "0.6"
 urlencoding = "2.1"
 uuid = { workspace = true }
 base64 = { workspace = true }
