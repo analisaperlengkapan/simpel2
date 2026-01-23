@@ -354,6 +354,11 @@ pub async fn mfa_setup(
     let claims = jwt::verify_jwt(temp_token)
         .map_err(|_| AuthencError::unauthorized("Invalid temporary token"))?;
 
+    // Verify token purpose
+    if claims.purpose.as_deref() != Some("mfa_verification") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
+
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
@@ -409,6 +414,11 @@ pub async fn mfa_verify_setup(
     // Verify temporary token
     let claims = jwt::verify_jwt(&req.temp_token)
         .map_err(|_| AuthencError::unauthorized("Invalid temporary token"))?;
+
+    // Verify token purpose
+    if claims.purpose.as_deref() != Some("mfa_verification") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
@@ -478,6 +488,11 @@ pub async fn mfa_verify(
     // Verify temporary token
     let claims = jwt::verify_jwt(&req.temp_token)
         .map_err(|_| AuthencError::unauthorized("Invalid temporary token"))?;
+
+    // Verify token purpose
+    if claims.purpose.as_deref() != Some("mfa_verification") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
