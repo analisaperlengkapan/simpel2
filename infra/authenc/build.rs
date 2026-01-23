@@ -6,6 +6,11 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Skip proto compilation if grpc feature is not enabled
+    if std::env::var("CARGO_FEATURE_GRPC").is_err() {
+        return Ok(());
+    }
+
     // Get the proto directory path
     // Try multiple locations for flexibility:
     // 1. proto/ (for Docker builds)
