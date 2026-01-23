@@ -59,3 +59,4 @@ cfg_aliases = "0.2"
 wasm-bindgen-test = { workspace = true }
 console_error_panic_hook = { workspace = true }
 tokio-test = { workspace = true }
+tokio = { version = "1.47.1", features = ["sync", "macros", "rt"] }

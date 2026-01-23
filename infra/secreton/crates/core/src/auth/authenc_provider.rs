@@ -5,10 +5,10 @@
 //! SIMKARI super app authentication system.
 
 use crate::error::CoreError;
-use crate::utils::encoding::base64_encode;
 use crate::models::auth::UserInfo;
 use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
 use crate::utils::correlation::CorrelationContext;
+use crate::utils::encoding::base64_encode;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -209,12 +209,12 @@ impl PostQuantumValidator {
     pub async fn validate_signature(
         &self,
         signature: &PqSignature,
-        data: &[u8],
+        _data: &[u8],
     ) -> Result<bool, CoreError> {
         match signature {
             PqSignature::MlDsa {
-                signature: sig,
-                public_key,
+                signature: _sig,
+                public_key: _,
             } => {
                 // TODO: Implement ML-DSA signature verification
                 // This would use a post-quantum cryptography library
@@ -222,16 +222,16 @@ impl PostQuantumValidator {
                 Ok(false)
             }
             PqSignature::SphincsPlusShake256 {
-                signature: sig,
-                public_key,
+                signature: _sig,
+                public_key: _,
             } => {
                 // TODO: Implement SPHINCS+ signature verification
                 log::warn!("SPHINCS+ signature validation not yet implemented");
                 Ok(false)
             }
             PqSignature::Hybrid {
-                classical_signature,
-                pq_signature,
+                classical_signature: _,
+                pq_signature: _,
             } => {
                 // TODO: Implement hybrid signature verification
                 // Verify both classical and post-quantum signatures
@@ -538,7 +538,7 @@ impl AuthProvider for AuthencAuthProvider {
         user: &User,
         resource_id: &str,
     ) -> Result<bool, CoreError> {
-        let cache_key = format!("{}:{}", user.id, resource_id);
+        let cache_key = format!("{}::{}", user.id, resource_id);
 
         // Check cache first
         if let Some(cached_result) = self.validation_cache.get(&cache_key).await {

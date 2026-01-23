@@ -1,8 +1,8 @@
-# Secreton Vault Complete Workflow - HashiCorp Vault Best Practices
+# Secreton Secret Vault Complete Workflow - HashiCorp Secret Vault Best Practices
 
 ## Overview
 
-Secreton implements **HashiCorp Vault-compatible** vault initialization and seal/unseal operations using **Shamir Secret Sharing** for secure master key distribution.
+Secreton implements **HashiCorp Secret Vault-compatible** engine initialization and seal/unseal operations using **Shamir Secret Sharing** for secure master key distribution.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ Secreton uses **Shamir's Secret Sharing** scheme:
 
 **Recommended Configuration**: 5-of-3 (5 shares, 3 threshold)
 - Distribute 5 shares to 5 different people/locations
-- Any 3 people can unseal the vault
+- Any 3 people can unseal the engine
 - Protects against loss of 2 shares
 
 ## Complete Workflow
@@ -74,7 +74,7 @@ Response:
 }
 ```
 
-#### 1.3 Initialize Vault
+#### 1.3 Initialize Secret Vault
 ```bash
 curl -X POST http://localhost:8200/v1/sys/init \
   -H "Content-Type: application/json" \
@@ -117,10 +117,10 @@ Response:
    echo "root_token" | gpg --encrypt --recipient admin@company.com > root_token.gpg
    ```
 
-3. **Store in secure vault**:
-   - Use password manager (1Password, LastPass, Vault)
+3. **Store in secure engine**:
+   - Use password manager (1Password, LastPass, Secret Vault)
    - Or use HSM (Hardware Security Module)
-   - Or use cloud KMS (AWS KMS, GCP KMS, Azure Key Vault)
+   - Or use cloud KMS (AWS KMS, GCP KMS, Azure Key Secret Vault)
 
 ### Phase 2: Unsealing (Every Restart)
 
@@ -215,13 +215,13 @@ Response (unsealed):
 
 ### Phase 3: Normal Operations
 
-Once unsealed, vault is ready for operations:
+Once unsealed, engine is ready for operations:
 
 #### 3.1 Create Secret
 ```bash
 curl -X POST http://localhost:8200/v1/secret/my-app/db \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: root_token" \
+  -H "X-Secret Vault-Token: root_token" \
   -d '{
     "data": {
       "username": "admin",
@@ -235,7 +235,7 @@ curl -X POST http://localhost:8200/v1/secret/my-app/db \
 #### 3.2 Read Secret
 ```bash
 curl http://localhost:8200/v1/secret/my-app/db \
-  -H "X-Vault-Token: root_token"
+  -H "X-Secret Vault-Token: root_token"
 ```
 
 Response:
@@ -254,22 +254,22 @@ Response:
 #### 3.3 List Secrets
 ```bash
 curl http://localhost:8200/v1/secrets \
-  -H "X-Vault-Token: root_token"
+  -H "X-Secret Vault-Token: root_token"
 ```
 
 #### 3.4 Delete Secret
 ```bash
 curl -X DELETE http://localhost:8200/v1/secret/my-app/db \
-  -H "X-Vault-Token: root_token"
+  -H "X-Secret Vault-Token: root_token"
 ```
 
 ### Phase 4: Sealing (Maintenance)
 
-To seal vault for maintenance:
+To seal engine for maintenance:
 
 ```bash
 curl -X POST http://localhost:8200/v1/sys/seal \
-  -H "X-Vault-Token: root_token"
+  -H "X-Secret Vault-Token: root_token"
 ```
 
 ⚠️ **WARNING**: Sealing immediately blocks all operations until unsealed.
@@ -294,7 +294,7 @@ Why this distribution:
 ### 2. Root Token Management
 
 **DO:**
-- ✅ Store in secure vault
+- ✅ Store in secure engine
 - ✅ Rotate regularly
 - ✅ Audit all usage
 - ✅ Revoke after setup
@@ -334,7 +334,7 @@ watch -n 5 'curl -s http://localhost:8200/v1/sys/seal-status | jq'
 ### 5. Disaster Recovery
 
 **Backup Strategy:**
-1. Backup vault state regularly
+1. Backup engine state regularly
 2. Store backups securely (encrypted)
 3. Test restore procedures
 4. Document recovery steps
@@ -345,9 +345,9 @@ watch -n 5 'curl -s http://localhost:8200/v1/sys/seal-status | jq'
 3. Update distribution
 4. Audit rotation events
 
-## Comparison: Secreton vs HashiCorp Vault
+## Comparison: Secreton vs HashiCorp Secret Vault
 
-| Feature | Secreton | Vault |
+| Feature | Secreton | Secret Vault |
 |---------|----------|-------|
 | **Initialization** | ✅ Shamir shares | ✅ Shamir shares |
 | **Seal/Unseal** | ✅ Manual | ✅ Manual/Auto |
@@ -381,7 +381,7 @@ Returns current seal status (accessible when sealed)
 ```
 
 #### POST /v1/sys/init
-Initialize vault with Shamir shares
+Initialize engine with Shamir shares
 
 **Request:**
 ```json
@@ -423,7 +423,7 @@ Provide unseal key/share
 ```
 
 #### POST /v1/sys/seal
-Seal the vault (requires authentication)
+Seal the engine (requires authentication)
 
 **Response:** 204 No Content
 
@@ -435,8 +435,8 @@ Provide shares for rekey
 
 ## Troubleshooting
 
-### Issue: "Vault is already initialized"
-**Cause**: Vault was already initialized in previous run
+### Issue: "Secret Vault is already initialized"
+**Cause**: Secret Vault was already initialized in previous run
 **Solution**:
 - For development: Restart container
 - For production: Use rekey operation
@@ -464,7 +464,7 @@ Provide shares for rekey
 ## Production Checklist
 
 - [ ] Generate and securely store Shamir shares
-- [ ] Store root token in secure vault
+- [ ] Store root token in secure engine
 - [ ] Distribute shares to authorized personnel
 - [ ] Test unseal procedure
 - [ ] Set up audit logging
@@ -486,7 +486,7 @@ Provide shares for rekey
 BASE_URL="http://localhost:8200"
 
 # Initialize
-echo "Initializing vault..."
+echo "Initializing engine..."
 INIT=$(curl -s -X POST $BASE_URL/v1/sys/init \
   -H "Content-Type: application/json" \
   -d '{"secret_shares": 5, "secret_threshold": 3}')
@@ -500,7 +500,7 @@ echo "Shares:"
 echo "$SHARES" | nl
 
 # Unseal
-echo "Unsealing vault..."
+echo "Unsealing engine..."
 for share in $(echo "$SHARES" | head -3); do
   curl -s -X POST $BASE_URL/v1/sys/unseal \
     -H "Content-Type: application/json" \
@@ -513,20 +513,20 @@ curl -s $BASE_URL/v1/sys/seal-status | jq '.sealed'
 # Create secret
 echo "Creating secret..."
 curl -s -X POST $BASE_URL/v1/secret/test \
-  -H "X-Vault-Token: $ROOT_TOKEN" \
+  -H "X-Secret Vault-Token: $ROOT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"data": {"key": "value"}}'
 
 # Read secret
 echo "Reading secret..."
 curl -s $BASE_URL/v1/secret/test \
-  -H "X-Vault-Token: $ROOT_TOKEN" | jq '.data'
+  -H "X-Secret Vault-Token: $ROOT_TOKEN" | jq '.data'
 ```
 
 ## References
 
-- [HashiCorp Vault Init API](https://www.vaultproject.io/api-docs/system/init)
-- [HashiCorp Vault Unseal API](https://www.vaultproject.io/api-docs/system/unseal)
+- [HashiCorp Secret Vault Init API](https://www.engineproject.io/api-docs/system/init)
+- [HashiCorp Secret Vault Unseal API](https://www.engineproject.io/api-docs/system/unseal)
 - [Shamir Secret Sharing](https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing)
-- [Vault Security Model](https://www.vaultproject.io/docs/internals/security)
-- [Vault Best Practices](https://www.vaultproject.io/docs/platform/security)
+- [Secret Vault Security Model](https://www.engineproject.io/docs/internals/security)
+- [Secret Vault Best Practices](https://www.engineproject.io/docs/platform/security)

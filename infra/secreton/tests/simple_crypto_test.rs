@@ -8,7 +8,7 @@ fn test_shamir_math() {
 
     // Test 1: Basic polynomial evaluation and Lagrange interpolation
     let secret = BigUint::from_str("42").unwrap();
-    let threshold = 3;
+    let _threshold = 3;
     let prime = BigUint::from(101u32);
 
     // Create a simple polynomial manually for testing

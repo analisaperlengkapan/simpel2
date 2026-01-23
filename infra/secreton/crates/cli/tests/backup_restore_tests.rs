@@ -448,9 +448,9 @@ mod property_tests {
         #[test]
         fn prop_encryption_roundtrip(
             data in prop::collection::vec(any::<u8>(), 1..10000),
-            password in "[a-zA-Z0-9!@#$%^&*]{8,32}",
+            _password in "[a-zA-Z0-9!@#$%^&*]{8,32}",
         ) {
-            use secreton_cli::backup::*;
+
 
             // Note: We're testing the encryption/decryption functions indirectly
             // by verifying that data encrypted and then decrypted matches original
@@ -531,9 +531,7 @@ mod property_tests {
 
             let backup_type = if is_incremental {
                 BackupType::Incremental
-            } else {
-                BackupType::Full
-            };
+             } else { BackupType::Full };
 
             let json = serde_json::to_string(&backup_type)
                 .expect("Serialization should succeed");

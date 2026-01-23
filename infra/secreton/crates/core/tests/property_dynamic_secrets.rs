@@ -4,9 +4,8 @@
 
 use proptest::prelude::*;
 use secreton_core::services::secrets::{
-    MySqlConnection, MySqlRole, MySqlSecretsEngine,
-    MongoDbConnection, MongoDbRole, MongoDbSecretsEngine,
-    RedisConnection, RedisRole, RedisSecretsEngine,
+    MongoDbConnection, MongoDbRole, MongoDbSecretsEngine, MySqlConnection, MySqlRole,
+    MySqlSecretsEngine, RedisConnection, RedisRole, RedisSecretsEngine,
 };
 use std::collections::HashSet;
 
@@ -47,21 +46,33 @@ async fn property_dynamic_credential_uniqueness_mysql() {
     let mut passwords = HashSet::new();
 
     for _ in 0..10 {
-        let creds = engine.generate_credentials("test-role", Some(1800)).await.unwrap();
+        let creds = engine
+            .generate_credentials("test-role", Some(1800))
+            .await
+            .unwrap();
 
         // Check uniqueness
-        assert!(usernames.insert(creds.username.clone()),
-            "Username should be unique: {}", creds.username);
-        assert!(passwords.insert(creds.password.clone()),
-            "Password should be unique: {}", creds.password);
+        assert!(
+            usernames.insert(creds.username.clone()),
+            "Username should be unique: {}",
+            creds.username
+        );
+        assert!(
+            passwords.insert(creds.password.clone()),
+            "Password should be unique: {}",
+            creds.password
+        );
 
         // Check TTL
         let ttl = (creds.expires_at - creds.created_at).num_seconds();
         assert_eq!(ttl, 1800, "TTL should match requested value");
 
         // Check username format
-        assert!(creds.username.starts_with("v-test-role-"),
-            "Username should follow format: {}", creds.username);
+        assert!(
+            creds.username.starts_with("v-test-role-"),
+            "Username should follow format: {}",
+            creds.username
+        );
 
         // Check password length
         assert_eq!(creds.password.len(), 32, "Password should be 32 characters");
@@ -104,21 +115,33 @@ async fn property_dynamic_credential_uniqueness_mongodb() {
     let mut passwords = HashSet::new();
 
     for _ in 0..10 {
-        let creds = engine.generate_credentials("test-role", Some(1800)).await.unwrap();
+        let creds = engine
+            .generate_credentials("test-role", Some(1800))
+            .await
+            .unwrap();
 
         // Check uniqueness
-        assert!(usernames.insert(creds.username.clone()),
-            "Username should be unique: {}", creds.username);
-        assert!(passwords.insert(creds.password.clone()),
-            "Password should be unique: {}", creds.password);
+        assert!(
+            usernames.insert(creds.username.clone()),
+            "Username should be unique: {}",
+            creds.username
+        );
+        assert!(
+            passwords.insert(creds.password.clone()),
+            "Password should be unique: {}",
+            creds.password
+        );
 
         // Check TTL
         let ttl = (creds.expires_at - creds.created_at).num_seconds();
         assert_eq!(ttl, 1800, "TTL should match requested value");
 
         // Check username format (MongoDB uses underscores)
-        assert!(creds.username.starts_with("v_test_role_"),
-            "Username should follow format: {}", creds.username);
+        assert!(
+            creds.username.starts_with("v_test_role_"),
+            "Username should follow format: {}",
+            creds.username
+        );
 
         // Check password length
         assert_eq!(creds.password.len(), 32, "Password should be 32 characters");
@@ -148,9 +171,7 @@ async fn property_dynamic_credential_uniqueness_redis() {
         db_name: "test-db".to_string(),
         default_ttl: 3600,
         max_ttl: 7200,
-        creation_statements: vec![
-            "ACL SETUSER {{username}} on >{{password}}".to_string(),
-        ],
+        creation_statements: vec!["ACL SETUSER {{username} on >{{password}}".to_string()],
         revocation_statements: vec!["ACL DELUSER {{username}}".to_string()],
         ..Default::default()
     };
@@ -161,21 +182,33 @@ async fn property_dynamic_credential_uniqueness_redis() {
     let mut passwords = HashSet::new();
 
     for _ in 0..10 {
-        let creds = engine.generate_credentials("test-role", Some(1800)).await.unwrap();
+        let creds = engine
+            .generate_credentials("test-role", Some(1800))
+            .await
+            .unwrap();
 
         // Check uniqueness
-        assert!(usernames.insert(creds.username.clone()),
-            "Username should be unique: {}", creds.username);
-        assert!(passwords.insert(creds.password.clone()),
-            "Password should be unique: {}", creds.password);
+        assert!(
+            usernames.insert(creds.username.clone()),
+            "Username should be unique: {}",
+            creds.username
+        );
+        assert!(
+            passwords.insert(creds.password.clone()),
+            "Password should be unique: {}",
+            creds.password
+        );
 
         // Check TTL
         let ttl = (creds.expires_at - creds.created_at).num_seconds();
         assert_eq!(ttl, 1800, "TTL should match requested value");
 
         // Check username format
-        assert!(creds.username.starts_with("v-test-role-"),
-            "Username should follow format: {}", creds.username);
+        assert!(
+            creds.username.starts_with("v-test-role-"),
+            "Username should follow format: {}",
+            creds.username
+        );
 
         // Check password length
         assert_eq!(creds.password.len(), 32, "Password should be 32 characters");
@@ -231,7 +264,6 @@ proptest! {
     }
 }
 
-
 // **Feature: secreton-comprehensive-enhancement, Property 14: Lease Expiration Revokes Credentials**
 // **Validates: Requirements 4.6**
 //
@@ -265,13 +297,18 @@ async fn property_lease_expiration_revokes_credentials() {
     engine.create_role(role).await.unwrap();
 
     // Generate credential with short TTL
-    let creds = engine.generate_credentials("test-role", Some(2)).await.unwrap();
+    let creds = engine
+        .generate_credentials("test-role", Some(2))
+        .await
+        .unwrap();
     let credential_id = creds.id.clone();
 
     // Verify credential exists
     let active_creds = engine.list_credentials().await;
-    assert!(active_creds.iter().any(|c| c.id == credential_id),
-        "Credential should exist immediately after creation");
+    assert!(
+        active_creds.iter().any(|c| c.id == credential_id),
+        "Credential should exist immediately after creation"
+    );
 
     // Wait for TTL to expire
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
@@ -280,8 +317,10 @@ async fn property_lease_expiration_revokes_credentials() {
     let active_creds = engine.list_credentials().await;
     if let Some(cred) = active_creds.iter().find(|c| c.id == credential_id) {
         let now = chrono::Utc::now();
-        assert!(cred.expires_at < now,
-            "Credential should be expired after TTL");
+        assert!(
+            cred.expires_at < now,
+            "Credential should be expired after TTL"
+        );
     }
 
     // In a real implementation with lease manager integration,
@@ -308,9 +347,7 @@ async fn property_lease_expiration_timing_accuracy() {
         db_name: "test-db".to_string(),
         default_ttl: 3600,
         max_ttl: 7200,
-        creation_statements: vec![
-            "ACL SETUSER {{username}} on >{{password}}".to_string(),
-        ],
+        creation_statements: vec!["ACL SETUSER {{username} on >{{password}}".to_string()],
         revocation_statements: vec!["ACL DELUSER {{username}}".to_string()],
         ..Default::default()
     };
@@ -320,14 +357,21 @@ async fn property_lease_expiration_timing_accuracy() {
     let ttl_values = vec![60, 300, 600, 1800, 3600];
 
     for ttl in ttl_values {
-        let creds = engine.generate_credentials("test-role", Some(ttl)).await.unwrap();
+        let creds = engine
+            .generate_credentials("test-role", Some(ttl))
+            .await
+            .unwrap();
 
         // Calculate actual TTL
         let actual_ttl = (creds.expires_at - creds.created_at).num_seconds();
 
         // Verify TTL is accurate (within 1 second tolerance)
-        assert!((actual_ttl - ttl as i64).abs() <= 1,
-            "TTL should be accurate: expected {}, got {}", ttl, actual_ttl);
+        assert!(
+            (actual_ttl - ttl as i64).abs() <= 1,
+            "TTL should be accurate: expected {}, got {}",
+            ttl,
+            actual_ttl
+        );
     }
 }
 
@@ -359,7 +403,10 @@ async fn property_lease_renewal_extends_expiration() {
     engine.create_role(role).await.unwrap();
 
     // Generate credential
-    let creds = engine.generate_credentials("test-role", Some(1800)).await.unwrap();
+    let creds = engine
+        .generate_credentials("test-role", Some(1800))
+        .await
+        .unwrap();
     let credential_id = creds.id.clone();
     let original_expiration = creds.expires_at;
 
@@ -367,13 +414,18 @@ async fn property_lease_renewal_extends_expiration() {
     let renewed_creds = engine.renew_lease(&credential_id, 900).await.unwrap();
 
     // Verify expiration was extended
-    assert!(renewed_creds.expires_at > original_expiration,
-        "Renewed credential should have later expiration time");
+    assert!(
+        renewed_creds.expires_at > original_expiration,
+        "Renewed credential should have later expiration time"
+    );
 
     // Verify extension amount is correct (within 1 second tolerance)
     let extension = (renewed_creds.expires_at - original_expiration).num_seconds();
-    assert!((extension - 900).abs() <= 1,
-        "Extension should be approximately 900 seconds, got {}", extension);
+    assert!(
+        (extension - 900).abs() <= 1,
+        "Extension should be approximately 900 seconds, got {}",
+        extension
+    );
 }
 
 proptest! {

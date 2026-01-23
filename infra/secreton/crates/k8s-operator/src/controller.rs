@@ -4,12 +4,12 @@ use crate::{Error, Result, SecretSync};
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::Secret;
 use kube::{
-    api::{Api, ListParams, Patch, PatchParams, PostParams},
+    Client, ResourceExt,
+    api::{Api, Patch, PatchParams, PostParams},
     runtime::{
         controller::{Action, Controller},
         watcher::Config,
     },
-    Client, ResourceExt,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -120,7 +120,7 @@ async fn fetch_secret_from_secreton(
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
-        .header("X-Vault-Token", token)
+        .header("X-Engine-Token", token)
         .send()
         .await?;
 
@@ -170,16 +170,17 @@ async fn get_auth_token(secret_sync: &SecretSync, ctx: &Context) -> Result<Strin
                     let secrets: Api<Secret> = Api::namespaced(ctx.client.clone(), &namespace);
                     let secret = secrets.get(&token_ref.name).await?;
 
-                    let data = secret
-                        .data
-                        .ok_or_else(|| Error::AuthenticationFailed("Secret has no data".to_string()))?;
+                    let data = secret.data.ok_or_else(|| {
+                        Error::AuthenticationFailed("Secret has no data".to_string())
+                    })?;
 
-                    let token_bytes = data
-                        .get(&token_ref.key)
-                        .ok_or_else(|| Error::AuthenticationFailed("Token key not found".to_string()))?;
+                    let token_bytes = data.get(&token_ref.key).ok_or_else(|| {
+                        Error::AuthenticationFailed("Token key not found".to_string())
+                    })?;
 
-                    let token = String::from_utf8(token_bytes.0.clone())
-                        .map_err(|_| Error::AuthenticationFailed("Invalid UTF-8 in token".to_string()))?;
+                    let token = String::from_utf8(token_bytes.0.clone()).map_err(|_| {
+                        Error::AuthenticationFailed("Invalid UTF-8 in token".to_string())
+                    })?;
 
                     return Ok(token);
                 }
@@ -220,10 +221,7 @@ async fn create_or_update_secret(
             labels: Some({
                 let mut labels = BTreeMap::new();
                 labels.insert("managed-by".to_string(), "secreton-operator".to_string());
-                labels.insert(
-                    "secreton-sync".to_string(),
-                    secret_sync.name_any(),
-                );
+                labels.insert("secreton-sync".to_string(), secret_sync.name_any());
                 labels
             }),
             ..Default::default()

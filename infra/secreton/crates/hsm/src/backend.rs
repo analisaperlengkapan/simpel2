@@ -1,6 +1,6 @@
 //! HSM backend implementation
 //!
-//! This module implements the HsmVault trait from Authenc, providing a complete
+//! This module implements the HsmEngine trait from Authenc, providing a complete
 //! HSM integration for Secreton.
 
 use super::config::{HsmConfig, HsmProvider as HsmProviderType};
@@ -144,9 +144,9 @@ impl HsmBackend {
                     "AWS KMS provider not yet implemented".to_string(),
                 ));
             }
-            HsmProviderType::AzureKeyVault => {
+            HsmProviderType::AzureKeyEngine => {
                 return Err(HsmError::ConfigError(
-                    "Azure Key Vault provider not yet implemented".to_string(),
+                    "Azure Key Engine provider not yet implemented".to_string(),
                 ));
             }
             HsmProviderType::GcpKms => {

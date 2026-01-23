@@ -2,21 +2,20 @@
 //!
 //! These tests verify the correctness properties of the secret revocation system.
 
+use deadpool_postgres::{Config, Runtime};
 use proptest::prelude::*;
+use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::revocation::{
     RevocationManager, RevocationRequest, RevocationService,
 };
-use secreton_core::services::lease::LeaseManager;
-use std::sync::Arc;
 use std::collections::HashMap;
-use deadpool_postgres::{Config, Runtime};
+use std::sync::Arc;
 use tokio_postgres::NoTls;
 
 // Helper to setup test database pool
 async fn setup_test_pool() -> Result<deadpool_postgres::Pool, Box<dyn std::error::Error>> {
-    let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-        "postgresql://postgres:postgres@localhost/secreton_test".to_string()
-    });
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost/secreton_test".to_string());
 
     let mut cfg = Config::new();
     cfg.url = Some(database_url);
@@ -326,7 +325,11 @@ mod revocation_edge_cases {
         let duration = start.elapsed();
 
         // Should complete within 1 second
-        assert!(duration.as_secs() < 1, "Emergency revocation took {:?}", duration);
+        assert!(
+            duration.as_secs() < 1,
+            "Emergency revocation took {:?}",
+            duration
+        );
         assert!(records.len() >= 10, "Should revoke all matching secrets");
 
         // All records should be marked as emergency
@@ -391,10 +394,38 @@ mod revocation_edge_cases {
         assert!(record.cascaded_paths.contains(&level3_path.to_string()));
 
         // All leases should be revoked
-        assert_eq!(lease_manager.lookup_lease(&root_lease).await.unwrap().status, "revoked");
-        assert_eq!(lease_manager.lookup_lease(&level1_lease).await.unwrap().status, "revoked");
-        assert_eq!(lease_manager.lookup_lease(&level2_lease).await.unwrap().status, "revoked");
-        assert_eq!(lease_manager.lookup_lease(&level3_lease).await.unwrap().status, "revoked");
+        assert_eq!(
+            lease_manager
+                .lookup_lease(&root_lease)
+                .await
+                .unwrap()
+                .status,
+            "revoked"
+        );
+        assert_eq!(
+            lease_manager
+                .lookup_lease(&level1_lease)
+                .await
+                .unwrap()
+                .status,
+            "revoked"
+        );
+        assert_eq!(
+            lease_manager
+                .lookup_lease(&level2_lease)
+                .await
+                .unwrap()
+                .status,
+            "revoked"
+        );
+        assert_eq!(
+            lease_manager
+                .lookup_lease(&level3_lease)
+                .await
+                .unwrap()
+                .status,
+            "revoked"
+        );
     }
 
     #[tokio::test]
@@ -518,4 +549,3 @@ mod revocation_edge_cases {
         assert!(result.is_err());
     }
 }
-

@@ -1118,10 +1118,12 @@ impl From<uuid::Error> for AuthencError {
 impl From<lib_common::error::CommonError> for AuthencError {
     fn from(err: lib_common::error::CommonError) -> Self {
         match err {
-            lib_common::error::CommonError::Validation { message } => Self::ValidationError { message },
-            lib_common::error::CommonError::Cache(message) => {
-                Self::InternalError { message: format!("Cache error: {}", message) }
+            lib_common::error::CommonError::Validation { message } => {
+                Self::ValidationError { message }
             }
+            lib_common::error::CommonError::Cache(message) => Self::InternalError {
+                message: format!("Cache error: {}", message),
+            },
             lib_common::error::CommonError::Internal(message) => Self::InternalError { message },
         }
     }

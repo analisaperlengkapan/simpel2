@@ -1,6 +1,6 @@
 //! HTTP request handlers for the Secreton API.
 //!
-//! This module provides comprehensive REST endpoints for all Secreton vault operations.
+//! This module provides comprehensive REST endpoints for all Secreton engine operations.
 //! All handlers follow REST best practices and return consistent [`ApiResponse`] structures.
 //!
 //! # Handler Modules
@@ -16,7 +16,7 @@
 //! - [`dynamic`] - Dynamic secrets generation (database credentials, cloud IAM)
 //! - [`lease`] - Lease management (renewal, revocation, cleanup)
 //! - [`wrapping`] - Response wrapping for secure secret delivery
-//! - [`seal`] - Vault seal/unseal operations (Shamir secret sharing)
+//! - [`seal`] - Engine seal/unseal operations (Shamir secret sharing)
 //! - [`health`] - Health checks and readiness probes
 //!
 //! ## Optional Features
@@ -115,19 +115,13 @@ pub type AppState = Arc<ServiceContainer>;
 pub use secret::ListQuery;
 
 /// Create the complete API router
-pub fn create_router(
-    config: &ApiConfig,
-    services: Arc<ServiceContainer>,
-) -> Router {
+pub fn create_router(config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
     create_protected_router(config, services.clone())
         .merge(create_unprotected_router(config, services))
 }
 
 /// Create the main application router for protected routes
-pub fn create_protected_router(
-    _config: &ApiConfig,
-    services: Arc<ServiceContainer>,
-) -> Router {
+pub fn create_protected_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
     let app_state = services.clone();
 
     // These are all the routes that should be protected by auth and seal checks
@@ -166,13 +160,10 @@ pub fn create_protected_router(
 }
 
 /// Create a router for unprotected system routes
-pub fn create_unprotected_router(
-    _config: &ApiConfig,
-    services: Arc<ServiceContainer>,
-) -> Router {
+pub fn create_unprotected_router(_config: &ApiConfig, services: Arc<ServiceContainer>) -> Router {
     let app_state = services.clone();
 
-    // Routes that must be available even when the vault is sealed
+    // Routes that must be available even when the engine is sealed
     Router::new()
         .nest("/sys", seal::create_routes())
         .route("/health", get(health::health_check))
@@ -187,7 +178,7 @@ async fn root_handler() -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     let data = serde_json::json!({
         "service": "Secreton API",
         "version": env!("CARGO_PKG_VERSION"),
-        "description": "Advanced Security Vault System",
+        "description": "Advanced Security Engine System",
         "documentation": "/api/v1/docs"
     });
 

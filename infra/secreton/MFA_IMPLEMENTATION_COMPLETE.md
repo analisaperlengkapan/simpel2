@@ -180,7 +180,7 @@ X-User-Id: alice
   "data": {
     "method": "totp",
     "secret": "JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN",
-    "qr_code": "otpauth://totp/Secreton%20Vault:alice%40kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN&issuer=Secreton%20Vault&algorithm=SHA1&digits=6&period=30",
+    "qr_code": "otpauth://totp/Secreton%20Secret Vault:alice%40kejaksaan.go.id?secret=JBSWY3DPEHPK3PXP2AB4CDEFGHIJKLMN&issuer=Secreton%20Secret Vault&algorithm=SHA1&digits=6&period=30",
     "backup_codes": [
       "1234-5678-9012",
       "3456-7890-1234",

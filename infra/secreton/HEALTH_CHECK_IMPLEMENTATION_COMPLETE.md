@@ -78,7 +78,7 @@ HealthCheck {
 **Implementation**:
 
 - **Note**: ServiceContainer doesn't have centralized cache
-- Caching is embedded in individual services (auth, vault)
+- Caching is embedded in individual services (auth, engine)
 - Returns informational "healthy" status with note
 - Provides context on cache location
 
@@ -87,7 +87,7 @@ HealthCheck {
 ```json
 {
   "note": "Cache is embedded in services, not centralized",
-  "location": "auth_service, vault_service"
+  "location": "auth_service, engine_service"
 }
 ```
 

@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document describes the implementation of seal/unseal CLI commands for Secreton vault system, completed as part of task 2.4 in the comprehensive refactor specification.
+This document describes the implementation of seal/unseal CLI commands for Secreton engine system, completed as part of task 2.4 in the comprehensive refactor specification.
 
 ## Implemented Commands
 
 ### 1. `secreton seal init`
 
-Initializes the vault and generates Shamir secret shares.
+Initializes the engine and generates Shamir secret shares.
 
 **Features:**
 - Configurable number of shares (default: 5)
@@ -38,11 +38,11 @@ secreton seal init --output keys.json
 
 ### 2. `secreton seal seal`
 
-Seals the vault, blocking all operations until unsealed.
+Seals the engine, blocking all operations until unsealed.
 
 **Features:**
 - Clears master key from memory
-- Blocks all vault operations
+- Blocks all engine operations
 - Provides clear feedback on seal status
 
 **Usage:**
@@ -56,7 +56,7 @@ secreton seal seal
 
 ### 3. `secreton seal unseal`
 
-Unseals the vault using Shamir secret shares.
+Unseals the engine using Shamir secret shares.
 
 **Features:**
 - Secure key input (no echo to terminal)
@@ -84,7 +84,7 @@ secreton seal unseal --reset
 
 ### 4. `secreton seal status`
 
-Shows the current seal status of the vault.
+Shows the current seal status of the engine.
 
 **Features:**
 - Displays current state (sealed/unsealing/unsealed)
@@ -195,9 +195,9 @@ crates/cli/
 
 All commands integrate with the Secreton REST API:
 
-- `POST /v1/sys/init` - Initialize vault
-- `POST /v1/sys/seal` - Seal vault
-- `POST /v1/sys/unseal` - Unseal vault
+- `POST /v1/sys/init` - Initialize engine
+- `POST /v1/sys/seal` - Seal engine
+- `POST /v1/sys/unseal` - Unseal engine
 - `GET /v1/sys/seal-status` - Get seal status
 - `POST /v1/sys/rekey/init` - Start rekey
 - `POST /v1/sys/rekey/update` - Update rekey
@@ -236,7 +236,7 @@ The commands are designed to work with the Secreton API server. Full integration
 
 1. Running Secreton API server
 2. Executing init command
-3. Sealing vault
+3. Sealing engine
 4. Unsealing with shares
 5. Checking status
 6. Testing rekey operation
@@ -244,8 +244,8 @@ The commands are designed to work with the Secreton API server. Full integration
 ## Success Criteria Met
 
 ✅ **All required commands implemented:**
-- `secreton seal init` - Initialize vault with Shamir shares
-- `secreton seal seal` - Seal the vault
+- `secreton seal init` - Initialize engine with Shamir shares
+- `secreton seal seal` - Seal the engine
 - `secreton seal unseal` - Unseal with key shares
 - `secreton seal status` - Show seal status
 - `secreton seal rekey` - Rekey operation with subcommands

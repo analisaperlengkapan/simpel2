@@ -1,736 +1,151 @@
-# SIMPelv2 Backend Service Deployments with gRPC Support
-# All backend microservices with gRPC communication and Istio sidecar
-
+---
+# layanan-daskrimti-portal Backend Service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gerbang
+  name: layanan-daskrimti-portal
   namespace: simpelv2-backend
   labels:
-    app.kubernetes.io/name: gerbang
-    app.kubernetes.io/component: gateway
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
+    app: layanan-daskrimti-portal
+    component: backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: gerbang
-      version: v1
+      app: layanan-daskrimti-portal
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: gerbang
-        app.kubernetes.io/component: gateway
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-        prometheus.io/path: "/stats/prometheus"
+        app: layanan-daskrimti-portal
+        component: backend
     spec:
       containers:
-        - name: gerbang
-          image: registry.kejaksaan.go.id/simpelv2/gerbang:latest
+        - name: portal-backend
+          image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 3010
               name: http
               protocol: TCP
-            - containerPort: 9080
-              name: grpc
-              protocol: TCP
           env:
-            - name: RUST_LOG
-              value: "info"
-            - name: GATEWAY_ENV
-              value: "production"
-            - name: GRPC_PORT
-              value: "9080"
-            - name: HTTP_PORT
-              value: "8080"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: AUTHENC_GRPC_URL
+            - name: SERVER_HOST
+              value: "0.0.0.0"
+            - name: SERVER_PORT
+              value: "3010"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+            - name: REDIS_URL
               valueFrom:
                 configMapKeyRef:
                   name: simpelv2-config
+                  key: REDIS_URL
+            - name: AUTHENC_GRPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
                   key: AUTHENC_GRPC_URL
             - name: SECRETON_GRPC_URL
               valueFrom:
                 configMapKeyRef:
-                  name: simpelv2-config
+                  name: backend-config
                   key: SECRETON_GRPC_URL
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "1"
-          livenessProbe:
-            grpc:
-              port: 9080
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9080
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# AI Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-ai
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-ai
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-ai
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-ai
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-ai
-          image: registry.kejaksaan.go.id/simpelv2/layanan-ai:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_ai"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
             - name: RUST_LOG
               value: "info"
           resources:
             requests:
-              memory: "1Gi"
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
               cpu: "500m"
-            limits:
-              memory: "2Gi"
-              cpu: "1"
+              memory: "1Gi"
           livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
+            httpGet:
+              path: /health
+              port: 3010
+            initialDelaySeconds: 20
             periodSeconds: 10
           readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
+            httpGet:
+              path: /health
+              port: 3010
+            initialDelaySeconds: 5
             periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
 
 ---
-# Dashboard Service with gRPC
+# layanan-pembinaan-perlengkapan Backend Service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: layanan-dasbor
+  name: layanan-pembinaan-perlengkapan
   namespace: simpelv2-backend
   labels:
-    app.kubernetes.io/name: layanan-dasbor
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
+    app: layanan-pembinaan-perlengkapan
+    component: backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: layanan-dasbor
-      version: v1
+      app: layanan-pembinaan-perlengkapan
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: layanan-dasbor
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
+        app: layanan-pembinaan-perlengkapan
+        component: backend
     spec:
       containers:
-        - name: layanan-dasbor
-          image: registry.kejaksaan.go.id/simpelv2/layanan-dasbor:latest
+        - name: perlengkapan-backend
+          image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
+          imagePullPolicy: Always
           ports:
-            - containerPort: 3000
+            - containerPort: 3020
               name: http
               protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
           env:
+            - name: SERVER_HOST
+              value: "0.0.0.0"
+            - name: SERVER_PORT
+              value: "3020"
             - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_dasbor"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
+                  name: postgres-credentials
+                  key: url
+            - name: REDIS_URL
               valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
+                configMapKeyRef:
+                  name: simpelv2-config
+                  key: REDIS_URL
+            - name: AUTHENC_GRPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: AUTHENC_GRPC_URL
+            - name: SECRETON_GRPC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: SECRETON_GRPC_URL
             - name: RUST_LOG
               value: "info"
           resources:
             requests:
-              memory: "512Mi"
               cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "1"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Document Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-dokumen
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-dokumen
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-dokumen
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-dokumen
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-dokumen
-          image: registry.kejaksaan.go.id/simpelv2/layanan-dokumen:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_dokumen"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
               memory: "512Mi"
-              cpu: "250m"
             limits:
-              memory: "1Gi"
-              cpu: "1"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Integration Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-integrasi
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-integrasi
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-integrasi
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-integrasi
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-integrasi
-          image: registry.kejaksaan.go.id/simpelv2/layanan-integrasi:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_integrasi"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: INTEGRATION_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: simpelv2-secrets
-                  key: INTEGRATION_SECRET
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "1"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Configuration Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-konfigurasi
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-konfigurasi
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-konfigurasi
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-konfigurasi
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-konfigurasi
-          image: registry.kejaksaan.go.id/simpelv2/layanan-konfigurasi:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_konfigurasi"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "125m"
-            limits:
-              memory: "512Mi"
               cpu: "500m"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Report Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-laporan
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-laporan
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-laporan
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-laporan
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-laporan
-          image: registry.kejaksaan.go.id/simpelv2/layanan-laporan:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_laporan"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
               memory: "1Gi"
-              cpu: "1"
           livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
+            httpGet:
+              path: /health
+              port: 3020
+            initialDelaySeconds: 20
             periodSeconds: 10
           readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
+            httpGet:
+              path: /health
+              port: 3020
+            initialDelaySeconds: 5
             periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Notification Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-notifikasi
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-notifikasi
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-notifikasi
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-notifikasi
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-notifikasi
-          image: registry.kejaksaan.go.id/simpelv2/layanan-notifikasi:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_notifikasi"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SMTP_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: simpelv2-secrets
-                  key: SMTP_USERNAME
-            - name: SMTP_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: simpelv2-secrets
-                  key: SMTP_PASSWORD
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "125m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret
-
----
-# Help Service with gRPC
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: layanan-bantuan
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-bantuan
-    app.kubernetes.io/component: service
-    app.kubernetes.io/part-of: simpelv2
-    version: v1
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: layanan-bantuan
-      version: v1
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: layanan-bantuan
-        app.kubernetes.io/component: service
-        version: v1
-      annotations:
-        sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "15020"
-    spec:
-      containers:
-        - name: layanan-bantuan
-          image: registry.kejaksaan.go.id/simpelv2/layanan-bantuan:latest
-          ports:
-            - containerPort: 3000
-              name: http
-              protocol: TCP
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP
-          env:
-            - name: DATABASE_URL
-              value: "postgresql://$(SERVICES_DB_USER):$(SERVICES_DB_PASSWORD)@postgres-service.simpelv2-infra.svc.cluster.local:5432/simpelv2_bantuan"
-            - name: GRPC_PORT
-              value: "9000"
-            - name: HTTP_PORT
-              value: "3000"
-            - name: MTLS_ENABLED
-              value: "true"
-            - name: SERVICES_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_USER
-            - name: SERVICES_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: SERVICES_DB_PASSWORD
-            - name: RUST_LOG
-              value: "info"
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "125m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          livenessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            grpc:
-              port: 9000
-            initialDelaySeconds: 10
-            periodSeconds: 5
-      imagePullSecrets:
-        - name: docker-registry-secret

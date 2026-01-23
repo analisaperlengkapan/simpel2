@@ -432,7 +432,10 @@ pub fn routes() -> Router<Arc<AppState>> {
             get(get_user_consents).delete(revoke_user_consent),
         )
         // Scope validation
-        .route("/clients/{client_id}/validate-scopes", post(validate_scopes))
+        .route(
+            "/clients/{client_id}/validate-scopes",
+            post(validate_scopes),
+        )
         // Utility
         .route(
             "/realms/{realm_id}/client-scopes/standard",

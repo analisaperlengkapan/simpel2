@@ -24,9 +24,9 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config/root", get(get_azure_config))
         .route("/roles", post(create_azure_role))
         .route("/roles", get(list_azure_roles))
-        .route("/roles/:role_name", get(get_azure_role))
-        .route("/roles/:role_name", delete(delete_azure_role))
-        .route("/creds/:role_name", get(generate_azure_credentials))
+        .route("/roles/{role_name}", get(get_azure_role))
+        .route("/roles/{role_name}", delete(delete_azure_role))
+        .route("/creds/{role_name}", get(generate_azure_credentials))
 }
 
 /// Configure Azure root credentials

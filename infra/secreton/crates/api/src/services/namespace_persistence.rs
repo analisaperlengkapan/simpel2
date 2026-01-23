@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use secreton_core::namespace::NamespaceHierarchy;
 use secreton_crypto::{AlgorithmId, CryptoEngine, EncryptedData, SecurityParams};
-use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use secreton_storage::{SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -66,7 +66,7 @@ pub async fn save_hierarchy(
         .flatten();
     let entry_id = existing.map(|e| e.id).unwrap_or_else(Uuid::new_v4);
 
-    let mut entry = VaultEntry::new(
+    let mut entry = SecretEntry::new(
         NAMESPACE_STORAGE_PATH.to_string(),
         encrypted_bytes,
         serde_json::json!({
@@ -124,7 +124,11 @@ pub async fn load_hierarchy(
         .context("Failed to deserialize encrypted data structure")?;
 
     // Extract salt from metadata or use fallback
-    let salt = if let Some(salt_hex) = entry.encryption_metadata.get("salt").and_then(|v| v.as_str()) {
+    let salt = if let Some(salt_hex) = entry
+        .encryption_metadata
+        .get("salt")
+        .and_then(|v| v.as_str())
+    {
         hex::decode(salt_hex).context("Failed to decode salt hex")?
     } else {
         NAMESPACE_KEY_SALT.to_vec()

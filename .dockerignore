@@ -1,47 +1,12 @@
-# Version control
-.git
-.gitignore
-
-# Build artifacts (Rust)
+# Docker ignore file
 target/
-**/target/
-
-# Build artifacts (Node/JS)
-node_modules/
-**/node_modules/
-dist/
-**/dist/
-build/
-**/build/
-.next/
-out/
-
-# IDE settings
+.git/
+.env
 .idea/
 .vscode/
-*.swp
-*.swo
-*.iml
-
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Logs
+node_modules/
+dist/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Docker
-Dockerfile
-.dockerignore
-docker-compose.yml
-docker-compose.*.yml
-
-# Misc
-.DS_Store
 tmp/
 coverage/
+doc/

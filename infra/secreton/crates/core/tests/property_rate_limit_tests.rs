@@ -4,8 +4,9 @@
 // Property: For any client exceeding rate limit, subsequent requests SHALL receive HTTP 429 with Retry-After header.
 
 use proptest::prelude::*;
-use secreton_core::services::rate_limit::{RateLimiter, RateLimitConfig, RateLimitStrategy, RateLimitError};
-use std::time::Duration;
+use secreton_core::services::rate_limit::{
+    RateLimitConfig, RateLimitError, RateLimitStrategy, RateLimiter,
+};
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]

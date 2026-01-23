@@ -5,10 +5,10 @@
 //!
 //! Endpoints:
 //! - GET /v1/sys/policies - List all policies with pagination
-//! - POST /v1/sys/policies/{name} - Create policy with validation
-//! - GET /v1/sys/policies/{name} - Get policy with evaluation stats
-//! - PUT /v1/sys/policies/{name} - Update policy with version control
-//! - DELETE /v1/sys/policies/{name} - Delete policy with dependency check
+//! - POST /v1/sys/policies/{name - Create policy with validation
+//! - GET /v1/sys/policies/{name - Get policy with evaluation stats
+//! - PUT /v1/sys/policies/{name - Update policy with version control
+//! - DELETE /v1/sys/policies/{name - Delete policy with dependency check
 //! - POST /v1/sys/policies/{name}/test - Test policy evaluation
 
 use axum::{
@@ -28,9 +28,8 @@ use secreton_core::{
 };
 
 use crate::{
-    ApiError, ApiResponse, ApiResult,
-    handlers::AppState,
-    models::{PaginatedResponse, PaginationQuery},
+    ApiError, ApiResponse, ApiResult, PaginationQuery, handlers::AppState,
+    models::PaginatedResponse,
 };
 
 /// Create policy routes
@@ -38,13 +37,13 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/policies", get(list_policies))
         .route(
-            "/policies/:name",
+            "/policies/{name}",
             post(create_policy)
                 .get(get_policy)
                 .put(update_policy)
                 .delete(delete_policy),
         )
-        .route("/policies/:name/test", post(test_policy))
+        .route("/policies/{name}/test", post(test_policy))
 }
 
 // ============================================================================
@@ -218,12 +217,12 @@ fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
         }
 
         // Validate control group if present
-        if let Some(cg) = &rule.control_group
-            && cg.required_approvals == 0
-        {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
+        if let Some(cg) = &rule.control_group {
+            if cg.required_approvals == 0 {
+                return Err(CoreError::Validation {
+                    message: "Invalid input".to_string(),
+                });
+            }
         }
 
         // Validate condition if present
@@ -252,32 +251,34 @@ fn validate_condition(condition: &Value, _rule_idx: usize) -> Result<(), CoreErr
         }
 
         // Validate start and end are valid RFC3339 timestamps
-        if let Some(start) = time_range.get("start")
-            && let Some(start_str) = start.as_str()
-            && chrono::DateTime::parse_from_rfc3339(start_str).is_err()
-        {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
+        if let Some(start) = time_range.get("start") {
+            if let Some(start_str) = start.as_str() {
+                if chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
+                    return Err(CoreError::Validation {
+                        message: "Invalid input".to_string(),
+                    });
+                }
+            }
         }
 
-        if let Some(end) = time_range.get("end")
-            && let Some(end_str) = end.as_str()
-            && chrono::DateTime::parse_from_rfc3339(end_str).is_err()
-        {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
+        if let Some(end) = time_range.get("end") {
+            if let Some(end_str) = end.as_str() {
+                if chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
+                    return Err(CoreError::Validation {
+                        message: "Invalid input".to_string(),
+                    });
+                }
+            }
         }
     }
 
     // Validate allowed_ips if present
-    if let Some(allowed_ips) = condition.get("allowed_ips")
-        && !allowed_ips.is_array()
-    {
-        return Err(CoreError::Validation {
-            message: "Invalid input".to_string(),
-        });
+    if let Some(allowed_ips) = condition.get("allowed_ips") {
+        if !allowed_ips.is_array() {
+            return Err(CoreError::Validation {
+                message: "Invalid input".to_string(),
+            });
+        }
     }
 
     // Validate expression if present
@@ -647,7 +648,6 @@ pub async fn create_policy(
         }),
     };
 
-    // Audit log
     info!(
         "Policy created: id={}, name={}, namespace={}",
         policy_id, name, req.namespace

@@ -243,11 +243,11 @@ mod post_quantum_readiness {
         // Test hybrid key exchange (X25519 + ML-KEM)
 
         // Generate key pairs for both parties
-        let alice_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
+        let _alice_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
         let bob_keys = crypto_engine.generate_hybrid_keypair().await.unwrap();
 
         // Alice initiates key exchange
-        let (alice_message, alice_ephemeral) = crypto_engine
+        let (alice_message, _alice_ephemeral) = crypto_engine
             .hybrid_key_exchange_initiate(&bob_keys.public_key)
             .await
             .unwrap();
@@ -714,7 +714,7 @@ impl HybridCrypto {
         Ok(format!("encrypted_{:?}_{}", self.mode, data.len()).into_bytes())
     }
 
-    pub async fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn decrypt(&self, _data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_data".to_vec())
     }
 
@@ -724,8 +724,8 @@ impl HybridCrypto {
 
     pub async fn verify(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
@@ -770,7 +770,7 @@ impl HybridCrypto {
 
     pub async fn ml_kem_encapsulate(
         &self,
-        public_key: &[u8],
+        _public_key: &[u8],
         variant: &str,
     ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         let ciphertext = format!("kem_ciphertext_{}", variant).into_bytes();
@@ -780,9 +780,9 @@ impl HybridCrypto {
 
     pub async fn ml_kem_decapsulate(
         &self,
-        ciphertext: &[u8],
-        private_key: &[u8],
-        variant: &str,
+        _ciphertext: &[u8],
+        _private_key: &[u8],
+        _variant: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"shared_secret_32_bytes_123456789012".to_vec())
     }
@@ -834,22 +834,22 @@ impl HybridCrypto {
 
     pub async fn verify_jwt(
         &self,
-        token: &str,
+        _token: &str,
     ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         Ok(serde_json::json!({"verified": true}))
     }
 
     pub async fn verify_classical_signature(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
     pub async fn decrypt_classical(
         &self,
-        data: &[u8],
+        _data: &[u8],
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_classical".to_vec())
     }
@@ -860,39 +860,39 @@ impl HybridCrypto {
 
     pub async fn verify_hybrid(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
     pub async fn verify_hybrid_ml_dsa_component(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
     pub async fn decrypt_hybrid_ml_kem_component(
         &self,
-        data: &[u8],
+        _data: &[u8],
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted_hybrid".to_vec())
     }
 
     pub async fn verify_ed25519_component(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
 
     pub async fn verify_ml_dsa_component(
         &self,
-        data: &[u8],
-        signature: &[u8],
+        _data: &[u8],
+        _signature: &[u8],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
@@ -907,9 +907,9 @@ impl HybridCrypto {
 
     pub async fn verify_with_algorithm(
         &self,
-        data: &[u8],
-        signature: &[u8],
-        algorithm: &str,
+        _data: &[u8],
+        _signature: &[u8],
+        _algorithm: &str,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
@@ -932,8 +932,8 @@ impl HybridCrypto {
 
     pub async fn decrypt_with_algorithm(
         &self,
-        data: &[u8],
-        algorithm: &str,
+        _data: &[u8],
+        _algorithm: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"decrypted".to_vec())
     }
@@ -957,26 +957,26 @@ impl HybridCrypto {
 
     pub async fn hybrid_key_exchange_initiate(
         &self,
-        peer_public_key: &[u8],
+        _peer_public_key: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         Ok((b"message".to_vec(), b"ephemeral".to_vec()))
     }
 
     pub async fn hybrid_key_exchange_respond(
         &self,
-        message: &[u8],
+        _message: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error>> {
         Ok((b"response".to_vec(), b"shared_secret".to_vec()))
     }
 
     pub async fn hybrid_key_exchange_complete(
         &self,
-        response: &[u8],
+        _response: &[u8],
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(b"shared_secret".to_vec())
     }
 
-    pub fn decompose_hybrid_signature(&self, signature: &[u8]) -> SignatureComponents {
+    pub fn decompose_hybrid_signature(&self, _signature: &[u8]) -> SignatureComponents {
         SignatureComponents {
             ed25519_signature: Some(b"ed25519_sig".to_vec()),
             ml_dsa_signature: Some(b"ml_dsa_sig".to_vec()),
@@ -1020,7 +1020,7 @@ impl HybridCrypto {
 
     pub async fn delete_quantum_safe_key(
         &self,
-        key_id: &str,
+        _key_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
@@ -1028,7 +1028,7 @@ impl HybridCrypto {
     pub async fn sign_with_ml_dsa(
         &self,
         data: &[u8],
-        private_key: &[u8],
+        _private_key: &[u8],
         variant: &str,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(format!("ml_dsa_sig_{}_{}", variant, data.len()).into_bytes())
@@ -1036,10 +1036,10 @@ impl HybridCrypto {
 
     pub async fn verify_ml_dsa_signature(
         &self,
-        data: &[u8],
-        signature: &[u8],
-        public_key: &[u8],
-        variant: &str,
+        _data: &[u8],
+        _signature: &[u8],
+        _public_key: &[u8],
+        _variant: &str,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }

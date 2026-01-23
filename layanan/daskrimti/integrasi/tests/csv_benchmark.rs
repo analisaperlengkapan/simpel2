@@ -1,9 +1,12 @@
 use layanan_integrasi::client::MonsaktiClient;
 use layanan_integrasi::config::Config;
 use std::collections::HashMap;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU64, Ordering},
+};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering, AtomicU64}};
 
 #[tokio::test]
 async fn test_save_to_csv_performance() {
@@ -22,7 +25,9 @@ async fn test_save_to_csv_performance() {
         db_config: None,
         siman_concurrency_limit: 20,
     };
-    let client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     // 2. Generate Large Data (200,000 records)
     let count = 200_000;
@@ -78,7 +83,10 @@ async fn test_save_to_csv_performance() {
     let start_save = Instant::now();
     let filename = "perf_test.csv";
 
-    client.save_to_csv(&json_data, filename).await.expect("Failed to save");
+    client
+        .save_to_csv(&json_data, filename)
+        .await
+        .expect("Failed to save");
 
     let save_duration = start_save.elapsed();
 
@@ -88,8 +96,14 @@ async fn test_save_to_csv_performance() {
 
     let max_lag = Duration::from_micros(max_lag_micros.load(Ordering::Relaxed));
 
-    println!("BENCHMARK_RESULT: Save duration: {:?} ms", save_duration.as_millis());
-    println!("BENCHMARK_RESULT: Max event loop lag: {:?} ms", max_lag.as_millis());
+    println!(
+        "BENCHMARK_RESULT: Save duration: {:?} ms",
+        save_duration.as_millis()
+    );
+    println!(
+        "BENCHMARK_RESULT: Max event loop lag: {:?} ms",
+        max_lag.as_millis()
+    );
 
     // Cleanup
     let _ = tokio::fs::remove_dir_all("./output_test_perf").await;

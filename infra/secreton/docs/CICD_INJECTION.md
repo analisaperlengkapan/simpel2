@@ -142,7 +142,7 @@ deploy:
     # Inject secrets
     - |
       RESPONSE=$(curl -X POST "${SECRETON_ADDR}/v1/inject/env" \
-        -H "X-Vault-Token: ${SECRETON_TOKEN}" \
+        -H "X-Secret Vault-Token: ${SECRETON_TOKEN}" \
         -H "Content-Type: application/json" \
         -d '{
           "secrets": [
@@ -166,7 +166,7 @@ deploy:
     # Cleanup
     - |
       curl -X DELETE "${SECRETON_ADDR}/v1/inject/cleanup/${SESSION_ID}" \
-        -H "X-Vault-Token: ${SECRETON_TOKEN}"
+        -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"
 ```
 
 ### GitHub Actions
@@ -188,7 +188,7 @@ jobs:
         id: secrets
         run: |
           RESPONSE=$(curl -X POST "${{ secrets.SECRETON_ADDR }}/v1/inject/env" \
-            -H "X-Vault-Token: ${{ secrets.SECRETON_TOKEN }}" \
+            -H "X-Secret Vault-Token: ${{ secrets.SECRETON_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
               "secrets": [
@@ -209,7 +209,7 @@ jobs:
         if: always()
         run: |
           curl -X DELETE "${{ secrets.SECRETON_ADDR }}/v1/inject/cleanup/${{ steps.secrets.outputs.session_id }}" \
-            -H "X-Vault-Token: ${{ secrets.SECRETON_TOKEN }}"
+            -H "X-Secret Vault-Token: ${{ secrets.SECRETON_TOKEN }}"
 ```
 
 ### Jenkins Pipeline
@@ -230,7 +230,7 @@ pipeline {
                     def response = sh(
                         script: """
                             curl -X POST "${SECRETON_ADDR}/v1/inject/env" \
-                              -H "X-Vault-Token: ${SECRETON_TOKEN}" \
+                              -H "X-Secret Vault-Token: ${SECRETON_TOKEN}" \
                               -H "Content-Type: application/json" \
                               -d '{
                                 "secrets": [
@@ -267,7 +267,7 @@ pipeline {
                 if (env.SESSION_ID) {
                     sh """
                         curl -X DELETE "${SECRETON_ADDR}/v1/inject/cleanup/${SESSION_ID}" \
-                          -H "X-Vault-Token: ${SECRETON_TOKEN}"
+                          -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"
                     """
                 }
             }
@@ -292,7 +292,7 @@ jobs:
           name: Inject Secrets
           command: |
             RESPONSE=$(curl -X POST "${SECRETON_ADDR}/v1/inject/env" \
-              -H "X-Vault-Token: ${SECRETON_TOKEN}" \
+              -H "X-Secret Vault-Token: ${SECRETON_TOKEN}" \
               -H "Content-Type: application/json" \
               -d '{
                 "secrets": [
@@ -316,7 +316,7 @@ jobs:
           command: |
             SESSION_ID=$(cat /tmp/session_id)
             curl -X DELETE "${SECRETON_ADDR}/v1/inject/cleanup/${SESSION_ID}" \
-              -H "X-Vault-Token: ${SECRETON_TOKEN}"
+              -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"
 
 workflows:
   deploy:
@@ -379,7 +379,7 @@ Always cleanup sessions in a `finally` or `always` block:
 
 ```bash
 trap 'curl -X DELETE "${SECRETON_ADDR}/v1/inject/cleanup/${SESSION_ID}" \
-  -H "X-Vault-Token: ${SECRETON_TOKEN}"' EXIT
+  -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"' EXIT
 ```
 
 ### 3. Use Job-Specific Tokens
@@ -391,7 +391,7 @@ Use CI/CD platform's native authentication when possible:
 SECRETON_TOKEN: "${CI_JOB_JWT}"
 
 # GitHub Actions with OIDC
-- uses: hashicorp/vault-action@v2
+- uses: hashicorp/engine-action@v2
   with:
     url: https://secreton.internal:8200
     method: jwt
@@ -403,7 +403,7 @@ Regularly review active sessions:
 
 ```bash
 curl -X GET "${SECRETON_ADDR}/v1/inject/sessions" \
-  -H "X-Vault-Token: ${SECRETON_TOKEN}"
+  -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"
 ```
 
 ### 5. Limit Secret Access
@@ -426,14 +426,14 @@ path "secret/data/production/*" {
 
 ```bash
 curl -X GET "${SECRETON_ADDR}/v1/inject/sessions/${SESSION_ID}" \
-  -H "X-Vault-Token: ${SECRETON_TOKEN}"
+  -H "X-Secret Vault-Token: ${SECRETON_TOKEN}"
 ```
 
 ### List Active Sessions
 
 ```bash
 curl -X GET "${SECRETON_ADDR}/v1/inject/sessions" \
-  -H "X-Vault-Token: ${SECRETON_TOKEN}" | jq
+  -H "X-Secret Vault-Token: ${SECRETON_TOKEN}" | jq
 ```
 
 ### Common Issues

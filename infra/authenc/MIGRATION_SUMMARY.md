@@ -202,7 +202,7 @@ Now consolidated in:
 
 ### Development (Fastest)
 ```bash
-docker-compose up -d
+docker compose up -d
 # All services with development defaults
 # Logs: debug level
 # CAPTCHA: difficulty 2
@@ -210,7 +210,7 @@ docker-compose up -d
 
 ### Production (Optimized)
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # All services with production hardening
 # Logs: warn level
 # CAPTCHA: difficulty 3
@@ -224,7 +224,7 @@ cp .env.example .env
 nano .env
 
 # Then start
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Benefits of New Setup
@@ -289,7 +289,7 @@ docker-compose up -d
 
 5. **Verify configuration**
    ```bash
-   docker-compose logs authenc | grep -i captcha
+   docker compose logs authenc | grep -i captcha
    ```
 
 ## Backward Compatibility
@@ -337,7 +337,7 @@ docker-compose up -d
 
 4. **Verify Deployment**
    ```bash
-   docker-compose ps
+   docker compose ps
    curl http://localhost:8088/health
    ```
 

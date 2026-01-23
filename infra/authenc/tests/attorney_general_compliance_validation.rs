@@ -140,7 +140,7 @@ mod kejaksaan_compliance_validation {
             AdminLevel::AdminPusat,
         );
 
-        let jaksa_agung_muda = create_role(
+        let _jaksa_agung_muda = create_role(
             "Jaksa Agung Muda",
             RoleScope::Pusat,
             vec!["MANAGE_ESELON_I", "AUDIT_ESELON_I"],
@@ -702,7 +702,7 @@ fn can_access_resource(user: &User, resource: &str) -> bool {
     }
 }
 
-fn can_access_at_time(user: &User, resource: &str, time: DateTime<Utc>) -> bool {
+fn can_access_at_time(_user: &User, resource: &str, time: DateTime<Utc>) -> bool {
     // Check if access is allowed at the given time
     let hour = time.hour();
 

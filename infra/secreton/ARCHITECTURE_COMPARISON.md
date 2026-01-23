@@ -1,14 +1,14 @@
-# Secreton vs HashiCorp Vault: Architecture Comparison
+# Secreton vs HashiCorp Secret Vault: Architecture Comparison
 
 ## Overview
 
-Secreton follows HashiCorp Vault's proven architectural patterns while being implemented in Rust for enhanced memory safety and performance. This document outlines the design decisions and compatibility considerations.
+Secreton follows HashiCorp Secret Vault's proven architectural patterns while being implemented in Rust for enhanced memory safety and performance. This document outlines the design decisions and compatibility considerations.
 
 ## Storage Backend Philosophy
 
-### HashiCorp Vault's Approach
+### HashiCorp Secret Vault's Approach
 
-HashiCorp Vault explicitly **does not recommend** using traditional relational databases (PostgreSQL, MySQL) as storage backends for production deployments. From their documentation:
+HashiCorp Secret Vault explicitly **does not recommend** using traditional relational databases (PostgreSQL, MySQL) as storage backends for production deployments. From their documentation:
 
 > "The storage backend is untrusted and is responsible only for durable storage of encrypted data. The storage backend never receives cleartext data."
 
@@ -50,7 +50,7 @@ Secreton adopts the same philosophy:
 
 ### Production HA Backends (Recommended)
 
-| Feature                   | Consul         | Raft (Integrated) | HashiCorp Vault Equivalent  |
+| Feature                   | Consul         | Raft (Integrated) | HashiCorp Secret Vault Equivalent  |
 | ------------------------- | -------------- | ----------------- | --------------------------- |
 | **External Dependencies** | Consul cluster | None (built-in)   | Consul / Integrated Storage |
 | **High Availability**     | ✅ Yes         | ✅ Yes            | ✅ Yes                      |
@@ -64,7 +64,7 @@ Secreton adopts the same philosophy:
 
 ### Cloud Backends
 
-| Feature                | S3            | Azure Blob       | GCS          | HashiCorp Vault Equivalent |
+| Feature                | S3            | Azure Blob       | GCS          | HashiCorp Secret Vault Equivalent |
 | ---------------------- | ------------- | ---------------- | ------------ | -------------------------- |
 | **Durability**         | 11 9's        | 16 9's           | 11 9's       | Same backends              |
 | **Availability**       | 99.99%        | 99.9%            | 99.95%       | Same backends              |
@@ -78,7 +78,7 @@ Secreton adopts the same philosophy:
 
 ### Development & Single-Node Backends
 
-| Feature                   | File             | Memory       | HashiCorp Vault Equivalent |
+| Feature                   | File             | Memory       | HashiCorp Secret Vault Equivalent |
 | ------------------------- | ---------------- | ------------ | -------------------------- |
 | **External Dependencies** | None             | None         | Same                       |
 | **Persistence**           | ✅ Yes           | ❌ No        | Same                       |
@@ -89,20 +89,20 @@ Secreton adopts the same philosophy:
 
 ### Legacy Backend (Not Recommended)
 
-| Feature               | PostgreSQL          | MySQL (Vault)       | Why Not Recommended      |
+| Feature               | PostgreSQL          | MySQL (Secret Vault)       | Why Not Recommended      |
 | --------------------- | ------------------- | ------------------- | ------------------------ |
 | **Database Required** | ✅ Yes              | ✅ Yes              | Extra operational burden |
 | **HA Complexity**     | High                | High                | Requires DB clustering   |
 | **Performance**       | Slower              | Slower              | Network + DB overhead    |
 | **Maintenance**       | DB updates, backups | DB updates, backups | Additional maintenance   |
 | **Secreton Status**   | Legacy support      | Not implemented     | Use Consul/Raft instead  |
-| **Vault Status**      | Community edition   | Community edition   | Deprecated approach      |
+| **Secret Vault Status**      | Community edition   | Community edition   | Deprecated approach      |
 
 ## Why Not Use PostgreSQL for HA?
 
-### HashiCorp Vault's Position
+### HashiCorp Secret Vault's Position
 
-From Vault documentation:
+From Secret Vault documentation:
 
 > "The PostgreSQL backend is a **community-supported** backend and is **not recommended for production use**."
 
@@ -197,7 +197,7 @@ secreton-cli storage import \
 
 - Service discovery included
 - Health checks automatic
-- Used by HashiCorp Vault in production
+- Used by HashiCorp Secret Vault in production
 - Well-documented operational practices
 
 ### Pattern 2: Raft Integrated Storage (Recommended)
@@ -227,7 +227,7 @@ secreton-cli storage import \
 - Zero external dependencies
 - Simpler deployment
 - Perfect for Kubernetes
-- Same as Vault's Integrated Storage
+- Same as Secret Vault's Integrated Storage
 
 ### Pattern 3: Cloud-Native (S3)
 
@@ -294,7 +294,7 @@ All backends store **encrypted data only**:
 - Provided via:
   - Environment variable (dev)
   - HSM (production)
-  - Cloud KMS (AWS KMS, Azure Key Vault)
+  - Cloud KMS (AWS KMS, Azure Key Secret Vault)
   - Shamir Secret Sharing (manual unseal)
 
 **Data Encryption Key (DEK):**
@@ -336,7 +336,7 @@ All backends store **encrypted data only**:
 
 ## Conclusion
 
-**Secreton's storage architecture mirrors HashiCorp Vault:**
+**Secreton's storage architecture mirrors HashiCorp Secret Vault:**
 
 - ✅ Storage backends are untrusted
 - ✅ All data encrypted before storage

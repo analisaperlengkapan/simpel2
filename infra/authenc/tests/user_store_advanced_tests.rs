@@ -57,7 +57,6 @@ async fn test_user_store_comprehensive_operations() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -230,7 +229,6 @@ async fn test_user_store_error_handling() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -249,7 +247,7 @@ async fn test_user_store_error_handling() {
     }
 
     // Create test realm first
-    let realm_id = match setup_test_realm(&database).await {
+    let _realm_id = match setup_test_realm(&database).await {
         Ok(id) => id,
         Err(e) => {
             println!("Skipping test due to realm creation failure: {}", e);
@@ -298,7 +296,6 @@ async fn test_user_store_bulk_operations() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;

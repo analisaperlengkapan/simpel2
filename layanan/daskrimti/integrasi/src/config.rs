@@ -33,7 +33,6 @@ pub struct Config {
     pub db_config: Option<String>,
 
     // === SIMAN Configuration ===
-
     /// SIMAN OAuth2 Client ID
     pub siman_client_id: Option<String>,
 
@@ -99,14 +98,13 @@ impl Config {
         let base = BaseServiceConfig::from_env();
 
         // Load specific config
-        let base_url = std::env::var("MONSAKTI_BASE_URL")
-            .unwrap_or_else(|_| default_monsakti_base_url());
+        let base_url =
+            std::env::var("MONSAKTI_BASE_URL").unwrap_or_else(|_| default_monsakti_base_url());
 
-        let mysimkari_base_url = std::env::var("MYSIMKARI_BASE_URL")
-            .unwrap_or_else(|_| default_mysimkari_base_url());
+        let mysimkari_base_url =
+            std::env::var("MYSIMKARI_BASE_URL").unwrap_or_else(|_| default_mysimkari_base_url());
 
-        let output_dir = std::env::var("OUTPUT_DIR")
-            .unwrap_or_else(|_| default_output_dir());
+        let output_dir = std::env::var("OUTPUT_DIR").unwrap_or_else(|_| default_output_dir());
 
         // Helper to load tokens from generic env vars if needed
         let mut tokens = HashMap::new();
@@ -117,19 +115,19 @@ impl Config {
 
         // Set db_config from base.database_url if available
         let db_config = if !base.database_url.is_empty() {
-             Some(base.database_url.clone())
+            Some(base.database_url.clone())
         } else {
-             None
+            None
         };
 
         // SIMAN
         let siman_client_id = std::env::var("SIMAN_CLIENT_ID").ok();
         let siman_client_secret = std::env::var("SIMAN_CLIENT_SECRET").ok();
-        let siman_token_url = std::env::var("SIMAN_TOKEN_URL")
-            .unwrap_or_else(|_| default_siman_token_url());
+        let siman_token_url =
+            std::env::var("SIMAN_TOKEN_URL").unwrap_or_else(|_| default_siman_token_url());
         let siman_ba_key = std::env::var("SIMAN_BA_KEY").ok();
-        let siman_base_url = std::env::var("SIMAN_BASE_URL")
-            .unwrap_or_else(|_| default_siman_base_url());
+        let siman_base_url =
+            std::env::var("SIMAN_BASE_URL").unwrap_or_else(|_| default_siman_base_url());
         let siman_concurrency_limit = std::env::var("SIMAN_CONCURRENCY_LIMIT")
             .ok()
             .and_then(|s| s.parse().ok())

@@ -42,8 +42,8 @@ mod secreton_integration_test_validation {
         ];
 
         for (token_type, satker_code, should_be_valid) in token_scenarios {
-            println!("Framework ready for token validation: {} for {} (expect: {})",
-                    token_type, satker_code, if should_be_valid { "valid" } else { "invalid" });
+            println!("Framework ready for token validation: { for { (expect: {})",
+                    token_type, satker_code, if should_be_valid  { "valid" } else { "invalid" });
 
             // Simulate token validation logic
             let is_valid = token_type.starts_with("valid_token") &&
@@ -73,8 +73,8 @@ mod secreton_integration_test_validation {
         ];
 
         for (token_satker, secret_path, should_have_access) in access_scenarios {
-            println!("Framework ready for access control: {} -> {} (expect: {})",
-                    token_satker, secret_path, if should_have_access { "allow" } else { "deny" });
+            println!("Framework ready for access control: { -> { (expect: {})",
+                    token_satker, secret_path, if should_have_access  { "allow" } else { "deny" });
 
             // Simulate access control logic
             let path_satker = secret_path.split('/').nth(1).unwrap_or("");
@@ -103,9 +103,9 @@ mod secreton_integration_test_validation {
         ];
 
         for (admin_level, admin_satker, target_satker, operation, should_succeed) in admin_scenarios {
-            println!("Framework ready for admin operation: {} {} -> {} {} (expect: {})",
+            println!("Framework ready for admin operation: { { -> { { (expect: {})",
                     admin_level, admin_satker, operation, target_satker,
-                    if should_succeed { "success" } else { "deny" });
+                    if should_succeed  { "success" } else { "deny" });
 
             // Simulate hierarchical access control
             let access_granted = match admin_level {
@@ -151,7 +151,7 @@ mod secreton_integration_test_validation {
             }).await;
 
             assert!(fallback_result.is_ok());
-            println!("Authenc fallback scenario {} handled: {}", scenario, fallback_result.unwrap());
+            println!("Authenc fallback scenario { handled: {}", scenario, fallback_result.unwrap());
 
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
@@ -178,9 +178,9 @@ mod secreton_integration_test_validation {
                     let secret_path = format!("secrets/{}/{}", target_satker, secret_type);
                     let should_have_access = requesting_satker == target_satker;
 
-                    println!("Framework ready for isolation test: {} -> {} (expect: {})",
+                    println!("Framework ready for isolation test: { -> { (expect: {})",
                             requesting_satker, secret_path,
-                            if should_have_access { "allow" } else { "deny" });
+                            if should_have_access  { "allow" } else { "deny" });
 
                     // Simulate isolation enforcement
                     let access_allowed = requesting_satker == target_satker;
@@ -206,7 +206,7 @@ mod secreton_integration_test_validation {
         ];
 
         for (operation, resource) in audit_operations {
-            println!("Framework ready for audit operation: {} on {}", operation, resource);
+            println!("Framework ready for audit operation: { on {}", operation, resource);
 
             // Simulate audit trail creation
             let audit_entry = format!("audit_entry_{}_{}", operation, resource.replace('/', "_"));
@@ -250,7 +250,7 @@ mod secreton_integration_test_validation {
             let result = pq_result.unwrap();
             assert!(result.contains("ML-DSA") || result.contains("ML-KEM") || result.contains("unknown"));
 
-            println!("Post-quantum operation {} result: {}", operation, result);
+            println!("Post-quantum operation { result: {}", operation, result);
         }
 
         println!("Post-quantum integration framework validated");

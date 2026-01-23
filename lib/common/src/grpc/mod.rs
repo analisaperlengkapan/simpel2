@@ -24,7 +24,7 @@ pub use interceptors::{
 };
 
 #[cfg(feature = "grpc")]
-pub use tls::{GrpcTlsConfig, TlsIdentity, GrpcTlsMetrics};
+pub use tls::{GrpcTlsConfig, GrpcTlsMetrics, TlsIdentity};
 
 #[cfg(feature = "grpc")]
-pub use health::{HealthStatus, ServingStatus, DependencyHealth, HealthInfo};
+pub use health::{DependencyHealth, HealthInfo, HealthStatus, ServingStatus};

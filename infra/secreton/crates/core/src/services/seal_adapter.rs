@@ -1,18 +1,18 @@
 //! Storage adapter for SealService
 //!
-//! Bridges the VaultStateStorage trait with the StorageBackend trait,
-//! allowing SealService to persist vault state using the storage backend.
+//! Bridges the EngineStateStorage trait with the StorageBackend trait,
+//! allowing SealService to persist engine state using the storage backend.
 
+use crate::services::seal::{EngineState, EngineStateStorage};
 use anyhow::Result;
-use crate::services::seal::{VaultState, VaultStateStorage};
-use secreton_storage::{StorageBackend, VaultEntry, SecurityLevel};
+use secreton_storage::{SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Arc;
 
 const VAULT_STATE_PATH: &str = "sys/seal/state";
 const VAULT_STATE_OWNER: &str = "system";
 
 /// Storage adapter for SealService to use StorageBackend
-/// This adapter implements the VaultStateStorage trait required by SealService
+/// This adapter implements the EngineStateStorage trait required by SealService
 /// and delegates to the underlying StorageBackend implementation.
 pub struct SealStorageAdapter {
     storage: Arc<dyn StorageBackend + Send + Sync>,
@@ -26,15 +26,15 @@ impl SealStorageAdapter {
 }
 
 #[async_trait::async_trait]
-impl VaultStateStorage for SealStorageAdapter {
-    async fn store_vault_state(&self, state: &VaultState) -> Result<(), String> {
-        // Serialize vault state to JSON
+impl EngineStateStorage for SealStorageAdapter {
+    async fn store_engine_state(&self, state: &EngineState) -> Result<(), String> {
+        // Serialize engine state to JSON
         let json_data = serde_json::to_vec(state)
-            .map_err(|e| format!("Failed to serialize vault state: {}", e))?;
+            .map_err(|e| format!("Failed to serialize engine state: {}", e))?;
 
-        tracing::info!("Storing vault state (size: {} bytes)", json_data.len());
+        tracing::info!("Storing engine state (size: {} bytes)", json_data.len());
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             VAULT_STATE_PATH.to_string(),
             json_data,
             serde_json::json!({}), // No additional encryption metadata at this level
@@ -45,23 +45,23 @@ impl VaultStateStorage for SealStorageAdapter {
         self.storage
             .store(&entry)
             .await
-            .map_err(|e| format!("Failed to store vault state: {}", e))?;
+            .map_err(|e| format!("Failed to store engine state: {}", e))?;
 
         Ok(())
     }
 
-    async fn load_vault_state(&self) -> Result<Option<VaultState>, String> {
-        tracing::debug!("Loading vault state from storage");
+    async fn load_engine_state(&self) -> Result<Option<EngineState>, String> {
+        tracing::debug!("Loading engine state from storage");
 
         let entry = self
             .storage
             .get_by_path(VAULT_STATE_PATH)
             .await
-            .map_err(|e| format!("Failed to load vault state: {}", e))?;
+            .map_err(|e| format!("Failed to load engine state: {}", e))?;
 
         if let Some(entry) = entry {
-            let state: VaultState = serde_json::from_slice(&entry.encrypted_data)
-                .map_err(|e| format!("Failed to deserialize vault state: {}", e))?;
+            let state: EngineState = serde_json::from_slice(&entry.encrypted_data)
+                .map_err(|e| format!("Failed to deserialize engine state: {}", e))?;
             Ok(Some(state))
         } else {
             Ok(None)
@@ -72,12 +72,12 @@ impl VaultStateStorage for SealStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::seal::{SealConfig, EncryptionMetadata, KdfParams};
-    use secreton_storage::MemoryBackend;
+    use crate::services::seal::{EncryptionMetadata, KdfParams, SealConfig};
     use chrono::Utc;
+    use secreton_storage::MemoryBackend;
 
-    fn create_test_vault_state() -> VaultState {
-        VaultState {
+    fn create_test_engine_state() -> EngineState {
+        EngineState {
             encrypted_master_key: vec![1, 2, 3, 4],
             seal_config: SealConfig {
                 seal_type: "shamir".to_string(),
@@ -108,10 +108,13 @@ mod tests {
         // Setup
         let storage = Arc::new(MemoryBackend::new());
         let adapter = SealStorageAdapter::new(storage.clone());
-        let state = create_test_vault_state();
+        let state = create_test_engine_state();
 
         // Test Store
-        adapter.store_vault_state(&state).await.expect("Failed to store vault state");
+        adapter
+            .store_engine_state(&state)
+            .await
+            .expect("Failed to store engine state");
 
         // Verify storage content directly
         let stored_entry = storage.get_by_path(VAULT_STATE_PATH).await.unwrap();
@@ -121,7 +124,10 @@ mod tests {
         assert_eq!(entry.owner_id, VAULT_STATE_OWNER);
 
         // Test Load
-        let loaded_state = adapter.load_vault_state().await.expect("Failed to load vault state");
+        let loaded_state = adapter
+            .load_engine_state()
+            .await
+            .expect("Failed to load engine state");
         assert!(loaded_state.is_some());
         let loaded = loaded_state.unwrap();
 
@@ -136,7 +142,10 @@ mod tests {
         let storage = Arc::new(MemoryBackend::new());
         let adapter = SealStorageAdapter::new(storage);
 
-        let loaded_state = adapter.load_vault_state().await.expect("Failed to load empty state");
+        let loaded_state = adapter
+            .load_engine_state()
+            .await
+            .expect("Failed to load empty state");
         assert!(loaded_state.is_none());
     }
 }

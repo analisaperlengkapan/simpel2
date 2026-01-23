@@ -158,8 +158,8 @@ mod tests {
             .unwrap_or_else(|_| "redis://:redis_password@localhost:6379/15".to_string())
     }
 
-    async fn create_test_listener() -> std::result::Result<CacheInvalidationListener, crate::error::AuthencError>
-    {
+    async fn create_test_listener()
+    -> std::result::Result<CacheInvalidationListener, crate::error::AuthencError> {
         let redis_config = RedisConfig {
             enabled: true,
             url: get_test_redis_url(),

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 use crate::{ApiError, ApiResponse, ApiResult};
-use secreton_crypto::transit::algorithms::{generate_random, HashAlgorithm};
+use secreton_crypto::transit::algorithms::{HashAlgorithm, generate_random};
 
 use super::AppState;
 
@@ -172,10 +172,10 @@ async fn compute_hmac(
         .decode(&request.input)
         .map_err(|e| ApiError::bad_request(format!("Invalid base64 input: {}", e)))?;
 
-    // Get key from vault storage (stored as a secret)
+    // Get key from engine storage (stored as a secret)
     let key_path = format!("crypto/hmac-keys/{}", request.key_name);
     let secret = state
-        .vault
+        .engine
         .get_secret(&key_path, "system")
         .await
         .map_err(|e| {
@@ -227,10 +227,10 @@ async fn compute_hmac_batch(
         request.inputs.len()
     );
 
-    // Get key from vault storage (stored as a secret)
+    // Get key from engine storage (stored as a secret)
     let key_path = format!("crypto/hmac-keys/{}", request.key_name);
     let secret = state
-        .vault
+        .engine
         .get_secret(&key_path, "system")
         .await
         .map_err(|e| {
@@ -365,26 +365,30 @@ pub fn compute_hmac_with_algorithm(
 
     match algorithm {
         HmacAlgorithm::Sha256 => {
-            let mut mac = Hmac::<Sha256>::new_from_slice(key)
-                .map_err(|e| ApiError::internal(format!("HMAC key initialization failed: {}", e)))?;
+            let mut mac = Hmac::<Sha256>::new_from_slice(key).map_err(|e| {
+                ApiError::internal(format!("HMAC key initialization failed: {}", e))
+            })?;
             mac.update(data);
             Ok(mac.finalize().into_bytes().to_vec())
         }
         HmacAlgorithm::Sha384 => {
-            let mut mac = Hmac::<Sha384>::new_from_slice(key)
-                .map_err(|e| ApiError::internal(format!("HMAC key initialization failed: {}", e)))?;
+            let mut mac = Hmac::<Sha384>::new_from_slice(key).map_err(|e| {
+                ApiError::internal(format!("HMAC key initialization failed: {}", e))
+            })?;
             mac.update(data);
             Ok(mac.finalize().into_bytes().to_vec())
         }
         HmacAlgorithm::Sha512 => {
-            let mut mac = Hmac::<Sha512>::new_from_slice(key)
-                .map_err(|e| ApiError::internal(format!("HMAC key initialization failed: {}", e)))?;
+            let mut mac = Hmac::<Sha512>::new_from_slice(key).map_err(|e| {
+                ApiError::internal(format!("HMAC key initialization failed: {}", e))
+            })?;
             mac.update(data);
             Ok(mac.finalize().into_bytes().to_vec())
         }
         HmacAlgorithm::Sha3_256 => {
-            let mut mac = Hmac::<Sha3_256>::new_from_slice(key)
-                .map_err(|e| ApiError::internal(format!("HMAC key initialization failed: {}", e)))?;
+            let mut mac = Hmac::<Sha3_256>::new_from_slice(key).map_err(|e| {
+                ApiError::internal(format!("HMAC key initialization failed: {}", e))
+            })?;
             mac.update(data);
             Ok(mac.finalize().into_bytes().to_vec())
         }

@@ -32,14 +32,12 @@ fn classification_level_strategy() -> impl Strategy<Value = ClassificationLevel>
 
 // Strategy for generating secret paths
 fn secret_path_strategy() -> impl Strategy<Value = String> {
-    prop::string::string_regex("secret/[a-z0-9_-]{5,30}")
-        .expect("Valid regex")
+    prop::string::string_regex("secret/[a-z0-9_-]{5,30}").expect("Valid regex")
 }
 
 // Strategy for generating user IDs
 fn user_id_strategy() -> impl Strategy<Value = String> {
-    prop::string::string_regex("user[0-9]{1,5}")
-        .expect("Valid regex")
+    prop::string::string_regex("user[0-9]{1,5}").expect("Valid regex")
 }
 
 // **Feature: secreton-comprehensive-enhancement, Property 23: Classification Enforcement**
@@ -85,7 +83,7 @@ proptest! {
 
                 prop_assert!(has_access_with_mfa,
                     "Access with MFA should be granted for {} level with sufficient clearance", level);
-            } else {
+             } else {
                 // Property 4: Low-classification secrets don't require MFA
                 prop_assert!(!requires_mfa,
                     "BIASA and TERBATAS should not require MFA");
@@ -179,7 +177,7 @@ proptest! {
                 prop_assert!(has_clearance,
                     "User with clearance {} should have access to {} secret",
                     user_clearance, secret_level);
-            } else {
+             } else {
                 // Property 2: User with insufficient clearance should be denied
                 prop_assert!(!has_clearance,
                     "User with clearance {} should NOT have access to {} secret",
@@ -198,7 +196,7 @@ proptest! {
             if secret_level == ClassificationLevel::Biasa {
                 prop_assert!(lowest_clearance,
                     "User with BIASA clearance should access BIASA secrets");
-            } else {
+             } else {
                 prop_assert!(!lowest_clearance,
                     "User with BIASA clearance should NOT access {} secrets", secret_level);
             }
@@ -289,7 +287,11 @@ mod classification_edge_cases {
         let service = setup_test_service().await;
 
         service
-            .classify("secret/topsecret", ClassificationLevel::SangatRahasia, "user1")
+            .classify(
+                "secret/topsecret",
+                ClassificationLevel::SangatRahasia,
+                "user1",
+            )
             .await
             .unwrap();
 
@@ -299,7 +301,11 @@ mod classification_edge_cases {
         // Access without MFA should be denied
         assert!(
             !service
-                .check_access("secret/topsecret", ClassificationLevel::SangatRahasia, false)
+                .check_access(
+                    "secret/topsecret",
+                    ClassificationLevel::SangatRahasia,
+                    false
+                )
                 .await
                 .unwrap()
         );
@@ -331,7 +337,11 @@ mod classification_edge_cases {
             .await
             .unwrap();
         service
-            .classify("secret/topsecret", ClassificationLevel::SangatRahasia, "user1")
+            .classify(
+                "secret/topsecret",
+                ClassificationLevel::SangatRahasia,
+                "user1",
+            )
             .await
             .unwrap();
 
@@ -362,7 +372,11 @@ mod classification_edge_cases {
         );
         assert!(
             !service
-                .check_access("secret/topsecret", ClassificationLevel::SangatRahasia, false)
+                .check_access(
+                    "secret/topsecret",
+                    ClassificationLevel::SangatRahasia,
+                    false
+                )
                 .await
                 .unwrap()
         );
@@ -384,7 +398,11 @@ mod classification_edge_cases {
 
         // Enable MFA for user
         mfa_service
-            .enable_totp("user1", "Secreton".to_string(), "user1@test.com".to_string())
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@test.com".to_string(),
+            )
             .await
             .unwrap();
 

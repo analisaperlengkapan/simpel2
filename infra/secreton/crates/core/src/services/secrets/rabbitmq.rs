@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// Error types for RabbitMQ secrets engine
 #[derive(Debug, thiserror::Error)]
@@ -533,11 +533,8 @@ impl RabbitMqEngine {
         let base_uri = config.connection_uri.replace("amqp://", "");
         let parts: Vec<&str> = base_uri.split('@').collect();
 
-        if parts.len() > 1 {
-            format!("amqp://{}:{}@{}", username, password, parts[1])
-        } else {
-            format!("amqp://{}:{}@{}", username, password, base_uri)
-        }
+        let host = parts.last().copied().unwrap_or(base_uri.as_str());
+        format!("amqp://{}:{}@{}", username, password, host)
     }
 }
 

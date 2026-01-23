@@ -5,9 +5,9 @@
 use crate::error::AuthencError;
 use crate::handlers::api::auth_bearer::AuthBearer;
 use crate::middleware::{
-    csrf_protection_axum::{CsrfConfig, CsrfState},
-    rate_limit_axum::{RateLimitConfig, RateLimiterState},
-    security_monitoring_axum::SecurityMonitoringConfig,
+    csrf_protection::{CsrfConfig, CsrfState},
+    rate_limit::{RateLimitConfig, RateLimiterState},
+    security_monitoring::SecurityMonitoringConfig,
 };
 use crate::services::captcha::alerting::AlertRule;
 use crate::services::captcha::dashboard::{
@@ -79,7 +79,10 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
             "/captcha/dashboard/alerts/{id}/acknowledge",
             post(acknowledge_alert),
         )
-        .route("/captcha/dashboard/alerts/{id}/resolve", post(resolve_alert))
+        .route(
+            "/captcha/dashboard/alerts/{id}/resolve",
+            post(resolve_alert),
+        )
         .route("/captcha/dashboard/health", get(get_system_health))
         // Alerting endpoints
         .route("/captcha/alerts/rules", get(get_alert_rules))
@@ -96,12 +99,12 @@ pub fn create_captcha_routes() -> Router<Arc<crate::app::AppState>> {
         // Apply rate limiting middleware to all CAPTCHA endpoints
         .layer(middleware::from_fn_with_state(
             Arc::new(RateLimiterState::new(captcha_rate_limit_config)),
-            crate::middleware::rate_limit_axum::rate_limit_middleware,
+            crate::middleware::rate_limit::rate_limit_middleware,
         ))
         // Apply CSRF protection middleware
         .layer(middleware::from_fn_with_state(
             Arc::new(CsrfState::new(csrf_config)),
-            crate::middleware::csrf_protection_axum::csrf_protection_middleware,
+            crate::middleware::csrf_protection::csrf_protection_middleware,
         ))
     // Security monitoring will be applied at the router level in main handlers/mod.rs
     // to have access to the audit store from AppState
@@ -215,14 +218,26 @@ pub async fn generate_challenge(
         ChallengeType::Audio => {
             // Simple audio challenge data
             let num = rand::random::<u8>() % 10;
-            (format!("{{\"type\":\"audio\",\"question\":\"What number is {}?\"}}", num), num.to_string())
+            (
+                format!(
+                    "{{\"type\":\"audio\",\"question\":\"What number is {}?\"}}",
+                    num
+                ),
+                num.to_string(),
+            )
         }
         ChallengeType::Visual | _ => {
             // Simple visual math challenge
             let a = (rand::random::<u8>() % 10) as u32 + 1;
             let b = (rand::random::<u8>() % 10) as u32 + 1;
             let answer = a + b;
-            (format!("{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"image_data\":\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><rect fill='white' width='200' height='80'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='black'>{} + {} = ?</text></svg>\"}}", a, b, a, b), answer.to_string())
+            (
+                format!(
+                    "{{\"type\":\"math\",\"question\":\"What is {} + {}?\",\"image_data\":\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'><rect fill='white' width='200' height='80'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='black'>{} + {} = ?</text></svg>\"}}",
+                    a, b, a, b
+                ),
+                answer.to_string(),
+            )
         }
     };
 
@@ -230,7 +245,8 @@ pub async fn generate_challenge(
     let expires_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs() + 300;
+        .as_secs()
+        + 300;
 
     // Create metadata
     let mut metadata = HashMap::new();

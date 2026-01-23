@@ -1,6 +1,6 @@
 //! Operator module for diagnostic and operational commands
 //!
-//! This module provides commands for vault operators to diagnose
+//! This module provides commands for engine operators to diagnose
 //! connectivity, seal status, and authentication status.
 
 use crate::config::CliConfig;
@@ -11,7 +11,7 @@ use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum OperatorCommand {
-    /// Run comprehensive diagnostics on vault connectivity and status
+    /// Run comprehensive diagnostics on engine connectivity and status
     Diagnose,
 }
 
@@ -25,15 +25,15 @@ pub async fn execute_operator_command(cmd: OperatorCommand, config: &CliConfig) 
 /// Run comprehensive diagnostics
 ///
 /// This command checks:
-/// 1. Connectivity to the vault server
-/// 2. Vault initialization status
-/// 3. Vault seal status
+/// 1. Connectivity to the engine server
+/// 2. Engine initialization status
+/// 3. Engine seal status
 /// 4. Authentication status (token validity)
 async fn diagnose_command(config: &CliConfig) -> Result<()> {
-    println!("🔍 Running Secreton Vault Diagnostics...\n");
+    println!("🔍 Running Secreton Engine Diagnostics...\n");
 
     // 1. Check connectivity
-    println!("1️⃣  Checking connectivity to vault server...");
+    println!("1️⃣  Checking connectivity to engine server...");
     println!("   Server: {}", config.server_url);
 
     let client = reqwest::Client::builder()
@@ -43,7 +43,8 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
     let health_url = format!("{}/health", config.server_url);
     match client.get(&health_url).send().await {
         Ok(response) => {
-            if response.status().is_success() {
+            let status = response.status();
+            if status.is_success() {
                 println!("   ✅ Connectivity: OK");
 
                 if let Ok(health) = response.json::<serde_json::Value>().await {
@@ -52,14 +53,20 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
                     }
                 }
             } else {
-                println!("   ⚠️  Connectivity: Server responded with status {}", response.status());
+                println!(
+                    "   ⚠️  Connectivity: Server responded with status {}",
+                    status
+                );
             }
         }
         Err(e) => {
             println!("   ❌ Connectivity: FAILED");
             println!("   Error: {}", e);
             println!("\n💡 Troubleshooting:");
-            println!("   - Verify the server URL is correct: {}", config.server_url);
+            println!(
+                "   - Verify the server URL is correct: {}",
+                config.server_url
+            );
             println!("   - Check if the Secreton server is running");
             println!("   - Check network connectivity and firewall rules");
             return Ok(());
@@ -67,7 +74,7 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
     }
 
     // 2. Check initialization and seal status
-    println!("\n2️⃣  Checking vault initialization and seal status...");
+    println!("\n2️⃣  Checking engine initialization and seal status...");
 
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
 
@@ -75,9 +82,9 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
         Ok(status) => {
             // Check initialization
             if status.initialized {
-                println!("   ✅ Initialization: Vault is initialized");
+                println!("   ✅ Initialization: Engine is initialized");
             } else {
-                println!("   ❌ Initialization: Vault is NOT initialized");
+                println!("   ❌ Initialization: Engine is NOT initialized");
                 println!("\n💡 Next steps:");
                 println!("   Run: secreton seal init");
                 return Ok(());
@@ -87,14 +94,16 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
             if status.state == "unsealed" {
                 println!("   ✅ Seal Status: Unsealed (ready for operations)");
             } else {
-                println!("   ⚠️  Seal Status: {} (progress: {}/{})",
-                    status.state,
-                    status.progress,
-                    status.threshold
+                println!(
+                    "   ⚠️  Seal Status: {} (progress: {}/{})",
+                    status.state, status.progress, status.threshold
                 );
                 println!("\n💡 Next steps:");
                 println!("   Run: secreton seal unseal");
-                println!("   You need {} unseal key(s) to unseal the vault", status.threshold);
+                println!(
+                    "   You need {} unseal key(s) to unseal the engine",
+                    status.threshold
+                );
                 return Ok(());
             }
 
@@ -124,14 +133,20 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
             }
 
             if !stored_token.metadata.policies.is_empty() {
-                println!("   🔐 Policies: {}", stored_token.metadata.policies.join(", "));
+                println!(
+                    "   🔐 Policies: {}",
+                    stored_token.metadata.policies.join(", ")
+                );
             }
 
             if let Some(expires_at) = stored_token.metadata.expires_at {
                 let now = chrono::Utc::now();
                 if now >= expires_at {
                     println!("   ⚠️  Token Status: EXPIRED");
-                    println!("   Expired at: {}", expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
+                    println!(
+                        "   Expired at: {}",
+                        expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+                    );
                     println!("\n💡 Next steps:");
                     println!("   Run: secreton login");
                 } else {
@@ -141,7 +156,10 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
 
                     println!("   ✅ Token Status: Valid");
                     println!("   ⏰ Expires in: {}h {}m", hours, minutes);
-                    println!("   Expires at: {}", expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
+                    println!(
+                        "   Expires at: {}",
+                        expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+                    );
                 }
             } else {
                 println!("   ✅ Token Status: Valid (no expiration)");
@@ -168,7 +186,10 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
                         println!("\n💡 Next steps:");
                         println!("   Run: secreton login");
                     } else {
-                        println!("   ⚠️  Token Verification: Server returned status {}", response.status());
+                        println!(
+                            "   ⚠️  Token Verification: Server returned status {}",
+                            response.status()
+                        );
                     }
                 }
                 Err(e) => {
@@ -194,16 +215,16 @@ async fn diagnose_command(config: &CliConfig) -> Result<()> {
     println!("{}", "=".repeat(60));
 
     let connectivity_ok = true; // If we got here, connectivity is OK
-    let vault_ready = seal_checker.check_ready().await.is_ok();
+    let engine_ready = seal_checker.check_ready().await.is_ok();
     let authenticated = token_store.load_token().is_ok() && token_store.load_token()?.is_some();
 
-    if connectivity_ok && vault_ready && authenticated {
-        println!("✅ All systems operational - vault is ready for use");
+    if connectivity_ok && engine_ready && authenticated {
+        println!("✅ All systems operational - engine is ready for use");
     } else {
         println!("⚠️  Some issues detected - see details above");
 
-        if !vault_ready {
-            println!("   • Vault needs to be initialized and/or unsealed");
+        if !engine_ready {
+            println!("   • Engine needs to be initialized and/or unsealed");
         }
         if !authenticated {
             println!("   • Authentication required (run 'secreton login')");

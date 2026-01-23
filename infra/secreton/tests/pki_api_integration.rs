@@ -18,7 +18,7 @@ mod tests {
     async fn test_pki_workflow() {
         // Create PKI engine and API state
         let engine = Arc::new(PkiEngine::new());
-        let state = PkiApiState::new(engine.clone());
+        let _state = PkiApiState::new(engine.clone());
 
         // Generate root CA
         let ca_result = engine
@@ -33,7 +33,10 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: true,
             allowed_domains: vec![],
-            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            key_usage: vec![
+                "DigitalSignature".to_string(),
+                "KeyEncipherment".to_string(),
+            ],
             ext_key_usage: vec!["ServerAuth".to_string()],
             require_cn: true,
             allow_localhost: false,
@@ -95,7 +98,10 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: false,
             allowed_domains: vec!["example.com".to_string()],
-            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            key_usage: vec![
+                "DigitalSignature".to_string(),
+                "KeyEncipherment".to_string(),
+            ],
             ext_key_usage: vec!["ServerAuth".to_string()],
             require_cn: true,
             allow_localhost: false,
@@ -184,7 +190,10 @@ mod tests {
             max_ttl: chrono::Duration::days(365),
             allow_any_name: false,
             allowed_domains: vec!["example.com".to_string()],
-            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            key_usage: vec![
+                "DigitalSignature".to_string(),
+                "KeyEncipherment".to_string(),
+            ],
             ext_key_usage: vec!["ServerAuth".to_string()],
             require_cn: true,
             allow_localhost: false,

@@ -1,5 +1,5 @@
-# Note: This crate is now part of the main simpelv2 workspace
-# Individual workspace section removed for single-workspace consolidation
+# Authenc is part of the main simpelv2 workspace
+# Workspace dependencies are managed in root Cargo.toml
 
 [package]
 name = "authenc"
@@ -237,7 +237,7 @@ quick-xml = { version = "0.38.3", features = ["serialize"] }
 
 # Kubernetes Operator
 kube = { version = "2.0.1", features = ["runtime", "derive"] }
-k8s-openapi = { version = "0.26.0", features = ["v1_30"] }
+k8s-openapi.workspace = true
 schemars = "1.0"                                               # Updated for kube 2.0.1 compatibility
 tokio-stream = "0.1"
 

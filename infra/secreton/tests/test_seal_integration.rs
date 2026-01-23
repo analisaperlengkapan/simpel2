@@ -2,7 +2,7 @@
 // Run with: cargo test --test test_seal_integration
 
 use chrono::Utc;
-use secreton_core::services::seal::{InMemoryVaultStateStorage, SealConfig, SealService};
+use secreton_core::services::seal::{InMemoryEngineStateStorage, SealConfig, SealService};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -14,18 +14,18 @@ async fn test_seal_unseal_with_shamir() {
         created_at: Utc::now(),
     };
 
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let service = SealService::with_storage(config, storage);
 
-    // Initialize vault - generates master key and shares
-    println!("Initializing vault...");
+    // Initialize engine - generates master key and shares
+    println!("Initializing engine...");
     let shares = service.initialize().await.unwrap();
     assert_eq!(shares.len(), 5);
     println!("Generated {} shares", shares.len());
 
-    // After initialization, vault is unsealed
+    // After initialization, engine is unsealed
     assert!(service.is_sealed().await);
-    println!("Vault is sealed after initialization");
+    println!("Engine is sealed after initialization");
 
     // Get master key
     assert!(service.get_master_key().await.is_err());
@@ -41,18 +41,18 @@ async fn test_seal_unseal_with_shamir() {
 
     // Should be unsealed now
     assert!(service.is_unsealed().await);
-    println!("Vault is unsealed");
+    println!("Engine is unsealed");
 
     // Master key should be available again
     let master_key = service.get_master_key().await.unwrap();
     assert_eq!(master_key.len(), 32);
     println!("Master key length: {} bytes", master_key.len());
 
-    // Seal the vault once to ensure sealing works and clears the key
-    println!("Sealing vault...");
+    // Seal the engine once to ensure sealing works and clears the key
+    println!("Sealing engine...");
     service.seal().await.unwrap();
     assert!(service.is_sealed().await);
-    println!("Vault is sealed");
+    println!("Engine is sealed");
 
     // Master key should not be available when sealed
     assert!(service.get_master_key().await.is_err());
@@ -67,8 +67,8 @@ async fn test_share_verification() {
     let service = SealService::new(config);
 
     // Initialize
-    println!("Initializing vault...");
-    let shares = service.initialize().await.unwrap();
+    println!("Initializing engine...");
+    let _shares = service.initialize().await.unwrap();
 
     // Seal
     assert!(service.is_sealed().await);
@@ -80,9 +80,9 @@ async fn test_share_verification() {
     assert!(result.is_err());
     println!("Invalid share correctly rejected");
 
-    // After invalid share, vault should remain sealed
+    // After invalid share, engine should remain sealed
     assert!(service.is_sealed().await);
-    println!("Vault remains sealed after invalid share (as expected)");
+    println!("Engine remains sealed after invalid share (as expected)");
 
     println!("✅ Share verification test passed!");
 }
@@ -108,7 +108,7 @@ async fn test_insufficient_shares() {
 
     // Should still be sealed
     assert!(service.is_sealed().await);
-    println!("Vault still sealed with insufficient shares (as expected)");
+    println!("Engine still sealed with insufficient shares (as expected)");
 
     let status = service.status().await;
     assert_eq!(status.progress, 2);

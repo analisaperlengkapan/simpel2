@@ -6,23 +6,23 @@
 use anyhow::Result;
 use clap::Parser;
 use kube::Client;
-use secreton_k8s_operator::controller::{run, Context};
-use tracing::{info, Level};
+use secreton_k8s_operator::controller::{Context, run};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Secreton server URL
-    #[arg(long, env = "SECRETON_URL", default_value = "https://secreton.internal:8200")]
+    #[arg(long, env, default_value = "https://secreton.internal:8200")]
     secreton_url: String,
 
     /// Default authentication token (optional)
-    #[arg(long, env = "SECRETON_TOKEN")]
+    #[arg(long, env)]
     token: Option<String>,
 
     /// Log level
-    #[arg(long, env = "LOG_LEVEL", default_value = "info")]
+    #[arg(long, env, default_value = "info")]
     log_level: String,
 }
 

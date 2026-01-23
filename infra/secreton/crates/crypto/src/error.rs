@@ -55,7 +55,7 @@ pub enum CryptoError {
     #[error("Invalid key length: expected {expected}, got {actual}")]
     InvalidKeyLength { expected: usize, actual: usize },
 
-    #[error("Invalid nonce/IV length")]
+    #[error("Invalid nonce length")]
     InvalidNonceLength,
 
     #[error("Invalid key: {0}")]

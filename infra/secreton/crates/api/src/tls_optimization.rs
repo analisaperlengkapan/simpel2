@@ -96,7 +96,10 @@ static SESSION_CACHE: Mutex<Option<Arc<SessionCache>>> = Mutex::new(None);
 pub fn init_session_cache(max_entries: usize, ttl_seconds: u64) {
     let mut cache = SESSION_CACHE.lock().unwrap();
     *cache = Some(Arc::new(SessionCache::new(max_entries, ttl_seconds)));
-    info!("TLS session cache initialized with {} max entries, {}s TTL", max_entries, ttl_seconds);
+    info!(
+        "TLS session cache initialized with {} max entries, {}s TTL",
+        max_entries, ttl_seconds
+    );
 }
 
 /// Get session cache instance
@@ -125,7 +128,10 @@ pub fn create_optimized_tls_config(
             config_builder.with_no_client_auth()
         }
         _ => {
-            warn!("Unknown TLS version '{}', using safe defaults", min_tls_version);
+            warn!(
+                "Unknown TLS version '{}', using safe defaults",
+                min_tls_version
+            );
             config_builder.with_no_client_auth()
         }
     };
@@ -181,7 +187,8 @@ impl TlsMetrics {
         // Update average handshake time
         if self.total_handshakes > 0 {
             self.average_handshake_time_ms =
-                (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms) / self.total_handshakes;
+                (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms)
+                    / self.total_handshakes;
         }
     }
 

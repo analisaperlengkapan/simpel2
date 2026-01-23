@@ -1,14 +1,14 @@
 use secreton_core::config::api::AuthConfig;
 use secreton_core::services::auth_service::{AuthError, AuthService};
+use secreton_core::storage::InMemoryStorage;
 use secreton_crypto::CryptoEngine;
 use secreton_storage::memory::MemoryBackend;
-use secreton_storage::InMemoryStorage;
 use std::sync::Arc;
 
 /// Helper to setup auth service for tests
 async fn setup_auth_service() -> AuthService {
     let storage = Arc::new(InMemoryStorage::new());
-    let crypto = Arc::new(CryptoEngine::new().unwrap());
+    let crypto = Arc::new(CryptoEngine::new());
     let config = AuthConfig::default();
     AuthService::new(storage, crypto, &config).await.unwrap()
 }
@@ -108,7 +108,15 @@ async fn test_refresh_token_with_access_token() {
     let auth_service = setup_auth_service().await;
 
     auth_service
-        .create_user("testuser2", "test2@example.com", "password123", None, vec!["user".to_string()], None, true)
+        .create_user(
+            "testuser2",
+            "test2@example.com",
+            "password123",
+            None,
+            vec!["user".to_string()],
+            None,
+            true,
+        )
         .await
         .unwrap();
     let auth_token = auth_service

@@ -2,7 +2,7 @@
 #![cfg(feature = "raft-consensus")]
 
 use secreton_storage::raft::{RaftCluster, RaftClusterConfig, StateMachineCommand};
-use secreton_storage::{SecurityLevel, StorageResult, VaultEntry};
+use secreton_storage::{SecretEntry, SecurityLevel, StorageResult};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -21,9 +21,9 @@ fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterC
     }
 }
 
-/// Helper to create a test vault entry
-fn create_test_entry(path: &str, data: Vec<u8>) -> VaultEntry {
-    VaultEntry {
+/// Helper to create a test engine entry
+fn create_test_entry(path: &str, data: Vec<u8>) -> SecretEntry {
+    SecretEntry {
         id: Uuid::new_v4(),
         path: path.to_string(),
         encrypted_data: data,

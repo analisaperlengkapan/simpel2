@@ -834,11 +834,10 @@ async fn test_advanced_security_anomaly_detector() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -890,11 +889,10 @@ async fn test_advanced_security_brute_force_protector() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -945,11 +943,10 @@ async fn test_advanced_security_brute_force_time_window() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -997,11 +994,10 @@ async fn test_advanced_security_anomaly_detector_multiple_users() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -1016,7 +1012,7 @@ async fn test_advanced_security_anomaly_detector_multiple_users() {
     let ips = vec!["192.168.1.10", "192.168.1.11", "192.168.1.12"];
 
     // Register IPs for each user
-    for (i, user) in users.iter().enumerate() {
+    for (_i, user) in users.iter().enumerate() {
         for (j, ip) in ips.iter().enumerate() {
             let is_new = detector.is_new_ip(user, ip).unwrap();
             if j == 0 {

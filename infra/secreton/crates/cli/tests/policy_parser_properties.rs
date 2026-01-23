@@ -4,8 +4,8 @@
 
 use proptest::prelude::*;
 use secreton_cli::policy_parser::{
-    toml_parser::TomlPolicyParser, Capability, Condition, Effect, Policy, PolicyParser, PolicyRule,
-    TimeRange,
+    Capability, Condition, Effect, Policy, PolicyParser, PolicyRule, TimeRange,
+    toml_parser::TomlPolicyParser,
 };
 
 // Generators for policy components
@@ -356,8 +356,8 @@ proptest! {
     /// all errors with accurate line numbers.
     #[test]
     fn test_policy_validation_error_detection(
-        invalid_name in "[^a-z0-9-]{1,5}",
-        invalid_path in "[^a-z0-9/*-_]{1,10}",
+        _invalid_name in "[^a-z0-9-]{1,5}",
+        _invalid_path in "[^a-z0-9/*-_]{1,10}",
     ) {
         let parser = TomlPolicyParser::new();
 
@@ -514,7 +514,7 @@ proptest! {
     /// **Validates: Requirements 13.2, 13.4**
     ///
     /// For any example policy file provided, it should parse successfully and be
-    /// applicable to the vault without modification.
+    /// applicable to the engine without modification.
     #[test]
     fn test_example_policy_validity(_dummy in 0u8..1u8) {
         let parser = TomlPolicyParser::new();

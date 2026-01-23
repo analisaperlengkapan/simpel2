@@ -133,7 +133,6 @@ impl MonsaktiClient {
                 );
             }
 
-
             let response = self
                 .client
                 .get(&url)
@@ -202,10 +201,9 @@ impl MonsaktiClient {
                                 "✓ Token dari response disimpan ke database (modul: {})",
                                 module
                             ),
-                            Err(e) => warn!(
-                                "⚠ Gagal simpan token dari response ke database: {:?}",
-                                e
-                            ),
+                            Err(e) => {
+                                warn!("⚠ Gagal simpan token dari response ke database: {:?}", e)
+                            }
                         }
                     }
                 }
@@ -357,7 +355,6 @@ impl MonsaktiClient {
         );
         info!("Token length: {} bytes", token.len());
 
-
         let response = self
             .client
             .get(&url)
@@ -424,7 +421,6 @@ impl MonsaktiClient {
         // Default menggunakan KL006 untuk Kejaksaan RI
         self.reset_token(module, tipe_data, "KL006").await
     }
-
 
     /// Simpan token baru ke database
     async fn save_token_to_db(

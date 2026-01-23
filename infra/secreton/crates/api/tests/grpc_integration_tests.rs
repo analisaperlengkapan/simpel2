@@ -19,8 +19,9 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use secreton_api::grpc::{
-    SecretonGrpcService, common::v1::*, secreton::v1::secreton_service_server::SecretonService,
-    secreton::v1::*,
+    SecretonGrpcService,
+    common::v1::*,
+    secreton::v1::{secreton_service_server::SecretonService, *},
 };
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::{MemoryBackend, StorageBackend};

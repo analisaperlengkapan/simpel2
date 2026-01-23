@@ -1,0 +1,77 @@
+# PostgreSQL Initialization ConfigMap
+# Creates required databases for authenc, secreton, and simpelv2
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: simpelv2-infra
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: initialization
+data:
+  init.sql: |
+    -- Create databases for each service
+    CREATE DATABASE simpelv2 WITH OWNER = simpelv2;
+    CREATE DATABASE simpelv2_authenc WITH OWNER = simpelv2;
+    CREATE DATABASE simpelv2_secreton WITH OWNER = simpelv2;
+
+    -- Grant privileges
+    GRANT ALL PRIVILEGES ON DATABASE simpelv2 TO simpelv2;
+    GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO simpelv2;
+    GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO simpelv2;
+
+    -- Create extension for UUID generation
+    \c simpelv2
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+    \c simpelv2_authenc
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+    \c simpelv2_secreton
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+---
+# Nginx ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: simpelv2-infra
+  labels:
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/component: config
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        upstream portal {
+            server portal-service.simpelv2-frontend.svc.cluster.local:8080;
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            location /health {
+                access_log off;
+                return 200 "OK\n";
+                add_header Content-Type text/plain;
+            }
+
+            location / {
+                proxy_pass http://portal;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+        }
+    }

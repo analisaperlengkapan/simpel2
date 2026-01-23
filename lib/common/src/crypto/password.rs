@@ -36,11 +36,7 @@ pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Er
         Some(32), // output length: 32 bytes
     )?;
 
-    let argon2 = Argon2::new(
-        Algorithm::Argon2id,
-        Version::V0x13,
-        params,
-    );
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let password_hash = argon2.hash_password(password.as_bytes(), &salt)?;
     Ok(password_hash.to_string())
@@ -138,9 +134,7 @@ pub fn validate_password_strength(
 
     let special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?/~`";
     if !password.chars().any(|c| special_chars.contains(c)) {
-        errors.push(
-            "Password must contain at least one special character".to_string(),
-        );
+        errors.push("Password must contain at least one special character".to_string());
     } else {
         strength_score += 15;
     }
@@ -155,9 +149,7 @@ pub fn validate_password_strength(
     }
 
     let lower_password = password.to_lowercase();
-    let weak_patterns = [
-        "password", "123456", "qwerty", "admin", "letmein",
-    ];
+    let weak_patterns = ["password", "123456", "qwerty", "admin", "letmein"];
 
     for pattern in &weak_patterns {
         if lower_password.contains(pattern) {

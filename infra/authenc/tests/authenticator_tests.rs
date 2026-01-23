@@ -216,7 +216,7 @@ mod tests {
             global_config: None,
         };
 
-        let provider = factory.create(&config).unwrap();
+        let _provider = factory.create(&config).unwrap();
         // Note: Provider trait doesn't have get_id(), that's on ProviderFactory
         // We can test that the provider was created successfully
 

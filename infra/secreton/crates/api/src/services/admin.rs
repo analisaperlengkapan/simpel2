@@ -12,8 +12,8 @@ use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
 use secreton_storage::{MemoryBackend, StorageBackend};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
 /// Admin service errors
@@ -156,7 +156,7 @@ impl AdminService {
         })
     }
 
-/// Track a request for RPM calculation
+    /// Track a request for RPM calculation
     pub fn track_request(&self) {
         self.request_count.fetch_add(1, Ordering::Relaxed);
     }
@@ -203,7 +203,9 @@ impl AdminService {
                 total: total_memory,
                 used: used_memory,
                 free: sys.free_memory(),
-                cached: total_memory.saturating_sub(used_memory).saturating_sub(sys.free_memory()), // Approximate
+                cached: total_memory
+                    .saturating_sub(used_memory)
+                    .saturating_sub(sys.free_memory()), // Approximate
             };
 
             let cpu = CpuStats {
@@ -271,7 +273,7 @@ impl AdminService {
         );
 
         // Calculate checksum placeholder (should be actual hash of backup data)
-        let checksum = format!("sha256:{}", hex::encode(&backup_id.as_bytes()[..16]));
+        let checksum = format!("sha256::{}", hex::encode(&backup_id.as_bytes()[..16]));
 
         Ok(BackupInfo {
             id: backup_id.clone(),
@@ -344,18 +346,16 @@ impl AdminService {
         // 3. Clean expired audit logs based on retention policy
         // Retention: 30 days
         let retention_period = chrono::Duration::days(30);
-        let cleaned_audit_logs = self
-            .audit
-            .cleanup_expired_events(retention_period)
-            .await;
+        let cleaned_audit_logs = self.audit.cleanup_expired_events(retention_period).await;
 
         let cleaned_objects =
             expired_leases_count as u64 + expired_secrets_count + cleaned_audit_logs as u64;
 
         // Recalculate stats to see freed space (approximate)
         let stats_after = self.storage.get_stats().await?;
-        let freed_space =
-            stats_before.total_size_bytes.saturating_sub(stats_after.total_size_bytes);
+        let freed_space = stats_before
+            .total_size_bytes
+            .saturating_sub(stats_after.total_size_bytes);
 
         tracing::info!(
             cleaned_objects = cleaned_objects,
@@ -477,15 +477,15 @@ impl AdminService {
             .into_iter()
             .filter(|event| {
                 // Filter by time range
-                if let Some(start) = start_time
-                    && event.timestamp < start
-                {
-                    return false;
+                if let Some(start) = start_time {
+                    if event.timestamp < start {
+                        return false;
+                    }
                 }
-                if let Some(end) = end_time
-                    && event.timestamp > end
-                {
-                    return false;
+                if let Some(end) = end_time {
+                    if event.timestamp > end {
+                        return false;
+                    }
                 }
                 // Filter by action
                 if let Some(action_filter) = action {
@@ -658,7 +658,8 @@ impl AdminService {
                     crate::middleware::update_rate_limiting(requests as u32);
                     updated_keys.push("rate_limit.global.requests".to_string());
                 } else {
-                    errors.push("Invalid rate_limit structure: missing global.requests".to_string());
+                    errors
+                        .push("Invalid rate_limit structure: missing global.requests".to_string());
                 }
             } else {
                 errors.push("Invalid rate_limit structure: parsing failed".to_string());
@@ -711,10 +712,7 @@ impl AdminService {
                     details.insert(
                         "errors".to_string(),
                         serde_json::Value::Array(
-                            errors
-                                .into_iter()
-                                .map(serde_json::Value::String)
-                                .collect(),
+                            errors.into_iter().map(serde_json::Value::String).collect(),
                         ),
                     );
                 }
@@ -820,7 +818,10 @@ mod tests {
         assert_eq!(stats.total_keys, stats.total_secrets);
         // MemoryBackend might return 0 size if not tracking correctly or optimized
         assert!(stats.storage_usage_bytes >= 0);
-        assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
+        assert!(
+            stats.uptime_seconds >= 1,
+            "Uptime should be at least 1 second"
+        );
         assert!(stats.cache_hit_rate >= 0.0);
     }
 
@@ -921,8 +922,7 @@ mod tests {
             .unwrap()
             .as_array()
             .unwrap();
-        assert!(updated_keys
-            .contains(&serde_json::Value::String("rate_limit".to_string())));
+        assert!(updated_keys.contains(&serde_json::Value::String("rate_limit".to_string())));
 
         // 2. Test Auth Config Update
         let mut new_auth_config = AuthConfig::default();

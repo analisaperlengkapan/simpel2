@@ -27,7 +27,7 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/raft/join", post(add_peer))
         .route("/raft/peers", get(list_peers))
-        .route("/raft/peers/:node_id", delete(remove_peer))
+        .route("/raft/peers/{node_id}", delete(remove_peer))
         .route("/raft/status", get(get_cluster_status))
         .route("/raft/election-stats", get(get_election_stats))
         .route("/raft/snapshot", post(create_snapshot))
@@ -180,7 +180,7 @@ pub struct RestoreSnapshotResponse {
 
 fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
     let is_admin = user.roles.iter().any(|role| {
-        role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("vault-admin")
+        role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("engine-admin")
     });
 
     if is_admin {
@@ -1522,14 +1522,14 @@ mod tests {
         };
         assert!(ensure_admin(&admin_user).is_ok());
 
-        // Valid vault-admin
-        let vault_admin = AuthenticatedUser {
+        // Valid engine-admin
+        let engine_admin = AuthenticatedUser {
             id: uuid::Uuid::new_v4(),
-            username: "vault-admin".to_string(),
+            username: "engine-admin".to_string(),
             email: None,
-            roles: vec!["vault-admin".to_string()],
+            roles: vec!["engine-admin".to_string()],
         };
-        assert!(ensure_admin(&vault_admin).is_ok());
+        assert!(ensure_admin(&engine_admin).is_ok());
 
         // Invalid user
         let regular_user = AuthenticatedUser {

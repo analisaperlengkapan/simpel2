@@ -89,7 +89,13 @@ mod tests {
         }
 
         let duration = start.elapsed();
-        println!("Benchmark Result: {} requests in {:?} (Concurrency: {})", total_requests, duration, concurrency);
-        println!("Throughput: {:.2} req/s", total_requests as f64 / duration.as_secs_f64());
+        println!(
+            "Benchmark Result: {} requests in {:?} (Concurrency: {})",
+            total_requests, duration, concurrency
+        );
+        println!(
+            "Throughput: {:.2} req/s",
+            total_requests as f64 / duration.as_secs_f64()
+        );
     }
 }

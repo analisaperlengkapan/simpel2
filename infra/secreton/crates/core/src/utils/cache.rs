@@ -3,17 +3,13 @@
 //! This module re-exports cache types from the common library and provides
 //! a secret-specific cache manager.
 
-use crate::error::{CoreError, Result};
-use lib_common::cache::{
-    AsyncLruCache, CacheStats, HybridCache, RedisCache,
-};
 use crate::storage::CacheBackend;
-use std::time::Duration;
+use lib_common::cache::{CacheStats, RedisCache};
 
 // Re-export common cache types
 pub use lib_common::cache::{
-    AsyncLruCache as AsyncSecretCache, LruCache as SecretLruCache,
-    ThreadSafeLruCache as ThreadSafeSecretCache, SensitivityLevel,
+    AsyncLruCache as AsyncSecretCache, LruCache as SecretLruCache, SensitivityLevel,
+    ThreadSafeLruCache as ThreadSafeSecretCache,
 };
 
 /// Specialized cache types for different secret operations
@@ -116,7 +112,7 @@ impl SecretCacheManager {
         self.key_cache.clear().await;
 
         if let Some(redis) = &self.redis_cache {
-             let _ = redis.clear_all().await;
+            let _ = redis.clear_all().await;
         }
     }
 
@@ -124,7 +120,9 @@ impl SecretCacheManager {
     pub async fn evict_sensitive(&self, load_factor: f64) {
         self.secret_cache.evict_by_sensitivity(load_factor).await;
         self.token_cache.evict_by_sensitivity(load_factor).await;
-        self.permission_cache.evict_by_sensitivity(load_factor).await;
+        self.permission_cache
+            .evict_by_sensitivity(load_factor)
+            .await;
         self.key_cache.evict_by_sensitivity(load_factor).await;
     }
 

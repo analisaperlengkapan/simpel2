@@ -1,4 +1,4 @@
-//! Performance and load testing for vault system
+//! Performance and load testing for engine system
 //!
 //! Tests system performance under various load conditions including
 //! concurrent operations, memory usage, and response times.
@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Barrier;
 use tokio::time::sleep;
 
-use crate::handlers::vault::*;
+use crate::handlers::engine::*;
 use crate::config::ApiConfig;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
@@ -80,8 +80,8 @@ mod performance_tests {
         let total_duration = start_time.elapsed();
         let operations_per_second = num_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Concurrent operations: {} ops in {:?}", num_operations, total_duration);
-        println!("Performance: {:.2} ops/sec", operations_per_second);
+        println!("Concurrent operations: { ops in {:?}", num_operations, total_duration);
+        println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Performance assertions
         assert!(operations_per_second > 10.0, "Should achieve reasonable throughput");
@@ -101,7 +101,7 @@ mod performance_tests {
         for i in 0..1000 {
             let payload = json!({
                 "data": {
-                    "large_field": format!("Large data chunk number {} with lots of content", i)
+                    "large_field": format!("Large data chunk number { with lots of content", i)
                 }
             });
 
@@ -119,7 +119,7 @@ mod performance_tests {
         let final_memory = get_memory_usage();
         let memory_growth = final_memory - initial_memory;
 
-        println!("Memory usage - Initial: {} MB, Final: {} MB, Growth: {} MB",
+        println!("Memory usage - Initial: { MB, Final: { MB, Growth: { MB",
                 initial_memory / 1024 / 1024,
                 final_memory / 1024 / 1024,
                 memory_growth / 1024 / 1024);
@@ -232,8 +232,8 @@ mod performance_tests {
         let total_operations = num_concurrent_connections * operations_per_connection;
         let operations_per_second = total_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Connection pool test: {} operations in {:?}", total_operations, total_duration);
-        println!("Performance: {:.2} ops/sec", operations_per_second);
+        println!("Connection pool test: { operations in {:?}", total_operations, total_duration);
+        println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Should handle concurrent connections efficiently
         assert!(operations_per_second > 50.0, "Should handle concurrent connections efficiently");
@@ -297,11 +297,9 @@ mod performance_tests {
                 let avg_encrypt = encrypt_times.iter().sum::<Duration>() / encrypt_times.len() as u32;
                 let avg_decrypt = if !decrypt_times.is_empty() {
                     decrypt_times.iter().sum::<Duration>() / decrypt_times.len() as u32
-                } else {
-                    Duration::from_secs(0)
-                };
+                 } else { Duration::from_secs(0) };
 
-                println!("Data size {}KB - Encrypt: {:?}, Decrypt: {:?}", data_size / 1024, avg_encrypt, avg_decrypt);
+                println!("Data size {}KB - Encrypt: {:?, Decrypt: {:?}", data_size / 1024, avg_encrypt, avg_decrypt);
 
                 // Performance should scale reasonably with data size
                 assert!(avg_encrypt < Duration::from_millis(100), "Encryption should be fast");
@@ -372,7 +370,7 @@ mod performance_tests {
         let final_cpu = get_cpu_usage();
         let final_memory = get_memory_usage();
 
-        println!("Resource usage - CPU: {}% -> {}%, Memory: {} MB -> {} MB",
+        println!("Resource usage - CPU: {}% -> {}%, Memory: { MB -> { MB",
                 initial_cpu, final_cpu,
                 initial_memory / 1024 / 1024,
                 final_memory / 1024 / 1024);
@@ -412,8 +410,8 @@ mod performance_tests {
         let duration = start_time.elapsed();
         let operations_per_second = num_operations as f64 / duration.as_secs_f64();
 
-        println!("Audit logging performance: {} operations in {:?}", num_operations, duration);
-        println!("Performance: {:.2} ops/sec", operations_per_second);
+        println!("Audit logging performance: { operations in {:?}", num_operations, duration);
+        println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Check that audit logs were created
         let response = server.get("/audit").await;
@@ -481,8 +479,8 @@ mod performance_tests {
         let total_operations = operations.len() * num_iterations;
         let operations_per_second = total_operations as f64 / total_duration.as_secs_f64();
 
-        println!("Mixed workload: {} operations in {:?}", total_operations, total_duration);
-        println!("Performance: {:.2} ops/sec", operations_per_second);
+        println!("Mixed workload: { operations in {:?}", total_operations, total_duration);
+        println!("Performance: {:.2 ops/sec", operations_per_second);
 
         // Should handle mixed workloads efficiently
         assert!(operations_per_second > 20.0, "Should handle mixed workloads efficiently");
@@ -521,8 +519,8 @@ mod performance_tests {
         let error_duration = start_time.elapsed();
         let error_operations_per_second = (error_operations.len() * 100) as f64 / error_duration.as_secs_f64();
 
-        println!("Error handling: {} operations in {:?}", error_operations.len() * 100, error_duration);
-        println!("Error handling performance: {:.2} ops/sec", error_operations_per_second);
+        println!("Error handling: { operations in {:?}", error_operations.len() * 100, error_duration);
+        println!("Error handling performance: {:.2 ops/sec", error_operations_per_second);
 
         // Error handling should be fast
         assert!(error_operations_per_second > 100.0, "Error handling should be fast");
@@ -570,7 +568,7 @@ mod performance_tests {
             let duration = start_time.elapsed();
             let ops_per_second = load as f64 / duration.as_secs_f64();
 
-            println!("Load level {}: {} successful ops in {:?} ({:.2} ops/sec)",
+            println!("Load level {}: { successful ops in {:? ({:.2 ops/sec)",
                     load, successful_ops, duration, ops_per_second);
 
             // Performance should degrade gracefully

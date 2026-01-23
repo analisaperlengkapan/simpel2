@@ -1,6 +1,6 @@
-use Secreton_core::security::{
+use Secreton_core::security::
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig
-};
+;
 use std::sync::Arc;
 use serde_json::json;
 
@@ -25,7 +25,7 @@ mod security_validation_tests {
 
         // Minimum key length validation
         assert!(encryption_key.len() >= 32,
-               "Encryption key should be at least 256 bits (32 bytes), got {} bytes",
+               "Encryption key should be at least 256 bits (32 bytes), got { bytes",
                encryption_key.len());
 
         // Key uniqueness test
@@ -130,7 +130,7 @@ mod security_validation_tests {
         let guest_user = "guest_user_001";
 
         let sensitive_resources = vec![
-            "master_key_vault",
+            "master_key_engine",
             "admin_configuration",
             "audit_logs",
             "user_database",
@@ -188,10 +188,10 @@ mod security_validation_tests {
                 Err(_) => {
                     // System should start blocking after multiple failures
                     if failed_attempts >= 3 {
-                        println!("Brute force protection activated after {} attempts", failed_attempts);
+                        println!("Brute force protection activated after { attempts", failed_attempts);
                         break;
                     }
-                },
+                ,
                 Ok(true) => panic!("Should not authenticate with wrong credentials"),
             }
         }
@@ -256,7 +256,7 @@ mod security_validation_tests {
         if tampered_data.len() > 10 {
             // Modify a byte in the middle
             let tamper_pos = tampered_data.len() / 2;
-            let bytes = unsafe { tampered_data.as_bytes_mut() };
+            let bytes = unsafe { tampered_data.as_bytes_mut() ;
             bytes[tamper_pos] = bytes[tamper_pos].wrapping_add(1);
 
             let tamper_result = orchestrator.decrypt_and_verify_integrity(&tampered_data).await;
@@ -293,7 +293,7 @@ mod security_validation_tests {
         let avg_incorrect: f64 = incorrect_times.iter().map(|d| d.as_nanos() as f64).sum::<f64>() / incorrect_times.len() as f64;
 
         // Timing should be relatively constant (within reasonable variance)
-        let timing_ratio = if avg_correct > avg_incorrect { avg_correct / avg_incorrect } else { avg_incorrect / avg_correct };
+        let timing_ratio = if avg_correct > avg_incorrect { avg_correct / avg_incorrect  else { avg_incorrect / avg_correct ;
 
         // Allow for some variance but not excessive timing differences
         assert!(timing_ratio < 2.0,
@@ -446,7 +446,7 @@ mod security_validation_tests {
             Ok(data) => {
                 // If readable, should be all zeros
                 assert!(data.iter().all(|&b| b == 0), "Cleared secure memory should contain only zeros");
-            },
+            ,
             Err(_) => {
                 // Acceptable - secure memory may be inaccessible after clearing
                 println!("Secure memory properly inaccessible after clearing");

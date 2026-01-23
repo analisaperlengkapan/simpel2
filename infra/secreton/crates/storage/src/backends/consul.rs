@@ -1,6 +1,6 @@
 //! Consul Storage Backend
 //!
-//! Implements HashiCorp Vault-compatible Consul storage backend for high availability
+//! Implements HashiCorp Engine-compatible Consul storage backend for high availability
 //! and service discovery. Consul provides:
 //!
 //! - **High Availability**: Multi-node clustering with automatic leader election

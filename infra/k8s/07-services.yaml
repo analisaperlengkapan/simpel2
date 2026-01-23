@@ -43,34 +43,38 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: authenc-service
+  name: authenc
   namespace: simpelv2-infra
   labels:
-    app.kubernetes.io/name: authenc
-    app.kubernetes.io/component: iam
+    app: authenc
+    component: infrastructure
 spec:
   type: ClusterIP
   ports:
-    - port: 8088
-      targetPort: 8088
+    - port: 8080
+      targetPort: 8080
       protocol: TCP
       name: http
+    - port: 9088
+      targetPort: 9088
+      protocol: TCP
+      name: grpc
     - port: 9090
       targetPort: 9090
       protocol: TCP
-      name: grpc
+      name: metrics
   selector:
-    app.kubernetes.io/name: authenc
+    app: authenc
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: secreton-service
+  name: secreton
   namespace: simpelv2-infra
   labels:
-    app.kubernetes.io/name: secreton
-    app.kubernetes.io/component: secreton
+    app: secreton
+    component: infrastructure
 spec:
   type: ClusterIP
   ports:
@@ -78,12 +82,16 @@ spec:
       targetPort: 8200
       protocol: TCP
       name: http
-    - port: 9200
-      targetPort: 9200
+    - port: 9000
+      targetPort: 9000
       protocol: TCP
       name: grpc
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
   selector:
-    app.kubernetes.io/name: secreton
+    app: secreton
 
 ---
 # Backend Services with gRPC
@@ -521,3 +529,81 @@ spec:
       name: http
   selector:
     app.kubernetes.io/name: pidum
+
+---
+# Backend Services - New Deployments
+apiVersion: v1
+kind: Service
+metadata:
+  name: layanan-daskrimti-portal
+  namespace: simpelv2-backend
+  labels:
+    app: layanan-daskrimti-portal
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3010
+      targetPort: 3010
+      protocol: TCP
+      name: http
+  selector:
+    app: layanan-daskrimti-portal
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: layanan-pembinaan-perlengkapan
+  namespace: simpelv2-backend
+  labels:
+    app: layanan-pembinaan-perlengkapan
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3020
+      targetPort: 3020
+      protocol: TCP
+      name: http
+  selector:
+    app: layanan-pembinaan-perlengkapan
+
+---
+# Frontend Services - New Microfrontends
+apiVersion: v1
+kind: Service
+metadata:
+  name: daskrimti-portal
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: daskrimti-portal
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: daskrimti-portal
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pembinaan-perlengkapan
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: pembinaan-perlengkapan
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: pembinaan-perlengkapan

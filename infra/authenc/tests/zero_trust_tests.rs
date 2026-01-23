@@ -23,11 +23,10 @@ async fn test_zero_trust_trust_levels() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -68,11 +67,10 @@ async fn test_device_trust_structure() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -134,11 +132,10 @@ async fn test_risk_assessment_calculation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -202,11 +199,10 @@ async fn test_zero_trust_policy_evaluation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -292,11 +288,10 @@ async fn test_compliance_status_transitions() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -349,11 +344,10 @@ async fn test_risk_level_mapping() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -409,11 +403,10 @@ async fn test_device_fingerprint_generation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -463,11 +456,10 @@ async fn test_zero_trust_context_evaluation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -549,10 +541,9 @@ async fn test_policy_condition_evaluation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
-    let database = Arc::new(Database::new(&database_config).await.unwrap());
+    let _database = Arc::new(Database::new(&database_config).await.unwrap());
 
     // Test various policy conditions
     let mut params1 = HashMap::new();
@@ -646,10 +637,9 @@ async fn test_zero_trust_audit_logging() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
-    let database = Arc::new(Database::new(&database_config).await.unwrap());
+    let _database = Arc::new(Database::new(&database_config).await.unwrap());
 
     // Test AuditEvent structure for zero trust events
     let details = serde_json::json!({

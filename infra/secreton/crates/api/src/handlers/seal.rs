@@ -1,6 +1,6 @@
 //! Seal/Unseal API handlers
 //!
-//! Provides REST endpoints for vault seal/unseal operations,
+//! Provides REST endpoints for engine seal/unseal operations,
 //! initialization, and rekey functionality.
 
 use axum::{Extension, extract::State, http::StatusCode, response::Json};
@@ -67,7 +67,7 @@ impl UnsealRateLimiter {
     }
 }
 
-/// Initialize vault request
+/// Initialize engine request
 #[derive(Debug, Deserialize)]
 pub struct InitializeRequest {
     /// Number of secret shares to generate
@@ -77,7 +77,7 @@ pub struct InitializeRequest {
     pub secret_threshold: usize,
 }
 
-/// Initialize vault response
+/// Initialize engine response
 #[derive(Debug, Serialize)]
 pub struct InitializeResponse {
     /// Base64-encoded Shamir shares (must be distributed securely)
@@ -104,10 +104,10 @@ pub struct SealStatusResponse {
     /// Seal type (e.g., "shamir")
     pub seal_type: String,
 
-    /// Whether vault is initialized
+    /// Whether engine is initialized
     pub initialized: bool,
 
-    /// Whether vault is sealed
+    /// Whether engine is sealed
     pub sealed: bool,
 
     /// Total number of shares
@@ -186,8 +186,8 @@ pub struct RekeyStatusResponse {
 }
 
 /// GET /v1/sys/seal-status
-/// Returns the seal status of the vault
-/// This endpoint is whitelisted and accessible even when vault is sealed.
+/// Returns the seal status of the engine
+/// This endpoint is whitelisted and accessible even when engine is sealed.
 #[instrument(skip(state))]
 pub async fn get_seal_status(
     State(state): State<AppState>,
@@ -207,16 +207,16 @@ pub async fn get_seal_status(
 }
 
 /// POST /v1/sys/seal
-/// Seals the vault
-/// CRITICAL SECURITY: This immediately seals the vault and clears the master key from memory.
+/// Seals the engine
+/// CRITICAL SECURITY: This immediately seals the engine and clears the master key from memory.
 /// All subsequent operations (except whitelisted endpoints) will be blocked until unsealed.
 ///
 /// SECURITY: Requires admin role (currently not enforced - TODO: add auth middleware)
 #[instrument(skip(state))]
-pub async fn seal_vault(
+pub async fn seal_engine(
     State(state): State<AppState>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    info!("🔒 Attempting to seal vault");
+    info!("🔒 Attempting to seal engine");
 
     // TODO: Implement authentication middleware to extract user_id
     // For now, we allow seal operation without authentication
@@ -242,9 +242,9 @@ pub async fn seal_vault(
     let audit_log = AuditLog {
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
-        action: "vault.seal".to_string(),
+        action: "engine.seal".to_string(),
         actor: Some(user_id.clone()),
-        resource_type: "vault".to_string(),
+        resource_type: "engine".to_string(),
         resource_id: "system".to_string(),
         status: AuditStatus::Success, // Will update to Success/Failure after operation
         ip: None,
@@ -253,9 +253,9 @@ pub async fn seal_vault(
         metadata,
     };
 
-    // Seal the vault
+    // Seal the engine
     state.seal.seal().await.map_err(|e| {
-        error!("Failed to seal vault: {:?}", e);
+        error!("Failed to seal engine: {:?}", e);
 
         // Log failed seal attempt
         let mut failed_log = audit_log.clone();
@@ -267,11 +267,11 @@ pub async fn seal_vault(
 
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to seal vault: {}", e),
+            format!("Failed to seal engine: {}", e),
         )
     })?;
 
-    info!("✅ Vault sealed successfully by user: {}", user_id);
+    info!("✅ Engine sealed successfully by user: {}", user_id);
 
     // Audit log successful seal
     let mut success_log = audit_log;
@@ -285,12 +285,12 @@ pub async fn seal_vault(
 }
 
 /// POST /v1/sys/unseal
-/// Provides an unseal key and unseals the vault if threshold is met
-/// This endpoint is whitelisted and accessible even when vault is sealed.
+/// Provides an unseal key and unseals the engine if threshold is met
+/// This endpoint is whitelisted and accessible even when engine is sealed.
 /// Operators provide Shamir shares one at a time until threshold is reached.
 /// SECURITY: Rate limited to prevent brute force attacks (max 10 attempts per 60 seconds per IP)
 #[instrument(skip(state, request))]
-pub async fn unseal_vault(
+pub async fn unseal_engine(
     State(state): State<AppState>,
     Json(request): Json<UnsealRequest>,
 ) -> Result<Json<crate::ApiResponse<SealStatusResponse>>, (StatusCode, String)> {
@@ -318,9 +318,9 @@ pub async fn unseal_vault(
         let audit_log = AuditLog {
             id: uuid::Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
-            action: "vault.unseal.rate_limited".to_string(),
+            action: "engine.unseal.rate_limited".to_string(),
             actor: None,
-            resource_type: "vault".to_string(),
+            resource_type: "engine".to_string(),
             resource_id: "system".to_string(),
             status: AuditStatus::Failure,
             ip: Some(client_ip.clone()),
@@ -341,9 +341,9 @@ pub async fn unseal_vault(
     let audit_log = AuditLog {
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
-        action: "vault.unseal".to_string(),
+        action: "engine.unseal".to_string(),
         actor: None,
-        resource_type: "vault".to_string(),
+        resource_type: "engine".to_string(),
         resource_id: "system".to_string(),
         status: AuditStatus::Success, // Will update based on result
         ip: Some(client_ip.clone()),
@@ -384,7 +384,7 @@ pub async fn unseal_vault(
                 }
                 SealError::AlreadyUnsealed => (
                     StatusCode::BAD_REQUEST,
-                    "Vault is already unsealed".to_string(),
+                    "Engine is already unsealed".to_string(),
                 ),
                 _ => (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -425,7 +425,7 @@ pub async fn unseal_vault(
             .insert("threshold".to_string(), response.t.to_string());
         let _ = state.audit.log(progress_log);
     } else {
-        info!("✅ Vault unsealed successfully!");
+        info!("✅ Engine unsealed successfully!");
 
         // Reset rate limiter for this IP on successful unseal
         RATE_LIMITER.reset(&client_ip);
@@ -446,18 +446,18 @@ pub async fn unseal_vault(
 }
 
 /// POST /v1/sys/init
-/// Initializes a new vault
+/// Initializes a new engine
 /// CRITICAL SECURITY: This endpoint can only be called once.
-/// After initialization, the vault remains SEALED.
+/// After initialization, the engine remains SEALED.
 /// Operators must manually unseal with threshold shares.
-/// This endpoint is whitelisted and accessible even when vault is sealed.
+/// This endpoint is whitelisted and accessible even when engine is sealed.
 #[instrument(skip(state, request))]
-pub async fn initialize_vault(
+pub async fn initialize_engine(
     State(state): State<AppState>,
     Json(request): Json<InitializeRequest>,
 ) -> Result<Json<InitializeResponse>, (StatusCode, String)> {
     info!(
-        "🔐 Initializing vault with {} shares and {} threshold",
+        "🔐 Initializing engine with {} shares and {} threshold",
         request.secret_shares, request.secret_threshold
     );
 
@@ -486,10 +486,10 @@ pub async fn initialize_vault(
     // Check if already initialized
     let status = state.seal.status().await;
     if status.initialized {
-        warn!("Attempted to initialize already initialized vault");
+        warn!("Attempted to initialize already initialized engine");
         return Err((
             StatusCode::BAD_REQUEST,
-            "Vault is already initialized".to_string(),
+            "Engine is already initialized".to_string(),
         ));
     }
 
@@ -498,12 +498,12 @@ pub async fn initialize_vault(
     // For now, we'll create a new SealService with the requested config
     // In production, this would update the existing service's config
 
-    // Initialize vault - generates master key and Shamir shares
+    // Initialize engine - generates master key and Shamir shares
     let shares = state.seal.initialize().await.map_err(|e| {
-        error!("Failed to initialize vault: {:?}", e);
+        error!("Failed to initialize engine: {:?}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to initialize vault: {}", e),
+            format!("Failed to initialize engine: {}", e),
         )
     })?;
 
@@ -562,9 +562,9 @@ pub async fn initialize_vault(
     let init_audit = AuditLog {
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
-        action: "vault_initialized".to_string(),
+        action: "engine_initialized".to_string(),
         actor: Some("system".to_string()),
-        resource_type: "vault".to_string(),
+        resource_type: "engine".to_string(),
         resource_id: "system".to_string(),
         status: AuditStatus::Success,
         ip: None,
@@ -641,7 +641,7 @@ pub async fn rekey_init(
         timestamp: chrono::Utc::now(),
         action: "rekey_initiated".to_string(),
         actor: Some("admin".to_string()),
-        resource_type: "vault".to_string(),
+        resource_type: "engine".to_string(),
         resource_id: "system".to_string(),
         status: AuditStatus::Success,
         ip: None,
@@ -701,7 +701,7 @@ pub async fn rekey_update(
         timestamp: chrono::Utc::now(),
         action: "rekey_progress".to_string(),
         actor: Some("admin".to_string()),
-        resource_type: "vault".to_string(),
+        resource_type: "engine".to_string(),
         resource_id: "system".to_string(),
         status: AuditStatus::Success,
         ip: None,
@@ -770,9 +770,9 @@ pub fn create_routes() -> axum::Router<AppState> {
 
     axum::Router::new()
         .route("/seal-status", get(get_seal_status))
-        .route("/seal", post(seal_vault))
-        .route("/unseal", post(unseal_vault))
-        .route("/init", post(initialize_vault))
+        .route("/seal", post(seal_engine))
+        .route("/unseal", post(unseal_engine))
+        .route("/init", post(initialize_engine))
         .route("/rekey/init", post(rekey_init))
         .route("/rekey/update", post(rekey_update))
 }

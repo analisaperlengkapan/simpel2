@@ -37,7 +37,7 @@ fn main() {
 
     // Only compile if proto files exist
     if proto_files.iter().all(|p| p.exists()) {
-        tonic_build::configure()
+        tonic_prost_build::configure()
             .build_server(true)
             .build_client(false)
             .compile_protos(

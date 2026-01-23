@@ -3,7 +3,7 @@
 //! Provides utilities for managing correlation IDs across service boundaries
 //! to enable end-to-end request tracing.
 
-use lib_common::correlation::{CorrelationId, CORRELATION_ID_HEADER, REQUEST_ID_HEADER};
+use lib_common::correlation::{CORRELATION_ID_HEADER, CorrelationId, REQUEST_ID_HEADER};
 use uuid::Uuid;
 
 /// HTTP header name for correlation ID

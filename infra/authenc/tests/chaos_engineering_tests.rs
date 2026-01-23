@@ -321,7 +321,7 @@ async fn test_circuit_breaker_patterns() {
             post(
                 move |State(state): State<ChaosState>,
                       Path(service): Path<String>,
-                      Json(config): Json<serde_json::Value>| async move {
+                      Json(_config): Json<serde_json::Value>| async move {
                     let mut services = state.services.lock().await;
 
                     // Mark service as unhealthy
@@ -901,8 +901,8 @@ async fn test_system_metrics_under_load() {
 
             // Simulate concurrent load
             for i in 0..concurrent_requests {
-                let service_clone = service.clone();
-                let state_clone = state.clone();
+                let _service_clone = service.clone();
+                let _state_clone = state.clone();
 
                 let handle = tokio::spawn(async move {
                     let mut local_errors = 0;
@@ -920,7 +920,7 @@ async fn test_system_metrics_under_load() {
                     }
 
                     // Record metrics
-                    let metrics_data = json!({
+                    let _metrics_data = json!({
                         "requests_total": local_requests,
                         "errors_total": local_errors,
                         "latency_p50": 50 + (i * 10),
@@ -928,7 +928,7 @@ async fn test_system_metrics_under_load() {
                         "latency_p99": 1000 + (i * 50)
                     });
 
-                    let client = reqwest::Client::new();
+                    let _client = reqwest::Client::new();
                     // Note: In a real test, this would make HTTP calls
                     // For now, we'll just simulate the metrics recording
 

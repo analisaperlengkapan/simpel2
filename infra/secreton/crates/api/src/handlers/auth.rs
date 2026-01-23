@@ -33,21 +33,21 @@ pub fn create_routes() -> Router<AppState> {
         .route("/mfa/setup", post(setup_mfa))
         .route("/mfa/verify", post(verify_mfa))
         .route("/mfa/disable", post(disable_mfa))
-        .route("/oauth/:provider", get(oauth_login))
-        .route("/oauth/:provider/callback", get(oauth_callback))
+        .route("/oauth/{provider}", get(oauth_login))
+        .route("/oauth/{provider}/callback", get(oauth_callback))
         .route("/sessions", get(list_sessions))
-        .route("/sessions/:session_id", delete(revoke_session))
+        .route("/sessions/{session_id}", delete(revoke_session))
 }
 
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
     use crate::config::ApiConfig;
+    use crate::middleware::RequestContext;
     use crate::services::ServiceContainer;
     use axum::http::StatusCode;
     use axum_test::TestServer;
     use std::sync::Arc;
-    use crate::middleware::RequestContext;
 
     async fn mock_auth_middleware(
         req: axum::extract::Request,
@@ -64,6 +64,9 @@ mod tests {
                     user_permissions: vec![],
                     start_time: std::time::Instant::now(),
                     jwt_claims: None,
+                    auth_token: None,
+                    client_ip: None,
+                    user_agent: None,
                     policy_names: vec![],
                 };
                 req.extensions_mut().insert(context);
@@ -111,15 +114,19 @@ mod tests {
         );
 
         // Create test user
-        services.auth.create_user(
-            "alice",
-            "alice@example.com",
-            "password123",
-            None,
-            vec!["user".to_string()],
-            None,
-            true,
-        ).await.expect("Failed to create user");
+        services
+            .auth
+            .create_user(
+                "alice",
+                "alice@example.com",
+                "password123",
+                None,
+                vec!["user".to_string()],
+                None,
+                true,
+            )
+            .await
+            .expect("Failed to create user");
 
         let app = create_routes()
             .with_state(services)
@@ -547,7 +554,9 @@ pub async fn setup_mfa(
 ) -> ApiResult<Json<ApiResponse<MfaSetupResponse>>> {
     // 1. Extract user ID from AuthenticatedUser (extracted from JWT by middleware)
     let user_id = user.id.to_string();
-    let user_label = user.email.unwrap_or_else(|| format!("{}@kejaksaan.go.id", user.username));
+    let user_label = user
+        .email
+        .unwrap_or_else(|| format!("{}@kejaksaan.go.id", user.username));
 
     // 2. Generate MFA configuration based on method
     let response = match request.method.as_str() {
@@ -555,11 +564,7 @@ pub async fn setup_mfa(
             // Generate TOTP configuration
             let totp_config = state
                 .mfa
-                .enable_totp(
-                    &user_id,
-                    "Secreton Vault".to_string(),
-                    user_label,
-                )
+                .enable_totp(&user_id, "Secreton Engine".to_string(), user_label)
                 .await
                 .map_err(|e| ApiError::Internal {
                     message: format!("Failed to setup TOTP: {}", e),
@@ -607,13 +612,14 @@ pub async fn setup_mfa(
                     })?;
 
                 // Get recovery codes
-                let mfa_config = state
-                    .mfa
-                    .get_config(&user_id)
-                    .await
-                    .ok_or_else(|| ApiError::Internal {
-                        message: "Failed to retrieve MFA configuration".to_string(),
-                    })?;
+                let mfa_config =
+                    state
+                        .mfa
+                        .get_config(&user_id)
+                        .await
+                        .ok_or_else(|| ApiError::Internal {
+                            message: "Failed to retrieve MFA configuration".to_string(),
+                        })?;
 
                 MfaSetupResponse {
                     method: "sms".to_string(),

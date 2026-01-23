@@ -23,8 +23,8 @@ async fn main() {
         url: config.database_url.clone(),
         max_size: 10, // Default for small services
     };
-    let pool = lib_common::db::create_postgres_pool(db_config)
-        .expect("Failed to create database pool");
+    let pool =
+        lib_common::db::create_postgres_pool(db_config).expect("Failed to create database pool");
 
     // Initialize Database
     if let Err(e) = database::init_db(&pool).await {

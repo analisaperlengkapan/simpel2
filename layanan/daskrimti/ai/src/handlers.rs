@@ -1,13 +1,17 @@
-use axum::{Json, http::StatusCode, extract::{Multipart, Path}};
-use serde_json::json;
-use axum::extract::State;
 use crate::models::AppState;
-use uuid::Uuid;
-use validator::Validate;
-use serde::Deserialize;
 use crate::models::ModelMetadata;
+use axum::extract::State;
+use axum::{
+    Json,
+    extract::{Multipart, Path},
+    http::StatusCode,
+};
 use chrono::Utc;
 use reqwest::Client;
+use serde::Deserialize;
+use serde_json::json;
+use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct GenerateTextRequest {
@@ -24,7 +28,11 @@ fn sanitize_output(output: &str) -> String {
     htmlescape::encode_minimal(output)
 }
 
-fn problem_json(status: StatusCode, title: &str, detail: &str) -> (StatusCode, Json<serde_json::Value>) {
+fn problem_json(
+    status: StatusCode,
+    title: &str,
+    detail: &str,
+) -> (StatusCode, Json<serde_json::Value>) {
     (
         status,
         Json(json!({
@@ -32,7 +40,7 @@ fn problem_json(status: StatusCode, title: &str, detail: &str) -> (StatusCode, J
             "title": title,
             "status": status.as_u16(),
             "detail": detail
-        }))
+        })),
     )
 }
 
@@ -43,19 +51,38 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<serde_js
         Err(_) => false,
     };
     // Cek Qdrant
-    let qdrant_url = std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
-    let qdrant_ok = Client::new().get(format!("{}/collections", qdrant_url)).send().await.map(|r| r.status().is_success()).unwrap_or(false);
+    let qdrant_url =
+        std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
+    let qdrant_ok = Client::new()
+        .get(format!("{}/collections", qdrant_url))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
     // Cek model ready (dummy: assume always ready)
     let model_ok = true;
     let all_ok = db_ok && qdrant_ok && model_ok;
     if all_ok {
-        (StatusCode::OK, Json(json!({"status": "ok", "db": db_ok, "qdrant": qdrant_ok, "model": model_ok})))
+        (
+            StatusCode::OK,
+            Json(json!({"status": "ok", "db": db_ok, "qdrant": qdrant_ok, "model": model_ok})),
+        )
     } else {
         let mut detail = vec![];
-        if !db_ok { detail.push("db"); }
-        if !qdrant_ok { detail.push("qdrant"); }
-        if !model_ok { detail.push("model"); }
-        problem_json(StatusCode::SERVICE_UNAVAILABLE, "Healthcheck Failed", &format!("Component(s) failed: {}", detail.join(", ")))
+        if !db_ok {
+            detail.push("db");
+        }
+        if !qdrant_ok {
+            detail.push("qdrant");
+        }
+        if !model_ok {
+            detail.push("model");
+        }
+        problem_json(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Healthcheck Failed",
+            &format!("Component(s) failed: {}", detail.join(", ")),
+        )
     }
 }
 
@@ -65,9 +92,15 @@ macro_rules! not_implemented {
     };
 }
 
-pub async fn generate_text(State(_state): State<AppState>, Json(payload): Json<GenerateTextRequest>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn generate_text(
+    State(_state): State<AppState>,
+    Json(payload): Json<GenerateTextRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
     if let Err(e) = payload.validate() {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": format!("Validation error: {}", e)})));
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": format!("Validation error: {}", e)})),
+        );
     }
     let prompt = sanitize_input(&payload.prompt);
     // A/B testing logic
@@ -78,51 +111,153 @@ pub async fn generate_text(State(_state): State<AppState>, Json(payload): Json<G
         (format!("[A] AI: {}", prompt), "model_A")
     };
     let result = sanitize_output(&result);
-    (StatusCode::OK, Json(json!({"result": result, "model_used": model_used})))
+    (
+        StatusCode::OK,
+        Json(json!({"result": result, "model_used": model_used})),
+    )
 }
-pub async fn summarize_text(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn extract_text(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn rag_query(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn rag_ingest(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn classify_document(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn generate_recommendation(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn train_model(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn predict(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn rlhf_train(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn active_learning_query(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn transfer_learning(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-pub async fn hitl_annotate(_: State<AppState>, _: Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) { not_implemented!().await }
-
-pub async fn upload_model(_: State<AppState>, _: Multipart) -> (StatusCode, Json<serde_json::Value>) {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "Not implemented"})))
+pub async fn summarize_text(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn extract_text(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn rag_query(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn rag_ingest(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn classify_document(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn generate_recommendation(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn train_model(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn predict(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn rlhf_train(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn active_learning_query(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn transfer_learning(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
+}
+pub async fn hitl_annotate(
+    _: State<AppState>,
+    _: Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    not_implemented!().await
 }
 
-pub async fn download_model(_: State<AppState>, Path(_): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "Not implemented"})))
+pub async fn upload_model(
+    _: State<AppState>,
+    _: Multipart,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "Not implemented"})),
+    )
 }
 
-pub async fn approve_model(State(state): State<AppState>, Path(id): Path<String>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn download_model(
+    _: State<AppState>,
+    Path(_): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "Not implemented"})),
+    )
+}
+
+pub async fn approve_model(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let user = payload["user"].as_str().unwrap_or("admin");
     if state.model_registry.write().await.approve_model(&id, user) {
-        (StatusCode::OK, Json(json!({"model_id": id, "status": "approved", "approved_by": user})))
+        (
+            StatusCode::OK,
+            Json(json!({"model_id": id, "status": "approved", "approved_by": user})),
+        )
     } else {
-        (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Model not found"})),
+        )
     }
 }
 
-pub async fn rollback_model(_: State<AppState>, Path(_): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "Not implemented"})))
+pub async fn rollback_model(
+    _: State<AppState>,
+    Path(_): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "Not implemented"})),
+    )
 }
 
-pub async fn enqueue_job(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn enqueue_job(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
     // Resource limit: max 1024MB mem, 2 core
     let mem = payload["requested_memory_mb"].as_u64().unwrap_or(0);
     let cpu = payload["requested_cpu"].as_f64().unwrap_or(0.0);
     if mem > 1024 {
-        return problem_json(StatusCode::BAD_REQUEST, "Resource Limit Exceeded", "Requested memory exceeds 1024MB");
+        return problem_json(
+            StatusCode::BAD_REQUEST,
+            "Resource Limit Exceeded",
+            "Requested memory exceeds 1024MB",
+        );
     }
     if cpu > 2.0 {
-        return problem_json(StatusCode::BAD_REQUEST, "Resource Limit Exceeded", "Requested CPU exceeds 2 core");
+        return problem_json(
+            StatusCode::BAD_REQUEST,
+            "Resource Limit Exceeded",
+            "Requested CPU exceeds 2 core",
+        );
     }
     let id = Uuid::new_v4();
     let job_type = payload["job_type"].as_str().unwrap_or("unknown");
@@ -133,7 +268,12 @@ pub async fn enqueue_job(State(state): State<AppState>, Json(payload): Json<serd
     // Fix: Using match/unwrap instead of ? for error handling
     let client = match state.pool.get().await {
         Ok(c) => c,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Database connection failed"}))),
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "Database connection failed"})),
+            );
+        }
     };
 
     let res = client
@@ -144,52 +284,84 @@ pub async fn enqueue_job(State(state): State<AppState>, Json(payload): Json<serd
         .await;
 
     match res {
-        Ok(_) => (StatusCode::OK, Json(json!({"job_id": id, "status": status}))),
-        Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({"job_id": id, "status": status})),
+        ),
+        Err(e) => problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Database Error",
+            &format!("DB error: {}", e),
+        ),
     }
 }
 
-pub async fn job_status(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn job_status(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let uuid = match uuid::Uuid::parse_str(&id) {
         Ok(u) => u,
-        Err(_) => return problem_json(StatusCode::BAD_REQUEST, "Invalid Job ID", "Job id is not a valid UUID"),
+        Err(_) => {
+            return problem_json(
+                StatusCode::BAD_REQUEST,
+                "Invalid Job ID",
+                "Job id is not a valid UUID",
+            );
+        }
     };
 
     let client = match state.pool.get().await {
         Ok(c) => c,
-        Err(_) => return problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", "Failed to get database connection"),
+        Err(_) => {
+            return problem_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Error",
+                "Failed to get database connection",
+            );
+        }
     };
 
     let rows = client
-        .query("SELECT status, result, error FROM ai_jobs WHERE id = $1", &[&uuid])
+        .query(
+            "SELECT status, result, error FROM ai_jobs WHERE id = $1",
+            &[&uuid],
+        )
         .await;
 
     match rows {
         Ok(rows) => {
             if let Some(row) = rows.first() {
-                (StatusCode::OK, Json(json!({
-                    "job_id": id,
-                    "status": row.get::<_, String>("status"),
-                    "result": row.get::<_, Option<serde_json::Value>>("result"),
-                    "error": row.get::<_, Option<String>>("error")
-                })))
+                (
+                    StatusCode::OK,
+                    Json(json!({
+                        "job_id": id,
+                        "status": row.get::<_, String>("status"),
+                        "result": row.get::<_, Option<serde_json::Value>>("result"),
+                        "error": row.get::<_, Option<String>>("error")
+                    })),
+                )
             } else {
                 problem_json(StatusCode::NOT_FOUND, "Job Not Found", "Job not found")
             }
         }
-        Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
+        Err(e) => problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Database Error",
+            &format!("DB error: {}", e),
+        ),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::StatusCode;
+    use crate::models::{AppState, JobQueue, ModelRegistry};
     use axum::extract::State;
+    use axum::http::StatusCode;
     use serde_json::json;
     use std::sync::{Arc, Mutex};
     use tokio::sync::RwLock;
-    use crate::models::{AppState, JobQueue, ModelRegistry};
 
     #[tokio::test]
     async fn test_health() {
@@ -202,7 +374,12 @@ mod tests {
             dbname: Some("test".to_string()),
             ..Default::default()
         };
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let state = AppState {
             pool,
             config: crate::config::Config::default(),
@@ -232,7 +409,12 @@ mod tests {
         };
         // This requires local postgres. It will fail at runtime.
         // But it should compile.
-        let pool = pool_config.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap();
+        let pool = pool_config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
         let state = AppState {
             pool,
             config: crate::config::Config::default(),
@@ -246,13 +428,17 @@ mod tests {
         let (status, resp) = enqueue_job(State(state.clone()), axum::Json(payload)).await;
         assert_eq!(status, StatusCode::OK);
         let job_id = resp.0["job_id"].as_str().unwrap();
-        let (status2, resp2) = job_status(State(state), axum::extract::Path(job_id.to_string())).await;
+        let (status2, resp2) =
+            job_status(State(state), axum::extract::Path(job_id.to_string())).await;
         assert_eq!(status2, StatusCode::OK);
         assert_eq!(resp2.0["status"], "queued");
     }
 }
 
-pub async fn register_model(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn register_model(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let id = Uuid::new_v4().to_string();
     let meta = ModelMetadata {
         id: id.clone(),
@@ -264,10 +450,16 @@ pub async fn register_model(State(state): State<AppState>, Json(payload): Json<s
         approved_by: None,
     };
     state.model_registry.write().await.add_model(meta);
-    (StatusCode::OK, Json(json!({"model_id": id, "status": "draft"})))
+    (
+        StatusCode::OK,
+        Json(json!({"model_id": id, "status": "draft"})),
+    )
 }
 
-pub async fn get_model(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn get_model(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
     if let Some(meta) = state.model_registry.read().await.get_model(&id) {
         let response = json!({
             "id": meta.id,
@@ -278,61 +470,118 @@ pub async fn get_model(State(state): State<AppState>, Path(id): Path<String>) ->
         });
         (StatusCode::OK, Json(response))
     } else {
-        (StatusCode::NOT_FOUND, Json(json!({"error": "Model not found"})))
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Model not found"})),
+        )
     }
 }
 
-pub async fn cancel_job(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn cancel_job(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let uuid = match uuid::Uuid::parse_str(&id) {
         Ok(u) => u,
-        Err(_) => return problem_json(StatusCode::BAD_REQUEST, "Invalid Job ID", "Job id is not a valid UUID"),
+        Err(_) => {
+            return problem_json(
+                StatusCode::BAD_REQUEST,
+                "Invalid Job ID",
+                "Job id is not a valid UUID",
+            );
+        }
     };
     let client = match state.pool.get().await {
         Ok(c) => c,
-        Err(e) => return problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Connection Error", &format!("Pool error: {}", e)),
+        Err(e) => {
+            return problem_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Connection Error",
+                &format!("Pool error: {}", e),
+            );
+        }
     };
     let res = client
         .execute("UPDATE ai_jobs SET status = 'cancelled', updated_at = NOW() WHERE id = $1 AND status IN ('queued','running')", &[&uuid])
         .await;
     match res {
-        Ok(rows_affected) if rows_affected > 0 => (StatusCode::OK, Json(json!({"job_id": id, "status": "cancelled"}))),
-        Ok(_) => problem_json(StatusCode::NOT_FOUND, "Job Not Found or Not Cancellable", "No cancellable job found with the given id"),
-        Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
+        Ok(rows_affected) if rows_affected > 0 => (
+            StatusCode::OK,
+            Json(json!({"job_id": id, "status": "cancelled"})),
+        ),
+        Ok(_) => problem_json(
+            StatusCode::NOT_FOUND,
+            "Job Not Found or Not Cancellable",
+            "No cancellable job found with the given id",
+        ),
+        Err(e) => problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Database Error",
+            &format!("DB error: {}", e),
+        ),
     }
 }
 
-pub async fn retry_job(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn retry_job(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let uuid = match uuid::Uuid::parse_str(&id) {
         Ok(u) => u,
-        Err(_) => return problem_json(StatusCode::BAD_REQUEST, "Invalid Job ID", "Job id is not a valid UUID"),
+        Err(_) => {
+            return problem_json(
+                StatusCode::BAD_REQUEST,
+                "Invalid Job ID",
+                "Job id is not a valid UUID",
+            );
+        }
     };
     let client = match state.pool.get().await {
         Ok(c) => c,
-        Err(e) => return problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Connection Error", &format!("Pool error: {}", e)),
+        Err(e) => {
+            return problem_json(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Connection Error",
+                &format!("Pool error: {}", e),
+            );
+        }
     };
     let res = client
         .execute("UPDATE ai_jobs SET status = 'queued', updated_at = NOW() WHERE id = $1 AND status IN ('failed','cancelled')", &[&uuid])
         .await;
     match res {
-        Ok(rows_affected) if rows_affected > 0 => (StatusCode::OK, Json(json!({"job_id": id, "status": "queued"}))),
-        Ok(_) => problem_json(StatusCode::NOT_FOUND, "Job Not Found or Not Retryable", "No retryable job found with the given id"),
-        Err(e) => problem_json(StatusCode::INTERNAL_SERVER_ERROR, "Database Error", &format!("DB error: {}", e)),
+        Ok(rows_affected) if rows_affected > 0 => (
+            StatusCode::OK,
+            Json(json!({"job_id": id, "status": "queued"})),
+        ),
+        Ok(_) => problem_json(
+            StatusCode::NOT_FOUND,
+            "Job Not Found or Not Retryable",
+            "No retryable job found with the given id",
+        ),
+        Err(e) => problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Database Error",
+            &format!("DB error: {}", e),
+        ),
     }
 }
 
-pub async fn explain(State(_): State<AppState>, Json(payload): Json<serde_json::Value>) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn explain(
+    State(_): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let input = payload["input"].as_str().unwrap_or("");
     // Dummy explain: random feature importance
-    let importance = vec![
-        ("feature1", 0.7),
-        ("feature2", 0.2),
-        ("feature3", 0.1),
-    ];
-    (StatusCode::OK, Json(json!({
-        "input": input,
-        "reason": "Prediction didominasi oleh feature1",
-        "feature_importance": importance
-    })))
+    let importance = vec![("feature1", 0.7), ("feature2", 0.2), ("feature3", 0.1)];
+    (
+        StatusCode::OK,
+        Json(json!({
+            "input": input,
+            "reason": "Prediction didominasi oleh feature1",
+            "feature_importance": importance
+        })),
+    )
 }
 
 pub async fn model_monitor(State(_): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {

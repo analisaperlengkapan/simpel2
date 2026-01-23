@@ -263,7 +263,7 @@ impl MetricsRegistry {
                             let idx = ((sorted.len() as f64) * quantile) as usize;
                             let value = sorted.get(idx.min(sorted.len() - 1)).unwrap_or(&0.0);
                             output.push_str(&format!(
-                                "{}{{quantile=\"{}\"}}{} {}\n",
+                                "{}{{quantile=\"{}\"}} {} {}\n",
                                 metric.name, label, labels, value
                             ));
                         }

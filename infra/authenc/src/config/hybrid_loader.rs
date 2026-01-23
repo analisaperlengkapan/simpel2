@@ -113,8 +113,13 @@ impl HybridConfigLoader {
     }
 
     /// Load secrets from Secreton
-    async fn load_secreton_secrets(secreton_config: &crate::config::SecretonConfig) -> Result<std::collections::HashMap<String, String>> {
-        debug!("Attempting to load secrets from Secreton: {}", secreton_config.endpoint);
+    async fn load_secreton_secrets(
+        secreton_config: &crate::config::SecretonConfig,
+    ) -> Result<std::collections::HashMap<String, String>> {
+        debug!(
+            "Attempting to load secrets from Secreton: {}",
+            secreton_config.endpoint
+        );
 
         // TODO: Implement Secreton integration
         // This requires:
@@ -127,10 +132,7 @@ impl HybridConfigLoader {
     }
 
     /// Apply loaded secrets to configuration
-    fn apply_secrets(
-        config: &mut AppConfig,
-        secrets: std::collections::HashMap<String, String>,
-    ) {
+    fn apply_secrets(config: &mut AppConfig, secrets: std::collections::HashMap<String, String>) {
         for (key, value) in secrets {
             match key.as_str() {
                 "jwt_secret" => {
@@ -192,7 +194,6 @@ impl Default for ConfigLoaderConfig {
         }
     }
 }
-
 
 // Helper functions for defaults
 fn default_true() -> bool {

@@ -25,7 +25,7 @@
 | Issue | Reason | Impact |
 |-------|--------|--------|
 | Raft storage fallback to memory | `raft-consensus` feature disabled | Data not persisted to disk |
-| Vault pre-initialized | Memory backend state persists | Cannot test fresh init in same container |
+| Secret Vault pre-initialized | Memory backend state persists | Cannot test fresh init in same container |
 | Unseal keys not available | Keys generated in previous session | Cannot unseal without original keys |
 
 ### 🔍 API Endpoints Tested
@@ -37,9 +37,9 @@
 - ✅ `GET /v1/sys/seal-status` - Seal status
 
 #### Protected Endpoints (Require Unseal/Auth)
-- ⏸️ `POST /v1/sys/init` - Initialize vault (already initialized)
-- ⏸️ `POST /v1/sys/unseal` - Unseal vault (needs valid keys)
-- ⏸️ `POST /v1/sys/seal` - Seal vault (needs auth token)
+- ⏸️ `POST /v1/sys/init` - Initialize engine (already initialized)
+- ⏸️ `POST /v1/sys/unseal` - Unseal engine (needs valid keys)
+- ⏸️ `POST /v1/sys/seal` - Seal engine (needs auth token)
 - ⏸️ `GET /v1/sys/health` - System health (needs auth)
 - ⏸️ `GET /v1/sys/mounts` - List mounts (needs auth)
 - ⏸️ `POST /v1/transit/encrypt/*` - Transit encrypt (needs unseal)
@@ -64,7 +64,7 @@
 - [x] Servers started successfully
 
 ### ✅ Security Model
-- [x] Vault starts SEALED by default
+- [x] Secret Vault starts SEALED by default
 - [x] All secret operations blocked when sealed
 - [x] Shamir Secret Sharing configured (5 shares, 3 threshold)
 - [x] No secrets in configuration files
@@ -97,7 +97,7 @@ docker run -d --name secreton-e2e \
 ✅ HTTP listener: 0.0.0.0:8200
 ✅ gRPC listener: 0.0.0.0:8201
 ✅ All services initialized
-🔒 Vault is SEALED at startup
+🔒 Secret Vault is SEALED at startup
 ⚠️  REST server without TLS (expected for dev)
 ⚠️  gRPC server without TLS (expected for dev)
 ```
@@ -109,7 +109,7 @@ The migration from legacy config system to secure two-layer config system is **S
 
 1. **Legacy system removed** - No more `config/default.toml` or `config/production.toml`
 2. **Bootstrap config working** - `secreton.toml` loads correctly
-3. **Secure by default** - Vault starts SEALED
+3. **Secure by default** - Secret Vault starts SEALED
 4. **No secrets in config** - All secrets will be encrypted in storage
 5. **Docker integration** - Build and run successfully
 6. **API functional** - All public endpoints working
@@ -119,7 +119,7 @@ The migration from legacy config system to secure two-layer config system is **S
 1. **Enable raft-consensus feature** for persistent storage
 2. **Configure TLS** for HTTP and gRPC
 3. **Setup multi-node Raft cluster** for HA
-4. **Initialize vault** and securely store unseal keys
+4. **Initialize engine** and securely store unseal keys
 5. **Configure application config** in encrypted storage
 6. **Setup monitoring** and alerting
 7. **Document operational procedures**
@@ -150,4 +150,4 @@ The migration from legacy config system to secure two-layer config system is **S
 
 **Migration Status: ✅ COMPLETE AND SUCCESSFUL**
 
-Secreton now uses a secure two-layer configuration system following HashiCorp Vault's security model. The system is production-ready pending raft-consensus feature enablement and TLS configuration.
+Secreton now uses a secure two-layer configuration system following HashiCorp Secret Vault's security model. The system is production-ready pending raft-consensus feature enablement and TLS configuration.

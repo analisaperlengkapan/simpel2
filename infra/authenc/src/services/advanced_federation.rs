@@ -558,12 +558,13 @@ impl SocialLoginProvider for GoogleOAuth2Provider {
             });
         }
 
-        let token_response: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| AuthencError::SerializationError {
-                message: format!("Failed to parse Google token response: {}", e),
-            })?;
+        let token_response: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| AuthencError::SerializationError {
+                    message: format!("Failed to parse Google token response: {}", e),
+                })?;
 
         Ok(SocialLoginResult {
             access_token: token_response["access_token"]
@@ -607,12 +608,13 @@ impl SocialLoginProvider for GoogleOAuth2Provider {
             });
         }
 
-        let profile_data: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| AuthencError::SerializationError {
-                message: format!("Failed to parse Google userinfo: {}", e),
-            })?;
+        let profile_data: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| AuthencError::SerializationError {
+                    message: format!("Failed to parse Google userinfo: {}", e),
+                })?;
 
         Ok(UserInfo {
             username: profile_data["email"]
@@ -724,12 +726,13 @@ impl SocialLoginProvider for GitHubOAuth2Provider {
             });
         }
 
-        let token_response: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| AuthencError::SerializationError {
-                message: format!("Failed to parse GitHub token response: {}", e),
-            })?;
+        let token_response: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| AuthencError::SerializationError {
+                    message: format!("Failed to parse GitHub token response: {}", e),
+                })?;
 
         // Check for OAuth error in response body
         if let Some(error) = token_response.get("error") {
@@ -785,12 +788,13 @@ impl SocialLoginProvider for GitHubOAuth2Provider {
             });
         }
 
-        let user_data: serde_json::Value = user_response
-            .json()
-            .await
-            .map_err(|e| AuthencError::SerializationError {
-                message: format!("Failed to parse GitHub user data: {}", e),
-            })?;
+        let user_data: serde_json::Value =
+            user_response
+                .json()
+                .await
+                .map_err(|e| AuthencError::SerializationError {
+                    message: format!("Failed to parse GitHub user data: {}", e),
+                })?;
 
         // Fetch user emails (GitHub requires separate API call for emails)
         let emails_response = client

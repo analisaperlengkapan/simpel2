@@ -31,10 +31,10 @@ impl ConfigMigration {
     ) -> Result<ApplicationConfig> {
         tracing::info!("🔄 Starting configuration migration from TOML files");
 
-        // Check if vault is unsealed
+        // Check if engine is unsealed
         let status = seal_service.status().await;
         if !matches!(status.state, crate::services::seal::SealState::Unsealed) {
-            anyhow::bail!("Vault must be unsealed to perform migration");
+            anyhow::bail!("Engine must be unsealed to perform migration");
         }
 
         // Read legacy TOML files
@@ -99,7 +99,7 @@ impl ConfigMigration {
             "default.toml",
             "production.toml",
             "raft.toml",
-            "vault.toml",
+            "engine.toml",
             ".env",
             ".env.example",
         ];
@@ -129,7 +129,7 @@ impl ConfigMigration {
             "default.toml",
             "production.toml",
             "raft.toml",
-            "vault.toml",
+            "engine.toml",
             ".env.example",
         ];
 
@@ -254,7 +254,6 @@ pub async fn run_cleanup(config_dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_migration_utility_exists() {

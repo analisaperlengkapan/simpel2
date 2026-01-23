@@ -18,7 +18,7 @@ use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// SSH engine errors
 #[derive(Debug, thiserror::Error)]
@@ -460,7 +460,7 @@ impl SshEngine {
         drop(roles);
 
         // Parse public key
-        let public_key = PublicKey::from_openssh(&request.public_key)
+        let _public_key = PublicKey::from_openssh(&request.public_key)
             .map_err(|e| SshError::SshKeyError(e.to_string()))?;
 
         // Generate serial number
@@ -487,11 +487,8 @@ impl SshEngine {
 
         // Create certificate (simplified - full implementation would use ssh-key certificate builder)
         let signed_key = format!(
-            "ssh-{}-cert-v01@openssh.com {} serial={} type={} principals={} valid_from={} valid_to={} extensions={}",
+            "ssh-{}-cert-v01@openssh.com {{ serial={} type={} principals={} valid_from={} valid_to={} extensions={} }}",
             request.cert_type,
-            public_key
-                .to_openssh()
-                .map_err(|e| SshError::SshKeyError(e.to_string()))?,
             serial,
             request.cert_type,
             request.valid_principals.join(","),
@@ -594,7 +591,7 @@ impl SshEngine {
         drop(roles);
 
         // Parse public key
-        let public_key = PublicKey::from_openssh(&request.public_key)
+        let _public_key = PublicKey::from_openssh(&request.public_key)
             .map_err(|e| SshError::SshKeyError(e.to_string()))?;
 
         // Generate serial number
@@ -605,10 +602,7 @@ impl SshEngine {
 
         // Create host certificate
         let signed_key = format!(
-            "ssh-host-cert-v01@openssh.com {} serial={} type=host principals={} valid_from={} valid_to={}",
-            public_key
-                .to_openssh()
-                .map_err(|e| SshError::SshKeyError(e.to_string()))?,
+            "ssh-host-cert-v01@openssh.com {{ serial={} type=host principals={} valid_from={} valid_to={} }}",
             serial,
             request.hostnames.join(","),
             now.timestamp(),

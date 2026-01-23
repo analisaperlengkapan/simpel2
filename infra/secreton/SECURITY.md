@@ -1,4 +1,4 @@
-# Security Advisory - Secreton Vault System
+# Security Advisory - Secreton Secret Vault System
 
 ## Known Security Issues
 

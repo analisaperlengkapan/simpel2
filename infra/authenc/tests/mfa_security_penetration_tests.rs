@@ -330,7 +330,7 @@ mod penetration_tests {
         println!("\nTiming Analysis Results:");
         println!("{:-<60}", "");
 
-        for (code, (avg_time, description)) in &timing_results {
+        for (_code, (avg_time, description)) in &timing_results {
             let deviation = if *avg_time > avg_overall {
                 *avg_time - avg_overall
             } else {

@@ -6,7 +6,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 
 **Total codebase**: ~87,000 lines of Rust code
 **Architecture**: Layered with clear separation of concerns
-**Target**: Production-ready secrets vault with RBAC, audit logging, and post-quantum cryptography
+**Target**: Production-ready secrets engine with RBAC, audit logging, and post-quantum cryptography
 
 ## Crate Structure
 
@@ -49,7 +49,7 @@ Secreton is a modular, security-focused secrets management system designed for I
   - `dynamic.rs`: Dynamic secrets
   - `lease.rs`, `seal.rs`, `wrapping.rs`, etc.
 - `services/`: API service wrappers
-  - `admin.rs`, `auth.rs`, `vault.rs`: Thin wrappers around core services
+  - `admin.rs`, `auth.rs`, `engine.rs`: Thin wrappers around core services
 - `auth.rs`: JWT authentication service (`JwtAuthConfig`)
 - `middleware.rs`: Authentication, rate limiting, audit (1,159 lines)
 - `config.rs`: Comprehensive API configuration (1,451 lines)
@@ -116,7 +116,7 @@ Secreton is a modular, security-focused secrets management system designed for I
 **Architecture notes**:
 
 - Trait-based abstraction allows multiple backends
-- VaultEntry is the primary storage model
+- Secret VaultEntry is the primary storage model
 - Handles connection pooling and query building
 
 ### 6. secreton-cli (2,689 lines)

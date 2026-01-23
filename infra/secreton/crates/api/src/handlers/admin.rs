@@ -13,10 +13,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{
-    ApiError, ApiResponse, ApiResult,
-    handlers::{AppState, ListQuery},
-};
+use crate::{ApiError, ApiResponse, ApiResult, ListQuery, handlers::AppState};
 
 use secreton_core::services::seal::SealState;
 
@@ -26,18 +23,18 @@ pub fn create_routes() -> Router<AppState> {
         // User management
         .route("/users", get(list_users))
         .route("/users", post(create_user))
-        .route("/users/:user_id", get(get_user))
-        .route("/users/:user_id", put(update_user))
-        .route("/users/:user_id", delete(delete_user))
-        .route("/users/:user_id/roles", get(get_user_roles))
-        .route("/users/:user_id/roles", post(assign_user_roles))
-        .route("/users/:user_id/permissions", get(get_user_permissions))
+        .route("/users/{user_id}", get(get_user))
+        .route("/users/{user_id}", put(update_user))
+        .route("/users/{user_id}", delete(delete_user))
+        .route("/users/{user_id}/roles", get(get_user_roles))
+        .route("/users/{user_id}/roles", post(assign_user_roles))
+        .route("/users/{user_id}/permissions", get(get_user_permissions))
         // Role management
         .route("/roles", get(list_roles))
         .route("/roles", post(create_role))
-        .route("/roles/:role_name", get(get_role))
-        .route("/roles/:role_name", put(update_role))
-        .route("/roles/:role_name", delete(delete_role))
+        .route("/roles/{role_name}", get(get_role))
+        .route("/roles/{role_name}", put(update_role))
+        .route("/roles/{role_name}", delete(delete_role))
         // System configuration
         .route("/config", get(get_config))
         .route("/config", put(update_config))
@@ -55,7 +52,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/security/reports", get(get_security_reports))
         .route("/security/incidents", get(get_security_incidents))
         .route(
-            "/security/incidents/:incident_id",
+            "/security/incidents/{incident_id}",
             get(get_security_incident),
         )
 }
@@ -99,7 +96,7 @@ mod tests {
         let request = CreateRoleRequest {
             name: "auditor".to_string(),
             description: Some("Audit role".to_string()),
-            permissions: vec!["vault:read".to_string()],
+            permissions: vec!["engine:read".to_string()],
             metadata: None,
         };
 
@@ -110,7 +107,7 @@ mod tests {
         assert!(body.success);
         let role = body.data.expect("role payload");
         assert_eq!(role.name, "auditor");
-        assert!(role.permissions.contains(&"vault:read".to_string()));
+        assert!(role.permissions.contains(&"engine:read".to_string()));
     }
 
     #[tokio::test]
@@ -143,7 +140,10 @@ mod tests {
         // Uptime should be > 0 since we slept
         assert!(metrics.uptime > 0, "Uptime should be greater than 0");
         // And definitely not the hardcoded 86400 (1 day)
-        assert!(metrics.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+        assert!(
+            metrics.uptime < 86400,
+            "Uptime should not be hardcoded to 1 day"
+        );
     }
 
     #[tokio::test]
@@ -161,7 +161,10 @@ mod tests {
         let status = body.data.expect("status payload");
 
         assert!(status.uptime > 0, "Uptime should be greater than 0");
-        assert!(status.uptime < 86400, "Uptime should not be hardcoded to 1 day");
+        assert!(
+            status.uptime < 86400,
+            "Uptime should not be hardcoded to 1 day"
+        );
     }
 
     #[tokio::test]
@@ -244,7 +247,10 @@ mod tests {
         // Admin role should grant "*" permission
         assert!(fetched_user.permissions.contains(&"*".to_string()));
         // Roles should be sorted
-        assert_eq!(fetched_user.roles, vec!["admin".to_string(), "user".to_string()]);
+        assert_eq!(
+            fetched_user.roles,
+            vec!["admin".to_string(), "user".to_string()]
+        );
     }
 
     #[tokio::test]
@@ -346,7 +352,10 @@ mod tests {
         assert_eq!(updated_user.email, "updated@example.com");
         assert_eq!(updated_user.full_name, Some("Updated Name".to_string()));
         assert_eq!(updated_user.enabled, false);
-        assert_eq!(updated_user.metadata.get("key").map(|s| s.as_str()), Some("value"));
+        assert_eq!(
+            updated_user.metadata.get("key").map(|s| s.as_str()),
+            Some("value")
+        );
 
         // Verify via GET
         let response = server.get(&format!("/users/{}", user.id)).await;
@@ -367,10 +376,20 @@ mod tests {
 
         // Check for expected findings with default config
         // Default JWT secret is "change-this-secret-in-production"
-        assert!(result.findings.iter().any(|f| f.title == "Default JWT Secret"));
+        assert!(
+            result
+                .findings
+                .iter()
+                .any(|f| f.title == "Default JWT Secret")
+        );
 
-        // Vault status should be Sealed by default in mock environment
-        assert!(result.findings.iter().any(|f| f.title == "Vault is Sealed"));
+        // Engine status should be Sealed by default in mock environment
+        assert!(
+            result
+                .findings
+                .iter()
+                .any(|f| f.title == "Engine is Sealed")
+        );
     }
 }
 
@@ -489,7 +508,7 @@ pub struct SystemMetrics {
     pub cpu_usage: CpuMetrics,
     pub disk_usage: DiskMetrics,
     pub network: NetworkMetrics,
-    pub vault: VaultMetrics,
+    pub engine: EngineMetrics,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -524,7 +543,7 @@ pub struct NetworkMetrics {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct VaultMetrics {
+pub struct EngineMetrics {
     pub total_secrets: u64,
     pub total_keys: u64,
     pub total_policies: u64,
@@ -819,7 +838,7 @@ pub async fn get_system_metrics(
             packets_sent: stats.network.packets_sent,
             packets_received: stats.network.packets_received,
         },
-        vault: VaultMetrics {
+        engine: EngineMetrics {
             total_secrets: stats.total_secrets,
             total_keys: stats.total_keys,
             total_policies: 25, // Placeholder - policy count not yet in stats
@@ -864,17 +883,17 @@ pub async fn run_security_scan(
 ) -> ApiResult<Json<ApiResponse<SecurityScanResult>>> {
     let mut findings = Vec::new();
 
-    // 1. Check Vault Seal Status
+    // 1. Check Engine Seal Status
     let seal_status = state.seal.status().await;
     if seal_status.state == SealState::Sealed {
         findings.push(SecurityFinding {
             severity: "info".to_string(),
             category: "status".to_string(),
-            title: "Vault is Sealed".to_string(),
-            description: "The vault is currently sealed. Secret operations are unavailable."
+            title: "Engine is Sealed".to_string(),
+            description: "The engine is currently sealed. Secret operations are unavailable."
                 .to_string(),
-            recommendation: "Unseal the vault to resume normal operations.".to_string(),
-            affected_resources: vec!["vault".to_string()],
+            recommendation: "Unseal the engine to resume normal operations.".to_string(),
+            affected_resources: vec!["engine".to_string()],
         });
     }
 
@@ -889,7 +908,7 @@ pub async fn run_security_scan(
                 "Seal configuration uses {} shares with threshold {}. This provides low redundancy and security.",
                 seal_status.total_shares, seal_status.threshold
             ),
-            recommendation: "Re-initialize or rekey the vault with at least 5 shares and threshold 3."
+            recommendation: "Re-initialize or rekey the engine with at least 5 shares and threshold 3."
                 .to_string(),
             affected_resources: vec!["seal".to_string()],
         });
@@ -923,8 +942,9 @@ pub async fn run_security_scan(
             severity: "critical".to_string(),
             category: "configuration".to_string(),
             title: "Insecure JWT Algorithm".to_string(),
-            description: "The JWT algorithm is set to 'none', which disables signature verification."
-                .to_string(),
+            description:
+                "The JWT algorithm is set to 'none', which disables signature verification."
+                    .to_string(),
             recommendation: "Set JWT algorithm to HS256, RS256 or similar.".to_string(),
             affected_resources: vec!["auth".to_string(), "jwt".to_string()],
         });

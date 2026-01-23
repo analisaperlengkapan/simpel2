@@ -77,11 +77,7 @@ impl CertificateCache {
         let hits = self.hits.load(Ordering::Relaxed) as f64;
         let misses = self.misses.load(Ordering::Relaxed) as f64;
         let total = hits + misses;
-        if total == 0.0 {
-            0.0
-        } else {
-            hits / total
-        }
+        if total == 0.0 { 0.0 } else { hits / total }
     }
 }
 
@@ -165,7 +161,7 @@ pub fn validate_client_certificate(
                 cache.insert(cache_key, validation.clone());
             }
             validation
-        },
+        }
         Err(e) => {
             warn!("Failed to parse client certificate: {}", e);
             CertificateValidation {
@@ -226,66 +222,10 @@ pub fn extract_client_certificate_from_tls(request: &Request) -> Option<Vec<u8>>
     }
 
     // Try to get certificate from headers (e.g. from reverse proxy)
-    request.headers().get("x-client-cert").and_then(|v| hex::decode(v).ok())
-}
-
-/// Enhanced mTLS authentication middleware with proper TLS integration
-pub async fn mtls_auth_middleware(
-    State(state): State<ApiState>,
-    _headers: HeaderMap,
-    mut request: Request,
-    next: Next,
-) -> Result<Response, AuthError> {
-    // Skip mTLS for health/status endpoints
-    let path = request.uri().path();
-    if path == "/health" || path == "/version" || path.starts_with("/health") {
-        return Ok(next.run(request).await);
-    }
-
-    // Check if mTLS is configured and required
-    if let Some(mtls_config) = &state.transit.config
-        && mtls_config.required
-    {
-        // Extract client certificate from TLS connection
-        if let Some(client_cert_der) = extract_client_certificate_from_tls(&request) {
-            let start_time = std::time::Instant::now();
-
-            // Validate certificate
-            let validation =
-                validate_client_certificate(&client_cert_der, None, &mtls_config.allowed_subjects);
-
-            let validation_time = start_time.elapsed().as_millis() as u64;
-
-            if validation.valid {
-                info!(
-                    "mTLS authentication successful for subject: {:?} (validation: {}ms)",
-                    validation.subject, validation_time
-                );
-
-                // Record successful authentication metrics
-                record_tls_handshake(true, false, validation_time);
-
-                // Add certificate info to request extensions
-                request.extensions_mut().insert(validation);
-
-                return Ok(next.run(request).await);
-            } else {
-                warn!(
-                    "mTLS authentication failed for subject: {:?} (validation: {}ms)",
-                    validation.subject, validation_time
-                );
-                record_tls_handshake(false, false, validation_time);
-                return Err(AuthError::InvalidCredentials);
-            }
-        } else {
-            warn!("mTLS required but no client certificate provided");
-            record_tls_handshake(false, false, 0);
-            return Err(AuthError::MissingCredentials);
-        }
-    }
-
-    // mTLS not required or not configured, proceed with regular authentication
-    Ok(next.run(request).await)
+    request
+        .headers()
+        .get("x-client-cert")
+        .and_then(|v| hex::decode(v).ok())
 }
 
 /// Request context passed through middleware
@@ -299,6 +239,12 @@ pub struct RequestContext {
     pub start_time: Instant,
     /// JWT claims for namespace access control
     pub jwt_claims: Option<secreton_core::namespace::JwtClaims>,
+    /// Authorization header value (if any)
+    pub auth_token: Option<String>,
+    /// Client IP address
+    pub client_ip: Option<String>,
+    /// User Agent string
+    pub user_agent: Option<String>,
     /// Policy names from JWT claims
     pub policy_names: Vec<String>,
 }
@@ -320,6 +266,93 @@ impl RequestContext {
         }
         "default".to_string()
     }
+}
+
+/// Enhanced mTLS authentication middleware with proper TLS integration
+pub async fn mtls_auth_middleware(
+    State(state): State<ApiState>,
+    _headers: HeaderMap,
+    mut request: Request,
+    next: Next,
+) -> Result<Response, AuthError> {
+    // Skip mTLS for health/status endpoints
+    let path = request.uri().path();
+    if path == "/health" || path == "/version" || path.starts_with("/health") {
+        return Ok(next.run(request).await);
+    }
+
+    // Check if mTLS is configured and required
+    if let Some(mtls_config) = &state.transit.config {
+        if mtls_config.required {
+            // Extract client certificate from TLS connection
+            if let Some(client_cert_der) = extract_client_certificate_from_tls(&request) {
+                let start_time = std::time::Instant::now();
+
+                // Validate certificate
+                let validation = validate_client_certificate(
+                    &client_cert_der,
+                    None,
+                    &mtls_config.allowed_subjects,
+                );
+
+                let validation_time = start_time.elapsed().as_millis() as u64;
+
+                if validation.valid {
+                    info!(
+                        "mTLS authentication successful for subject: {:?} (validation: {}ms)",
+                        validation.subject, validation_time
+                    );
+
+                    // Record successful authentication metrics
+                    record_tls_handshake(true, false, validation_time);
+
+                    // Add certificate info to request extensions
+                    request.extensions_mut().insert(validation);
+
+                    return Ok(next.run(request).await);
+                } else {
+                    warn!(
+                        "mTLS authentication failed for subject: {:?} (validation: {}ms)",
+                        validation.subject, validation_time
+                    );
+                    record_tls_handshake(false, false, validation_time);
+                    return Err(AuthError::InvalidCredentials);
+                }
+            } else {
+                warn!("mTLS required but no client certificate provided");
+                record_tls_handshake(false, false, 0);
+                return Err(AuthError::MissingCredentials);
+            }
+        }
+
+        // mTLS not required or not configured, proceed with regular authentication
+        return Ok(next.run(request).await);
+    }
+
+    Ok(next.run(request).await)
+}
+
+/// Extract IP address from request headers
+pub fn extract_ip_from_headers(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .or_else(|| {
+            headers
+                .get("x-real-ip")
+                .and_then(|h| h.to_str().ok())
+                .map(|s| s.trim().to_string())
+        })
+}
+
+/// Extract User-Agent from headers
+pub fn extract_user_agent_from_headers(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string())
 }
 
 /// Rate limiting state
@@ -377,7 +410,6 @@ pub fn update_rate_limiting(max_requests_per_minute: u32) {
         }
     }
 }
-
 
 /// Authentication middleware
 pub async fn auth_middleware(
@@ -437,8 +469,8 @@ pub async fn auth_middleware(
     // but we can reconstruct what we need.
     // The namespace logic relies on metadata fields like 'satker_code'.
     // User struct has 'metadata' HashMap.
-    use secreton_core::namespace::JwtClaims;
     use secreton_core::namespace::AdminLevel;
+    use secreton_core::namespace::JwtClaims;
 
     // Helper to extract code
     let satker_code = user.metadata.get("satker_code").cloned();
@@ -492,11 +524,21 @@ pub async fn auth_middleware(
 
     // Policy names
     // Check metadata for 'policy_names' or 'policies'
-    let policy_names: Vec<String> = if let Some(p) = user.metadata.get("policy_names").or_else(|| user.metadata.get("policies")) {
-        p.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    let policy_names: Vec<String> = if let Some(p) = user
+        .metadata
+        .get("policy_names")
+        .or_else(|| user.metadata.get("policies"))
+    {
+        p.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     } else {
         // Default to role-based
-        user.roles.iter().map(|r| format!("{}-policy", r.to_lowercase())).collect()
+        user.roles
+            .iter()
+            .map(|r| format!("{}-policy", r.to_lowercase()))
+            .collect()
     };
 
     // Create request context
@@ -512,6 +554,12 @@ pub async fn auth_middleware(
         user_permissions: user_permissions,
         start_time: Instant::now(),
         jwt_claims,
+        auth_token: Some(token),
+        client_ip: extract_ip_from_headers(&headers),
+        user_agent: headers
+            .get("user-agent")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.to_string()),
         policy_names,
     };
 
@@ -520,7 +568,6 @@ pub async fn auth_middleware(
 
     Ok(next.run(request).await)
 }
-
 
 /// Rate limiting middleware
 pub async fn rate_limit(
@@ -533,22 +580,22 @@ pub async fn rate_limit(
     let client_ip = ctx.ip_address.as_deref().unwrap_or("unknown");
 
     // Check rate limit
-    {
-        if let Ok(mut limiter_guard) = RATE_LIMITER.lock()
-            && let Some(ref mut limiter) = *limiter_guard
-            && !limiter.check_rate_limit(client_ip)
-        {
-            warn!("Rate limit exceeded for client: {}", client_ip);
-            return Err((
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(serde_json::json!({
-                    "error": "Rate limit exceeded",
-                    "status": 429,
-                    "retry_after": 60
-                })),
-            ));
+    if let Ok(mut limiter_guard) = RATE_LIMITER.lock() {
+        if let Some(ref mut limiter) = *limiter_guard {
+            if !limiter.check_rate_limit(client_ip) {
+                warn!("Rate limit exceeded for client: {}", client_ip);
+                return Err((
+                    StatusCode::TOO_MANY_REQUESTS,
+                    Json(serde_json::json!({
+                        "error": "Rate limit exceeded",
+                        "status": 429,
+                        "retry_after": 60
+                    })),
+                ));
+            }
         }
-    } // Guard is dropped here
+    }
+    // Guard is dropped here
 
     Ok(next.run(request).await)
 }
@@ -567,8 +614,6 @@ pub async fn request_rate_middleware(
     next.run(request).await
 }
 
-
-
 /// Request size limiting middleware
 pub async fn request_size_limit(
     request: Request,
@@ -577,19 +622,21 @@ pub async fn request_size_limit(
     const MAX_REQUEST_SIZE: usize = 1024 * 1024; // 1MB
 
     // Check content-length header
-    if let Some(content_length) = request.headers().get("content-length")
-        && let Ok(length_str) = content_length.to_str()
-        && let Ok(length) = length_str.parse::<usize>()
-        && length > MAX_REQUEST_SIZE
-    {
-        return Err((
-            StatusCode::PAYLOAD_TOO_LARGE,
-            Json(serde_json::json!({
-                "error": "Request too large",
-                "max_size": MAX_REQUEST_SIZE,
-                "actual_size": length
-            })),
-        ));
+    if let Some(content_length) = request.headers().get("content-length") {
+        if let Ok(length_str) = content_length.to_str() {
+            if let Ok(length) = length_str.parse::<usize>() {
+                if length > MAX_REQUEST_SIZE {
+                    return Err((
+                        StatusCode::PAYLOAD_TOO_LARGE,
+                        Json(serde_json::json!({
+                            "error": "Request too large",
+                            "max_size": MAX_REQUEST_SIZE,
+                            "actual_size": length
+                        })),
+                    ));
+                }
+            }
+        }
     }
 
     Ok(next.run(request).await)
@@ -637,16 +684,15 @@ pub async fn audit_logging(request: Request, next: Next) -> Response {
     response
 }
 
-
 /// Seal status check middleware
-/// Blocks all secret operations when vault is sealed
+/// Blocks all secret operations when engine is sealed
 /// CRITICAL SECURITY: This middleware enforces that all API operations
-/// (except whitelisted system endpoints) are blocked when the vault is sealed.
-/// This follows HashiCorp Vault security best practices.
+/// (except whitelisted system endpoints) are blocked when the engine is sealed.
+/// This follows HashiCorp Engine security best practices.
 
 /// Checks if a given request path is whitelisted from the seal check.
 ///
-/// Whitelisted endpoints are those required for basic vault operations,
+/// Whitelisted endpoints are those required for basic engine operations,
 /// such as health checks, initialization, and unsealing.
 fn is_whitelisted(path: &str) -> bool {
     // These endpoints allow sub-paths (e.g., /health/live)
@@ -709,10 +755,10 @@ pub async fn seal_check_middleware(
         return next.run(request).await;
     }
 
-    // CRITICAL SECURITY FIX: Check if vault is sealed
+    // CRITICAL SECURITY FIX: Check if engine is sealed
     // Get SealService from state and check if sealed
     if state.services.seal.is_sealed().await {
-        warn!("🔒 Blocked request to {} - vault is sealed", path);
+        warn!("🔒 Blocked request to {} - engine is sealed", path);
 
         // Record metric for blocked requests
         metrics::counter!("secreton_seal_blocked_requests_total").increment(1);
@@ -720,16 +766,16 @@ pub async fn seal_check_middleware(
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(serde_json::json!({
-                "errors": ["Vault is sealed"],
+                "errors": ["Engine is sealed"],
                 "sealed": true,
-                "message": "The vault is sealed. Please unseal it with threshold shares before performing operations."
+                "message": "The engine is sealed. Please unseal it with threshold shares before performing operations."
             })),
         )
             .into_response();
     }
 
     tracing::debug!(
-        "Seal check middleware: allowing request to {} (vault is unsealed)",
+        "Seal check middleware: allowing request to {} (engine is unsealed)",
         path
     );
 
@@ -786,7 +832,10 @@ pub async fn namespace_access_middleware(
                         debug!("Access granted to namespace {}", ns_id);
                     }
                     Ok(false) => {
-                        warn!("Access denied to namespace {} for user {}", ns_id, claims.sub);
+                        warn!(
+                            "Access denied to namespace {} for user {}",
+                            ns_id, claims.sub
+                        );
                         return Err((
                             StatusCode::FORBIDDEN,
                             Json(serde_json::json!({
@@ -870,6 +919,7 @@ fn extract_namespace_from_path(path: &str) -> Option<String> {
 
 /// Extract JWT claims from token claims for namespace access control
 /// Converts the auth service token claims into JwtClaims for namespace validation
+#[allow(dead_code)]
 fn extract_jwt_claims_from_token(
     claims: &crate::auth::Claims,
 ) -> Option<secreton_core::namespace::JwtClaims> {
@@ -899,6 +949,7 @@ fn extract_jwt_claims_from_token(
 }
 
 /// Determine admin level from roles and metadata
+#[allow(dead_code)]
 fn determine_admin_level(
     roles: &[String],
     metadata: &HashMap<String, String>,
@@ -939,6 +990,7 @@ fn determine_admin_level(
 
 /// Extract policy names from JWT claims
 /// Looks for policy_names field in JWT claims metadata or as a direct field
+#[allow(dead_code)]
 fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String> {
     // Check metadata for policy_names
     if let Some(policies_str) = claims.metadata.get("policy_names") {
@@ -1119,7 +1171,7 @@ fn map_method_to_action(method: &axum::http::Method) -> String {
 fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::Value {
     use serde_json::json;
 
-    let client_ip = extract_ip_from_headers(request.headers()).unwrap_or("unknown");
+    let client_ip = extract_ip_from_headers(request.headers()).unwrap_or("unknown".to_string());
 
     json!({
         "user_id": ctx.user_id,
@@ -1214,8 +1266,8 @@ mod tests {
 
     #[test]
     fn test_mfa_status_extraction() {
+        use secreton_core::namespace::{AdminLevel, JwtClaims};
         use std::collections::HashMap;
-        use secreton_core::namespace::{JwtClaims, AdminLevel};
 
         // Create claims with MFA passed
         let mut metadata = HashMap::new();
@@ -1245,16 +1297,20 @@ mod tests {
             start_time: Instant::now(),
             jwt_claims: Some(claims),
             policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
 
-        let request = Request::builder()
-            .body(axum::body::Body::empty())
-            .unwrap();
+        let request = Request::builder().body(axum::body::Body::empty()).unwrap();
 
         let policy_context = build_policy_context(&ctx, &request);
 
         // This should be true if implementation is correct
-        assert_eq!(policy_context["mfa_passed"], true, "MFA status should be extracted from claims");
+        assert_eq!(
+            policy_context["mfa_passed"], true,
+            "MFA status should be extracted from claims"
+        );
     }
 
     #[test]
@@ -1273,6 +1329,7 @@ mod tests {
         assert!(rate_limiter.check_rate_limit("other-client"));
     }
 
+    #[test]
     #[test]
     fn test_derive_namespace() {
         use secreton_core::namespace::{AdminLevel, JwtClaims};
@@ -1300,56 +1357,99 @@ mod tests {
             user_email: None,
             user_roles: vec![],
             user_permissions: vec![],
-            start_time: Instant::now(),
-            jwt_claims: Some(claims.clone()),
+            start_time: std::time::Instant::now(),
+            jwt_claims: Some(claims),
             policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
 
         assert_eq!(context.derive_namespace(), "satker-kja001");
 
         // Test wilayah
+        let mut claims = context.jwt_claims.clone().unwrap();
         claims.satker_code = None;
         claims.admin_level = AdminLevel::Wilayah;
+
         let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
+            jwt_claims: Some(claims),
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: std::time::Instant::now(),
+            policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
         assert_eq!(context.derive_namespace(), "wilayah-sumut");
 
         // Test pusat
+        let mut claims = context.jwt_claims.clone().unwrap();
         claims.wilayah_code = None;
         claims.admin_level = AdminLevel::Pusat;
         let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
+            jwt_claims: Some(claims),
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: std::time::Instant::now(),
+            policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
         assert_eq!(context.derive_namespace(), "pusat");
 
         // Test fallback
+        let mut claims = context.jwt_claims.clone().unwrap();
         claims.admin_level = AdminLevel::EselonI;
         let context = RequestContext {
-            jwt_claims: Some(claims.clone()),
-            ..context
+            jwt_claims: Some(claims),
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: std::time::Instant::now(),
+            policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
         assert_eq!(context.derive_namespace(), "default");
 
         // Test no claims
         let context = RequestContext {
             jwt_claims: None,
-            ..context
+            request_id: "req".into(),
+            user_id: Some("user".into()),
+            user_email: None,
+            user_roles: vec![],
+            user_permissions: vec![],
+            start_time: std::time::Instant::now(),
+            policy_names: vec![],
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
         };
         assert_eq!(context.derive_namespace(), "default");
     }
 }
 
 /// Response wrapping middleware
-/// Automatically wraps responses when X-Vault-Wrap-TTL header is present.
+/// Automatically wraps responses when X-Engine-Wrap-TTL header is present.
 /// This allows clients to request wrapped responses for any endpoint.
 /// # Header Format
-/// `X-Vault-Wrap-TTL: <seconds>`
+/// `X-Engine-Wrap-TTL: <seconds>`
 /// # Example
 /// ```bash
-/// curl -H "X-Vault-Wrap-TTL: 300" http://localhost:8200/v1/secret/data/myapp
+/// curl -H "X-Engine-Wrap-TTL: 300" http://localhost:8200/v1/secret/data/myapp
 /// ```
 /// # Response
 /// Instead of returning the actual secret, returns a wrapping token:
@@ -1372,9 +1472,9 @@ pub async fn response_wrapping_middleware(
 ) -> Response {
     const MAX_WRAPPING_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
-    // Check for X-Vault-Wrap-TTL header
+    // Check for X-Engine-Wrap-TTL header
     let wrap_ttl = headers
-        .get("X-Vault-Wrap-TTL")
+        .get("X-Engine-Wrap-TTL")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse::<u64>().ok());
 
@@ -1386,14 +1486,14 @@ pub async fn response_wrapping_middleware(
 
     // Validate TTL
     if wrap_ttl == 0 || wrap_ttl > 86400 {
-        warn!("Invalid X-Vault-Wrap-TTL value: {}", wrap_ttl);
+        warn!("Invalid X-Engine-Wrap-TTL value: {}", wrap_ttl);
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
                 "success": false,
                 "error": {
                     "code": "INVALID_WRAP_TTL",
-                    "message": "X-Vault-Wrap-TTL must be between 1 and 86400 seconds"
+                    "message": "X-Engine-Wrap-TTL must be between 1 and 86400 seconds"
                 }
             })),
         )
@@ -1420,7 +1520,7 @@ pub async fn response_wrapping_middleware(
         ttl = wrap_ttl,
         path = %path,
         namespace = %namespace,
-        "Response wrapping requested via X-Vault-Wrap-TTL header"
+        "Response wrapping requested via X-Engine-Wrap-TTL header"
     );
 
     // Buffer the response body
@@ -1550,10 +1650,12 @@ mod middleware_tests {
     #[tokio::test]
     async fn test_seal_check_middleware_blocks_when_sealed() {
         let state = create_test_api_state(true).await;
-        let middleware =
-            tower::ServiceBuilder::new()
-                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
-                .service_fn(mock_handler);
+        let middleware = tower::ServiceBuilder::new()
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                seal_check_middleware,
+            ))
+            .service_fn(mock_handler);
 
         let request = Request::builder()
             .uri("/v1/secret/data/my-secret")
@@ -1567,10 +1669,12 @@ mod middleware_tests {
     #[tokio::test]
     async fn test_seal_check_middleware_allows_when_unsealed() {
         let state = create_test_api_state(false).await;
-        let middleware =
-            tower::ServiceBuilder::new()
-                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
-                .service_fn(mock_handler);
+        let middleware = tower::ServiceBuilder::new()
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                seal_check_middleware,
+            ))
+            .service_fn(mock_handler);
 
         let request = Request::builder()
             .uri("/v1/secret/data/my-secret")
@@ -1584,10 +1688,12 @@ mod middleware_tests {
     #[tokio::test]
     async fn test_seal_check_middleware_allows_whitelisted_endpoints_when_sealed() {
         let state = create_test_api_state(true).await;
-        let middleware =
-            tower::ServiceBuilder::new()
-                .layer(axum::middleware::from_fn_with_state(state.clone(), seal_check_middleware))
-                .service_fn(mock_handler);
+        let middleware = tower::ServiceBuilder::new()
+            .layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                seal_check_middleware,
+            ))
+            .service_fn(mock_handler);
 
         let whitelisted_paths = [
             "/health",
@@ -1607,7 +1713,12 @@ mod middleware_tests {
                 .body(axum::body::Body::empty())
                 .unwrap();
             let response = middleware.clone().oneshot(request).await.unwrap();
-            assert_eq!(response.status(), StatusCode::OK, "Failed for path: {}", path);
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "Failed for path: {}",
+                path
+            );
         }
     }
 
@@ -1638,18 +1749,23 @@ mod middleware_tests {
         ApiState {
             transit: crate::transit::TransitApiState {
                 engine: Arc::new(secreton_crypto::transit::TransitEngine::new()),
-                config: None
+                config: None,
+                metrics: Default::default(),
             },
             kv: crate::kv::KVApiState {
-                engine: Arc::new(crate::kv::KVEngine::new())
+                engine: Arc::new(crate::kv::KVEngine::new()),
+                metrics: Default::default(),
             },
             pki: crate::pki::PkiApiState::default(),
             services: Arc::new(services),
+            metrics: Default::default(),
             prometheus_handle: None,
         }
     }
 
-    async fn mock_handler(_req: Request<axum::body::Body>) -> Result<Response, std::convert::Infallible> {
+    async fn mock_handler(
+        _req: Request<axum::body::Body>,
+    ) -> Result<Response, std::convert::Infallible> {
         Ok(Response::builder()
             .status(StatusCode::OK)
             .body(axum::body::Body::empty())
@@ -1675,7 +1791,13 @@ mod middleware_tests {
         // Invalid paths
         assert_eq!(extract_namespace_from_path("/v1/sys/health"), None);
         assert_eq!(extract_namespace_from_path("/invalid/path"), None);
-        assert_eq!(extract_namespace_from_path("/v1/secret/metadata/my-ns/key"), None); // Only data paths
-        assert_eq!(extract_namespace_from_path("/v1/other/data/my-ns/key"), None);
+        assert_eq!(
+            extract_namespace_from_path("/v1/secret/metadata/my-ns/key"),
+            None
+        ); // Only data paths
+        assert_eq!(
+            extract_namespace_from_path("/v1/other/data/my-ns/key"),
+            None
+        );
     }
 }

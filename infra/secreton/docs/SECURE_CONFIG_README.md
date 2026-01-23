@@ -2,7 +2,7 @@
 
 ## 🔐 Overview
 
-Secreton now uses a **Vault-like secure configuration system** with two layers:
+Secreton now uses a **Secret Vault-like secure configuration system** with two layers:
 
 1. **Bootstrap Config** (`secreton.toml`) - Infrastructure only, **NO SECRETS**
 2. **Application Config** (encrypted in storage) - All sensitive settings, protected by master key
@@ -11,7 +11,7 @@ Secreton now uses a **Vault-like secure configuration system** with two layers:
 
 ## Quick Start
 
-### 1. Initialize Vault
+### 1. Initialize Secret Vault
 
 ```bash
 # Copy example config
@@ -23,7 +23,7 @@ secreton init --shares 5 --threshold 3
 # IMPORTANT: Save shares securely!
 ```
 
-### 2. Unseal Vault
+### 2. Unseal Secret Vault
 
 ```bash
 # Provide 3 of 5 shares
@@ -78,7 +78,7 @@ Stored encrypted after unsealing:
 ## Migration from Legacy Config
 
 ```bash
-# Unseal vault first
+# Unseal engine first
 secreton unseal
 
 # Migrate (creates automatic backup)
@@ -120,8 +120,8 @@ kms_key_id = "arn:aws:kms:..."
 
 ## CLI Commands
 
-- `secreton init` - Initialize vault, generate Shamir shares
-- `secreton seal` - Seal vault (blocks all operations)
+- `secreton init` - Initialize engine, generate Shamir shares
+- `secreton seal` - Seal engine (blocks all operations)
 - `secreton unseal` - Unseal with share
 - `secreton status` - Check seal status
 - `secreton rekey` - Change shares/threshold
@@ -136,7 +136,7 @@ kms_key_id = "arn:aws:kms:..."
 ✅ **Shamir Secret Sharing** (5 shares, 3 threshold default)
 ✅ **Master key** never written to disk unencrypted
 ✅ **Zeroize** - Secure memory cleanup
-✅ **Vault starts SEALED** - Manual or KMS auto-unseal
+✅ **Secret Vault starts SEALED** - Manual or KMS auto-unseal
 ✅ **Optional cloud KMS** - AWS/GCP/Azure auto-unseal
 
 ---
@@ -188,7 +188,7 @@ kms_key_id = "arn:aws:kms:..."
 A: Encrypted in the storage backend (Raft/File/Postgres), protected by the master key.
 
 **Q: What happens if I lose Shamir shares?**
-A: You cannot unseal the vault. Keep shares in separate secure locations (password managers, HSMs).
+A: You cannot unseal the engine. Keep shares in separate secure locations (password managers, HSMs).
 
 **Q: Can I change the number of shares?**
 A: Yes, use `secreton rekey init --shares X --threshold Y`.
@@ -197,4 +197,4 @@ A: Yes, use `secreton rekey init --shares X --threshold Y`.
 A: With Shamir: Yes (manual). With KMS auto-unseal: No (automatic).
 
 **Q: Is the bootstrap config secret?**
-A: No, it contains NO secrets and can be committed to git (like Vault's config).
+A: No, it contains NO secrets and can be committed to git (like Secret Vault's config).

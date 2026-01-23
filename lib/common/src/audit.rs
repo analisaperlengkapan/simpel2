@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use crate::context::RequestContext;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Standard severity levels for audit logs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

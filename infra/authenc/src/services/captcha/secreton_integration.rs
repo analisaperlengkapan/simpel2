@@ -136,13 +136,12 @@ impl CaptchaSecretonTrait for CaptchaSecretonClient {
         context: &SecurityContext,
     ) -> Result<String, CaptchaError> {
         // Decode base64 ciphertext
-        let ciphertext_bytes = crate::utils::encoding::base64_decode(&encrypted_data.ciphertext).map_err(|e| {
-            CaptchaError::SecreonUnavailable {
+        let ciphertext_bytes = crate::utils::encoding::base64_decode(&encrypted_data.ciphertext)
+            .map_err(|e| CaptchaError::SecreonUnavailable {
                 message: format!("Invalid base64 ciphertext: {}", e),
                 fallback_available: false,
                 retry_after: None,
-            }
-        })?;
+            })?;
 
         // Use HSM decryption via SecretonClient
         use crate::secreton_client::HsmSecretonClient;

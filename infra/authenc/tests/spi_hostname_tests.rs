@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_default_hostname_provider() {
-        let provider = DefaultHostnameProvider::new();
+        let _provider = DefaultHostnameProvider::new();
         // Provider should be created successfully
         assert!(true); // This is just a basic instantiation test
     }
@@ -109,7 +109,7 @@ mod tests {
             admin_url: Some("https://admin.test.com".to_string()),
         };
 
-        let provider = DefaultHostnameProvider::with_config(config);
+        let _provider = DefaultHostnameProvider::with_config(config);
         // Provider should be created successfully
         assert!(true);
     }
@@ -283,7 +283,7 @@ mod tests {
         let factory = DefaultHostnameProviderFactory::new();
         let config = authenc::spi::ProviderConfig::default();
 
-        let provider = ProviderFactory::create(&factory, &config).unwrap();
+        let _provider = ProviderFactory::create(&factory, &config).unwrap();
         // Provider should be created successfully
         assert!(true);
     }

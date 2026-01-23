@@ -7,4 +7,4 @@ impl SupervisedLearningService {
     pub async fn predict(&self, _input: &str) -> Result<String, Box<dyn std::error::Error>> {
         Ok("dummy prediction".to_string())
     }
-} 
+}

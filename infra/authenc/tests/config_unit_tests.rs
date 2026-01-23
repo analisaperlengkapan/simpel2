@@ -40,8 +40,12 @@ mod tests {
     #[test]
     fn test_secreton_config_creation() {
         let config = SecretonConfig {
+            enabled: true,
             endpoint: "https://secreton.example.com".to_string(),
             token: "secret-token".to_string(),
+            mount_path: "secret".to_string(),
+            key_rotation_interval: 3600,
+            secrets_to_load: vec![],
         };
         assert_eq!(config.endpoint, "https://secreton.example.com");
         assert_eq!(config.token, "secret-token");
@@ -125,7 +129,6 @@ mod tests {
             max_lifetime: 1800,
             connection_timeout: 30,
             audit_log_url: Some("postgres://audit:pass@localhost:5432/audit".to_string()),
-            connection_timeout_seconds: 30,
         };
         assert_eq!(config.host, "localhost");
         assert_eq!(config.port, 5432);
@@ -138,7 +141,7 @@ mod tests {
             config.audit_log_url,
             Some("postgres://audit:pass@localhost:5432/audit".to_string())
         );
-        assert_eq!(config.connection_timeout_seconds, 30);
+        assert_eq!(config.connection_timeout, 30);
     }
 
     #[test]

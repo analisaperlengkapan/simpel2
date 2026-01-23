@@ -1,6 +1,6 @@
 //! Health check handlers
 
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -29,22 +29,23 @@ pub async fn health_check() -> Json<HealthResponse> {
     })
 }
 
-pub async fn readiness_check(
-    State(state): State<Arc<AppState>>,
-) -> Json<ReadinessResponse> {
+pub async fn readiness_check(State(state): State<Arc<AppState>>) -> Json<ReadinessResponse> {
     // Check database
     let db_status = match state.db.get().await {
-        Ok(client) => {
-            match client.query_one("SELECT 1", &[]).await {
-                Ok(_) => "healthy",
-                Err(_) => "unhealthy",
-            }
-        }
+        Ok(client) => match client.query_one("SELECT 1", &[]).await {
+            Ok(_) => "healthy",
+            Err(_) => "unhealthy",
+        },
         Err(_) => "unhealthy",
     };
 
     Json(ReadinessResponse {
-        status: if db_status == "healthy" { "ready" } else { "not_ready" }.to_string(),
+        status: if db_status == "healthy" {
+            "ready"
+        } else {
+            "not_ready"
+        }
+        .to_string(),
         database: db_status.to_string(),
         authenc: "connected".to_string(),
         secreton: "connected".to_string(),

@@ -103,13 +103,13 @@ impl LocalEncryptionFallback {
             });
         }
 
-        let encrypted =
-            crate::utils::encoding::base64_decode(encrypted_data)
-                .map_err(|e| CaptchaError::ValidationFailed {
-                    message: format!("Invalid encrypted data: {}", e),
-                    attempts_remaining: 0,
-                    next_difficulty: 1,
-                })?;
+        let encrypted = crate::utils::encoding::base64_decode(encrypted_data).map_err(|e| {
+            CaptchaError::ValidationFailed {
+                message: format!("Invalid encrypted data: {}", e),
+                attempts_remaining: 0,
+                next_difficulty: 1,
+            }
+        })?;
 
         let decrypted: Vec<u8> = encrypted
             .iter()

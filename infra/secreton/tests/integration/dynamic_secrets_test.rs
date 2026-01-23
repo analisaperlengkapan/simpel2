@@ -8,10 +8,10 @@
 //! - Lease integration (TTL expiration and renewal)
 //! - SQL injection prevention
 
-use secreton_core::services::secrets::database::{
+use secreton_core::services::secrets::database::
     DatabaseConnection, DatabaseCredentials, DatabaseRole, DatabaseSecretsEngine, DatabaseType,
     DatabaseError,
-};
+;
 use secreton_core::services::lease::LeaseManager;
 use tokio_postgres::{NoTls, Error as PgError};
 use std::time::Duration;
@@ -41,7 +41,7 @@ fn create_test_role(role_name: &str, db_name: &str) -> DatabaseRole {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             "GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{username}}".to_string(),
         ],
         revocation_statements: vec![
@@ -49,7 +49,7 @@ fn create_test_role(role_name: &str, db_name: &str) -> DatabaseRole {
             "DROP USER IF EXISTS {{username}}".to_string(),
         ],
         rotation_statements: vec![
-            "ALTER USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "ALTER USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         renew_statements: vec![],
     }
@@ -301,7 +301,7 @@ mod dynamic_secrets_tests {
             default_ttl: 5, // 5 seconds
             max_ttl: 10,
             creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             revocation_statements: vec![
                 "DROP USER IF EXISTS {{username}}".to_string(),
@@ -422,13 +422,13 @@ mod dynamic_secrets_tests {
             default_ttl: 3600,
             max_ttl: 86400,
             creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             revocation_statements: vec![
                 "DROP USER IF EXISTS {{username}}".to_string(),
             ],
             rotation_statements: vec![
-                "ALTER USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "ALTER USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             ..Default::default()
         };
@@ -521,7 +521,7 @@ mod dynamic_secrets_tests {
             default_ttl: 3600,
             max_ttl: 7200,
             creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             revocation_statements: vec![
                 "DROP USER IF EXISTS {{username}}".to_string(),

@@ -137,7 +137,7 @@ output "encrypted_data" {
 ```json
 {
   "data": {
-    "ciphertext": "vault:v1:encrypted-data"
+    "ciphertext": "engine:v1:encrypted-data"
   }
 }
 ```
@@ -542,7 +542,7 @@ Error: failed to read secret: permission denied
 
 ```bash
 # Check token capabilities
-curl -H "X-Vault-Token: $TOKEN" \
+curl -H "X-Secret Vault-Token: $TOKEN" \
   https://secreton.internal:8200/v1/sys/capabilities-self \
   -d '{"paths": ["secret/data/myapp/config"]}'
 ```
@@ -615,4 +615,4 @@ The Go client should implement:
 
 - [Terraform Plugin SDK](https://github.com/hashicorp/terraform-plugin-sdk)
 - [Terraform Provider Development](https://developer.hashicorp.com/terraform/plugin)
-- [HashiCorp Vault Terraform Provider](https://registry.terraform.io/providers/hashicorp/vault/latest/docs) (reference implementation)
+- [HashiCorp Secret Vault Terraform Provider](https://registry.terraform.io/providers/hashicorp/engine/latest/docs) (reference implementation)

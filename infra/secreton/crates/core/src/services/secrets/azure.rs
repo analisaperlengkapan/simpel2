@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::utils::encoding::base64_encode;
@@ -582,8 +582,8 @@ impl AzureEngine {
         for lease_id in expired {
             if let Some(principal) = principals.remove(&lease_id) {
                 info!(
-                    "Cleaning up expired Azure service principal: {}",
-                    principal.client_id
+                    "Service principal group {} expired (created at: {})",
+                    principal.client_id, principal.created_at
                 );
             }
         }

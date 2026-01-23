@@ -15,7 +15,7 @@ use axum::{
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use secreton_api::{config::ApiConfig, create_router, services::ServiceContainer};
+use secreton_api::config::{ApiConfig, create_router, services::ServiceContainer};
 
 /// Helper to create test app
 async fn create_test_app() -> axum::Router {

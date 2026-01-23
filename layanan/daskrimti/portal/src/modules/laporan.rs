@@ -1,6 +1,9 @@
 //! Reports module (from layanan/daskrimti/laporan)
 
-use axum::{routing::{get, post}, Router};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use std::sync::Arc;
 
 use crate::handlers::reports;

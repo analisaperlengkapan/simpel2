@@ -23,21 +23,21 @@ use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRol
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         // Credential generation
-        .route("/database/creds/:role", get(generate_database_credentials))
+        .route("/database/creds/{role}", get(generate_database_credentials))
         // Role management
         .route("/database/roles", get(list_database_roles))
-        .route("/database/roles/:role", post(create_database_role))
-        .route("/database/roles/:role", get(get_database_role))
-        .route("/database/roles/:role", put(update_database_role))
-        .route("/database/roles/:role", delete(delete_database_role))
+        .route("/database/roles/{role}", post(create_database_role))
+        .route("/database/roles/{role}", get(get_database_role))
+        .route("/database/roles/{role}", put(update_database_role))
+        .route("/database/roles/{role}", delete(delete_database_role))
         // Connection management
         .route(
-            "/database/config/:name",
+            "/database/config/{name}",
             post(configure_database_connection),
         )
-        .route("/database/config/:name", get(get_database_connection))
+        .route("/database/config/{name}", get(get_database_connection))
         .route(
-            "/database/config/:name",
+            "/database/config/{name}",
             delete(delete_database_connection),
         )
 }
@@ -132,8 +132,12 @@ pub async fn generate_database_credentials(
     })?;
 
     // Log audit event
-    let audit_entry =
-        create_audit_log("creds_generated", &user.username, "dynamic_role", &role_name);
+    let audit_entry = create_audit_log(
+        "creds_generated",
+        &user.username,
+        "dynamic_role",
+        &role_name,
+    );
     let _ = state.audit.log(audit_entry).await;
 
     let response = GenerateCredsResponse {
@@ -310,7 +314,6 @@ pub async fn get_database_role(
     State(state): State<AppState>,
     Path(role_name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<RoleResponse>>> {
-    // TODO: Implement role retrieval in database engine
     Err(ApiError::NotFound {
         resource: format!("Role {} not found", role_name),
     })
@@ -484,7 +487,6 @@ pub async fn get_database_connection(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> ApiResult<Json<ApiResponse<ConnectionResponse>>> {
-    // TODO: Implement connection retrieval in database engine
     Err(ApiError::NotFound {
         resource: format!("Connection {} not found", name),
     })

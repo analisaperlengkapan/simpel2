@@ -20,6 +20,12 @@ RUN apt-get update && \
 # Set the working directory
 WORKDIR /app
 
+# Create lib directory structure for dependencies
+RUN mkdir -p /lib
+
+# Copy lib-common from parent workspace (authenc depends on it)
+COPY --from=builder-lib-common /lib/common /lib/common
+
 # Copy Cargo files
 COPY Cargo.toml Cargo.lock* ./
 

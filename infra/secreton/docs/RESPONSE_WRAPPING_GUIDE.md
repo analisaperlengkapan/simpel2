@@ -238,12 +238,12 @@ rpc RewrapToken(RewrapTokenRequest) returns (RewrapTokenRespon
 
 ## Automatic Response Wrapping (Middleware)
 
-**Note**: Automatic response wrapping via `X-Vault-Wrap-TTL` header is partially implemented. For production use, use the explicit `/v1/sys/wrapping/wrap` endpoint.
+**Note**: Automatic response wrapping via `X-Secret Vault-Wrap-TTL` header is partially implemented. For production use, use the explicit `/v1/sys/wrapping/wrap` endpoint.
 
 ### Planned Feature
 ```bash
 # Request with automatic wrapping
-curl -H "X-Vault-Wrap-TTL: 300" \
+curl -H "X-Secret Vault-Wrap-TTL: 300" \
   http://localhost:8200/v1/secret/data/myapp
 
 # Response will be automatically wrapped
@@ -477,7 +477,7 @@ max_data_size = 1048576
 # Cleanup interval in seconds (60 seconds)
 cleanup_interval = 60
 
-# Enable automatic wrapping via X-Vault-Wrap-TTL header
+# Enable automatic wrapping via X-Secret Vault-Wrap-TTL header
 auto_wrap_enabled = false
 ```
 
@@ -584,7 +584,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## References
 
-- [HashiCorp Vault Response Wrapping](https://www.vaultproject.io/docs/concepts/response-wrapping)
+- [HashiCorp Secret Vault Response Wrapping](https://www.engineproject.io/docs/concepts/response-wrapping)
 - [Secreton API Documentation](./API_DOCUMENTATION.md)
 - [Security Best Practices](./SECURITY_BEST_PRACTICES.md)
 

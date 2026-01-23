@@ -25,20 +25,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Loading bootstrap configuration...");
     // Load bootstrap config (infrastructure only, no secrets)
-    let bootstrap_config_path = std::env::var("SECRETON_CONFIG")
-        .unwrap_or_else(|_| "secreton.toml".to_string());
+    let bootstrap_config_path =
+        std::env::var("SECRETON_CONFIG").unwrap_or_else(|_| "secreton.toml".to_string());
 
-    let bootstrap = secreton_core::config::BootstrapConfig::from_file(
-        std::path::Path::new(&bootstrap_config_path)
-    ).map_err(|e| {
-        error!("Failed to load bootstrap config from {}: {}", bootstrap_config_path, e);
+    let bootstrap = secreton_core::config::BootstrapConfig::from_file(std::path::Path::new(
+        &bootstrap_config_path,
+    ))
+    .map_err(|e| {
+        error!(
+            "Failed to load bootstrap config from {}: {}",
+            bootstrap_config_path, e
+        );
         std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string())
     })?;
 
     info!("Bootstrap config loaded successfully");
     info!("  Storage backend: {:?}", bootstrap.storage.backend);
-    info!("  HTTP listener: {}", bootstrap.listener.http.address);
-    info!("  gRPC listener: {}", bootstrap.listener.grpc.address);
+    info!("  HTTP listener: {}", bootstrap.http.address);
+    info!("  gRPC listener: {}", bootstrap.grpc.address);
 
     info!("Initializing service container with bootstrap config...");
     // Create service container (includes SealService, storage, crypto, etc.)
@@ -46,22 +50,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // CRITICAL SECURITY: Check seal status at startup
     if services.seal.is_sealed().await {
-        warn!("🔒 Vault is SEALED at startup");
-        warn!("   All secret operations will be blocked until vault is unsealed");
+        warn!("🔒 Engine is SEALED at startup");
+        warn!("   All secret operations will be blocked until engine is unsealed");
         warn!("   Use /v1/sys/unseal endpoint with threshold shares to unseal");
         warn!("   Application config will be loaded after unsealing");
     } else {
-        info!("🔓 Vault is UNSEALED at startup");
+        info!("🔓 Engine is UNSEALED at startup");
         info!("   Loading application config from encrypted storage...");
     }
 
     // Load application config (encrypted in storage, only accessible when unsealed)
     let app_config = if !services.seal.is_sealed().await {
-        match secreton_core::config::ApplicationConfig::load_from_storage(&*services.storage, &services.seal).await {
+        match secreton_core::config::ApplicationConfig::load_from_storage(
+            &*services.storage,
+            &services.seal,
+        )
+        .await
+        {
             Ok(cfg) => {
                 info!("✅ Application config loaded successfully");
                 cfg
-            },
+            }
             Err(e) => {
                 warn!("⚠️  Failed to load application config: {}", e);
                 warn!("   Using default application config");
@@ -70,14 +79,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        info!("Using default application config (vault is sealed)");
+        info!("Using default application config (engine is sealed)");
         secreton_core::config::ApplicationConfig::default()
     };
 
     info!("Creating API configuration...");
     // Merge bootstrap + application config into ApiConfig
-    let config = ApiConfig::from_bootstrap_and_application(&bootstrap, &app_config)
-        .map_err(|e| {
+    let config =
+        ApiConfig::from_bootstrap_and_application(&bootstrap, &app_config).map_err(|e| {
             error!("Failed to create API config: {}", e);
             std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
         })?;
@@ -308,7 +317,7 @@ async fn serve_rest_with_tls(
 fn print_startup_banner() {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║                      🔐 Secreton API Server                     ║");
-    println!("║                 Custom Rust Vault Implementation               ║");
+    println!("║                 Custom Rust Engine Implementation               ║");
     println!("║                                                              ║");
     println!("║  Features:                                                   ║");
     println!("║  • Transit Engine (Encryption/Decryption)                   ║");

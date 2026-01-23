@@ -4,8 +4,8 @@
 //! sending notifications on secret changes with retry policy.
 
 use axum::{
-    extract::{Path, State},
-    Json,
+    extract::{Json, Path, State},
+    response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -357,7 +357,7 @@ pub async fn retry_delivery(
 // Internal data structures and helper functions
 
 #[derive(Debug, Clone)]
-struct WebhookSubscriptionData {
+pub(crate) struct WebhookSubscriptionData {
     id: String,
     url: String,
     paths: Vec<String>,
@@ -388,7 +388,9 @@ async fn get_all_subscriptions() -> Result<Vec<WebhookSubscriptionData>, ApiErro
     Ok(vec![])
 }
 
-async fn get_subscription_by_id(subscription_id: &str) -> Result<WebhookSubscriptionData, ApiError> {
+async fn get_subscription_by_id(
+    subscription_id: &str,
+) -> Result<WebhookSubscriptionData, ApiError> {
     // TODO: Query from database
     info!("Getting webhook subscription: {}", subscription_id);
 
@@ -456,7 +458,7 @@ async fn trigger_webhook_delivery(delivery: &WebhookDelivery) -> Result<(), ApiE
 }
 
 /// Send webhook notification with exponential backoff retry
-pub async fn send_webhook_with_retry(
+pub(crate) async fn send_webhook_with_retry(
     subscription: &WebhookSubscriptionData,
     payload: &WebhookPayload,
 ) -> Result<(), ApiError> {
@@ -542,8 +544,8 @@ fn compute_hmac_signature(payload: &WebhookPayload, secret: &str) -> Result<Stri
 
     type HmacSha256 = Hmac<Sha256>;
 
-    let payload_json = serde_json::to_string(payload)
-        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let payload_json =
+        serde_json::to_string(payload).map_err(|e| ApiError::internal(e.to_string()))?;
 
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
         .map_err(|e| ApiError::internal(e.to_string()))?;
@@ -562,13 +564,13 @@ pub fn create_routes() -> axum::Router<std::sync::Arc<crate::services::ServiceCo
 
     axum::Router::new()
         .route("/subscribe", post(subscribe_webhook))
-        .route("/subscribe/:subscription_id", delete(unsubscribe_webhook))
+        .route("/subscribe/{subscription_id}", delete(unsubscribe_webhook))
         .route("/subscriptions", get(list_subscriptions))
-        .route("/subscriptions/:subscription_id", get(get_subscription))
-        .route("/subscriptions/:subscription_id", put(update_subscription))
+        .route("/subscriptions/{subscription_id}", get(get_subscription))
+        .route("/subscriptions/{subscription_id}", put(update_subscription))
         .route("/deliveries", get(list_deliveries))
-        .route("/deliveries/:delivery_id", get(get_delivery))
-        .route("/deliveries/:delivery_id/retry", post(retry_delivery))
+        .route("/deliveries/{delivery_id}", get(get_delivery))
+        .route("/deliveries/{delivery_id}/retry", post(retry_delivery))
 }
 
 #[cfg(test)]

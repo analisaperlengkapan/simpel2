@@ -1,6 +1,6 @@
 //! Audit Logging System for Secreton
 //!
-//! This module provides comprehensive audit trail capabilities for all vault operations,
+//! This module provides comprehensive audit trail capabilities for all engine operations,
 //! enabling compliance with security standards (ISO 27001, SOC 2, GDPR) and forensic analysis.
 //!
 //! # Architecture
@@ -143,16 +143,17 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
-mod backends;
 pub mod api_audit;
+mod backends;
 
 // DEPRECATED: Middleware module moved to secreton-api crate
 // Requires 'legacy-axum-middleware' feature to compile (disabled by default)
-#[cfg(feature = "legacy-axum-middleware")]
+#[cfg(feature = "axum-middleware")]
 #[deprecated(
     since = "1.1.0",
     note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
@@ -162,7 +163,7 @@ mod middleware;
 pub use backends::*;
 
 // Re-export middleware types with deprecation warning (only if feature enabled)
-#[cfg(feature = "legacy-axum-middleware")]
+#[cfg(feature = "axum-middleware")]
 #[deprecated(
     since = "1.1.0",
     note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
@@ -204,6 +205,7 @@ pub struct AuditQuery {
     pub status: Option<AuditStatus>,
     pub start_time: Option<chrono::DateTime<Utc>>,
     pub end_time: Option<chrono::DateTime<Utc>>,
+    pub namespace: Option<String>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
 }
@@ -223,8 +225,53 @@ impl AuditQuery {
         self
     }
 
+    pub fn resource_type(mut self, resource_type: impl Into<String>) -> Self {
+        self.resource_type = Some(resource_type.into());
+        self
+    }
+
+    pub fn resource_id(mut self, resource_id: impl Into<String>) -> Self {
+        self.resource_id = Some(resource_id.into());
+        self
+    }
+
     pub fn status(mut self, status: AuditStatus) -> Self {
         self.status = Some(status);
+        self
+    }
+
+    pub fn start_time(mut self, start_time: Option<chrono::DateTime<Utc>>) -> Self {
+        self.start_time = start_time;
+        self
+    }
+
+    pub fn end_time(mut self, end_time: Option<chrono::DateTime<Utc>>) -> Self {
+        self.end_time = end_time;
+        self
+    }
+
+    pub fn namespace(mut self, namespace: impl Into<String>) -> Self {
+        self.namespace = Some(namespace.into());
+        self
+    }
+
+    pub fn limit(mut self, limit: Option<usize>) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    pub fn offset(mut self, offset: Option<usize>) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    pub fn status_failed(mut self) -> Self {
+        self.status = Some(AuditStatus::Failure);
+        self
+    }
+
+    pub fn since_hours(mut self, hours: i64) -> Self {
+        self.start_time = Some(Utc::now() - chrono::Duration::hours(hours));
         self
     }
 }
@@ -303,6 +350,11 @@ impl AuditBackend for MemoryBackend {
                 }
                 if let Some(end_time) = &query.end_time {
                     if entry.timestamp > *end_time {
+                        return false;
+                    }
+                }
+                if let Some(namespace) = &query.namespace {
+                    if entry.namespace.as_ref() != Some(namespace) {
                         return false;
                     }
                 }

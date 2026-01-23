@@ -15,13 +15,13 @@ pub use secreton_storage::{
     ListOptions,
     MemoryBackend,
     QueryParams,
+    SecretEntry,
     SecurityLevel,
     StorageBackend,
     StorageError,
     StorageResult,
     StorageStats,
     StorageTransaction,
-    VaultEntry,
 };
 
 // Conditional re-exports based on features

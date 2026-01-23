@@ -24,10 +24,10 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/keys", post(create_totp_key))
         .route("/keys", get(list_totp_keys))
-        .route("/keys/:key_name", get(get_totp_key))
-        .route("/keys/:key_name", delete(delete_totp_key))
-        .route("/code/:key_name", post(generate_totp_code))
-        .route("/validate/:key_name", post(validate_totp_code))
+        .route("/keys/{key_name}", get(get_totp_key))
+        .route("/keys/{key_name}", delete(delete_totp_key))
+        .route("/code/{key_name}", post(generate_totp_code))
+        .route("/validate/{key_name}", post(validate_totp_code))
 }
 
 /// Create TOTP key
@@ -87,7 +87,7 @@ async fn create_totp_key(
 
 /// Get TOTP key
 /// # Endpoint
-/// `GET /v1/totp/keys/:key_name`
+/// `GET /v1/totp/keys/{key_name}`
 /// # Response
 /// ```json
 /// {
@@ -124,7 +124,7 @@ async fn get_totp_key(
 
 /// Delete TOTP key
 /// # Endpoint
-/// `DELETE /v1/totp/keys/:key_name`
+/// `DELETE /v1/totp/keys/{key_name}`
 /// # Response
 /// ```json
 /// {
@@ -178,7 +178,7 @@ async fn list_totp_keys(
 
 /// Generate TOTP code
 /// # Endpoint
-/// `POST /v1/totp/code/:key_name`
+/// `POST /v1/totp/code/{key_name}`
 /// # Response
 /// ```json
 /// {
@@ -210,7 +210,7 @@ async fn generate_totp_code(
 
 /// Validate TOTP code
 /// # Endpoint
-/// `POST /v1/totp/validate/:key_name`
+/// `POST /v1/totp/validate/{key_name}`
 /// # Request Body
 /// ```json
 /// {

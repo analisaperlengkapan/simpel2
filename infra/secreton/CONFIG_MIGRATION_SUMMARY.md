@@ -2,7 +2,7 @@
 
 ## What Changed?
 
-Secreton has migrated from a legacy single-file config system to a **secure two-layer config system** following HashiCorp Vault's security model.
+Secreton has migrated from a legacy single-file config system to a **secure two-layer config system** following HashiCorp Secret Vault's security model.
 
 ## Old System (REMOVED)
 ```
@@ -32,7 +32,7 @@ cargo run --bin api_server
 docker-compose up -d
 ```
 
-### 3. Initialize Vault (First Time Only)
+### 3. Initialize Secret Vault (First Time Only)
 ```bash
 curl -X POST http://localhost:8200/v1/sys/init \
   -d '{"secret_shares": 5, "secret_threshold": 3}'
@@ -40,7 +40,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 
 Save the unseal keys and root token securely!
 
-### 4. Unseal Vault
+### 4. Unseal Secret Vault
 ```bash
 # Provide 3 of 5 uns
 rl -X POST http://localhost:8200/v1/sys/unseal \
@@ -93,7 +93,7 @@ threshold = 3
 - Audit settings
 
 **Stored:** Encrypted in storage backend
-**Accessible:** Only when vault is unsealed
+**Accessible:** Only when engine is unsealed
 **Protected by:** Master key + Shamir Secret Sharing
 
 ## Environment Variables

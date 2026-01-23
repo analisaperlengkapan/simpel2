@@ -1,6 +1,6 @@
 # Secreton CLI
 
-Command-line interface for Secreton vault system.
+Command-line interface for Secreton engine system.
 
 ## Installation
 
@@ -12,9 +12,9 @@ cargo install --path crates/cli
 
 ### Seal/Unseal Operations
 
-#### Initialize Vault
+#### Initialize Secret Vault
 
-Initialize the vault and generate Shamir secret shares:
+Initialize the engine and generate Shamir secret shares:
 
 ```bash
 # Initialize with default settings (5 shares, 3 threshold)
@@ -27,11 +27,11 @@ secreton seal init --shares 7 --threshold 4
 secreton seal init --shares 5 --threshold 3 --output keys.json
 ```
 
-**Important**: Save the unseal keys securely! You will need the threshold number of keys to unseal the vault.
+**Important**: Save the unseal keys securely! You will need the threshold number of keys to unseal the engine.
 
 #### Seal Status
 
-Check the current seal status of the vault:
+Check the current seal status of the engine:
 
 ```bash
 secreton seal status
@@ -43,17 +43,17 @@ Output shows:
 - Total shares and threshold
 - Unseal progress (if unsealing)
 
-#### Seal Vault
+#### Seal Secret Vault
 
-Seal the vault (blocks all operations):
+Seal the engine (blocks all operations):
 
 ```bash
 secreton seal seal
 ```
 
-#### Unseal Vault
+#### Unseal Secret Vault
 
-Unseal the vault with key shares:
+Unseal the engine with key shares:
 
 ```bash
 # Interactive mode (prompts for key without echo)
@@ -66,7 +66,7 @@ secreton seal unseal --key <base64-encoded-key>
 secreton seal unseal --reset
 ```
 
-You need to provide the threshold number of different keys to unseal the vault.
+You need to provide the threshold number of different keys to unseal the engine.
 
 #### Rekey Operation
 
@@ -114,10 +114,10 @@ echo "Hello World" | secreton transit encrypt my-app-key
 
 ```bash
 # From argument
-secreton transit decrypt my-app-key --data "vault:v1:..."
+secreton transit decrypt my-app-key --data "engine:v1:..."
 
 # From stdin
-echo "vault:v1:..." | secreton transit decrypt my-app-key
+echo "engine:v1:..." | secreton transit decrypt my-app-key
 ```
 
 ### KV Secrets Engine Operations
@@ -215,7 +215,7 @@ For detailed restore documentation, see [RESTORE_GUIDE.md](RESTORE_GUIDE.md).
 
 #### Login
 
-Authenticate to the Secreton vault and store a token locally:
+Authenticate to the Secreton engine and store a token locally:
 
 ```bash
 # Login with username/password (interactive)
@@ -385,16 +385,16 @@ secreton token capabilities secret/data/database
 
 #### Diagnose
 
-Run comprehensive diagnostics on vault connectivity and status:
+Run comprehensive diagnostics on engine connectivity and status:
 
 ```bash
 secreton operator diagnose
 ```
 
 This command checks:
-- Connectivity to the vault server
-- Vault initialization status
-- Vault seal status
+- Connectivity to the engine server
+- Secret Vault initialization status
+- Secret Vault seal status
 - Authentication status and token validity
 
 ### Audit Log Commands
@@ -539,10 +539,10 @@ Example policy files are available in `infra/secreton/examples/policies/`:
 
 ## Examples
 
-### Complete Vault Setup Workflow
+### Complete Secret Vault Setup Workflow
 
 ```bash
-# 1. Initialize vault
+# 1. Initialize engine
 secreton seal init --shares 5 --threshold 3 --output keys.json
 
 # 2. Check status (should be unsealed after init)
@@ -594,7 +594,7 @@ secreton audit list --limit 10
 ### Daily Operations Workflow
 
 ```bash
-# 1. Check vault status
+# 1. Check engine status
 secreton operator diagnose
 
 # 2. Login (if needed)
@@ -610,7 +610,7 @@ secreton secret get app/config
 echo "sensitive data" | secreton transit encrypt app-key
 
 # 6. Decrypt data
-secreton transit decrypt app-key --data "vault:v1:..."
+secreton transit decrypt app-key --data "engine:v1:..."
 
 # 7. Check token expiration
 secreton token lookup
@@ -646,7 +646,7 @@ secreton policy validate database-admin.toml
 # 5. Format the policy
 secreton policy fmt database-admin.toml
 
-# 6. Write the policy to vault
+# 6. Write the policy to engine
 secreton policy write database-admin database-admin.toml
 
 # 7. Test the policy
@@ -681,7 +681,7 @@ secreton backup restore --file backup-20251202.bak
 # 1. Check seal status
 secreton seal status
 
-# 2. Seal the vault (for maintenance)
+# 2. Seal the engine (for maintenance)
 secreton seal seal
 
 # 3. Unseal with threshold number of keys
@@ -715,7 +715,7 @@ secreton seal unseal --key "$UNSEAL_KEY"
 2. **Use secure channels** - Transfer keys via secure, encrypted channels
 3. **Backup keys securely** - Store backups in secure, offline locations
 4. **Rotate regularly** - Use the rekey operation to rotate keys periodically
-5. **Audit access** - Monitor who unseals the vault and when
+5. **Audit access** - Monitor who unseals the engine and when
 6. **Limit access** - Only authorized operators should have unseal keys
 
 ## Troubleshooting
@@ -771,7 +771,7 @@ secreton policy test my-policy --path secret/data/myapp --action read
 - Providing the same key multiple times won't work
 - Check the threshold with `secreton seal status`
 
-### Vault Already Sealed/Unsealed
+### Secret Vault Already Sealed/Unsealed
 
 - Check current status with `secreton seal status`
 - Use `secreton seal unseal --reset` to reset unseal progress
@@ -806,7 +806,7 @@ secreton login
 
 - Ensure your token has audit read permissions
 - Check with: `secreton token capabilities /v1/audit/logs`
-- Contact your vault administrator for audit access
+- Contact your engine administrator for audit access
 
 ## Development
 

@@ -8,7 +8,7 @@ use crate::token_store::TokenStore;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::Subcommand;
-use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
+use comfy_table::{Cell, Color, ContentArrangement, Table, presets::UTF8_FULL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -135,9 +135,9 @@ async fn list_audit_logs(
 
     if let Some(st) = start_time {
         // Validate and parse the time
-        let _parsed: DateTime<Utc> = st
-            .parse()
-            .context("Invalid start_time format. Use RFC3339 format (e.g., 2025-12-01T00:00:00Z)")?;
+        let _parsed: DateTime<Utc> = st.parse().context(
+            "Invalid start_time format. Use RFC3339 format (e.g., 2025-12-01T00:00:00Z)",
+        )?;
         query_params.push(format!("start_time={}", urlencoding::encode(&st)));
     }
 
@@ -241,7 +241,7 @@ fn display_table(logs: &[AuditLog]) -> Result<()> {
         ]);
     }
 
-    println!("\n📋 Audit Logs ({} entries)\n", logs.len());
+    println!("\n📋 Audit Logs ({})\n", logs.len());
     println!("{}", table);
 
     Ok(())

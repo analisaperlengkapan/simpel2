@@ -25,18 +25,24 @@ pub fn create_routes() -> Router<AppState> {
         // Transformation management
         .route("/transformation", post(create_transformation))
         .route("/transformation", get(list_transformations))
-        .route("/transformation/:name", get(get_transformation))
-        .route("/transformation/:name", delete(delete_transformation))
+        .route("/transformation/{name}", get(get_transformation))
+        .route("/transformation/{name}", delete(delete_transformation))
         // Role management
         .route("/role", post(create_role))
         .route("/role", get(list_roles))
-        .route("/role/:name", get(get_role))
+        .route("/role/{name}", get(get_role))
         // Encode/Decode operations
-        .route("/encode/:role/:transformation", post(encode_value))
-        .route("/decode/:role/:transformation", post(decode_value))
+        .route("/encode/{role}/{transformation}", post(encode_value))
+        .route("/decode/{role}/{transformation}", post(decode_value))
         // Batch operations
-        .route("/batch/encode/:role/:transformation", post(batch_encode_values))
-        .route("/batch/decode/:role/:transformation", post(batch_decode_values))
+        .route(
+            "/batch/encode/{role}/{transformation}",
+            post(batch_encode_values),
+        )
+        .route(
+            "/batch/decode/{role}/{transformation}",
+            post(batch_decode_values),
+        )
         // Audit endpoint
         .route("/audit", get(get_audit_statistics))
 }
@@ -124,7 +130,7 @@ async fn create_transformation(
 
 /// Get transformation
 /// # Endpoint
-/// `GET /v1/transform/transformation/:name`
+/// `GET /v1/transform/transformation/{name}`
 #[tracing::instrument(skip(state))]
 async fn get_transformation(
     State(state): State<AppState>,
@@ -156,7 +162,7 @@ async fn list_transformations(
 
 /// Delete transformation
 /// # Endpoint
-/// `DELETE /v1/transform/transformation/:name`
+/// `DELETE /v1/transform/transformation/{name}`
 #[tracing::instrument(skip(state))]
 async fn delete_transformation(
     State(state): State<AppState>,
@@ -197,7 +203,7 @@ async fn create_role(
 
 /// Get role
 /// # Endpoint
-/// `GET /v1/transform/role/:name`
+/// `GET /v1/transform/role/{name}`
 #[tracing::instrument(skip(state))]
 async fn get_role(
     State(state): State<AppState>,
@@ -227,7 +233,7 @@ async fn list_roles(State(state): State<AppState>) -> ApiResult<Json<ApiResponse
 
 /// Encode value
 /// # Endpoint
-/// `POST /v1/transform/encode/:role/:transformation`
+/// `POST /v1/transform/encode/{role}/{transformation}`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name))]
 async fn encode_value(
     State(state): State<AppState>,
@@ -262,7 +268,7 @@ async fn encode_value(
 
 /// Decode value
 /// # Endpoint
-/// `POST /v1/transform/decode/:role/:transformation`
+/// `POST /v1/transform/decode/{role}/{transformation}`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name))]
 async fn decode_value(
     State(state): State<AppState>,
@@ -298,7 +304,7 @@ async fn decode_value(
 /// Batch encode values
 ///
 /// # Endpoint
-/// `POST /v1/transform/batch/encode/:role/:transformation`
+/// `POST /v1/transform/batch/encode/{role}/{transformation}`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name, count = request.values.len()))]
 async fn batch_encode_values(
     State(state): State<AppState>,
@@ -338,7 +344,7 @@ async fn batch_encode_values(
 /// Batch decode values
 ///
 /// # Endpoint
-/// `POST /v1/transform/batch/decode/:role/:transformation`
+/// `POST /v1/transform/batch/decode/{role}/{transformation}`
 #[tracing::instrument(skip(state, request), fields(role = %role_name, transformation = %transformation_name, count = request.values.len()))]
 async fn batch_decode_values(
     State(state): State<AppState>,

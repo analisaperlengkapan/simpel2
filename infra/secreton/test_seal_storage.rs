@@ -1,5 +1,5 @@
 // Simple test to verify seal service with storage works
-use secreton_core::services::seal::{SealConfig, SealService, InMemoryVaultStateStorage};
+use secreton_core::services::seal::{SealConfig, SealService, InMemoryEngineStateStorage};
 use std::sync::Arc;
 use chrono::Utc;
 
@@ -14,32 +14,32 @@ async fn main() {
         created_at: Utc::now(),
     };
 
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let service = SealService::with_storage(config, storage.clone());
 
-    // Test 1: Initialize vault
-    println!("1. Initializing vault...");
+    // Test 1: Initialize engine
+    println!("1. Initializing engine...");
     let shares = service.initialize().await.expect("Failed to initialize");
-    println!("   ✓ Generated {} shares", shares.len());
+    println!("   ✓ Generated { shares", shares.len());
     assert_eq!(shares.len(), 5);
 
-    // Test 2: Verify vault state was stored
-    println!("\n2. Verifying vault state storage...");
-    let vault_state = storage.load_vault_state().await.expect("Failed to load state");
-    assert!(vault_state.is_some());
-    println!("   ✓ Vault state stored successfully");
+    // Test 2: Verify engine state was stored
+    println!("\n2. Verifying engine state storage...");
+    let engine_state = storage.load_engine_state().await.expect("Failed to load state");
+    assert!(engine_state.is_some());
+    println!("   ✓ Engine state stored successfully");
 
     // Test 3: Get master key
     println!("\n3. Getting master key...");
     let original_master_key = service.get_master_key().await.expect("Failed to get master key");
-    println!("   ✓ Master key retrieved (length: {} bytes)", original_master_key.len());
+    println!("   ✓ Master key retrieved (length: { bytes)", original_master_key.len());
     assert_eq!(original_master_key.len(), 32);
 
-    // Test 4: Seal the vault
-    println!("\n4. Sealing vault...");
+    // Test 4: Seal the engine
+    println!("\n4. Sealing engine...");
     service.seal().await.expect("Failed to seal");
     assert!(service.is_sealed().await);
-    println!("   ✓ Vault sealed");
+    println!("   ✓ Engine sealed");
 
     // Test 5: Verify master key is not accessible
     println!("\n5. Verifying master key is not accessible...");
@@ -48,14 +48,14 @@ async fn main() {
     println!("   ✓ Master key properly cleared from memory");
 
     // Test 6: Unseal with threshold shares
-    println!("\n6. Unsealing with {} shares...", 3);
+    println!("\n6. Unsealing with { shares...", 3);
     for (i, share) in shares.iter().take(3).enumerate() {
         let share_bytes = share.to_bytes().expect("Failed to serialize share");
         service.unseal_with_share(&share_bytes).await.expect("Failed to unseal");
-        println!("   - Share {} provided", i + 1);
+        println!("   - Share { provided", i + 1);
     }
     assert!(service.is_unsealed().await);
-    println!("   ✓ Vault unsealed");
+    println!("   ✓ Engine unsealed");
 
     // Test 7: Verify master key recovered
     println!("\n7. Verifying master key recovery...");
@@ -91,12 +91,12 @@ async fn main() {
             secret_shares: 5,
             secret_threshold: 3,
             created_at: Utc::now(),
-        },
+        ,
         storage,
     );
     let loaded = service2.load_from_storage().await.expect("Failed to load");
     assert!(loaded);
-    println!("   ✓ Vault state loaded from storage");
+    println!("   ✓ Engine state loaded from storage");
 
     // Unseal with new shares
     for share in new_shares.iter().take(3) {

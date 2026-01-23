@@ -1,5 +1,5 @@
-# Secreton is now part of the main simpelv2 workspace
-# Sub-crates are defined in the root Cargo.toml
+# Secreton is part of the main simpelv2 workspace
+# Workspace dependencies are managed in root Cargo.toml
 
 [package]
 name = "secreton"

@@ -7,7 +7,7 @@ pub mod userpass;
 use anyhow::Result;
 use std::collections::HashMap;
 
-/// Authenticate with vault
+/// Authenticate with engine
 pub async fn authenticate(
     client: &reqwest::Client,
     server_url: &str,
@@ -32,7 +32,7 @@ pub async fn renew_token(
 
     let response = client
         .post(&url)
-        .header("X-Vault-Token", token)
+        .header("X-Engine-Token", token)
         .send()
         .await?;
 

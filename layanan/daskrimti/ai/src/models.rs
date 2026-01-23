@@ -62,7 +62,9 @@ pub struct ModelRegistry {
 
 impl ModelRegistry {
     pub fn new() -> Self {
-        Self { models: HashMap::new() }
+        Self {
+            models: HashMap::new(),
+        }
     }
     pub fn add_model(&mut self, meta: ModelMetadata) {
         self.models.insert(meta.id.clone(), meta);

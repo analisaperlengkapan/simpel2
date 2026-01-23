@@ -23,14 +23,14 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config", get(get_ldap_config))
         .route("/roles", post(create_role))
         .route("/roles", get(list_roles))
-        .route("/roles/:role_name", get(get_role))
-        .route("/roles/:role_name", delete(delete_role))
+        .route("/roles/{role_name}", get(get_role))
+        .route("/roles/{role_name}", delete(delete_role))
         // Credential operations - use distinct paths to avoid conflicts
-        .route("/creds", post(generate_credentials))  // Generate new creds for a role
+        .route("/creds", post(generate_credentials)) // Generate new creds for a role
         .route("/creds", get(list_credentials))
-        .route("/creds/:username", get(get_credential_info))
-        .route("/creds/:username/rotate", post(rotate_password))
-        .route("/creds/:username/revoke", post(revoke_credentials))
+        .route("/creds/{username}", get(get_credential_info))
+        .route("/creds/{username}/rotate", post(rotate_password))
+        .route("/creds/{username}/revoke", post(revoke_credentials))
 }
 
 /// Configure LDAP connection

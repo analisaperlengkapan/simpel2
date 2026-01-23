@@ -3,7 +3,7 @@
 //! This module provides standardized base64 and hex encoding/decoding functions
 //! using the modern Engine-based API for base64.
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 
 /// Encode bytes to base64 string using standard encoding
 #[inline]

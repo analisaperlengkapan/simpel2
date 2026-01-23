@@ -15,50 +15,14 @@ use tracing::{info, instrument, warn};
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::StorageBackend;
 
+use crate::generated::common::v1::*;
 use crate::generated::secreton::v1::secreton_service_server;
-use crate::generated::{common::v1::*, secreton::v1::*};
+use crate::generated::secreton::v1::*;
 use crate::tls::GrpcTlsConfig;
 // ServiceContainer not yet available in grpc crate
 // use crate::services::ServiceContainer;
 
-// Snapshot types (not yet in proto, placeholders for future implementation)
-#[derive(Debug, Clone)]
-pub struct CreateSnapshotRequest {}
-
-#[derive(Debug, Clone)]
-pub struct CreateSnapshotResponse {
-    pub snapshot_id: String,
-    pub size_bytes: u64,
-    pub compressed_size_bytes: u64,
-    pub checksum: String,
-    pub created_at: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct SnapshotInfo {
-    pub snapshot_id: String,
-    pub size_bytes: u64,
-    pub compressed_size_bytes: u64,
-    pub checksum: String,
-    pub created_at: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct ListSnapshotsRequest {}
-
-#[derive(Debug, Clone)]
-pub struct ListSnapshotsResponse {
-    pub snapshots: Vec<SnapshotInfo>,
-    pub total: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct RestoreSnapshotRequest {
-    pub snapshot_id: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct RestoreSnapshotResponse {}
+// Snapshot types are imported from generated protos
 
 /// gRPC service implementation
 #[derive(Clone)]
@@ -200,7 +164,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             _ => return Err(Status::invalid_argument("Invalid security level")),
         };
 
-        // Create vault entry for storage
+        // Create engine entry for storage
         let secret_id = uuid::Uuid::new_v4();
         let encrypted_metadata = serde_json::json!({
             "algorithm": "aes-256-gcm",
@@ -211,8 +175,8 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         let secret_data = serde_json::to_vec(&req.data)
             .map_err(|e| Status::internal(format!("Failed to serialize secret: {}", e)))?;
 
-        // Create vault entry
-        let mut vault_entry = secreton_storage::VaultEntry::new(
+        // Create engine entry
+        let mut engine_entry = secreton_storage::SecretEntry::new(
             req.path.clone(),
             secret_data,
             encrypted_metadata,
@@ -222,21 +186,21 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         // Add tags if provided
         for tag in req.tags {
-            vault_entry = vault_entry.add_tag(tag);
+            engine_entry = engine_entry.add_tag(tag);
         }
 
         // Set TTL if provided
         if let Some(ttl_seconds) = req.ttl_seconds {
             let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl_seconds);
-            vault_entry = vault_entry.with_expiration(expires_at);
+            engine_entry = engine_entry.with_expiration(expires_at);
         }
 
-        let version = vault_entry.version;
-        let created_at = vault_entry.created_at.timestamp();
+        let version = engine_entry.version;
+        let created_at = engine_entry.created_at.timestamp();
 
         // Store in backend
         self.storage
-            .store(&vault_entry)
+            .store(&engine_entry)
             .await
             .map_err(|e| Status::internal(format!("Failed to store secret: {}", e)))?;
 
@@ -265,7 +229,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         info!("Getting secret at path: {}", req.path);
 
         // Retrieve from storage backend
-        let vault_entry = self
+        let engine_entry = self
             .storage
             .get_by_path(&req.path)
             .await
@@ -273,25 +237,25 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             .ok_or_else(|| Status::not_found(format!("Secret not found at path: {}", req.path)))?;
 
         // Check if expired
-        if vault_entry.is_expired() {
+        if engine_entry.is_expired() {
             return Err(Status::failed_precondition("Secret has expired"));
         }
 
         // Deserialize secret data
         let secret_data: std::collections::HashMap<String, String> =
-            serde_json::from_slice(&vault_entry.encrypted_data)
+            serde_json::from_slice(&engine_entry.encrypted_data)
                 .map_err(|e| Status::internal(format!("Failed to deserialize secret: {}", e)))?;
 
         info!("Successfully retrieved secret at path: {}", req.path);
 
         let response = GetSecretResponse {
-            id: vault_entry.id.to_string(),
-            path: vault_entry.path,
+            id: engine_entry.id.to_string(),
+            path: engine_entry.path,
             data: secret_data,
-            version: vault_entry.version,
-            security_level: vault_entry.security_level as i32,
-            created_at: vault_entry.created_at.timestamp(),
-            updated_at: vault_entry.updated_at.timestamp(),
+            version: engine_entry.version,
+            security_level: engine_entry.security_level as i32,
+            created_at: engine_entry.created_at.timestamp(),
+            updated_at: engine_entry.updated_at.timestamp(),
         };
 
         Ok(Response::new(response))
@@ -348,14 +312,14 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         }
 
         // List from storage backend
-        let vault_entries = self
+        let engine_entries = self
             .storage
             .list(&params)
             .await
             .map_err(|e| Status::internal(format!("Failed to list secrets: {}", e)))?;
 
         // Convert to gRPC response format
-        let secrets: Vec<SecretMetadata> = vault_entries
+        let secrets: Vec<SecretMetadata> = engine_entries
             .into_iter()
             .map(|entry| SecretMetadata {
                 id: entry.id.to_string(),
@@ -799,6 +763,37 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         }
     }
 
+    #[instrument(skip(self, _request))]
+    async fn create_snapshot(
+        &self,
+        _request: Request<CreateSnapshotRequest>,
+    ) -> Result<Response<CreateSnapshotResponse>, Status> {
+        // Implement using generated types
+        Err(Status::unimplemented(
+            "Snapshot creation via gRPC not yet implemented",
+        ))
+    }
+
+    #[instrument(skip(self, _request))]
+    async fn list_snapshots(
+        &self,
+        _request: Request<ListSnapshotsRequest>,
+    ) -> Result<Response<ListSnapshotsResponse>, Status> {
+        Err(Status::unimplemented(
+            "Snapshot listing via gRPC not yet implemented",
+        ))
+    }
+
+    #[instrument(skip(self, _request))]
+    async fn restore_snapshot(
+        &self,
+        _request: Request<RestoreSnapshotRequest>,
+    ) -> Result<Response<RestoreSnapshotResponse>, Status> {
+        Err(Status::unimplemented(
+            "Snapshot restoration via gRPC not yet implemented",
+        ))
+    }
+
     #[instrument(skip(self))]
     async fn remove_node(
         &self,
@@ -1051,7 +1046,7 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
                     )
                     .map_err(|e| Status::internal(e.to_string()))?
             }
-        };
+        ;
 
         if let Some(ns) = hierarchy.get_namespace_mut(&namespace.id) {
             for policy in req.policies {

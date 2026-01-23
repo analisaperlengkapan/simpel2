@@ -20,7 +20,7 @@ use secreton_core::services::key_hierarchy::{KeyHierarchyService, KeyMetadata};
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/key-hierarchy/status", get(get_key_hierarchy_status))
-        .route("/keys/lineage/:key_id", get(get_key_lineage))
+        .route("/keys/lineage/{key_id}", get(get_key_lineage))
 }
 
 /// Response for key hierarchy status
@@ -102,10 +102,9 @@ async fn get_key_lineage(
     Path(key_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<KeyLineageResponse>>> {
     // Parse key ID
-    let key_uuid = Uuid::parse_str(&key_id)
-        .map_err(|_| ApiError::BadRequest {
-            message: "Invalid key ID format".to_string()
-        })?;
+    let key_uuid = Uuid::parse_str(&key_id).map_err(|_| ApiError::BadRequest {
+        message: "Invalid key ID format".to_string(),
+    })?;
 
     // Get key hierarchy service from state
     // Note: This assumes AppState has key_hierarchy_service
@@ -115,7 +114,7 @@ async fn get_key_lineage(
     // TODO: Integrate with actual KeyHierarchyService from AppState
 
     Err(ApiError::NotImplemented(
-        "Key hierarchy service integration pending".to_string()
+        "Key hierarchy service integration pending".to_string(),
     ))
 }
 
@@ -125,8 +124,8 @@ mod tests {
 
     #[test]
     fn test_key_metadata_serialization() {
-        use secreton_core::services::key_hierarchy::{KeyLevel, KeyMetadata};
         use chrono::Utc;
+        use secreton_core::services::key_hierarchy::{KeyLevel, KeyMetadata};
 
         let metadata = KeyMetadata {
             id: Uuid::new_v4(),

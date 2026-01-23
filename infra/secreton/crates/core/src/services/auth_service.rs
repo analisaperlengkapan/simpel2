@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::config::api::AuthConfig;
 use crate::models::User;
 use secreton_crypto::{AlgorithmId, CryptoEngine};
-use secreton_storage::{SecurityLevel, StorageBackend, VaultEntry};
+use secreton_storage::{SecretEntry, SecurityLevel, StorageBackend};
 use totp_rs::{Algorithm as TotpAlgorithm, Secret, TOTP};
 
 /// Root user ID (nil UUID) used for initial bootstrap and recovery
@@ -225,7 +225,7 @@ pub struct AuthToken {
 }
 
 /// JWT Claims
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Claims {
     sub: String,
     iss: String,
@@ -393,20 +393,24 @@ impl AuthService {
 
     /// Refresh access token
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
-        use jsonwebtoken::{decode, DecodingKey, Validation};
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
-        let mut validation = Validation::new(Algorithm::from_str(&self.config.jwt.algorithm).map_err(
-            |e| AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e)),
-        )?);
+        let mut validation = Validation::new(
+            Algorithm::from_str(&self.config.jwt.algorithm).map_err(|e| {
+                AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e))
+            })?,
+        );
         validation.set_audience(&[&self.config.jwt.audience]);
         validation.set_issuer(&[&self.config.jwt.issuer]);
 
         let decoding_key = DecodingKey::from_secret(self.config.jwt.secret.as_bytes());
 
-        let token_data = decode::<Claims>(refresh_token, &decoding_key, &validation)
-            .map_err(|e| match e.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
-                _ => AuthError::InvalidToken,
+        let token_data =
+            decode::<Claims>(refresh_token, &decoding_key, &validation).map_err(|e| {
+                match e.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                    _ => AuthError::InvalidToken,
+                }
             })?;
 
         let claims = token_data.claims;
@@ -821,7 +825,7 @@ impl AuthService {
             .encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
             .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             path,
             encrypted.ciphertext,
             serde_json::json!({
@@ -942,7 +946,7 @@ impl AuthService {
             .encrypt_simple(&uuid_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user index: {}", e)))?;
 
-        let index_entry = VaultEntry::new(
+        let index_entry = SecretEntry::new(
             format!("auth/usernames/{}", user.username),
             encrypted_uuid,
             serde_json::json!({"method": "simple", "target": "user_id"}),
@@ -967,7 +971,7 @@ impl AuthService {
             .encrypt_simple(&role_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt role: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/roles/{}", role.name),
             encrypted_data,
             serde_json::json!({"method": "simple", "type": "role"}),
@@ -993,7 +997,7 @@ impl AuthService {
             .encrypt_simple(&session_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt session: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/sessions/{}", session.id),
             encrypted_data,
             serde_json::json!({"method": "simple", "type": "session"}),
@@ -1001,8 +1005,14 @@ impl AuthService {
             session.user_id.clone(),
         )
         .with_expiration(session.expires_at)
-        .add_metadata("ip_address".to_string(), serde_json::json!(session.ip_address))
-        .add_metadata("user_agent".to_string(), serde_json::json!(session.user_agent));
+        .add_metadata(
+            "ip_address".to_string(),
+            serde_json::json!(session.ip_address),
+        )
+        .add_metadata(
+            "user_agent".to_string(),
+            serde_json::json!(session.user_agent),
+        );
 
         self.storage
             .store(&entry)
@@ -1042,7 +1052,7 @@ impl AuthService {
     }
 
     /// Encrypt user for storage
-    fn encrypt_user(&self, user: &User) -> Result<VaultEntry, AuthError> {
+    fn encrypt_user(&self, user: &User) -> Result<SecretEntry, AuthError> {
         let stored_user = StoredUser::from(user);
         let user_bytes = serde_json::to_vec(&stored_user)
             .map_err(|e| AuthError::Internal(format!("Failed to serialize user: {}", e)))?;
@@ -1052,7 +1062,7 @@ impl AuthService {
             .encrypt_simple(&user_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/users/{}", user.id),
             encrypted_data,
             serde_json::json!({"method": "simple"}),
@@ -1064,7 +1074,7 @@ impl AuthService {
     }
 
     /// Decrypt user from storage
-    fn decrypt_user(&self, entry: VaultEntry) -> Result<User, AuthError> {
+    fn decrypt_user(&self, entry: SecretEntry) -> Result<User, AuthError> {
         let decrypted_bytes = self
             .crypto
             .decrypt_simple(&entry.encrypted_data)

@@ -49,7 +49,7 @@
 //!     timeout: 30,
 //!     verify_tls: true,
 //!     ..Default::default()
-//! };
+//! ;
 //!
 //! let client = SecretonClient::new(config)?;
 //!
@@ -106,7 +106,7 @@
 //! # Example: JavaScript/TypeScript SDK
 //!
 //! ```typescript
-//! import { SecretonClient } from '@kejaksaan-ri/secreton-js';
+//! import { SecretonClient  from '@kejaksaan-ri/secreton-js';
 //!
 //! const client = new SecretonClient({
 //!   serverUrl: 'https://secreton.kejaksaan.go.id',
@@ -180,7 +180,7 @@
 //!     api_token: "s.abc123xyz...".to_string(),
 //!     namespace: Some("/pusat/wilayah/jaktim".to_string()),
 //!     ..Default::default()
-//! };
+//! ;
 //!
 //! let client = SecretonClient::new(config)?;
 //!
@@ -435,7 +435,7 @@ func NewClient(serverURL, token string) *Client {
         token:     token,
         client: &http.Client{
             Timeout: 30 * time.Second,
-        },
+        ,
     }
 }
 
@@ -455,7 +455,7 @@ func (c *Client) CreateSecret(path string, data map[string]string) error {
         return err
     }
 
-    req.Header.Set("X-Vault-Token", c.token)
+    req.Header.Set("X-Engine-Token", c.token)
     req.Header.Set("Content-Type", "application/json")
 
     resp, err := c.client.Do(req)
@@ -478,7 +478,7 @@ func (c *Client) ReadSecret(path string) (map[string]string, error) {
         return nil, err
     }
 
-    req.Header.Set("X-Vault-Token", c.token)
+    req.Header.Set("X-Engine-Token", c.token)
 
     resp, err := c.client.Do(req)
     if err != nil {
@@ -515,7 +515,7 @@ func (c *Client) DeleteSecret(path string) error {
         return err
     }
 
-    req.Header.Set("X-Vault-Token", c.token)
+    req.Header.Set("X-Engine-Token", c.token)
 
     resp, err := c.client.Do(req)
     if err != nil {
@@ -570,7 +570,7 @@ class SecretonClient:
 
         self.session = requests.Session()
         self.session.headers.update({
-            'X-Vault-Token': token,
+            'X-Engine-Token': token,
             'Content-Type': 'application/json'
         })
 
@@ -673,7 +673,7 @@ class SecretonClient:
         """
         response = self.session.get(
             f"{self.server_url}/v1/{path}",
-            params={'list': 'true'},
+            params={'list': 'true',
             timeout=self.timeout,
             verify=self.verify_tls
         )
@@ -760,10 +760,10 @@ export class SecretonClient {
     const response = await fetch(`${this.config.serverUrl}/v1/${secret.path}`, {
       method: 'POST',
       headers: {
-        'X-Vault-Token': this.config.token,
+        'X-Engine-Token': this.config.token,
         'Content-Type': 'application/json',
         ...this.config.headers
-      },
+      ,
       body: JSON.stringify({
         data: secret.data,
         metadata: secret.metadata,
@@ -779,14 +779,14 @@ export class SecretonClient {
       success: true,
       message: 'Secret created successfully',
       metadata: {}
-    };
+    ;
   }
 
   async readSecret(path: string): Promise<Record<string, string>> {
     const response = await fetch(`${this.config.serverUrl}/v1/${path}`, {
       method: 'GET',
       headers: {
-        'X-Vault-Token': this.config.token,
+        'X-Engine-Token': this.config.token,
         ...this.config.headers
       }
     });
@@ -803,10 +803,10 @@ export class SecretonClient {
     const response = await fetch(`${this.config.serverUrl}/v1/${path}`, {
       method: 'PATCH',
       headers: {
-        'X-Vault-Token': this.config.token,
+        'X-Engine-Token': this.config.token,
         'Content-Type': 'application/json',
         ...this.config.headers
-      },
+      ,
       body: JSON.stringify({ data })
     });
 
@@ -818,14 +818,14 @@ export class SecretonClient {
       success: true,
       message: 'Secret updated successfully',
       metadata: {}
-    };
+    ;
   }
 
   async deleteSecret(path: string): Promise<OperationResult> {
     const response = await fetch(`${this.config.serverUrl}/v1/${path}`, {
       method: 'DELETE',
       headers: {
-        'X-Vault-Token': this.config.token,
+        'X-Engine-Token': this.config.token,
         ...this.config.headers
       }
     });
@@ -838,14 +838,14 @@ export class SecretonClient {
       success: true,
       message: 'Secret deleted successfully',
       metadata: {}
-    };
+    ;
   }
 
   async listSecrets(path: string): Promise<string[]> {
     const response = await fetch(`${this.config.serverUrl}/v1/${path}?list=true`, {
       method: 'GET',
       headers: {
-        'X-Vault-Token': this.config.token,
+        'X-Engine-Token': this.config.token,
         ...this.config.headers
       }
     });

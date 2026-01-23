@@ -1,8 +1,8 @@
-# Fix: Vault Initialization Status Bug
+# Fix: Secret Vault Initialization Status Bug
 
 ## Problem
 
-**CRITICAL SECURITY BUG**: Vault menunjukkan status `initialized: true` bahkan saat pertama kali dijalankan (fresh start), padahal seharusnya `initialized: false` sampai operator melakukan init dan generate master key.
+**CRITICAL SECURITY BUG**: Secret Vault menunjukkan status `initialized: true` bahkan saat pertama kali dijalankan (fresh start), padahal seharusnya `initialized: false` sampai operator melakukan init dan generate master key.
 
 ## Root Cause
 
@@ -42,7 +42,7 @@ pub async fn status(&self) -> SealStatus {
     let state = self.state.read().await;
     let shares = self.unseal_shares.read().await;
 
-    // Check if vault is initialized by checking if commitment exists
+    // Check if engine is initialized by checking if commitment exists
     let commitment = self.commitment.read().await;
     let initialized = commitment.is_some();  // ✅ Cek commitment
     drop(commitment);
@@ -53,7 +53,7 @@ pub async fn status(&self) -> SealStatus {
 
 ## Behavior After Fix
 
-### Fresh Vault (Belum Initialize)
+### Fresh Secret Vault (Belum Initialize)
 ```bash
 GET /v1/sys/seal-status
 {
@@ -103,15 +103,15 @@ GET /v1/sys/seal-status
 ## Security Implications
 
 ### Before Fix (VULNERABLE)
-- Vault menunjukkan `initialized: true` pada fresh start
-- Operator bisa bingung apakah vault sudah di-setup atau belum
+- Secret Vault menunjukkan `initialized: true` pada fresh start
+- Operator bisa bingung apakah engine sudah di-setup atau belum
 - Potensi operator skip initialization process
-- Tidak jelas apakah vault state valid atau corrupt
+- Tidak jelas apakah engine state valid atau corrupt
 
 ### After Fix (SECURE)
-- ✅ Fresh vault jelas menunjukkan `initialized: false`
+- ✅ Fresh engine jelas menunjukkan `initialized: false`
 - ✅ Operator tahu harus melakukan init terlebih dahulu
-- ✅ Status `initialized` akurat mencerminkan vault state
+- ✅ Status `initialized` akurat mencerminkan engine state
 - ✅ Initialization state persists across restarts
 
 ## Testing
@@ -122,9 +122,9 @@ cargo test -p secreton-core --test seal_initialized_status_test
 ```
 
 Tests yang dijalankan:
-1. ✅ `test_fresh_vault_not_initialized` - Fresh vault NOT initialized
-2. ✅ `test_vault_initialized_after_init` - Initialized after init
-3. ✅ `test_vault_initialized_persists_across_restarts` - State persists
+1. ✅ `test_fresh_engine_not_initialized` - Fresh engine NOT initialized
+2. ✅ `test_engine_initialized_after_init` - Initialized after init
+3. ✅ `test_engine_initialized_persists_across_restarts` - State persists
 4. ✅ `test_cannot_initialize_twice` - Re-init behavior documented
 
 ### Integration Test
@@ -151,22 +151,22 @@ Test flow:
 3. `test_initialized_status.sh` (NEW)
    - Integration test script for Docker environment
 
-## HashiCorp Vault Compatibility
+## HashiCorp Secret Vault Compatibility
 
-Behavior sekarang sesuai dengan HashiCorp Vault:
+Behavior sekarang sesuai dengan HashiCorp Secret Vault:
 
 ```bash
-# Fresh Vault
-$ vault status
+# Fresh Secret Vault
+$ engine status
 Initialized: false  # ✅ Matches our behavior
 Sealed: true
 
 # After init
-$ vault operator init
+$ engine operator init
 Unseal Key 1: ...
 Root Token: ...
 
-$ vault status
+$ engine status
 Initialized: true   # ✅ Matches our behavior
 Sealed: true        # ✅ Remains sealed after init
 ```
@@ -174,10 +174,10 @@ Sealed: true        # ✅ Remains sealed after init
 ## Conclusion
 
 Fix ini memastikan bahwa:
-1. ✅ Vault initialization status akurat
+1. ✅ Secret Vault initialization status akurat
 2. ✅ Operator mendapat feedback yang jelas
-3. ✅ Security best practices diikuti (vault remains sealed after init)
-4. ✅ Behavior konsisten dengan HashiCorp Vault
+3. ✅ Security best practices diikuti (engine remains sealed after init)
+4. ✅ Behavior konsisten dengan HashiCorp Secret Vault
 5. ✅ State persistence bekerja dengan benar
 
 **Status**: ✅ FIXED and TESTED

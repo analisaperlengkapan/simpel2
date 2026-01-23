@@ -8,8 +8,8 @@ pub use crate::{StorageError, StorageResult};
 
 // Re-export core types
 pub use crate::{
-    EncryptionMetadata, HealthStatus, ListOptions, QueryParams, SecurityLevel, StorageStats,
-    VaultEntry,
+    EncryptionMetadata, HealthStatus, ListOptions, QueryParams, SecretEntry, SecurityLevel,
+    StorageStats,
 };
 
 // Re-export traits

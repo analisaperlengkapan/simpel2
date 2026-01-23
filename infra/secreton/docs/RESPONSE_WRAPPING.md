@@ -35,7 +35,7 @@ let secret = service.unwrap(&response.token, "default").await?;
 ```
 
 ### 2. API Response Wrapping
-Automatically wrap sensitive API responses using the `X-Vault-Wrap-TTL` header.
+Automatically wrap sensitive API responses using the `X-Secret Vault-Wrap-TTL` header.
 
 ### 3. Temporary Credentials
 Wrap dynamic database credentials for secure distribution to applications.

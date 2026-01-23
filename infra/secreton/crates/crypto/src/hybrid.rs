@@ -378,7 +378,7 @@ impl HybridCrypto {
                     pq_ciphertext: Vec::new(),
                     metadata: HybridEncryptionMetadata {
                         mlkem_variant: "None".to_string(),
-                        security_level: 256,
+                        security_level: 256, // AES-256-GCM
                         timestamp: chrono::Utc::now().timestamp(),
                     },
                     symmetric_key: Some(key),
@@ -410,8 +410,12 @@ impl HybridCrypto {
                     classical_data: classical_encrypted,
                     pq_ciphertext,
                     metadata: HybridEncryptionMetadata {
-                        mlkem_variant: format!("{}", variant),
-                        security_level: self.security_requirements.security_level,
+                        mlkem_variant: variant.to_string(),
+                        security_level: match variant {
+                            MLKemVariant::MLKem512 => 128,
+                            MLKemVariant::MLKem768 => 192,
+                            MLKemVariant::MLKem1024 => 256,
+                        },
                         timestamp: chrono::Utc::now().timestamp(),
                     },
                     symmetric_key: None,

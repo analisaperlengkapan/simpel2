@@ -5,11 +5,62 @@
 //! this trait to provide consistent CRUD operations, key management, and
 //! cryptographic operations.
 
+use crate::error::Result as CoreResult;
 use async_trait::async_trait;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
 
-/// Common trait for all secret engines
+/// Metrics for secret engines
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SecretEngineMetrics {
+    pub engine_type: String,
+    pub active_secrets: usize,
+    pub cache_hits: usize,
+    pub cache_misses: usize,
+    pub average_latency_ms: f64,
+    pub error_count: usize,
+}
+
+/// Registry for managing multiple secret engines
+pub struct EngineRegistry {
+    engines: std::collections::HashMap<String, Arc<memory::MemorySecretEngine>>,
+}
+
+impl EngineRegistry {
+    pub fn new() -> Self {
+        Self {
+            engines: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn register(&mut self, engine: memory::MemorySecretEngine) -> Result<(), String> {
+        let name = "memory".to_string(); // Simplified for now
+        if self.engines.contains_key(&name) {
+            return Err("Engine already registered".to_string());
+        }
+        self.engines.insert(name, Arc::new(engine));
+        Ok(())
+    }
+
+    pub fn get_engine(&self, name: &str) -> Option<Arc<memory::MemorySecretEngine>> {
+        self.engines.get(name).cloned()
+    }
+
+    pub fn list_engines(&self) -> Vec<String> {
+        self.engines.keys().cloned().collect()
+    }
+
+    pub async fn collect_metrics(&self) -> CoreResult<HashMap<String, SecretEngineMetrics>> {
+        let mut metrics = HashMap::new();
+        for (name, engine) in &self.engines {
+            let engine_metrics: SecretEngineMetrics = engine.collect_metrics().await?;
+            metrics.insert(name.clone(), engine_metrics);
+        }
+        Ok(metrics)
+    }
+}
 /// Each secret engine (KV, Transit, Database, SSH, etc.) implements this trait
 /// to provide a consistent interface for:
 /// - Secret read/write/delete operations
@@ -92,7 +143,6 @@ pub mod aws;
 pub mod azure;
 pub mod cubbyhole;
 pub mod database;
-pub mod enhanced;
 pub mod gcp;
 pub mod identity;
 pub mod kafka;
@@ -101,6 +151,7 @@ pub mod kubernetes;
 pub mod kvv2;
 pub mod ldap;
 pub mod lease_integration;
+pub mod memory;
 pub mod mongodb;
 pub mod mysql;
 pub mod pki;
@@ -115,13 +166,13 @@ pub use aws::*;
 pub use azure::*;
 pub use cubbyhole::*;
 pub use database::*;
-pub use enhanced::*;
 pub use gcp::*;
 pub use identity::*;
 pub use kmip::*;
 pub use kubernetes::*;
 pub use kvv2::*;
 pub use lease_integration::*;
+pub use memory::*;
 pub use mongodb::*;
 pub use mysql::*;
 pub use pki::*;

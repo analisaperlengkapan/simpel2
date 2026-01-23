@@ -20,7 +20,6 @@ async fn test_ldap_federation_provider_configuration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -83,11 +82,10 @@ async fn test_user_info_structure() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -139,11 +137,10 @@ async fn test_sync_result_tracking() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -188,7 +185,6 @@ async fn test_ldap_vendor_configurations() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -271,11 +267,10 @@ async fn test_federation_provider_interface() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -327,7 +322,6 @@ async fn test_ldap_connection_configuration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -448,11 +442,10 @@ async fn test_federation_sync_scheduling() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -521,7 +514,6 @@ async fn test_ldap_attribute_mapping() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
@@ -560,7 +552,7 @@ async fn test_ldap_attribute_mapping() {
         email_attr,
         first_name_attr,
         last_name_attr,
-        display_name_attr,
+        _display_name_attr,
     ) in mappings
     {
         let config = LdapConfig {
@@ -616,11 +608,10 @@ async fn test_federation_provider_search_functionality() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");
@@ -659,11 +650,10 @@ async fn test_federation_provider_group_membership() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");

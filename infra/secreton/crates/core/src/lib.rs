@@ -26,10 +26,13 @@ pub mod storage;
 pub mod types;
 pub mod utils;
 
+// Alias for secrets module
+pub use crate::services::secrets;
+
 // Alias for engines module (points to services::secrets::enhanced)
 // This provides backward compatibility with test expectations
 pub mod engines {
-    pub use crate::services::secrets::enhanced::*;
+    pub use crate::services::secrets::memory::*;
 }
 
 pub use audit::{AuditLog, AuditLogger, AuditStatus};

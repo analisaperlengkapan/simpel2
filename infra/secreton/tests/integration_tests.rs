@@ -3,7 +3,7 @@
 //! End-to-end integration testing
 
 use anyhow::Result;
-use secreton_core::storage::{InMemoryStorage, SecurityLevel, StorageBackend, VaultEntry};
+use secreton_core::storage::{InMemoryStorage, SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -11,7 +11,7 @@ async fn test_basic_integration() -> Result<()> {
     let storage = InMemoryStorage::new();
 
     // Create entry
-    let entry = VaultEntry::new(
+    let entry = SecretEntry::new(
         "/integration/test".to_string(),
         b"integration test data".to_vec(),
         serde_json::json!({"test": true}),
@@ -40,7 +40,7 @@ async fn test_multi_storage_integration() -> Result<()> {
     let storage2 = Arc::new(InMemoryStorage::new());
 
     // Test that multiple storage instances work independently
-    let entry1 = VaultEntry::new(
+    let entry1 = SecretEntry::new(
         "/storage1/data".to_string(),
         b"data1".to_vec(),
         serde_json::json!({}),
@@ -48,7 +48,7 @@ async fn test_multi_storage_integration() -> Result<()> {
         "test".to_string(),
     );
 
-    let entry2 = VaultEntry::new(
+    let entry2 = SecretEntry::new(
         "/storage2/data".to_string(),
         b"data2".to_vec(),
         serde_json::json!({}),

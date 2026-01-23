@@ -309,8 +309,9 @@ impl XmlSignature {
                             in_reference = false;
                             // Parse digest method and value
                             current_ref.digest_method = DigestMethod::from_uri(&digest_method_uri)?;
-                            current_ref.digest_value = crate::utils::encoding::base64_decode(digest_value_text.trim())
-                                .map_err(|e| anyhow!("Failed to decode digest value: {}", e))?;
+                            current_ref.digest_value =
+                                crate::utils::encoding::base64_decode(digest_value_text.trim())
+                                    .map_err(|e| anyhow!("Failed to decode digest value: {}", e))?;
                             references.push(current_ref.clone());
                             digest_value_text.clear();
                         }

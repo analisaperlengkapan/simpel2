@@ -108,10 +108,8 @@ impl EventStoreProvider for PgEventStoreProvider {
             serde_json::to_value(&event.details).map_err(|e| Error::validation(e.to_string()))?;
 
         // Parse IP address to proper type, or use null if invalid
-        let ip_addr: Option<std::net::IpAddr> = event
-            .ip_address
-            .as_ref()
-            .and_then(|ip| ip.parse().ok());
+        let ip_addr: Option<std::net::IpAddr> =
+            event.ip_address.as_ref().and_then(|ip| ip.parse().ok());
 
         let query = r#"
             INSERT INTO events (

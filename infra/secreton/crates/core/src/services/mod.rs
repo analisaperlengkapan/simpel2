@@ -1,6 +1,6 @@
-//! Service modules for Secreton vault system
+//! Service modules for Secreton engine system
 //!
-//! This module contains all core business logic services for the Secreton vault.
+//! This module contains all core business logic services for the Secreton engine.
 //! Services are organized by functional domain:
 //!
 //! # Core Services
@@ -12,7 +12,7 @@
 //! - [`policy`] - RBAC policy engine
 //! - [`rate_limit`] - API rate limiting
 //! - [`rbac`] - Role-based access control
-//! - [`seal`] - Vault seal/unseal operations
+//! - [`seal`] - Engine seal/unseal operations
 //! - [`token`] - Token generation and validation
 //! - [`wrapping`] - Response wrapping for secure secret delivery
 //!
@@ -44,7 +44,7 @@
 //!
 //! // Initialize seal with shares
 //! let shares = seal_manager.init().await?;
-//! // Unseal vault with threshold shares
+//! // Unseal engine with threshold shares
 //! seal_manager.unseal(&shares[0]).await?;
 //! # Ok(())
 //! # }
@@ -81,9 +81,9 @@ pub mod dynamic;
 pub mod secrets;
 
 // Refactored services from API crate
-pub mod container;
-pub mod auth_service;
-pub mod vault_service;
 pub mod admin_service;
+pub mod auth_service;
+pub mod container;
 pub mod namespace_persistence;
 pub mod seal_adapter;
+pub mod secret_service;

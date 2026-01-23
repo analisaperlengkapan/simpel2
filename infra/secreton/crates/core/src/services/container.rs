@@ -6,15 +6,20 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use crate::config::api::ApiConfig;
 use crate::audit::AuditLogger;
+use crate::config::api::ApiConfig;
 use crate::namespace::NamespaceService;
+use crate::services::admin_service::AdminService;
+use crate::services::auth_service::AuthService;
 use crate::services::identity::IdentityService;
 use crate::services::lease::LeaseManager;
+use crate::services::namespace_persistence;
 use crate::services::policy::PolicySet;
 use crate::services::policy_service::PolicyService;
 use crate::services::rotation::AutoRotationEngine;
 use crate::services::seal::{SealConfig, SealService};
+use crate::services::seal_adapter::SealStorageAdapter;
+use crate::services::secret_service::SecretService;
 use crate::services::secrets::aws::AwsEngine;
 use crate::services::secrets::azure::AzureEngine;
 use crate::services::secrets::database::DatabaseSecretsEngine;
@@ -28,11 +33,6 @@ use crate::services::secrets::ssh::SshEngine;
 use crate::services::secrets::totp::TotpEngine;
 use crate::services::secrets::transform::TransformEngine;
 use crate::services::wrapping::WrappingService;
-use crate::services::auth_service::AuthService;
-use crate::services::vault_service::VaultService;
-use crate::services::admin_service::AdminService;
-use crate::services::namespace_persistence;
-use crate::services::seal_adapter::SealStorageAdapter;
 
 use secreton_crypto::CryptoEngine;
 use secreton_hsm::HsmBackend;
@@ -56,8 +56,8 @@ pub struct ServiceContainer {
     /// Authentication service
     pub auth: Arc<AuthService>,
 
-    /// Vault service
-    pub vault: Arc<VaultService>,
+    /// Engine service
+    pub engine: Arc<SecretService>,
 
     /// Admin service
     pub admin: Arc<AdminService>,
@@ -143,13 +143,22 @@ impl ServiceContainer {
         tracing::info!("✅ Lease manager initialized");
 
         // Initialize authentication services
-        let (auth, admin) =
-            Self::initialize_auth_services(config, storage.clone(), crypto.clone(), lease_manager.clone()).await?;
+        let (auth, admin) = Self::initialize_auth_services(
+            config,
+            storage.clone(),
+            crypto.clone(),
+            lease_manager.clone(),
+        )
+        .await?;
 
-        // Initialize vault and seal services
-        let (vault, seal, namespace) =
-            Self::initialize_vault_services(config, storage.clone(), crypto.clone(), audit.clone())
-                .await?;
+        // Initialize engine and seal services
+        let (engine, seal, namespace) = Self::initialize_secret_services(
+            config,
+            storage.clone(),
+            crypto.clone(),
+            audit.clone(),
+        )
+        .await?;
 
         // Initialize secrets engines and policies
         let (
@@ -187,7 +196,7 @@ impl ServiceContainer {
             pool,
             crypto,
             auth,
-            vault,
+            engine,
             admin,
             audit,
             seal,
@@ -243,27 +252,23 @@ impl ServiceContainer {
             Arc::new(AuthService::new(storage.clone(), crypto.clone(), &config.auth).await?);
 
         let api_audit = Arc::new(crate::audit::api_audit::AuditLogger::new(10000));
-        let admin =
-            Arc::new(AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager).await?);
+        let admin = Arc::new(
+            AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager).await?,
+        );
 
         Ok((auth, admin))
     }
 
-    /// Initialize vault and seal services
-    async fn initialize_vault_services(
+    /// Initialize engine and seal services
+    async fn initialize_secret_services(
         config: &ApiConfig,
         storage: Arc<dyn StorageBackend + Send + Sync>,
         crypto: Arc<CryptoEngine>,
         audit: Arc<AuditLogger>,
-    ) -> Result<(
-        Arc<VaultService>,
-        Arc<SealService>,
-        Arc<NamespaceService>,
-    )> {
-        // Initialize vault service
-        let vault = Arc::new(
-            VaultService::new(storage.clone(), crypto.clone(), audit.clone()).await?,
-        );
+    ) -> Result<(Arc<SecretService>, Arc<SealService>, Arc<NamespaceService>)> {
+        // Initialize engine service
+        let engine =
+            Arc::new(SecretService::new(storage.clone(), crypto.clone(), audit.clone()).await?);
 
         // Initialize seal/unseal service
         let seal_config = SealConfig {
@@ -282,30 +287,30 @@ impl ServiceContainer {
         let seal_storage = Arc::new(SealStorageAdapter::new(storage.clone()));
         let seal = Arc::new(SealService::with_storage(seal_config, seal_storage));
 
-        // Load vault state from storage
+        // Load engine state from storage
         match seal.load_from_storage().await {
             Ok(true) => {
-                tracing::info!("✅ Vault state loaded from storage. Vault is SEALED.");
+                tracing::info!("✅ Engine state loaded from storage. Engine is SEALED.");
                 tracing::info!(
-                    "   Operators must unseal with threshold shares before vault can be used."
+                    "   Operators must unseal with threshold shares before engine can be used."
                 );
             }
             Ok(false) => {
-                tracing::warn!("⚠️  Vault not initialized. Use /v1/sys/init to initialize.");
+                tracing::warn!("⚠️  Engine not initialized. Use /v1/sys/init to initialize.");
             }
             Err(e) => {
-                tracing::error!("❌ Failed to load vault state: {:?}", e);
-                tracing::warn!("   Continuing with uninitialized vault.");
+                tracing::error!("❌ Failed to load engine state: {:?}", e);
+                tracing::warn!("   Continuing with uninitialized engine.");
             }
         }
 
         // Check seal status
         if seal.is_sealed().await {
             tracing::warn!(
-                "🔒 Vault is SEALED. All secret operations will be blocked until unsealed."
+                "🔒 Engine is SEALED. All secret operations will be blocked until unsealed."
             );
         } else {
-            tracing::info!("🔓 Vault is UNSEALED. Secret operations are allowed.");
+            tracing::info!("🔓 Engine is UNSEALED. Secret operations are allowed.");
         }
 
         // Initialize namespace service
@@ -315,7 +320,8 @@ impl ServiceContainer {
         ));
 
         // Load namespace hierarchy from storage
-        match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret).await
+        match namespace_persistence::load_hierarchy(&storage, &crypto, &config.auth.jwt.secret)
+            .await
         {
             Ok(Some(hierarchy)) => {
                 namespace.update_hierarchy(hierarchy);
@@ -330,7 +336,7 @@ impl ServiceContainer {
             }
         }
 
-        Ok((vault, seal, namespace))
+        Ok((engine, seal, namespace))
     }
 
     /// Initialize secrets engines and policy services
@@ -446,10 +452,18 @@ impl ServiceContainer {
             let hsm_config = secreton_hsm::HsmConfig {
                 enabled: true,
                 provider: secreton_hsm::config::HsmProvider::Pkcs11,
-                pkcs11_library_path: config.hsm.library_path.clone().map(std::path::PathBuf::from),
+                pkcs11_library_path: config
+                    .hsm
+                    .library_path
+                    .clone()
+                    .map(std::path::PathBuf::from),
                 slot_id: config.hsm.slot_id,
                 pin: config.hsm.pin.clone(),
-                key_label_prefix: config.hsm.key_label.clone().unwrap_or_else(|| "secreton-".to_string()),
+                key_label_prefix: config
+                    .hsm
+                    .key_label
+                    .clone()
+                    .unwrap_or_else(|| "secreton-".to_string()),
                 ..secreton_hsm::HsmConfig::default()
             };
 
@@ -465,6 +479,7 @@ impl ServiceContainer {
                         None
                     }
                 },
+
                 Err(e) => {
                     tracing::error!("❌ Failed to create HSM backend: {:?}", e);
                     tracing::warn!("   Continuing without HSM support");
@@ -487,7 +502,7 @@ impl ServiceContainer {
 
     /// Create storage backend based on configuration
     async fn create_storage_backend(
-        config: &ApiConfig,
+        _config: &ApiConfig,
     ) -> Result<Arc<dyn StorageBackend + Send + Sync>> {
         use secreton_storage::MemoryBackend;
         #[cfg(feature = "raft-consensus")]
@@ -616,7 +631,7 @@ impl ServiceContainer {
                     let path = std::env::var("Secreton_CONSUL_PATH")
                         .unwrap_or_else(|_| "secreton/".to_string());
                     tracing::info!(
-                        "Using Consul storage backend at {} with path {}",
+                        "Using Consul storage backend at { with path {}",
                         address,
                         path
                     );
@@ -767,9 +782,10 @@ impl ServiceContainer {
             pool,
             crypto: crypto.clone(),
             auth: Arc::new(AuthService::new_mock(storage.clone(), crypto.clone())),
-            vault: Arc::new(VaultService::new_mock(
+            engine: Arc::new(SecretService::new_mock(
                 storage.clone(),
                 crypto.clone(),
+                audit.clone(),
             )),
             admin: Arc::new(AdminService::new_mock(storage.clone())),
             audit,

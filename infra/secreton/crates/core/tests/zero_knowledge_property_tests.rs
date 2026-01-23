@@ -153,7 +153,7 @@ proptest! {
 
 #[cfg(test)]
 mod zero_knowledge_edge_cases {
-    use super::*;
+
     use secreton_core::services::zero_knowledge::{
         KeyDerivationParams, ZeroKnowledgeMetadata, ZeroKnowledgeService, ZeroKnowledgeServiceImpl,
     };
@@ -184,7 +184,9 @@ mod zero_knowledge_edge_cases {
             KeyDerivationParams::default_hkdf(),
         );
 
-        let result = service.store("secret/../other", encrypted_data, metadata).await;
+        let result = service
+            .store("secret/../other", encrypted_data, metadata)
+            .await;
         assert!(result.is_err(), "Path traversal should be rejected");
     }
 
@@ -300,10 +302,7 @@ mod zero_knowledge_edge_cases {
                 KeyDerivationParams::default_hkdf(),
             );
 
-            service
-                .store(path, encrypted_data, metadata)
-                .await
-                .unwrap();
+            service.store(path, encrypted_data, metadata).await.unwrap();
         }
 
         // List should be sorted
@@ -325,8 +324,10 @@ mod zero_knowledge_edge_cases {
         let params2 = service.derive_params(client_entropy).await.unwrap();
 
         // Salts should be different (random)
-        assert_ne!(params1.salt, params2.salt,
-            "Each derivation should use a new random salt");
+        assert_ne!(
+            params1.salt, params2.salt,
+            "Each derivation should use a new random salt"
+        );
 
         // But algorithm and key length should be consistent
         assert_eq!(params1.algorithm, params2.algorithm);

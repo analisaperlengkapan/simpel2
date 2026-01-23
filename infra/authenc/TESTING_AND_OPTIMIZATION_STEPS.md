@@ -34,8 +34,8 @@ docker images | grep authenc
 # Using the wrapper script
 ./dc.sh up -d
 
-# Or using docker-compose directly
-docker-compose up -d
+# Or using docker compose (CLI plugin)
+docker compose up -d
 
 # Verify all services are running
 ./dc.sh ps

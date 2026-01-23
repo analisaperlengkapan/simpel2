@@ -73,4 +73,4 @@
 - `infra/secreton/crates/api/src/handlers/auth.rs`: Added test user creation
 - `infra/secreton/crates/api/src/handlers/secret.rs`: Fixed route paths in tests
 - `infra/secreton/crates/api/src/services/auth.rs`: Added superuser check, made methods public
-- `infra/secreton/crates/api/src/services/vault.rs`: Fixed test expectations
+- `infra/secreton/crates/api/src/services/engine.rs`: Fixed test expectations

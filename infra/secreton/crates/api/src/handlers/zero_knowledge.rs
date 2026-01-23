@@ -23,10 +23,10 @@ use super::AppState;
 pub fn create_routes() -> Router<AppState> {
     Router::new()
         .route("/store", post(store_secret))
-        .route("/retrieve/:path", get(retrieve_secret))
+        .route("/retrieve/{path}", get(retrieve_secret))
         .route("/derive-params", post(derive_params))
         .route("/list", get(list_secrets))
-        .route("/delete/:path", post(delete_secret))
+        .route("/delete/{path}", post(delete_secret))
 }
 
 /// Store secret request
@@ -109,11 +109,12 @@ async fn store_secret(
     info!("Storing zero-knowledge secret at path: {}", request.path);
 
     // Decode base64 encrypted data
-    let encrypted_data = BASE64
-        .decode(&request.encrypted_data)
-        .map_err(|e| ApiError::BadRequest {
-            message: format!("Invalid base64 encoding: {}", e),
-        })?;
+    let encrypted_data =
+        BASE64
+            .decode(&request.encrypted_data)
+            .map_err(|e| ApiError::BadRequest {
+                message: format!("Invalid base64 encoding: {}", e),
+            })?;
 
     // Create metadata
     let metadata = ZeroKnowledgeMetadata::new(
@@ -127,15 +128,16 @@ async fn store_secret(
     // For now, we'll create a temporary service instance
     let service = secreton_core::services::zero_knowledge::ZeroKnowledgeServiceImpl::new();
 
-    let result = service
-        .store(&request.path, encrypted_data, metadata)
-        .await;
+    let result = service.store(&request.path, encrypted_data, metadata).await;
 
     // Audit log - Note: Does NOT contain secret content or encryption keys
     let mut audit_metadata = HashMap::new();
     audit_metadata.insert("operation".to_string(), "zk.store".to_string());
     audit_metadata.insert("path".to_string(), request.path.clone());
-    audit_metadata.insert("algorithm".to_string(), request.encryption_algorithm.clone());
+    audit_metadata.insert(
+        "algorithm".to_string(),
+        request.encryption_algorithm.clone(),
+    );
     // Deliberately NOT logging encrypted_data or key material
 
     let audit_log = AuditLog {
@@ -163,7 +165,10 @@ async fn store_secret(
         message: format!("Failed to store secret: {}", e),
     })?;
 
-    info!("Successfully stored zero-knowledge secret at: {}", request.path);
+    info!(
+        "Successfully stored zero-knowledge secret at: {}",
+        request.path
+    );
 
     Ok(Json(ApiResponse::success(StoreResponse {
         path: request.path,
@@ -173,7 +178,7 @@ async fn store_secret(
 
 /// Retrieve an encrypted secret
 ///
-/// GET /v1/zk/retrieve/:path
+/// GET /v1/zk/retrieve/{path}
 async fn retrieve_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
@@ -220,7 +225,10 @@ async fn retrieve_secret(
     // Encode encrypted data as base64
     let encrypted_data_b64 = BASE64.encode(&encrypted_data);
 
-    info!("Successfully retrieved zero-knowledge secret from: {}", path);
+    info!(
+        "Successfully retrieved zero-knowledge secret from: {}",
+        path
+    );
 
     Ok(Json(ApiResponse::success(RetrieveResponse {
         path: metadata.path,
@@ -241,11 +249,12 @@ async fn derive_params(
     info!("Deriving key parameters for client");
 
     // Decode base64 client entropy
-    let client_entropy = BASE64
-        .decode(&request.client_entropy)
-        .map_err(|e| ApiError::BadRequest {
-            message: format!("Invalid base64 encoding: {}", e),
-        })?;
+    let client_entropy =
+        BASE64
+            .decode(&request.client_entropy)
+            .map_err(|e| ApiError::BadRequest {
+                message: format!("Invalid base64 encoding: {}", e),
+            })?;
 
     // Derive parameters using the zero-knowledge service
     let service = secreton_core::services::zero_knowledge::ZeroKnowledgeServiceImpl::new();
@@ -265,20 +274,15 @@ async fn derive_params(
 /// List all zero-knowledge secret paths
 ///
 /// GET /v1/zk/list
-async fn list_secrets(
-    State(state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<ListResponse>>> {
+async fn list_secrets(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<ListResponse>>> {
     info!("Listing zero-knowledge secrets");
 
     // List secrets using the zero-knowledge service
     let service = secreton_core::services::zero_knowledge::ZeroKnowledgeServiceImpl::new();
 
-    let paths = service
-        .list_paths()
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to list secrets: {}", e),
-        })?;
+    let paths = service.list_paths().await.map_err(|e| ApiError::Internal {
+        message: format!("Failed to list secrets: {}", e),
+    })?;
 
     info!("Successfully listed {} zero-knowledge secrets", paths.len());
 
@@ -287,7 +291,7 @@ async fn list_secrets(
 
 /// Delete a zero-knowledge secret
 ///
-/// POST /v1/zk/delete/:path
+/// POST /v1/zk/delete/{path}
 async fn delete_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,

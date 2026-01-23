@@ -7,7 +7,7 @@
 //! # Features
 //! - One-time use tokens for secure secret distribution
 //! - TTL-based expiration with automatic cleanup
-//! - Automatic wrapping via X-Vault-Wrap-TTL header
+//! - Automatic wrapping via X-Engine-Wrap-TTL header
 //! - Namespace isolation and authorization
 //! - Comprehensive audit logging
 //! - Rate limiting to prevent abuse
@@ -17,7 +17,7 @@
 //! # Wrap sensitive data
 //! curl -X POST http://localhost:8200/v1/sys/wrapping/wrap \
 //!   -H "Content-Type: application/json" \
-//!   -d '{"data": {"password": "secret123"}, "ttl": 300}'
+//!   -d '{"data": {"password": "secret123", "ttl": 300}'
 //!
 //! # Unwrap with token
 //! curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, extractors::Namespace};
+use crate::{ApiError, ApiResponse, ApiResult, extractors::Namespace, handlers::AppState};
 
 use secreton_core::services::wrapping::{WrapRequest, WrappedTokenInfo, WrappingError};
 
@@ -50,7 +50,7 @@ pub fn create_routes() -> Router<AppState> {
         // Wrapping operations
         .route("/wrapping/wrap", post(wrap_data))
         .route("/wrapping/unwrap", post(unwrap_token))
-        .route("/wrapping/lookup/:token", get(lookup_token))
+        .route("/wrapping/lookup/{token}", get(lookup_token))
         .route("/wrapping/rewrap", post(rewrap_token))
 }
 
@@ -94,7 +94,7 @@ pub struct WrapDataResponse {
 /// # Request Body
 /// ```json
 /// {
-///   "data": {"password": "secret123", "username": "admin"},
+///   "data": {"password": "secret123", "username": "admin",
 ///   "ttl": 300
 /// }
 /// ```
@@ -170,7 +170,8 @@ pub async fn wrap_data(
     );
 
     // Add metrics
-    metrics::counter!("secreton_wrapping_wraps_total", "namespace" => namespace.clone()).increment(1);
+    metrics::counter!("secreton_wrapping_wraps_total", "namespace" => namespace.clone())
+        .increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
@@ -214,8 +215,6 @@ pub struct UnwrapTokenResponse {
 /// ```
 /// # Response
 /// ```json
-/// {
-///   "success": true,
 ///   "data": {
 ///     "data": {"password": "secret123", "username": "admin"},
 ///     "created_at": "2025-10-27T10:00:00Z",
@@ -245,7 +244,7 @@ pub async fn unwrap_token(
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
                 resource: format!("Wrapping token not found: {}", token),
             },
-            WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+            WrappingError::InvalidNamespace(_) => ApiError::Forbidden,
             _ => ApiError::Internal {
                 message: format!("Failed to lookup token: {}", e),
             },
@@ -266,7 +265,7 @@ pub async fn unwrap_token(
             WrappingError::TokenExpired(expired_at) => ApiError::BadRequest {
                 message: format!("Token expired at {}", expired_at),
             },
-            WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+            WrappingError::InvalidNamespace(_) => ApiError::Forbidden,
             WrappingError::DecryptionFailed(msg) => ApiError::Internal {
                 message: format!("Decryption failed: {}", msg),
             },
@@ -334,7 +333,7 @@ pub async fn lookup_token(
             WrappingError::TokenNotFound(token) => ApiError::NotFound {
                 resource: format!("Wrapping token not found: {}", token),
             },
-            WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+            WrappingError::InvalidNamespace(_) => ApiError::Forbidden,
             _ => ApiError::Internal {
                 message: format!("Failed to lookup token: {}", e),
             },
@@ -349,7 +348,8 @@ pub async fn lookup_token(
     );
 
     // Add metrics
-    metrics::counter!("secreton_wrapping_lookups_total", "namespace" => namespace.clone()).increment(1);
+    metrics::counter!("secreton_wrapping_lookups_total", "namespace" => namespace.clone())
+        .increment(1);
 
     Ok(Json(ApiResponse::success(token_info)))
 }
@@ -428,7 +428,7 @@ pub async fn rewrap_token(
             WrappingError::TokenExpired(expired_at) => ApiError::BadRequest {
                 message: format!("Token expired at {}", expired_at),
             },
-            WrappingError::InvalidNamespace(msg) => ApiError::Forbidden,
+            WrappingError::InvalidNamespace(_) => ApiError::Forbidden,
             _ => ApiError::Internal {
                 message: format!("Failed to unwrap token: {}", e),
             },
@@ -469,7 +469,8 @@ pub async fn rewrap_token(
     );
 
     // Add metrics
-    metrics::counter!("secreton_wrapping_rewraps_total", "namespace" => namespace.clone()).increment(1);
+    metrics::counter!("secreton_wrapping_rewraps_total", "namespace" => namespace.clone())
+        .increment(1);
 
     let response = WrapDataResponse {
         token: wrap_response.token,
@@ -496,5 +497,4 @@ mod tests {
         assert!("wrap_abc123".starts_with("wrap_"));
         assert!(!"invalid_token".starts_with("wrap_"));
     }
-
 }

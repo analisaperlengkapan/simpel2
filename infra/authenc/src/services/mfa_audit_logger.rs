@@ -7,11 +7,11 @@ use crate::error::{AuthencError, Result};
 use crate::models::events::EventType;
 use crate::services::events::EventBuilder;
 use chrono::Utc;
+use lib_common::correlation::CorrelationId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use lib_common::correlation::CorrelationId;
 
 /// MFA audit event context with enhanced security information
 #[derive(Debug, Clone, Serialize, Deserialize)]

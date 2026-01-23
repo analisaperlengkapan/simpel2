@@ -17,10 +17,10 @@ pub mod health;
 pub mod jwks;
 /// JWT token handling with Ed25519 signatures for enhanced security
 pub mod jwt_ed25519;
+/// Comprehensive OAuth2 implementation with PKCE and security features
+pub mod oauth2;
 /// OAuth2 Authorization Code Flow with PKCE support
 pub mod oauth2_authz_code;
-/// Comprehensive OAuth2 implementation with PKCE and security features
-pub mod oauth2_comprehensive;
 /// OIDC identity provider with Ed25519 JWT signing (secure replacement for RSA)
 pub mod oidc_ed25519;
 /// OIDC SSO handlers with secure cookie management
@@ -74,7 +74,7 @@ pub mod jit_admin_service;
 pub mod spi_federation;
 /// SPI management handlers for enterprise features
 pub mod spi_management;
-// pub mod oauth2_comprehensive; // Commented out - already declared above
+// pub mod oauth2; // Commented out - already declared above
 // pub mod organization;
 /// OpenID for Verifiable Credentials (OID4VC) handlers
 pub mod oid4vc;
@@ -102,10 +102,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let db_state = state.database.clone();
 
     // Create OAuth2 stores
-    let oauth2_stores = Arc::new(oauth2_comprehensive::OAuth2Stores::new());
+    let oauth2_stores = Arc::new(oauth2::OAuth2Stores::new());
 
     // Create combined OAuth2 state
-    let oauth2_state = Arc::new(oauth2_comprehensive::OAuth2AppState {
+    let oauth2_state = Arc::new(oauth2::OAuth2AppState {
         database: db_state.clone(),
         oauth2_stores,
         consent_store: state.consent_store.clone(),
@@ -113,38 +113,26 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
     // Create OAuth2 test router without authentication
     let oauth2_test_router = Router::new()
-        .route(
-            "/oauth2/authorize/test",
-            get(oauth2_comprehensive::test_oauth2_authorize),
-        )
-        .route(
-            "/oauth2/token/test",
-            post(oauth2_comprehensive::test_oauth2_token),
-        )
+        .route("/oauth2/authorize/test", get(oauth2::test_oauth2_authorize))
+        .route("/oauth2/token/test", post(oauth2::test_oauth2_token))
         .with_state(oauth2_state.clone());
 
     // Create OAuth2 router with combined state
     let oauth2_router = Router::new()
         .route(
             "/.well-known/oauth-authorization-server",
-            get(oauth2_comprehensive::oauth2_discovery),
+            get(oauth2::oauth2_discovery),
         )
-        .route("/oauth2/token", post(oauth2_comprehensive::oauth2_token))
-        .route(
-            "/oauth2/introspect",
-            post(oauth2_comprehensive::oauth2_introspect),
-        )
-        .route("/oauth2/revoke", post(oauth2_comprehensive::oauth2_revoke))
-        .route("/oauth2/jwks", get(oauth2_comprehensive::oauth2_jwks))
-        .route(
-            "/oauth2/userinfo",
-            get(oauth2_comprehensive::oauth2_userinfo),
-        )
+        .route("/oauth2/token", post(oauth2::oauth2_token))
+        .route("/oauth2/introspect", post(oauth2::oauth2_introspect))
+        .route("/oauth2/revoke", post(oauth2::oauth2_revoke))
+        .route("/oauth2/jwks", get(oauth2::oauth2_jwks))
+        .route("/oauth2/userinfo", get(oauth2::oauth2_userinfo))
         .layer(axum::middleware::from_fn_with_state(
-            Arc::new(crate::middleware::auth_middleware_axum::AuthState {
+            Arc::new(crate::middleware::auth_middleware::AuthState {
                 jwt_secret: state.config.security.jwt_secret.clone(),
             }),
-            crate::middleware::auth_middleware_axum::auth_middleware,
+            crate::middleware::auth_middleware::auth_middleware,
         ))
         .with_state(oauth2_state.clone());
 
@@ -158,7 +146,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest(
             "/oauth2",
             Router::new()
-                .route("/authorize", get(oauth2_comprehensive::oauth2_authorize))
+                .route("/authorize", get(oauth2::oauth2_authorize))
                 .with_state(oauth2_state.clone()),
         )
         // Legacy OIDC Endpoints with Ed25519 security
@@ -200,10 +188,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .merge(
             consent_ui::create_consent_routes()
                 .layer(axum::middleware::from_fn_with_state(
-                    Arc::new(crate::middleware::auth_middleware_axum::AuthState {
+                    Arc::new(crate::middleware::auth_middleware::AuthState {
                         jwt_secret: state.config.security.jwt_secret.clone(),
                     }),
-                    crate::middleware::auth_middleware_axum::auth_middleware,
+                    crate::middleware::auth_middleware::auth_middleware,
                 ))
                 .with_state(state.clone()),
         )
@@ -288,8 +276,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             api::captcha::create_captcha_routes()
                 .layer(axum::middleware::from_fn_with_state(
                     Arc::new(
-                        crate::middleware::security_monitoring_axum::SecurityMonitoringState::new(
-                            crate::middleware::security_monitoring_axum::SecurityMonitoringConfig {
+                        crate::middleware::security_monitoring::SecurityMonitoringState::new(
+                            crate::middleware::security_monitoring::SecurityMonitoringConfig {
                                 enabled: true,
                                 suspicious_threshold_rpm: 50,
                                 monitored_paths: vec![
@@ -302,7 +290,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                             Some(state.audit_log_store.clone()),
                         ),
                     ),
-                    crate::middleware::security_monitoring_axum::security_monitoring_middleware,
+                    crate::middleware::security_monitoring::security_monitoring_middleware,
                 ))
                 .with_state(state.clone()),
         )

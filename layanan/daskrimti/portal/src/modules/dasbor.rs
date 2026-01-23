@@ -1,6 +1,6 @@
 //! Dashboard module (from layanan/daskrimti/dasbor)
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use std::sync::Arc;
 
 use crate::handlers::dashboard;

@@ -990,7 +990,7 @@ async fn test_account_security_and_audit() {
         .route(
             "/users/{user_id}/security/sessions",
             get(
-                move |State(state): State<UserMgmtState>,
+                move |State(_state): State<UserMgmtState>,
                       axum::extract::Path(user_id): axum::extract::Path<String>| async move {
                     // In a real implementation, this would track active sessions
                     Ok::<Json<serde_json::Value>, StatusCode>(Json(json!({
@@ -1012,7 +1012,7 @@ async fn test_account_security_and_audit() {
         .route(
             "/users/{user_id}/security/sessions/{session_id}/revoke",
             delete(
-                move |State(state): State<UserMgmtState>,
+                move |State(_state): State<UserMgmtState>,
                       axum::extract::Path((user_id, session_id)): axum::extract::Path<(
                     String,
                     String,

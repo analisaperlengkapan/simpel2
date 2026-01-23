@@ -1,4 +1,4 @@
-//! Audit logging for vault operations
+//! Audit logging for engine operations
 //! Tracks all secret access, modifications, and deletions for compliance
 
 use chrono::{DateTime, Duration, Utc};
@@ -107,7 +107,7 @@ impl AuditEvent {
     }
 }
 
-/// Audit logger for vault operations (API-specific wrapper)
+/// Audit logger for engine operations (API-specific wrapper)
 #[derive(Clone)]
 pub struct AuditLogger {
     /// Core audit logger
@@ -129,9 +129,8 @@ impl AuditLogger {
     /// Create a new audit logger
     pub fn new(max_events: usize) -> Self {
         // Create core logger with memory backend
-        let core_logger = crate::audit::AuditLogger::new(vec![Arc::new(
-            crate::audit::MemoryBackend::default(),
-        )]);
+        let core_logger =
+            crate::audit::AuditLogger::new(vec![Arc::new(crate::audit::MemoryBackend::default())]);
 
         Self {
             core_logger: Arc::new(core_logger),

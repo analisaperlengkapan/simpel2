@@ -6,21 +6,20 @@
 
 use axum::{
     Router,
-    async_trait,
     extract::{FromRequestParts, Path, Query, State},
     http::request::Parts,
     response::Json,
     routing::{get, post},
 };
 
-use crate::middleware::RequestContext;
+use crate::RequestContext;
 use secreton_core::namespace::AdminLevel;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{ApiError, ApiResponse, ApiResult, handlers::AppState, models::PaginatedResponse};
+use crate::{ApiError, ApiResponse, ApiResult, PaginatedResponse, handlers::AppState};
 
 use secreton_core::audit::AuditStatus;
 use secreton_core::services::lease::{EnhancedLease, LeaseError};
@@ -32,7 +31,7 @@ pub fn create_routes() -> Router<AppState> {
         .route("/leases/renew", post(renew_lease))
         .route("/leases/revoke", post(revoke_lease))
         .route("/leases/revoke-prefix", post(revoke_lease_prefix))
-        .route("/leases/lookup/:lease_id", get(lookup_lease))
+        .route("/leases/lookup/{lease_id}", get(lookup_lease))
         .route("/leases", get(list_leases))
         .route("/leases/stats", get(get_lease_stats))
 }
@@ -46,7 +45,6 @@ pub struct LeaseAuth {
     pub user_agent: Option<String>,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for LeaseAuth
 where
     S: Send + Sync,
@@ -788,8 +786,8 @@ pub async fn get_lease_stats(
         .get_active_lease_breakdown()
         .await
         .map_err(|e| ApiError::Internal {
-            message: format!("Failed to get lease breakdown stats: {}", e),
-        })?;
+        message: format!("Failed to get lease breakdown stats: {}", e),
+    })?;
 
     // Log audit event
     let mut metadata = HashMap::new();

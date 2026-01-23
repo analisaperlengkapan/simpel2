@@ -52,7 +52,7 @@ async fn test_event_listener_register_and_list() {
         "event_categories": ["AUTH", "ADMIN"]
     });
 
-    let listener_id = authenc::database::operations::events::register_event_listener(
+    let _listener_id = authenc::database::operations::events::register_event_listener(
         &db,
         realm_id,
         "Test Listener",
@@ -251,7 +251,7 @@ async fn test_protocol_mapper_client_crud() {
     // Create mapper
     let mapper_config = json!({"claim_name": "email", "json_type": "String"});
 
-    let mapper_id = authenc::database::operations::protocol_mappers::create_protocol_mapper(
+    let _mapper_id = authenc::database::operations::protocol_mappers::create_protocol_mapper(
         &db,
         Some(client_id),
         realm_id,
@@ -312,7 +312,7 @@ async fn test_protocol_mapper_realm_level() {
     // Create realm-level mapper (client_id = NULL)
     let mapper_config = json!({"role_prefix": "realm_"});
 
-    let mapper_id = authenc::database::operations::protocol_mappers::create_protocol_mapper(
+    let _mapper_id = authenc::database::operations::protocol_mappers::create_protocol_mapper(
         &db,
         None, // client_id
         realm_id,
@@ -449,7 +449,7 @@ async fn test_authenticator_registration_and_listing() {
         "min_length": 8
     });
 
-    let auth_id = authenc::database::operations::authenticators::register_authenticator(
+    let _auth_id = authenc::database::operations::authenticators::register_authenticator(
         &db,
         realm_id,
         "Password Authenticator".to_string(),
@@ -559,7 +559,7 @@ async fn test_authentication_flow_execution_crud() {
     .expect("Failed to create authenticator");
 
     // Create execution
-    let exec_id = authenc::database::operations::authenticators::create_execution(
+    let _exec_id = authenc::database::operations::authenticators::create_execution(
         &db,
         realm_id,
         flow_id,

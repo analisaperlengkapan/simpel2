@@ -75,7 +75,7 @@
 //! if user_clearance >= secret_level {
 //!     println!("Access granted");
 //!     // Retrieve secret
-//! } else {
+//!  else {
 //!     println!("Access denied - insufficient clearance");
 //! }
 //! # Ok(())
@@ -137,7 +137,7 @@
 //! // Wrap sensitive data before storage
 //! let wrapped = wrapper.wrap(b"sensitive_data").await?;
 //!
-//! // Only unwrappable when vault is unsealed
+//! // Only unwrappable when engine is unsealed
 //! let unwrapped = wrapper.unwrap(&wrapped).await?;
 //! # Ok(())
 //! # }

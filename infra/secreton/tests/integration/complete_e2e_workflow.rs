@@ -2,7 +2,7 @@
 //!
 //! This test validates the complete Secreton workflow from initialization to production use.
 //! Tests the following scenarios:
-//! 1. Vault initialization and seal/unseal
+//! 1. Engine initialization and seal/unseal
 //! 2. Authentication and authorization
 //! 3. Secret storage and retrieval
 //! 4. Transit encryption operations
@@ -20,11 +20,11 @@ mod end_to_end_tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_complete_vault_initialization_workflow() -> Result<()> {
-        println!("\n🚀 Starting Complete Vault Initialization Workflow");
+    async fn test_complete_engine_initialization_workflow() -> Result<()> {
+        println!("\n🚀 Starting Complete Engine Initialization Workflow");
 
-        // Step 1: Initialize vault
-        println!("  ✓ Step 1: Initialize vault with Shamir shares");
+        // Step 1: Initialize engine
+        println!("  ✓ Step 1: Initialize engine with Shamir shares");
         // In production, this would call: secreton init --shares 5 --threshold 3
         let init_config = json!({
             "shares": 5,
@@ -33,17 +33,17 @@ mod end_to_end_tests {
         });
         assert_eq!(init_config["shares"], 5);
 
-        // Step 2: Unseal vault
-        println!("  ✓ Step 2: Unseal vault with threshold shares");
+        // Step 2: Unseal engine
+        println!("  ✓ Step 2: Unseal engine with threshold shares");
         // Simulate providing 3 of 5 shares
         let unseal_shares = vec!["share1", "share2", "share3"];
         assert_eq!(unseal_shares.len(), 3);
 
-        // Step 3: Verify vault is unsealed and ready
-        println!("  ✓ Step 3: Verify vault is operational");
+        // Step 3: Verify engine is unsealed and ready
+        println!("  ✓ Step 3: Verify engine is operational");
         // Check seal status would return: {"sealed": false, "threshold": 3, "shares": 5}
 
-        println!("✅ Vault initialization workflow completed\n");
+        println!("✅ Engine initialization workflow completed\n");
         Ok(())
     }
 
@@ -81,8 +81,8 @@ mod end_to_end_tests {
         });
 
         // Simulate encryption result
-        let ciphertext = "vault:v1:abc123...";  // Mock ciphertext
-        assert!(ciphertext.starts_with("vault:v1:"));
+        let ciphertext = "engine:v1:abc123...";  // Mock ciphertext
+        assert!(ciphertext.starts_with("engine:v1:"));
 
         // Step 4: Store encrypted data as secret
         println!("  ✓ Step 4: Store secret");
@@ -91,7 +91,7 @@ mod end_to_end_tests {
                 "encrypted_ssn": ciphertext,
                 "customer_id": "CUST-001",
                 "encryption_key": "customer-data-key"
-            },
+            ,
             "metadata": {
                 "classification": "pii",
                 "retention_days": 2555  // 7 years
@@ -134,7 +134,7 @@ mod end_to_end_tests {
                     "path": "secret/production/*",
                     "capabilities": ["read", "list"],
                     "required_mfa": true
-                },
+                ,
                 {
                     "path": "secret/development/*",
                     "capabilities": ["create", "read",  "update", "delete", "list"]
@@ -254,8 +254,8 @@ mod end_to_end_tests {
         println!("  ✓ Step 1: Initialize RA FT cluster");
         let cluster_config = json!({
             "nodes": [
-                {"id": 1, "address": "node1:8200"},
-                {"id": 2, "address": "node2:8200"},
+                {"id": 1, "address": "node1:8200",
+                {"id": 2, "address": "node2:8200",
                 {"id": 3, "address": "node3:8200"}
             ],
             "replication_factor": 3

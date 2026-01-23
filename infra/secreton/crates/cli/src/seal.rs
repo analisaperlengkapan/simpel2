@@ -1,9 +1,9 @@
 //! Seal/Unseal CLI commands
 //!
-//! Provides CLI commands for vault seal operations including:
-//! - init: Initialize vault and generate Shamir shares
-//! - seal: Seal the vault
-//! - unseal: Unseal the vault with shares
+//! Provides CLI commands for engine seal operations including:
+//! - init: Initialize engine and generate Shamir shares
+//! - seal: Seal the engine
+//! - unseal: Unseal the engine with shares
 //! - status: Show seal status
 //! - rekey: Rekey operation (change threshold/shares)
 
@@ -17,7 +17,7 @@ use crate::config::CliConfig;
 
 #[derive(Subcommand)]
 pub enum SealCommand {
-    /// Initialize vault and generate Shamir shares
+    /// Initialize engine and generate Shamir shares
     Init {
         /// Number of key shares to generate (default: 5)
         #[arg(short = 'n', long, default_value = "5")]
@@ -32,10 +32,10 @@ pub enum SealCommand {
         output: Option<String>,
     },
 
-    /// Seal the vault
+    /// Seal the engine
     Seal,
 
-    /// Unseal the vault with a key share
+    /// Unseal the engine with a key share
     Unseal {
         /// Key share (base64 encoded). If not provided, will prompt securely
         #[arg(short, long)]
@@ -120,16 +120,16 @@ pub async fn execute_seal_command(cmd: SealCommand, config: &CliConfig) -> Resul
             shares,
             threshold,
             output,
-        } => init_vault(config, shares, threshold, output).await,
-        SealCommand::Seal => seal_vault(config).await,
-        SealCommand::Unseal { key, reset } => unseal_vault(config, key, reset).await,
+        } => init_engine(config, shares, threshold, output).await,
+        SealCommand::Seal => seal_engine(config).await,
+        SealCommand::Unseal { key, reset } => unseal_engine(config, key, reset).await,
         SealCommand::Status => seal_status(config).await,
         SealCommand::Rekey { cmd } => execute_rekey_command(cmd, config).await,
     }
 }
 
-/// Initialize vault and generate Shamir shares
-async fn init_vault(
+/// Initialize engine and generate Shamir shares
+async fn init_engine(
     config: &CliConfig,
     shares: usize,
     threshold: usize,
@@ -158,7 +158,7 @@ async fn init_vault(
         "secret_threshold": threshold,
     });
 
-    println!("🔐 Initializing Secreton Vault...");
+    println!("🔐 Initializing Secreton Engine...");
     println!("   Shares: {}", shares);
     println!("   Threshold: {}", threshold);
     println!();
@@ -174,7 +174,7 @@ async fn init_vault(
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        anyhow::bail!("Failed to initialize vault: {} - {}", status, error_text);
+        anyhow::bail!("Failed to initialize engine: {} - {}", status, error_text);
     }
 
     let init_response: InitResponse = response
@@ -183,11 +183,11 @@ async fn init_vault(
         .context("Failed to parse initialization response")?;
 
     // Display shares
-    println!("✅ Vault initialized successfully!");
+    println!("✅ Engine initialized successfully!");
     println!();
     println!("⚠️  IMPORTANT: Save these unseal keys securely!");
     println!(
-        "   You will need {} of {} keys to unseal the vault.",
+        "   You will need {} of {} keys to unseal the engine.",
         threshold, shares
     );
     println!();
@@ -237,17 +237,17 @@ async fn init_vault(
     println!("   • Store these keys in separate, secure locations");
     println!("   • Never store all keys together");
     println!("   • These keys cannot be recovered if lost");
-    println!("   • The vault is now unsealed and ready to use");
+    println!("   • The engine is now unsealed and ready to use");
 
     Ok(())
 }
 
-/// Seal the vault
-async fn seal_vault(config: &CliConfig) -> Result<()> {
+/// Seal the engine
+async fn seal_engine(config: &CliConfig) -> Result<()> {
     let client = reqwest::Client::new();
     let url = format!("{}/v1/sys/seal", config.server_url);
 
-    println!("🔒 Sealing vault...");
+    println!("🔒 Sealing engine...");
 
     let response = client
         .post(&url)
@@ -259,19 +259,19 @@ async fn seal_vault(config: &CliConfig) -> Result<()> {
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        anyhow::bail!("Failed to seal vault: {} - {}", status, error_text);
+        anyhow::bail!("Failed to seal engine: {} - {}", status, error_text);
     }
 
-    println!("✅ Vault sealed successfully!");
+    println!("✅ Engine sealed successfully!");
     println!();
-    println!("   All operations are now blocked until the vault is unsealed.");
-    println!("   Use 'secreton unseal' to unseal the vault.");
+    println!("   All operations are now blocked until the engine is unsealed.");
+    println!("   Use 'secreton unseal' to unseal the engine.");
 
     Ok(())
 }
 
-/// Unseal the vault with a key share
-async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> Result<()> {
+/// Unseal the engine with a key share
+async fn unseal_engine(config: &CliConfig, key: Option<String>, reset: bool) -> Result<()> {
     let client = reqwest::Client::new();
 
     // Handle reset
@@ -330,7 +330,7 @@ async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> R
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        anyhow::bail!("Failed to unseal vault: {} - {}", status, error_text);
+        anyhow::bail!("Failed to unseal engine: {} - {}", status, error_text);
     }
 
     let status: SealStatus = response
@@ -340,9 +340,9 @@ async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> R
 
     // Display progress
     if status.state == "unsealed" {
-        println!("✅ Vault unsealed successfully!");
+        println!("✅ Engine unsealed successfully!");
         println!();
-        println!("   The vault is now operational.");
+        println!("   The engine is now operational.");
     } else {
         println!(
             "🔓 Unseal progress: {}/{}",
@@ -350,7 +350,7 @@ async fn unseal_vault(config: &CliConfig, key: Option<String>, reset: bool) -> R
         );
         println!();
         println!(
-            "   {} more key(s) required to unseal the vault.",
+            "   {} more key(s) required to unseal the engine.",
             status.threshold - status.progress
         );
     }
@@ -395,7 +395,7 @@ async fn seal_status(config: &CliConfig) -> Result<()> {
         _ => "UNKNOWN",
     };
 
-    println!("{} Vault Status: {}", state_icon, state_text);
+    println!("{} Engine Status: {}", state_icon, state_text);
     println!();
 
     let mut table = Table::new();

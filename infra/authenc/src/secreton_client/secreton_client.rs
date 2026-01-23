@@ -871,7 +871,10 @@ impl SecretonClient {
 
                 // If server provided combined secret, use it
                 if let Some(combined_secret_b64) = exchange_resp.combined_shared_secret {
-                    let combined_secret = crate::utils::encoding::base64_decode(&combined_secret_b64).map_err(|e| {
+                    let combined_secret = crate::utils::encoding::base64_decode(
+                        &combined_secret_b64,
+                    )
+                    .map_err(|e| {
                         SecretonError::InvalidFormat(format!(
                             "Invalid combined secret encoding: {}",
                             e
@@ -907,12 +910,13 @@ impl SecretonClient {
                 let combined_secret = if let (Some(mlkem_ct_b64), Some(_mlkem_priv)) =
                     (exchange_resp.mlkem_ciphertext, mlkem_private)
                 {
-                    let _mlkem_ciphertext = crate::utils::encoding::base64_decode(&mlkem_ct_b64).map_err(|e| {
-                        SecretonError::InvalidFormat(format!(
-                            "Invalid ML-KEM ciphertext encoding: {}",
-                            e
-                        ))
-                    })?;
+                    let _mlkem_ciphertext = crate::utils::encoding::base64_decode(&mlkem_ct_b64)
+                        .map_err(|e| {
+                            SecretonError::InvalidFormat(format!(
+                                "Invalid ML-KEM ciphertext encoding: {}",
+                                e
+                            ))
+                        })?;
 
                     // In a real implementation, we would decapsulate the ML-KEM ciphertext
                     // For now, we'll use HKDF to combine the X25519 secret with a placeholder
@@ -1159,14 +1163,20 @@ impl SecretonClient {
                     SecretonError::InvalidFormat(format!("Invalid response format: {}", e))
                 })?;
 
-                let public_key = crate::utils::encoding::base64_decode(&key_resp.public_key).map_err(|e| {
-                    SecretonError::InvalidFormat(format!("Invalid public key encoding: {}", e))
-                })?;
+                let public_key = crate::utils::encoding::base64_decode(&key_resp.public_key)
+                    .map_err(|e| {
+                        SecretonError::InvalidFormat(format!("Invalid public key encoding: {}", e))
+                    })?;
 
                 let private_key = if let Some(priv_key_str) = key_resp.private_key {
-                    Some(crate::utils::encoding::base64_decode(&priv_key_str).map_err(|e| {
-                        SecretonError::InvalidFormat(format!("Invalid private key encoding: {}", e))
-                    })?)
+                    Some(
+                        crate::utils::encoding::base64_decode(&priv_key_str).map_err(|e| {
+                            SecretonError::InvalidFormat(format!(
+                                "Invalid private key encoding: {}",
+                                e
+                            ))
+                        })?,
+                    )
                 } else {
                     None
                 };

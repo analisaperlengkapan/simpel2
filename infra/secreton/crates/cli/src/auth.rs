@@ -12,7 +12,7 @@ use crate::token_store::{TokenMetadata, TokenStore};
 /// Authentication commands
 #[derive(Subcommand)]
 pub enum AuthCommand {
-    /// Login to Secreton vault
+    /// Login to Secreton engine
     Login {
         /// Authentication method (userpass or token)
         #[arg(short, long, default_value = "userpass")]
@@ -26,7 +26,7 @@ pub enum AuthCommand {
         #[arg(short, long)]
         token: Option<String>,
     },
-    /// Logout from Secreton vault
+    /// Logout from Secreton engine
     Logout,
 }
 
@@ -115,8 +115,8 @@ pub async fn login_command(
             };
 
             // Get password securely
-            let password = rpassword::prompt_password("Password: ")
-                .context("Failed to read password")?;
+            let password =
+                rpassword::prompt_password("Password: ").context("Failed to read password")?;
 
             // Call login API
             let client = reqwest::Client::new();
@@ -143,11 +143,7 @@ pub async fn login_command(
                     .text()
                     .await
                     .unwrap_or_else(|_| "Unknown error".to_string());
-                anyhow::bail!(
-                    "Authentication failed (HTTP {}): {}",
-                    status,
-                    error_text
-                );
+                anyhow::bail!("Authentication failed (HTTP {}): {}", status, error_text);
             }
 
             let api_response: ApiResponse<LoginResponse> = response
@@ -174,8 +170,8 @@ pub async fn login_command(
             }
 
             // Calculate expiration time
-            let expires_at = chrono::Utc::now()
-                + chrono::Duration::seconds(login_data.expires_in as i64);
+            let expires_at =
+                chrono::Utc::now() + chrono::Duration::seconds(login_data.expires_in as i64);
 
             // Store token
             let metadata = TokenMetadata {
@@ -192,17 +188,22 @@ pub async fn login_command(
                 .store_token(&login_data.access_token, &metadata)
                 .context("Failed to store authentication token")?;
 
-            println!("✅ Successfully authenticated as {}", login_data.user.username);
-            println!("   Token stored in: {}", token_store.token_file_path().display());
-            println!("   Policies: {}", login_data.user.policies.join(", "));
             println!(
-                "   Expires: {}",
-                expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+                "✅ Successfully authenticated as {}",
+                login_data.user.username
             );
+            println!(
+                "   Token stored in: {}",
+                token_store.token_file_path().display()
+            );
+            println!("   Policies: {}", login_data.user.policies.join(", "));
+            println!("   Expires: {}", expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
         }
         "token" => {
             // Token authentication
-            let token_value = token.context("Token is required for token authentication method. Use --token <TOKEN>")?;
+            let token_value = token.context(
+                "Token is required for token authentication method. Use --token <TOKEN>",
+            )?;
 
             // Validate token prefix
             if !token_value.starts_with("stn.") {
@@ -215,7 +216,7 @@ pub async fn login_command(
 
             let response = client
                 .get(&url)
-                .header("X-Vault-Token", &token_value)
+                .header("X-Engine-Token", &token_value)
                 .send()
                 .await
                 .context("Failed to verify token")?;
@@ -277,12 +278,12 @@ pub async fn login_command(
                 .context("Failed to store authentication token")?;
 
             println!("✅ Successfully authenticated with token");
-            println!("   Token stored in: {}", token_store.token_file_path().display());
-            println!("   Policies: {}", policies.join(", "));
             println!(
-                "   Expires: {}",
-                expires_at.format("%Y-%m-%d %H:%M:%S UTC")
+                "   Token stored in: {}",
+                token_store.token_file_path().display()
             );
+            println!("   Policies: {}", policies.join(", "));
+            println!("   Expires: {}", expires_at.format("%Y-%m-%d %H:%M:%S UTC"));
         }
         _ => {
             anyhow::bail!(
@@ -300,9 +301,7 @@ pub async fn logout_command(config: &CliConfig) -> Result<()> {
     let token_store = TokenStore::new()?;
 
     // Load current token
-    let stored_token = token_store
-        .load_token()
-        .context("Failed to load token")?;
+    let stored_token = token_store.load_token().context("Failed to load token")?;
 
     if stored_token.is_none() {
         println!("ℹ️  No active session found");
@@ -329,15 +328,30 @@ pub async fn logout_command(config: &CliConfig) -> Result<()> {
     match response {
         Ok(resp) if resp.status().is_success() => {
             println!("✅ Successfully logged out");
-            println!("   Token cleared from: {}", token_store.token_file_path().display());
+            println!(
+                "   Token cleared from: {}",
+                token_store.token_file_path().display()
+            );
         }
         Ok(resp) => {
-            println!("⚠️  Server logout failed (HTTP {}), but local token cleared", resp.status());
-            println!("   Token cleared from: {}", token_store.token_file_path().display());
+            println!(
+                "⚠️  Server logout failed (HTTP {}), but local token cleared",
+                resp.status()
+            );
+            println!(
+                "   Token cleared from: {}",
+                token_store.token_file_path().display()
+            );
         }
         Err(e) => {
-            println!("⚠️  Could not reach server ({}), but local token cleared", e);
-            println!("   Token cleared from: {}", token_store.token_file_path().display());
+            println!(
+                "⚠️  Could not reach server ({}), but local token cleared",
+                e
+            );
+            println!(
+                "   Token cleared from: {}",
+                token_store.token_file_path().display()
+            );
         }
     }
 
@@ -429,22 +443,21 @@ mod property_tests {
     // Generator for token metadata
     fn arb_token_metadata() -> impl Strategy<Value = TokenMetadata> {
         (
-            prop::option::of(
-                any::<i64>()
-                    .prop_map(|offset| chrono::Utc::now() + chrono::Duration::seconds(offset.abs() % 86400)),
-            ),
+            prop::option::of(any::<i64>().prop_map(|offset| {
+                chrono::Utc::now() + chrono::Duration::seconds(offset.abs() % 86400)
+            })),
             prop::collection::vec(prop::string::string_regex("[a-z-]{3,20}").unwrap(), 0..5),
             any::<bool>(),
             prop::option::of(prop::string::string_regex("[a-z@.]{5,30}").unwrap()),
         )
-            .prop_map(|(expires_at, policies, renewable, display_name)| {
-                TokenMetadata {
+            .prop_map(
+                |(expires_at, policies, renewable, display_name)| TokenMetadata {
                     expires_at,
                     policies,
                     renewable,
                     display_name,
-                }
-            })
+                },
+            )
     }
 
     proptest! {

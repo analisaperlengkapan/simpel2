@@ -103,7 +103,7 @@ async fn test_user_onboarding_workflow() {
                 "next_step": "email_verification"
             })))
         }))
-        .route("/workflow/onboarding/{workflow_id}/step/{step_number}", post(move |State(state): State<WorkflowState>, Path((workflow_id, step_number)): Path<(String, u32)>, Json(step_data): Json<serde_json::Value>| async move {
+        .route("/workflow/onboarding/{workflow_id}/step/{step_number}", post(move |State(state): State<WorkflowState>, Path((workflow_id, step_number)): Path<(String, u32)>, Json(_step_data): Json<serde_json::Value>| async move {
             let workflows = state.workflows.lock().await;
             let mut workflow_steps = state.workflow_steps.lock().await;
             let mut users = state.users.lock().await;
@@ -206,7 +206,7 @@ async fn test_user_onboarding_workflow() {
 
     let body: serde_json::Value = response.json();
     let workflow_id = body["workflow_id"].as_str().unwrap();
-    let user_id = body["user_id"].as_str().unwrap();
+    let _user_id = body["user_id"].as_str().unwrap();
 
     // Complete step 1: email verification
     let step_data = json!({"verification_code": "123456"});
@@ -502,7 +502,7 @@ async fn test_password_reset_workflow() {
                 Err(StatusCode::NOT_FOUND)
             }
         }))
-        .route("/workflow/password-reset/validate/{token}", post(move |State(state): State<WorkflowState>, Path(token): Path<String>, Json(validation_data): Json<serde_json::Value>| async move {
+        .route("/workflow/password-reset/validate/{token}", post(move |State(state): State<WorkflowState>, Path(token): Path<String>, Json(_validation_data): Json<serde_json::Value>| async move {
             let workflows = state.workflows.lock().await;
             let mut workflow_steps = state.workflow_steps.lock().await;
             let mut audit_trail = state.audit_trail.lock().await;
@@ -545,7 +545,7 @@ async fn test_password_reset_workflow() {
             if let Some(workflow) = workflows.get_mut(&workflow_id) {
                 if workflow["status"] == "pending" {
                     let user_id = workflow["user_id"].as_str().unwrap().to_string();
-                    let new_password = completion_data["new_password"].as_str().unwrap();
+                    let _new_password = completion_data["new_password"].as_str().unwrap();
 
                     // Update user password (simplified)
                     if let Some(user) = users.get_mut(&user_id) {

@@ -63,9 +63,7 @@ impl AuthenticatedClient {
 
         // Check if token is expired
         if self.token_store.is_token_expired() {
-            anyhow::bail!(
-                "Token expired. Run 'secreton login' to re-authenticate."
-            );
+            anyhow::bail!("Token expired. Run 'secreton login' to re-authenticate.");
         }
 
         Ok(stored_token.token)
@@ -129,10 +127,12 @@ mod tests {
 
         let result = client.get_token();
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Not authenticated"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Not authenticated")
+        );
     }
 
     #[test]

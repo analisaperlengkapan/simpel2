@@ -45,7 +45,7 @@
 //! 4. **Secreton Access** → User includes JWT in Authorization header
 //! 5. **Token Validation** → Secreton validates JWT via Authenc or cached public key
 //! 6. **Authorization** → Check user roles/permissions against Secreton policies
-//! 7. **Operation** → Execute requested vault operation
+//! 7. **Operation** → Execute requested engine operation
 //!
 //! # Example: Authenticate User
 //!
@@ -59,11 +59,11 @@
 //!     username: "alice@kejaksaan.go.id".to_string(),
 //!     password: "secure_password".to_string(),
 //!     mfa_code: Some("123456".to_string()), // TOTP code
-//! };
+//! ;
 //!
 //! match provider.authenticate(&creds).await {
 //!     Ok(user) => {
-//!         println!("Authenticated: {} (roles: {:?})", user.username, user.roles);
+//!         println!("Authenticated: { (roles: {:?})", user.username, user.roles);
 //!         // user.token contains JWT for subsequent requests
 //!     }
 //!     Err(e) => eprintln!("Authentication failed: {}", e),
@@ -106,7 +106,7 @@
 //! let signature = PqSignature {
 //!     algorithm: "ML-DSA-65".to_string(), // FIPS 204 (Dilithium)
 //!     data: vec![/* signature bytes */],
-//! };
+//! ;
 //!
 //! if validator.verify(&signature, b"message", &public_key)? {
 //!     println!("Post-quantum signature valid");

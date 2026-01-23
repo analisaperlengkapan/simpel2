@@ -52,7 +52,7 @@ fn test_rfc6238_test_vectors() {
 
     // Convert RFC test secret to base32 for our implementation
     let secret_bytes = RFC6238_SECRET.as_bytes();
-    let secret_base32 = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, secret_bytes);
+    let _secret_base32 = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, secret_bytes);
 
     for &(timestamp, expected_code) in RFC6238_TEST_VECTORS {
         // Calculate time step (T = (Current Unix time - T0) / X)
@@ -78,7 +78,7 @@ fn test_rfc6238_test_vectors() {
 
 #[test]
 fn test_time_step_calculation() {
-    let provider = OtpCredentialProvider::new();
+    let _provider = OtpCredentialProvider::new();
 
     // RFC 6238 Section 4.2: Time step calculation
     // T = (Current Unix time - T0) / X
@@ -237,8 +237,8 @@ fn test_thirty_second_time_window() {
 
     // Codes generated within the same 30-second window should be identical
     let time1 = (current_time / 30) * 30; // Start of current window
-    let time2 = time1 + 15; // Midof currindow
-    let time3 = time1 + 29; // End of current window
+    let _time2 = time1 + 15; // Midof currindow
+    let _time3 = time1 + 29; // End of current window
 
     let step = time1 / 30;
     let secret_bytes = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, &secret)

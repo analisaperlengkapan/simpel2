@@ -1,72 +1,65 @@
-# SIMPelv2 - Project Structure
+---
+inclusion: always
+---
 
-## Top-Level Organization
+# Project Structure
+
+## Directory Layout
 
 ```
-simpelv2/
-├── antarmuka/          # Frontend microfrontends (Leptos/WASM)
-├── layanan/            # Backend microservices (Axum)
-├── infra/              # Infrastructure services
-├── scripts/            # Build automation and CLI tools
-├── docs/               # Documentation (60+ files)
-├── simpel_laravel/     # Legacy Laravel codebase (reference only)
-└── test/               # Performance tests
+/var/www/simpelv2/
+├── Cargo.toml              # ROOT WORKSPACE (single source of truth)
+├── lib/                    # Shared libraries
+│   ├── ui/                 # UI components (alias: shared-microfrontend)
+│   └── common/             # Common utilities (validation, cache, telemetry, db, crypto)
+├── antarmuka/              # Frontend microfrontends (Leptos WASM)
+│   ├── daskrimti/portal/   # Main portal (Daskrimti)
+│   ├── pembinaan/          # Pembinaan microfrontends (keuangan, perencanaan, perlengkapan)
+│   ├── badiklat/           # Training and education
+│   ├── datun/              # Civil and state administration
+│   ├── intel/              # Intelligence operations
+│   ├── pemulihan_aset/     # Asset recovery
+│   ├── pengawasan/         # Supervision and monitoring
+│   ├── pidmil/             # Military crimes prosecution
+│   ├── pidsus/             # Special crimes prosecution
+│   └── pidum/              # General crimes prosecution
+├── layanan/                # Backend microservices (Axum + Tonic)
+│   ├── daskrimti/          # Daskrimti services (portal, ai, bantuan, dokumen, integrasi, notifikasi)
+│   ├── pembinaan/          # Pembinaan services (keuangan, perlengkapan, perencanaan)
+│   ├── badiklat/           # Training backend
+│   ├── datun/              # Civil backend
+│   ├── intel/              # Intelligence backend
+│   ├── pemulihan_aset/     # Asset recovery backend
+│   ├── pengawasan/         # Supervision backend
+│   ├── pidmil/             # Military crimes backend
+│   ├── pidsus/             # Special crimes backend
+│   └── pidum/              # General crimes backend
+└── infra/                  # Infrastructure (PART OF main workspace)
+    ├── authenc/            # Identity provider
+    └── secreton/           # Secrets vault (with sub-crates in crates/)
 ```
 
-## Frontend (`antarmuka/`)
+## Naming Conventions
 
-| Directory | Purpose | Port |
-|-----------|---------|------|
-| `portal/` | Main gateway, SSO integration | 8080 |
-| `badiklat/` | Training & Education | 8081 |
-| `datun/` | Civil Litigation | 8082 |
-| `intel/` | Intelligence & Analytics | 8083 |
-| `pemulihan_aset/` | Asset Recovery | 8084 |
-| `pengawasan/` | Monitoring & Compliance | 8085 |
-| `pidmil/` | Military Criminal Law | 8086 |
-| `pidsus/` | Special Crimes | 8087 |
-| `pidum/` | General Crimes | 8088 |
-| `pembinaan/keuangan/` | Finance Management | 8089 |
-| `pembinaan/perencanaan/` | Planning | 8090 |
-| `pembinaan/perlengkapan/` | Equipment Management | 8091 |
-| `shared/` | Shared component library (40+ components) | - |
+| Type | Location | Package Name | Example |
+|------|----------|--------------|---------|
+| Microfrontend | `antarmuka/[domain]/[name]/` | `[name]-microfrontend` | `portal-microfrontend` |
+| Microservice | `layanan/[domain]/[name]/` | `layanan-[name]` | `layanan-portal` |
+| Shared Library | `lib/[name]/` | `lib-[name]` | `lib-ui` |
+| Infrastructure | `infra/[name]/` | `[name]` | `authenc` |
 
-## Backend (`layanan/`)
+## Key Principles
 
-- Domain services mirror frontend modules (badiklat, datun, intel, etc.)
-- `shared/` contains cross-cutting services:
-  - `ai/` - LLM, RAG, OCR
-  - `bantuan/` - Help desk
-  - `dasbor/` - Dashboard & metrics
-  - `dokumen/` - Document management
-  - `integrasi/` - External API integrations
-  - `konfigurasi/` - System configuration
-  - `laporan/` - Reporting
-  - `notifikasi/` - Notifications
+1. **Workspace Hierarchy**: Root `Cargo.toml` manages all dependencies for main workspace
+2. **Infrastructure Isolation**: `authenc` and `secreton` are independent workspaces
+3. **Shared Code**: Common functionality in `lib/` packages
+4. **Domain Organization**: Services grouped by government department domains
+5. **Microfrontend Independence**: Each frontend is a separate deployable unit
 
-## Infrastructure (`infra/`)
+## Important Files
 
-| Directory | Purpose | Notes |
-|-----------|---------|-------|
-| `authenc/` | IAM service | **Separate Cargo workspace** |
-| `secreton/` | Secrets management | **Separate Cargo workspace** |
-| `gerbang/` | API Gateway (Envoy) | HTTP/gRPC routing |
-| `k8s/` | Kubernetes manifests | MicroK8s deployment |
-| `nginx/` | Reverse proxy config | SSL termination |
-| `proto/` | Protocol Buffers | gRPC definitions |
-| `monitoring/` | Prometheus + Grafana | Observability |
-
-## Scripts (`scripts/`)
-
-- `cli/` - Rust CLI tool for project management
-- `makefiles/` - Modular Makefile includes
-- `backup/` - Backup automation
-- `test/` - Test automation
-- `tools/` - Development utilities
-
-## Key Files
-
-- `Cargo.toml` - Workspace configuration (all deps centralized)
-- `Makefile` - Build orchestration (includes modular makefiles)
-- `docker-compose.yml` - Base container config
-- `.gitlab-ci.yml` - CI/CD pipeline (9 stages, 12+ security tools)
+- `AGENTS.md` - Primary AI developer guide
+- `.github/copilot-instructions.md` - Detailed coding patterns
+- `CONTRIBUTING.md` - Contribution guidelines
+- `docs/` - Architecture and API documentation
+- `.kiro/specs/` - Feature specifications

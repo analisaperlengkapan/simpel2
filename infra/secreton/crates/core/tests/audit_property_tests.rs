@@ -2,18 +2,18 @@
 //!
 //! These tests verify the correctness properties of the audit logging system.
 
-use proptest::prelude::*;
-use proptest::option;
-use secreton_core::security::audit::{
-    AdvancedAuditSystem, AuditEvent, AuditSeverity, AuditCategory, AuditResult,
-    AuditStorage, SignedAuditEntry, SecurityAuditError, AuditQuery, SimpleAnomalyDetector,
-    ComplianceConfig, ComplianceStandard, ReportSchedule, RetentionPolicy,
-};
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use chrono::Utc;
-use uuid::Uuid;
+use proptest::option;
+use proptest::prelude::*;
+use secreton_core::security::audit::{
+    AdvancedAuditSystem, AuditCategory, AuditEvent, AuditQuery, AuditResult, AuditSeverity,
+    AuditStorage, ComplianceConfig, ComplianceStandard, ReportSchedule, RetentionPolicy,
+    SecurityAuditError, SignedAuditEntry, SimpleAnomalyDetector,
+};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use uuid::Uuid;
 
 // Mock storage implementation for testing
 struct MockAuditStorage {
@@ -48,9 +48,7 @@ impl AuditStorage for MockAuditStorage {
         let entries = self.entries.lock().unwrap();
         Ok(entries
             .iter()
-            .filter(|e| {
-                e.sequence_number >= start_sequence && e.sequence_number <= end_sequence
-            })
+            .filter(|e| e.sequence_number >= start_sequence && e.sequence_number <= end_sequence)
             .cloned()
             .collect())
     }
@@ -136,33 +134,31 @@ async fn setup_test_audit_system() -> (Arc<AdvancedAuditSystem>, Arc<MockAuditSt
 // Strategy for generating audit events
 fn audit_event_strategy() -> impl Strategy<Value = AuditEvent> {
     (
-        "[a-z_]{5,20}",  // action
-        option::of("[a-z0-9]{5,15}"),  // principal
-        option::of("[a-z/]{5,30}"),  // target
-        option::of("(127\\.0\\.0\\.1|192\\.168\\.1\\.[0-9]{1,3})"),  // source_ip
+        "[a-z_]{5,20}",                                             // action
+        option::of("[a-z0-9]{5,15}"),                               // principal
+        option::of("[a-z/]{5,30}"),                                 // target
+        option::of("(127\\.0\\.0\\.1|192\\.168\\.1\\.[0-9]{1,3})"), // source_ip
     )
-        .prop_map(|(action, principal, target, source_ip)| {
-            AuditEvent {
-                event_id: Uuid::new_v4(),
-                timestamp: Utc::now(),
-                severity: AuditSeverity::Info,
-                category: AuditCategory::DataAccess,
-                source: "test_service".to_string(),
-                principal,
-                target,
-                action,
-                result: AuditResult::Success,
-                context: HashMap::new(),
-                source_ip,
-                user_agent: None,
-                session_id: Some("session_123".to_string()),
-                correlation_id: Some("corr_123".to_string()),
-                geo_location: None,
-                risk_score: None,
-                compliance_tags: Vec::new(),
-                sensitive_data_access: false,
-                duration: Some(Duration::from_millis(100)),
-            }
+        .prop_map(|(action, principal, target, source_ip)| AuditEvent {
+            event_id: Uuid::new_v4(),
+            timestamp: Utc::now(),
+            severity: AuditSeverity::Info,
+            category: AuditCategory::DataAccess,
+            source: "test_service".to_string(),
+            principal,
+            target,
+            action,
+            result: AuditResult::Success,
+            context: HashMap::new(),
+            source_ip,
+            user_agent: None,
+            session_id: Some("session_123".to_string()),
+            correlation_id: Some("corr_123".to_string()),
+            geo_location: None,
+            risk_score: None,
+            compliance_tags: Vec::new(),
+            sensitive_data_access: false,
+            duration: Some(Duration::from_millis(100)),
         })
 }
 
@@ -295,8 +291,10 @@ mod chain_integrity_tests {
         // Property 1: All entries should verify individually
         // This tests that HMAC and signature verification works
         for entry in &entries {
-            assert!(audit_system.verify_entry(entry).unwrap(),
-                "Each entry should verify successfully");
+            assert!(
+                audit_system.verify_entry(entry).unwrap(),
+                "Each entry should verify successfully"
+            );
         }
 
         // Property 2: Tampering with any entry should be detectable
@@ -305,14 +303,19 @@ mod chain_integrity_tests {
             tampered_entry.event.action = format!("tampered_{}", idx);
 
             // The tampered entry should fail verification
-            assert!(!audit_system.verify_entry(&tampered_entry).unwrap(),
-                "Tampered entry {} should fail verification", idx);
+            assert!(
+                !audit_system.verify_entry(&tampered_entry).unwrap(),
+                "Tampered entry {} should fail verification",
+                idx
+            );
         }
 
         // Property 3: Sequence numbers should be monotonically increasing
         for i in 1..entries.len() {
-            assert!(entries[i].sequence_number > entries[i-1].sequence_number,
-                "Sequence numbers should be monotonically increasing");
+            assert!(
+                entries[i].sequence_number > entries[i - 1].sequence_number,
+                "Sequence numbers should be monotonically increasing"
+            );
         }
     }
 }
@@ -323,7 +326,7 @@ mod audit_edge_cases {
 
     #[tokio::test]
     async fn test_empty_audit_log() {
-        let (audit_system, storage) = setup_test_audit_system().await;
+        let (_audit_system, storage) = setup_test_audit_system().await;
 
         // No events logged yet
         let entries = storage.get_entries();
@@ -423,8 +426,6 @@ mod audit_edge_cases {
     }
 }
 
-
-
 // **Feature: secreton-comprehensive-enhancement, Property 29: Audit Query Filtering**
 // **Validates: Requirements 12.3**
 //
@@ -440,7 +441,7 @@ proptest! {
     ) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let (audit_system, storage) = setup_test_audit_system().await;
+            let (audit_system, _storage) = setup_test_audit_system().await;
 
             // Log multiple events with different actors and actions
             let mut expected_event_ids = Vec::new();
@@ -451,9 +452,9 @@ proptest! {
                     severity: AuditSeverity::Info,
                     category: AuditCategory::DataAccess,
                     source: "test_service".to_string(),
-                    principal: Some(if i < 2 { actor.clone() } else { format!("other_user_{}", i) }),
+                    principal: Some(if i < 2  { actor.clone() } else { format!("other_user_{}", i) }),
                     target: Some(format!("secret/test{}", i)),
-                    action: if i < 2 { action.clone() } else { format!("other_action_{}", i) },
+                    action: if i < 2  { action.clone() } else { format!("other_action_{}", i) },
                     result: AuditResult::Success,
                     context: HashMap::new(),
                     source_ip: Some("127.0.0.1".to_string()),

@@ -293,7 +293,7 @@ impl SshEngine {
             && !role.allowed_users.contains(&username.to_string())
         {
             return Err(SshError::InvalidConfig(format!(
-                "User {} not allowed for role {}",
+                "User { not allowed for role {}",
                 username, role_name
             )));
         }
@@ -325,7 +325,7 @@ impl SshEngine {
                 self.generate_certificate_credentials(&role, username, ip, now, expires_at)
                     .await?
             }
-        };
+        ;
 
         // Store credentials
         let mut creds_store = self.credentials.write().await;
@@ -423,7 +423,7 @@ impl SshEngine {
         let cas = self.cas.read().await;
         let ca = cas
             .get(ca_name)
-            .ok_or_else(|| SshError::InvalidConfig(format!("CA {} not found", ca_name)))?
+            .ok_or_else(|| SshError::InvalidConfig(format!("CA { not found", ca_name)))?
             .clone();
         drop(cas);
 
@@ -462,7 +462,7 @@ impl SshEngine {
         let key_id = Uuid::new_v4().to_string();
 
         let public_key = format!(
-            "ssh-{} AAAAB3NzaC1{}... secreton-{}",
+            "ssh-{ AAAAB3NzaC1{}... secreton-{}",
             key_type.as_str(),
             key_type.as_str(),
             &key_id[..8]
@@ -558,7 +558,7 @@ impl SshEngine {
         let cas = self.cas.read().await;
         let ca = cas
             .get(ca_name)
-            .ok_or_else(|| SshError::InvalidConfig(format!("CA {} not found", ca_name)))?;
+            .ok_or_else(|| SshError::InvalidConfig(format!("CA { not found", ca_name)))?;
         Ok(ca.public_key.clone())
     }
 

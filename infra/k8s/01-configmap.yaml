@@ -1,258 +1,86 @@
-# SIMPelv2 ConfigMaps
-# Configuration data for all services
+# SIMPelv2 ConfigMap - OPTIMIZED & SECURITY FIXED
+# REMOVED: AUTHENC_HTTP_URL and SECRETON_HTTP_URL (architecture violation)
+# Frontend TIDAK BOLEH akses Authenc/Secreton langsung!
 
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    name: simpelv2-config
-    namespace: simpelv2
-    labels:
-        app.kubernetes.io/name: simpelv2
-        app.kubernetes.io/component: config
+  name: simpelv2-config
+  namespace: simpelv2
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: config
 data:
-    # Global configuration
-    RUST_LOG: "info"
-    NODE_ENV: "production"
+  # Global configuration
+  RUST_LOG: "info"
+  NODE_ENV: "production"
 
-    # Database configuration
-    POSTGRES_DB: "simpelv2_prod"
-    POSTGRES_HOST: "postgres-service.simpelv2-infra.svc.cluster.local"
-    POSTGRES_PORT: "5432"
+  # Database configuration (untuk backend services only)
+  POSTGRES_DB: "simpelv2_prod"
+  POSTGRES_HOST: "postgres-service.simpelv2-infra.svc.cluster.local"
+  POSTGRES_PORT: "5432"
 
-    # Redis configuration
-    REDIS_HOST: "redis-service.simpelv2-infra.svc.cluster.local"
-    REDIS_PORT: "6379"
+  # Redis configuration (untuk backend services only)
+  REDIS_HOST: "redis-service.simpelv2-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
 
-    # Service URLs (HTTP for frontend, gRPC for backend)
-    AUTHENC_HTTP_URL: "http://authenc-service.simpelv2-infra.svc.cluster.local:8088"
-    AUTHENC_GRPC_URL: "https://authenc-service.simpelv2-infra.svc.cluster.local:9090"
-    SECRETON_HTTP_URL: "http://secreton-service.simpelv2-infra.svc.cluster.local:8200"
-    SECRETON_GRPC_URL: "https://secreton-service.simpelv2-infra.svc.cluster.local:9200"
-    GERBANG_HTTP_URL: "http://gerbang-service.simpelv2-backend.svc.cluster.local:8080"
-    GERBANG_GRPC_URL: "https://gerbang-service.simpelv2-backend.svc.cluster.local:9080"
+  # Service URLs for BACKEND (gRPC communication)
+  # Service URLs for BACKEND (gRPC communication)
+  AUTHENC_GRPC_URL: "https://authenc-service.simpelv2-infra.svc.cluster.local:9090"
+  SECRETON_GRPC_URL: "https://secreton-service.simpelv2-infra.svc.cluster.local:9200"
 
-    # Frontend URLs
-    PORTAL_BASE_URL: "https://simpel.kejaksaan.go.id"
-    PERLENGKAPAN_PATH: "/pembinaan/perlengkapan"
-    MODULE_FEDERATION_URL: "https://simpel.kejaksaan.go.id/module-federation.json"
+  # Frontend URLs
+  # GERBANG removed - using direct service access or Istio Gateway
+  BACKEND_API_URL: "http://layanan-daskrimti-portal.simpelv2-backend.svc.cluster.local:3010"
+  PORTAL_BASE_URL: "https://simpel.kejaksaan.go.id"
+  MODULE_FEDERATION_URL: "https://simpel.kejaksaan.go.id/module-federation.json"
 
-    # Authentication Configuration
-    JWT_ISSUER: "https://simpel.kejaksaan.go.id/auth"
-    JWT_AUDIENCE: "simpelv2-frontend,simpelv2-api"
-    SESSION_TIMEOUT: "28800"
+  # Development URLs (untuk testing via IP)
+  PORTAL_DEV_URL: "http://10.1.7.121"
 
-    # Service Mesh Configuration
-    ISTIO_ENABLED: "true"
-    MTLS_MODE: "STRICT"
-    GRPC_ONLY: "true"
+  # Authentication Configuration
+  JWT_ISSUER: "https://simpel.kejaksaan.go.id/auth"
+  JWT_AUDIENCE: "simpelv2-frontend,simpelv2-api"
+  SESSION_TIMEOUT: "28800" # 8 hours
 
-    # Monitoring
-    PROMETHEUS_URL: "http://prometheus-service.simpelv2-monitoring.svc.cluster.local:9090"
-    GRAFANA_URL: "http://grafana-service.simpelv2-monitoring.svc.cluster.local:3000"
+  # Service Mesh Configuration
+  ISTIO_ENABLED: "true"
+  MTLS_MODE: "STRICT"
+  GRPC_ONLY_BACKEND: "true"
 
-    # Application settings
-    APP_NAME: "SIMPelv2"
-    APP_VERSION: "0.1.0"
-    APP_ENVIRONMENT: "production"
+  # Monitoring
+  PROMETHEUS_URL: "http://prometheus-service.simpelv2-monitoring.svc.cluster.local:9090"
+  GRAFANA_URL: "http://grafana-service.simpelv2-monitoring.svc.cluster.local:3000"
+
+  # Application settings
+  APP_NAME: "SIMPelv2"
+  APP_VERSION: "0.1.0"
+  APP_ENVIRONMENT: "production"
 
 ---
+# ConfigMap untuk backend services (gRPC clients)
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    name: nginx-config
-    namespace: simpelv2-infra
-    labels:
-        app.kubernetes.io/name: nginx
-        app.kubernetes.io/component: config
+  name: backend-config
+  namespace: simpelv2-backend
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: backend-config
 data:
-    nginx.conf: |
-        user nginx;
-        worker_processes auto;
-        error_log /var/log/nginx/error.log notice;
-        pid /var/run/nginx.pid;
+  # gRPC endpoints untuk backend-to-backend communication
+  AUTHENC_GRPC_URL: "http://authenc.simpelv2-infra.svc.cluster.local:9088"
+  SECRETON_GRPC_URL: "http://secreton.simpelv2-infra.svc.cluster.local:9000"
+  AUTHENC_GRPC_ENDPOINT: "authenc.simpelv2-infra.svc.cluster.local:9088"
+  SECRETON_GRPC_ENDPOINT: "secreton.simpelv2-infra.svc.cluster.local:9000"
 
-        events {
-            worker_connections 1024;
-            use epoll;
-            multi_accept on;
-        }
+  # Redis connection string
+  REDIS_URL: "redis://redis-service.simpelv2-infra.svc.cluster.local:6379"
 
-        http {
-            include /etc/nginx/mime.types;
-            default_type application/octet-stream;
+  # TLS Configuration
+  GRPC_TLS_ENABLED: "false"
+  GRPC_MTLS_ENABLED: "false"
 
-            # Logging
-            log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                            '$status $body_bytes_sent "$http_referer" '
-                            '"$http_user_agent" "$http_x_forwarded_for"';
-            access_log /var/log/nginx/access.log main;
-
-            # Performance
-            sendfile on;
-            tcp_nopush on;
-            tcp_nodelay on;
-            keepalive_timeout 65;
-            types_hash_max_size 2048;
-            client_max_body_size 100M;
-
-            # Gzip compression
-            gzip on;
-            gzip_vary on;
-            gzip_min_length 1024;
-            gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-
-            # Security headers
-            add_header X-Frame-Options DENY;
-            add_header X-Content-Type-Options nosniff;
-            add_header X-XSS-Protection "1; mode=block";
-            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-            # Upstream definitions
-            upstream portal {
-                server portal-service.simpelv2-frontend.svc.cluster.local:8080;
-            }
-
-            upstream gerbang {
-                server gerbang-service.simpelv2-backend.svc.cluster.local:8080;
-            }
-
-            upstream authenc {
-                server authenc-service.simpelv2-infra.svc.cluster.local:8088;
-            }
-
-            upstream secreton {
-                server secreton-service.simpelv2-infra.svc.cluster.local:8200;
-            }
-
-            # Main server block
-            server {
-                listen 80;
-                listen 443 ssl http2;
-                server_name simpelv2.kejaksaan.go.id;
-
-                # SSL configuration
-                ssl_certificate /etc/nginx/ssl/simpelv2.crt;
-                ssl_certificate_key /etc/nginx/ssl/simpelv2.key;
-                ssl_protocols TLSv1.2 TLSv1.3;
-                ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
-                ssl_prefer_server_ciphers off;
-
-                # Redirect HTTP to HTTPS
-                if ($scheme != "https") {
-                    return 301 https://$host$request_uri;
-                }
-
-                # Portal (main application)
-                location / {
-                    proxy_pass http://portal;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                # API Gateway
-                location /api/ {
-                    proxy_pass http://gerbang/;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                # Authentication service
-                location /auth/ {
-                    proxy_pass http://authenc/;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                # Secret management
-                location /vault/ {
-                    proxy_pass http://secreton/;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
-
-                # Health check
-                location /health {
-                    access_log off;
-                    return 200 "healthy\n";
-                    add_header Content-Type text/plain;
-                }
-            }
-        }
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-    name: postgres-init
-    namespace: simpelv2-infra
-    labels:
-        app.kubernetes.io/name: postgres
-        app.kubernetes.io/component: config
-data:
-    init.sql: |
-        -- SIMPelv2 Database Initialization
-
-        -- Create databases for each service
-        CREATE DATABASE simpelv2_authenc;
-        CREATE DATABASE simpelv2_secreton;
-        CREATE DATABASE simpelv2_portal;
-        CREATE DATABASE simpelv2_badiklat;
-        CREATE DATABASE simpelv2_datun;
-        CREATE DATABASE simpelv2_intel;
-        CREATE DATABASE simpelv2_pemulihan_aset;
-        CREATE DATABASE simpelv2_pengawasan;
-        CREATE DATABASE simpelv2_pidmil;
-        CREATE DATABASE simpelv2_pidsus;
-        CREATE DATABASE simpelv2_pidum;
-        CREATE DATABASE simpelv2_keuangan;
-        CREATE DATABASE simpelv2_perencanaan;
-        CREATE DATABASE simpelv2_perlengkapan;
-
-        -- Create shared service databases
-        CREATE DATABASE simpelv2_ai;
-        CREATE DATABASE simpelv2_bantuan;
-        CREATE DATABASE simpelv2_dasbor;
-        CREATE DATABASE simpelv2_dokumen;
-        CREATE DATABASE simpelv2_integrasi;
-        CREATE DATABASE simpelv2_konfigurasi;
-        CREATE DATABASE simpelv2_laporan;
-        CREATE DATABASE simpelv2_notifikasi;
-
-        -- Create service users
-        CREATE USER simpelv2_authenc WITH PASSWORD 'authenc_secure_password';
-        CREATE USER simpelv2_secreton WITH PASSWORD 'secreton_secure_password';
-        CREATE USER simpelv2_services WITH PASSWORD 'services_secure_password';
-
-        -- Grant permissions
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_authenc TO simpelv2_authenc;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_secreton TO simpelv2_secreton;
-
-        -- Grant permissions to services user for all service databases
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_portal TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_badiklat TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_datun TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_intel TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_pemulihan_aset TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_pengawasan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_pidmil TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_pidsus TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_pidum TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_keuangan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_perencanaan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_perlengkapan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_ai TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_bantuan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_dasbor TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_dokumen TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_integrasi TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_konfigurasi TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_laporan TO simpelv2_services;
-        GRANT ALL PRIVILEGES ON DATABASE simpelv2_notifikasi TO simpelv2_services;
+  # Service discovery
+  SERVICE_MESH: "istio"
+  MTLS_MODE: "PERMISSIVE"

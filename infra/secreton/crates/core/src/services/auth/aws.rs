@@ -431,7 +431,7 @@ impl AwsAuth {
     ///
     /// Currently returns mock identity for development/testing
     /// TODO: Integrate with AWS PKCS7 verification and EC2 API
-    async fn verify_ec2_identity(&self, pkcs7: &str) -> Result<Ec2InstanceIdentity, AwsError> {
+    async fn verify_ec2_identity(&self, _pkcs7: &str) -> Result<Ec2InstanceIdentity, AwsError> {
         // In production, this would:
         // 1. Decode PKCS7 signature
         // 2. Verify signature against AWS public certificate

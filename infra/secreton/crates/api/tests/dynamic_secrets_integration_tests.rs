@@ -14,7 +14,7 @@
 //! - Audit logging
 //! - Error handling
 
-use secreton_api::{handlers::dynamic::*, services::ServiceContainer};
+use secreton_api::handlers::dynamic::{services::ServiceContainer, *};
 use secreton_core::services::secrets::database::{DatabaseConnection, DatabaseRole, DatabaseType};
 use secreton_storage::MemoryBackend;
 use std::sync::Arc;
@@ -68,7 +68,7 @@ async fn test_create_database_role() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             "GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{username}}".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
@@ -101,7 +101,7 @@ async fn test_role_validation_empty_name() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
@@ -156,7 +156,7 @@ async fn test_role_validation_nonexistent_database() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
@@ -247,13 +247,13 @@ async fn test_sql_injection_detection() {
 
     // Test safe SQL patterns
     assert!(!contains_dangerous_sql(
-        "CREATE USER {{username}} WITH PASSWORD '{{password}}'"
+        "CREATE USER {{username} WITH PASSWORD '{{password}}'"
     ));
     assert!(!contains_dangerous_sql(
         "GRANT SELECT ON database.* TO {{username}}"
     ));
     assert!(!contains_dangerous_sql(
-        "ALTER USER {{username}} WITH PASSWORD '{{password}}'"
+        "ALTER USER {{username} WITH PASSWORD '{{password}}'"
     ));
 }
 
@@ -277,7 +277,7 @@ async fn test_ttl_validation() {
         default_ttl: 3600,
         max_ttl: 7200,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
@@ -359,7 +359,7 @@ async fn test_credential_lifecycle() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],
@@ -446,7 +446,7 @@ async fn test_concurrent_credential_generation() {
         default_ttl: 3600,
         max_ttl: 86400,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         rotation_statements: vec![],

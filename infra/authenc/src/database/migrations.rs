@@ -38,10 +38,15 @@ impl MigrationRunner {
 
     /// Create the schema_migrations tracking table if it doesn't exist
     async fn ensure_migrations_table(&self) -> Result<()> {
-        let client = self.pool.get().await.context("Failed to get database connection")?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get database connection")?;
 
-        client.execute(
-            r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version INTEGER PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -49,8 +54,10 @@ impl MigrationRunner {
                 checksum VARCHAR(64)
             )
             "#,
-            &[],
-        ).await.context("Failed to create schema_migrations table")?;
+                &[],
+            )
+            .await
+            .context("Failed to create schema_migrations table")?;
 
         info!("✅ Migration tracking table ensured");
         Ok(())
@@ -58,12 +65,19 @@ impl MigrationRunner {
 
     /// Get list of applied migration versions
     async fn get_applied_versions(&self) -> Result<Vec<i32>> {
-        let client = self.pool.get().await.context("Failed to get database connection")?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get database connection")?;
 
-        let rows = client.query(
-            "SELECT version FROM schema_migrations ORDER BY version",
-            &[],
-        ).await.context("Failed to query applied migrations")?;
+        let rows = client
+            .query(
+                "SELECT version FROM schema_migrations ORDER BY version",
+                &[],
+            )
+            .await
+            .context("Failed to query applied migrations")?;
 
         let versions: Vec<i32> = rows.iter().map(|row| row.get("version")).collect();
         Ok(versions)
@@ -71,7 +85,11 @@ impl MigrationRunner {
 
     /// Record a migration as applied
     async fn record_migration(&self, migration: &Migration, checksum: &str) -> Result<()> {
-        let client = self.pool.get().await.context("Failed to get database connection")?;
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get database connection")?;
 
         client.execute(
             "INSERT INTO schema_migrations (version, name, checksum) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING",
@@ -99,9 +117,7 @@ impl MigrationRunner {
             let path = entry.path();
 
             if path.extension().map_or(false, |ext| ext == "sql") {
-                let filename = path.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("");
+                let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
                 // Parse version from filename (supports both "008_name.sql" and "V009__name.sql" formats)
                 let version = if filename.starts_with('V') {
@@ -175,16 +191,26 @@ impl MigrationRunner {
                 continue;
             }
 
-            info!("⏳ Applying migration {} - {}...", migration.version, migration.name);
+            info!(
+                "⏳ Applying migration {} - {}...",
+                migration.version, migration.name
+            );
 
-            let client = self.pool.get().await.context("Failed to get database connection")?;
+            let client = self
+                .pool
+                .get()
+                .await
+                .context("Failed to get database connection")?;
 
             // Execute migration in a transaction
             match client.batch_execute(&migration.sql).await {
                 Ok(()) => {
                     let checksum = Self::calculate_checksum(&migration.sql);
                     self.record_migration(&migration, &checksum).await?;
-                    info!("✅ Applied migration {} - {}", migration.version, migration.name);
+                    info!(
+                        "✅ Applied migration {} - {}",
+                        migration.version, migration.name
+                    );
                     applied_count += 1;
                 }
                 Err(e) => {
@@ -206,11 +232,17 @@ impl MigrationRunner {
         };
 
         if result.errors.is_empty() {
-            info!("✅ Database migrations completed: {} applied, {} skipped",
-                  result.applied, result.skipped);
+            info!(
+                "✅ Database migrations completed: {} applied, {} skipped",
+                result.applied, result.skipped
+            );
         } else {
-            warn!("⚠️ Database migrations completed with errors: {} applied, {} skipped, {} errors",
-                  result.applied, result.skipped, result.errors.len());
+            warn!(
+                "⚠️ Database migrations completed with errors: {} applied, {} skipped, {} errors",
+                result.applied,
+                result.skipped,
+                result.errors.len()
+            );
         }
 
         Ok(result)
@@ -244,11 +276,7 @@ impl MigrationResult {
 /// - 008_*.sql onwards (incremental migrations)
 pub async fn run_migrations(pool: Pool) -> Result<MigrationResult> {
     // Try multiple possible paths for migrations directory
-    let migrations_paths = [
-        "migrations",
-        "/app/migrations",
-        "./migrations",
-    ];
+    let migrations_paths = ["migrations", "/app/migrations", "./migrations"];
 
     let mut migrations_dir = "migrations".to_string();
     for path in &migrations_paths {
@@ -274,7 +302,10 @@ pub async fn run_migrations_with_schema(pool: Pool) -> Result<MigrationResult> {
 
 /// Check migration status
 pub async fn check_migration_status(pool: Pool) -> Result<MigrationStatus> {
-    let client = pool.get().await.context("Failed to get database connection")?;
+    let client = pool
+        .get()
+        .await
+        .context("Failed to get database connection")?;
 
     // Check if migrations table exists
     let table_exists = client

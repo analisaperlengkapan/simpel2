@@ -1,8 +1,10 @@
-use secreton_core::audit::{AuditLog, AuditLogger, AuditQuery, AuditStatus, MemoryBackend, AuditBackend};
+use chrono::Utc;
+use secreton_core::audit::{
+    AuditBackend, AuditLog, AuditLogger, AuditQuery, AuditStatus, MemoryBackend,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
 #[tokio::test]
 async fn test_audit_query_filtering() {
@@ -59,41 +61,41 @@ async fn test_audit_query_filtering() {
 
     // Test 1: Filter by action
     let query = AuditQuery::new().action("login");
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 2);
     assert!(results.iter().all(|l| l.action == "login"));
 
     // Test 2: Filter by actor
     let query = AuditQuery::new().actor("user1");
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 2);
     assert!(results.iter().all(|l| l.actor.as_deref() == Some("user1")));
 
     // Test 3: Filter by status
     let query = AuditQuery::new().status(AuditStatus::Failure);
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].action, "read_secret");
 
     // Test 4: Filter by time (last 1.5 hours)
     let cutoff = Utc::now() - chrono::Duration::minutes(90);
     let query = AuditQuery::new().start_time(Some(cutoff));
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     // Should match log2 (1h ago) and log3 (now). log1 is 2h ago.
     assert_eq!(results.len(), 2);
 
     // Test 5: Pagination
     let query = AuditQuery::new().limit(Some(1)).offset(Some(0));
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 1);
 
     let query = AuditQuery::new().limit(Some(1)).offset(Some(1));
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 1);
 
     // Test 6: Namespace
     let query = AuditQuery::new().namespace("dev");
-    let results = logger.query(query).await.unwrap();
+    let results = logger.query(&query).await.unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].actor.as_deref(), Some("user2"));
 }

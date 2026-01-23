@@ -1,6 +1,6 @@
 //! File System Storage Backend
 //!
-//! Implements HashiCorp Vault-compatible file system storage backend.
+//! Implements HashiCorp Engine-compatible file system storage backend.
 //! This is the simplest backend and suitable for:
 //!
 //! - **Development**: Local development and testing

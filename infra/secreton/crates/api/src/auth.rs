@@ -126,7 +126,7 @@ impl JwtAuthConfig {
     ///
     /// # Optional Environment Variables
     /// - `SECRETON_JWT_EXPIRATION_HOURS`: Token expiration (default: 24)
-    /// - `SECRETON_JWT_ISSUER`: JWT issuer (default: "secreton-vault")
+    /// - `SECRETON_JWT_ISSUER`: JWT issuer (default: "secreton-engine")
     /// - `SECRETON_JWT_AUDIENCE`: JWT audience (default: "secreton-api")
     /// - `SECRETON_REQUIRE_AUTH`: Enable authentication (default: true)
     pub fn from_env() -> Result<Self, AuthError> {
@@ -144,7 +144,7 @@ impl JwtAuthConfig {
             .unwrap_or(24);
 
         let issuer =
-            std::env::var("SECRETON_JWT_ISSUER").unwrap_or_else(|_| "secreton-vault".to_string());
+            std::env::var("SECRETON_JWT_ISSUER").unwrap_or_else(|_| "secreton-engine".to_string());
 
         let audience =
             std::env::var("SECRETON_JWT_AUDIENCE").unwrap_or_else(|_| "secreton-api".to_string());
@@ -157,7 +157,7 @@ impl JwtAuthConfig {
         let admin_roles = std::env::var("SECRETON_ADMIN_ROLES")
             .ok()
             .map(|s| s.split(',').map(|r| r.trim().to_string()).collect())
-            .unwrap_or_else(|| vec!["admin".to_string(), "vault-admin".to_string()]);
+            .unwrap_or_else(|| vec!["admin".to_string(), "engine-admin".to_string()]);
 
         Self::new(
             jwt_secret,
@@ -184,10 +184,10 @@ impl Default for JwtAuthConfig {
             // Weak secret - only for testing
             jwt_secret: "test-secret-minimum-32-characters-long-for-security".to_string(),
             jwt_expiration_hours: 24,
-            issuer: "secreton-vault-test".to_string(),
+            issuer: "secreton-engine-test".to_string(),
             audience: "secreton-api-test".to_string(),
             require_auth: true,
-            admin_roles: vec!["admin".to_string(), "vault-admin".to_string()],
+            admin_roles: vec!["admin".to_string(), "engine-admin".to_string()],
         }
     }
 }
@@ -196,7 +196,7 @@ impl Default for JwtAuthConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UserRole {
     Admin,
-    VaultAdmin,
+    EngineAdmin,
     KeyManager,
     CryptoUser,
     ReadOnly,
@@ -206,7 +206,7 @@ impl UserRole {
     pub fn as_string(&self) -> String {
         match self {
             UserRole::Admin => "admin".to_string(),
-            UserRole::VaultAdmin => "vault-admin".to_string(),
+            UserRole::EngineAdmin => "engine-admin".to_string(),
             UserRole::KeyManager => "key-manager".to_string(),
             UserRole::CryptoUser => "crypto-user".to_string(),
             UserRole::ReadOnly => "read-only".to_string(),
@@ -216,7 +216,7 @@ impl UserRole {
     pub fn from_string(s: &str) -> Option<Self> {
         match s {
             "admin" => Some(UserRole::Admin),
-            "vault-admin" => Some(UserRole::VaultAdmin),
+            "engine-admin" => Some(UserRole::EngineAdmin),
             "key-manager" => Some(UserRole::KeyManager),
             "crypto-user" => Some(UserRole::CryptoUser),
             "read-only" => Some(UserRole::ReadOnly),
@@ -387,7 +387,7 @@ impl JwtService {
                         Permission::AccessAuditLogs.as_string(),
                     ]);
                 }
-                Some(UserRole::VaultAdmin) => {
+                Some(UserRole::EngineAdmin) => {
                     permissions.extend(vec![
                         Permission::CreateKey.as_string(),
                         Permission::RotateKey.as_string(),
@@ -525,7 +525,11 @@ mod tests {
         assert_eq!(token_data.claims.email, "test@example.com");
         assert!(token_data.claims.roles.contains(&"crypto-user".to_string()));
         assert_eq!(
-            token_data.claims.metadata.get("mfa_passed").map(|v| v.as_str()),
+            token_data
+                .claims
+                .metadata
+                .get("mfa_passed")
+                .map(|v| v.as_str()),
             Some("true")
         );
     }
@@ -546,7 +550,7 @@ mod tests {
             ],
             exp: (Utc::now() + Duration::hours(24)).timestamp() as usize,
             iat: Utc::now().timestamp() as usize,
-            iss: "secreton-vault".to_string(),
+            iss: "secreton-engine".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
             metadata: std::collections::HashMap::new(),
@@ -570,7 +574,7 @@ mod tests {
             permissions: vec![],
             exp: (Utc::now() + Duration::hours(24)).timestamp() as usize,
             iat: Utc::now().timestamp() as usize,
-            iss: "secreton-vault".to_string(),
+            iss: "secreton-engine".to_string(),
             aud: "secreton-api".to_string(),
             jti: Uuid::new_v4().to_string(),
             metadata: std::collections::HashMap::new(),
@@ -587,10 +591,10 @@ mod tests {
 
         let token = jwt_service
             .generate_token(
-                "vault-admin",
-                "Vault Admin",
-                "vault.admin@example.com",
-                vec!["vault-admin".to_string()],
+                "engine-admin",
+                "Engine Admin",
+                "engine.admin@example.com",
+                vec!["engine-admin".to_string()],
                 None,
             )
             .expect("token generation");

@@ -3,7 +3,7 @@
 //! Implements the state machine for Secreton's distributed storage using OpenRaft.
 
 use super::types::{LogId, NodeId, SecretonTypeConfig};
-use crate::VaultEntry;
+use crate::SecretEntry;
 use openraft::storage::RaftSnapshotBuilder;
 use openraft::{BasicNode, SnapshotMeta, StorageError};
 use serde::{Deserialize, Serialize};
@@ -13,23 +13,23 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// Commands that can be applied to the state machine
-#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StateMachineCommand {
-    /// Store a new vault entry
-    Store(VaultEntry),
+    /// Store a new engine entry
+    Store(SecretEntry),
 
-    /// Update an existing vault entry
-    Update(VaultEntry),
+    /// Update an existing engine entry
+    Update(SecretEntry),
 
-    /// Delete a vault entry by ID
+    /// Delete a engine entry by ID
     Delete(Uuid),
 
-    /// Delete a vault entry by path
+    /// Delete a engine entry by path
     DeleteByPath(String),
 }
 
 /// Response from state machine operations
-#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StateMachineResponse {
     /// Operation succeeded
     Success,
@@ -48,7 +48,7 @@ pub enum StateMachineResponse {
 }
 
 /// Snapshot of the state machine
-#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateMachineSnapshot {
     /// Last applied log index
     pub last_applied_log: Option<LogId>,
@@ -56,8 +56,8 @@ pub struct StateMachineSnapshot {
     /// Last membership configuration
     pub last_membership: openraft::StoredMembership<NodeId, BasicNode>,
 
-    /// All vault entries
-    pub entries: HashMap<String, VaultEntry>,
+    /// All engine entries
+    pub entries: HashMap<String, SecretEntry>,
 
     /// ID to path index
     pub id_index: HashMap<Uuid, String>,
@@ -71,8 +71,8 @@ pub struct SecretonStateMachine {
     /// Last membership configuration
     pub last_membership: Arc<RwLock<openraft::StoredMembership<NodeId, BasicNode>>>,
 
-    /// Vault entries storage (path -> entry)
-    pub data: Arc<RwLock<HashMap<String, VaultEntry>>>,
+    /// Engine entries storage (path -> entry)
+    pub data: Arc<RwLock<HashMap<String, SecretEntry>>>,
 
     /// ID to path index
     pub id_index: Arc<RwLock<HashMap<Uuid, String>>>,

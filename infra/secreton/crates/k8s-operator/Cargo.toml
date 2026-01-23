@@ -30,7 +30,7 @@ schemars.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 
 # CLI
-clap.workspace = true
+clap = { workspace = true, features = ["derive", "env"] }
 
 # Internal crates
 secreton-types = { path = "../types" }

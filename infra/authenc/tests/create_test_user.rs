@@ -19,7 +19,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Database::new(&database_config).await?;

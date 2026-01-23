@@ -59,8 +59,25 @@ impl SecretService {
         })
     }
 
+    /// Create new secret service (mock)
+    pub fn new_mock(
+        storage: Arc<dyn StorageBackend + Send + Sync>,
+        crypto: Arc<CryptoEngine>,
+        audit: Arc<AuditLogger>,
+    ) -> Self {
+        Self {
+            storage,
+            crypto,
+            audit,
+        }
+    }
+
     /// Get secret by path
-    pub async fn get_secret(&self, path: &str, user_id: &str) -> Result<SecretData, SecretServiceError> {
+    pub async fn get_secret(
+        &self,
+        path: &str,
+        user_id: &str,
+    ) -> Result<SecretData, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -80,21 +97,20 @@ impl SecretService {
             .await;
 
         // Get secret from storage
-        let entry =
-            self.storage
-                .get_by_path(path)
-                .await?
-                .ok_or_else(|| SecretServiceError::SecretNotFound {
-                    path: path.to_string(),
-                })?;
+        let entry = self.storage.get_by_path(path).await?.ok_or_else(|| {
+            SecretServiceError::SecretNotFound {
+                path: path.to_string(),
+            }
+        })?;
 
         // Decrypt data
-        let decrypted_data = serde_json::from_slice(&entry.encrypted_data)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+        let decrypted_data = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e))
+        })?;
 
         // Extract metadata
-        let metadata: SecretMetadata = serde_json::from_value(entry.metadata.clone())
-            .unwrap_or_default();
+        let metadata: SecretMetadata =
+            serde_json::from_value(entry.metadata.clone()).unwrap_or_default();
 
         Ok(SecretData {
             path: path.to_string(),
@@ -135,8 +151,9 @@ impl SecretService {
             .await;
 
         // Serialize data
-        let serialized = serde_json::to_vec(&data)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+        let serialized = serde_json::to_vec(&data).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e))
+        })?;
 
         // Get current version or start at 1
         let version = match self.storage.get_by_path(path).await? {
@@ -146,7 +163,7 @@ impl SecretService {
 
         let now = chrono::Utc::now();
 
-        // Create vault entry
+        // Create engine entry
         let mut entry = secreton_storage::SecretEntry::new(
             path.to_string(),
             serialized,
@@ -284,8 +301,9 @@ impl SecretService {
         };
 
         // Serialize and store key metadata
-        let metadata = serde_json::to_vec(&key_info)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+        let metadata = serde_json::to_vec(&key_info).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e))
+        })?;
 
         let entry = secreton_storage::SecretEntry::new(
             format!("keys/{}", key_name),
@@ -334,8 +352,9 @@ impl SecretService {
                 .encrypt(AlgorithmId::Aes256Gcm, plaintext.as_bytes(), &key)?;
 
         // Serialize encrypted data to JSON then base64
-        let json_data = serde_json::to_vec(&encrypted_data)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+        let json_data = serde_json::to_vec(&encrypted_data).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e))
+        })?;
         let ciphertext = crate::utils::encoding::base64_encode(&json_data);
 
         Ok(EncryptResult {
@@ -370,26 +389,34 @@ impl SecretService {
             .await;
 
         // Decode base64
-        let json_bytes = crate::utils::encoding::base64_decode(ciphertext)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
+        let json_bytes = crate::utils::encoding::base64_decode(ciphertext).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e))
+        })?;
 
         // Deserialize encrypted data
         let encrypted_data: secreton_crypto::EncryptedData = serde_json::from_slice(&json_bytes)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            .map_err(|e| {
+                SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e))
+            })?;
 
         // Get decryption key (in production, retrieve from key storage)
         let key = secreton_crypto::generate_key(AlgorithmId::Aes256Gcm)?;
 
         // Decrypt using crypto service
         let plaintext_bytes = self.crypto.decrypt(&encrypted_data, &key)?;
-        let plaintext = String::from_utf8(plaintext_bytes)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("UTF-8 decode failed: {}", e)))?;
+        let plaintext = String::from_utf8(plaintext_bytes).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("UTF-8 decode failed: {}", e))
+        })?;
 
         Ok(DecryptResult { plaintext })
     }
 
     /// Get key by ID or name
-    pub async fn get_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, SecretServiceError> {
+    pub async fn get_key(
+        &self,
+        key_id: &str,
+        user_id: &str,
+    ) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -418,8 +445,9 @@ impl SecretService {
             })?;
 
         // Deserialize key metadata
-        let key_info: KeyInfo = serde_json::from_slice(&entry.encrypted_data)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+        let key_info: KeyInfo = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Deserialization failed: {}", e))
+        })?;
 
         Ok(key_info)
     }
@@ -470,7 +498,11 @@ impl SecretService {
     }
 
     /// Rotate key (create new version)
-    pub async fn rotate_key(&self, key_id: &str, user_id: &str) -> Result<KeyInfo, SecretServiceError> {
+    pub async fn rotate_key(
+        &self,
+        key_id: &str,
+        user_id: &str,
+    ) -> Result<KeyInfo, SecretServiceError> {
         // Log audit trail
         let _ = self
             .audit
@@ -496,8 +528,9 @@ impl SecretService {
         key_info.version += 1;
 
         // Store updated key metadata
-        let metadata = serde_json::to_vec(&key_info)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e)))?;
+        let metadata = serde_json::to_vec(&key_info).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Serialization failed: {}", e))
+        })?;
 
         let mut entry = secreton_storage::SecretEntry::new(
             format!("keys/{}", key_id),
@@ -606,8 +639,9 @@ impl SecretService {
             .await;
 
         // Decode signature
-        let signature_bytes = crate::utils::encoding::base64_decode(signature)
-            .map_err(|e| SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e)))?;
+        let signature_bytes = crate::utils::encoding::base64_decode(signature).map_err(|e| {
+            SecretServiceError::Internal(anyhow::anyhow!("Base64 decode failed: {}", e))
+        })?;
 
         // Compute hash and compare (simplified implementation)
         let hash = secreton_crypto::hashing::compute_hash(AlgorithmId::Sha256, data.as_bytes())?;
@@ -732,9 +766,9 @@ pub struct HashResult {
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
+    use crate::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
     use crate::config::api::AuthConfig;
     use crate::services::auth_service::AuthService;
-    use crate::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
     use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 
@@ -843,19 +877,5 @@ mod tests {
         let result = result.unwrap();
         assert!(!result.ciphertext.is_empty());
         assert_eq!(result.key_version, 1);
-    }
-}
-
-impl VaultService {
-    /// Create mock vault service for testing
-    pub fn new_mock(
-        storage: Arc<dyn StorageBackend + Send + Sync>,
-        crypto: Arc<CryptoEngine>,
-    ) -> Self {
-        Self {
-            storage,
-            crypto,
-            audit: Arc::new(AuditLogger::new(vec![])),
-        }
     }
 }

@@ -652,12 +652,12 @@ impl PerformanceProfiler {
             }
         }
 
-        if let (Some(total), Some(available)) = (mem_total, mem_available)
-            && total > 0
-        {
-            let used = total.saturating_sub(available);
-            let usage = (used as f64 / total as f64) * 100.0;
-            return usage.max(0.0).min(100.0);
+        if let (Some(total), Some(available)) = (mem_total, mem_available) {
+            if total > 0 {
+                let used = total.saturating_sub(available);
+                let usage = (used as f64 / total as f64) * 100.0;
+                return usage.max(0.0).min(100.0);
+            }
         }
 
         0.0

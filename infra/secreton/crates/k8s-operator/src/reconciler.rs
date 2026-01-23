@@ -3,7 +3,7 @@
 //! This module contains the core reconciliation logic that can be tested
 //! independently of the Kubernetes controller runtime.
 
-use crate::{Error, Result, SecretSync};
+use crate::{Error, Result};
 use std::collections::HashMap;
 
 /// Reconciler for SecretSync resources

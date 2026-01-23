@@ -5,7 +5,7 @@
 
 use proptest::prelude::*;
 use secreton_api::handlers::crypto::{
-    compute_hmac_with_algorithm, format_output, HmacAlgorithm, OutputFormat,
+    HmacAlgorithm, OutputFormat, compute_hmac_with_algorithm, format_output,
 };
 
 // **Feature: secreton-comprehensive-enhancement, Property 8: HMAC Consistency**

@@ -16,7 +16,7 @@ Secreton supports multiple HSM providers:
 
 1. **PKCS#11** - Standard interface for hardware HSMs (Thales, Gemalto, SafeNet, etc.)
 2. **AWS KMS** - Amazon Web Services Key Management Service (planned)
-3. **Azure Key Vault** - Microsoft Azure Key Vault (planned)
+3. **Azure Key Secret Vault** - Microsoft Azure Key Secret Vault (planned)
 4. **GCP KMS** - Google Cloud Platform Key Management Service (planned)
 
 ## Prerequisites
@@ -138,7 +138,7 @@ Edit `config/secreton.production.toml`:
 enabled = true
 
 # HSM provider type
-provider = "pkcs11"  # Options: pkcs11, aws-kms, azure-keyvault, gcp-kms
+provider = "pkcs11"  # Options: pkcs11, aws-kms, azure-keyengine, gcp-kms
 
 # PKCS#11 configuration
 pkcs11_library_path = "/usr/lib/softhsm/libsofthsm2.so"  # Adjust for your system
@@ -272,7 +272,7 @@ curl http://localhost:8200/health/detailed
 ### 1. PIN Management
 
 - **Never hardcode PINs** in configuration files
-- Use **environment variables** or **secrets management** (Vault, AWS Secrets Manager)
+- Use **environment variables** or **secrets management** (Secret Vault, AWS Secrets Manager)
 - Rotate PINs regularly according to security policy
 - Use different PINs for different environments
 

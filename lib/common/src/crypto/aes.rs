@@ -15,13 +15,10 @@
 //! assert_eq!(plaintext.to_vec(), decrypted);
 //! ```
 
-use aes_gcm::{
-    Aes256Gcm, KeyInit, Nonce,
-    aead::Aead,
-};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use chacha20poly1305::ChaCha20Poly1305;
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -110,8 +107,8 @@ pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<EncryptedData> {
         return Err(EncryptionError::InvalidKeyLength(key.len()));
     }
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| EncryptionError::InvalidKeyLength(key.len()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|_| EncryptionError::InvalidKeyLength(key.len()))?;
 
     let nonce_bytes = generate_nonce();
     let nonce = Nonce::from_slice(&nonce_bytes);
@@ -146,8 +143,8 @@ pub fn aes_gcm_decrypt(key: &[u8], encrypted: &EncryptedData) -> Result<Vec<u8>>
         return Err(EncryptionError::AlgorithmMismatch);
     }
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|_| EncryptionError::InvalidKeyLength(key.len()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|_| EncryptionError::InvalidKeyLength(key.len()))?;
 
     let nonce = Nonce::from_slice(&encrypted.nonce);
 

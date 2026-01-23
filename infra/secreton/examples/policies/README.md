@@ -61,7 +61,7 @@ required_claims = { department = "engineering" }
 Basic read-only access to secrets. Useful for applications that only need to retrieve secrets.
 
 ### admin.toml
-Full administrative access with sudo capability. For vault administrators.
+Full administrative access with sudo capability. For engine administrators.
 
 ### database-secrets.toml
 Scoped access to database credentials with MFA requirement. Demonstrates path-specific access.

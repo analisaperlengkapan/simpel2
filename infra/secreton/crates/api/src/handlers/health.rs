@@ -148,7 +148,6 @@ pub async fn detailed_health_check(
         checks.insert("hsm".to_string(), hsm_check);
     }
 
-    // Determine overall status
     let overall_status = if checks.values().all(|check| check.status == "healthy") {
         "healthy"
     } else if checks.values().any(|check| check.status == "unhealthy") {
@@ -169,9 +168,9 @@ pub async fn detailed_health_check(
 }
 
 /// Readiness check - determines if the service is ready to accept traffic
-/// CRITICAL: Returns 503 Service Unavailable if vault is sealed.
-/// This follows HashiCorp Vault best practices where Kubernetes/load balancers
-/// should not route traffic to a sealed vault instance.
+/// CRITICAL: Returns 503 Service Unavailable if engine is sealed.
+/// This follows HashiCorp Engine best practices where Kubernetes/load balancers
+/// should not route traffic to a sealed engine instance.
 pub async fn readiness_check(State(state): State<AppState>) -> ApiResult<Json<ReadinessResponse>> {
     let mut checks = HashMap::new();
 
@@ -187,12 +186,12 @@ pub async fn readiness_check(State(state): State<AppState>) -> ApiResult<Json<Re
     let crypto_check = check_crypto_readiness(&state).await;
     checks.insert("crypto".to_string(), crypto_check);
 
-    // CRITICAL: Check seal status - vault must be unsealed to be ready
+    // CRITICAL: Check seal status - engine must be unsealed to be ready
     let seal_check = check_seal_status(&state).await;
     checks.insert("seal".to_string(), seal_check);
 
-    // Service is ready if all critical components are ready AND vault is unsealed
-    // CRITICAL: Sealed vault means NOT ready (status != "ready")
+    // Service is ready if all critical components are ready AND engine is unsealed
+    // CRITICAL: Sealed engine means NOT ready (status != "ready")
     let ready = checks.values().all(|check| check.status == "ready");
 
     let readiness = ReadinessResponse {
@@ -319,7 +318,7 @@ async fn check_cache_health(_state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
 
     // Note: ServiceContainer currently doesn't have a dedicated cache service.
-    // Caching is implemented within individual services (auth, vault, etc.)
+    // Caching is implemented within individual services (auth, engine, etc.)
     // For now, we'll return a "not applicable" status
 
     let mut details = HashMap::new();
@@ -329,7 +328,7 @@ async fn check_cache_health(_state: &AppState) -> HealthCheck {
     );
     details.insert(
         "location".to_string(),
-        serde_json::Value::String("auth_service, vault_service".to_string()),
+        serde_json::Value::String("auth_service, engine_service".to_string()),
     );
 
     let response_time = start_time.elapsed().as_millis() as u64;
@@ -455,7 +454,6 @@ async fn check_crypto_health(state: &AppState) -> HealthCheck {
                 );
             }
         }
-    } else {
         details_map.insert(
             "hsm_status".to_string(),
             serde_json::Value::String("not_configured".to_string()),
@@ -527,7 +525,7 @@ async fn check_storage_health(state: &AppState) -> HealthCheck {
                 let msg = health_status
                     .last_error
                     .clone()
-                    .unwrap_or_else(|| "Storage unhealthy".to_string());
+                    .unwrap_or_else(|| "Unknown storage error".to_string());
                 ("unhealthy".to_string(), Some(msg), Some(details))
             }
         }
@@ -612,7 +610,7 @@ async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
 
     let status = if hsm_healthy { "healthy" } else { "unhealthy" };
     let message = if hsm_healthy {
-        Some("HSM is connected and operational".to_string())
+        None
     } else {
         Some("HSM is not responding or unavailable".to_string())
     };
@@ -638,8 +636,8 @@ async fn check_hsm_health(hsm: &secreton_hsm::HsmBackend) -> HealthCheck {
 }
 
 /// Check seal status
-/// CRITICAL: Vault must be unsealed to be considered "ready"
-/// This follows HashiCorp Vault best practices where a sealed vault
+/// CRITICAL: Engine must be unsealed to be considered "ready"
+/// This follows HashiCorp Engine best practices where a sealed engine
 /// returns 503 Service Unavailable for readiness checks.
 async fn check_seal_status(state: &AppState) -> HealthCheck {
     let start_time = std::time::Instant::now();
@@ -649,13 +647,13 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
-    // CRITICAL: Sealed vault is NOT ready
-    // Status should be "sealed" not "ready" when vault is sealed
+    // CRITICAL: Sealed engine is NOT ready
+    // Status should be "sealed" not "ready" when engine is sealed
     let status = if is_unsealed { "ready" } else { "sealed" };
     let message = if is_unsealed {
-        "Vault is unsealed and ready for operations"
+        "Engine is unsealed and ready for operations"
     } else {
-        "Vault is SEALED - unseal with threshold shares required before operations"
+        "Engine is SEALED - unseal with threshold shares required before operations"
     };
 
     HealthCheck {
@@ -740,7 +738,7 @@ mod tests {
     async fn test_readiness_check_marks_ready() {
         let services = create_state().await;
 
-        // Unseal the vault to make it ready
+        // Unseal the engine to make it ready
         let shares = services
             .seal
             .initialize()

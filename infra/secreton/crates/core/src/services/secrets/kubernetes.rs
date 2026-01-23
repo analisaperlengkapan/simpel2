@@ -178,9 +178,11 @@ impl KubernetesSecretsEngine {
 
         // Validate authentication method
         if config.service_account_token.is_none()
-            && (config.client_cert.is_none() || config.client_key.is_none()) {
+            && (config.client_cert.is_none() || config.client_key.is_none())
+        {
             return Err(KubernetesError::InvalidConfig(
-                "Either service account token or client certificate/key must be provided".to_string(),
+                "Either service account token or client certificate/key must be provided"
+                    .to_string(),
             ));
         }
 
@@ -282,13 +284,9 @@ impl KubernetesSecretsEngine {
         }
 
         // Generate token
-        let token = self.create_service_account_token(
-            &connection,
-            &role.namespace,
-            &role.service_account,
-            ttl,
-        )
-        .await?;
+        let token = self
+            .create_service_account_token(&connection, &role.namespace, &role.service_account, ttl)
+            .await?;
 
         // Create token record
         let now = Utc::now();
@@ -321,7 +319,7 @@ impl KubernetesSecretsEngine {
         // Note: Actual Kubernetes token creation would require kube crate
         // This would call the TokenRequest API:
         // POST /api/v1/namespaces/{namespace}/serviceaccounts/{name}/token
-        // with body: { "spec": { "expirationSeconds": ttl } }
+        // with body: { "spec": { "expirationSeconds": ttl  }
 
         // For now, return a placeholder token
         // In production, this would be the actual JWT token from Kubernetes

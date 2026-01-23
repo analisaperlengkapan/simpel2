@@ -1,11 +1,10 @@
 //! Storage Backend Factory
 //!
 //! Provides easy creation and configuration of different storage backends.
-//! Follows HashiCorp Vault patterns for backend selection and configuration.
+//! Follows HashiCorp Engine patterns for backend selection and configuration.
 
 use crate::{
-    MemoryBackend, StorageBackend, StorageError, StorageResult,
-    backends::{FileBackend, FileConfig},
+    FileConfig, MemoryBackend, StorageBackend, StorageError, StorageResult, backends::FileBackend,
 };
 
 #[cfg(feature = "postgres")]
@@ -20,7 +19,7 @@ use crate::backends::{ConsulBackend, ConsulConfig};
 use crate::backends::{S3Backend, S3Config};
 
 /// Storage backend type enumeration
-/// # Recommendations (HashiCorp Vault-style)
+/// # Recommendations (HashiCorp Engine-style)
 /// - **Production HA**: `Consul` or `Raft` (no database required!)
 /// - **Cloud**: `S3` for AWS, Azure Blob, or GCS
 /// - **Development**: `File` or `Memory`
@@ -104,7 +103,7 @@ impl Default for StorageFactoryConfig {
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create file-based storage (default, no external dependencies)
 /// let backend = StorageFactory::create_file("/var/lib/secreton/data").await?;
-/// // Create Consul storage (HA, like HashiCorp Vault)
+/// // Create Consul storage (HA, like HashiCorp Engine)
 /// #[cfg(feature = "consul")]
 /// let backend = StorageFactory::create_consul("127.0.0.1:8500", "secreton/").await?;
 /// // Create from config

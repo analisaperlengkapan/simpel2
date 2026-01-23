@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use crate::error::CommonError;
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "axum")]
 use axum::{
@@ -110,17 +110,28 @@ where
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let auth_header = parts.headers.get(AUTHORIZATION);
 
-        let auth_str = auth_header
-            .and_then(|h| h.to_str().ok())
-            .ok_or_else(|| (axum::http::StatusCode::UNAUTHORIZED, "Missing authorization header".to_string()))?;
+        let auth_str = auth_header.and_then(|h| h.to_str().ok()).ok_or_else(|| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                "Missing authorization header".to_string(),
+            )
+        })?;
 
         if !auth_str.starts_with("Bearer ") {
-            return Err((axum::http::StatusCode::UNAUTHORIZED, "Invalid authorization format".to_string()));
+            return Err((
+                axum::http::StatusCode::UNAUTHORIZED,
+                "Invalid authorization format".to_string(),
+            ));
         }
 
         let token = &auth_str[7..];
         let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
 
-        Self::decode(token, &jwt_secret).map_err(|e| (axum::http::StatusCode::UNAUTHORIZED, format!("Invalid token: {}", e)))
+        Self::decode(token, &jwt_secret).map_err(|e| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                format!("Invalid token: {}", e),
+            )
+        })
     }
 }

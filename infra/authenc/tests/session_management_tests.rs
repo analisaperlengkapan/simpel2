@@ -404,7 +404,7 @@ async fn test_session_policies_and_limits() {
 
             // Check IP range (simplified)
             let allowed_ip = policy.allowed_ip_ranges.is_empty() ||
-                policy.allowed_ip_ranges.iter().any(|range| ip_address.starts_with("192.168.1."));
+                policy.allowed_ip_ranges.iter().any(|_range| ip_address.starts_with("192.168.1."));
 
             if !allowed_ip {
                 return Ok::<Json<serde_json::Value>, StatusCode>(Json(json!({
@@ -571,7 +571,7 @@ async fn test_refresh_tokens_and_rotation() {
 
                 // Clone needed data before modifying
                 let user_id = token_info.user_id.clone();
-                let used_count = token_info.used_count;
+                let _used_count = token_info.used_count;
 
                 // Revoke old refresh token
                 token_info.is_revoked = true;
@@ -755,7 +755,7 @@ async fn test_session_events_and_audit() {
             let session_events = state.session_events.lock().await;
 
             let event_type = search.get("event_type").and_then(|e| e.as_str());
-            let user_id = search.get("user_id").and_then(|u| u.as_str());
+            let _user_id = search.get("user_id").and_then(|u| u.as_str());
             let ip_address = search.get("ip_address").and_then(|i| i.as_str());
             let from_date = search.get("from_date").and_then(|f| f.as_str()).unwrap_or("");
             let to_date = search.get("to_date").and_then(|t| t.as_str()).unwrap_or("9999-12-31T23:59:59Z");

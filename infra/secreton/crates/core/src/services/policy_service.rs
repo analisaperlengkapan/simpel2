@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use crate::error::CoreError;
+use crate::models::PolicyRule;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use serde::{Deserialize, Serialize};
-use secreton_storage::{StorageBackend, VaultEntry, SecurityLevel, QueryParams};
-use crate::models::{PolicyRule, ControlGroup};
-use crate::error::CoreError;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyDefinition {
@@ -40,8 +40,18 @@ impl PolicyService {
         let path = format!("sys/policies/{}", name);
 
         // Check if exists
-        if self.storage.exists(&path).await.map_err(|e| CoreError::Internal { message: e.to_string(), source: None })? {
-            return Err(CoreError::AlreadyExists { resource: format!("Policy {}", name) });
+        if self
+            .storage
+            .exists(&path)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: e.to_string(),
+                source: None,
+            })?
+        {
+            return Err(CoreError::AlreadyExists {
+                resource: format!("Policy {}", name),
+            });
         }
 
         let now = Utc::now();
@@ -64,14 +74,26 @@ impl PolicyService {
 
     pub async fn get_policy(&self, name: &str) -> Result<PolicyDefinition, CoreError> {
         let path = format!("sys/policies/{}", name);
-        let entry = self.storage.get_by_path(&path).await.map_err(|e| CoreError::Internal { message: e.to_string(), source: None })?;
+        let entry = self
+            .storage
+            .get_by_path(&path)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: e.to_string(),
+                source: None,
+            })?;
 
         if let Some(entry) = entry {
-            let policy: PolicyDefinition = serde_json::from_slice(&entry.encrypted_data)
-                .map_err(|e| CoreError::Internal { message: format!("Failed to deserialize policy: {}", e), source: None })?;
+            let policy: PolicyDefinition =
+                serde_json::from_slice(&entry.encrypted_data).map_err(|e| CoreError::Internal {
+                    message: format!("Failed to deserialize policy: {}", e),
+                    source: None,
+                })?;
             Ok(policy)
         } else {
-            Err(CoreError::NotFound { resource: format!("Policy {}", name) })
+            Err(CoreError::NotFound {
+                resource: format!("Policy {}", name),
+            })
         }
     }
 
@@ -105,12 +127,21 @@ impl PolicyService {
 
     pub async fn delete_policy(&self, name: &str) -> Result<(), CoreError> {
         let path = format!("sys/policies/{}", name);
-        let deleted = self.storage.delete_by_path(&path).await.map_err(|e| CoreError::Internal { message: e.to_string(), source: None })?;
+        let deleted =
+            self.storage
+                .delete_by_path(&path)
+                .await
+                .map_err(|e| CoreError::Internal {
+                    message: e.to_string(),
+                    source: None,
+                })?;
 
         if deleted {
             Ok(())
         } else {
-            Err(CoreError::NotFound { resource: format!("Policy {}", name) })
+            Err(CoreError::NotFound {
+                resource: format!("Policy {}", name),
+            })
         }
     }
 
@@ -120,19 +151,29 @@ impl PolicyService {
         limit: Option<u32>,
         offset: Option<u32>,
     ) -> Result<(Vec<PolicyDefinition>, u64), CoreError> {
-        let mut params = QueryParams::new().with_path_prefix("sys/policies/".to_string());
-        // StorageBackend list returns VaultEntries, we need to deserialize them.
+        let params = QueryParams::new().with_path_prefix("sys/policies/".to_string());
+        // StorageBackend list returns EngineEntries, we need to deserialize them.
         // And pagination/filtering might need to happen in memory if storage doesn't support deep query.
 
         // Basic implementation: list all, filter/paginate in memory
         // Optimization: storage.list usually returns metadata/entries.
 
-        let entries = self.storage.list(&params).await.map_err(|e| CoreError::Internal { message: e.to_string(), source: None })?;
+        let entries = self
+            .storage
+            .list(&params)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: e.to_string(),
+                source: None,
+            })?;
 
         let mut policies = Vec::new();
         for entry in entries {
-             let policy: PolicyDefinition = serde_json::from_slice(&entry.encrypted_data)
-                .map_err(|e| CoreError::Internal { message: format!("Failed to deserialize policy: {}", e), source: None })?;
+            let policy: PolicyDefinition =
+                serde_json::from_slice(&entry.encrypted_data).map_err(|e| CoreError::Internal {
+                    message: format!("Failed to deserialize policy: {}", e),
+                    source: None,
+                })?;
 
             if let Some(ns) = &namespace {
                 if &policy.namespace != ns {
@@ -162,9 +203,12 @@ impl PolicyService {
 
     async fn save_policy(&self, policy: &PolicyDefinition) -> Result<(), CoreError> {
         let path = format!("sys/policies/{}", policy.name);
-        let data = serde_json::to_vec(policy).map_err(|e| CoreError::Internal { message: e.to_string(), source: None })?;
+        let data = serde_json::to_vec(policy).map_err(|e| CoreError::Internal {
+            message: e.to_string(),
+            source: None,
+        })?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             path,
             data,
             serde_json::json!({
@@ -175,7 +219,13 @@ impl PolicyService {
             policy.created_by.clone(),
         );
 
-        self.storage.store(&entry).await.map_err(|e| CoreError::Internal { message: e.to_string(), source: None })?;
+        self.storage
+            .store(&entry)
+            .await
+            .map_err(|e| CoreError::Internal {
+                message: e.to_string(),
+                source: None,
+            })?;
         Ok(())
     }
 }

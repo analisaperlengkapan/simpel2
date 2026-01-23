@@ -5,15 +5,15 @@
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
-use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
+use comfy_table::{Cell, Color, ContentArrangement, Table, presets::UTF8_FULL};
 use std::path::{Path, PathBuf};
 
 use crate::config::CliConfig;
 use crate::middleware::SealChecker;
 use crate::policy_parser::{
+    Policy, PolicyParser,
     formatter::{OutputFormat, PolicyFormatter},
     toml_parser::TomlPolicyParser,
-    Policy, PolicyParser,
 };
 use crate::token_store::TokenStore;
 
@@ -96,7 +96,11 @@ pub enum PolicyCommand {
 }
 
 /// Execute a policy command
-pub async fn execute_policy_command(cmd: PolicyCommand, config: &CliConfig, global_namespace: Option<&str>) -> Result<()> {
+pub async fn execute_policy_command(
+    cmd: PolicyCommand,
+    config: &CliConfig,
+    global_namespace: Option<&str>,
+) -> Result<()> {
     match cmd {
         PolicyCommand::List { namespace, format } => {
             // Command-specific namespace takes precedence over global namespace
@@ -119,12 +123,8 @@ pub async fn execute_policy_command(cmd: PolicyCommand, config: &CliConfig, glob
 }
 
 /// List all policies
-async fn list_policies(
-    config: &CliConfig,
-    namespace: Option<String>,
-    format: &str,
-) -> Result<()> {
-    // Check vault seal status before operations
+async fn list_policies(config: &CliConfig, namespace: Option<String>, format: &str) -> Result<()> {
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -160,10 +160,7 @@ async fn list_policies(
         anyhow::bail!("Failed to list policies: {} - {}", status, error_text);
     }
 
-    let result: serde_json::Value = response
-        .json()
-        .await
-        .context("Failed to parse response")?;
+    let result: serde_json::Value = response.json().await.context("Failed to parse response")?;
 
     // Handle different output formats
     match format {
@@ -224,7 +221,7 @@ async fn list_policies(
 
 /// Read a policy
 async fn read_policy(config: &CliConfig, name: &str, format: &str) -> Result<()> {
-    // Check vault seal status before operations
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -282,7 +279,7 @@ async fn read_policy(config: &CliConfig, name: &str, format: &str) -> Result<()>
 
 /// Write a policy from a file
 async fn write_policy(config: &CliConfig, name: &str, file: &PathBuf) -> Result<()> {
-    // Check vault seal status before operations
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -335,7 +332,7 @@ async fn write_policy(config: &CliConfig, name: &str, file: &PathBuf) -> Result<
 
 /// Delete a policy
 async fn delete_policy(config: &CliConfig, name: &str, force: bool) -> Result<()> {
-    // Check vault seal status before operations
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -449,7 +446,7 @@ fn validate_policy_file(file: &PathBuf) -> Result<()> {
 
 /// Test a policy against a path and action
 async fn test_policy(config: &CliConfig, name: &str, path: &str, action: &str) -> Result<()> {
-    // Check vault seal status before operations
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -492,10 +489,7 @@ async fn test_policy(config: &CliConfig, name: &str, path: &str, action: &str) -
         anyhow::bail!("Failed to test policy: {} - {}", status, error_text);
     }
 
-    let result: serde_json::Value = response
-        .json()
-        .await
-        .context("Failed to parse response")?;
+    let result: serde_json::Value = response.json().await.context("Failed to parse response")?;
 
     // Display test results
     println!("🧪 Policy Test Results:");

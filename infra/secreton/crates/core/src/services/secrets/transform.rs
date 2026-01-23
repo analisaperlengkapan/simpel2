@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// Transform engine errors
@@ -699,7 +699,7 @@ impl TransformEngine {
                 TransformationType::Masking => {
                     return Err(TransformError::DecodeFailed(
                         "Masking is irreversible".to_string(),
-                    ))
+                    ));
                 }
             };
             results.push(decoded);

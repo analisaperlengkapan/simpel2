@@ -20,7 +20,6 @@ async fn test_social_provider_configuration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let _database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -95,7 +94,6 @@ async fn test_social_user_profile() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let _database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -147,7 +145,6 @@ async fn test_oauth_token_response() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let _database = Arc::new(Database::new(&database_config).await.unwrap());

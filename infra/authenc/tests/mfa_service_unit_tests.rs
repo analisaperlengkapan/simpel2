@@ -62,9 +62,9 @@ impl MockSecretonClient {
 
     async fn setup_mfa(
         &self,
-        user_id: &str,
-        issuer: &str,
-        account_name: &str,
+        _user_id: &str,
+        _issuer: &str,
+        _account_name: &str,
     ) -> Result<MfaSetupData> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
@@ -79,7 +79,7 @@ impl MockSecretonClient {
         })
     }
 
-    async fn verify_mfa_setup(&self, user_id: &str, code: &str) -> Result<()> {
+    async fn verify_mfa_setup(&self, _user_id: &str, code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton verification failed".to_string(),
@@ -95,7 +95,7 @@ impl MockSecretonClient {
         }
     }
 
-    async fn verify_mfa(&self, user_id: &str, code: &str) -> Result<()> {
+    async fn verify_mfa(&self, _user_id: &str, code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton verification failed".to_string(),
@@ -111,7 +111,7 @@ impl MockSecretonClient {
         }
     }
 
-    async fn disable_mfa(&self, user_id: &str, admin_context: &SecurityContext) -> Result<()> {
+    async fn disable_mfa(&self, _user_id: &str, _admin_context: &SecurityContext) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton disable failed".to_string(),
@@ -120,7 +120,7 @@ impl MockSecretonClient {
         Ok(())
     }
 
-    async fn get_mfa_status(&self, user_id: &str) -> Result<MfaStatusResponse> {
+    async fn get_mfa_status(&self, _user_id: &str) -> Result<MfaStatusResponse> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton status check failed".to_string(),
@@ -134,7 +134,7 @@ impl MockSecretonClient {
         })
     }
 
-    async fn verify_recovery_code(&self, user_id: &str, recovery_code: &str) -> Result<()> {
+    async fn verify_recovery_code(&self, _user_id: &str, recovery_code: &str) -> Result<()> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton recovery verification failed".to_string(),
@@ -150,7 +150,7 @@ impl MockSecretonClient {
         }
     }
 
-    async fn regenerate_recovery_codes(&self, user_id: &str) -> Result<Vec<String>> {
+    async fn regenerate_recovery_codes(&self, _user_id: &str) -> Result<Vec<String>> {
         if self.should_fail {
             return Err(AuthencError::ExternalServiceError {
                 service: "Secreton regeneration failed".to_string(),

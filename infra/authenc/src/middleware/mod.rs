@@ -15,14 +15,14 @@
 /// Handles JWT token validation, user authentication, and session management.
 /// Integrates with the authentication system to protect API endpoints.
 /// Supports Bearer token authentication and session-based auth.
-pub mod auth_middleware_axum;
+pub mod auth_middleware;
 
 /// Rate limiting middleware for Axum
 /// Implements rate limiting to prevent abuse and DoS attacks.
 /// Supports various rate limiting strategies including sliding window,
 /// fixed window, and token bucket algorithms.
 /// Configurable limits per endpoint and user.
-pub mod rate_limit_axum;
+pub mod rate_limit;
 
 /// Adaptive rate limiting middleware for Axum
 /// Implements adaptive rate limiting with threat level detection.
@@ -43,20 +43,19 @@ pub mod adaptive_rate_limit_integration;
 /// Enforces role-based permissions on API endpoints.
 /// Checks user roles and permissions before allowing access to resources.
 /// Integrates with the authorization system for fine-grained access control.
-pub mod rbac_axum;
+pub mod rbac;
 
 /// Response compression middleware for Axum
 /// Compresses HTTP responses to reduce bandwidth usage.
 /// Supports gzip, deflate, and brotli compression algorithms.
 /// Automatically negotiates compression based on client capabilities.
-pub mod compression_axum;
-
+pub mod compression;
 
 /// Input validation middleware for Axum
 /// Validates and sanitizes incoming request data.
 /// Prevents injection attacks and malformed data.
 /// Supports custom validation rules and error handling.
-pub mod input_validation_axum;
+pub mod input_validation;
 
 /// Mutual TLS (mTLS) authentication middleware
 /// Provides client certificate validation for API endpoints.
@@ -64,19 +63,17 @@ pub mod input_validation_axum;
 /// TLS termination and forward certificate information via headers.
 pub mod mtls;
 
-
 /// CSRF protection middleware for Axum
 /// Prevents Cross-Site Request Forgery attacks.
 /// Validates CSRF tokens on state-changing requests.
 /// Configurable token generation and validation rules.
-pub mod csrf_protection_axum;
+pub mod csrf_protection;
 
 /// Security monitoring and alerting middleware for Axum
 /// Monitors requests for suspicious activity and security events.
 /// Logs authentication attempts, authorization failures, and attacks.
 /// Integrates with audit logging for compliance and forensics.
-pub mod security_monitoring_axum;
-
+pub mod security_monitoring;
 
 /// MFA-specific rate limiting middleware for Axum
 /// Implements specialized rate limiting for MFA operations including:
@@ -101,7 +98,7 @@ pub mod mfa_performance_middleware;
 pub mod request_size_limit;
 
 // Re-export middleware types for easier access
-pub use rate_limit_axum::{
+pub use rate_limit::{
     RateLimitConfig, RateLimitLayer, RateLimitMiddleware, RateLimiterState, rate_limit_layer,
     rate_limit_middleware,
 };
@@ -115,19 +112,19 @@ pub use adaptive_rate_limit_integration::{
     AuthResultExt, RateLimitResponse, create_rate_limit_response, extract_ip,
 };
 
-pub use compression_axum::{ContentEncoding, compression_middleware};
-pub use csrf_protection_axum::{
+pub use compression::{ContentEncoding, compression_middleware};
+pub use csrf_protection::{
     CsrfConfig, CsrfState, csrf_protection_middleware, generate_csrf_token_response,
 };
-pub use input_validation_axum::{InputValidationConfig, input_validation_middleware};
-pub use security_monitoring_axum::{
+pub use input_validation::{InputValidationConfig, input_validation_middleware};
+pub use security_monitoring::{
     SecurityMonitoringConfig, SecurityMonitoringState, security_monitoring_middleware,
 };
 
 // Re-exports for convenience
-pub use auth_middleware_axum::{AuthState, auth_middleware};
+pub use auth_middleware::{AuthState, auth_middleware};
 
-pub use rbac_axum::{RbacLayer, rbac_middleware};
+pub use rbac::{RbacLayer, rbac_middleware};
 
 pub use mfa_rate_limit::{MfaRateLimitConfig, MfaRateLimiterState, mfa_rate_limit_middleware};
 

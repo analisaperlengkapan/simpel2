@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::utils::encoding::base64_encode;

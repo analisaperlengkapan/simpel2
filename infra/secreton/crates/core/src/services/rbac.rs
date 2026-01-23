@@ -11,7 +11,7 @@ pub fn check_policy_with_policyset(
 ) -> bool {
     if let Ok(policy_set) = serde_json::from_str::<PolicySet>(policies_json) {
         policy_set.evaluate(user, path, action, context)
-    } else {
+     } else {
         false
     }
 }

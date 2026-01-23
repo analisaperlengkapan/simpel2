@@ -431,7 +431,7 @@ mod resilience_validation {
             config.secreton.as_ref().unwrap().token.clone(),
         );
 
-        let user = create_test_user_with_secreton_access();
+        let _user = create_test_user_with_secreton_access();
         let token = "test-token";
 
         // Test retry mechanism with intermittent failures
@@ -577,8 +577,12 @@ fn test_config() -> AuthencConfig {
     let mut config = AuthencConfig::default();
     // Minimal Secreton configuration for tests; actual networking is mocked
     config.secreton = Some(authenc::config::SecretonConfig {
+        enabled: true,
         endpoint: "https://secreton.test".to_string(),
         token: "test-token".to_string(),
+        mount_path: "authenc/kv".to_string(),
+        key_rotation_interval: 3600,
+        secrets_to_load: vec![],
     });
     config
 }

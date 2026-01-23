@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Overall health status of a service or dependency
@@ -87,7 +87,11 @@ impl DependencyHealth {
     }
 
     /// Create a new degraded dependency
-    pub fn degraded(name: impl Into<String>, response_time_ms: i64, error: impl Into<String>) -> Self {
+    pub fn degraded(
+        name: impl Into<String>,
+        response_time_ms: i64,
+        error: impl Into<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             status: HealthStatus::Degraded,
@@ -141,7 +145,9 @@ impl HealthInfo {
     }
 
     /// Determine overall status from dependencies
-    pub fn determine_overall_status(dependencies: &HashMap<String, DependencyHealth>) -> HealthStatus {
+    pub fn determine_overall_status(
+        dependencies: &HashMap<String, DependencyHealth>,
+    ) -> HealthStatus {
         let mut has_unhealthy = false;
         let mut has_degraded = false;
 

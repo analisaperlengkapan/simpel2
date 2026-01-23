@@ -3,7 +3,7 @@
 //! Comprehensive secret revocation with cascade support, emergency revocation,
 //! audit history, and orphaned secret detection.
 
-use crate::error::{CoreError, Result};
+use crate::error::CoreError;
 use crate::services::lease::{LeaseError, LeaseManager};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
@@ -124,18 +124,30 @@ pub struct OrphanedSecret {
 #[async_trait::async_trait]
 pub trait RevocationService: Send + Sync {
     /// Revoke secret and associated leases
-    async fn revoke(&self, request: RevocationRequest) -> std::result::Result<RevocationRecord, RevocationError>;
+    async fn revoke(
+        &self,
+        request: RevocationRequest,
+    ) -> std::result::Result<RevocationRecord, RevocationError>;
 
     /// Emergency revocation by pattern
-    async fn emergency_revoke(&self, pattern: &str, actor: &str, namespace: &str)
-        -> std::result::Result<Vec<RevocationRecord>, RevocationError>;
+    async fn emergency_revoke(
+        &self,
+        pattern: &str,
+        actor: &str,
+        namespace: &str,
+    ) -> std::result::Result<Vec<RevocationRecord>, RevocationError>;
 
     /// Get revocation history for a path
-    async fn get_history(&self, path: &str) -> std::result::Result<Vec<RevocationRecord>, RevocationError>;
+    async fn get_history(
+        &self,
+        path: &str,
+    ) -> std::result::Result<Vec<RevocationRecord>, RevocationError>;
 
     /// Detect orphaned secrets
-    async fn detect_orphans(&self, threshold_days: u32)
-        -> std::result::Result<Vec<OrphanedSecret>, RevocationError>;
+    async fn detect_orphans(
+        &self,
+        threshold_days: u32,
+    ) -> std::result::Result<Vec<OrphanedSecret>, RevocationError>;
 
     /// Get revocation statistics
     async fn get_stats(&self) -> std::result::Result<RevocationStats, RevocationError>;
@@ -242,9 +254,10 @@ impl RevocationManager {
             ON revocations(path, namespace)
         "#;
 
-        client.execute(create_index, &[]).await.map_err(|e| {
-            RevocationError::StorageError(format!("Failed to create index: {}", e))
-        })?;
+        client
+            .execute(create_index, &[])
+            .await
+            .map_err(|e| RevocationError::StorageError(format!("Failed to create index: {}", e)))?;
 
         // Create index on revoked_at for history queries
         let create_time_index = r#"
@@ -294,7 +307,10 @@ impl RevocationManager {
             graph.add_dependency(parent, child);
         }
 
-        debug!("Loaded {} dependency relationships", graph.dependencies.len());
+        debug!(
+            "Loaded {} dependency relationships",
+            graph.dependencies.len()
+        );
         Ok(())
     }
 
@@ -372,11 +388,7 @@ impl RevocationManager {
                     for lease in leases.iter().filter(|l| l.resource == *path) {
                         match self.lease_manager.revoke_lease(&lease.id).await {
                             Ok(revoked_ids) => {
-                                debug!(
-                                    "Revoked {} leases for secret {}",
-                                    revoked_ids.len(),
-                                    path
-                                );
+                                debug!("Revoked {} leases for secret {}", revoked_ids.len(), path);
                             }
                             Err(e) => {
                                 warn!("Failed to revoke lease {}: {}", lease.id, e);
@@ -469,7 +481,10 @@ impl RevocationService for RevocationManager {
         actor = %request.actor,
         operation = "revoke"
     ))]
-    async fn revoke(&self, request: RevocationRequest) -> std::result::Result<RevocationRecord, RevocationError> {
+    async fn revoke(
+        &self,
+        request: RevocationRequest,
+    ) -> std::result::Result<RevocationRecord, RevocationError> {
         // Validate request
         if request.path.is_empty() {
             return Err(RevocationError::RevocationFailed(
@@ -565,7 +580,10 @@ impl RevocationService for RevocationManager {
         path = %path,
         operation = "get_history"
     ))]
-    async fn get_history(&self, path: &str) -> std::result::Result<Vec<RevocationRecord>, RevocationError> {
+    async fn get_history(
+        &self,
+        path: &str,
+    ) -> std::result::Result<Vec<RevocationRecord>, RevocationError> {
         let client = self.pool.get().await.map_err(|e| {
             RevocationError::StorageError(format!("Failed to get DB connection: {}", e))
         })?;
@@ -673,9 +691,10 @@ impl RevocationService for RevocationManager {
             FROM revocations
         "#;
 
-        let row = client.query_one(query, &[]).await.map_err(|e| {
-            RevocationError::StorageError(format!("Failed to get stats: {}", e))
-        })?;
+        let row = client
+            .query_one(query, &[])
+            .await
+            .map_err(|e| RevocationError::StorageError(format!("Failed to get stats: {}", e)))?;
 
         // Get orphaned secrets count
         let orphans = self.detect_orphans(30).await?;

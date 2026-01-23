@@ -252,7 +252,7 @@ impl DatabaseSecretsEngine {
                 let tls_mode =
                     std::env::var("SECRETON_DB_TLS_MODE").unwrap_or_else(|_| "disable".to_string());
 
-                let client = if tls_mode.eq_ignore_ascii_case("disable") {
+                let _client = if tls_mode.eq_ignore_ascii_case("disable") {
                     let (client, connection) =
                         tokio_postgres::connect(&config.connection_url, NoTls)
                             .await
@@ -447,7 +447,7 @@ impl DatabaseSecretsEngine {
             DatabaseType::MongoDB => {
                 format!("v_{}_{}", role_name.replace("-", "_"), short_uuid)
             }
-            _ => format!("vault_{}_{}", role_name, short_uuid),
+            _ => format!("engine_{}_{}", role_name, short_uuid),
         }
     }
 
@@ -479,7 +479,7 @@ impl DatabaseSecretsEngine {
         for stmt in statements {
             if !stmt.contains("{{username}}") && !stmt.contains("{{password}}") {
                 return Err(DatabaseError::CredentialGenerationFailed(
-                    "Creation statements must contain {{username}} or {{password}} placeholders"
+                    "Creation statements must contain {{username} or {{password} placeholders"
                         .to_string(),
                 ));
             }
@@ -1428,7 +1428,7 @@ mod tests {
             default_ttl: 3600,
             max_ttl: 7200,
             creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             ..Default::default()
@@ -1491,7 +1491,7 @@ mod tests {
             default_ttl: 3600,
             max_ttl: 7200,
             creation_statements: vec![
-                "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+                "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
             ],
             revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
             // No renew_statements - test without DB connection
@@ -1577,7 +1577,7 @@ async fn test_generate_credentials_ensure_lease() {
         default_ttl: 3600,
         max_ttl: 7200,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         ..Default::default()
@@ -1638,7 +1638,7 @@ async fn test_renew_lease_with_manager() {
         default_ttl: 3600,
         max_ttl: 7200,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         ..Default::default()
@@ -1701,7 +1701,7 @@ async fn test_revoke_credentials_with_lease_integration() {
         default_ttl: 3600,
         max_ttl: 7200,
         creation_statements: vec![
-            "CREATE USER {{username}} WITH PASSWORD '{{password}}'".to_string(),
+            "CREATE USER {{username} WITH PASSWORD '{{password}}'".to_string(),
         ],
         revocation_statements: vec!["DROP USER IF EXISTS {{username}}".to_string()],
         ..Default::default()

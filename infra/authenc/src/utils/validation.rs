@@ -9,15 +9,15 @@
 
 // Re-export common validation logic
 pub use lib_common::validation::{
-    validate_email, validate_username, validate_password_complexity,
-    validate_phone_number, validate_satker_code, validate_nip,
-    sanitize_string, sanitize_username, sanitize_email, sanitize_satker_code,
+    sanitize_email, sanitize_satker_code, sanitize_string, sanitize_username, validate_email,
+    validate_nip, validate_password_complexity, validate_phone_number, validate_satker_code,
+    validate_username,
 };
 
 // Re-export garde validators
 pub use lib_common::validation::{
-    email_validator, username_validator, password_validator, phone_validator,
-    satker_code_validator, nip_validator,
+    email_validator, nip_validator, password_validator, phone_validator, satker_code_validator,
+    username_validator,
 };
 
 /// Maximum request body size (1MB)
@@ -52,7 +52,6 @@ pub fn username_validator_optional(value: &Option<String>, _context: &()) -> gar
         None => Ok(()),
     }
 }
-
 
 pub fn satker_code_validator_optional(value: &Option<String>, _context: &()) -> garde::Result {
     match value {

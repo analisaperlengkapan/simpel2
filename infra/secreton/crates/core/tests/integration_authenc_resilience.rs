@@ -4,7 +4,6 @@
 //! to verify circuit breaker behavior and correlation ID propagation.
 
 use secreton_core::auth::authenc_provider::{AuthProvider, AuthencAuthProvider, Credentials};
-use secreton_core::resilience::CircuitBreakerState;
 use secreton_core::utils::correlation::CorrelationContext;
 use std::sync::Arc;
 use tokio::sync::RwLock;

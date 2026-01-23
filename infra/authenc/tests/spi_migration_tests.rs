@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_default_migration_provider() {
-        let provider = DefaultMigrationProvider::new();
+        let _provider = DefaultMigrationProvider::new();
         // Provider should be created successfully
         assert!(true); // This is just a basic instantiation test
     }
@@ -127,7 +127,7 @@ mod tests {
         let factory = DefaultMigrationProviderFactory::new();
         let config = authenc::spi::ProviderConfig::default();
 
-        let provider = ProviderFactory::create(&factory, &config).unwrap();
+        let _provider = ProviderFactory::create(&factory, &config).unwrap();
         // Provider should be created successfully
         assert!(true);
     }

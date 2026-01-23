@@ -171,10 +171,7 @@ pub fn verify_hmac_sha256(key: &[u8], data: &[u8], expected_mac: &[u8]) -> Crypt
 /// Password hashing utilities
 pub mod password {
     use super::*;
-    use argon2::{
-        Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
-        password_hash::{SaltString, rand_core::OsRng},
-    };
+    use argon2::PasswordHash;
     use pbkdf2::pbkdf2_hmac;
     use sha2::Sha256;
 
@@ -193,27 +190,27 @@ pub mod password {
             CryptoError::HashFailed(format!("Argon2 password hashing failed: {}", e))
         })?;
 
-        let parsed_hash = PasswordHash::new(&hash).map_err(|e| {
-            CryptoError::HashFailed(format!("Invalid password hash format: {}", e))
-        })?;
+        let parsed_hash = PasswordHash::new(&hash)
+            .map_err(|e| CryptoError::HashFailed(format!("Invalid password hash format: {}", e)))?;
 
         let salt_str = parsed_hash
             .salt
             .ok_or_else(|| CryptoError::HashFailed("Salt missing in hash".to_string()))?;
 
+        let salt_vec = salt_str.as_str().as_bytes().to_vec();
+
         Ok(PasswordHashResult {
             algorithm: AlgorithmId::Argon2id,
             hash,
-            salt: salt_str.as_str().as_bytes().to_vec(),
+            salt: salt_vec,
             iterations: 10, // Default t_cost from lib_common::crypto::password
         })
     }
 
     /// Verify password with Argon2id using lib-common
     pub fn verify_password_argon2(password: &str, hash: &str) -> CryptoResult<bool> {
-        lib_common::crypto::password::verify_password(hash, password).map_err(|e| {
-            CryptoError::HashFailed(format!("Password verification failed: {}", e))
-        })
+        lib_common::crypto::password::verify_password(hash, password)
+            .map_err(|e| CryptoError::HashFailed(format!("Password verification failed: {}", e)))
     }
 
     /// Hash password with PBKDF2

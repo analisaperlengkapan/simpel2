@@ -1,106 +1,8 @@
 //! Secreton Cryptographic Library
 //!
-//! High-performance, post-quantum ready cryptographic primitives for the Secreton vault.
+//! High-performance, post-quantum ready cryptographic primitives for the Secreton engine.
 //! This crate provides secure, audited implementations of encryption, hashing, key derivation,
 //! and hybrid classical/post-quantum algorithms.
-//!
-//! # Modules
-//!
-//! ## Core Cryptography
-//! - [`encryption`] - Symmetric encryption (AES-256-GCM, ChaCha20-Poly1305)
-//! - [`hashing`] - Cryptographic hashing (BLAKE3, SHA-256, SHA-512, Argon2)
-//! - [`key_derivation`] - Key derivation functions (HKDF, PBKDF2)
-//! - [`signing`] - Digital signatures (Ed25519, ECDSA)
-//!
-//! ## Post-Quantum Cryptography
-//! - [`hybrid`] - Hybrid classical/post-quantum encryption (X25519 + ML-KEM)
-//! - [`pq_key_management`] - Post-quantum key management (ML-KEM-768/1024)
-//!
-//! ## Vault Features
-//! - [`shamir`] - Shamir's Secret Sharing (vault seal/unseal)
-//! - [`transit`] - Transit secrets engine (encrypt-as-a-service)
-//! - [`kv_engine`] - Key-value encryption engine
-//!
-//! # Security Guarantees
-//!
-//! - **Memory Safety**: All sensitive data uses [`zeroize`] for secure memory clearing
-//! - **Constant Time**: Timing-safe operations prevent side-channel attacks
-//! - **Validated Algorithms**: Uses audited RustCrypto implementations
-//! - **Post-Quantum Ready**: Hybrid mode combines classical + PQ security
-//!
-//! # Supported Algorithms
-//!
-//! ## Symmetric Encryption
-//! - AES-256-GCM (NIST standard, hardware accelerated)
-//! - ChaCha20-Poly1305 (RFC 8439, fast software implementation)
-//!
-//! ## Asymmetric Encryption
-//! - X25519 ECDH (classical, high performance)
-//! - ML-KEM-768 (NIST PQC standard, 192-bit security)
-//! - ML-KEM-1024 (NIST PQC standard, 256-bit security)
-//! - Hybrid X25519+ML-KEM (best of both worlds)
-//!
-//! ## Hashing
-//! - BLAKE3 (fastest, parallelizable)
-//! - SHA-256/512 (NIST standard)
-//! - Argon2id (password hashing, memory-hard)
-//!
-//! ## Digital Signatures
-//! - Ed25519 (fast, compact signatures)
-//! - ECDSA P-256/P-384 (NIST curves)
-//!
-//! # Example: Encrypting Data
-//!
-//! ```rust,no_run
-//! use secreton_crypto::{CryptoEngine, SecurityParams};
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let engine = CryptoEngine::new(SecurityParams::default())?;
-//!
-//! let plaintext = b"super secret data";
-//! let encrypted = engine.encrypt(plaintext)?;
-//!
-//! let decrypted = engine.decrypt(&encrypted)?;
-//! assert_eq!(plaintext, &decrypted[..]);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Example: Post-Quantum Hybrid Encryption
-//!
-//! ```rust,no_run
-//! use secreton_crypto::hybrid::HybridCrypto;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let alice = HybridCrypto::generate_keypair()?;
-//! let bob = HybridCrypto::generate_keypair()?;
-//!
-//! let plaintext = b"message from alice to bob";
-//! let encrypted = alice.encrypt(&bob.public_key, plaintext)?;
-//!
-//! let decrypted = bob.decrypt(&encrypted)?;
-//! assert_eq!(plaintext, &decrypted[..]);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Performance
-//!
-//! Benchmarks on modern x86_64 CPU:
-//! - AES-256-GCM: ~3 GB/s (hardware AES-NI)
-//! - ChaCha20-Poly1305: ~1 GB/s
-//! - BLAKE3: ~5 GB/s
-//! - Ed25519 signing: ~100k ops/sec
-//! - ML-KEM-768: ~10k encaps/sec
-//!
-//! # Standards Compliance
-//!
-//! - FIPS 140-3 validated algorithms (AES, SHA-2, ECDSA)
-//! - NIST SP 800-108 (key derivation)
-//! - NIST SP 800-56A (ECDH)
-//! - NIST PQC Round 3 (ML-KEM)
-//! - RFC 8439 (ChaCha20-Poly1305)
-//! - RFC 8032 (Ed25519)
 
 use rand::RngCore;
 use rand::rngs::OsRng;
@@ -149,47 +51,15 @@ pub use pq_key_management::{
 pub use pqc::*;
 pub use shamir::*;
 pub use storage_integration::{
-    CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata, KeyInfo,
+    CryptoStorageBridge, EncryptedSecretEntry, EncryptionMetadata, KeyInfo,
 };
 pub use transit::{
-    AuditLogger,
-    CreateKeyRequest,
-    CreateKeyResponse,
-    DecryptRequest,
-    DecryptResponse,
-    DefaultAuditLogger,
-    DeriveKeyRequest,
-    DeriveKeyResponse,
-    EncryptRequest,
-    EncryptResponse,
-    // KeyInfo, // Removed duplicate - already exported from storage_integration
-    KeyOptions,
-    KeyType,
-    KeyUsage,
-    OperationStats,
-    RandomFormat,
-    RandomRequest,
-    RandomResponse,
-    RotateKeyRequest,
-    RotateKeyResponse,
-    SignRequest,
-    SignResponse,
-    TransitEngine,
-    TransitKey,
-    // Structs from operations
-    TransitOperations,
-    VerifyRequest,
-    VerifyResponse,
-    algorithms,
-    batch,
-    // Functions from algorithms
-    constant_time_eq,
-    derive_key as transit_derive_key,
-    generate_random,
-    generate_salt,
-    hash_data,
-    keys,
-    operations,
+    AuditLogger, CreateKeyRequest, CreateKeyResponse, DecryptRequest, DecryptResponse,
+    DefaultAuditLogger, DeriveKeyRequest, DeriveKeyResponse, EncryptRequest, EncryptResponse,
+    KeyOptions, KeyType, KeyUsage, OperationStats, RandomFormat, RandomRequest, RandomResponse,
+    RotateKeyRequest, RotateKeyResponse, SignRequest, SignResponse, TransitEngine, TransitKey,
+    TransitOperations, VerifyRequest, VerifyResponse, algorithms, batch, constant_time_eq,
+    derive_key as transit_derive_key, generate_random, generate_salt, hash_data, keys, operations,
     policies,
 };
 

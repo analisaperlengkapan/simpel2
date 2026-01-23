@@ -255,8 +255,7 @@ pub async fn bulk_insert_postgres(
     );
 
     // Prepare query once (optimization: hoisted out of loop)
-    let placeholders: Vec<String> =
-        (1..=columns.len()).map(|i| format!("${}", i)).collect();
+    let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("${}", i)).collect();
     let query = format!(
         "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING",
         table_name,

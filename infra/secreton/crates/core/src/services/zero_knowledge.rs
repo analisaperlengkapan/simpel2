@@ -57,7 +57,7 @@
 //!     encryption_algorithm: "aes-256-gcm".to_string(),
 //!     key_derivation_params: params,
 //!     created_at: chrono::Utc::now(),
-//! };
+//! ;
 //!
 //! service.store("secret/api-key", encrypted_data, metadata).await?;
 //! # Ok(())
@@ -66,14 +66,12 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use rand::RngCore;
-use rand::rngs::OsRng;
-
-use secreton_crypto::key_derivation::stretch::derive_multiple_keys;
 
 /// Zero-knowledge service errors
 #[derive(Debug, thiserror::Error)]
@@ -236,9 +234,7 @@ impl ZeroKnowledgeServiceImpl {
         }
 
         if path.contains("..") {
-            return Err(ZkError::InvalidPath(
-                "Path cannot contain '..'".to_string(),
-            ));
+            return Err(ZkError::InvalidPath("Path cannot contain '..'".to_string()));
         }
 
         if !path.starts_with('/') && !path.contains('/') {
@@ -256,7 +252,7 @@ impl ZeroKnowledgeServiceImpl {
             "aes-256-gcm" | "chacha20-poly1305" | "aes-128-gcm" => Ok(()),
             _ => Err(ZkError::InvalidAlgorithm(format!(
                 "Unsupported algorithm: {}",
-    algorithm
+                algorithm
             ))),
         }
     }
@@ -489,16 +485,28 @@ mod tests {
         );
 
         // Empty path
-        assert!(service.store("", encrypted_data.clone(), metadata.clone()).await.is_err());
+        assert!(
+            service
+                .store("", encrypted_data.clone(), metadata.clone())
+                .await
+                .is_err()
+        );
 
         // Path with ..
-        assert!(service
-            .store("secret/../other", encrypted_data.clone(), metadata.clone())
-            .await
-            .is_err());
+        assert!(
+            service
+                .store("secret/../other", encrypted_data.clone(), metadata.clone())
+                .await
+                .is_err()
+        );
 
         // Path without /
-        assert!(service.store("invalid", encrypted_data, metadata).await.is_err());
+        assert!(
+            service
+                .store("invalid", encrypted_data, metadata)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -512,7 +520,12 @@ mod tests {
             KeyDerivationParams::default_hkdf(),
         );
 
-        assert!(service.store("secret/test", encrypted_data, metadata).await.is_err());
+        assert!(
+            service
+                .store("secret/test", encrypted_data, metadata)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -526,7 +539,12 @@ mod tests {
             KeyDerivationParams::default_hkdf(),
         );
 
-        assert!(service.store("secret/test", encrypted_data, metadata).await.is_err());
+        assert!(
+            service
+                .store("secret/test", encrypted_data, metadata)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -543,4 +561,3 @@ mod tests {
         assert!(service.derive_params(&[]).await.is_err());
     }
 }
-

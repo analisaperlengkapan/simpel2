@@ -8,7 +8,7 @@ http://localhost:8200/v1/transform
 
 ## Authentication
 
-All endpoints require valid authentication token in the `X-Vault-Token` header.
+All endpoints require valid authentication token in the `X-Secret Vault-Token` header.
 
 ## Endpoints
 
@@ -37,7 +37,7 @@ Create a new transformation configuration.
 ```bash
 curl -X POST http://localhost:8200/v1/transform/transformation \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "name": "ssn-protection",
     "transformation_type": "tokenization"
@@ -48,7 +48,7 @@ curl -X POST http://localhost:8200/v1/transform/transformation \
 ```bash
 curl -X POST http://localhost:8200/v1/transform/transformation \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "name": "card-masking",
     "transformation_type": "masking",
@@ -83,7 +83,7 @@ Retrieve transformation configuration.
 **Example**:
 ```bash
 curl -X GET http://localhost:8200/v1/transform/transformation/ssn-protection \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
@@ -107,7 +107,7 @@ List all transformation names.
 **Example**:
 ```bash
 curl -X GET http://localhost:8200/v1/transform/transformation \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
@@ -127,7 +127,7 @@ Delete a transformation configuration.
 **Example**:
 ```bash
 curl -X DELETE http://localhost:8200/v1/transform/transformation/old-transform \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
@@ -158,7 +158,7 @@ Create a role with access to specific transformations.
 ```bash
 curl -X POST http://localhost:8200/v1/transform/role \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "name": "application-role",
     "transformations": ["ssn-protection", "card-masking"]
@@ -186,7 +186,7 @@ Retrieve role configuration.
 **Example**:
 ```bash
 curl -X GET http://localhost:8200/v1/transform/role/application-role \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
@@ -210,7 +210,7 @@ List all role names.
 **Example**:
 ```bash
 curl -X GET http://localhost:8200/v1/transform/role \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
@@ -241,7 +241,7 @@ Transform a single value (tokenize, encrypt, or mask).
 ```bash
 curl -X POST http://localhost:8200/v1/transform/encode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "value": "123-45-6789"
   }'
@@ -261,7 +261,7 @@ curl -X POST http://localhost:8200/v1/transform/encode/application-role/ssn-prot
 ```bash
 curl -X POST http://localhost:8200/v1/transform/encode/application-role/card-masking \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "value": "4111111111111111"
   }'
@@ -295,7 +295,7 @@ Reverse transformation (only for tokenization and FPE, not masking).
 ```bash
 curl -X POST http://localhost:8200/v1/transform/decode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "value": "tok_a1b2c3d4e5f6g7h8i9j0"
   }'
@@ -331,7 +331,7 @@ Transform multiple values in a single request.
 ```bash
 curl -X POST http://localhost:8200/v1/transform/batch/encode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "values": ["123-45-6789", "987-65-4321", "555-12-3456"]
   }'
@@ -369,7 +369,7 @@ Reverse transformation for multiple values.
 ```bash
 curl -X POST http://localhost:8200/v1/transform/batch/decode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d '{
     "values": [
       "tok_a1b2c3d4e5f6g7h8i9j0",
@@ -399,7 +399,7 @@ Retrieve tokenization usage statistics without exposing original values.
 **Example**:
 ```bash
 curl -X GET http://localhost:8200/v1/transform/audit \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`

@@ -117,8 +117,12 @@ struct ApiError {
 }
 
 /// Execute token management commands
-pub async fn execute_token_command(cmd: TokenCommand, config: &CliConfig, _namespace: Option<&str>) -> Result<()> {
-    // Note: Token operations are typically not namespace-scoped in most vault systems
+pub async fn execute_token_command(
+    cmd: TokenCommand,
+    config: &CliConfig,
+    _namespace: Option<&str>,
+) -> Result<()> {
+    // Note: Token operations are typically not namespace-scoped in most engine systems
     // The namespace parameter is accepted for consistency but not used
     match cmd {
         TokenCommand::Create {
@@ -162,7 +166,7 @@ async fn token_create_command(
 
     let response = client
         .post(&url)
-        .header("X-Vault-Token", &current_token.token)
+        .header("X-Engine-Token", &current_token.token)
         .header("Content-Type", "application/json")
         .json(&request)
         .send()
@@ -231,7 +235,7 @@ async fn token_lookup_command(config: &CliConfig, token: Option<String>) -> Resu
 
     let response = client
         .get(&url)
-        .header("X-Vault-Token", &lookup_token)
+        .header("X-Engine-Token", &lookup_token)
         .send()
         .await
         .context("Failed to connect to Secreton server")?;
@@ -313,7 +317,7 @@ async fn token_renew_command(config: &CliConfig, increment: Option<String>) -> R
 
     let response = client
         .post(&url)
-        .header("X-Vault-Token", &current_token.token)
+        .header("X-Engine-Token", &current_token.token)
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -386,7 +390,7 @@ async fn token_revoke_command(config: &CliConfig, token: String) -> Result<()> {
 
     let response = client
         .post(&url)
-        .header("X-Vault-Token", &current_token.token)
+        .header("X-Engine-Token", &current_token.token)
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -434,7 +438,7 @@ async fn token_capabilities_command(config: &CliConfig, path: String) -> Result<
 
     let response = client
         .post(&url)
-        .header("X-Vault-Token", &current_token.token)
+        .header("X-Engine-Token", &current_token.token)
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()
@@ -756,7 +760,7 @@ mod property_tests {
                 let after_revoke = store.load_token().unwrap();
                 prop_assert!(after_revoke.is_none());
                 prop_assert!(!store.token_file_path().exists());
-            } else {
+             } else {
                 // If revoking a different token, current token should remain
                 let after_revoke = store.load_token().unwrap();
                 prop_assert!(after_revoke.is_some());

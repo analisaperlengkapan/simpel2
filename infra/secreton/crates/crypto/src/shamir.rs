@@ -1,4 +1,4 @@
-//! Plain Shamir Secret Sharing (HashiCorp Vault Style)
+//! Plain Shamir Secret Sharing (HashiCorp Engine Style)
 //!
 //! This module re-exports the shared implementation from lib_common.
 //! See lib_common::crypto::shamir for the core implementation.

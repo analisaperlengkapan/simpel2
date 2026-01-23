@@ -34,7 +34,7 @@ retry_delay_ms = 1000
 ```
 
 **Features:**
-- Support for multiple HSM providers (PKCS#11, AWS KMS, Azure Key Vault, GCP KMS)
+- Support for multiple HSM providers (PKCS#11, AWS KMS, Azure Key Secret Vault, GCP KMS)
 - Configurable timeouts and retry logic
 - Health check configuration
 - Secure PIN management via environment variables
@@ -209,7 +209,7 @@ Priority order:
 ### 1. PIN Management
 - **Never hardcode PINs** in configuration files
 - Use environment variables: `export HSM_PIN="your-secure-pin"`
-- Integrate with secrets management (Vault, AWS Secrets Manager)
+- Integrate with secrets management (Secret Vault, AWS Secrets Manager)
 - Rotate PINs regularly
 
 ### 2. Access Control
@@ -317,7 +317,7 @@ secreton_hsm_connection_errors_total 0
 
 ### Planned Features
 1. **AWS KMS Integration** - Cloud HSM support for AWS
-2. **Azure Key Vault Integration** - Cloud HSM support for Azure
+2. **Azure Key Secret Vault Integration** - Cloud HSM support for Azure
 3. **GCP KMS Integration** - Cloud HSM support for GCP
 4. **Key Rotation Automation** - Automatic key rotation with HSM
 5. **Multi-HSM Support** - High availability with multiple HSMs

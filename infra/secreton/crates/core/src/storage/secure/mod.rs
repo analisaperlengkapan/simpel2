@@ -55,7 +55,7 @@
 //!     key_retention_period: 90 * 24 * 3600, // Keep old keys for 90 days
 //!     min_key_lifetime: 7 * 24 * 3600,   // Minimum 1 week between rotations
 //!     max_key_lifetime: 90 * 24 * 3600,  // Force rotation after 90 days
-//! };
+//! ;
 //!
 //! let storage = SecureStorage::new_with_keystore(
 //!     b"master-key",
@@ -70,14 +70,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use aes_gcm::{
-    Aes256Gcm, Key, Nonce,
-    aead::{Aead, KeyInit, OsRng},
-};
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
 use anyhow::{Result, anyhow};
 use argon2::{Argon2, Params};
 use async_trait::async_trait;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 use tracing::info;
@@ -107,7 +105,7 @@ const KEY_VERSION_LENGTH: usize = 8; // First 8 bytes of key ID
 ///         ("purpose".to_string(), "database_encryption".to_string()),
 ///         ("created_by".to_string(), "key-manager-service".to_string())
 ///     ])
-/// };
+/// ;
 /// ```
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KeyEntry {
@@ -159,7 +157,7 @@ pub struct KeyEntry {
 ///     key_retention_period: 90 * 24 * 3600, // 90 days
 ///     min_key_lifetime: 7 * 24 * 3600,      // 1 week minimum
 ///     max_key_lifetime: 365 * 24 * 3600,    // 1 year maximum
-/// };
+/// ;
 /// ```
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KeyConfig {
@@ -318,7 +316,7 @@ pub trait KeyStore: Send + Sync {
 ///     active: true,
 ///     expires_at: None,
 ///     metadata: Default::default(),
-/// };
+/// ;
 /// // Save the key
 /// let mut keys = HashMap::new();
 /// keys.insert(key_entry.id.clone(), key_entry);
@@ -611,9 +609,9 @@ impl SecureStorage {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use secreton_core::storage::secure::{
+    /// use secreton_core::storage::secure::
     ///     SecureStorage, MemoryKeyStore, KeyConfig
-    /// };
+    /// ;
     /// use std::time::Duration;
     ///
     /// # #[tokio::main]
@@ -630,7 +628,7 @@ impl SecureStorage {
     ///     key_retention_period: 90 * 24 * 3600, // 90 days
     ///     min_key_lifetime: 7 * 24 * 3600,      // 1 week minimum
     ///     max_key_lifetime: 90 * 24 * 3600,     // 90 days maximum
-    /// };
+    /// ;
     ///
     /// // Create a new secure storage instance
     /// let storage = SecureStorage::new_with_keystore(

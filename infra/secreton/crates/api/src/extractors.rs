@@ -3,7 +3,7 @@
 //! This module provides reusable extractors that eliminate code duplication
 //! across handlers by encapsulating common extraction and validation logic.
 
-use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+use axum::{extract::FromRequestParts, http::request::Parts};
 
 use crate::{ApiError, middleware::RequestContext};
 
@@ -12,7 +12,6 @@ use crate::{ApiError, middleware::RequestContext};
 #[derive(Debug, Clone)]
 pub struct Namespace(pub String);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for Namespace
 where
     S: Send + Sync,
@@ -33,7 +32,7 @@ where
 /// populated by the authentication middleware. Use this in any handler that requires authentication.
 /// # Example
 /// ```rust,no_run
-/// use secreton_api::{extractors::AuthenticatedUser, ApiError};
+/// use secreton_api::extractors::{AuthenticatedUser, ApiError};
 /// async fn my_handler(user: AuthenticatedUser) -> Result<String, ApiError> {
 ///     Ok(format!("Hello, {}!", user.username))
 /// }
@@ -46,7 +45,6 @@ pub struct AuthenticatedUser {
     pub roles: Vec<String>,
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for AuthenticatedUser
 where
     S: Send + Sync,
@@ -62,7 +60,8 @@ where
             let id = uuid::Uuid::parse_str(user_id).unwrap_or_else(|_| uuid::Uuid::nil());
 
             // Get username from claims or fallback to subject/id
-            let username = ctx.jwt_claims
+            let username = ctx
+                .jwt_claims
                 .as_ref()
                 .map(|c| c.name.clone())
                 .or_else(|| ctx.user_id.clone())
@@ -87,7 +86,8 @@ where
         // Standard is: Middleware does auth, handler uses it.
 
         Err(ApiError::Authentication {
-            message: "Authentication context missing. Ensure authentication middleware is active.".to_string(),
+            message: "Authentication context missing. Ensure authentication middleware is active."
+                .to_string(),
         })
     }
 }
@@ -97,7 +97,6 @@ where
 #[derive(Debug, Clone)]
 pub struct OptionalUser(pub Option<AuthenticatedUser>);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for OptionalUser
 where
     S: Send + Sync,
@@ -115,11 +114,15 @@ where
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request, routing::get, Router};
-    use tower::ServiceExt;
+    use axum::{
+        body::Body,
+        http::Request,
+        routing::{Router, get},
+    };
     use secreton_core::namespace::{AdminLevel, JwtClaims};
     use std::collections::HashMap;
     use std::time::Instant;
+    use tower::ServiceExt;
 
     #[tokio::test]
     async fn test_namespace_extractor_default() {
@@ -130,7 +133,9 @@ mod tests {
             .await
             .unwrap();
 
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         assert_eq!(&body[..], b"default");
     }
 
@@ -163,6 +168,9 @@ mod tests {
             user_permissions: vec![],
             start_time: Instant::now(),
             jwt_claims: Some(claims),
+            auth_token: None,
+            client_ip: None,
+            user_agent: None,
             policy_names: vec![],
         };
 
@@ -174,7 +182,9 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
 
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         assert_eq!(&body[..], b"satker-kja001");
     }
 }

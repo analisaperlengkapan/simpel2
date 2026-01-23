@@ -22,7 +22,6 @@ async fn test_webauthn_registration_challenge_generation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -170,7 +169,6 @@ async fn test_webauthn_authentication_challenge_generation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -338,7 +336,6 @@ async fn test_webauthn_credential_registration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -361,7 +358,7 @@ async fn test_webauthn_credential_registration() {
         .await
         .unwrap();
     let challenge_data = serde_json::to_value(&challenge_response.0).unwrap();
-    let challenge_id = challenge_data.get("challengeId").unwrap().as_str().unwrap();
+    let _challenge_id = challenge_data.get("challengeId").unwrap().as_str().unwrap();
 
     // Simulate a WebAuthn credential creation response
     let _credential_response = WebauthnRegistrationResponse {
@@ -397,7 +394,6 @@ async fn test_webauthn_credential_authentication() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -419,7 +415,7 @@ async fn test_webauthn_credential_authentication() {
         .await
         .unwrap();
     let challenge_data = serde_json::to_value(&challenge_response.0).unwrap();
-    let challenge_id = challenge_data.get("challengeId").unwrap().as_str().unwrap();
+    let _challenge_id = challenge_data.get("challengeId").unwrap().as_str().unwrap();
 
     // Simulate a WebAuthn assertion response
     let _assertion_response = WebauthnAuthenticationResponse {
@@ -456,7 +452,6 @@ async fn test_webauthn_credential_listing() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -491,7 +486,6 @@ async fn test_webauthn_credential_deletion() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -503,7 +497,7 @@ async fn test_webauthn_credential_deletion() {
     )
     .unwrap();
 
-    let credential_id = Uuid::new_v4();
+    let _credential_id = Uuid::new_v4();
 
     // Test that the service can be created successfully
     // Since delete_credential is private, we'll just verify service creation works
@@ -525,7 +519,6 @@ async fn test_webauthn_challenge_expiration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -557,7 +550,6 @@ async fn test_webauthn_multiple_credentials_per_user() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -569,7 +561,7 @@ async fn test_webauthn_multiple_credentials_per_user() {
     )
     .unwrap();
 
-    let user_id = Uuid::new_v4();
+    let _user_id = Uuid::new_v4();
 
     // Test that the service can be created successfully
     // Since list_user_credentials is private, we'll just verify service creation works
@@ -591,7 +583,6 @@ async fn test_webauthn_credential_metadata() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -626,7 +617,6 @@ async fn test_webauthn_service_initialization() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());

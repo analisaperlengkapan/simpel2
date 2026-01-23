@@ -6,7 +6,7 @@
 
 use proptest::prelude::*;
 use secreton_crypto::shamir::{
-    generate_shares_with_commitments, reconstruct_secret_verified, validate_shares, ShamirConfig,
+    ShamirConfig, generate_shares_with_commitments, reconstruct_secret_verified, validate_shares,
 };
 
 // **Feature: secreton-comprehensive-enhancement, Property 1: Shamir Secret Sharing Round-Trip**
@@ -186,7 +186,7 @@ proptest! {
 
 #[cfg(test)]
 mod hkdf_edge_cases {
-    use super::*;
+
     use secreton_crypto::key_derivation::stretch::derive_multiple_keys;
 
     #[test]

@@ -1,7 +1,7 @@
 pub mod config;
 pub mod handlers;
-pub mod models;
 pub mod llm;
+pub mod models;
 pub mod ocr;
 pub mod rag;
 

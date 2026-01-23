@@ -1,15 +1,15 @@
-pub mod error;
-pub mod cache;
-pub mod memory;
-pub mod validation;
-pub mod config;
-pub mod correlation;
-pub mod context;
-pub mod encoding;
-pub mod sanitizer;
-pub mod auth;
-pub mod jwt;
 pub mod audit;
+pub mod auth;
+pub mod cache;
+pub mod config;
+pub mod context;
+pub mod correlation;
+pub mod encoding;
+pub mod error;
+pub mod jwt;
+pub mod memory;
+pub mod sanitizer;
+pub mod validation;
 
 #[cfg(feature = "telemetry")]
 pub mod telemetry;

@@ -4,7 +4,7 @@
 // DISABLED: Pending API fixes
 #![cfg(feature = "api-integration-tests")]
 
-//! Security penetration tests for vault system
+//! Security penetration tests for engine system
 //!
 //! Tests various attack vectors including injection attacks, authentication bypass,
 //! authorization bypass, data exfiltration, and DoS attempts.
@@ -14,7 +14,7 @@ use serde_json::json;
 use std::collections::HashMap;
 
 use crate::config::ApiConfig;
-use crate::handlers::vault::*;
+use crate::handlers::engine::*;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
 use std::sync::Arc;
@@ -184,7 +184,7 @@ mod security_penetration_tests {
             let mut headers = HeaderMap::new();
             headers.insert(
                 AUTHORIZATION,
-                format!("{} {}", auth_prefix, token_value).parse(),
+                format!("{ {}", auth_prefix, token_value).parse(),
             );
 
             let response = server.get("/secrets/sensitive/data").headers(headers).await;
@@ -193,7 +193,7 @@ mod security_penetration_tests {
             assert_eq!(
                 response.status_code(),
                 StatusCode::UNAUTHORIZED,
-                "Auth bypass attempt should fail: {} {}",
+                "Auth bypass attempt should fail: { {}",
                 auth_prefix,
                 token_value
             );

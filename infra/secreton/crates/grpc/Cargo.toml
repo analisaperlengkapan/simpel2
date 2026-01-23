@@ -38,6 +38,7 @@ tracing = { workspace = true }
 # gRPC
 tonic = { workspace = true }
 prost = { workspace = true }
+tonic-prost = { workspace = true }
 
 # TLS
 rustls = { workspace = true }
@@ -45,6 +46,8 @@ tokio-rustls = { workspace = true }
 
 # Utilities
 uuid = { workspace = true }
+http-body-util = "0.1"
+bytes = "1.0"
 chrono = { workspace = true }
 
 # Metrics (optional, for production monitoring)
@@ -60,6 +63,7 @@ deadpool-postgres = { workspace = true }
 
 [build-dependencies]
 tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 chrono = { workspace = true }
 rustc_version = { workspace = true }
 

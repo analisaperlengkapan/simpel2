@@ -1,25 +1,8 @@
-# SIMPelv2 Persistent Volumes
-# Storage for databases and persistent data
-
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgres-pv
-  labels:
-    app.kubernetes.io/name: postgres
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 50Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/postgres
-    type: DirectoryOrCreate
+# SIMPelv2 PersistentVolumes - OPTIMIZED untuk Longhorn
+# Migrated dari hostPath ke Longhorn distributed storage
 
 ---
+# PostgreSQL - Longhorn PVC (Replicated, HA-ready)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -31,31 +14,13 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 50Gi
-  storageClassName: local-storage
 
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: redis-pv
-  labels:
-    app.kubernetes.io/name: redis
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/redis
-    type: DirectoryOrCreate
-
----
+# Redis - Longhorn PVC
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -67,31 +32,13 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 10Gi
-  storageClassName: local-storage
 
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: prometheus-pv
-  labels:
-    app.kubernetes.io/name: prometheus
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 20Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/prometheus
-    type: DirectoryOrCreate
-
----
+# Prometheus - Longhorn PVC
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -103,31 +50,13 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 20Gi
-  storageClassName: local-storage
 
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: grafana-pv
-  labels:
-    app.kubernetes.io/name: grafana
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/grafana
-    type: DirectoryOrCreate
-
----
+# Grafana - Longhorn PVC
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -139,71 +68,35 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 5Gi
-  storageClassName: local-storage
 
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: loki-pv
-  labels:
-    app.kubernetes.io/name: loki
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 15Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/loki
-    type: DirectoryOrCreate
-
----
+# Authenc - Raft Storage (untuk multi-replica consensus)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: loki-pvc
-  namespace: simpelv2-monitoring
+  name: authenc-raft-pvc
+  namespace: simpelv2-infra
   labels:
-    app.kubernetes.io/name: loki
+    app.kubernetes.io/name: authenc
     app.kubernetes.io/component: storage
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 15Gi
-  storageClassName: local-storage
+      storage: 10Gi
 
 ---
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: secreton-pv
-  labels:
-    app.kubernetes.io/name: secreton
-    app.kubernetes.io/component: storage
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /opt/simpelv2/data/secreton
-    type: DirectoryOrCreate
-
----
+# Secreton - Raft Storage
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: secreton-pvc
+  name: secreton-raft-pvc
   namespace: simpelv2-infra
   labels:
     app.kubernetes.io/name: secreton
@@ -211,20 +104,21 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 5Gi
-  storageClassName: local-storage
+      storage: 10Gi
 
 ---
-# Storage class for local storage
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-storage
-  labels:
-    app.kubernetes.io/name: simpelv2
-    app.kubernetes.io/component: storage
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Retain
+# NOTES:
+# 1. Longhorn provides automatic replication across nodes
+# 2. Data survives node failures
+# 3. No need for manual PV creation - dynamic provisioning
+# 4. Longhorn handles snapshots and backups
+# 5. Better performance than hostPath for multi-node clusters
+
+# Longhorn Configuration Recommendations:
+# - Number of Replicas: 2 (default) - sufficient untuk 2-node cluster
+# - For 3+ nodes: set replicas to 3 for better HA
+# - Enable automatic snapshots untuk backup
+# - Monitor via Longhorn UI: kubectl port-forward -n longhorn-system svc/longhorn-frontend 8000:80

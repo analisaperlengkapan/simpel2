@@ -422,7 +422,7 @@ mod mfa_security_monitoring_tests {
         ];
 
         for (event_type, status) in &events {
-            let event_data = json!({
+            let _event_data = json!({
                 "event_type": event_type,
                 "status": status,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
@@ -488,7 +488,7 @@ mod mfa_security_monitoring_tests {
         ];
 
         for event in &high_risk_events {
-            let event_data = json!({
+            let _event_data = json!({
                 "event_type": event,
                 "risk_level": "high",
                 "timestamp": chrono::Utc::now().to_rfc3339(),
@@ -690,7 +690,7 @@ mod mfa_integration_security_tests {
                     println!("🔒 Rate limiting triggered at attempt {}", i);
 
                     // Record security event for rate limiting
-                    let event_data = json!({
+                    let _event_data = json!({
                         "event_type": "rate_limit_exceeded",
                         "attempt_number": i,
                         "timestamp": chrono::Utc::now().to_rfc3339()
