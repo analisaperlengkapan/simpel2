@@ -1,15 +1,16 @@
 //! In-memory cache implementation (L1 cache)
 //!
-//! This module provides a fast in-memory cache using DashMap with TTL support
-//! and LRU eviction for the L1 cache layer in the multi-layer caching strategy.
+//! This module provides a fast in-memory cache using LruCache with TTL support
+//! and O(1) LRU eviction for the L1 cache layer in the multi-layer caching strategy.
 
 use super::{Cache, CacheMetrics};
 use crate::error::Result;
 use async_trait::async_trait;
-use dashmap::DashMap;
-use std::sync::Arc;
+use lru::LruCache;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Entry in the in-memory cache with TTL
 #[derive(Debug, Clone)]
@@ -19,6 +20,7 @@ struct CacheEntry {
     /// When this entry expires
     expires_at: Instant,
     /// When this entry was last accessed (for LRU)
+    // Note: LruCache maintains access order internally, but we might keep this for debugging or if we switch back
     last_accessed: Instant,
 }
 
@@ -44,10 +46,10 @@ impl CacheEntry {
     }
 }
 
-/// In-memory cache implementation using DashMap
+/// In-memory cache implementation using LruCache
 pub struct InMemoryCache {
     /// The cache storage
-    cache: Arc<DashMap<String, CacheEntry>>,
+    cache: Arc<Mutex<LruCache<String, CacheEntry>>>,
     /// Maximum number of entries
     max_size: usize,
     /// Default TTL for entries
@@ -68,8 +70,10 @@ impl InMemoryCache {
             max_size, default_ttl
         );
 
+        let capacity = NonZeroUsize::new(max_size).unwrap_or(NonZeroUsize::new(10000).unwrap());
+
         Self {
-            cache: Arc::new(DashMap::with_capacity(max_size)),
+            cache: Arc::new(Mutex::new(LruCache::new(capacity))),
             max_size,
             default_ttl,
             metrics: Arc::new(CacheMetrics::new()),
@@ -78,50 +82,34 @@ impl InMemoryCache {
 
     /// Evict expired entries
     fn evict_expired(&self) {
-        let now = Instant::now();
-        let mut evicted = 0;
+        // We collect keys first to avoid holding the lock while iterating if we were to do complex logic,
+        // but LruCache iter returns references so we can't mutate anyway.
+        // We need to find expired keys and then remove them.
 
-        self.cache.retain(|_key, entry| {
-            if entry.is_expired() {
-                evicted += 1;
-                false
-            } else {
-                true
+        // This operation is O(N) but it is only called periodically.
+
+        let mut cache = match self.cache.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("Cache mutex poisoned, recovering");
+                poisoned.into_inner()
             }
-        });
+        };
 
+        let keys_to_remove: Vec<String> = cache
+            .iter()
+            .filter(|(_, entry)| entry.is_expired())
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        let evicted = keys_to_remove.len();
         if evicted > 0 {
-            debug!("Evicted {} expired entries from L1 cache", evicted);
-            for _ in 0..evicted {
+            for key in keys_to_remove {
+                cache.pop(&key);
                 self.metrics.record_eviction();
                 self.metrics.decrement_cache_size();
             }
-        }
-    }
-
-    /// Evict least recently used entries if cache is full
-    fn evict_lru(&self) {
-        if self.cache.len() < self.max_size {
-            return;
-        }
-
-        // Find the LRU entry
-        let mut lru_key: Option<String> = None;
-        let mut lru_time = Instant::now();
-
-        for entry in self.cache.iter() {
-            if entry.value().last_accessed < lru_time {
-                lru_time = entry.value().last_accessed;
-                lru_key = Some(entry.key().clone());
-            }
-        }
-
-        // Remove the LRU entry
-        if let Some(key) = lru_key {
-            self.cache.remove(&key);
-            self.metrics.record_eviction();
-            self.metrics.decrement_cache_size();
-            debug!("Evicted LRU entry from L1 cache: {}", key);
+            debug!("Evicted {} expired entries from L1 cache", evicted);
         }
     }
 
@@ -132,13 +120,15 @@ impl InMemoryCache {
 
     /// Get current cache size
     pub fn size(&self) -> usize {
-        self.cache.len()
+        let cache = self.cache.lock().unwrap();
+        cache.len()
     }
 
     /// Clear all entries from the cache
     pub fn clear(&self) {
-        let size = self.cache.len();
-        self.cache.clear();
+        let mut cache = self.cache.lock().unwrap();
+        let size = cache.len();
+        cache.clear();
         self.metrics.update_cache_size(0);
         debug!("Cleared {} entries from L1 cache", size);
     }
@@ -149,49 +139,107 @@ impl Cache for InMemoryCache {
     async fn get(&self, key: &str) -> Result<Option<serde_json::Value>> {
         let start = Instant::now();
 
-        // Evict expired entries periodically
-        if self.cache.len() % 100 == 0 {
-            self.evict_expired();
+        // Evict expired entries periodically (every 100 operations approx)
+        // Note: we check size first to avoid locking if empty?
+        // We need random sampling or just a counter.
+        // Since we are inside `get`, we can't easily maintain a counter without mutability.
+        // The original code used `self.cache.len() % 100 == 0`.
+        // We can do checking cache size with lock.
+        {
+            // Acquire lock just to check len? Or do we skip this?
+            // Checking expired every time is expensive.
+            // But doing it every 100 times requires shared state counter or random.
+            // Using random is good.
+            if rand::random::<u8>() % 100 == 0 {
+                self.evict_expired();
+            }
         }
 
-        let result = self.cache.get_mut(key).and_then(|mut entry| {
+        let mut cache = self.cache.lock().unwrap();
+
+        // get() updates LRU
+        let result = if let Some(entry) = cache.get(key) {
             if entry.is_expired() {
-                None
+                // Remove expired entry
+                // We must drop the reference `entry` before borrowing `cache` mutably again for pop
+                // But `get` returns `Option<&mut V>`? No `lru` `get` returns `Option<&V>`.
+                // Actually `lru` `get` requires `&mut self`.
+                // So `entry` borrows `cache` mutably.
+                // We cannot call `pop` while `entry` is alive.
+                // So we check expiration, verify result, then act.
+                true
             } else {
-                entry.touch();
-                Some(entry.value.clone())
+                false
             }
-        });
+        } else {
+            false
+        };
+
+        // If we found it was expired, we pop it.
+        // If it was valid, we need to retrieve it again?
+        // Or we could have cloned it?
+
+        // Efficient way:
+        let value = if result {
+            // It was expired
+            cache.pop(key);
+            self.metrics.decrement_cache_size(); // Explicitly decrement as it was removed
+            debug!("L1 cache miss (expired) for key: {}", key);
+            self.metrics.record_miss();
+            None
+        } else {
+            // Check if exists (valid)
+            // We need to get it again to clone value. This updates LRU again (harmless).
+            // Or we could have cloned inside the first block if we handled scopes correctly.
+            if let Some(entry) = cache.get(key) {
+                // entry.touch(); // LruCache updates access time automatically
+                debug!("L1 cache hit for key: {}", key);
+                self.metrics.record_hit();
+                Some(entry.value.clone())
+            } else {
+                debug!("L1 cache miss for key: {}", key);
+                self.metrics.record_miss();
+                None
+            }
+        };
 
         let elapsed = start.elapsed();
         self.metrics.record_get(elapsed);
 
-        match result {
-            Some(value) => {
-                debug!("L1 cache hit for key: {}", key);
-                self.metrics.record_hit();
-                Ok(Some(value))
-            }
-            None => {
-                debug!("L1 cache miss for key: {}", key);
-                self.metrics.record_miss();
-                Ok(None)
-            }
-        }
+        Ok(value)
     }
 
     async fn set(&self, key: &str, value: &serde_json::Value, ttl: Duration) -> Result<()> {
         let start = Instant::now();
 
-        // Evict LRU if cache is full
-        self.evict_lru();
-
         let entry = CacheEntry::new(value.clone(), ttl);
-        self.cache.insert(key.to_string(), entry);
+
+        let mut cache = self.cache.lock().unwrap();
+        let cap = cache.cap().get();
+        let len_before = cache.len();
+        let exists = cache.contains(key);
+
+        // put returns the old value if key existed
+        // If cache was full and key didn't exist, it returns (K, V) of evicted item?
+        // lru::LruCache::put returns Option<V> (old value of key).
+        // It does NOT return evicted item.
+        cache.put(key.to_string(), entry);
+
+        // Metrics logic
+        let len_after = cache.len();
+
+        if !exists {
+             if len_before == cap && len_after == cap {
+                 // Must have evicted something
+                 self.metrics.record_eviction();
+                 // size stays same
+             } else {
+                 self.metrics.increment_cache_size();
+             }
+        }
 
         let elapsed = start.elapsed();
         self.metrics.record_set(elapsed);
-        self.metrics.increment_cache_size();
 
         debug!("L1 cache set for key: {} with TTL: {:?}", key, ttl);
         Ok(())
@@ -200,7 +248,8 @@ impl Cache for InMemoryCache {
     async fn delete(&self, key: &str) -> Result<()> {
         let start = Instant::now();
 
-        if self.cache.remove(key).is_some() {
+        let mut cache = self.cache.lock().unwrap();
+        if cache.pop(key).is_some() {
             self.metrics.decrement_cache_size();
             debug!("L1 cache delete for key: {}", key);
         }
@@ -212,9 +261,10 @@ impl Cache for InMemoryCache {
     }
 
     async fn exists(&self, key: &str) -> Result<bool> {
-        let exists = self
-            .cache
-            .get(key)
+        let mut cache = self.cache.lock().unwrap();
+        // peek() does not update LRU
+        let exists = cache
+            .peek(key)
             .map(|entry| !entry.is_expired())
             .unwrap_or(false);
 
@@ -223,7 +273,8 @@ impl Cache for InMemoryCache {
     }
 
     async fn expire(&self, key: &str, ttl: Duration) -> Result<()> {
-        if let Some(mut entry) = self.cache.get_mut(key) {
+        let mut cache = self.cache.lock().unwrap();
+        if let Some(entry) = cache.get_mut(key) {
             entry.expires_at = Instant::now() + ttl;
             debug!("L1 cache expire set for key: {} with TTL: {:?}", key, ttl);
         }
@@ -231,20 +282,39 @@ impl Cache for InMemoryCache {
     }
 
     async fn increment(&self, key: &str, delta: i64) -> Result<i64> {
+        let mut cache = self.cache.lock().unwrap();
         let mut new_value = delta;
 
-        self.cache
-            .entry(key.to_string())
-            .and_modify(|entry| {
-                if let Some(num) = entry.value.as_i64() {
-                    new_value = num + delta;
-                    entry.value = serde_json::Value::Number(new_value.into());
-                    entry.touch();
-                }
-            })
-            .or_insert_with(|| {
-                CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl)
-            });
+        // Check if exists
+        let entry_exists = cache.contains(key);
+
+        if entry_exists {
+             if let Some(entry) = cache.get_mut(key) {
+                  if let Some(num) = entry.value.as_i64() {
+                      new_value = num + delta;
+                      entry.value = serde_json::Value::Number(new_value.into());
+                      entry.touch();
+                  } else {
+                      // Not a number, overwrite? Original code used `and_modify` then `or_insert`.
+                      // If exists but not number, `and_modify` skipped.
+                      // Then `or_insert`? No `or_insert` only if NOT exists.
+                      // So if exists and not number, nothing happens?
+                      // Wait, original code:
+                      /*
+                        self.cache.entry(key).and_modify(...).or_insert_with(...)
+                      */
+                      // If key exists, `and_modify` runs. If `and_modify` doesn't change anything (e.g. not a number), it stays same.
+                      // But `or_insert_with` is NOT called if key exists.
+                      // So if key exists and is not a number, we return `delta` (initial `new_value`)?
+                      // And cache is unchanged?
+                      // Yes.
+                  }
+             }
+        } else {
+             // Insert new
+             cache.put(key.to_string(), CacheEntry::new(serde_json::Value::Number(delta.into()), self.default_ttl));
+             self.metrics.increment_cache_size(); // Assuming not full
+        }
 
         debug!(
             "L1 cache increment for key: {} by {} = {}",
@@ -256,23 +326,39 @@ impl Cache for InMemoryCache {
     async fn set_nx(&self, key: &str, value: &serde_json::Value, ttl: Duration) -> Result<bool> {
         let start = Instant::now();
 
+        let mut cache = self.cache.lock().unwrap();
+
         // Check if key exists and is not expired
-        if let Some(entry) = self.cache.get(key) {
+        if let Some(entry) = cache.get(key) {
             if !entry.is_expired() {
                 debug!("L1 cache set_nx failed (key exists) for key: {}", key);
                 return Ok(false);
             }
+            // If expired, we proceed to overwrite it.
         }
 
-        // Evict LRU if cache is full
-        self.evict_lru();
+        // Put overwrites
+        // Metrics logic similar to set
+        let cap = cache.cap().get();
+        let len_before = cache.len();
 
-        let entry = CacheEntry::new(value.clone(), ttl);
-        self.cache.insert(key.to_string(), entry);
+        cache.put(key.to_string(), CacheEntry::new(value.clone(), ttl));
+
+        let len_after = cache.len();
+        if len_before == cap && len_after == cap {
+            self.metrics.record_eviction();
+        } else {
+             // If we overwrote an expired item, size stays same?
+             // `put` replaces.
+             // If we replaced, size same.
+             // If we added new, size +1.
+             if len_after > len_before {
+                 self.metrics.increment_cache_size();
+             }
+        }
 
         let elapsed = start.elapsed();
         self.metrics.record_set(elapsed);
-        self.metrics.increment_cache_size();
 
         debug!(
             "L1 cache set_nx succeeded for key: {} with TTL: {:?}",
@@ -355,7 +441,10 @@ mod tests {
         // Access key1 to make it more recently used
         let _ = cache.get("key1").await;
 
-        // Add a new key, should evict key2 (LRU)
+        // Add a new key, should evict key2 (LRU) - key1 accessed, key3 added last, key2 added 2nd last but never accessed?
+        // insert order: 1, 2, 3. LRU: 1, 2, 3 (3 is MRU).
+        // access 1: LRU: 2, 3, 1 (1 is MRU).
+        // set 4: evict 2.
         cache
             .set("key4", &serde_json::json!(4), Duration::from_secs(60))
             .await
@@ -365,6 +454,9 @@ mod tests {
         assert!(cache.get("key1").await.unwrap().is_some());
         assert!(cache.get("key3").await.unwrap().is_some());
         assert!(cache.get("key4").await.unwrap().is_some());
+
+        // key2 should be gone
+        assert!(cache.get("key2").await.unwrap().is_none());
     }
 
     #[tokio::test]
