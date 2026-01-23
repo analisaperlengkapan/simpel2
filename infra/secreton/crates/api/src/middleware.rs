@@ -1200,8 +1200,6 @@ fn build_policy_context(ctx: &RequestContext, request: &Request) -> serde_json::
 
 /// Record policy evaluation metrics
 fn record_policy_evaluation_metrics(allowed: bool, evaluation_time: std::time::Duration) {
-    // TODO: Integrate with Prometheus metrics
-    // For now, just log
     let decision = if allowed { "allowed" } else { "denied" };
     debug!(
         "Policy evaluation: decision={}, time={}μs",
@@ -1209,11 +1207,15 @@ fn record_policy_evaluation_metrics(allowed: bool, evaluation_time: std::time::D
         evaluation_time.as_micros()
     );
 
-    // Metrics to track:
-    // - secreton_policy_evaluations_total{decision="allowed|denied"}
-    // - secreton_policy_evaluation_duration_seconds
-    // - secreton_policy_cache_hits_total
-    // - secreton_policy_cache_misses_total
+    // Record metrics
+    metrics::counter!(
+        "secreton_policy_evaluations_total",
+        "decision" => decision
+    )
+    .increment(1);
+
+    metrics::histogram!("secreton_policy_evaluation_duration_seconds")
+        .record(evaluation_time.as_secs_f64());
 }
 
 /// Log policy decision to audit log
