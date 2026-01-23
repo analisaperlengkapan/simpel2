@@ -1037,16 +1037,15 @@ pub async fn get_security_incidents(
 
 /// Maintenance operations
 pub async fn run_garbage_collection(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // TODO: Implement garbage collection
-    let data = serde_json::json!({
-        "message": "Garbage collection completed",
-        "cleaned_objects": 150,
-        "freed_space": "2.5MB"
-    });
+    let result = state
+        .admin
+        .run_garbage_collection()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
 
-    Ok(Json(ApiResponse::success(data)))
+    Ok(Json(ApiResponse::success(serde_json::json!(result))))
 }
 
 pub async fn compact_database(
