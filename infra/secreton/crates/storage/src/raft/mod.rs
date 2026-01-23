@@ -230,6 +230,8 @@ pub struct RaftCluster {
     election_monitor: Arc<tokio::sync::RwLock<LeaderElectionMonitor>>,
     /// Cross-region replication configuration
     replication_config: Arc<tokio::sync::RwLock<ReplicationConfig>>,
+    /// Metrics collector for tracking performance
+    metrics_collector: Arc<tokio::sync::RwLock<MetricsCollector>>,
 }
 
 /// Monitor for tracking leader election performance
@@ -345,6 +347,7 @@ impl RaftCluster {
         }));
 
         let replication_config = Arc::new(tokio::sync::RwLock::new(ReplicationConfig::default()));
+        let metrics_collector = Arc::new(tokio::sync::RwLock::new(MetricsCollector::new()));
 
         let cluster = Self {
             config: config.clone(),
@@ -353,6 +356,7 @@ impl RaftCluster {
             snapshot_config: SnapshotConfig::default(),
             election_monitor: election_monitor.clone(),
             replication_config: replication_config.clone(),
+            metrics_collector: metrics_collector.clone(),
         };
 
         // Bootstrap the Raft cluster with initial membership
@@ -760,6 +764,7 @@ impl RaftCluster {
     /// Get metrics snapshot for monitoring
     pub async fn get_metrics(&self) -> StorageResult<RaftMetrics> {
         let raft_metrics = self.raft.metrics().borrow().clone();
+        let avg_latency = self.metrics_collector.read().await.avg_commit_latency();
 
         Ok(RaftMetrics {
             node_id: self.config.node_id,
@@ -776,8 +781,8 @@ impl RaftCluster {
                 .voter_ids()
                 .count(),
             committed_entries: raft_metrics.last_applied.map(|l| l.index).unwrap_or(0),
-            avg_commit_latency_ms: None, // TODO: Track with MetricsCollector
-            snapshots_created: 0,        // TODO: Track snapshots
+            avg_commit_latency_ms: avg_latency,
+            snapshots_created: 0, // TODO: Track snapshots
             last_snapshot_index: raft_metrics.snapshot.map(|meta| meta.index),
             health: if raft_metrics.current_leader.is_some() {
                 metrics::HealthStatus::Healthy
@@ -958,8 +963,15 @@ impl RaftCluster {
         while attempts < max_retries {
             attempts += 1;
 
+            let start = std::time::Instant::now();
             match self.raft.client_write(data.clone()).await {
                 Ok(response) => {
+                    let duration = start.elapsed();
+                    self.metrics_collector
+                        .write()
+                        .await
+                        .record_commit_latency(duration);
+
                     #[cfg(feature = "metrics")]
                     {
                         counter!("secreton_raft_propose_success").increment(1);
@@ -1414,5 +1426,38 @@ mod tests {
 
         let status = cluster.get_replication_status().await;
         assert_eq!(status.targets.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_tracking() {
+        let config = RaftClusterConfig::development(1);
+        let cluster = RaftCluster::new(config).await.unwrap();
+
+        // Wait for leader election
+        for _ in 0..50 {
+            if cluster.is_leader().await {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        assert!(cluster.is_leader().await, "Leader should be elected");
+
+        // Propose a command to generate latency metrics
+        let entry = SecretEntry::new(
+            "test/metrics".to_string(),
+            vec![1, 2, 3],
+            serde_json::json!({}),
+            crate::SecurityLevel::Secret,
+            "test".to_string(),
+        );
+
+        cluster.store(&entry).await.unwrap();
+
+        // Check metrics
+        let metrics = cluster.get_metrics().await.unwrap();
+        assert!(
+            metrics.avg_commit_latency_ms.is_some(),
+            "Average commit latency should be recorded"
+        );
     }
 }
