@@ -177,6 +177,8 @@ pub struct RaftStatus {
     pub leader_id: Option<NodeId>,
     pub is_leader: bool,
     pub membership: Vec<NodeId>,
+    pub peer_addrs: HashMap<NodeId, String>,
+    pub peer_lags: HashMap<NodeId, u64>,
     pub last_applied: Option<u64>,
     pub last_log_index: Option<u64>,
 }
@@ -736,12 +738,33 @@ impl RaftCluster {
     pub async fn status(&self) -> StorageResult<RaftStatus> {
         let metrics = self.raft.metrics().borrow().clone();
 
+        // Extract peer addresses from membership
+        let mut peer_addrs = HashMap::new();
+        for (node_id, node) in metrics.membership_config.membership().nodes() {
+            peer_addrs.insert(*node_id, node.addr.clone());
+        }
+
+        // Extract replication lag if leader
+        let mut peer_lags = HashMap::new();
+        if metrics.current_leader == Some(self.config.node_id) {
+            if let Some(replication) = &metrics.replication {
+                let current_index = metrics.last_log_index.unwrap_or(0);
+                for (node_id, target_metrics) in replication.iter() {
+                    let matched_index = target_metrics.matched.map(|l| l.index).unwrap_or(0);
+                    let lag = current_index.saturating_sub(matched_index);
+                    peer_lags.insert(*node_id, lag);
+                }
+            }
+        }
+
         Ok(RaftStatus {
             node_id: self.config.node_id,
             current_term: metrics.current_term,
             leader_id: metrics.current_leader,
             is_leader: metrics.current_leader == Some(self.config.node_id),
             membership: metrics.membership_config.membership().voter_ids().collect(),
+            peer_addrs,
+            peer_lags,
             last_applied: metrics.last_applied.map(|l| l.index),
             last_log_index: metrics.last_log_index,
         })

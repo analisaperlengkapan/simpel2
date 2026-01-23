@@ -178,6 +178,72 @@ pub struct RestoreSnapshotResponse {
     pub snapshot: SnapshotMetadata,
 }
 
+fn calculate_peer_info(node_id: u64, status: &secreton_storage::raft::RaftStatus) -> PeerInfo {
+    let is_leader = Some(node_id) == status.leader_id;
+    let state = if is_leader {
+        "Leader".to_string()
+    } else if node_id == status.node_id {
+        "Follower".to_string()
+    } else {
+        "Follower".to_string()
+    };
+
+    // Calculate replication lag
+    let replication_lag = if is_leader {
+        Some(0)
+    } else if let Some(lag) = status.peer_lags.get(&node_id) {
+        Some(*lag)
+    } else if node_id == status.node_id {
+        // Local lag
+        if status.last_log_index.is_some() && status.last_applied.is_some() {
+            Some(
+                status
+                    .last_log_index
+                    .unwrap()
+                    .saturating_sub(status.last_applied.unwrap()),
+            )
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Determine peer health
+    let health = if node_id == status.node_id {
+        NodeHealthStatus::Healthy
+    } else if is_leader {
+        NodeHealthStatus::Healthy
+    } else if let Some(lag) = replication_lag {
+        if lag > 10000 {
+            NodeHealthStatus::Degraded
+        } else {
+            NodeHealthStatus::Healthy
+        }
+    } else if status.is_leader {
+        // If we are leader but no lag info, peer might be down
+        NodeHealthStatus::Failed
+    } else {
+        // We are not leader, assume healthy for others unless we know otherwise
+        NodeHealthStatus::Healthy
+    };
+
+    let address = status
+        .peer_addrs
+        .get(&node_id)
+        .cloned()
+        .unwrap_or_else(|| format!("node-{}", node_id));
+
+    PeerInfo {
+        node_id,
+        address,
+        state,
+        health,
+        replication_lag,
+        last_heartbeat: None, // TODO: Track heartbeat timestamps from internal metrics if available
+    }
+}
+
 fn ensure_admin(user: &AuthenticatedUser) -> ApiResult<()> {
     let is_admin = user.roles.iter().any(|role| {
         role.eq_ignore_ascii_case("admin") || role.eq_ignore_ascii_case("engine-admin")
@@ -270,38 +336,7 @@ pub async fn get_cluster_status(
     let peers = status
         .membership
         .iter()
-        .map(|&node_id| {
-            let is_leader = Some(node_id) == status.leader_id;
-            let state = if is_leader {
-                "Leader".to_string()
-            } else if node_id == status.node_id {
-                "Follower".to_string()
-            } else {
-                "Follower".to_string()
-            };
-
-            // Calculate replication lag for followers
-            let replication_lag =
-                if !is_leader && status.last_log_index.is_some() && status.last_applied.is_some() {
-                    Some(
-                        status
-                            .last_log_index
-                            .unwrap()
-                            .saturating_sub(status.last_applied.unwrap()),
-                    )
-                } else {
-                    None
-                };
-
-            PeerInfo {
-                node_id,
-                address: format!("node-{}", node_id), // TODO: Get actual address from config
-                state,
-                health: NodeHealthStatus::Healthy, // TODO: Implement actual health checks
-                replication_lag,
-                last_heartbeat: None, // TODO: Track heartbeat timestamps
-            }
-        })
+        .map(|&node_id| calculate_peer_info(node_id, &status))
         .collect();
 
     let membership_len = status.membership.len();
@@ -363,23 +398,7 @@ pub async fn list_peers(
     let peers: Vec<PeerInfo> = status
         .membership
         .iter()
-        .map(|&node_id| {
-            let is_leader = Some(node_id) == status.leader_id;
-            let state = if is_leader {
-                "Leader".to_string()
-            } else {
-                "Follower".to_string()
-            };
-
-            PeerInfo {
-                node_id,
-                address: format!("node-{}", node_id),
-                state,
-                health: NodeHealthStatus::Healthy,
-                replication_lag: None,
-                last_heartbeat: None,
-            }
-        })
+        .map(|&node_id| calculate_peer_info(node_id, &status))
         .collect();
 
     info!("Listed {} peers", peers.len());
@@ -490,22 +509,7 @@ pub async fn add_peer(
     let peers = status
         .membership
         .iter()
-        .map(|&node_id| PeerInfo {
-            node_id,
-            address: if node_id == request.node_id {
-                request.address.clone()
-            } else {
-                format!("node-{}", node_id)
-            },
-            state: if Some(node_id) == status.leader_id {
-                "Leader".to_string()
-            } else {
-                "Follower".to_string()
-            },
-            health: NodeHealthStatus::Healthy,
-            replication_lag: None,
-            last_heartbeat: None,
-        })
+        .map(|&node_id| calculate_peer_info(node_id, &status))
         .collect();
 
     // Record metrics
@@ -635,18 +639,7 @@ pub async fn remove_peer(
     let peers = status
         .membership
         .iter()
-        .map(|&node_id| PeerInfo {
-            node_id,
-            address: format!("node-{}", node_id),
-            state: if Some(node_id) == status.leader_id {
-                "Leader".to_string()
-            } else {
-                "Follower".to_string()
-            },
-            health: NodeHealthStatus::Healthy,
-            replication_lag: None,
-            last_heartbeat: None,
-        })
+        .map(|&node_id| calculate_peer_info(node_id, &status))
         .collect();
 
     // Record metrics
