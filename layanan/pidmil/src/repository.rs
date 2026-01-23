@@ -52,12 +52,12 @@ impl PostgresRepository {
         Ok(MilitaryCase::from(row))
     }
 
-    pub async fn get_all_cases(&self) -> Result<Vec<MilitaryCase>> {
+    pub async fn get_all_cases(&self, limit: i64, offset: i64) -> Result<Vec<MilitaryCase>> {
         let client = self.pool.get().await?;
         let rows = client
             .query(
-                "SELECT * FROM military_cases ORDER BY created_date DESC",
-                &[],
+                "SELECT * FROM military_cases ORDER BY created_date DESC LIMIT $1 OFFSET $2",
+                &[&limit, &offset],
             )
             .await?;
 

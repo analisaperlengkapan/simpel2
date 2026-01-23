@@ -17,8 +17,9 @@ impl PidmilService {
         self.repo.create_case(req).await
     }
 
-    pub async fn get_all_cases(&self) -> Result<Vec<MilitaryCase>> {
-        self.repo.get_all_cases().await
+    pub async fn get_all_cases(&self, page: u32, limit: u32) -> Result<Vec<MilitaryCase>> {
+        let (limit, offset) = calculate_pagination(page, limit);
+        self.repo.get_all_cases(limit, offset).await
     }
 
     pub async fn get_case_by_id(&self, id: Uuid) -> Result<Option<MilitaryCase>> {
@@ -39,5 +40,25 @@ impl PidmilService {
 
     pub async fn get_suspects_by_case(&self, case_id: Uuid) -> Result<Vec<MilitarySuspect>> {
         self.repo.get_suspects_by_case(case_id).await
+    }
+}
+
+fn calculate_pagination(page: u32, limit: u32) -> (i64, i64) {
+    let limit = limit as i64;
+    let offset = ((page.max(1) - 1) as i64) * limit;
+    (limit, offset)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pagination_calculation() {
+        assert_eq!(calculate_pagination(1, 10), (10, 0));
+        assert_eq!(calculate_pagination(2, 10), (10, 10));
+        assert_eq!(calculate_pagination(1, 50), (50, 0));
+        assert_eq!(calculate_pagination(0, 10), (10, 0)); // Should handle 0 as 1
+        assert_eq!(calculate_pagination(3, 20), (20, 40));
     }
 }

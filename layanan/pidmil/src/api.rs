@@ -3,11 +3,12 @@ use crate::{
     services::PidmilService,
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Json},
 };
 use garde::Validate;
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -16,8 +17,20 @@ pub struct AppState {
     pub service: PidmilService,
 }
 
-pub async fn get_cases(State(state): State<AppState>) -> impl IntoResponse {
-    match state.service.get_all_cases().await {
+#[derive(Deserialize)]
+pub struct PaginationQuery {
+    pub page: Option<u32>,
+    pub limit: Option<u32>,
+}
+
+pub async fn get_cases(
+    State(state): State<AppState>,
+    Query(query): Query<PaginationQuery>,
+) -> impl IntoResponse {
+    let page = query.page.unwrap_or(1);
+    let limit = query.limit.unwrap_or(100);
+
+    match state.service.get_all_cases(page, limit).await {
         Ok(cases) => Json(cases).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
