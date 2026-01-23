@@ -451,6 +451,9 @@ pub async fn init_storage(pool: &Pool) -> Result<(), ApiError> {
             response_code INTEGER,
             error_message TEXT
         );
+
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_last_attempt ON webhook_deliveries(last_attempt_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_subscription_id ON webhook_deliveries(subscription_id);
     ";
     client
         .batch_execute(query)
