@@ -107,6 +107,28 @@ impl StorageBackend for MemoryBackend {
     }
 
     async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
+        // Optimization: If no filters other than path_prefix, use path_index
+        // This avoids cloning all entries just to count them
+        let has_complex_filters = params.security_level.is_some()
+            || !params.tags.is_empty()
+            || params.owner_id.is_some()
+            || !params.metadata_filters.is_empty()
+            || !params.include_expired; // list() handles expiration check, path_index doesn't
+
+        if !has_complex_filters {
+            let path_index = self.path_index.read().await;
+            if let Some(prefix) = &params.path_prefix {
+                let count = path_index
+                    .keys()
+                    .filter(|k| k.starts_with(prefix))
+                    .count();
+                return Ok(count as u64);
+            } else {
+                return Ok(path_index.len() as u64);
+            }
+        }
+
+        // Fallback to list for complex filters
         let entries = self.list(params).await?;
         Ok(entries.len() as u64)
     }
