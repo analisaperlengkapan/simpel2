@@ -303,8 +303,14 @@ pub async fn create_database_role(
 /// List all database roles
 pub async fn list_database_roles(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
     let roles = state.database_engine.list_roles().await;
+
+    // Log audit event
+    let audit_entry = create_audit_log("roles_listed", &user.username, "dynamic_role", "");
+    let _ = state.audit.log(audit_entry).await;
+
     Ok(Json(ApiResponse::success(roles)))
 }
 
@@ -613,8 +619,16 @@ mod tests {
         };
         state.database_engine.create_role(role).await.unwrap();
 
+        // Create mock user
+        let user = AuthenticatedUser {
+            id: uuid::Uuid::new_v4(),
+            username: "test_admin".to_string(),
+            email: None,
+            roles: vec![],
+        };
+
         // Call the handler
-        let result = list_database_roles(State(state.clone())).await;
+        let result = list_database_roles(State(state.clone()), user).await;
 
         assert!(result.is_ok());
         let Json(response) = result.unwrap();
