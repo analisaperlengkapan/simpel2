@@ -7,6 +7,7 @@ use axum::{
     extract::{Json, Path, State},
     response::Json as JsonResponse,
 };
+use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -153,7 +154,7 @@ pub enum DeliveryStatus {
 ///
 /// POST /v1/webhooks/subscribe
 pub async fn subscribe_webhook(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Json(request): Json<WebhookSubscription>,
 ) -> Result<Json<ApiResponse<WebhookSubscriptionResponse>>, ApiError> {
     info!("Creating webhook subscription for URL: {}", request.url);
@@ -197,7 +198,7 @@ pub async fn subscribe_webhook(
         created_at: chrono::Utc::now(),
     };
 
-    store_subscription(&subscription).await?;
+    store_subscription(&state.pool, &subscription).await?;
 
     let response = WebhookSubscriptionResponse {
         id: subscription_id,
@@ -215,12 +216,12 @@ pub async fn subscribe_webhook(
 ///
 /// DELETE /v1/webhooks/subscribe/{subscription_id}
 pub async fn unsubscribe_webhook(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(subscription_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Deleting webhook subscription: {}", subscription_id);
 
-    delete_subscription(&subscription_id).await?;
+    delete_subscription(&state.pool, &subscription_id).await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -229,9 +230,9 @@ pub async fn unsubscribe_webhook(
 ///
 /// GET /v1/webhooks/subscriptions
 pub async fn list_subscriptions(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
 ) -> Result<Json<ApiResponse<Vec<WebhookSubscriptionResponse>>>, ApiError> {
-    let subscriptions = get_all_subscriptions().await?;
+    let subscriptions = get_all_subscriptions(&state.pool).await?;
 
     let response: Vec<WebhookSubscriptionResponse> = subscriptions
         .into_iter()
@@ -252,10 +253,10 @@ pub async fn list_subscriptions(
 ///
 /// GET /v1/webhooks/subscriptions/{subscription_id}
 pub async fn get_subscription(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(subscription_id): Path<String>,
 ) -> Result<Json<ApiResponse<WebhookSubscriptionResponse>>, ApiError> {
-    let subscription = get_subscription_by_id(&subscription_id).await?;
+    let subscription = get_subscription_by_id(&state.pool, &subscription_id).await?;
 
     let response = WebhookSubscriptionResponse {
         id: subscription.id,
@@ -273,13 +274,13 @@ pub async fn get_subscription(
 ///
 /// PUT /v1/webhooks/subscriptions/{subscription_id}
 pub async fn update_subscription(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(subscription_id): Path<String>,
     Json(request): Json<WebhookSubscription>,
 ) -> Result<Json<ApiResponse<WebhookSubscriptionResponse>>, ApiError> {
     info!("Updating webhook subscription: {}", subscription_id);
 
-    let mut subscription = get_subscription_by_id(&subscription_id).await?;
+    let mut subscription = get_subscription_by_id(&state.pool, &subscription_id).await?;
 
     // Update fields
     subscription.url = request.url;
@@ -292,7 +293,7 @@ pub async fn update_subscription(
     subscription.timeout = request.timeout.unwrap_or(30);
     subscription.active = request.active.unwrap_or(true);
 
-    update_subscription_data(&subscription).await?;
+    update_subscription_data(&state.pool, &subscription).await?;
 
     let response = WebhookSubscriptionResponse {
         id: subscription.id,
@@ -310,9 +311,9 @@ pub async fn update_subscription(
 ///
 /// GET /v1/webhooks/deliveries
 pub async fn list_deliveries(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
 ) -> Result<Json<ApiResponse<Vec<WebhookDelivery>>>, ApiError> {
-    let deliveries = get_all_deliveries().await?;
+    let deliveries = get_all_deliveries(&state.pool).await?;
 
     Ok(Json(ApiResponse::success(deliveries)))
 }
@@ -321,10 +322,10 @@ pub async fn list_deliveries(
 ///
 /// GET /v1/webhooks/deliveries/{delivery_id}
 pub async fn get_delivery(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(delivery_id): Path<String>,
 ) -> Result<Json<ApiResponse<WebhookDelivery>>, ApiError> {
-    let delivery = get_delivery_by_id(&delivery_id).await?;
+    let delivery = get_delivery_by_id(&state.pool, &delivery_id).await?;
 
     Ok(Json(ApiResponse::success(delivery)))
 }
@@ -333,12 +334,12 @@ pub async fn get_delivery(
 ///
 /// POST /v1/webhooks/deliveries/{delivery_id}/retry
 pub async fn retry_delivery(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(delivery_id): Path<String>,
 ) -> Result<Json<ApiResponse<WebhookDelivery>>, ApiError> {
     info!("Retrying webhook delivery: {}", delivery_id);
 
-    let delivery = get_delivery_by_id(&delivery_id).await?;
+    let delivery = get_delivery_by_id(&state.pool, &delivery_id).await?;
 
     if delivery.status == DeliveryStatus::Delivered {
         return Err(ApiError::BadRequest {
@@ -347,9 +348,9 @@ pub async fn retry_delivery(
     }
 
     // Trigger retry
-    trigger_webhook_delivery(&delivery).await?;
+    trigger_webhook_delivery(&state.pool, &delivery).await?;
 
-    let updated_delivery = get_delivery_by_id(&delivery_id).await?;
+    let updated_delivery = get_delivery_by_id(&state.pool, &delivery_id).await?;
 
     Ok(Json(ApiResponse::success(updated_delivery)))
 }
@@ -371,90 +372,352 @@ pub(crate) struct WebhookSubscriptionData {
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-async fn store_subscription(subscription: &WebhookSubscriptionData) -> Result<(), ApiError> {
-    // TODO: Store in database
-    info!("Storing webhook subscription: {}", subscription.id);
+async fn store_subscription(
+    pool: &Pool,
+    subscription: &WebhookSubscriptionData,
+) -> Result<(), ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "
+        INSERT INTO webhook_subscriptions
+        (id, url, paths, events, method, headers, secret, retry, timeout, active, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    ";
+
+    let events_json =
+        serde_json::to_value(&subscription.events).map_err(|e| ApiError::internal(e.to_string()))?;
+    let headers_json = serde_json::to_value(&subscription.headers)
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let retry_json =
+        serde_json::to_value(&subscription.retry).map_err(|e| ApiError::internal(e.to_string()))?;
+
+    client
+        .execute(
+            query,
+            &[
+                &subscription.id,
+                &subscription.url,
+                &subscription.paths,
+                &events_json,
+                &subscription.method,
+                &headers_json,
+                &subscription.secret,
+                &retry_json,
+                &(subscription.timeout as i64),
+                &subscription.active,
+                &subscription.created_at,
+            ],
+        )
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to store subscription: {}", e)))?;
+
+    info!("Stored webhook subscription: {}", subscription.id);
     Ok(())
 }
 
-async fn delete_subscription(subscription_id: &str) -> Result<(), ApiError> {
-    // TODO: Delete from database
+/// Initialize webhook storage tables
+pub async fn init_storage(pool: &Pool) -> Result<(), ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "
+        CREATE TABLE IF NOT EXISTS webhook_subscriptions (
+            id TEXT PRIMARY KEY,
+            url TEXT NOT NULL,
+            paths TEXT[] NOT NULL,
+            events JSONB NOT NULL,
+            method TEXT NOT NULL,
+            headers JSONB,
+            secret TEXT,
+            retry JSONB NOT NULL,
+            timeout BIGINT NOT NULL,
+            active BOOLEAN NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            id TEXT PRIMARY KEY,
+            subscription_id TEXT NOT NULL REFERENCES webhook_subscriptions(id) ON DELETE CASCADE,
+            payload JSONB NOT NULL,
+            status TEXT NOT NULL,
+            attempts INTEGER NOT NULL,
+            last_attempt_at TIMESTAMPTZ,
+            next_retry_at TIMESTAMPTZ,
+            response_code INTEGER,
+            error_message TEXT
+        );
+    ";
+    client
+        .batch_execute(query)
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to init tables: {}", e)))?;
+    Ok(())
+}
+
+async fn delete_subscription(pool: &Pool, subscription_id: &str) -> Result<(), ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "DELETE FROM webhook_subscriptions WHERE id = $1";
+    let rows = client
+        .execute(query, &[&subscription_id])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to delete subscription: {}", e)))?;
+
+    if rows == 0 {
+        return Err(ApiError::NotFound {
+            resource: format!("Subscription {}", subscription_id),
+        });
+    }
+
     info!("Deleting webhook subscription: {}", subscription_id);
     Ok(())
 }
 
-async fn get_all_subscriptions() -> Result<Vec<WebhookSubscriptionData>, ApiError> {
-    // TODO: Query from database
-    Ok(vec![])
+async fn get_all_subscriptions(pool: &Pool) -> Result<Vec<WebhookSubscriptionData>, ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "SELECT * FROM webhook_subscriptions";
+    let rows = client
+        .query(query, &[])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to list subscriptions: {}", e)))?;
+
+    let mut subscriptions = Vec::new();
+    for row in rows {
+        subscriptions.push(row_to_subscription(&row)?);
+    }
+    Ok(subscriptions)
 }
 
 async fn get_subscription_by_id(
+    pool: &Pool,
     subscription_id: &str,
 ) -> Result<WebhookSubscriptionData, ApiError> {
-    // TODO: Query from database
-    info!("Getting webhook subscription: {}", subscription_id);
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
-    // Mock data for now
-    Ok(WebhookSubscriptionData {
-        id: subscription_id.to_string(),
-        url: "https://example.com/webhook".to_string(),
-        paths: vec!["/secret/data/*".to_string()],
-        events: vec![WebhookEvent::SecretUpdated],
-        method: "POST".to_string(),
-        headers: HashMap::new(),
-        secret: None,
-        retry: RetryConfig::default(),
-        timeout: 30,
-        active: true,
-        created_at: chrono::Utc::now(),
-    })
+    let query = "SELECT * FROM webhook_subscriptions WHERE id = $1";
+    let rows = client
+        .query(query, &[&subscription_id])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to get subscription: {}", e)))?;
+
+    if rows.is_empty() {
+        return Err(ApiError::NotFound {
+            resource: format!("Subscription {}", subscription_id),
+        });
+    }
+
+    row_to_subscription(&rows[0])
 }
 
-async fn update_subscription_data(subscription: &WebhookSubscriptionData) -> Result<(), ApiError> {
-    // TODO: Update in database
+async fn update_subscription_data(
+    pool: &Pool,
+    subscription: &WebhookSubscriptionData,
+) -> Result<(), ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "
+        UPDATE webhook_subscriptions
+        SET url = $2, paths = $3, events = $4, method = $5, headers = $6,
+            secret = $7, retry = $8, timeout = $9, active = $10
+        WHERE id = $1
+    ";
+
+    let events_json =
+        serde_json::to_value(&subscription.events).map_err(|e| ApiError::internal(e.to_string()))?;
+    let headers_json = serde_json::to_value(&subscription.headers)
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let retry_json =
+        serde_json::to_value(&subscription.retry).map_err(|e| ApiError::internal(e.to_string()))?;
+
+    let rows = client
+        .execute(
+            query,
+            &[
+                &subscription.id,
+                &subscription.url,
+                &subscription.paths,
+                &events_json,
+                &subscription.method,
+                &headers_json,
+                &subscription.secret,
+                &retry_json,
+                &(subscription.timeout as i64),
+                &subscription.active,
+            ],
+        )
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to update subscription: {}", e)))?;
+
+    if rows == 0 {
+        return Err(ApiError::NotFound {
+            resource: format!("Subscription {}", subscription.id),
+        });
+    }
+
     info!("Updating webhook subscription: {}", subscription.id);
     Ok(())
 }
 
-async fn get_all_deliveries() -> Result<Vec<WebhookDelivery>, ApiError> {
-    // TODO: Query from database
-    Ok(vec![])
+async fn get_all_deliveries(pool: &Pool) -> Result<Vec<WebhookDelivery>, ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    let query = "SELECT * FROM webhook_deliveries ORDER BY last_attempt_at DESC LIMIT 100";
+    let rows = client
+        .query(query, &[])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to list deliveries: {}", e)))?;
+
+    let mut deliveries = Vec::new();
+    for row in rows {
+        deliveries.push(row_to_delivery(&row)?);
+    }
+    Ok(deliveries)
 }
 
-async fn get_delivery_by_id(delivery_id: &str) -> Result<WebhookDelivery, ApiError> {
-    // TODO: Query from database
-    info!("Getting webhook delivery: {}", delivery_id);
+async fn get_delivery_by_id(pool: &Pool, delivery_id: &str) -> Result<WebhookDelivery, ApiError> {
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
-    // Mock data for now
-    Ok(WebhookDelivery {
-        id: delivery_id.to_string(),
-        subscription_id: "sub-123".to_string(),
-        payload: WebhookPayload {
-            event: WebhookEvent::SecretUpdated,
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            path: "/secret/data/test".to_string(),
-            metadata: HashMap::new(),
-            subscription_id: "sub-123".to_string(),
-        },
-        status: DeliveryStatus::Failed,
-        attempts: 1,
-        last_attempt_at: Some(chrono::Utc::now().to_rfc3339()),
-        next_retry_at: Some((chrono::Utc::now() + chrono::Duration::seconds(2)).to_rfc3339()),
-        response_code: Some(500),
-        error_message: Some("Internal Server Error".to_string()),
-    })
+    let query = "SELECT * FROM webhook_deliveries WHERE id = $1";
+    let rows = client
+        .query(query, &[&delivery_id])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to get delivery: {}", e)))?;
+
+    if rows.is_empty() {
+        return Err(ApiError::NotFound {
+            resource: format!("Delivery {}", delivery_id),
+        });
+    }
+
+    row_to_delivery(&rows[0])
 }
 
-async fn trigger_webhook_delivery(delivery: &WebhookDelivery) -> Result<(), ApiError> {
+async fn trigger_webhook_delivery(pool: &Pool, delivery: &WebhookDelivery) -> Result<(), ApiError> {
     info!("Triggering webhook delivery: {}", delivery.id);
 
     // Get subscription
-    let subscription = get_subscription_by_id(&delivery.subscription_id).await?;
+    let subscription = get_subscription_by_id(pool, &delivery.subscription_id).await?;
+
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+
+    // Update status to Retrying
+    let update_query = "UPDATE webhook_deliveries SET status = 'retrying' WHERE id = $1";
+    client
+        .execute(update_query, &[&delivery.id])
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to update delivery status: {}", e)))?;
 
     // Send webhook with retry logic
-    send_webhook_with_retry(&subscription, &delivery.payload).await?;
+    let result = send_webhook_with_retry(&subscription, &delivery.payload).await;
 
-    Ok(())
+    match result {
+        Ok(_) => {
+            let update_success = "UPDATE webhook_deliveries SET status = 'delivered', last_attempt_at = NOW() WHERE id = $1";
+            client
+                .execute(update_success, &[&delivery.id])
+                .await
+                .map_err(|e| {
+                    ApiError::internal(format!("Failed to update delivery status: {}", e))
+                })?;
+            Ok(())
+        }
+        Err(e) => {
+            let update_fail = "UPDATE webhook_deliveries SET status = 'failed', last_attempt_at = NOW(), error_message = $2 WHERE id = $1";
+            client
+                .execute(update_fail, &[&delivery.id, &e.to_string()])
+                .await
+                .map_err(|e| {
+                    ApiError::internal(format!("Failed to update delivery status: {}", e))
+                })?;
+            Err(e)
+        }
+    }
+}
+
+fn row_to_subscription(row: &tokio_postgres::Row) -> Result<WebhookSubscriptionData, ApiError> {
+    let events_val: serde_json::Value = row.get("events");
+    let events: Vec<WebhookEvent> = serde_json::from_value(events_val)
+        .map_err(|e| ApiError::internal(format!("Failed to deserialize events: {}", e)))?;
+
+    let headers_val: serde_json::Value = row.get("headers");
+    let headers: HashMap<String, String> = serde_json::from_value(headers_val)
+        .map_err(|e| ApiError::internal(format!("Failed to deserialize headers: {}", e)))?;
+
+    let retry_val: serde_json::Value = row.get("retry");
+    let retry: RetryConfig = serde_json::from_value(retry_val)
+        .map_err(|e| ApiError::internal(format!("Failed to deserialize retry config: {}", e)))?;
+
+    Ok(WebhookSubscriptionData {
+        id: row.get("id"),
+        url: row.get("url"),
+        paths: row.get("paths"),
+        events,
+        method: row.get("method"),
+        headers,
+        secret: row.get("secret"),
+        retry,
+        timeout: row.get::<_, i64>("timeout") as u64,
+        active: row.get("active"),
+        created_at: row.get("created_at"),
+    })
+}
+
+fn row_to_delivery(row: &tokio_postgres::Row) -> Result<WebhookDelivery, ApiError> {
+    let payload_val: serde_json::Value = row.get("payload");
+    let payload: WebhookPayload = serde_json::from_value(payload_val)
+        .map_err(|e| ApiError::internal(format!("Failed to deserialize payload: {}", e)))?;
+
+    let status_str: String = row.get("status");
+    let status = match status_str.as_str() {
+        "pending" => DeliveryStatus::Pending,
+        "delivered" => DeliveryStatus::Delivered,
+        "failed" => DeliveryStatus::Failed,
+        "retrying" => DeliveryStatus::Retrying,
+        _ => DeliveryStatus::Failed,
+    };
+
+    Ok(WebhookDelivery {
+        id: row.get("id"),
+        subscription_id: row.get("subscription_id"),
+        payload,
+        status,
+        attempts: row.get::<_, i32>("attempts") as u32,
+        last_attempt_at: row
+            .get::<_, Option<chrono::DateTime<chrono::Utc>>>("last_attempt_at")
+            .map(|t| t.to_rfc3339()),
+        next_retry_at: row
+            .get::<_, Option<chrono::DateTime<chrono::Utc>>>("next_retry_at")
+            .map(|t| t.to_rfc3339()),
+        response_code: row.get::<_, Option<i32>>("response_code").map(|c| c as u16),
+        error_message: row.get("error_message"),
+    })
 }
 
 /// Send webhook notification with exponential backoff retry
