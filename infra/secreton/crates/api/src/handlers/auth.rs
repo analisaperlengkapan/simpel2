@@ -989,7 +989,7 @@ pub async fn oauth_callback(
         })?;
 
     // 3. Exchange code for access token
-    let client = reqwest::Client::new();
+    let client = &state.http_client;
     let token_params = [
         ("client_id", &provider_config.client_id),
         ("client_secret", &provider_config.client_secret),

@@ -138,6 +138,9 @@ pub struct ServiceContainer {
 
     /// MFA service for multi-factor authentication
     pub mfa: Arc<secreton_core::services::mfa::MfaService>,
+
+    /// Shared HTTP client
+    pub http_client: reqwest::Client,
 }
 
 impl ServiceContainer {
@@ -213,10 +216,17 @@ impl ServiceContainer {
         // Initialize optional services (HSM, MFA) - share TotpEngine
         let (hsm, mfa) = Self::initialize_optional_services(config, totp_engine.clone()).await;
 
+        let http_client = reqwest::Client::builder()
+            .user_agent("Secreton-Engine/1.0")
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
         Ok(Self {
             config: config.clone(),
             storage,
             pool,
+            http_client,
             crypto,
             auth,
             engine,
@@ -799,10 +809,13 @@ impl ServiceContainer {
         ));
         tracing::info!("✅ MFA service initialized with shared TotpEngine (mock mode)");
 
+        let http_client = reqwest::Client::new();
+
         Self {
             config: ApiConfig::default(),
             storage: storage.clone(),
             pool,
+            http_client,
             crypto: crypto.clone(),
             auth: Arc::new(auth::AuthService::new_mock(storage.clone(), crypto.clone())),
             engine: Arc::new(engine::SecretService::new_mock(
