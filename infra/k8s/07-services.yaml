@@ -1,7 +1,10 @@
-# SIMPelv2 Kubernetes Services with gRPC Support
-# Service discovery and load balancing for all components with gRPC endpoints
+# SIMPelv2 Kubernetes Services
+# Unified namespace architecture: simpelv2-infra + simpelv2
 
-# Infrastructure Services
+# ==========================================
+# Infrastructure Services (simpelv2-infra)
+# ==========================================
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -51,8 +54,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: 8088
+      targetPort: 8088
       protocol: TCP
       name: http
     - port: 9088
@@ -93,450 +96,17 @@ spec:
   selector:
     app: secreton
 
----
-# Backend Services with gRPC
-apiVersion: v1
-kind: Service
-metadata:
-  name: gerbang-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: gerbang
-    app.kubernetes.io/component: gateway
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-    - port: 9080
-      targetPort: 9080
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: gerbang
+# ==========================================
+# Application Services (simpelv2)
+# ==========================================
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-ai-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-ai
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-ai
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-bantuan-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-bantuan
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-bantuan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-dasbor-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-dasbor
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-dasbor
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-dokumen-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-dokumen
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-dokumen
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-integrasi-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-integrasi
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-integrasi
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-konfigurasi-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-konfigurasi
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-konfigurasi
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-laporan-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-laporan
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-laporan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: layanan-notifikasi-service
-  namespace: simpelv2-backend
-  labels:
-    app.kubernetes.io/name: layanan-notifikasi
-    app.kubernetes.io/component: service
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3000
-      targetPort: 3000
-      protocol: TCP
-      name: http
-    - port: 9000
-      targetPort: 9000
-      protocol: TCP
-      name: grpc
-  selector:
-    app.kubernetes.io/name: layanan-notifikasi
-
----
-# Frontend Services (HTTP only for browser access)
-apiVersion: v1
-kind: Service
-metadata:
-  name: portal-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: portal
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: portal
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: badiklat-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: badiklat
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: badiklat
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: datun-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: datun
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: datun
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: intel-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: intel
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: intel
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: keuangan-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: keuangan
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: keuangan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pemulihan-aset-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: pemulihan-aset
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: pemulihan-aset
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pengawasan-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: pengawasan
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: pengawasan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: perencanaan-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: perencanaan
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: perencanaan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: perlengkapan-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: perlengkapan
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: perlengkapan
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pidmil-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: pidmil
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: pidmil
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pidsus-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: pidsus
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: pidsus
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: pidum-service
-  namespace: simpelv2-frontend
-  labels:
-    app.kubernetes.io/name: pidum
-    app.kubernetes.io/component: frontend
-spec:
-  type: ClusterIP
-  ports:
-    - port: 8080
-      targetPort: 8080
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: pidum
-
----
-# Backend Services - New Deployments
+# Backend Services
 apiVersion: v1
 kind: Service
 metadata:
   name: layanan-daskrimti-portal
-  namespace: simpelv2-backend
+  namespace: simpelv2
   labels:
     app: layanan-daskrimti-portal
     component: backend
@@ -555,7 +125,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: layanan-pembinaan-perlengkapan
-  namespace: simpelv2-backend
+  namespace: simpelv2
   labels:
     app: layanan-pembinaan-perlengkapan
     component: backend
@@ -570,12 +140,31 @@ spec:
     app: layanan-pembinaan-perlengkapan
 
 ---
-# Frontend Services - New Microfrontends
+# Frontend Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-service
+  namespace: simpelv2
+  labels:
+    app.kubernetes.io/name: portal
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: portal
+
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: daskrimti-portal
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: daskrimti-portal
     app.kubernetes.io/component: frontend
@@ -594,7 +183,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pembinaan-perlengkapan
-  namespace: simpelv2-frontend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: pembinaan-perlengkapan
     app.kubernetes.io/component: frontend
@@ -607,3 +196,27 @@ spec:
       name: http
   selector:
     app.kubernetes.io/name: pembinaan-perlengkapan
+
+---
+# API Gateway (gerbang)
+apiVersion: v1
+kind: Service
+metadata:
+  name: gerbang-service
+  namespace: simpelv2
+  labels:
+    app.kubernetes.io/name: gerbang
+    app.kubernetes.io/component: gateway
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+    - port: 9080
+      targetPort: 9080
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: gerbang

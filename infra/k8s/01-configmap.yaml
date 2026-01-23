@@ -1,6 +1,5 @@
-# SIMPelv2 ConfigMap - OPTIMIZED & SECURITY FIXED
-# REMOVED: AUTHENC_HTTP_URL and SECRETON_HTTP_URL (architecture violation)
-# Frontend TIDAK BOLEH akses Authenc/Secreton langsung!
+# SIMPelv2 ConfigMap - Unified Namespace Architecture
+# 2-namespace approach: simpelv2-infra (infrastructure) + simpelv2 (apps)
 
 apiVersion: v1
 kind: ConfigMap
@@ -23,15 +22,17 @@ data:
   # Redis configuration (untuk backend services only)
   REDIS_HOST: "redis-service.simpelv2-infra.svc.cluster.local"
   REDIS_PORT: "6379"
+  REDIS_URL: "redis://redis-service.simpelv2-infra.svc.cluster.local:6379"
 
   # Service URLs for BACKEND (gRPC communication)
-  # Service URLs for BACKEND (gRPC communication)
-  AUTHENC_GRPC_URL: "https://authenc-service.simpelv2-infra.svc.cluster.local:9090"
-  SECRETON_GRPC_URL: "https://secreton-service.simpelv2-infra.svc.cluster.local:9200"
+  AUTHENC_GRPC_URL: "http://authenc.simpelv2-infra.svc.cluster.local:9088"
+  SECRETON_GRPC_URL: "http://secreton.simpelv2-infra.svc.cluster.local:9000"
+
+  # Backend service URLs (for frontend to backend communication)
+  BACKEND_PORTAL_URL: "http://layanan-daskrimti-portal.simpelv2.svc.cluster.local:3010"
+  BACKEND_PERLENGKAPAN_URL: "http://layanan-pembinaan-perlengkapan.simpelv2.svc.cluster.local:3020"
 
   # Frontend URLs
-  # GERBANG removed - using direct service access or Istio Gateway
-  BACKEND_API_URL: "http://layanan-daskrimti-portal.simpelv2-backend.svc.cluster.local:3010"
   PORTAL_BASE_URL: "https://simpel.kejaksaan.go.id"
   MODULE_FEDERATION_URL: "https://simpel.kejaksaan.go.id/module-federation.json"
 
@@ -58,12 +59,12 @@ data:
   APP_ENVIRONMENT: "production"
 
 ---
-# ConfigMap untuk backend services (gRPC clients)
+# ConfigMap untuk backend services (same namespace, simpler)
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: backend-config
-  namespace: simpelv2-backend
+  namespace: simpelv2
   labels:
     app.kubernetes.io/name: simpelv2
     app.kubernetes.io/component: backend-config

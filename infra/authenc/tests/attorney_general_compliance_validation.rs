@@ -692,9 +692,9 @@ fn can_admin_manage(admin: &User, target: &User) -> bool {
 }
 
 fn role_has_permission(role: &Role, permission: &str) -> bool {
-    role.permissions.iter().any(|p| {
-        p.name.to_lowercase() == permission.to_lowercase()
-    })
+    role.permissions
+        .iter()
+        .any(|p| p.name.to_lowercase() == permission.to_lowercase())
 }
 
 fn can_access_resource(user: &User, resource: &str) -> bool {

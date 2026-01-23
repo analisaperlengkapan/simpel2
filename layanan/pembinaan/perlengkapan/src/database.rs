@@ -1,31 +1,34 @@
 //! # Database Connection
 //!
-//! Database connection and migration management
+//! Database connection and migration management using deadpool-postgres
 
 use anyhow::Result;
-use sqlx::{PgPool, Row};
-use std::time::Duration;
+use deadpool_postgres::{Config, Pool, Runtime};
+use tokio_postgres::NoTls;
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub struct Database {
-    pool: PgPool,
+    pool: Pool,
 }
 
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self> {
-        let pool = PgPool::connect(database_url).await?;
+        let mut config = Config::new();
+        config.url = Some(database_url.to_string());
+
+        let pool = config.create_pool(Some(Runtime::Tokio1), NoTls)?;
 
         // Test the connection
-        sqlx::query("SELECT 1")
-            .fetch_one(&pool)
-            .await?;
+        let client = pool.get().await?;
+        client.query_one("SELECT 1", &[]).await?;
 
-        tracing::info!("Database connection established");
+        info!("Database connection established");
 
         Ok(Self { pool })
     }
 
-    pub fn pool(&self) -> &PgPool {
+    pub fn pool(&self) -> &Pool {
         &self.pool
     }
 
@@ -37,13 +40,17 @@ impl Database {
     }
 
     async fn create_tables(&self) -> Result<()> {
+        let client = self.pool.get().await?;
+
         // Create schema if not exists
-        sqlx::query("CREATE SCHEMA IF NOT EXISTS perlengkapan")
-            .execute(&self.pool)
+        client
+            .execute("CREATE SCHEMA IF NOT EXISTS perlengkapan", &[])
             .await?;
 
         // Create aset table
-        sqlx::query(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.aset (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 nama VARCHAR NOT NULL,
@@ -60,12 +67,15 @@ impl Database {
                 created_by UUID,
                 updated_by UUID
             )
-        "#)
-        .execute(&self.pool)
-        .await?;
+        "#,
+                &[],
+            )
+            .await?;
 
         // Create pengadaan table
-        sqlx::query(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.pengadaan (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 judul VARCHAR NOT NULL,
@@ -80,12 +90,15 @@ impl Database {
                 created_by UUID,
                 updated_by UUID
             )
-        "#)
-        .execute(&self.pool)
-        .await?;
+        "#,
+                &[],
+            )
+            .await?;
 
         // Create analisis table
-        sqlx::query(r#"
+        client
+            .execute(
+                r#"
             CREATE TABLE IF NOT EXISTS perlengkapan.analisis_kebutuhan (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 judul VARCHAR NOT NULL,
@@ -100,11 +113,12 @@ impl Database {
                 created_by UUID,
                 updated_by UUID
             )
-        "#)
-        .execute(&self.pool)
-        .await?;
+        "#,
+                &[],
+            )
+            .await?;
 
-        tracing::info!("Database tables created successfully");
+        info!("Database tables created successfully");
         Ok(())
     }
 }

@@ -1,9 +1,12 @@
 # ============================================================================
-# Multi-stage build for optimized production Docker image
+# Multi-stage build for Authenc - Build from workspace root
+# Run with: docker build -t authenc -f infra/authenc/Dockerfile .
 # ============================================================================
 
-# Stage 1: Builder - Use Debian trixie for consistent GLIBC version
+# Stage 1: Builder
 FROM rust:1.90-slim-bookworm AS builder
+
+WORKDIR /workspace
 
 # Install build dependencies (including protobuf for gRPC)
 RUN apt-get update && \
@@ -17,35 +20,26 @@ RUN apt-get update && \
     protobuf-compiler && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
-WORKDIR /app
+# Copy workspace Cargo files
+COPY Cargo.toml Cargo.lock ./
 
-# Create lib directory structure for dependencies
-RUN mkdir -p /lib
+# Patch Cargo.toml: delete old members list and add new minimal one
+RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
+    sed -i '/\[workspace\]/a members = ["lib/common", "infra/authenc"]' Cargo.toml || true
 
-# Copy lib-common from parent workspace (authenc depends on it)
-COPY --from=builder-lib-common /lib/common /lib/common
+# Copy lib-common (workspace dependency)
+COPY lib/common ./lib/common
 
-# Copy Cargo files
-COPY Cargo.toml Cargo.lock* ./
+# Copy authenc crate
+COPY infra/authenc ./infra/authenc
 
-# Copy build.rs for proto compilation
-COPY build.rs ./
-
-# Create proto directory and copy proto files
-COPY proto ./proto
-
-# Copy source code
-COPY src ./src
-COPY benches ./benches
-
-# Build in release mode with optimizations
-# Use RUSTFLAGS to ensure compatibility
+# Build authenc
+WORKDIR /workspace/infra/authenc
 ENV RUSTFLAGS="-C target-feature=-crt-static"
-RUN cargo build --release --bins
+RUN cargo build --release
 
 # Stage 2: Runtime - Use same base as builder for GLIBC compatibility
-FROM debian:trixie-slim
+FROM debian:bookworm-slim
 
 # Install runtime dependencies only (including curl for healthcheck)
 RUN apt-get update && \
@@ -63,13 +57,13 @@ RUN useradd -m -u 1000 authenc
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/authenc /app/authenc
+COPY --from=builder /workspace/target/release/authenc /app/authenc
 
 # Copy configuration files
-COPY authenc.toml /app/authenc.toml
+COPY infra/authenc/authenc.toml /app/authenc.toml
 
 # Copy migration files for auto-migration on startup
-COPY migrations /app/migrations
+COPY infra/authenc/migrations /app/migrations
 
 # Create config directory for environment-specific overrides
 RUN mkdir -p /app/config && chown -R authenc:authenc /app

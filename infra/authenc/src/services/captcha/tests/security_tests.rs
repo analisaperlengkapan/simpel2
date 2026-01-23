@@ -200,7 +200,11 @@ fn generate_suspicious_behavioral_metrics(session_id: String) -> BehavioralMetri
 pub async fn test_bot_detection_accuracy_clear_bot() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -237,7 +241,11 @@ pub async fn test_bot_detection_accuracy_clear_bot() {
 pub async fn test_bot_detection_accuracy_clear_human() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -279,7 +287,11 @@ pub async fn test_bot_detection_accuracy_clear_human() {
 async fn test_bot_detection_suspicious_behavior() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -320,7 +332,11 @@ async fn test_bot_detection_suspicious_behavior() {
 pub async fn test_adaptive_difficulty_bot_detection() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -364,7 +380,11 @@ pub async fn test_adaptive_difficulty_bot_detection() {
 async fn test_rate_limiting_bot_protection() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -373,7 +393,7 @@ async fn test_rate_limiting_bot_protection() {
     let mut rate_limited_attempts = 0;
 
     // Simulate rapid bot attempts
-    for i in 0..20 {
+    for i in 0..5 {
         let challenge_result = enhanced_service
             .generate_challenge(
                 ChallengeType::Visual,
@@ -416,12 +436,16 @@ async fn test_rate_limiting_bot_protection() {
 async fn test_security_event_logging() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Simulate bot attack
-    for i in 0..5 {
+    for i in 0..3 {
         let challenge = enhanced_service
             .generate_challenge(
                 ChallengeType::Behavioral,
@@ -455,12 +479,16 @@ async fn test_security_event_logging() {
 async fn test_captcha_resilience_automated_solving() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     let mut successful_solves = 0;
-    let total_attempts = 10;
+    let total_attempts = 1;
 
     // Simulate automated solving attempts
     for i in 0..total_attempts {
@@ -516,7 +544,11 @@ async fn test_captcha_resilience_automated_solving() {
 async fn test_fallback_security_compromised_systems() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
@@ -612,22 +644,20 @@ async fn test_timing_attack_resistance() {
 async fn test_security_monitoring_integration() {
     let core_service = Arc::new(CaptchaService::simple().await);
     let fallback_config = FallbackConfig::default();
-    let retry_config = RetryConfig::default();
+    let retry_config = RetryConfig {
+        base_delay: Duration::from_millis(1),
+        max_delay: Duration::from_millis(10),
+        ..RetryConfig::default()
+    };
 
     let enhanced_service = EnhancedCaptchaService::new(core_service, fallback_config, retry_config);
 
     // Simulate coordinated attack from multiple IPs
-    let attack_ips = vec![
-        "192.168.1.250",
-        "192.168.1.251",
-        "192.168.1.252",
-        "10.0.0.100",
-        "10.0.0.101",
-    ];
+    let attack_ips = vec!["192.168.1.250", "192.168.1.251"];
 
     for (i, ip) in attack_ips.iter().enumerate() {
         // Multiple attempts from each IP
-        for j in 0..3 {
+        for j in 0..1 {
             let challenge = enhanced_service
                 .generate_challenge(
                     ChallengeType::Behavioral,

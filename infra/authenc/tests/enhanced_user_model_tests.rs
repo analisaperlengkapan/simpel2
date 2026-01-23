@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod enhanced_user_model_tests {
     use authenc::models::user::*;
-    use chrono::{Duration, Timelike, Utc};
+    use chrono::{Duration, NaiveDate, NaiveTime, TimeZone, Utc};
     use serde_json::json;
     use uuid::Uuid;
 
@@ -166,10 +166,18 @@ mod enhanced_user_model_tests {
             denied_paths: None,
         };
 
-        // Create test times (simplified - using UTC for testing)
-        let monday_10am = Utc::now().with_hour(10).unwrap().with_minute(0).unwrap();
-        let monday_6pm = Utc::now().with_hour(18).unwrap().with_minute(0).unwrap();
-        let sunday_10am = monday_10am - Duration::days(1); // Assuming Monday-1 = Sunday
+        // Create test times using specific known dates
+        // January 8, 2024 is a Monday
+        let monday_date = NaiveDate::from_ymd_opt(2024, 1, 8).unwrap();
+        let monday_10am = Utc
+            .from_utc_datetime(&monday_date.and_time(NaiveTime::from_hms_opt(10, 0, 0).unwrap()));
+        let monday_6pm = Utc
+            .from_utc_datetime(&monday_date.and_time(NaiveTime::from_hms_opt(18, 0, 0).unwrap()));
+
+        // January 7, 2024 is a Sunday
+        let sunday_date = NaiveDate::from_ymd_opt(2024, 1, 7).unwrap();
+        let sunday_10am = Utc
+            .from_utc_datetime(&sunday_date.and_time(NaiveTime::from_hms_opt(10, 0, 0).unwrap()));
 
         // Test allowed time (Monday 10 AM)
         assert!(policy.is_time_allowed(&monday_10am));
