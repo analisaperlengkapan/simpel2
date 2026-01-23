@@ -5,12 +5,13 @@
 use axum::{
     Router,
     extract::{Path, State},
+    http::HeaderMap,
     response::Json,
     routing::{get, post},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
+use tracing::info;
 
 use crate::{ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser};
 use secreton_core::services::zero_knowledge::{
@@ -102,6 +103,7 @@ pub struct DeleteResponse {
 async fn store_secret(
     State(_state): State<AppState>,
     user: AuthenticatedUser,
+    headers: HeaderMap,
     Json(request): Json<StoreRequest>,
 ) -> ApiResult<Json<ApiResponse<StoreResponse>>> {
     use secreton_core::audit::{AuditLog, AuditStatus};
@@ -141,6 +143,12 @@ async fn store_secret(
     );
     // Deliberately NOT logging encrypted_data or key material
 
+    let ip = crate::helpers::extract_client_ip(&headers);
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
     let audit_log = AuditLog {
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
@@ -153,8 +161,8 @@ async fn store_secret(
         } else {
             AuditStatus::Failure
         },
-        ip: None, // TODO: Extract from request
-        user_agent: None,
+        ip,
+        user_agent,
         namespace: None,
         metadata: audit_metadata,
     };
@@ -184,6 +192,7 @@ async fn retrieve_secret(
     State(_state): State<AppState>,
     Path(path): Path<String>,
     user: AuthenticatedUser,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ApiResponse<RetrieveResponse>>> {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -200,6 +209,12 @@ async fn retrieve_secret(
     audit_metadata.insert("operation".to_string(), "zk.retrieve".to_string());
     audit_metadata.insert("path".to_string(), path.clone());
 
+    let ip = crate::helpers::extract_client_ip(&headers);
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
     let audit_log = AuditLog {
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
@@ -212,8 +227,8 @@ async fn retrieve_secret(
         } else {
             AuditStatus::Failure
         },
-        ip: None,
-        user_agent: None,
+        ip,
+        user_agent,
         namespace: None,
         metadata: audit_metadata,
     };
@@ -298,6 +313,7 @@ async fn delete_secret(
     State(_state): State<AppState>,
     Path(path): Path<String>,
     user: AuthenticatedUser,
+    headers: HeaderMap,
 ) -> ApiResult<Json<ApiResponse<DeleteResponse>>> {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -308,6 +324,12 @@ async fn delete_secret(
     let service = secreton_core::services::zero_knowledge::ZeroKnowledgeServiceImpl::new();
 
     let result = service.delete(&path).await;
+
+    let ip = crate::helpers::extract_client_ip(&headers);
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
 
     let audit_log = AuditLog {
         id: uuid::Uuid::new_v4(),
@@ -321,8 +343,8 @@ async fn delete_secret(
         } else {
             AuditStatus::Failure
         },
-        ip: None,
-        user_agent: None,
+        ip,
+        user_agent,
         namespace: None,
         metadata: HashMap::new(),
     };
