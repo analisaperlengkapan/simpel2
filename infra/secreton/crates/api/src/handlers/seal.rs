@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
+use crate::extractors::AuthenticatedUser;
 use crate::handlers::AppState;
 use secreton_core::audit::{AuditLog, AuditStatus};
 use secreton_core::services::seal::{SealError, SealStatus};
@@ -211,17 +212,15 @@ pub async fn get_seal_status(
 /// CRITICAL SECURITY: This immediately seals the engine and clears the master key from memory.
 /// All subsequent operations (except whitelisted endpoints) will be blocked until unsealed.
 ///
-/// SECURITY: Requires admin role (currently not enforced - TODO: add auth middleware)
-#[instrument(skip(state))]
+/// SECURITY: Requires admin role
+#[instrument(skip(state, auth))]
 pub async fn seal_engine(
     State(state): State<AppState>,
+    auth: AuthenticatedUser,
 ) -> Result<StatusCode, (StatusCode, String)> {
     info!("🔒 Attempting to seal engine");
 
-    // TODO: Implement authentication middleware to extract user_id
-    // For now, we allow seal operation without authentication
-    // In production, this should require admin role
-    let user_id = "system".to_string();
+    let user_id = auth.id.to_string();
 
     // Check if user has admin role
     if !state
