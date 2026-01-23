@@ -1348,8 +1348,21 @@ impl StorageBackend for RaftCluster {
     }
 
     async fn delete_expired(&self) -> StorageResult<u64> {
-        // TODO: Implement distributed expiration cleanup via Raft command
-        Ok(0)
+        let response = self
+            .propose(StateMachineCommand::DeleteExpired(chrono::Utc::now()))
+            .await?;
+
+        match response {
+            StateMachineResponse::DeletedExpired(count) => Ok(count),
+            StateMachineResponse::Error(msg) => Err(StorageError::ReplicationError(format!(
+                "Raft delete_expired failed: {}",
+                msg
+            ))),
+            other => Err(StorageError::ReplicationError(format!(
+                "Unexpected Raft response for delete_expired: {:?}",
+                other
+            ))),
+        }
     }
 
     async fn compact(&self) -> StorageResult<()> {
@@ -1437,5 +1450,58 @@ mod tests {
 
         let status = cluster.get_replication_status().await;
         assert_eq!(status.targets.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_expired() {
+        let config = RaftClusterConfig::development(1);
+        let cluster = RaftCluster::new(config).await.unwrap();
+
+        // Wait for leader election
+        for _ in 0..50 {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            if cluster.is_leader().await {
+                break;
+            }
+        }
+        assert!(cluster.is_leader().await, "Cluster failed to elect leader");
+
+        // Create expired entry
+        let expired_entry = SecretEntry::new(
+            "expired/path".to_string(),
+            vec![1, 2, 3],
+            serde_json::json!({}),
+            crate::SecurityLevel::Internal,
+            "system".to_string(),
+        )
+        .with_expiration(chrono::Utc::now() - chrono::Duration::hours(1));
+
+        cluster.store(&expired_entry).await.unwrap();
+
+        // Create valid entry
+        let valid_entry = SecretEntry::new(
+            "valid/path".to_string(),
+            vec![4, 5, 6],
+            serde_json::json!({}),
+            crate::SecurityLevel::Internal,
+            "system".to_string(),
+        )
+        .with_expiration(chrono::Utc::now() + chrono::Duration::hours(1));
+
+        cluster.store(&valid_entry).await.unwrap();
+
+        // Verify both exist
+        assert!(cluster.exists("expired/path").await.unwrap());
+        assert!(cluster.exists("valid/path").await.unwrap());
+
+        // Delete expired
+        let count = cluster.delete_expired().await.unwrap();
+        assert_eq!(count, 1);
+
+        // Verify expired is gone
+        assert!(!cluster.exists("expired/path").await.unwrap());
+
+        // Verify valid remains
+        assert!(cluster.exists("valid/path").await.unwrap());
     }
 }

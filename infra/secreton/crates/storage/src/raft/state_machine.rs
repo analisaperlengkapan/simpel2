@@ -4,6 +4,7 @@
 
 use super::types::{LogId, NodeId, SecretonTypeConfig};
 use crate::SecretEntry;
+use chrono::{DateTime, Utc};
 use openraft::storage::RaftSnapshotBuilder;
 use openraft::{BasicNode, SnapshotMeta, StorageError};
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,9 @@ pub enum StateMachineCommand {
 
     /// Delete a engine entry by path
     DeleteByPath(String),
+
+    /// Delete expired entries based on a timestamp
+    DeleteExpired(DateTime<Utc>),
 }
 
 /// Response from state machine operations
@@ -42,6 +46,9 @@ pub enum StateMachineResponse {
 
     /// Entry was deleted
     Deleted(bool),
+
+    /// Expired entries were deleted (count)
+    DeletedExpired(u64),
 
     /// Error occurred
     Error(String),
@@ -138,6 +145,32 @@ impl SecretonStateMachine {
                 } else {
                     StateMachineResponse::Deleted(false)
                 }
+            }
+
+            StateMachineCommand::DeleteExpired(timestamp) => {
+                let mut data = self.data.write().await;
+                let mut id_index = self.id_index.write().await;
+
+                let mut expired_paths = Vec::new();
+
+                // Identify expired entries
+                for (path, entry) in data.iter() {
+                    if let Some(expires_at) = entry.expires_at {
+                        if expires_at <= timestamp {
+                            expired_paths.push(path.clone());
+                        }
+                    }
+                }
+
+                let mut count = 0;
+                for path in expired_paths {
+                    if let Some(entry) = data.remove(&path) {
+                        id_index.remove(&entry.id);
+                        count += 1;
+                    }
+                }
+
+                StateMachineResponse::DeletedExpired(count)
             }
         }
     }
