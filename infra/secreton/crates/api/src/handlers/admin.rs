@@ -443,6 +443,23 @@ mod tests {
         let incidents = body.data.expect("incidents payload");
         assert_eq!(incidents.len(), 1);
         assert_eq!(incidents[0].id, "api-inc-1");
+
+        // Test filtering
+        let response_filtered = server
+            .get("/security/incidents")
+            .add_query_param("filter", "api test")
+            .await;
+        response_filtered.assert_status_ok();
+        let body_filtered: ApiResponse<Vec<SecurityIncident>> = response_filtered.json();
+        assert_eq!(body_filtered.data.unwrap().len(), 1);
+
+        let response_empty = server
+            .get("/security/incidents")
+            .add_query_param("filter", "nonexistent")
+            .await;
+        response_empty.assert_status_ok();
+        let body_empty: ApiResponse<Vec<SecurityIncident>> = response_empty.json();
+        assert_eq!(body_empty.data.unwrap().len(), 0);
     }
 }
 

@@ -642,7 +642,7 @@ impl AdminService {
         &self,
         limit: Option<u32>,
         offset: Option<u32>,
-        _filter: Option<String>,
+        filter: Option<String>,
     ) -> Result<Vec<SecurityIncident>, AdminError> {
         let mut params = QueryParams::new().with_path_prefix("sys/incidents/".to_string());
         if let Some(l) = limit {
@@ -666,6 +666,19 @@ impl AdminService {
                 .map_err(|e| anyhow::anyhow!("Decryption failed: {}", e))?;
             let incident: SecurityIncident = serde_json::from_slice(&decrypted)
                 .map_err(|e| anyhow::anyhow!("Deserialization failed: {}", e))?;
+
+            // Apply filter if present (case-insensitive contains on key fields)
+            if let Some(ref f) = filter {
+                let f = f.to_lowercase();
+                if !incident.title.to_lowercase().contains(&f)
+                    && !incident.description.to_lowercase().contains(&f)
+                    && !incident.source.to_lowercase().contains(&f)
+                    && !incident.id.to_lowercase().contains(&f)
+                {
+                    continue;
+                }
+            }
+
             incidents.push(incident);
         }
 
@@ -692,6 +705,18 @@ impl AdminService {
             serde_json::json!({"type": "security_incident"}),
             SecurityLevel::Internal,
             "system".to_string(),
+        )
+        .add_metadata(
+            "severity".to_string(),
+            serde_json::Value::String(incident.severity.clone()),
+        )
+        .add_metadata(
+            "status".to_string(),
+            serde_json::Value::String(incident.status.clone()),
+        )
+        .add_metadata(
+            "source".to_string(),
+            serde_json::Value::String(incident.source.clone()),
         );
 
         self.storage.store(&entry).await.map_err(AdminError::Storage)?;
