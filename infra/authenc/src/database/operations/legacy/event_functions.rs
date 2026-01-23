@@ -22,10 +22,8 @@ pub async fn store_event(db: &Database, event: &Event) -> Result<()> {
     })?;
 
     // Parse IP address to proper type, or use null if invalid
-    let ip_addr: Option<std::net::IpAddr> = event
-        .ip_address
-        .as_ref()
-        .and_then(|ip| ip.parse().ok());
+    let ip_addr: Option<std::net::IpAddr> =
+        event.ip_address.as_ref().and_then(|ip| ip.parse().ok());
 
     let query = r#"
             INSERT INTO events (

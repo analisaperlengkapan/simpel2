@@ -249,7 +249,7 @@ mod satker_isolation_validation {
         );
 
         // Create security context for SATKER_001
-        let security_context_a = create_test_security_context("SATKER_001", AccessLevel::ReadOnly);
+        let _security_context_a = create_test_security_context("SATKER_001", AccessLevel::ReadOnly);
 
         // Attempt to access SATKER_002 secrets (should fail)
         let result = secreton_client
@@ -436,8 +436,12 @@ fn test_config() -> AuthencConfig {
     let mut config = AuthencConfig::default();
     // Minimal Secreton configuration for tests; actual networking is mocked
     config.secreton = Some(authenc::config::SecretonConfig {
+        enabled: true,
         endpoint: "https://secreton.test".to_string(),
         token: "test-token".to_string(),
+        mount_path: "secret".to_string(),
+        key_rotation_interval: 3600,
+        secrets_to_load: vec![],
     });
     config
 }

@@ -6,7 +6,7 @@
 use authenc::error::Result;
 use authenc::models::events::{Event, EventType};
 use authenc::services::enhanced_audit::{EnhancedAuditService, create_audit_context};
-use authenc::utils::payload_sanitizer::{SanitizerConfig, sanitize_payload};
+use authenc::utils::sanitizer::{SanitizerConfig, sanitize_payload};
 use axum::{
     Json,
     extract::State,

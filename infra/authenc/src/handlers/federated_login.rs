@@ -443,16 +443,14 @@ async fn generate_tokens(
     use crate::utils::jwt::generate_refresh_token;
 
     // Load user roles from database
-    let user_roles: Vec<String> = match crate::database::operations::roles::get_user_roles(
-        &state.database,
-        &user.id,
-    ).await {
-        Ok(roles) => roles.into_iter().map(|r| r.name).collect(),
-        Err(e) => {
-            tracing::warn!("Failed to load user roles: {}, using empty roles", e);
-            Vec::new()
-        }
-    };
+    let user_roles: Vec<String> =
+        match crate::database::operations::roles::get_user_roles(&state.database, &user.id).await {
+            Ok(roles) => roles.into_iter().map(|r| r.name).collect(),
+            Err(e) => {
+                tracing::warn!("Failed to load user roles: {}, using empty roles", e);
+                Vec::new()
+            }
+        };
 
     // Determine primary role for JWT claim
     let primary_role = user_roles.first().map(|s| s.as_str());
@@ -467,8 +465,9 @@ async fn generate_tokens(
     );
 
     // Generate Ed25519 signed refresh token
-    let refresh_token = generate_refresh_token(&user.id.to_string())
-        .map_err(|e| crate::error::AuthencError::internal(&format!("Failed to generate refresh token: {}", e)))?;
+    let refresh_token = generate_refresh_token(&user.id.to_string()).map_err(|e| {
+        crate::error::AuthencError::internal(&format!("Failed to generate refresh token: {}", e))
+    })?;
 
     let expires_in = 3600u64; // 1 hour for access token
 

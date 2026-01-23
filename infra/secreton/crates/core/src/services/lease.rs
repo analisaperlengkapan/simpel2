@@ -1047,9 +1047,10 @@ impl LeaseManager {
     pub async fn get_active_lease_breakdown(
         &self,
     ) -> Result<(HashMap<String, usize>, HashMap<String, usize>), LeaseError> {
-        let client = self.pool.get().await.map_err(|e| {
-            LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
-        })?;
+        let client =
+            self.pool.get().await.map_err(|e| {
+                LeaseError::StorageError(format!("Failed to get DB connection: {}", e))
+            })?;
 
         // Query by resource type
         let resource_query = r#"

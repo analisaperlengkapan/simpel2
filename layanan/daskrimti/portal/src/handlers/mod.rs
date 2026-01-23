@@ -1,6 +1,7 @@
 //! HTTP Handlers
 
-pub mod health;
-pub mod dashboard;
+pub mod auth;
 pub mod configuration;
+pub mod dashboard;
+pub mod health;
 pub mod reports;

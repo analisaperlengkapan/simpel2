@@ -73,7 +73,7 @@ secreton/
 │   │
 │   ├── grpc/           # gRPC service (separate for build performance)
 │   │
-│   ├── agent/          # Vault agent
+│   ├── agent/          # Secret Vault agent
 │   ├── cli/            # CLI tool
 │   └── hsm/            # HSM integration
 ```

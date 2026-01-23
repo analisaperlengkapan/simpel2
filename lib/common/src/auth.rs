@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// User role enum shared across services
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -112,8 +112,9 @@ impl SsoSession {
 
     /// Serialize session to JSON string
     pub fn to_json(&self) -> Result<String, crate::error::CommonError> {
-        serde_json::to_string(self)
-            .map_err(|e| crate::error::CommonError::Internal(format!("Failed to serialize SSO session: {}", e)))
+        serde_json::to_string(self).map_err(|e| {
+            crate::error::CommonError::Internal(format!("Failed to serialize SSO session: {}", e))
+        })
     }
 
     /// Deserialize session from JSON string

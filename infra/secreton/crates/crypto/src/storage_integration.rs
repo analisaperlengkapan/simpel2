@@ -2,18 +2,14 @@
 //!
 //! Provides seamless integration between cryptographic operations and storage layer.
 
-use crate::{
-    error::{CryptoError, CryptoResult},
-    transit::{KeyType, TransitEngine},
-};
-use base64::{Engine as _, engine::general_purpose};
+use crate::{CryptoResult, TransitEngine, error::CryptoError, transit::KeyType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Encrypted vault entry for storage
+/// Encrypted engine entry for storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EncryptedVaultEntry {
+pub struct EncryptedSecretEntry {
     /// Entry ID
     pub id: String,
 
@@ -30,7 +26,7 @@ pub struct EncryptedVaultEntry {
     pub key_version: u32,
 }
 
-/// Encryption metadata for vault entries
+/// Encryption metadata for engine entries
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionMetadata {
     /// Algorithm used
@@ -62,7 +58,7 @@ impl CryptoStorageBridge {
 
         // Create default key if it doesn't exist
         {
-            let mut t = transit.write().await;
+            let t = transit.write().await;
             if t.get_key_info(&default_key_name).await.is_err() {
                 t.create_key(default_key_name.clone(), KeyType::Aes256Gcm, None)
                     .await?;
@@ -80,7 +76,7 @@ impl CryptoStorageBridge {
         &self,
         data: &[u8],
         key_name: Option<&str>,
-    ) -> CryptoResult<EncryptedVaultEntry> {
+    ) -> CryptoResult<EncryptedSecretEntry> {
         let key_name = key_name.unwrap_or(&self.default_key);
 
         // Encrypt data using transit engine
@@ -102,7 +98,7 @@ impl CryptoStorageBridge {
         // Get key info for metadata
         let key_info = transit.get_key_info(key_name).await?;
 
-        Ok(EncryptedVaultEntry {
+        Ok(EncryptedSecretEntry {
             id: uuid::Uuid::new_v4().to_string(),
             encrypted_data: encrypted_bytes,
             metadata: EncryptionMetadata {
@@ -117,7 +113,10 @@ impl CryptoStorageBridge {
     }
 
     /// Decrypt data from storage
-    pub async fn decrypt_from_storage(&self, entry: &EncryptedVaultEntry) -> CryptoResult<Vec<u8>> {
+    pub async fn decrypt_from_storage(
+        &self,
+        entry: &EncryptedSecretEntry,
+    ) -> CryptoResult<Vec<u8>> {
         let transit = self.transit.read().await;
 
         // Convert stored bytes back to string (it's the original encrypted format)
@@ -138,8 +137,8 @@ impl CryptoStorageBridge {
     /// Re-encrypt data with new key version
     pub async fn reencrypt(
         &self,
-        entry: &EncryptedVaultEntry,
-    ) -> CryptoResult<EncryptedVaultEntry> {
+        entry: &EncryptedSecretEntry,
+    ) -> CryptoResult<EncryptedSecretEntry> {
         // Decrypt with old key
         let plaintext = self.decrypt_from_storage(entry).await?;
 

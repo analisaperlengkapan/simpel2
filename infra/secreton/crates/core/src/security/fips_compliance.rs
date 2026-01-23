@@ -1,4 +1,4 @@
-// Copyright 2025 Secreton Security Vault System Contributors
+// Copyright 2025 Secreton Security Engine System Contributors
 // SPDX-License-Identifier: Apache-2.0
 
 //! FIPS Compliance Module

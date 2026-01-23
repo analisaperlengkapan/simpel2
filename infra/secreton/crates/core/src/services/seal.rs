@@ -19,10 +19,7 @@ use secreton_crypto::shamir::{
 };
 
 // Import crypto primitives for master key encryption
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit},
-};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use sha2::{Digest, Sha256};
@@ -49,7 +46,7 @@ pub enum SealError {
     #[error("No rekey in progress")]
     NoRekeyInProgress,
 
-    #[error("Vault not initialized")]
+    #[error("Engine not initialized")]
     NotInitialized,
 
     #[error("Invalid configuration")]
@@ -64,8 +61,8 @@ pub enum SealError {
     #[error("Secret reconstruction failed")]
     ReconstructionFailed,
 
-    #[error("Vault is sealed")]
-    VaultSealed,
+    #[error("Engine is sealed")]
+    EngineSealed,
 
     #[error("Master key not available")]
     MasterKeyNotAvailable,
@@ -112,9 +109,9 @@ pub struct SealConfig {
     pub created_at: DateTime<Utc>,
 }
 
-/// Vault state stored in database
+/// Engine state stored in database
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultState {
+pub struct EngineState {
     /// Encrypted master key
     pub encrypted_master_key: Vec<u8>,
 
@@ -276,32 +273,32 @@ pub struct SealService {
     unseal_shares: Arc<RwLock<Vec<Share>>>, // Collected unseal shares
     commitment: Arc<RwLock<Option<Commitment>>>, // Feldman VSS commitment for verification
     rekey_operation: Arc<RwLock<Option<RekeyOperation>>>,
-    storage_backend: Option<Arc<dyn VaultStateStorage>>, // Optional storage for persistence
+    storage_backend: Option<Arc<dyn EngineStateStorage>>, // Optional storage for persistence
 }
 
-/// Storage backend trait for vault state persistence
+/// Storage backend trait for engine state persistence
 /// This is a minimal trait to avoid circular dependencies
 #[async_trait::async_trait]
-pub trait VaultStateStorage: Send + Sync {
-    /// Store vault state
-    async fn store_vault_state(&self, state: &VaultState) -> Result<(), String>;
+pub trait EngineStateStorage: Send + Sync {
+    /// Store engine state
+    async fn store_engine_state(&self, state: &EngineState) -> Result<(), String>;
 
-    /// Load vault state
-    async fn load_vault_state(&self) -> Result<Option<VaultState>, String>;
+    /// Load engine state
+    async fn load_engine_state(&self) -> Result<Option<EngineState>, String>;
 }
 
 // Implement a simple in-memory storage for testing
-pub struct InMemoryVaultStateStorage {
-    state: Arc<RwLock<Option<VaultState>>>,
+pub struct InMemoryEngineStateStorage {
+    state: Arc<RwLock<Option<EngineState>>>,
 }
 
-impl Default for InMemoryVaultStateStorage {
+impl Default for InMemoryEngineStateStorage {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl InMemoryVaultStateStorage {
+impl InMemoryEngineStateStorage {
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(None)),
@@ -310,14 +307,14 @@ impl InMemoryVaultStateStorage {
 }
 
 #[async_trait::async_trait]
-impl VaultStateStorage for InMemoryVaultStateStorage {
-    async fn store_vault_state(&self, vault_state: &VaultState) -> Result<(), String> {
+impl EngineStateStorage for InMemoryEngineStateStorage {
+    async fn store_engine_state(&self, engine_state: &EngineState) -> Result<(), String> {
         let mut state = self.state.write().await;
-        *state = Some(vault_state.clone());
+        *state = Some(engine_state.clone());
         Ok(())
     }
 
-    async fn load_vault_state(&self) -> Result<Option<VaultState>, String> {
+    async fn load_engine_state(&self) -> Result<Option<EngineState>, String> {
         let state = self.state.read().await;
         Ok(state.clone())
     }
@@ -338,7 +335,7 @@ impl SealService {
     }
 
     /// Create new seal service with storage backend
-    pub fn with_storage(config: SealConfig, storage: Arc<dyn VaultStateStorage>) -> Self {
+    pub fn with_storage(config: SealConfig, storage: Arc<dyn EngineStateStorage>) -> Self {
         Self {
             config: Arc::new(RwLock::new(config)),
             state: Arc::new(RwLock::new(SealState::Sealed)),
@@ -462,7 +459,7 @@ impl SealService {
             SealError::StorageError(format!("Failed to serialize commitment: {}", e))
         })?;
 
-        let vault_state = VaultState {
+        let engine_state = EngineState {
             encrypted_master_key,
             seal_config: config.clone(),
             shamir_commitments: commitment_bytes,
@@ -473,7 +470,7 @@ impl SealService {
         };
 
         storage
-            .store_vault_state(&vault_state)
+            .store_engine_state(&engine_state)
             .await
             .map_err(SealError::StorageError)?;
 
@@ -481,26 +478,26 @@ impl SealService {
     }
 
     /// Load encrypted master key from storage backend
-    async fn load_encrypted_master_key(&self) -> Result<Option<VaultState>, SealError> {
+    async fn load_encrypted_master_key(&self) -> Result<Option<EngineState>, SealError> {
         let storage = self
             .storage_backend
             .as_ref()
             .ok_or_else(|| SealError::StorageError("No storage backend configured".to_string()))?;
 
         storage
-            .load_vault_state()
+            .load_engine_state()
             .await
             .map_err(SealError::StorageError)
     }
 
-    /// Initialize vault with new master key and generate Shamir shares
+    /// Initialize engine with new master key and generate Shamir shares
     /// Returns the shares that must be distributed to operators
     /// This should only be called once during initial setup
     ///
-    /// CRITICAL SECURITY: After initialization, the vault remains SEALED.
+    /// CRITICAL SECURITY: After initialization, the engine remains SEALED.
     /// Operators must manually unseal with threshold shares.
-    /// This follows HashiCorp Vault security best practices.
-    #[instrument(skip(self), fields(operation = "initialize_vault"))]
+    /// This follows HashiCorp Engine security best practices.
+    #[instrument(skip(self), fields(operation = "initialize_engine"))]
     pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
         let state = self.state.read().await;
         if *state != SealState::Sealed {
@@ -554,15 +551,15 @@ impl SealService {
         }
 
         // CRITICAL SECURITY FIX: DO NOT store master key in memory after init
-        // DO NOT unseal the vault automatically
-        // Vault remains in Sealed state
+        // DO NOT unseal the engine automatically
+        // Engine remains in Sealed state
         // Operators must manually unseahold shares
 
         // Master key bytes are wrapped in Zeroizing, so they will be zeroized automatically on drop
 
-        // Vault remains sealed - state is already Sealed, no change needed
+        // Engine remains sealed - state is already Sealed, no change needed
         tracing::info!(
-            "Vault initialized successfully. Vault remains SEALED. Operators must unseal with {} of {} shares.",
+            "Engine initialized successfully. Engine remains SEALED. Operators must unseal with {} of {} shares.",
             threshold,
             num_shares
         );
@@ -576,7 +573,7 @@ impl SealService {
         let state = self.state.read().await;
         let shares = self.unseal_shares.read().await;
 
-        // Check if vault is initialized by checking if commitment exists
+        // Check if engine is initialized by checking if commitment exists
         let commitment = self.commitment.read().await;
         let initialized = commitment.is_some();
         drop(commitment);
@@ -584,8 +581,8 @@ impl SealService {
         SealStatus::new(&config, state.clone(), shares.len(), initialized)
     }
 
-    /// Seal the vault - clears master key from memory
-    #[instrument(skip(self), fields(operation = "seal_vault"))]
+    /// Seal the engine - clears master key from memory
+    #[instrument(skip(self), fields(operation = "seal_engine"))]
     pub async fn seal(&self) -> Result<(), SealError> {
         let mut state = self.state.write().await;
 
@@ -662,7 +659,7 @@ impl SealService {
 
             // Try to load encrypted master key from storage
             let master_key_bytes =
-                if let Some(vault_state) = self.load_encrypted_master_key().await? {
+                if let Some(engine_state) = self.load_encrypted_master_key().await? {
                     // Decrypt master key using reconstructed seal key
                     // Use hash of reconstructed key as seal key (same as in initialize)
                     let mut hasher = Sha256::new();
@@ -671,9 +668,9 @@ impl SealService {
                     let seal_key = hasher.finalize().to_vec();
 
                     Self::decrypt_master_key(
-                        &vault_state.encrypted_master_key,
+                        &engine_state.encrypted_master_key,
                         &seal_key,
-                        &vault_state.encryption_metadata,
+                        &engine_state.encryption_metadata,
                     )?
                 } else {
                     // No stored master key, use reconstructed key directly
@@ -706,8 +703,8 @@ impl SealService {
     /// Converts string key to share bytes (assumes base64 encoding)
     pub async fn unseal(&self, key: String) -> Result<SealStatus, SealError> {
         // Decode base64 key to bytes
-        let share_bytes = crate::utils::encoding::base64_decode(&key)
-            .map_err(|_| SealError::InvalidUnsealKey)?;
+        let share_bytes =
+            crate::utils::encoding::base64_decode(&key).map_err(|_| SealError::InvalidUnsealKey)?;
         self.unseal_with_share(&share_bytes).await
     }
 
@@ -728,7 +725,7 @@ impl SealService {
     pub async fn get_master_key(&self) -> Result<Vec<u8>, SealError> {
         let state = self.state.read().await;
         if *state != SealState::Unsealed {
-            return Err(SealError::VaultSealed);
+            return Err(SealError::EngineSealed);
         }
         drop(state);
 
@@ -842,13 +839,13 @@ impl SealService {
 
     /// Rotate master key - generates new master key and re-encrypts with new shares
     /// Returns new shares that must be distributed to operators
-    /// Vault must be unsealed to perform rotation
+    /// Engine must be unsealed to perform rotation
     #[instrument(skip(self), fields(operation = "rotate_master_key"))]
     pub async fn rotate_master_key(&self) -> Result<Vec<Share>, SealError> {
         // Check if unsealed
         let state = self.state.read().await;
         if *state != SealState::Unsealed {
-            return Err(SealError::VaultSealed);
+            return Err(SealError::EngineSealed);
         }
         drop(state);
 
@@ -903,26 +900,26 @@ impl SealService {
         Ok(shares)
     }
 
-    /// Load vault state from storage on startup
-    /// This allows the vault to resume from a previous state
+    /// Load engine state from storage on startup
+    /// This allows the engine to resume from a previous state
     pub async fn load_from_storage(&self) -> Result<bool, SealError> {
-        if let Some(vault_state) = self.load_encrypted_master_key().await? {
+        if let Some(engine_state) = self.load_encrypted_master_key().await? {
             // Update configuration
             let mut config = self.config.write().await;
-            *config = vault_state.seal_config;
+            *config = engine_state.seal_config;
             drop(config);
 
             // Deserialize and store commitment
-            let commitment: Commitment = serde_json::from_slice(&vault_state.shamir_commitments)
+            let commitment: Commitment = serde_json::from_slice(&engine_state.shamir_commitments)
                 .map_err(|e| {
-                    SealError::StorageError(format!("Failed to deserialize commitment: {}", e))
-                })?;
+                SealError::StorageError(format!("Failed to deserialize commitment: {}", e))
+            })?;
 
             let mut commitment_lock = self.commitment.write().await;
             *commitment_lock = Some(commitment);
             drop(commitment_lock);
 
-            // Vault remains sealed, waiting for unseal shares
+            // Engine remains sealed, waiting for unseal shares
             Ok(true)
         } else {
             Ok(false)
@@ -944,18 +941,18 @@ mod tests {
         };
 
         // Use storage backend for proper initialization
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(config, storage);
 
-        // Initialize vault - generates master key and shares
+        // Initialize engine - generates master key and shares
         let shares = service.initialize().await.unwrap();
         assert_eq!(shares.len(), 5);
 
-        // CRITICAL SECURITY FIX: After initialization, vault remains SEALED
-        // This follows HashiCorp Vault best practices
+        // CRITICAL SECURITY FIX: After initialization, engine remains SEALED
+        // This follows HashiCorp Engine best practices
         assert!(
             service.is_sealed().await,
-            "Vault should remain sealed after initialization"
+            "Engine should remain sealed after initialization"
         );
 
         // Unseal with threshold shares (3 of 5)
@@ -981,25 +978,25 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(config, storage.clone());
 
-        // Initialize vault - generates master key and shares
+        // Initialize engine - generates master key and shares
         let shares = service.initialize().await.unwrap();
         assert_eq!(shares.len(), 5);
 
-        // Verify vault state was stored
-        let vault_state = storage.load_vault_state().await.unwrap();
-        assert!(vault_state.is_some());
-        let state = vault_state.unwrap();
+        // Verify engine state was stored
+        let engine_state = storage.load_engine_state().await.unwrap();
+        assert!(engine_state.is_some());
+        let state = engine_state.unwrap();
         assert_eq!(state.seal_config.secret_shares, 5);
         assert_eq!(state.seal_config.secret_threshold, 3);
         assert!(!state.encrypted_master_key.is_empty());
 
-        // CRITICAL SECURITY FIX: After initialization, vault remains SEALED
+        // CRITICAL SECURITY FIX: After initialization, engine remains SEALED
         assert!(
             service.is_sealed().await,
-            "Vault should remain sealed after initialization"
+            "Engine should remain sealed after initialization"
         );
 
         // Unseal to get master key
@@ -1012,7 +1009,7 @@ mod tests {
         // Get original master key
         let original_master_key = service.get_master_key().await.unwrap();
 
-        // Seal the vault again
+        // Seal the engine again
         service.seal().await.unwrap();
         assert!(service.is_sealed().await);
 
@@ -1039,13 +1036,13 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(config, storage.clone());
 
-        // Initialize vault
+        // Initialize engine
         let initial_shares = service.initialize().await.unwrap();
 
-        // CRITICAL SECURITY FIX: Vault remains sealed after init, must unseal first
+        // CRITICAL SECURITY FIX: Engine remains sealed after init, must unseal first
         assert!(service.is_sealed().await);
         for share in initial_shares.iter().take(3) {
             let share_bytes = share.to_bytes().unwrap();
@@ -1085,13 +1082,13 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
 
         // Initialize first service
         let service1 = SealService::with_storage(config.clone(), storage.clone());
         let shares = service1.initialize().await.unwrap();
 
-        // CRITICAL SECURITY FIX: Vault remains sealed after init, must unseal to get master key
+        // CRITICAL SECURITY FIX: Engine remains sealed after init, must unseal to get master key
         assert!(service1.is_sealed().await);
         for share in shares.iter().take(3) {
             let share_bytes = share.to_bytes().unwrap();
@@ -1156,13 +1153,13 @@ mod tests {
     #[tokio::test]
     async fn test_seal_clears_master_key() {
         // Use storage backend for proper initialization
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // CRITICAL SECURITY FIX: Vault remains sealed after init
+        // CRITICAL SECURITY FIX: Engine remains sealed after init
         assert!(service.is_sealed().await);
 
         // Master key should NOT be available when sealed
@@ -1188,13 +1185,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_share_verification() {
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // Vault is already sealed after initialization (CRITICAL SECURITY FIX)
+        // Engine is already sealed after initialization (CRITICAL SECURITY FIX)
         assert!(service.is_sealed().await);
 
         // Try to unseal with invalid share
@@ -1213,13 +1210,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_insufficient_shares() {
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // Vault is already sealed after initialization (CRITICAL SECURITY FIX)
+        // Engine is already sealed after initialization (CRITICAL SECURITY FIX)
         assert!(service.is_sealed().await);
 
         // Provide only 2 shares (need 3)
@@ -1238,13 +1235,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_reset_unseal() {
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // Vault is already sealed after initialization (CRITICAL SECURITY FIX)
+        // Engine is already sealed after initialization (CRITICAL SECURITY FIX)
         assert!(service.is_sealed().await);
 
         // Provide 2 shares
@@ -1266,13 +1263,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_duplicate_shares_ignored() {
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // Vault is already sealed after initialization (CRITICAL SECURITY FIX)
+        // Engine is already sealed after initialization (CRITICAL SECURITY FIX)
         assert!(service.is_sealed().await);
 
         // Provide same share twice
@@ -1286,13 +1283,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_any_threshold_combination_works() {
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let service = SealService::with_storage(SealConfig::default(), storage);
 
         // Initialize
         let shares = service.initialize().await.unwrap();
 
-        // Vault is already sealed after initialization (CRITICAL SECURITY FIX)
+        // Engine is already sealed after initialization (CRITICAL SECURITY FIX)
         assert!(service.is_sealed().await);
 
         // Test different combinations of 3 shares

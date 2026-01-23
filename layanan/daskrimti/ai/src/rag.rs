@@ -11,4 +11,4 @@ impl RagService {
     pub async fn ingest(&self, _data: &str) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
-} 
+}

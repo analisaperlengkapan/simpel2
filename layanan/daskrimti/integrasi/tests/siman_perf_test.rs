@@ -1,4 +1,4 @@
-use layanan_integrasi::siman::{fetch_all_assets_with_pagination, SimanAssetCategory};
+use layanan_integrasi::siman::{SimanAssetCategory, fetch_all_assets_with_pagination};
 use layanan_integrasi::{Config, MonsaktiClient, StorageStrategy};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -70,14 +70,19 @@ async fn test_parallel_fetching_performance() {
         siman_concurrency_limit: 20,
     };
 
-    let mut client = MonsaktiClient::new(config).await.expect("Failed to create client");
+    let mut client = MonsaktiClient::new(config)
+        .await
+        .expect("Failed to create client");
 
     // 4. Run Benchmark
     let start_time = Instant::now();
     let category = SimanAssetCategory::Tanah;
 
     let storage = StorageStrategy::JsonFile {
-        base_dir: std::env::temp_dir().join("siman_test").to_string_lossy().to_string(),
+        base_dir: std::env::temp_dir()
+            .join("siman_test")
+            .to_string_lossy()
+            .to_string(),
     };
 
     let result = fetch_all_assets_with_pagination(&mut client, &storage, category).await;
@@ -95,5 +100,8 @@ async fn test_parallel_fetching_performance() {
     // 50 chunks * 100ms / 20 = 250ms (Target Parallel)
 
     // Assert that it is at least faster than serial
-    assert!(elapsed < Duration::from_secs(4), "Should be faster than serial execution (5s)");
+    assert!(
+        elapsed < Duration::from_secs(4),
+        "Should be faster than serial execution (5s)"
+    );
 }

@@ -22,7 +22,6 @@ mod tests {
             max_lifetime: 1800,
             connection_timeout: 30,
             audit_log_url: None,
-            connection_timeout_seconds: 30,
         };
 
         Database::new(&config)
@@ -191,7 +190,7 @@ mod tests {
             .expect("Failed to create realm with attributes");
 
         // Verify realm was created with attributes
-        let retrieved_realm = service
+        let _retrieved_realm = service
             .get_realm_by_id(&created_realm.id)
             .await
             .expect("Failed to retrieve realm")

@@ -17,7 +17,7 @@ mod integration_test_runner {
     async fn run_comprehensive_integration_test_suite() {
         println!("Starting comprehensive authenc-secreton integration test suite");
 
-        let test_results = IntegrationTestResults::new();
+        let _test_results = IntegrationTestResults::new();
 
         // Run authenc-side integration tests
         let authenc_results = run_authenc_integration_tests().await;
@@ -592,7 +592,7 @@ mod integration_test_runner {
         Ok(results)
     }
 
-    async fn simulate_test_execution(test_name: &str, success_rate: f64) -> TestResult {
+    async fn simulate_test_execution(_test_name: &str, success_rate: f64) -> TestResult {
         // Simulate test execution time
         let execution_time = Duration::from_millis(100 + (rand::random::<u64>() % 500));
         tokio::time::sleep(execution_time).await;

@@ -315,8 +315,8 @@ mod tests {
 
     #[test]
     fn test_auth_interceptor_exempt_methods() {
-        let interceptor = AuthInterceptor::new()
-            .with_exempt_methods(vec!["/service/HealthCheck".to_string()]);
+        let interceptor =
+            AuthInterceptor::new().with_exempt_methods(vec!["/service/HealthCheck".to_string()]);
 
         assert!(interceptor.is_exempt("/service/HealthCheck"));
         assert!(!interceptor.is_exempt("/service/GetUser"));
@@ -327,10 +327,9 @@ mod tests {
         let interceptor = LoggingInterceptor::new();
         let mut request = Request::new(());
 
-        request.metadata_mut().insert(
-            "x-request-id",
-            MetadataValue::from_static("test-id"),
-        );
+        request
+            .metadata_mut()
+            .insert("x-request-id", MetadataValue::from_static("test-id"));
 
         assert_eq!(
             interceptor.extract_request_id(&request),
@@ -344,10 +343,9 @@ mod tests {
 
         for i in 0..5 {
             let mut request = Request::new(());
-            request.metadata_mut().insert(
-                "x-forwarded-for",
-                MetadataValue::from_static("192.168.1.1"),
-            );
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
             let result = interceptor.call(request);
             assert!(result.is_ok(), "Request {} should pass", i + 1);
         }
@@ -359,10 +357,9 @@ mod tests {
 
         for i in 0..4 {
             let mut request = Request::new(());
-            request.metadata_mut().insert(
-                "x-forwarded-for",
-                MetadataValue::from_static("192.168.1.1"),
-            );
+            request
+                .metadata_mut()
+                .insert("x-forwarded-for", MetadataValue::from_static("192.168.1.1"));
             let result = interceptor.call(request);
 
             if i < 3 {

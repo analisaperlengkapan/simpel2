@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::correlation::CorrelationId;
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 /// Unified request context for infrastructure metadata

@@ -122,7 +122,7 @@ impl K8sRole {
             name,
             bound_service_account_names: Vec::new(),
             bound_service_account_namespaces: Vec::new(),
-            audience: "vault".to_string(),
+            audience: "engine".to_string(),
             token_ttl: 3600,
             token_max_ttl: 86400,
             policies: Vec::new(),
@@ -213,7 +213,7 @@ impl K8sAuth {
         let claims = K8sJwtClaims {
             iss: "kubernetes/serviceaccount".to_string(),
             sub: "system:serviceaccount:default:app-sa".to_string(),
-            aud: vec!["vault".to_string()],
+            aud: vec!["engine".to_string()],
             exp: (Utc::now() + chrono::Duration::hours(1)).timestamp(),
             iat: Utc::now().timestamp(),
             kubernetes: K8sClaims {

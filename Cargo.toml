@@ -22,7 +22,9 @@ members = [
     "antarmuka/pidmil",
     "antarmuka/pidsus",
     "antarmuka/pidum",
-    "antarmuka/portal",
+
+    # Daskrimti Frontend
+    "antarmuka/daskrimti/portal",
 
     # Pembinaan Microfrontends
     "antarmuka/pembinaan/keuangan",
@@ -52,13 +54,25 @@ members = [
     "layanan/daskrimti/integrasi",
     "layanan/daskrimti/notifikasi",
 
-    # NOTE: infra/authenc and infra/secreton are SEPARATE WORKSPACES
-    # They have their own Cargo.toml and Cargo.lock files
-    # DO NOT add them as workspace members here!
+    # Infrastructure Services (Part of main workspace for dependency management)
+    "infra/authenc",
+    "infra/secreton",
+
+    # Secreton sub-crates
+    "infra/secreton/crates/core",
+    "infra/secreton/crates/api",
+    "infra/secreton/crates/storage",
+    "infra/secreton/crates/crypto",
+    "infra/secreton/crates/types",
+    "infra/secreton/crates/agent",
+    "infra/secreton/crates/cli",
+    "infra/secreton/crates/grpc",
+    "infra/secreton/crates/hsm",
+    "infra/secreton/crates/k8s-operator",
 ]
 
 default-members = [
-    "antarmuka/portal",
+    "antarmuka/daskrimti/portal",
     "antarmuka/pembinaan/keuangan",
     "antarmuka/pembinaan/perencanaan",
     "antarmuka/pembinaan/perlengkapan",
@@ -134,6 +148,7 @@ sea-query = { version = "0.32.7", features = [
 argon2 = "0.5.3"
 jsonwebtoken = { version = "10.1.0", default-features = false, features = [
     "aws_lc_rs",
+    "use_pem",
 ] } # Updated to v10 with aws_lc_rs backend
 oauth2 = "5.0.0"
 rand = { version = "0.8.5", features = [
@@ -235,6 +250,15 @@ http-body = "1.0"
 http-body-util = "0.1"
 temp-env = "0.3.6"
 bcrypt = "0.17.1"
+
+# Secreton Internal Dependencies (for sub-crates)
+secreton-core = { path = "infra/secreton/crates/core" }
+secreton-api = { path = "infra/secreton/crates/api" }
+secreton-storage = { path = "infra/secreton/crates/storage" }
+secreton-crypto = { path = "infra/secreton/crates/crypto" }
+secreton-types = { path = "infra/secreton/crates/types" }
+secreton-grpc = { path = "infra/secreton/crates/grpc" }
+secreton-hsm = { path = "infra/secreton/crates/hsm" }
 lazy_static = "1.4"
 futures-util = { version = "0.3", features = ["std"] }
 pin-project = "1.0"
@@ -443,8 +467,10 @@ der-parser = "9.0"
 aide = { version = "0.15.1", features = ["axum", "macros"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 warp = "0.4.2"
-tonic-build = "0.12"
-prost = "0.13"
+tonic-build = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
+prost = "0.14"
 data-encoding = "2.6"
 fpe = "0.6.1"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "std"] }

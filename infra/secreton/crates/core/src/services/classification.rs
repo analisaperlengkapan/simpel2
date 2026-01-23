@@ -425,14 +425,15 @@ impl ClassificationService for InMemoryClassificationService {
             total_secrets += 1;
             total_accesses += metadata.access_count;
 
-            let stats = stats_by_level
-                .entry(metadata.level)
-                .or_insert_with(|| ClassificationStats {
-                    level: metadata.level,
-                    secret_count: 0,
-                    total_accesses: 0,
-                    last_accessed: None,
-                });
+            let stats =
+                stats_by_level
+                    .entry(metadata.level)
+                    .or_insert_with(|| ClassificationStats {
+                        level: metadata.level,
+                        secret_count: 0,
+                        total_accesses: 0,
+                        last_accessed: None,
+                    });
 
             stats.secret_count += 1;
             stats.total_accesses += metadata.access_count;
@@ -562,9 +563,7 @@ impl ClassificationService for InMemoryClassificationService {
                     level = %metadata.level,
                     "MFA service not configured but required for classification level"
                 );
-                return Err(CoreError::invalid_operation(
-                    "MFA service not configured",
-                ));
+                return Err(CoreError::invalid_operation("MFA service not configured"));
             }
         };
 
@@ -685,10 +684,7 @@ impl ClassificationService for InMemoryClassificationService {
                 violation_type: ViolationType::MfaNotVerified,
                 user_id: user_id.to_string(),
                 timestamp: Utc::now(),
-                details: format!(
-                    "MFA required for {} but not verified",
-                    metadata.level
-                ),
+                details: format!("MFA required for {} but not verified", metadata.level),
             };
 
             let mut violations = self.violations.write().await;
@@ -960,7 +956,11 @@ mod tests {
 
         // Enable MFA for user
         mfa_service
-            .enable_totp("user1", "Secreton".to_string(), "user1@test.com".to_string())
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@test.com".to_string(),
+            )
             .await
             .unwrap();
 
@@ -975,7 +975,11 @@ mod tests {
         let service = InMemoryClassificationService::with_mfa(mfa_service.clone());
 
         service
-            .classify("secret/topsecret", ClassificationLevel::SangatRahasia, "user1")
+            .classify(
+                "secret/topsecret",
+                ClassificationLevel::SangatRahasia,
+                "user1",
+            )
             .await
             .unwrap();
 
@@ -985,7 +989,11 @@ mod tests {
 
         // Enable MFA
         mfa_service
-            .enable_totp("user1", "Secreton".to_string(), "user1@test.com".to_string())
+            .enable_totp(
+                "user1",
+                "Secreton".to_string(),
+                "user1@test.com".to_string(),
+            )
             .await
             .unwrap();
 
@@ -1073,7 +1081,11 @@ mod tests {
             .await
             .unwrap();
         service
-            .classify("secret/sangat_rahasia", ClassificationLevel::SangatRahasia, "user1")
+            .classify(
+                "secret/sangat_rahasia",
+                ClassificationLevel::SangatRahasia,
+                "user1",
+            )
             .await
             .unwrap();
 
@@ -1220,7 +1232,12 @@ mod tests {
 
         // Non-existent secret should allow operation
         let result = service
-            .validate_operation("secret/nonexistent", "user1", ClassificationLevel::Biasa, false)
+            .validate_operation(
+                "secret/nonexistent",
+                "user1",
+                ClassificationLevel::Biasa,
+                false,
+            )
             .await;
         assert!(result.is_ok());
     }

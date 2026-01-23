@@ -1,8 +1,8 @@
 //! Admin service for system management operations.
 
+use crate::services::lease::{LeaseError, LeaseManager};
 use anyhow::Result;
 use async_trait::async_trait;
-use crate::services::lease::{LeaseError, LeaseManager};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::audit::api_audit::AuditLogger;
 use crate::services::auth_service::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, StorageBackend};
+use secreton_storage::StorageBackend;
 use std::sync::Mutex;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
@@ -186,7 +186,9 @@ impl AdminService {
                 total: total_memory,
                 used: used_memory,
                 free: sys.free_memory(),
-                cached: total_memory.saturating_sub(used_memory).saturating_sub(sys.free_memory()), // Approximate
+                cached: total_memory
+                    .saturating_sub(used_memory)
+                    .saturating_sub(sys.free_memory()), // Approximate
             };
 
             let cpu = CpuStats {
@@ -229,7 +231,7 @@ impl AdminService {
             total_secrets: storage_stats.total_entries,
             total_keys: storage_stats.total_entries, // Count of encrypted entries
             storage_usage_bytes: storage_stats.total_size_bytes,
-            cache_hit_rate: 0.0, // Middleware metrics not available in core
+            cache_hit_rate: 0.0,      // Middleware metrics not available in core
             requests_per_minute: 0.0, // TODO: Implement request rate tracking
             memory: memory_stats,
             cpu: cpu_stats,
@@ -327,18 +329,16 @@ impl AdminService {
         // 3. Clean expired audit logs based on retention policy
         // Retention: 30 days
         let retention_period = chrono::Duration::days(30);
-        let cleaned_audit_logs = self
-            .audit
-            .cleanup_expired_events(retention_period)
-            .await;
+        let cleaned_audit_logs = self.audit.cleanup_expired_events(retention_period).await;
 
         let cleaned_objects =
             expired_leases_count as u64 + expired_secrets_count + cleaned_audit_logs as u64;
 
         // Recalculate stats to see freed space (approximate)
         let stats_after = self.storage.get_stats().await?;
-        let freed_space =
-            stats_before.total_size_bytes.saturating_sub(stats_after.total_size_bytes);
+        let freed_space = stats_before
+            .total_size_bytes
+            .saturating_sub(stats_after.total_size_bytes);
 
         tracing::info!(
             cleaned_objects = cleaned_objects,
@@ -743,7 +743,10 @@ mod tests {
         assert_eq!(stats.total_secrets, 0);
         assert_eq!(stats.total_keys, 0);
         assert_eq!(stats.storage_usage_bytes, 0);
-        assert!(stats.uptime_seconds >= 1, "Uptime should be at least 1 second");
+        assert!(
+            stats.uptime_seconds >= 1,
+            "Uptime should be at least 1 second"
+        );
         assert!(stats.cache_hit_rate >= 0.0);
     }
 

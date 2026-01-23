@@ -122,7 +122,7 @@ Every instrumented function includes an `operation` field that identifies the op
 ```rust
 operation = "create_lease"
 operation = "verify_totp"
-operation = "seal_vault"
+operation = "seal_engine"
 ```
 
 ### 2. User/Entity Identification
@@ -181,7 +181,7 @@ RUST_LOG=secreton_core=info cargo run
 ```
 2025-10-29T10:30:45.123Z INFO secreton_core::services::lease: create_lease{user="user123" resource="secret/data/foo" resource_type="kv" namespace="default" ttl_secs=3600 operation="create_lease"}
 2025-10-29T10:30:45.456Z INFO secreton_core::services::mfa: verify_totp{user_id="user123" operation="verify_totp"}: verification successful
-2025-10-29T10:30:45.789Z INFO secreton_core::services::seal: unseal_with_share{share_length=64 operation="unseal_with_share"}: threshold met, unsealing vault
+2025-10-29T10:30:45.789Z INFO secreton_core::services::seal: unseal_with_share{share_length=64 operation="unseal_with_share"}: threshold met, unsealing engine
 ```
 
 ## Integration with Monitoring

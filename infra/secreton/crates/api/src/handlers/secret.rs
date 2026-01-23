@@ -4,7 +4,7 @@
 //! cryptographic functions, and audit trail management.
 //!
 //! This module handles secure secret management operations without
-//! dependency on external vault systems like HashiCorp Vault.
+//! dependency on external engine systems like HashiCorp Engine.
 
 use axum::{
     Router,
@@ -21,7 +21,7 @@ use crate::{
     extractors::AuthenticatedUser,
     handlers::AppState,
     helpers::create_audit_log,
-    services::vault::{KeyMetadata, SecretMetadata},
+    services::engine::{KeyMetadata, SecretMetadata},
 };
 use secreton_core::audit::AuditLog;
 
@@ -182,7 +182,9 @@ pub async fn export_audit_logs(
     let format = query.format.unwrap_or_else(|| "json".to_string());
     let data = match format.to_lowercase().as_str() {
         "csv" => {
-            let mut csv = String::from("id,timestamp,action,actor,resource_type,resource_id,status,ip,user_agent\n");
+            let mut csv = String::from(
+                "id,timestamp,action,actor,resource_type,resource_id,status,ip,user_agent\n",
+            );
             for log in logs {
                 let status_str = match log.status {
                     secreton_core::audit::AuditStatus::Success => "success",
@@ -400,7 +402,8 @@ mod tests {
             "exportable": false
         });
 
-        let response = server.post("/keys")
+        let response = server
+            .post("/keys")
             .add_header("Authorization", "Bearer token")
             .json(&create_request)
             .await;
@@ -409,7 +412,8 @@ mod tests {
         let key_id = key.data.unwrap().name; // Use name as ID for now
 
         // 2. List versions (should be 1)
-        let response = server.get(&format!("/keys/{}/versions", key_id))
+        let response = server
+            .get(&format!("/keys/{}/versions", key_id))
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -419,7 +423,8 @@ mod tests {
         assert_eq!(versions[0].version, 1);
 
         // 3. Rotate key
-        let response = server.post(&format!("/keys/{}/rotate", key_id))
+        let response = server
+            .post(&format!("/keys/{}/rotate", key_id))
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -427,7 +432,8 @@ mod tests {
         assert_eq!(body.data.unwrap().version, 2);
 
         // 4. List versions (should be 2)
-        let response = server.get(&format!("/keys/{}/versions", key_id))
+        let response = server
+            .get(&format!("/keys/{}/versions", key_id))
             .add_header("Authorization", "Bearer token")
             .await;
         response.assert_status_ok();
@@ -674,6 +680,7 @@ pub struct PolicyResponse {
 }
 
 /// Secret operations
+#[axum::debug_handler]
 pub async fn get_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
@@ -695,9 +702,9 @@ pub async fn get_secret(
             message: format!("Authentication required: {}", e),
         })?;
 
-    // Retrieve secret from vault service
+    // Retrieve secret from engine service
     let secret_data = state
-        .vault
+        .engine
         .get_secret(&path, &user.id.to_string())
         .await
         .map_err(|e| ApiError::NotFound {
@@ -733,9 +740,9 @@ pub async fn create_secret(
         metadata.owner = Some(user.username.clone());
     }
 
-    // Create secret using vault service
+    // Create secret using engine service
     let secret_data = state
-        .vault
+        .engine
         .put_secret(
             &path,
             request.data.clone(),
@@ -775,9 +782,9 @@ pub async fn update_secret(
         .ttl
         .map(|ttl| chrono::Utc::now() + chrono::Duration::seconds(ttl as i64));
 
-    // Update secret using vault service
+    // Update secret using engine service
     let secret_data = state
-        .vault
+        .engine
         .put_secret(
             &path,
             request.data.clone(),
@@ -812,9 +819,9 @@ pub async fn delete_secret(
     Path(path): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
-    // Delete secret using vault service
+    // Delete secret using engine service
     state
-        .vault
+        .engine
         .delete_secret(&path, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -838,9 +845,9 @@ pub async fn list_secrets(
     Query(query): Query<ListQuery>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<SecretListItem>>>> {
-    // List secrets using vault service
+    // List secrets using engine service
     let paths = state
-        .vault
+        .engine
         .list_secrets(query.filter.as_deref(), &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -868,9 +875,9 @@ pub async fn create_key(
     user: AuthenticatedUser,
     Json(request): Json<CreateKeyRequest>,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // Create key using vault service
+    // Create key using engine service
     let key_info = state
-        .vault
+        .engine
         .create_key(
             &request.name,
             &request.key_type,
@@ -908,9 +915,9 @@ pub async fn get_key(
     Path(key_id): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // Get key using vault service
+    // Get key using engine service
     let key_info = state
-        .vault
+        .engine
         .get_key(&key_id, &user.id.to_string())
         .await
         .map_err(|e| ApiError::NotFound {
@@ -939,9 +946,9 @@ pub async fn list_keys(
     Query(query): Query<ListQuery>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<KeyResponse>>>> {
-    // List keys using vault service
+    // List keys using engine service
     let key_infos = state
-        .vault
+        .engine
         .list_keys(&user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -973,9 +980,9 @@ pub async fn rotate_key(
     Path(key_id): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<KeyResponse>>> {
-    // Rotate key using vault service
+    // Rotate key using engine service
     let key_info = state
-        .vault
+        .engine
         .rotate_key(&key_id, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1009,9 +1016,9 @@ pub async fn encrypt_data(
     user: AuthenticatedUser,
     Json(request): Json<EncryptRequest>,
 ) -> ApiResult<Json<ApiResponse<EncryptResponse>>> {
-    // Encrypt using vault service
+    // Encrypt using engine service
     let result = state
-        .vault
+        .engine
         .encrypt(&request.key_id, &request.plaintext, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1036,9 +1043,9 @@ pub async fn decrypt_data(
     user: AuthenticatedUser,
     Json(request): Json<DecryptRequest>,
 ) -> ApiResult<Json<ApiResponse<DecryptResponse>>> {
-    // Decrypt using vault service
+    // Decrypt using engine service
     let result = state
-        .vault
+        .engine
         .decrypt(&request.key_id, &request.ciphertext, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1062,9 +1069,9 @@ pub async fn sign_data(
     user: AuthenticatedUser,
     Json(request): Json<SignRequest>,
 ) -> ApiResult<Json<ApiResponse<SignResponse>>> {
-    // Sign using vault service
+    // Sign using engine service
     let result = state
-        .vault
+        .engine
         .sign(
             &request.key_id,
             &request.data,
@@ -1090,9 +1097,9 @@ pub async fn verify_signature(
     user: AuthenticatedUser,
     Json(request): Json<VerifyRequest>,
 ) -> ApiResult<Json<ApiResponse<VerifyResponse>>> {
-    // Verify using vault service
+    // Verify using engine service
     let result = state
-        .vault
+        .engine
         .verify(
             &request.key_id,
             &request.data,
@@ -1117,9 +1124,9 @@ pub async fn hash_data(
     user: AuthenticatedUser,
     Json(request): Json<HashRequest>,
 ) -> ApiResult<Json<ApiResponse<HashResponse>>> {
-    // Hash using vault service
+    // Hash using engine service
     let result = state
-        .vault
+        .engine
         .hash(&request.data, &request.algorithm, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1157,9 +1164,9 @@ pub async fn update_key(
             message: format!("Authentication required: {}", e),
         })?;
 
-    // Update key metadata using vault service
+    // Update key metadata using engine service
     let key_info = state
-        .vault
+        .engine
         .update_key(&key_id, metadata, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1211,9 +1218,9 @@ pub async fn delete_key(
     // Key deletion should be done carefully with audit trail
     tracing::info!(key_id = %key_id, user_id = %user.id, "Key deletion requested");
 
-    // Delete key using vault service (includes safeguards)
+    // Delete key using engine service (includes safeguards)
     state
-        .vault
+        .engine
         .delete_key(&key_id, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {
@@ -1262,9 +1269,9 @@ pub async fn list_key_versions(
             message: format!("Authentication required: {}", e),
         })?;
 
-    // List key versions using vault service
+    // List key versions using engine service
     let key_infos = state
-        .vault
+        .engine
         .list_key_versions(&key_id, &user.id.to_string())
         .await
         .map_err(|e| ApiError::Internal {

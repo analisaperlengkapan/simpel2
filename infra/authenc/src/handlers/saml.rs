@@ -127,7 +127,10 @@ async fn get_default_sp(db: &Database) -> Result<SamlServiceProvider, AuthencErr
 }
 
 /// Load default SAML IDP from environment or database
-async fn get_default_idp(db: &Database, idp_entity_id: Option<&str>) -> Result<SamlIdentityProvider, AuthencError> {
+async fn get_default_idp(
+    db: &Database,
+    idp_entity_id: Option<&str>,
+) -> Result<SamlIdentityProvider, AuthencError> {
     let base_url = std::env::var("AUTHENC_BASE_URL")
         .unwrap_or_else(|_| "https://authenc.example.com".to_string());
 
@@ -149,8 +152,7 @@ async fn get_default_idp(db: &Database, idp_entity_id: Option<&str>) -> Result<S
     }
 
     // Fall back to configuration from environment
-    let signing_cert = std::env::var("SAML_SIGNING_CERTIFICATE")
-        .unwrap_or_else(|_| "".to_string());
+    let signing_cert = std::env::var("SAML_SIGNING_CERTIFICATE").unwrap_or_else(|_| "".to_string());
 
     Ok(SamlIdentityProvider {
         entity_id,
@@ -284,7 +286,9 @@ pub async fn saml_auth(
         Ok(redirect_url) => Ok(Redirect::to(&redirect_url)),
         Err(e) => {
             tracing::error!("Failed to generate SAML AuthnRequest: {}", e);
-            Err(AuthencError::internal("Failed to initiate SAML authentication"))
+            Err(AuthencError::internal(
+                "Failed to initiate SAML authentication",
+            ))
         }
     }
 }
@@ -305,24 +309,28 @@ pub async fn saml_acs(
         response
     } else {
         tracing::warn!("SAML ACS: Missing SAMLResponse parameter");
-        return Err(AuthencError::validation("SAMLResponse parameter is required"));
+        return Err(AuthencError::validation(
+            "SAMLResponse parameter is required",
+        ));
     };
 
     let relay_state = params.get("RelayState").map(|s| s.as_str());
 
     // Extract IDP entity ID from RelayState or use default
-    let idp_entity_id = relay_state
-        .and_then(|rs| {
-            // Parse relay state for IDP info if encoded
-            serde_json::from_str::<serde_json::Value>(rs)
-                .ok()
-                .and_then(|v| v["idp_entity_id"].as_str().map(String::from))
-        });
+    let idp_entity_id = relay_state.and_then(|rs| {
+        // Parse relay state for IDP info if encoded
+        serde_json::from_str::<serde_json::Value>(rs)
+            .ok()
+            .and_then(|v| v["idp_entity_id"].as_str().map(String::from))
+    });
 
     // Load IDP from database for signature verification
     if let Some(ref idp_id) = idp_entity_id {
         if let Some(db_idp) = load_idp_from_database(&db, idp_id).await? {
-            tracing::info!("Loaded IDP config from database for verification: {}", idp_id);
+            tracing::info!(
+                "Loaded IDP config from database for verification: {}",
+                idp_id
+            );
             // IDP certificate is used by SamlService internally for verification
         }
     }
@@ -381,10 +389,9 @@ pub async fn saml_acs(
                     .or_else(|| user_info.attributes.get("sn"))
                     .and_then(|v| v.first())
                     .map(|s| s.to_string()),
-                external_attributes: Some(
-                    serde_json::to_value(&user_info.attributes)
-                        .map_err(|e| AuthencError::internal(&format!("Failed to serialize attributes: {}", e)))?,
-                ),
+                external_attributes: Some(serde_json::to_value(&user_info.attributes).map_err(
+                    |e| AuthencError::internal(&format!("Failed to serialize attributes: {}", e)),
+                )?),
                 realm_id,
             };
 
@@ -516,10 +523,7 @@ pub async fn saml_slo(
         // 4. Redirect back to IDP with response
 
         // For now, just clear session and redirect
-        let post_logout_url = params
-            .get("RelayState")
-            .map(|s| s.as_str())
-            .unwrap_or("/");
+        let post_logout_url = params.get("RelayState").map(|s| s.as_str()).unwrap_or("/");
 
         return Ok(Redirect::to(post_logout_url));
     }
@@ -528,10 +532,7 @@ pub async fn saml_slo(
         // Handle SLO response from IDP
         tracing::info!("Processing SAML SLO response");
 
-        let post_logout_url = params
-            .get("RelayState")
-            .map(|s| s.as_str())
-            .unwrap_or("/");
+        let post_logout_url = params.get("RelayState").map(|s| s.as_str()).unwrap_or("/");
 
         return Ok(Redirect::to(post_logout_url));
     }

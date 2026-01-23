@@ -20,12 +20,12 @@ Missing request extension: Extension of type `core::option::Option<alloc::string
 - Client IP extraction middleware not implemented
 
 **Impact**:
-- Cannot unseal vault via REST API
+- Cannot unseal engine via REST API
 - Unseal operations fail with 500 error
-- Vault remains sealed and unusable
+- Secret Vault remains sealed and unusable
 
 **Workaround** (Temporary):
-1. Modify `unseal_vault` function to make `client_ip` optional
+1. Modify `unseal_engine` function to make `client_ip` optional
 2. Or implement middleware layer in `api_server.rs`
 
 **Fix** (Recommended):
@@ -80,52 +80,52 @@ curl: (52) Empty reply from server
 - Response not being properly formatted
 
 **Impact**:
-- Cannot initialize vault
+- Cannot initialize engine
 - Cannot get unseal keys and root token
-- Vault initialization workflow broken
+- Secret Vault initialization workflow broken
 
 **Workaround**:
 - Check container logs for panic messages
 - Manually inspect SealService state
 
 **Fix** (Recommended):
-1. Add better error handling in `initialize_vault` function
+1. Add better error handling in `initialize_engine` function
 2. Ensure response is properly serialized before sending
 3. Add logging for debugging
 
 ---
 
-### 3. ⚠️ Vault Already Initialized on Restart
+### 3. ⚠️ Secret Vault Already Initialized on Restart
 **Status**: EXPECTED BEHAVIOR
 **Severity**: LOW
 **Affected Endpoints**: `POST /v1/sys/init`
 
-**Issue**: Once vault is initialized, subsequent init calls fail with "Attempted to initialize already initialized vault"
+**Issue**: Once engine is initialized, subsequent init calls fail with "Attempted to initialize already initialized engine"
 
 **Error**:
 ```json
 {
-  "error": "Attempted to initialize already initialized vault"
+  "error": "Attempted to initialize already initialized engine"
 }
 ```
 
 **Root Cause**:
-- This is correct behavior - vault can only be initialized once
+- This is correct behavior - engine can only be initialized once
 - In-memory storage persists during container lifetime
-- On container restart, vault state is lost
+- On container restart, engine state is lost
 
 **Impact**:
-- Cannot reinitialize without resetting vault state
-- Need to implement vault reset/rekey operations
+- Cannot reinitialize without resetting engine state
+- Need to implement engine reset/rekey operations
 
 **Workaround**:
-- Restart container to reset vault state
+- Restart container to reset engine state
 - Implement `/v1/sys/reset` endpoint for development
 
 **Fix** (Recommended):
 - Implement persistent storage backend (PostgreSQL)
 - Implement `/v1/sys/rekey` for key rotation
-- Add admin endpoint to reset vault (development only)
+- Add admin endpoint to reset engine (development only)
 
 ---
 
@@ -147,7 +147,7 @@ curl: (52) Empty reply from server
 
 3. **Implement Persistent Storage**
    - Replace in-memory storage with PostgreSQL
-   - Persist vault state across restarts
+   - Persist engine state across restarts
    - Implement backup/restore
 
 4. **Implement Middleware Layer**
@@ -159,8 +159,8 @@ curl: (52) Empty reply from server
 ### P2 - MEDIUM (Nice to Have)
 
 5. **Implement Admin Endpoints**
-   - Vault reset (development only)
-   - Vault rekey
+   - Secret Vault reset (development only)
+   - Secret Vault rekey
    - State inspection
 
 6. **Implement Monitoring**
@@ -172,16 +172,16 @@ curl: (52) Empty reply from server
 
 ## Testing Checklist
 
-- [ ] Initialize vault successfully
+- [ ] Initialize engine successfully
 - [ ] Get unseal keys and root token
-- [ ] Unseal vault with threshold shares
-- [ ] Verify vault is unsealed
+- [ ] Unseal engine with threshold shares
+- [ ] Verify engine is unsealed
 - [ ] Create secret
 - [ ] Read secret
 - [ ] List secrets
-- [ ] Seal vault
-- [ ] Verify vault is sealed
-- [ ] Unseal vault again
+- [ ] Seal engine
+- [ ] Verify engine is sealed
+- [ ] Unseal engine again
 - [ ] Container restart preserves state
 - [ ] Audit logging works
 - [ ] Rate limiting works

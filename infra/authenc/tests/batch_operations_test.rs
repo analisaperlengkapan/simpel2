@@ -49,7 +49,7 @@ mod tests {
         }];
 
         // This will fail in mock mode but demonstrates the API
-        let result = batch_insert_audit_logs(&db, entries).await;
+        let _result = batch_insert_audit_logs(&db, entries).await;
         // In mock mode, we expect an error since there's no real database
         // In a real test with a database, we would assert success
     }
@@ -78,7 +78,7 @@ mod tests {
         }
 
         // This will fail in mock mode but demonstrates the API
-        let result = batch_insert_audit_logs(&db, entries).await;
+        let _result = batch_insert_audit_logs(&db, entries).await;
         // In a real test with a database, we would assert 2500 rows inserted
     }
 
@@ -98,7 +98,7 @@ mod tests {
         let user_ids = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
 
         // This will fail in mock mode but demonstrates the API
-        let result = batch_query_user_permissions(&db, user_ids.clone()).await;
+        let _result = batch_query_user_permissions(&db, user_ids.clone()).await;
         // In a real test with a database, we would:
         // - Assert the result contains entries for all user_ids
         // - Verify permissions are correctly grouped by user_id
@@ -125,7 +125,7 @@ mod tests {
         ];
 
         // This will fail in mock mode but demonstrates the API
-        let result = batch_validate_sessions(&db, session_ids.clone()).await;
+        let _result = batch_validate_sessions(&db, session_ids.clone()).await;
         // In a real test with a database, we would:
         // - Assert the result contains entries for all session_ids
         // - Verify validation logic (expired, revoked, temp sessions)
@@ -148,7 +148,7 @@ mod tests {
         let user_ids = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
 
         // This will fail in mock mode but demonstrates the API
-        let result = batch_lookup_users(&db, user_ids.clone()).await;
+        let _result = batch_lookup_users(&db, user_ids.clone()).await;
         // In a real test with a database, we would:
         // - Assert the result contains found users
         // - Verify user data is correctly populated

@@ -2,13 +2,13 @@
 //!
 //! API endpoints for managing Raft cluster operations.
 
-use axum::{
-    extract::{Path, State},
+use axum::
+    extract::Path, State,
     http::StatusCode,
     response::Json,
-    routing::{delete, get, post},
+    routing::delete, get, post,
     Router,
-};
+;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info};
@@ -57,7 +57,7 @@ pub fn create_raft_router(state: RaftApiState) -> Router {
     Router::new()
         .route("/status", get(get_status))
         .route("/peers", post(add_peer))
-        .route("/peers/:node_id", delete(remove_peer))
+        .route("/peers/{node_id}", delete(remove_peer))
         .route("/leader", get(get_leader))
         .with_state(state)
 }
@@ -82,7 +82,7 @@ async fn add_peer(
     State(state): State<RaftApiState>,
     Json(req): Json<AddPeerRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    info!("Adding peer: node_id={}, address={}", req.node_id, req.address);
+    info!("Adding peer: node_id={, address={}", req.node_id, req.address);
 
     match state.node.add_peer(req.node_id, req.address).await {
         Ok(_) => Ok(Json(serde_json::json!({

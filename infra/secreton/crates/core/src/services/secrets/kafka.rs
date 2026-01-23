@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// Error types for Kafka secrets engine
 #[derive(Debug, thiserror::Error)]
@@ -344,7 +344,7 @@ impl KafkaAdminClient {
     async fn create_scram_user(
         &self,
         username: &str,
-        password: &str,
+        _password: &str,
         mechanism: &KafkaScramMechanism,
     ) -> Result<(), KafkaError> {
         info!(

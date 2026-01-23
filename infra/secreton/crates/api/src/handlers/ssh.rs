@@ -25,16 +25,16 @@ pub fn create_routes() -> Router<AppState> {
         // Role management
         .route("/roles", post(create_role))
         .route("/roles", get(list_roles))
-        .route("/roles/:name", get(get_role))
+        .route("/roles/{name}", get(get_role))
         // CA management
         .route("/ca", post(create_ca))
         .route("/ca", get(list_cas))
-        .route("/ca/:name/public_key", get(get_ca_public_key))
+        .route("/ca/{name}/public_key", get(get_ca_public_key))
         // Key generation
-        .route("/creds/:role", post(generate_keypair))
+        .route("/creds/{role}", post(generate_keypair))
         // Certificate signing
-        .route("/sign/:ca/:role", post(sign_certificate))
-        .route("/sign-host/:ca/:role", post(sign_host_certificate))
+        .route("/sign/{ca}/{role}", post(sign_certificate))
+        .route("/sign-host/{ca}/{role}", post(sign_host_certificate))
         // OTP operations
         .route("/otp/generate", post(generate_otp))
         .route("/otp/verify", post(verify_otp))
@@ -131,7 +131,7 @@ async fn create_role(
 
 /// Get SSH role
 /// # Endpoint
-/// `GET /v1/ssh/role/:name`
+/// `GET /v1/ssh/role/{name}`
 #[tracing::instrument(skip(state))]
 async fn get_role(
     State(state): State<AppState>,
@@ -201,7 +201,7 @@ async fn list_cas(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<V
 
 /// Get CA public key
 /// # Endpoint
-/// `GET /v1/ssh/ca/:name/public_key`
+/// `GET /v1/ssh/ca/{name}/public_key`
 #[tracing::instrument(skip(state))]
 async fn get_ca_public_key(
     State(state): State<AppState>,
@@ -223,7 +223,7 @@ async fn get_ca_public_key(
 
 /// Generate SSH keypair
 /// # Endpoint
-/// `POST /v1/ssh/creds/:role`
+/// `POST /v1/ssh/creds/{role}`
 #[tracing::instrument(skip(state))]
 async fn generate_keypair(
     State(state): State<AppState>,
@@ -248,7 +248,7 @@ async fn generate_keypair(
 
 /// Sign SSH certificate
 /// # Endpoint
-/// `POST /v1/ssh/sign/:ca/:role`
+/// `POST /v1/ssh/sign/{ca}/{role}`
 #[tracing::instrument(skip(state, request), fields(ca = %ca, role = %role))]
 async fn sign_certificate(
     State(state): State<AppState>,
@@ -335,7 +335,7 @@ async fn verify_otp(
 /// Sign SSH host certificate
 ///
 /// # Endpoint
-/// `POST /v1/ssh/sign-host/:ca/:role`
+/// `POST /v1/ssh/sign-host/{ca}/{role}`
 ///
 /// Requirement 7.4: Sign host public keys for server identity
 #[tracing::instrument(skip(state, request), fields(ca = %ca, role = %role))]
@@ -344,7 +344,10 @@ async fn sign_host_certificate(
     Path((ca, role)): Path<(String, String)>,
     Json(request): Json<SshHostCertificateRequest>,
 ) -> ApiResult<Json<ApiResponse<SshCertificate>>> {
-    info!("Signing SSH host certificate with CA: {}, role: {}", ca, role);
+    info!(
+        "Signing SSH host certificate with CA: {}, role: {}",
+        ca, role
+    );
 
     match state
         .ssh_engine

@@ -1,65 +1,63 @@
-# SIMPelv2 - Technology Stack
+---
+inclusion: always
+---
+
+# Technology Stack
 
 ## Core Technologies
 
-- **Language**: Rust 1.90+ (Edition 2024)
-- **Frontend**: Leptos 0.8.12 (WASM reactive framework)
-- **Backend**: Axum 0.8.6 (async web framework)
-- **Database**: PostgreSQL 15+ with tokio-postgres + deadpool-postgres
-- **Cache**: Redis 7+
-- **Build (WASM)**: Trunk
-- **Container Orchestration**: MicroK8s / Kubernetes
+- **Language**: Rust (Edition 2024, MSRV 1.90+)
+- **Backend Framework**: Axum 0.8.x (REST APIs)
+- **RPC Framework**: Tonic 0.14.x + Prost 0.14.x (gRPC)
+- **Frontend Framework**: Leptos 0.8.x (WASM, CSR mode)
+- **Database**: PostgreSQL (tokio-postgres, deadpool)
+- **Cache**: Redis
+- **Build Tool**: Cargo workspace
+- **Frontend Build**: Trunk (for WASM)
 
-## Security Stack
+## Dependency Management
 
-- Ed25519 cryptography (NOT RSA - removed due to RUSTSEC-2023-0071)
-- ChaCha20-Poly1305 encryption
-- jsonwebtoken 10.x with aws_lc_rs backend
-- garde for validation (replaces validator to avoid idna vulnerability)
-- Post-quantum ready (ML-DSA, ML-KEM, Falcon)
-
-## Key Dependencies
-
-- `shared-microfrontend`: Shared UI component library (40+ components)
-- `authenc`: Custom IAM service (separate workspace)
-- `secreton`: Custom secrets management (separate workspace)
-- gRPC via tonic for inter-service communication
+- ALL external dependencies defined in root `Cargo.toml` under `[workspace.dependencies]`
+- Member crates use `dependency = { workspace = true }` (NEVER specify versions)
+- `infra/authenc` and `infra/secreton` are PART OF main workspace (not separate)
+- Secreton has sub-crates in `infra/secreton/crates/` (core, api, storage, crypto, types, agent, cli, grpc, hsm, k8s-operator)
 
 ## Common Commands
 
+### Verification & Building
 ```bash
-# Development
-cargo build                           # Build workspace
-cargo test                            # Run tests
-cargo clippy                          # Lint code
-cargo fmt                             # Format code
-
-# Frontend (from antarmuka/* directories)
-trunk serve --open                    # Dev server with hot reload
-trunk build --release                 # Production build
-
-# Make targets
-make build-all-fe                     # Build all microfrontends
-make rust-test                        # Comprehensive test suite
-make rust-fmt                         # Format all code
-make rust-clippy                      # Lint all code
-make up-dev                           # Start dev environment
-make down                             # Stop all services
-
-# Docker
-docker compose up -d postgres redis   # Start infrastructure
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+cargo check --workspace              # Quick compilation check
+cargo build --workspace              # Full workspace build
+cargo build --bin layanan-NAME       # Build specific service
 ```
 
-## Build Profiles
+### Code Quality
+```bash
+cargo fmt --all                      # Format all code
+cargo clippy --workspace             # Lint (warnings as errors)
+cargo test --workspace               # Run all tests
+cargo audit                          # Security vulnerabilities
+cargo deny check                     # License and advisory checks
+```
 
-- `dev`: Fast compilation, light optimization, incremental builds
-- `release`: Maximum optimization, LTO, single codegen unit
-- `release-wasm`: Optimized for WASM bundle size
-- `dev-wasm`: Fast WASM development builds
+### Frontend Development
+```bash
+cd antarmuka/daskrimti/portal
+trunk serve --open                   # Dev server with hot reload
+trunk build --release                # Production WASM build
+```
 
-## Workspace Structure
+### Infrastructure (Part of Main Workspace)
+```bash
+cargo build --bin authenc            # Build identity provider
+cargo build --bin secreton           # Build secrets vault
+```
 
-- Main workspace: `Cargo.toml` (root)
-- Independent workspaces: `infra/authenc`, `infra/secreton` (architectural isolation)
-- Dependencies centralized in root `[workspace.dependencies]`
+## Key Libraries
+
+- **Shared UI**: `shared-microfrontend` (alias for `lib-ui`)
+- **Middleware**: `lib-middleware` (JWT validation, tracing)
+- **Crypto**: `lib-crypto` (Ed25519 preferred over RSA)
+- **Types**: `lib-types` (domain models)
+- **Storage**: `lib-storage` (database, Raft)
+- **Utils**: `lib-utils` (common utilities)

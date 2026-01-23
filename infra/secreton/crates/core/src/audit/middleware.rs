@@ -9,7 +9,7 @@
 //! This module requires the `legacy-axum-middleware` feature to compile.
 //! It is disabled by default to remove web framework dependencies from core.
 
-#![cfg(feature = "legacy-axum-middleware")]
+#![cfg(feature = "axum-middleware")]
 //!
 //! ## Why Deprecated?
 //!
@@ -56,13 +56,9 @@
 //! - **v1.2.0**: Copy moved to api crate
 //! - **v2.0.0**: This file removed from core
 
-use axum::{
-    body::{Body, HttpBody},
-    http::Request,
-    middleware::Next,
-    response::Response,
-};
-use std::{collections::HashMap, time::Instant};
+use axum::{body::Body, http::Request, middleware::Next, response::Response};
+use std::collections::HashMap;
+use std::time::Instant;
 use uuid::Uuid;
 
 // TODO: Re-enable when auth module is implemented
@@ -189,7 +185,7 @@ pub async fn audit_middleware(
     // Log the request
     if let Some(logger) = response.extensions().get::<AuditLogger>() {
         let status_code = status.as_u16();
-        let success = status_code < 400;
+        let _success = status_code < 400;
         let status = if status_code >= 500 {
             AuditStatus::Failure
         } else if status_code >= 400 {
@@ -204,11 +200,8 @@ pub async fn audit_middleware(
         metadata.insert("status".into(), status_code.to_string());
         metadata.insert("duration_ms".into(), duration.as_millis().to_string());
 
-        // Try to extract error details
-        if !success && let Some(body) = response.body().size_hint().exact() {
-            // If we can get the body size, we could log it
-            metadata.insert("response_size".into(), body.to_string());
-        }
+        // Note: Body size extraction removed due to axum 0.8 API changes
+        // This is deprecated middleware that will be removed in v2.0.0
 
         // Log the request
         let namespace = extract_namespace_from_path(&path);

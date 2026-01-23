@@ -97,7 +97,6 @@ async fn setup_test_schema(pool: &Pool) {
 
 #[tokio::test]
 #[ignore = "Requires PostgreSQL database - run with: cargo test --package secreton-core --test wrapping_tests -- --ignored --test-threads=1"]
-#[ignore = "Requires PostgreSQL database - run with: cargo test --package secreton-core --test wrapping_tests -- --ignored --test-threads=1"]
 async fn test_wrap_and_unwrap_success() {
     let pool = setup_test_pool().await;
     setup_test_schema(&pool).await;

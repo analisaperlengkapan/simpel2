@@ -19,7 +19,6 @@ async fn test_bulk_create_users() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
     let db = Database::new(&db_config)
         .await
@@ -90,7 +89,6 @@ async fn test_advanced_user_query() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
     let db = Database::new(&db_config)
         .await
@@ -138,7 +136,6 @@ async fn test_session_management() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
     let db = Database::new(&db_config)
         .await
@@ -189,7 +186,6 @@ async fn test_offline_tokens() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
     let db = Database::new(&db_config)
         .await
@@ -238,7 +234,6 @@ async fn test_refresh_token_rotation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
     let db = Database::new(&db_config)
         .await

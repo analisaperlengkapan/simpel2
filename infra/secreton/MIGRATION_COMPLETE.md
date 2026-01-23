@@ -84,8 +84,8 @@ threshold = 3
 ### Next Steps for Testing
 1. Build Docker image: `docker build -t secreton:latest .`
 2. Test with docker-compose: `docker-compose up -d`
-3. Initialize vault: `curl -X POST http://localhost:8200/v1/sys/init`
-4. Unseal vault: `curl -X POST http://localhost:8200/v1/sys/unseal`
+3. Initialize engine: `curl -X POST http://localhost:8200/v1/sys/init`
+4. Unseal engine: `curl -X POST http://localhost:8200/v1/sys/unseal`
 5. Verify application config loading
 
 ## Configuration Flow (New System)
@@ -149,7 +149,7 @@ threshold = 3
 ✅ Only infrastructure config in `secreton.toml` (NO SECRETS)
 ✅ All secrets encrypted with AES-256-GCM in storage
 ✅ Master key protected by Shamir Secret Sharing (5 shares, 3 threshold)
-✅ Vault starts SEALED by default
+✅ Secret Vault starts SEALED by default
 ✅ Secrets only accessible after manual unseal
 ✅ Bootstrap config safe to commit to git
 
@@ -195,8 +195,8 @@ Migration completed successfully. The new secure config system is now in place:
 - Bootstrap config (`secreton.toml`) contains only infrastructure settings
 - Application config is encrypted in storage backend
 - All secrets are protected by Shamir Secret Sharing
-- Vault starts sealed and requires manual unseal
-- System follows HashiCorp Vault security model
+- Secret Vault starts sealed and requires manual unseal
+- System follows HashiCorp Secret Vault security model
 
 **Total time:** ~2 hours
 **Files changed:** 11

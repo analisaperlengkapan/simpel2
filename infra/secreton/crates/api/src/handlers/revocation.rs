@@ -3,10 +3,10 @@
 //! REST API endpoints for secret revocation operations.
 
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use secreton_core::services::revocation::{
     RevocationManager, RevocationRequest, RevocationService,
@@ -149,7 +149,11 @@ pub async fn get_revocation_history(
 
     match revocation_manager.get_history(&path).await {
         Ok(history) => {
-            info!("Retrieved {} revocation records for {}", history.len(), path);
+            info!(
+                "Retrieved {} revocation records for {}",
+                history.len(),
+                path
+            );
             (StatusCode::OK, Json(history)).into_response()
         }
         Err(e) => {
@@ -172,9 +176,15 @@ pub async fn detect_orphans(
     State(revocation_manager): State<Arc<RevocationManager>>,
     Query(params): Query<OrphanQueryParams>,
 ) -> impl IntoResponse {
-    info!("Detecting orphaned secrets with threshold: {} days", params.threshold_days);
+    info!(
+        "Detecting orphaned secrets with threshold: {} days",
+        params.threshold_days
+    );
 
-    match revocation_manager.detect_orphans(params.threshold_days).await {
+    match revocation_manager
+        .detect_orphans(params.threshold_days)
+        .await
+    {
         Ok(orphans) => {
             info!("Detected {} orphaned secrets", orphans.len());
             (StatusCode::OK, Json(orphans)).into_response()
@@ -256,4 +266,3 @@ mod tests {
         assert_eq!(params.threshold_days, 30);
     }
 }
-

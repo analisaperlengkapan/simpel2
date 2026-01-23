@@ -168,10 +168,7 @@ impl MySqlSecretsEngine {
     }
 
     /// Configure MySQL connection
-    pub async fn configure_connection(
-        &self,
-        config: MySqlConnection,
-    ) -> Result<(), MySqlError> {
+    pub async fn configure_connection(&self, config: MySqlConnection) -> Result<(), MySqlError> {
         // Validate configuration
         if config.name.is_empty() {
             return Err(MySqlError::InvalidConfig(
@@ -525,9 +522,10 @@ impl MySqlSecretsEngine {
         self.revoke_credentials(credential_id).await?;
 
         // Revoke lease
-        lease_manager.revoke_lease(lease_id).await.map_err(|e| {
-            MySqlError::RevocationFailed(format!("Failed to revoke lease: {}", e))
-        })?;
+        lease_manager
+            .revoke_lease(lease_id)
+            .await
+            .map_err(|e| MySqlError::RevocationFailed(format!("Failed to revoke lease: {}", e)))?;
 
         Ok(())
     }
@@ -884,4 +882,3 @@ mod tests {
         assert!(url.contains("mysql://"));
     }
 }
-

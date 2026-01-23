@@ -54,7 +54,13 @@ pub struct ListResponse<T> {
 }
 
 impl<T> ListResponse<T> {
-    pub fn new(data: Vec<T>, total: i64, page: i64, per_page: i64, message: impl Into<String>) -> Self {
+    pub fn new(
+        data: Vec<T>,
+        total: i64,
+        page: i64,
+        per_page: i64,
+        message: impl Into<String>,
+    ) -> Self {
         let total_pages = if per_page > 0 {
             (total as f64 / per_page as f64).ceil() as i64
         } else {

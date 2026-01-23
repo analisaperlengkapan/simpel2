@@ -383,7 +383,7 @@ impl MfaPolicyLoader {
     }
 
     /// Apply configuration to MFA service
-    pub async fn apply_to_service(&self, mfa_service: &mut MfaService) -> Result<(), MfaError> {
+    pub async fn apply_to_service(&self, _mfa_service: &mut MfaService) -> Result<(), MfaError> {
         info!("Applying MFA policy configuration to service");
 
         // This would configure the MFA service with the loaded policies

@@ -235,7 +235,8 @@ pub mod forever_unknown_secrets;
 pub mod observability;
 /// Secret management service (legacy vault providers)
 /// Note: Main secret management is through crate::secreton_client module
-pub mod vault;
+// TODO: Implement vault.rs or remove this module
+// pub mod vault;
 
 // Re-exports for convenience
 pub use anomaly_detector::AnomalyDetector;

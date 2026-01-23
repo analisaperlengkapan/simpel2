@@ -1,37 +1,98 @@
-# SIMPelv2 Istio Gateway - Production Configuration
-# Uses real TLS certificate: simpelv2-tls-secret
+# Istio Gateway untuk Development/Testing
+# Allows access via IP address 10.1.7.121
 
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
-  name: simpelv2-gateway
+  name: simpelv2-dev-gateway
   namespace: istio-system
   labels:
     app.kubernetes.io/name: simpelv2
     app.kubernetes.io/component: gateway
+    app.kubernetes.io/environment: development
 spec:
   selector:
     istio: ingressgateway
   servers:
-    # HTTPS (443) - Primary with real DigiCert certificate
-    - port:
-        number: 443
-        name: https
-        protocol: HTTPS
-      tls:
-        mode: SIMPLE
-        credentialName: simpelv2-tls-secret
-      hosts:
-        - simpel.kejaksaan.go.id
-        - "*.simpel.kejaksaan.go.id"
-
-    # HTTP (80) - Redirect to HTTPS
+    # HTTP (80) untuk development
     - port:
         number: 80
-        name: http
+        name: http-dev
         protocol: HTTP
       hosts:
-        - simpel.kejaksaan.go.id
-        - "*.simpel.kejaksaan.go.id"
-      tls:
-        httpsRedirect: true
+        - "10.1.7.121"    # Development IP
+        - "10.1.7.*"      # Allow subnet untuk flexibility
+        - "*"             # Wildcard untuk development (TIDAK untuk production!)
+
+---
+# VirtualService untuk routing ke Portal via Development Gateway
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: simpelv2-dev-routes
+  namespace: simpelv2-frontend
+  labels:
+    app.kubernetes.io/name: simpelv2
+    app.kubernetes.io/component: routing
+    app.kubernetes.io/environment: development
+spec:
+  hosts:
+    - "10.1.7.121"
+    - "10.1.7.*"
+    - "*"
+  gateways:
+    - istio-system/simpelv2-dev-gateway
+  http:
+    # Root path - Portal
+    - match:
+        - uri:
+            exact: /
+      route:
+        - destination:
+            host: portal-service.simpelv2-frontend.svc.cluster.local
+            port:
+              number: 8080
+
+    # Health check endpoint
+    - match:
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: portal-service.simpelv2-frontend.svc.cluster.local
+            port:
+              number: 8080
+
+    # Static assets (WASM, CSS, JS)
+    - match:
+        - uri:
+            prefix: /assets
+        - uri:
+            prefix: /static
+        - uri:
+            prefix: /pkg
+        - uri:
+            regex: ".*\\.(wasm|js|css|png|jpg|svg|ico)$"
+      route:
+        - destination:
+            host: portal-service.simpelv2-frontend.svc.cluster.local
+            port:
+              number: 8080
+
+    # API Gateway (untuk testing backend integration)
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: gerbang-service.simpelv2-backend.svc.cluster.local
+            port:
+              number: 8080
+      timeout: 30s  # Development timeout lebih generous
+
+    # Default: Route to portal (catch-all)
+    - route:
+        - destination:
+            host: portal-service.simpelv2-frontend.svc.cluster.local
+            port:
+              number: 8080

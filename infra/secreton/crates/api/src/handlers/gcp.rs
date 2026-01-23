@@ -23,9 +23,9 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config/root", get(get_gcp_config))
         .route("/roles", post(create_gcp_role))
         .route("/roles", get(list_gcp_roles))
-        .route("/roles/:role_name", get(get_gcp_role))
-        .route("/roles/:role_name", delete(delete_gcp_role))
-        .route("/creds/:role_name", get(generate_gcp_credentials))
+        .route("/roles/{role_name}", get(get_gcp_role))
+        .route("/roles/{role_name}", delete(delete_gcp_role))
+        .route("/creds/{role_name}", get(generate_gcp_credentials))
 }
 
 /// Configure GCP root credentials

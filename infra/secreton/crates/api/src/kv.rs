@@ -192,10 +192,10 @@ impl KVEngine {
     ) -> Result<Option<SecretMetadata>, Box<dyn std::error::Error + Send + Sync>> {
         let store = self.store.read().await;
 
-        if let Some(versions) = store.get(path)
-            && let Some(latest) = versions.last()
-        {
-            return Ok(Some(latest.metadata.clone()));
+        if let Some(versions) = store.get(path) {
+            if let Some(latest) = versions.last() {
+                return Ok(Some(latest.metadata.clone()));
+            }
         }
 
         Ok(None)

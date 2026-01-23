@@ -1,5 +1,5 @@
-use tower_http::cors::{Any, CorsLayer};
 use axum::http::{HeaderValue, Method};
+use tower_http::cors::{Any, CorsLayer};
 
 /// Helper to create a standard CORS layer
 pub fn standard_cors(allowed_origins: Vec<String>) -> CorsLayer {

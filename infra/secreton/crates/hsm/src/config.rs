@@ -9,7 +9,7 @@ pub struct HsmConfig {
     /// Enable HSM integration
     pub enabled: bool,
 
-    /// HSM provider type (pkcs11, aws-kms, azure-keyvault, gcp-kms)
+    /// HSM provider type (pkcs11, aws-kms, azure-keyengine, gcp-kms)
     pub provider: HsmProvider,
 
     /// PKCS#11 library path (for PKCS#11 provider)
@@ -54,8 +54,8 @@ pub enum HsmProvider {
     Pkcs11,
     /// AWS KMS
     AwsKms,
-    /// Azure Key Vault
-    AzureKeyVault,
+    /// Azure Key Engine
+    AzureKeyEngine,
     /// Google Cloud KMS
     GcpKms,
 }
@@ -99,8 +99,8 @@ impl HsmConfig {
             HsmProvider::AwsKms => {
                 // AWS KMS validation would go here
             }
-            HsmProvider::AzureKeyVault => {
-                // Azure Key Vault validation would go here
+            HsmProvider::AzureKeyEngine => {
+                // Azure Key Engine validation would go here
             }
             HsmProvider::GcpKms => {
                 // GCP KMS validation would go here

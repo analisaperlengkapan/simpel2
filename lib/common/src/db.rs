@@ -1,6 +1,6 @@
-use deadpool_postgres::{Pool, Runtime, Config};
-use tokio_postgres::NoTls;
 use anyhow::Result;
+use deadpool_postgres::{Config, Pool, Runtime};
+use tokio_postgres::NoTls;
 
 /// Standard database configuration shared across services
 pub struct DbConfig {

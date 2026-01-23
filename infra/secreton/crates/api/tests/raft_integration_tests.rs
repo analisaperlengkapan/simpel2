@@ -295,7 +295,7 @@ fn test_quorum_calculation() {
         let quorum = (cluster_size / 2) + 1;
         assert_eq!(
             quorum, expected_quorum,
-            "Cluster size {} should have quorum {}",
+            "Cluster size { should have quorum {}",
             cluster_size, expected_quorum
         );
     }

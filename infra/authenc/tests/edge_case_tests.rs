@@ -273,7 +273,7 @@ async fn test_extreme_values_and_limits() {
                 "batch_size": users_to_create_refs.len()
             })))
         }))
-        .route("/api/data/large", post(move |State(state): State<EdgeCaseState>, Json(data): Json<serde_json::Value>| async move {
+        .route("/api/data/large", post(move |State(_state): State<EdgeCaseState>, Json(data): Json<serde_json::Value>| async move {
             let max_size_kb = 1024; // 1MB limit
             let data_size = serde_json::to_string(&data).unwrap().len();
 
@@ -292,7 +292,7 @@ async fn test_extreme_values_and_limits() {
                 "status": "ok"
             })))
         }))
-        .route("/api/operations/{count}", post(move |State(state): State<EdgeCaseState>, Path(count): Path<usize>| async move {
+        .route("/api/operations/{count}", post(move |State(_state): State<EdgeCaseState>, Path(count): Path<usize>| async move {
             let max_operations = 1000;
 
             if count > max_operations {
@@ -489,7 +489,7 @@ async fn test_concurrent_access_and_race_conditions() {
         )
         .with_state(state.clone());
 
-    let server = TestServer::new(app).unwrap();
+    let _server = TestServer::new(app).unwrap();
 
     // Test concurrent counter increments
     let mut handles = vec![];
@@ -910,7 +910,7 @@ async fn test_network_and_timeout_edge_cases() {
         .route(
             "/api/slow",
             get(
-                move |State(state): State<EdgeCaseState>,
+                move |State(_state): State<EdgeCaseState>,
                       Query(params): Query<HashMap<String, String>>| async move {
                     let delay_ms = params
                         .get("delay")
@@ -930,7 +930,7 @@ async fn test_network_and_timeout_edge_cases() {
         )
         .route(
             "/api/large",
-            get(move |State(state): State<EdgeCaseState>| async move {
+            get(move |State(_state): State<EdgeCaseState>| async move {
                 // Generate large response
                 let mut large_data = vec![];
                 for i in 0..1000 {

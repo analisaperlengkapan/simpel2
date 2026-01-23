@@ -35,7 +35,7 @@ INFO: OpenRaft initialized successfully
 ### 3. Seal/Unseal Workflow ✅
 
 **Verified:**
-- ✅ Vault starts SEALED by default
+- ✅ Secret Vault starts SEALED by default
 - ✅ Shamir Secret Sharing (5 shares, 3 threshold)
 - ✅ Initialization generates master keys
 - ✅ Unseal requires 3 of 5 keys
@@ -66,7 +66,7 @@ INFO: OpenRaft initialized successfully
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| Vault starts SEALED | ✅ | Default secure state |
+| Secret Vault starts SEALED | ✅ | Default secure state |
 | Shamir Secret Sharing | ✅ | 5 shares, 3 threshold |
 | Bootstrap config (no secrets) | ✅ | Infrastructure only |
 | Application config encrypted | ✅ | AES-256-GCM in Raft |
@@ -128,7 +128,7 @@ docker run -d \
 **Results:**
 - ✅ Container starts successfully
 - ✅ Raft backend initialized
-- ✅ Vault starts SEALED
+- ✅ Secret Vault starts SEALED
 - ✅ API endpoints accessible
 - ✅ Startup time: ~2 seconds
 
@@ -152,7 +152,7 @@ docker run -d \
 - ✅ Bootstrap config contains NO SECRETS
 - ✅ All secrets encrypted (AES-256-GCM)
 - ✅ Master key protected (Shamir SSS)
-- ✅ Vault starts SEALED
+- ✅ Secret Vault starts SEALED
 - ✅ Two-layer config system
 - ✅ Raft consensus for HA
 - ✅ Safe to commit bootstrap config
@@ -180,12 +180,12 @@ docker run -d \
 
 ✅ **Migrasi 100% Berhasil**
 
-Secreton sekarang menggunakan sistem konfigurasi secure yang mengikuti best practices HashiCorp Vault:
+Secreton sekarang menggunakan sistem konfigurasi secure yang mengikuti best practices HashiCorp Secret Vault:
 
 1. **Bootstrap config** - Infrastructure only, NO SECRETS
 2. **Application config** - Encrypted in Raft storage
 3. **Raft consensus** - HA and data safety
-4. **Vault starts SEALED** - Secure by default
+4. **Secret Vault starts SEALED** - Secure by default
 5. **Shamir Secret Sharing** - Master key protection
 
 Sistem siap untuk production deployment dengan konfigurasi tambahan (TLS, multi-node, monitoring).

@@ -5,7 +5,7 @@
 
 use super::state_machine::{SecretonStateMachine, StateMachineResponse};
 use super::types::{Entry, LogId, NodeId, SecretonTypeConfig, Vote};
-use crate::{QueryParams, VaultEntry};
+use crate::{QueryParams, SecretEntry};
 use openraft::storage::{LogState, RaftLogReader, RaftSnapshotBuilder, RaftStorage, Snapshot};
 use openraft::{ErrorSubject, ErrorVerb, StorageError, StoredMembership};
 use std::fmt::Debug;
@@ -42,8 +42,8 @@ impl SecretonRaftStorage {
         }
     }
 
-    /// Get a vault entry by its ID from the replicated state machine
-    pub async fn get_entry_by_id(&self, id: Uuid) -> Option<VaultEntry> {
+    /// Get a engine entry by its ID from the replicated state machine
+    pub async fn get_entry_by_id(&self, id: Uuid) -> Option<SecretEntry> {
         let sm = self.state_machine.read().await;
         let id_index = sm.id_index.read().await;
 
@@ -55,19 +55,19 @@ impl SecretonRaftStorage {
         }
     }
 
-    /// Get a vault entry by its logical path from the replicated state machine
-    pub async fn get_entry_by_path(&self, path: &str) -> Option<VaultEntry> {
+    /// Get a engine entry by its logical path from the replicated state machine
+    pub async fn get_entry_by_path(&self, path: &str) -> Option<SecretEntry> {
         let sm = self.state_machine.read().await;
         let data = sm.data.read().await;
         data.get(path).cloned()
     }
 
     /// List entries matching the provided query parameters
-    pub async fn list_entries(&self, params: &QueryParams) -> Vec<VaultEntry> {
+    pub async fn list_entries(&self, params: &QueryParams) -> Vec<SecretEntry> {
         let sm = self.state_machine.read().await;
         let data = sm.data.read().await;
 
-        let mut entries: Vec<VaultEntry> = data.values().cloned().collect();
+        let mut entries: Vec<SecretEntry> = data.values().cloned().collect();
 
         // Filter by path prefix
         if let Some(prefix) = &params.path_prefix {

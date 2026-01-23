@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 use std::time::Instant;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
 pub struct ModelMetadata {
@@ -48,7 +48,9 @@ pub struct ModelRegistryMap {
 
 impl ModelRegistryMap {
     pub fn new() -> Self {
-        Self { models: HashMap::new() }
+        Self {
+            models: HashMap::new(),
+        }
     }
     pub fn add_model(&mut self, meta: ModelMetadata) {
         self.models.insert(meta.id.clone(), meta);
@@ -95,7 +97,11 @@ async fn bench_performance() {
     let start = Instant::now();
     for i in 0..num_ops {
         let id = format!("model-{}", i % num_models);
-        let _ = registry_mutex_vec.lock().unwrap().get_model(&id).map(|m| m.id.clone());
+        let _ = registry_mutex_vec
+            .lock()
+            .unwrap()
+            .get_model(&id)
+            .map(|m| m.id.clone());
     }
     let duration_mutex_vec = start.elapsed();
     println!("Mutex + Vec (O(N)): {:?}", duration_mutex_vec);
@@ -131,5 +137,8 @@ async fn bench_performance() {
     println!("RwLock + HashMap (O(1)): {:?}", duration_rw_map);
 
     // Verify improvement
-    assert!(duration_rw_map < duration_rw_vec, "HashMap should be faster than Vec");
+    assert!(
+        duration_rw_map < duration_rw_vec,
+        "HashMap should be faster than Vec"
+    );
 }

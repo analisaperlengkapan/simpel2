@@ -1,4 +1,4 @@
-# Secreton - Enterprise Security Vault System
+# Secreton - Enterprise Security Secret Vault System
 
 [![Rust](https://img.shields.io/badge/rust-1.90%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -152,7 +152,7 @@ Content-Type: application/json
 
 ```json
 {
-  "ciphertext": "vault:v1:randomnonce:encrypteddata"
+  "ciphertext": "engine:v1:randomnonce:encrypteddata"
 }
 ```
 
@@ -163,7 +163,7 @@ POST /v1/transit/decrypt/{key-name}
 Content-Type: application/json
 
 {
-  "ciphertext": "vault:v1:randomnonce:encrypteddata"
+  "ciphertext": "engine:v1:randomnonce:encrypteddata"
 }
 ```
 
@@ -232,8 +232,8 @@ GET /v1/secret/data/{path}
 
 ```bash
 # 1. Clone repository
-git clone https://gitlab.com/analisiskebutuhan/secreton-vault-adhyaksa.git
-cd secreton-vault-adhyaksa/secreton
+git clone https://gitlab.com/analisiskebutuhan/secreton-engine-adhyaksa.git
+cd secreton-engine-adhyaksa/secreton
 
 # 2. Build the project
 cargo build --release
@@ -281,20 +281,20 @@ curl http://127.0.0.1:8200/v1/secret/data/myapp
 | `SECRETON_PORT` | `8200`      | Server port         |
 | `RUST_LOG`      | `info`      | Log level           |
 
-### Storage Backend Selection (HashiCorp Vault-Compatible)
+### Storage Backend Selection (HashiCorp Secret Vault-Compatible)
 
-Secreton follows HashiCorp Vault's storage architecture principles:
+Secreton follows HashiCorp Secret Vault's storage architecture principles:
 
 #### 🏆 Recommended Backends for Production HA
 
-1. **Consul** (Recommended - like HashiCorp Vault)
+1. **Consul** (Recommended - like HashiCorp Secret Vault)
 
    - ✅ High availability with automatic leader election
    - ✅ Service discovery and health checks
    - ✅ No database required
    - ✅ Battle-tested in production environments
 
-2. **Raft** (Built-in - like HashiCorp Vault Integrated Storage)
+2. **Raft** (Built-in - like HashiCorp Secret Vault Integrated Storage)
    - ✅ No external dependencies
    - ✅ Built-in distributed consensus
    - ✅ Easy cluster setup
@@ -369,7 +369,7 @@ peers = ["2:node2.example.com:7001", "3:node3.example.com:7001"]
 ```toml
 [storage]
 backend = "s3"
-bucket = "my-secreton-vault"
+bucket = "my-secreton-engine"
 region = "us-east-1"
 access_key = "${AWS_ACCESS_KEY_ID}"
 secret_key = "${AWS_SECRET_ACCESS_KEY}"
@@ -408,12 +408,12 @@ use secreton_storage::StorageFactory;
 // File backend (default, no external dependencies)
 let storage = StorageFactory::create_file("/var/lib/secreton/data").await?;
 
-// Consul backend (HA, like HashiCorp Vault)
+// Consul backend (HA, like HashiCorp Secret Vault)
 let storage = StorageFactory::create_consul("127.0.0.1:8500", "secreton/").await?;
 
 // S3 backend (cloud-native)
 let storage = StorageFactory::create_s3(
-    "my-vault-bucket",
+    "my-engine-bucket",
     "us-east-1",
     &access_key,
     &secret_key
@@ -484,7 +484,7 @@ Secreton provides seamless integration between cryptographic operations and stor
 use secreton_crypto::CryptoStorageBridge;
 
 // Create bridge with default key
-let bridge = CryptoStorageBridge::new("vault-key".to_string()).await?;
+let bridge = CryptoStorageBridge::new("engine-key".to_string()).await?;
 
 // Encrypt data for storage
 let encrypted = bridge.encrypt_for_storage(data, None).await?;
@@ -493,5 +493,5 @@ let encrypted = bridge.encrypt_for_storage(data, None).await?;
 let decrypted = bridge.decrypt_from_storage(&encrypted).await?;
 
 // Rotate key
-bridge.rotate_key("vault-key").await?;
+bridge.rotate_key("engine-key").await?;
 ```

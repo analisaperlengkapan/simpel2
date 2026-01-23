@@ -2,7 +2,7 @@
 
 ## Overview
 
-Secreton now implements **persistent storage with Raft consensus as the default backend**, following HashiCorp Vault best practices. This ensures data safety, high availability, and consistency across distributed deployments.
+Secreton now implements **persistent storage with Raft consensus as the default backend**, following HashiCorp Secret Vault best practices. This ensures data safety, high availability, and consistency across distributed deployments.
 
 ## Implementation Summary
 
@@ -106,7 +106,7 @@ data_dir = "/var/lib/secreton/raft"
 
 ```
 ┌─────────────────────────────────────────┐
-│  Vault Data (Secrets, Keys, Policies)   │
+│  Secret Vault Data (Secrets, Keys, Policies)   │
 ├─────────────────────────────────────────┤
 │  Storage Backend Layer                  │
 │  ┌─────────────────────────────────────┐│
@@ -326,7 +326,7 @@ curl http://localhost:8200/v1/sys/raft/status
 
 ## Conclusion
 
-Secreton now has a robust persistent storage layer with Raft consensus as the default backend. This implementation follows HashiCorp Vault best practices and provides:
+Secreton now has a robust persistent storage layer with Raft consensus as the default backend. This implementation follows HashiCorp Secret Vault best practices and provides:
 
 - **Safety**: Data persisted before acknowledgment
 - **Consistency**: Distributed consensus ensures all nodes have same data

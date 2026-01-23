@@ -329,7 +329,7 @@ mod tests {
 
         // Test factory creation
         let config = authenc::spi::ProviderConfig::default();
-        let provider = factory.create(&config).unwrap();
+        let _provider = factory.create(&config).unwrap();
 
         // Test factory priority
         assert_eq!(factory.get_priority(), 0);

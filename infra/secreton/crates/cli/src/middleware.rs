@@ -1,14 +1,14 @@
 //! Middleware module for pre-operation checks
 //!
-//! This module provides middleware functionality to check vault status
-//! before executing operations, ensuring the vault is initialized and unsealed.
+//! This module provides middleware functionality to check engine status
+//! before executing operations, ensuring the engine is initialized and unsealed.
 
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-/// Vault status information
+/// Engine status information
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct VaultStatus {
+pub struct EngineStatus {
     pub state: String,
     pub seal_type: String,
     pub initialized: bool,
@@ -18,30 +18,32 @@ pub struct VaultStatus {
     pub version: String,
 }
 
-/// Cached vault status with timestamp
+/// Cached engine status with timestamp
 #[derive(Debug, Clone)]
 struct CachedStatus {
-    status: VaultStatus,
+    status: EngineStatus,
     cached_at: Instant,
 }
 
-/// Error types for vault readiness checks
+/// Error types for engine readiness checks
 #[derive(Debug, thiserror::Error)]
-pub enum VaultNotReadyError {
-    #[error("Vault not initialized. Run 'secreton seal init' first.")]
+pub enum EngineNotReadyError {
+    #[error("Engine not initialized. Run 'secreton seal init' first.")]
     NotInitialized,
 
-    #[error("Vault is sealed (progress: {progress}/{threshold}). Run 'secreton seal unseal' to unseal.")]
+    #[error(
+        "Engine is sealed (progress: {progress}/{threshold}). Run 'secreton seal unseal' to unseal."
+    )]
     Sealed { progress: usize, threshold: usize },
 
-    #[error("Failed to connect to vault: {0}")]
+    #[error("Failed to connect to engine: {0}")]
     Unreachable(String),
 
     #[error("API error: {0}")]
     ApiError(String),
 }
 
-/// Middleware for checking vault seal status before operations
+/// Middleware for checking engine seal status before operations
 pub struct SealChecker {
     client: reqwest::Client,
     server_url: String,
@@ -64,10 +66,10 @@ impl SealChecker {
         }
     }
 
-    /// Get the current vault status
+    /// Get the current engine status
     ///
     /// This method will use cached status if available and not expired.
-    pub async fn get_status(&mut self) -> Result<VaultStatus, VaultNotReadyError> {
+    pub async fn get_status(&mut self) -> Result<EngineStatus, EngineNotReadyError> {
         // Check cache first
         if let Some(cached) = &self.cache
             && cached.cached_at.elapsed() < self.cache_ttl
@@ -83,21 +85,21 @@ impl SealChecker {
             .get(&url)
             .send()
             .await
-            .map_err(|e| VaultNotReadyError::Unreachable(e.to_string()))?;
+            .map_err(|e| EngineNotReadyError::Unreachable(e.to_string()))?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(VaultNotReadyError::ApiError(format!(
+            return Err(EngineNotReadyError::ApiError(format!(
                 "{} - {}",
                 status, error_text
             )));
         }
 
-        let status: VaultStatus = response
+        let status: EngineStatus = response
             .json()
             .await
-            .map_err(|e| VaultNotReadyError::ApiError(e.to_string()))?;
+            .map_err(|e| EngineNotReadyError::ApiError(e.to_string()))?;
 
         // Update cache
         self.cache = Some(CachedStatus {
@@ -108,19 +110,19 @@ impl SealChecker {
         Ok(status)
     }
 
-    /// Check if the vault is ready for operations
+    /// Check if the engine is ready for operations
     ///
-    /// Returns Ok(VaultStatus) if the vault is initialized and unsealed.
-    /// Returns Err(VaultNotReadyError) otherwise.
-    pub async fn check_ready(&mut self) -> Result<VaultStatus, VaultNotReadyError> {
+    /// Returns Ok(EngineStatus) if the engine is initialized and unsealed.
+    /// Returns Err(EngineNotReadyError) otherwise.
+    pub async fn check_ready(&mut self) -> Result<EngineStatus, EngineNotReadyError> {
         let status = self.get_status().await?;
 
         if !status.initialized {
-            return Err(VaultNotReadyError::NotInitialized);
+            return Err(EngineNotReadyError::NotInitialized);
         }
 
         if status.state != "unsealed" {
-            return Err(VaultNotReadyError::Sealed {
+            return Err(EngineNotReadyError::Sealed {
                 progress: status.progress,
                 threshold: status.threshold,
             });
@@ -129,22 +131,22 @@ impl SealChecker {
         Ok(status)
     }
 
-    /// Require the vault to be unsealed
+    /// Require the engine to be unsealed
     ///
-    /// This is a convenience method that returns an error if the vault is not unsealed.
-    pub async fn require_unsealed(&mut self) -> Result<(), VaultNotReadyError> {
+    /// This is a convenience method that returns an error if the engine is not unsealed.
+    pub async fn require_unsealed(&mut self) -> Result<(), EngineNotReadyError> {
         self.check_ready().await?;
         Ok(())
     }
 
-    /// Require the vault to be initialized
+    /// Require the engine to be initialized
     ///
-    /// This checks only if the vault is initialized, not if it's unsealed.
-    pub async fn require_initialized(&mut self) -> Result<(), VaultNotReadyError> {
+    /// This checks only if the engine is initialized, not if it's unsealed.
+    pub async fn require_initialized(&mut self) -> Result<(), EngineNotReadyError> {
         let status = self.get_status().await?;
 
         if !status.initialized {
-            return Err(VaultNotReadyError::NotInitialized);
+            return Err(EngineNotReadyError::NotInitialized);
         }
 
         Ok(())
@@ -192,7 +194,7 @@ mod tests {
 
         // Simulate cached status
         checker.cache = Some(CachedStatus {
-            status: VaultStatus {
+            status: EngineStatus {
                 state: "unsealed".to_string(),
                 seal_type: "shamir".to_string(),
                 initialized: true,
@@ -212,7 +214,7 @@ mod tests {
         let mut checker = SealChecker::new("http://127.0.0.1:8200".to_string(), None);
 
         checker.cache = Some(CachedStatus {
-            status: VaultStatus {
+            status: EngineStatus {
                 state: "unsealed".to_string(),
                 seal_type: "shamir".to_string(),
                 initialized: true,
@@ -231,12 +233,12 @@ mod tests {
     }
 
     #[test]
-    fn test_vault_not_ready_error_display() {
-        let err = VaultNotReadyError::NotInitialized;
+    fn test_engine_not_ready_error_display() {
+        let err = EngineNotReadyError::NotInitialized;
         assert!(err.to_string().contains("not initialized"));
         assert!(err.to_string().contains("secreton seal init"));
 
-        let err = VaultNotReadyError::Sealed {
+        let err = EngineNotReadyError::Sealed {
             progress: 1,
             threshold: 3,
         };
@@ -244,7 +246,7 @@ mod tests {
         assert!(err.to_string().contains("1/3"));
         assert!(err.to_string().contains("secreton seal unseal"));
 
-        let err = VaultNotReadyError::Unreachable("connection refused".to_string());
+        let err = EngineNotReadyError::Unreachable("connection refused".to_string());
         assert!(err.to_string().contains("Failed to connect"));
     }
 
@@ -253,8 +255,8 @@ mod tests {
         use super::*;
         use proptest::prelude::*;
 
-        // Generator for vault status
-        fn arb_vault_status() -> impl Strategy<Value = VaultStatus> {
+        // Generator for engine status
+        fn arb_engine_status() -> impl Strategy<Value = EngineStatus> {
             (
                 prop::sample::select(vec!["sealed", "unsealing", "unsealed"]),
                 prop::sample::select(vec!["shamir", "auto"]),
@@ -265,12 +267,20 @@ mod tests {
                 prop::string::string_regex("[0-9]+\\.[0-9]+\\.[0-9]+").unwrap(),
             )
                 .prop_map(
-                    |(state, seal_type, initialized, total_shares, threshold, progress, version)| {
-                        VaultStatus {
+                    |(
+                        state,
+                        seal_type,
+                        initialized,
+                        total_shares,
+                        threshold,
+                        progress,
+                        version,
+                    )| {
+                        EngineStatus {
                             state: state.to_string(),
                             seal_type: seal_type.to_string(),
                             initialized,
-              total_shares,
+                            total_shares,
                             threshold: threshold.min(total_shares),
                             progress: progress.min(threshold.min(total_shares)),
                             version,
@@ -282,14 +292,14 @@ mod tests {
         proptest! {
             #![proptest_config(ProptestConfig::with_cases(100))]
 
-            /// **Feature: secreton-cli-workflow-integration, Property 9: Sealed Vault Operation Rejection**
+            /// **Feature: secreton-cli-workflow-integration, Property 9: Sealed Engine Operation Rejection**
             /// **Validates: Requirements 6.2, 9.1, 10.1**
             ///
-            /// For any vault status where the vault is sealed (state != "unsealed"),
+            /// For any engine status where the engine is sealed (state != "unsealed"),
             /// the SealChecker should reject operations with a Sealed error.
             #[test]
-            fn prop_sealed_vault_rejection(status in arb_vault_status()) {
-                // Only test sealed vaults (initialized but not unsealed)
+            fn prop_sealed_engine_rejection(status in arb_engine_status()) {
+                // Only test sealed engines (initialized but not unsealed)
                 prop_assume!(status.initialized && status.state != "unsealed");
 
                 let mut checker = SealChecker::new("http://127.0.0.1:8200".to_string(), None);
@@ -300,7 +310,7 @@ mod tests {
                     cached_at: Instant::now(),
                 });
 
-                // Attempt to check if vault is ready
+                // Attempt to check if engine is ready
                 let result = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(checker.check_ready());
@@ -309,7 +319,7 @@ mod tests {
                 prop_assert!(result.is_err());
                 if let Err(e) = result {
                     match e {
-                        VaultNotReadyError::Sealed { progress, threshold } => {
+                        EngineNotReadyError::Sealed { progress, threshold } => {
                             prop_assert_eq!(progress, status.progress);
                             prop_assert_eq!(threshold, status.threshold);
                         }
@@ -318,14 +328,14 @@ mod tests {
                 }
             }
 
-            /// **Feature: secreton-cli-workflow-integration, Property 10: Uninitialized Vault Operation Rejection**
+            /// **Feature: secreton-cli-workflow-integration, Property 10: Uninitialized Engine Operation Rejection**
             /// **Validates: Requirements 6.1, 9.2**
             ///
-            /// For any vault status where the vault is not initialized,
+            /// For any engine status where the engine is not initialized,
             /// the SealChecker should reject operations with a NotInitialized error.
             #[test]
-            fn prop_uninitialized_vault_rejection(status in arb_vault_status()) {
-                // Only test uninitialized vaults
+            fn prop_uninitialized_engine_rejection(status in arb_engine_status()) {
+                // Only test uninitialized engines
                 prop_assume!(!status.initialized);
 
                 let mut checker = SealChecker::new("http://127.0.0.1:8200".to_string(), None);
@@ -336,7 +346,7 @@ mod tests {
                     cached_at: Instant::now(),
                 });
 
-                // Attempt to check if vault is ready
+                // Attempt to check if engine is ready
                 let result = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(checker.check_ready());
@@ -345,7 +355,7 @@ mod tests {
                 prop_assert!(result.is_err());
                 if let Err(e) = result {
                     match e {
-                        VaultNotReadyError::NotInitialized => {
+                        EngineNotReadyError::NotInitialized => {
                             // Expected error
                         }
                         _ => prop_assert!(false, "Expected NotInitialized error, got: {:?}", e),
@@ -353,13 +363,13 @@ mod tests {
                 }
             }
 
-            /// Additional property: Ready vault acceptance
+            /// Additional property: Ready engine acceptance
             ///
-            /// For any vault status where the vault is initialized and unsealed,
+            /// For any engine status where the engine is initialized and unsealed,
             /// the SealChecker should accept operations (return Ok).
             #[test]
-            fn prop_ready_vault_acceptance(status in arb_vault_status()) {
-                // Only test ready vaults (initialized and unsealed)
+            fn prop_ready_engine_acceptance(status in arb_engine_status()) {
+                // Only test ready engines (initialized and unsealed)
                 prop_assume!(status.initialized && status.state == "unsealed");
 
                 let mut checker = SealChecker::new("http://127.0.0.1:8200".to_string(), None);
@@ -370,7 +380,7 @@ mod tests {
                     cached_at: Instant::now(),
                 });
 
-                // Attempt to check if vault is ready
+                // Attempt to check if engine is ready
                 let result = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(checker.check_ready());
@@ -385,10 +395,10 @@ mod tests {
 
             /// Additional property: require_initialized only checks initialization
             ///
-            /// For any vault status, require_initialized should only check if the vault
+            /// For any engine status, require_initialized should only check if the engine
             /// is initialized, not if it's unsealed.
             #[test]
-            fn prop_require_initialized_ignores_seal_state(status in arb_vault_status()) {
+            fn prop_require_initialized_ignores_seal_state(status in arb_engine_status()) {
                 let mut checker = SealChecker::new("http://127.0.0.1:8200".to_string(), None);
 
                 // Simulate cached status (to avoid network calls)
@@ -405,12 +415,12 @@ mod tests {
                 if status.initialized {
                     // Should succeed regardless of seal state
                     prop_assert!(result.is_ok());
-                } else {
+                 } else {
                     // Should fail with NotInitialized
                     prop_assert!(result.is_err());
                     if let Err(e) = result {
                         match e {
-                            VaultNotReadyError::NotInitialized => {
+                            EngineNotReadyError::NotInitialized => {
                                 // Expected
                             }
                             _ => prop_assert!(false, "Expected NotInitialized, got: {:?}", e),

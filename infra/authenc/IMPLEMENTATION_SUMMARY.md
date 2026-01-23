@@ -417,11 +417,11 @@ curl http://localhost:8088/admin/config/captcha.default_difficulty/history \
 ### Configuration Not Loading
 ```bash
 # Check database
-docker-compose exec postgres psql -U postgres -d authenc \
+docker compose exec postgres psql -U postgres -d authenc \
   -c "SELECT COUNT(*) FROM authenc.configuration;"
 
 # Check logs
-docker-compose logs authenc | grep -i config
+docker compose logs authenc | grep -i config
 ```
 
 ### Secrets Not Available
@@ -430,7 +430,7 @@ docker-compose logs authenc | grep -i config
 curl http://secreton:8200/health
 
 # Check Secreton logs
-docker-compose logs secreton
+docker compose logs secreton
 ```
 
 ### Cache Issues

@@ -141,15 +141,15 @@ docker push registry.example.com/authenc:latest
 
 ```bash
 # Production deployment
-docker-compose -f docker-compose.yml \
+docker compose -f docker-compose.yml \
                -f docker-compose.prod.yml \
                up -d
 
 # Verify services
-docker-compose ps
+docker compose ps
 
 # Check logs
-docker-compose logs -f authenc
+docker compose logs -f authenc
 ```
 
 ### 5. Verify Deployment
@@ -165,7 +165,7 @@ curl -X GET http://localhost:8088/api/v1/health
 curl -s http://localhost:9090/metrics | head -20
 
 # Database connectivity
-docker-compose exec postgres psql -U postgres -d authenc -c "SELECT version();"
+docker compose exec postgres psql -U postgres -d authenc -c "SELECT version();"
 ```
 
 ## Performance Optimization
@@ -277,11 +277,11 @@ authenc:
 
 ```bash
 # Daily backup
-docker-compose exec postgres pg_dump -U postgres authenc | \
+docker compose exec postgres pg_dump -U postgres authenc | \
   gzip > backup-$(date +%Y%m%d).sql.gz
 
 # Automated backup (cron)
-0 2 * * * docker-compose -f /path/to/docker-compose.yml exec -T postgres \
+0 2 * * * docker compose -f /path/to/docker-compose.yml exec -T postgres \
   pg_dump -U postgres authenc | gzip > /backups/authenc-$(date +\%Y\%m\%d).sql.gz
 ```
 
@@ -290,17 +290,17 @@ docker-compose exec postgres pg_dump -U postgres authenc | \
 ```bash
 # Restore from backup
 gunzip < backup-20240101.sql.gz | \
-  docker-compose exec -T postgres psql -U postgres authenc
+  docker compose exec -T postgres psql -U postgres authenc
 
 # Verify restore
-docker-compose exec postgres psql -U postgres -d authenc -c "SELECT COUNT(*) FROM authenc.users;"
+docker compose exec postgres psql -U postgres -d authenc -c "SELECT COUNT(*) FROM authenc.users;"
 ```
 
 ### Redis Backup
 
 ```bash
 # Redis backup
-docker-compose exec redis redis-cli BGSAVE
+docker compose exec redis redis-cli BGSAVE
 
 # Copy RDB file
 docker cp authenc-redis:/data/dump.rdb ./redis-backup-$(date +%Y%m%d).rdb
@@ -410,19 +410,19 @@ vault kv put secret/authenc jwt_secret=...
 
 ```bash
 # Check service health
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f authenc
+docker compose logs -f authenc
 
 # Database connectivity
-docker-compose exec postgres psql -U postgres -d authenc -c "SELECT 1;"
+docker compose exec postgres psql -U postgres -d authenc -c "SELECT 1;"
 
 # Redis connectivity
-docker-compose exec redis redis-cli PING
+docker compose exec redis redis-cli PING
 
 # Network connectivity
-docker-compose exec authenc curl -s http://postgres:5432 || echo "DB unreachable"
+docker compose exec authenc curl -s http://postgres:5432 || echo "DB unreachable"
 ```
 
 ## Compliance & Auditing
@@ -440,7 +440,7 @@ docker-compose exec authenc curl -s http://postgres:5432 || echo "DB unreachable
 
 For production issues:
 
-1. Check logs: `docker-compose logs -f authenc`
+1. Check logs: `docker compose logs -f authenc`
 2. Verify health: `curl http://localhost:8088/health`
 3. Check metrics: `http://localhost:9091` (Prometheus)
 4. Review Grafana: `http://localhost:3000`

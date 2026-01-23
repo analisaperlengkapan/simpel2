@@ -10,13 +10,7 @@ pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
     headers
         .get("x-forwarded-for")
         .and_then(|h| h.to_str().ok())
-        .map(|s| {
-            s.split(',')
-                .next()
-                .unwrap_or(s)
-                .trim()
-                .to_string()
-        })
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
         .or_else(|| {
             headers
                 .get("x-real-ip")

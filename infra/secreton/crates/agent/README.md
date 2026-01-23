@@ -1,6 +1,6 @@
 # Secreton Agent
 
-**Secreton Agent** adalah aplikasi pendamping (helper/sidecar) untuk Secreton vault server. Agent ini bertugas melakukan auto-auth, perpanjangan token otomatis, rendering template file dari secret vault, serta sink token ke file, environment, atau menjalankan aplikasi lain dengan token dinamis. Agent ini sangat cocok untuk DevOps, deployment cloud-native, dan kebutuhan compliance/enterprise.
+**Secreton Agent** adalah aplikasi pendamping (helper/sidecar) untuk Secreton engine server. Agent ini bertugas melakukan auto-auth, perpanjangan token otomatis, rendering template file dari secret engine, serta sink token ke file, environment, atau menjalankan aplikasi lain dengan token dinamis. Agent ini sangat cocok untuk DevOps, deployment cloud-native, dan kebutuhan compliance/enterprise.
 
 ---
 
@@ -24,8 +24,8 @@
 ---
 
 ## Kegunaan Agent
-- Otomatis login ke Secreton vault dan perpanjang token
-- Render file konfigurasi dari secret vault ke file lokal (template)
+- Otomatis login ke Secreton engine dan perpanjang token
+- Render file konfigurasi dari secret engine ke file lokal (template)
 - Sink token ke file atau environment variable
 - Failover ke server backup jika server utama down
 - Siap untuk DevOps dan cloud-native deployment
@@ -35,7 +35,7 @@
 ## Fitur Utama
 - **Auto-auth**: userpass, approle, kubernetes
 - **Token renewal**: otomatis setiap 5 menit (configurable)
-- **Template rendering**: secret vault → file lokal
+- **Template rendering**: secret engine → file lokal
 - **Token sink**: file, environment variable
 - **Failover server**: multi-server support
 - **Health endpoint**: HTTP `/healthz` untuk monitoring
@@ -44,10 +44,10 @@
 
 ## Contoh Konfigurasi (`agent.yaml`)
 ```yaml
-server_url: "https://vault.example.com:8200"
+server_url: "https://engine.example.com:8200"
 server_urls:
-  - "https://vault1.example.com:8200"
-  - "https://vault2.example.com:8200"
+  - "https://engine1.example.com:8200"
+  - "https://engine2.example.com:8200"
 
 auth_method: userpass
 auth_config:
@@ -64,7 +64,7 @@ template_interval_secs: 60
 
 sink:
   types: ["file", "env"]
-  file_path: "/var/run/secrets/vault-token"
+  file_path: "/var/run/secrets/engine-token"
   file_permissions: "0600"
   env_var: "VAULT_TOKEN"
 

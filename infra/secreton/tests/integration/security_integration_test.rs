@@ -1,7 +1,7 @@
-use Secreton_core::security::{
+use Secreton_core::security::
     AdvancedSecurityOrchestrator, BankingGradeConfig, GovernmentGradeConfig,
     SecurityConfig, ComplianceStatus, SecurityMetrics, HealthStatus,
-};
+;
 use tokio::time::{timeout, Duration};
 use std::sync::Arc;
 use serde_json::json;
@@ -152,12 +152,12 @@ mod security_integration_tests {
                 "average_dwell_time": 150,
                 "average_flight_time": 100,
                 "variance": 0.15
-            },
+            ,
             "mouse_dynamics": {
                 "average_velocity": 2.5,
                 "acceleration_patterns": [1.2, 1.8, 2.1],
                 "click_pressure": 0.8
-            },
+            ,
             "device_context": {
                 "screen_resolution": "1920x1080",
                 "timezone": "UTC",
@@ -203,7 +203,7 @@ mod security_integration_tests {
             Ok(segment) => {
                 assert!(!segment.is_empty(), "Network segment should not be empty");
                 println!("User assigned to network segment: {}", segment);
-            },
+            ,
             Err(_) => {
                 // Network segmentation may not be fully implemented
                 println!("Network segmentation not available in test environment");
@@ -229,7 +229,7 @@ mod security_integration_tests {
             let assessment = orchestrator.assess_threat_indicator(indicator).await?;
 
             assert!(assessment.risk_score >= 0.0 && assessment.risk_score <= 1.0,
-                   "Risk score for {} should be between 0.0 and 1.0, got {}",
+                   "Risk score for { should be between 0.0 and 1.0, got {}",
                    indicator, assessment.risk_score);
         }
 

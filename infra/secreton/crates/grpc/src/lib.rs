@@ -1,25 +1,29 @@
 //! # Secreton gRPC Service
 //!
-//! This crate provides the gRPC API layer for Secreton vault.
+//! This crate provides the gRPC API layer for Secreton engine.
 //! Extracted from the main API crate for better modularity and compilation performance.
 //!
 //! ## Features
 //! - Full gRPC service implementation
 //! - mTLS support for secure communication
 //! - Protocol buffer definitions and generated code
-//! - Integration with core vault services
+//! - Integration with core engine services
 
 // Generated proto code
 pub mod generated {
     pub mod secreton {
         pub mod v1 {
-            include!("generated/secreton.v1.rs");
+            // Helper for generated code
+            pub fn empty_body() -> http_body_util::Empty<bytes::Bytes> {
+                http_body_util::Empty::new()
+            }
+            include!(concat!(env!("OUT_DIR"), "/secreton.v1.rs"));
         }
     }
 
     pub mod common {
         pub mod v1 {
-            include!("generated/common.v1.rs");
+            include!(concat!(env!("OUT_DIR"), "/common.v1.rs"));
         }
     }
 }

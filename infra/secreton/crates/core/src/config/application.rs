@@ -2,12 +2,9 @@
 //!
 //! All application configuration (auth, database, MFA, rate limiting, etc.)
 //! is stored ENCRYPTED in the storage backend using the master key.
-//! This configuration is only accessible when the vault is unsealed.
+//! This configuration is only accessible when the engine is unsealed.
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit},
-};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use rand::rngs::OsRng;
@@ -77,9 +74,9 @@ impl Default for AuthConfig {
         Self {
             require_auth: true,
             jwt_expiration_hours: 24,
-            issuer: "secreton-vault".to_string(),
+            issuer: "secreton-engine".to_string(),
             audience: "secreton-api".to_string(),
-            admin_roles: vec!["admin".to_string(), "vault-admin".to_string()],
+            admin_roles: vec!["admin".to_string(), "engine-admin".to_string()],
             jwt_secret: None,
             refresh_secret: None,
         }
@@ -256,7 +253,7 @@ impl ApplicationConfig {
     }
 
     /// Load from encrypted storage
-    /// REQUIRES: Vault must be unsealed
+    /// REQUIRES: Engine must be unsealed
     pub async fn load_from_storage(
         storage: &dyn StorageBackend,
         seal_service: &SealService,
@@ -285,7 +282,7 @@ impl ApplicationConfig {
     }
 
     /// Save to encrypted storage
-    /// REQUIRES: Vault must be unsealed
+    /// REQUIRES: Engine must be unsealed
     pub async fn save_to_storage(
         &self,
         storage: &dyn StorageBackend,
@@ -304,10 +301,10 @@ impl ApplicationConfig {
         // Encrypt using AES-256-GCM
         let encrypted = Self::encrypt_config(&serialized, &master_key)?;
 
-        // Create VaultEntry
-        use secreton_storage::VaultEntry;
+        // Create SecretEntry
+        use secreton_storage::SecretEntry;
         use secreton_types::SecurityLevel;
-        let entry = VaultEntry {
+        let entry = SecretEntry {
             id: uuid::Uuid::new_v4(),
             path: "config/system".to_string(),
             encrypted_data: encrypted,
@@ -522,7 +519,7 @@ mod tests {
 [auth]
 require_auth = true
 jwt_expiration_hours = 48
-issuer = "test-vault"
+issuer = "test-engine"
 
 [mfa]
 enabled = true
@@ -532,7 +529,7 @@ require_for_admin = true
         let config = ApplicationConfig::from_legacy_toml(toml_str, None).unwrap();
 
         assert_eq!(config.auth.jwt_expiration_hours, 48);
-        assert_eq!(config.auth.issuer, "test-vault");
+        assert_eq!(config.auth.issuer, "test-engine");
         assert!(config.mfa.require_for_admin);
     }
 }

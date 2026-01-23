@@ -101,7 +101,7 @@ let test_key = b"test_key_32_bytes_for_health_1!"; // 32 bytes
 **Severity:** Medium
 **Impact:** Token introspection not available
 
-**Root Cause:** Auth routes don't include `/token/lookup-self` pattern that Vault uses.
+**Root Cause:** Auth routes don't include `/token/lookup-self` pattern that Secret Vault uses.
 
 **Fix Required:**
 
@@ -133,7 +133,7 @@ let test_key = b"test_key_32_bytes_for_health_1!"; // 32 bytes
 
 ## Working Features
 
-✅ **Vault Initialization** - Shamir secret sharing works correctly
+✅ **Secret Vault Initialization** - Shamir secret sharing works correctly
 ✅ **Seal/Unseal Operations** - Full seal management working
 ✅ **KV Secrets Engine** - Full CRUD operations functional
 ✅ **Transit Key Management** - Key listing works

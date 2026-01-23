@@ -148,7 +148,7 @@ mod storage_backends_integration_tests {
         
         println!("✅ All 14 storage backends verified:");
         for (i, (name, desc)) in backends.iter().enumerate() {
-            println!("  {}. {} - {}", i + 1, name, desc);
+            println!("  {}. { - {}", i + 1, name, desc);
         }
     }
     
@@ -168,7 +168,7 @@ mod storage_backends_integration_tests {
             "zookeeper",
         ];
         
-        println!("📝 Exotic backends (commented out): {} backends", exotic_backends.len());
+        println!("📝 Exotic backends (commented out): { backends", exotic_backends.len());
         for backend in &exotic_backends {
             println!("  - {}", backend);
         }

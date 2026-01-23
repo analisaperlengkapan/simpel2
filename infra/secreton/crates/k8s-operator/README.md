@@ -200,7 +200,7 @@ The operator exposes metrics for monitoring:
 3. Verify Secreton connectivity:
    ```bash
    kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- \
-     curl -H "X-Vault-Token: $TOKEN" https://secreton.internal:8200/v1/sys/health
+     curl -H "X-Secret Vault-Token: $TOKEN" https://secreton.internal:8200/v1/sys/health
    ```
 
 ### Authentication Errors

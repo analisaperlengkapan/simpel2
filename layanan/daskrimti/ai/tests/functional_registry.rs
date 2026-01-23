@@ -1,10 +1,8 @@
-use layanan_ai::models::{ModelRegistry, ModelMetadata};
-use once_cell::sync::Lazy;
-
-static REGISTRY: Lazy<ModelRegistry> = Lazy::new(|| ModelRegistry::new());
+use layanan_ai::models::{ModelMetadata, ModelRegistry};
 
 #[test]
 fn test_registry_logic() {
+    let mut registry = ModelRegistry::new();
     let id = "model-1";
     let meta = ModelMetadata {
         id: id.to_string(),
@@ -16,19 +14,19 @@ fn test_registry_logic() {
         approved_by: None,
     };
 
-    REGISTRY.add_model(meta);
+    registry.add_model(meta);
 
-    let m = REGISTRY.get_model(id).unwrap();
+    let m = registry.get_model(id).unwrap();
     assert_eq!(m.status, "draft");
     assert_eq!(m.approved_by, None);
 
-    let approved = REGISTRY.approve_model(id, "admin");
+    let approved = registry.approve_model(id, "admin");
     assert!(approved);
 
-    let m2 = REGISTRY.get_model(id).unwrap();
+    let m2 = registry.get_model(id).unwrap();
     assert_eq!(m2.status, "approved");
     assert_eq!(m2.approved_by, Some("admin".to_string()));
 
-    let not_found = REGISTRY.approve_model("non-existent", "admin");
+    let not_found = registry.approve_model("non-existent", "admin");
     assert!(!not_found);
 }

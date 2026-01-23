@@ -1,10 +1,6 @@
 #![cfg(feature = "axum")]
 
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Middleware for adding standard security headers to responses
 pub async fn security_headers(request: Request, next: Next) -> Response {

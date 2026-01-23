@@ -174,8 +174,8 @@ async fn login(
 }
 
 async fn logout(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
+    State(_state): State<AppState>,
+    _headers: axum::http::HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // In a real app, you'd invalidate the token in a blacklist
     // For this test, we'll just return success
@@ -844,7 +844,7 @@ async fn test_session_management_and_token_expiration() {
     assert_eq!(response.status_code(), StatusCode::OK);
     let body: serde_json::Value = response.json();
     let token = body["token"].as_str().unwrap();
-    let expires_in = body["expires_in"].as_u64().unwrap();
+    let _expires_in = body["expires_in"].as_u64().unwrap();
 
     // Verify token works initially
     let response = server
@@ -908,7 +908,7 @@ async fn test_concurrent_user_sessions() {
     // Simulate multiple concurrent sessions
     let mut handles = vec![];
 
-    for i in 0..5 {
+    for _i in 0..5 {
         let server_clone = TestServer::new(app.clone()).unwrap();
         let handle = tokio::spawn(async move {
             // Each session logs in separately

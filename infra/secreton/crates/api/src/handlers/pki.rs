@@ -9,11 +9,11 @@
 //! - Intermediate CA generation
 
 use axum::{
+    Router,
     extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
-    Router,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ use secreton_core::services::secrets::pki::{
 /// Create PKI routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        .route("/ocsp/:serial", get(get_ocsp_status))
+        .route("/ocsp/{serial}", get(get_ocsp_status))
         .route("/renewal/config", get(get_renewal_config))
         .route("/renewal/config", post(set_renewal_config))
         .route("/renewal/check", get(check_renewal))
@@ -55,15 +55,12 @@ async fn get_ocsp_status(
 ) -> ApiResult<Json<ApiResponse<OcspResponse>>> {
     let pki_engine = state.pki_engine();
 
-    let response = pki_engine
-        .get_ocsp_status(&serial)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to get OCSP status: {}", e);
-            crate::error::ApiError::Internal {
-                message: e.to_string(),
-            }
-        })?;
+    let response = pki_engine.get_ocsp_status(&serial).await.map_err(|e| {
+        tracing::error!("Failed to get OCSP status: {}", e);
+        crate::error::ApiError::Internal {
+            message: e.to_string(),
+        }
+    })?;
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -112,9 +109,7 @@ async fn set_renewal_config(
 ///
 /// # Returns
 /// List of certificate serial numbers that need renewal
-async fn check_renewal(
-    State(state): State<AppState>,
-) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
+async fn check_renewal(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
     let pki_engine = state.pki_engine();
 
     let serials = pki_engine
@@ -279,7 +274,10 @@ mod tests {
             .await
             .unwrap();
 
-        engine.revoke_certificate(&cert.serial_number).await.unwrap();
+        engine
+            .revoke_certificate(&cert.serial_number)
+            .await
+            .unwrap();
 
         // Check OCSP status
         let response = engine.get_ocsp_status(&cert.serial_number).await.unwrap();
@@ -294,10 +292,7 @@ mod tests {
         let engine = setup_test_pki().await;
 
         // Check status for non-existent certificate
-        let response = engine
-            .get_ocsp_status("nonexistent")
-            .await
-            .unwrap();
+        let response = engine.get_ocsp_status("nonexistent").await.unwrap();
 
         assert_eq!(response.status, OcspStatus::Unknown);
         assert_eq!(response.serial_number, "nonexistent");
@@ -358,7 +353,7 @@ mod tests {
         // Create a restrictive template
         let template = CertificateTemplate {
             name: "restrictive".to_string(),
-            ttl: chrono::Duration::days(7),  // Default TTL within max_ttl
+            ttl: chrono::Duration::days(7), // Default TTL within max_ttl
             allow_any_name: false,
             allowed_domains: vec!["example.com".to_string()],
             require_cn: true,
@@ -386,10 +381,12 @@ mod tests {
             alt_names: vec![],
             ttl: None,
         };
-        assert!(engine
-            .issue_certificate("restrictive", request)
-            .await
-            .is_err());
+        assert!(
+            engine
+                .issue_certificate("restrictive", request)
+                .await
+                .is_err()
+        );
 
         // Test 3: Localhost should fail
         let request = IssueCertificateRequest {
@@ -397,10 +394,12 @@ mod tests {
             alt_names: vec![],
             ttl: None,
         };
-        assert!(engine
-            .issue_certificate("restrictive", request)
-            .await
-            .is_err());
+        assert!(
+            engine
+                .issue_certificate("restrictive", request)
+                .await
+                .is_err()
+        );
 
         // Test 4: TTL exceeding max_ttl should fail
         let request = IssueCertificateRequest {
@@ -408,10 +407,12 @@ mod tests {
             alt_names: vec![],
             ttl: Some(chrono::Duration::days(60)),
         };
-        assert!(engine
-            .issue_certificate("restrictive", request)
-            .await
-            .is_err());
+        assert!(
+            engine
+                .issue_certificate("restrictive", request)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -424,7 +425,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(intermediate.ca_type, secreton_core::services::secrets::pki::CaType::Intermediate);
+        assert_eq!(
+            intermediate.ca_type,
+            secreton_core::services::secrets::pki::CaType::Intermediate
+        );
         assert_eq!(intermediate.parent_ca, Some("root".to_string()));
         assert!(!intermediate.certificate_pem.is_empty());
         assert!(!intermediate.private_key_pem.is_empty());

@@ -21,11 +21,10 @@ async fn test_cluster_node_registration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database_result = Database::new(&database_config).await;
-    let database = match database_result {
+    let _database = match database_result {
         Ok(db) => Arc::new(db),
         Err(_) => {
             println!("Skipping test due to database connection issues");

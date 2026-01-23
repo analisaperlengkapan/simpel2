@@ -1,6 +1,6 @@
 //! Backup and Restore CLI commands
 //!
-//! Provides CLI commands for vault backup operations including:
+//! Provides CLI commands for engine backup operations including:
 //! - backup: Create encrypted backup of secrets, metadata, and audit logs
 //! - verify: Verify backup integrity
 //! - list: List available backups
@@ -28,7 +28,7 @@ struct RestoreOptions {
 
 #[derive(Subcommand)]
 pub enum BackupCommand {
-    /// Create a backup of vault data
+    /// Create a backup of engine data
     Create {
         /// Output file path for the backup
         #[arg(short, long)]
@@ -55,7 +55,7 @@ pub enum BackupCommand {
         compression: u8,
     },
 
-    /// Restore vault data from a backup
+    /// Restore engine data from a backup
     Restore {
         /// Backup file to restore from
         #[arg(short, long)]
@@ -159,13 +159,13 @@ pub enum BackupType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BackupData {
     manifest: BackupManifest,
-    secrets: Vec<VaultEntryBackup>,
+    secrets: Vec<SecretEntryBackup>,
     audit_logs: Vec<AuditLogBackup>,
 }
 
-/// Simplified vault entry for backup
+/// Simplified engine entry for backup
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct VaultEntryBackup {
+struct SecretEntryBackup {
     id: String,
     path: String,
     encrypted_data: String,
@@ -253,7 +253,7 @@ pub async fn execute_backup_command(cmd: BackupCommand, config: &CliConfig) -> R
     }
 }
 
-/// Create a backup of vault data
+/// Create a backup of engine data
 async fn create_backup(
     config: &CliConfig,
     output_path: &str,
@@ -263,7 +263,7 @@ async fn create_backup(
     base_backup: Option<&str>,
     compression_level: u8,
 ) -> Result<()> {
-    println!("Creating vault backup...");
+    println!("Creating engine backup...");
     println!();
 
     if compression_level > 9 {
@@ -289,7 +289,7 @@ async fn create_backup(
 
     let client = reqwest::Client::new();
 
-    println!("Fetching secrets from vault...");
+    println!("Fetching secrets from engine...");
     let secrets_url = format!("{}/v1/secrets", config.server_url);
     let secrets_response = client
         .get(&secrets_url)
@@ -461,7 +461,7 @@ async fn verify_backup(file_path: &str, password: Option<String>, verbose: bool)
     file.read_to_end(&mut encrypted_data)
         .context("Failed to read backup file")?;
 
-    println!("File size: {} bytes", encrypted_data.len());
+    println!("  File size: {} bytes", file.metadata()?.len());
 
     println!("Decrypting backup...");
     let compressed_data = decrypt_data(&encrypted_data, &decryption_password)?;
@@ -477,10 +477,22 @@ async fn verify_backup(file_path: &str, password: Option<String>, verbose: bool)
     verify_backup_integrity(&backup_data, &json_data)?;
 
     println!("✓ SHA-256 checksum verified");
-    println!("✓ Format version {} compatible", backup_data.manifest.format_version);
-    println!("✓ Secret count verified: {}", backup_data.manifest.secret_count);
-    println!("✓ Audit log count verified: {}", backup_data.manifest.audit_log_count);
-    println!("✓ Data size verified: {} bytes", backup_data.manifest.uncompressed_size);
+    println!(
+        "✓ Format version {} compatible",
+        backup_data.manifest.format_version
+    );
+    println!(
+        "✓ Secret count verified: {}",
+        backup_data.manifest.secret_count
+    );
+    println!(
+        "✓ Audit log count verified: {}",
+        backup_data.manifest.audit_log_count
+    );
+    println!(
+        "✓ Data size verified: {} bytes",
+        backup_data.manifest.uncompressed_size
+    );
     println!();
     println!("Backup Information:");
     println!("  Backup ID: {}", backup_data.manifest.backup_id);
@@ -599,13 +611,13 @@ async fn list_backups(directory: &str, detailed: bool) -> Result<()> {
     Ok(())
 }
 
-/// Restore vault data from a backup
+/// Restore engine data from a backup
 async fn restore_backup(
     config: &CliConfig,
     file_path: &str,
     options: RestoreOptions,
 ) -> Result<()> {
-    println!("Restoring vault from backup: {}", file_path);
+    println!("Restoring engine from backup: {}", file_path);
     println!();
 
     if options.secrets_only && options.audit_only {
@@ -713,7 +725,7 @@ async fn restore_backup(
     // Confirm restore
     if !options.force {
         println!();
-        println!("⚠️  WARNING: This will restore data to the vault.");
+        println!("⚠️  WARNING: This will restore data to the engine.");
         println!("   Existing secrets may be overwritten.");
         println!();
         print!("Do you want to continue? (yes/no): ");
@@ -818,7 +830,6 @@ async fn restore_backup(
             println!("  ✗ Secrets failed: {}", failed_count);
         }
     } else {
-        println!();
         println!("Step 4/5: Skipping secrets (--audit-only specified)");
     }
 
@@ -877,7 +888,6 @@ async fn restore_backup(
             println!("  ✗ Audit logs failed: {}", failed_count);
         }
     } else {
-        println!();
         println!("Step 5/5: Skipping audit logs (--secrets-only specified)");
     }
 
@@ -893,12 +903,12 @@ async fn restore_backup(
             if let Ok(secrets_list) = response.json::<serde_json::Value>().await
                 && let Some(keys) = secrets_list.get("keys").and_then(|k| k.as_array())
             {
-                println!("  ✓ Vault is accessible");
-                println!("  ✓ Total secrets in vault: {}", keys.len());
+                println!("  ✓ Engine is accessible");
+                println!("  ✓ Total secrets in engine: {}", keys.len());
             }
         }
         _ => {
-            println!("  ⚠ Warning: Could not verify vault status");
+            println!("  ⚠ Warning: Could not verify engine status");
         }
     }
 
@@ -945,8 +955,8 @@ fn get_password(password: Option<String>) -> Result<String> {
     }
 }
 
-fn convert_to_backup_entry(path: &str, data: &serde_json::Value) -> VaultEntryBackup {
-    VaultEntryBackup {
+fn convert_to_backup_entry(path: &str, data: &serde_json::Value) -> SecretEntryBackup {
+    SecretEntryBackup {
         id: data
             .get("id")
             .and_then(|v| v.as_str())
@@ -1064,13 +1074,14 @@ fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
 fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
     use aes_gcm::{
         Aes256Gcm, Nonce,
-        aead::{Aead, KeyInit, OsRng, rand_core::RngCore},
+        aead::{Aead, KeyInit},
     };
     use argon2::{Argon2, Params, Version};
+    use rand::RngCore;
 
     // Generate random salt for each backup (more secure than fixed salt)
     let mut salt = [0u8; 32];
-    OsRng.fill_bytes(&mut salt);
+    rand::rngs::OsRng.fill_bytes(&mut salt);
 
     // Use Argon2id with strong parameters for key derivation
     // Memory cost: 64 MB, Time cost: 3 iterations, Parallelism: 4
@@ -1086,7 +1097,7 @@ fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
 
     // Generate random nonce for each encryption
     let mut nonce_bytes = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce_bytes);
+    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from(nonce_bytes);
 
     let cipher = Aes256Gcm::new(&key.into());
@@ -1104,15 +1115,15 @@ fn encrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
 }
 
 fn decrypt_data(data: &[u8], password: &str) -> Result<Vec<u8>> {
-    use aes_gcm::{
-        Aes256Gcm, Nonce,
-        aead::{Aead, KeyInit},
-    };
+    use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
     use argon2::{Argon2, Params, Version};
 
     // Format: [salt (32 bytes)] [nonce (12 bytes)] [ciphertext]
     if data.len() < 44 {
-        anyhow::bail!("Invalid encrypted data: too short (expected at least 44 bytes, got {})", data.len());
+        anyhow::bail!(
+            "Invalid encrypted data: too short (expected at least 44 bytes, got {})",
+            data.len()
+        );
     }
 
     // Extract salt

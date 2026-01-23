@@ -20,7 +20,7 @@ use tracing::{debug, info, warn};
 
 use super::error::CaptchaError;
 use super::types::RiskLevel;
-use crate::middleware::rate_limit_axum::{RateLimitConfig, RateLimiterState};
+use crate::middleware::rate_limit::{RateLimitConfig, RateLimiterState};
 
 /// CAPTCHA-specific rate limiting configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

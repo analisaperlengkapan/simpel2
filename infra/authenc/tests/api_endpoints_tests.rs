@@ -275,7 +275,7 @@ async fn check_permission(
         if let Some(user_roles) = user.get("roles").and_then(|r| r.as_array()) {
             // Check if any of user's roles has the required permission
             user_roles.iter().any(|role_entry| {
-                if let Some(role_id) = role_entry.get("id").and_then(|id| id.as_str()) {
+                if let Some(_role_id) = role_entry.get("id").and_then(|id| id.as_str()) {
                     // This is a simplified check - in real implementation,
                     // you'd check role-permission mappings
                     permissions.values().any(|perm| {

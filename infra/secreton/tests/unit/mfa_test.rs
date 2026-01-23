@@ -1,5 +1,5 @@
 // Unit tests for MFA (Multi-Factor Authentication) system
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::collections::HashMap, sync::{Arc, time::Duration};
 use tokio::time::{timeout, sleep};
 
 // Import test utilities from parent crate
@@ -21,15 +21,15 @@ mod mfa_unit_tests {
                 use_exponential_backoff: true,
                 base_backoff: Duration::from_secs(60),
                 max_backoff: Duration::from_secs(3600),
-            },
+            ,
             recovery_codes: Secreton_core::auth::mfa::RecoveryCodeSettings {
                 count: 10,
                 length: 16,
                 group_size: 4,
                 charset: "0123456789ABCDEF".to_string(),
                 lifetime_days: 90,
-            },
-            totp_issuer: "Secreton Test Vault".to_string(),
+            ,
+            totp_issuer: "Secreton Test Engine".to_string(),
         };
 
         MfaManager::with_config(storage, config)
@@ -46,7 +46,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Test TOTP setup
-        let setup_result = manager.setup_totp("user1", "Secreton Test Vault").await;
+        let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await;
         assert!(setup_result.is_ok(), "TOTP setup should succeed: {:?}", setup_result);
 
         let setup_info = setup_result?;
@@ -62,7 +62,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Setup TOTP first
-        let _setup_result = manager.setup_totp("user1", "Secreton Test Vault").await?;
+        let _setup_result = manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Test verification with mock code (test environment)
         let result = manager.verify_totp("user1", "123456").await;
@@ -80,7 +80,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Set up TOTP to generate recovery codes
-        let setup_result = manager.setup_totp("user1", "Secreton Test Vault").await?;
+        let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Verify recovery codes properties
         assert_eq!(setup_result.recovery_codes.len(), 10, "Should generate exactly 10 recovery codes");
@@ -105,7 +105,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Setup and get recovery codes
-        let setup_result = manager.setup_totp("user1", "Secreton Test Vault").await?;
+        let setup_result = manager.setup_totp("user1", "Secreton Test Engine").await?;
         let first_code = setup_result.recovery_codes[0].clone();
 
         // Use the recovery code
@@ -124,7 +124,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Setup TOTP first
-        manager.setup_totp("user1", "Secreton Test Vault").await?;
+        manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Attempt multiple failed verifications
         for i in 1..=6 {
@@ -137,10 +137,10 @@ mod mfa_unit_tests {
                     Err(MfaError::RateLimitExceeded(_)) => {
                         // Rate limiting may kick in earlier in some implementations
                         break;
-                    },
+                    ,
                     Err(e) => panic!("Unexpected error: {:?}", e),
                 }
-            } else {
+             else {
                 // 6th attempt should be rate limited
                 match result {
                     Err(MfaError::RateLimitExceeded(_)) => (),
@@ -160,7 +160,7 @@ mod mfa_unit_tests {
         let manager = create_test_manager();
 
         // Setup MFA first
-        manager.setup_totp("user1", "Secreton Test Vault").await?;
+        manager.setup_totp("user1", "Secreton Test Engine").await?;
 
         // Verify MFA is enabled by checking status
         let status_before = manager.get_mfa_status("user1").await;
@@ -169,7 +169,7 @@ mod mfa_unit_tests {
                 if !status.is_empty() {
                     println!("MFA is enabled with methods: {:?}", status);
                 }
-            },
+            ,
             Err(_) => {
                 // Status check may not be implemented yet
                 println!("MFA status check not available");
@@ -203,7 +203,7 @@ mod mfa_unit_tests {
             let user_id = format!("concurrent_user_{}", i);
 
             let task = tokio::spawn(async move {
-                let result = manager_clone.setup_totp(&user_id, "Secreton Test Vault").await;
+                let result = manager_clone.setup_totp(&user_id, "Secreton Test Engine").await;
                 (user_id, result)
             });
 
@@ -219,7 +219,7 @@ mod mfa_unit_tests {
         // Verify all setups succeeded
         for task_result in results {
             let (user_id, setup_result) = task_result?;
-            assert!(setup_result.is_ok(), "Setup for {} should succeed: {:?}", user_id, setup_result);
+            assert!(setup_result.is_ok(), "Setup for { should succeed: {:?}", user_id, setup_result);
         }
 
         Ok(())
@@ -281,7 +281,7 @@ mod mfa_integration_tests {
             match status {
                 Ok(mfa_status) => {
                     println!("MFA status persisted: {:?}", mfa_status);
-                },
+                ,
                 Err(_) => {
                     // Persistence may not be implemented in test storage
                     println!("MFA persistence test skipped - using in-memory storage");

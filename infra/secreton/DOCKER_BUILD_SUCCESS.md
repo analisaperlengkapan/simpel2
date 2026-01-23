@@ -119,8 +119,8 @@ docker run -d \
 - `GET /v1/secrets` - List secrets
 
 ### System Operations
-- `POST /v1/sys/init` - Initialize vault
-- `POST /v1/sys/unseal` - Unseal vault
+- `POST /v1/sys/init` - Initialize engine
+- `POST /v1/sys/unseal` - Unseal engine
 - `GET /v1/sys/seal-status` - Check seal status
 
 ### Namespaced Engines

@@ -6,9 +6,6 @@ use crate::error::{CommonError, Result};
 use regex::Regex;
 use std::sync::OnceLock;
 
-
-
-
 /// Email validation regex (RFC 5322 simplified)
 static EMAIL_REGEX: OnceLock<Regex> = OnceLock::new();
 
@@ -28,10 +25,7 @@ static NIP_REGEX: OnceLock<Regex> = OnceLock::new();
 static MFA_CODE_REGEX: OnceLock<Regex> = OnceLock::new();
 
 /// Validate that a collection is not empty
-pub fn validate_collection_not_empty<T>(
-    collection: &[T],
-    field_name: &str,
-) -> Result<()> {
+pub fn validate_collection_not_empty<T>(collection: &[T], field_name: &str) -> Result<()> {
     if collection.is_empty() {
         Err(CommonError::Validation {
             message: format!("{} cannot be empty", field_name),
@@ -42,11 +36,7 @@ pub fn validate_collection_not_empty<T>(
 }
 
 /// Validate that a string matches expected format/pattern
-pub fn validate_pattern(
-    value: &str,
-    pattern: &Regex,
-    field_name: &str,
-) -> Result<()> {
+pub fn validate_pattern(value: &str, pattern: &Regex, field_name: &str) -> Result<()> {
     if !pattern.is_match(value) {
         Err(CommonError::Validation {
             message: format!("{} format is invalid", field_name),

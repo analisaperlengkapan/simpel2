@@ -128,5 +128,5 @@ proptest! {
 //
 // To run these tests with a live server:
 // 1. Start a Secreton server
-// 2. Initialize and unseal the vault
+// 2. Initialize and unseal the engine
 // 3. Run: cargo test --package secreton-cli --test integration_properties -- --ignored

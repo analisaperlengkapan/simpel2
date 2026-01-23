@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::config::AuthConfig;
 use secreton_crypto::{AlgorithmId, CryptoEngine};
-use secreton_storage::{QueryParams, SecurityLevel, StorageBackend, VaultEntry};
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use totp_rs::{Algorithm as TotpAlgorithm, Secret, TOTP};
 
 // Use canonical User from core
@@ -318,11 +318,7 @@ impl AuthService {
                 .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
             let access_token = self.create_access_token(&user, &session_id, &config)?;
             let refresh_token = self.create_refresh_token(&user, &session_id, &config)?;
-            (
-                access_token,
-                refresh_token,
-                config.jwt.expiration.as_secs(),
-            )
+            (access_token, refresh_token, config.jwt.expiration.as_secs())
         };
 
         // Store session
@@ -353,30 +349,33 @@ impl AuthService {
     pub async fn validate_token(&self, token: &str) -> Result<User, AuthError> {
         use jsonwebtoken::{DecodingKey, Validation, decode};
 
-        let config = self
-            .config
-            .read()
-            .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+        let claims = {
+            let config = self
+                .config
+                .read()
+                .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
 
-        let mut validation =
-            Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(|e| {
-                AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e))
-            })?);
+            let mut validation =
+                Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(|e| {
+                    AuthError::Configuration(format!("Invalid JWT algorithm in config: {}", e))
+                })?);
 
-        // Validation requires setting audience and issuer
-        validation.set_audience(&[&config.jwt.audience]);
-        validation.set_issuer(&[&config.jwt.issuer]);
+            // Validation requires setting audience and issuer
+            validation.set_audience(&[&config.jwt.audience]);
+            validation.set_issuer(&[&config.jwt.issuer]);
 
-        // DecodingKey from secret
-        let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
+            // DecodingKey from secret
+            let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
-        let token_data =
-            decode::<Claims>(token, &decoding_key, &validation).map_err(|e| match e.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
-                _ => AuthError::InvalidToken,
+            let token_data = decode::<Claims>(token, &decoding_key, &validation).map_err(|e| {
+                match e.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                    _ => AuthError::InvalidToken,
+                }
             })?;
 
-        let claims = token_data.claims;
+            token_data.claims
+        };
 
         // Enforce token type
         if claims.token_type != "access" {
@@ -562,7 +561,7 @@ impl AuthService {
             return Ok(true);
         }
 
-        // Check for pattern match (e.g., "vault:*" matches "vault:read")
+        // Check for pattern match (e.g., "engine:*" matches "engine:read")
         for perm in &all_permissions {
             if perm.ends_with("*") {
                 let prefix = &perm[..perm.len() - 1];
@@ -679,11 +678,11 @@ impl AuthService {
         if self.get_role("user").await.is_err() {
             self.create_role(
                 "user",
-                Some("Regular user with basic vault access"),
+                Some("Regular user with basic engine access"),
                 vec![
-                    "vault:read".to_string(),
-                    "vault:write".to_string(),
-                    "vault:list".to_string(),
+                    "engine:read".to_string(),
+                    "engine:write".to_string(),
+                    "engine:list".to_string(),
                 ],
             )
             .await?;
@@ -693,8 +692,8 @@ impl AuthService {
         if self.get_role("viewer").await.is_err() {
             self.create_role(
                 "viewer",
-                Some("Read-only access to vault"),
-                vec!["vault:read".to_string(), "vault:list".to_string()],
+                Some("Read-only access to engine"),
+                vec!["engine:read".to_string(), "engine:list".to_string()],
             )
             .await?;
         }
@@ -825,7 +824,7 @@ impl AuthService {
                 .encrypt(AlgorithmId::Aes256Gcm, secret.as_bytes(), &key)
                 .map_err(|e| AuthError::Internal(format!("Encryption failed: {}", e)))?;
 
-            VaultEntry::new(
+            SecretEntry::new(
                 path,
                 encrypted.ciphertext,
                 serde_json::json!({
@@ -958,7 +957,7 @@ impl AuthService {
             .encrypt_simple(&uuid_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user index: {}", e)))?;
 
-        let index_entry = VaultEntry::new(
+        let index_entry = SecretEntry::new(
             format!("auth/usernames/{}", user.username),
             encrypted_uuid,
             serde_json::json!({"method": "simple", "target": "user_id"}),
@@ -983,7 +982,7 @@ impl AuthService {
             .encrypt_simple(&role_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt role: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/roles/{}", role.name),
             encrypted_data,
             serde_json::json!({"method": "simple", "type": "role"}),
@@ -1009,7 +1008,7 @@ impl AuthService {
             .encrypt_simple(&session_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt session: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/sessions/{}", session.id),
             encrypted,
             serde_json::json!({"method": "simple", "type": "session"}),
@@ -1043,33 +1042,34 @@ impl AuthService {
     pub async fn revoke_token(&self, token: &str) -> Result<(), AuthError> {
         use jsonwebtoken::{DecodingKey, Validation, decode};
 
-        let config = self
-            .config
-            .read()
-            .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+        let jti = {
+            let config = self
+                .config
+                .read()
+                .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
 
-        let mut validation = Validation::new(
-            Algorithm::from_str(&config.jwt.algorithm)
-                .map_err(|e| AuthError::Configuration(format!("Invalid JWT algorithm: {}", e)))?,
-        );
-        validation.set_audience(&[&config.jwt.audience]);
-        validation.set_issuer(&[&config.jwt.issuer]);
-        validation.validate_exp = false; // Allow revoking expired tokens
+            let mut validation =
+                Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(|e| {
+                    AuthError::Configuration(format!("Invalid JWT algorithm: {}", e))
+                })?);
+            validation.set_audience(&[&config.jwt.audience]);
+            validation.set_issuer(&[&config.jwt.issuer]);
+            validation.validate_exp = false; // Allow revoking expired tokens
 
-        let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
+            let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
 
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .map_err(|_| AuthError::InvalidToken)?;
+            let token_data = decode::<Claims>(token, &decoding_key, &validation)
+                .map_err(|_| AuthError::InvalidToken)?;
 
-        // Drop lock before await
-        drop(config);
+            token_data.claims.jti
+        };
 
-        self.revoke_session(&token_data.claims.jti).await
+        self.revoke_session(&jti).await
     }
 
     /// Get token ID (jti) from token
     pub fn get_token_id(&self, token: &str) -> Result<String, AuthError> {
-        use jsonwebtoken::{decode, DecodingKey, Validation};
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
         let config = self
             .config
@@ -1186,7 +1186,7 @@ impl AuthService {
     }
 
     /// Encrypt user for storage
-    fn encrypt_user(&self, user: &User) -> Result<VaultEntry, AuthError> {
+    fn encrypt_user(&self, user: &User) -> Result<SecretEntry, AuthError> {
         let stored_user = StoredUser::from(user);
         let user_bytes = serde_json::to_vec(&stored_user)
             .map_err(|e| AuthError::Internal(format!("Failed to serialize user: {}", e)))?;
@@ -1196,7 +1196,7 @@ impl AuthService {
             .encrypt_simple(&user_bytes)
             .map_err(|e| AuthError::Internal(format!("Failed to encrypt user: {}", e)))?;
 
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("auth/users/{}", user.id),
             encrypted_data,
             serde_json::json!({"method": "simple"}),
@@ -1208,7 +1208,7 @@ impl AuthService {
     }
 
     /// Decrypt user from storage
-    fn decrypt_user(&self, entry: VaultEntry) -> Result<User, AuthError> {
+    fn decrypt_user(&self, entry: SecretEntry) -> Result<User, AuthError> {
         let decrypted_bytes = self
             .crypto
             .decrypt_simple(&entry.encrypted_data)
@@ -1386,7 +1386,7 @@ mod tests {
 
         // admin role already initialized in service with "*"
         let allowed = auth_service
-            .has_permission(&user, "vault:delete")
+            .has_permission(&user, "engine:delete")
             .await
             .expect("has permission");
         assert!(allowed);
@@ -1426,7 +1426,7 @@ mod tests {
             metadata: HashMap::new(),
         };
         let allowed = service
-            .has_permission(&user, "vault:read")
+            .has_permission(&user, "engine:read")
             .await
             .expect("permission");
         assert!(allowed);

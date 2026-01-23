@@ -10,12 +10,12 @@ pub async fn render_template(
     token: &str,
     config: &TemplateConfig,
 ) -> Result<()> {
-    // Fetch secret from vault
+    // Fetch secret from engine
     let url = format!("{}/v1/{}", server_url, config.source);
 
     let response = client
         .get(&url)
-        .header("X-Vault-Token", token)
+        .header("X-Engine-Token", token)
         .send()
         .await?;
 
@@ -53,7 +53,7 @@ pub async fn render_template(
     Ok(())
 }
 
-/// Simple template rendering (replace {{key}} with value)
+/// Simple template rendering (replace {{key} with value)
 fn render_template_string(template: &str, data: &serde_json::Value) -> Result<String> {
     let mut result = template.to_string();
 

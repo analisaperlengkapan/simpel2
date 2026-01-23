@@ -127,7 +127,7 @@ pub struct LdapGroupMapping {
     /// LDAP group name
     pub ldap_group: String,
 
-    /// Vault policies to assign
+    /// Engine policies to assign
     pub policies: Vec<String>,
 }
 
@@ -155,7 +155,7 @@ impl LdapConnection {
         }
     }
 
-    async fn bind(&mut self, dn: &str, password: &str) -> Result<(), LdapError> {
+    async fn bind(&mut self, _dn: &str, password: &str) -> Result<(), LdapError> {
         self.last_used = Utc::now();
 
         // Simulate LDAP bind operation
@@ -189,8 +189,8 @@ impl LdapConnection {
 
     async fn search_groups(
         &mut self,
-        base_dn: &str,
-        user_dn: &str,
+        _base_dn: &str,
+        _user_dn: &str,
         nested: bool,
     ) -> Result<Vec<String>, LdapError> {
         self.last_used = Utc::now();

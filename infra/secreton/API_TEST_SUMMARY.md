@@ -2,7 +2,7 @@
 
 ## 🔒 CRITICAL FIX: Initialization Status Bug
 
-**Issue**: Vault menunjukkan `initialized: true` pada fresh start (seharusnya `false`)
+**Issue**: Secret Vault menunjukkan `initialized: true` pada fresh start (seharusnya `false`)
 
 **Root Cause**: Status `initialized` di-hardcode `true` di `SealStatus::new()`
 
@@ -34,9 +34,9 @@ Semua komponen sistem berhasil ditest dan berfungsi dengan baik.
 
 | Endpoint | Method | Status | Notes |
 |----------|--------|--------|-------|
-| `/v1/sys/init` | POST | ✅ PASS | Vault initialization |
+| `/v1/sys/init` | POST | ✅ PASS | Secret Vault initialization |
 | `/v1/sys/unseal` | POST | ✅ PASS | Unseal with key |
-| `/v1/sys/seal` | POST | ✅ PASS | Seal vault |
+| `/v1/sys/seal` | POST | ✅ PASS | Seal engine |
 | `/v1/sys/health` | GET | ✅ PASS | System health |
 | `/v1/sys/auth` | GET | ✅ PASS | List auth methods |
 | `/v1/sys/mounts` | GET | ✅ PASS | List secret engines |
@@ -140,7 +140,7 @@ Semua komponen sistem berhasil ditest dan berfungsi dengan baik.
 - No fallback to memory
 
 ### Security Features ✅
-- Vault starts SEALED
+- Secret Vault starts SEALED
 - Shamir Secret Sharing (5 shares, 3 threshold)
 - Unseal process working
 - Seal/unseal cycle verified
@@ -161,10 +161,10 @@ Secreton berhasil di-migrate ke sistem konfigurasi secure dengan:
 - Complete API coverage (KV, Transit, Secret V2, PKI)
 - Additional engines (Database, TOTP, SSH, Cloud, Identity)
 - Production-ready security features
-- HashiCorp Vault-compatible API
+- HashiCorp Secret Vault-compatible API
 
 **Status**: PRODUCTION READY
 
 ---
 
-**Note**: Untuk testing lengkap authenticated endpoints, vault perlu di-unseal dengan 3 of 5 master keys yang di-generate saat initialization.
+**Note**: Untuk testing lengkap authenticated endpoints, engine perlu di-unseal dengan 3 of 5 master keys yang di-generate saat initialization.

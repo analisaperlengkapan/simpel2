@@ -187,8 +187,12 @@ mod tests {
     #[test]
     fn test_health_info_determine_status() {
         let mut info = HealthInfo::new("test-service", "1.0.0");
-        info.dependencies.insert("db".to_string(), DependencyHealth::healthy("db", 5));
-        info.dependencies.insert("cache".to_string(), DependencyHealth::degraded("cache", "Slow", 500));
+        info.dependencies
+            .insert("db".to_string(), DependencyHealth::healthy("db", 5));
+        info.dependencies.insert(
+            "cache".to_string(),
+            DependencyHealth::degraded("cache", "Slow", 500),
+        );
 
         info.determine_status();
         assert_eq!(info.status, HealthStatus::Degraded);

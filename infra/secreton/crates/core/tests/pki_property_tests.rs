@@ -31,8 +31,7 @@ async fn setup_test_pki() -> Arc<PkiEngine> {
 
 // Strategy to generate valid common names
 fn common_name_strategy() -> impl Strategy<Value = String> {
-    prop::string::string_regex("[a-z][a-z0-9-]{0,10}\\.(example|test)\\.com")
-        .expect("valid regex")
+    prop::string::string_regex("[a-z][a-z0-9-]{0,10}\\.(example|test)\\.com").expect("valid regex")
 }
 
 // **Feature: secreton-comprehensive-enhancement, Property 16: OCSP Status Consistency**
@@ -233,7 +232,10 @@ mod unit_tests {
             .unwrap();
 
         let before_revocation = chrono::Utc::now();
-        engine.revoke_certificate(&cert.serial_number).await.unwrap();
+        engine
+            .revoke_certificate(&cert.serial_number)
+            .await
+            .unwrap();
         let after_revocation = chrono::Utc::now();
 
         // Get OCSP response
@@ -266,10 +268,12 @@ mod unit_tests {
             alt_names: vec![],
             ttl: None,
         };
-        assert!(engine
-            .issue_certificate("domain-restricted", request)
-            .await
-            .is_ok());
+        assert!(
+            engine
+                .issue_certificate("domain-restricted", request)
+                .await
+                .is_ok()
+        );
 
         // Invalid domain should fail
         let request = IssueCertificateRequest {
@@ -277,10 +281,12 @@ mod unit_tests {
             alt_names: vec![],
             ttl: None,
         };
-        assert!(engine
-            .issue_certificate("domain-restricted", request)
-            .await
-            .is_err());
+        assert!(
+            engine
+                .issue_certificate("domain-restricted", request)
+                .await
+                .is_err()
+        );
     }
 }
 
@@ -400,7 +406,7 @@ proptest! {
 
             if allow_localhost {
                 prop_assert!(result.is_ok(), "Should allow localhost when template permits");
-            } else {
+             } else {
                 prop_assert!(result.is_err(), "Should reject localhost when template forbids");
             }
 

@@ -1,3 +1,4 @@
+use crate::context::RequestContext;
 use axum::{
     extract::Request,
     http::{Method, Response, StatusCode},
@@ -11,8 +12,7 @@ use std::{
     time::Instant,
 };
 use tower::{Layer, Service};
-use tracing::{debug, error, field, info_span, Instrument};
-use crate::context::RequestContext;
+use tracing::{Instrument, debug, error, field, info_span};
 
 /// Middleware for logging HTTP requests and responses
 #[derive(Clone, Debug)]
@@ -50,9 +50,11 @@ where
 
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         // Extract context (or create default)
-        let ctx = req.extensions().get::<RequestContext>().cloned().unwrap_or_else(|| {
-            RequestContext::from_headers(req.headers())
-        });
+        let ctx = req
+            .extensions()
+            .get::<RequestContext>()
+            .cloned()
+            .unwrap_or_else(|| RequestContext::from_headers(req.headers()));
 
         // Don't log health checks in detail
         let path = req.uri().path();
@@ -60,14 +62,16 @@ where
             let future = self.inner.call(req);
             return Box::pin(async move {
                 let res = future.await?;
-                Ok(res.map(|body| ResponseBody::new(
-                    body,
-                    ctx.request_id.to_string(),
-                    Method::GET,
-                    "/".to_string(),
-                    Instant::now(),
-                    StatusCode::OK,
-                )))
+                Ok(res.map(|body| {
+                    ResponseBody::new(
+                        body,
+                        ctx.request_id.to_string(),
+                        Method::GET,
+                        "/".to_string(),
+                        Instant::now(),
+                        StatusCode::OK,
+                    )
+                }))
             });
         }
 

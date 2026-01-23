@@ -29,7 +29,7 @@ async fn test_complete_key_lifecycle_with_audit() {
             key_type: KeyType::AES256,
             purpose: KeyPurpose::Encryption,
             owner: "user@example.com".to_string(),
-        },
+        ,
         metadata: HashMap::from([
             ("environment".to_string(), "production".to_string()),
             ("compliance".to_string(), "pci-dss".to_string()),
@@ -46,7 +46,7 @@ async fn test_complete_key_lifecycle_with_audit() {
     // Rotate the key
     let rotate_req = KeyOperationRequest {
         token: token.clone(),
-        operation: KeyOperation::Rotate { key_id: key_id.clone() },
+        operation: KeyOperation::Rotate { key_id: key_id.clone() ,
         metadata: HashMap::new(),
     };
 
@@ -66,7 +66,7 @@ async fn test_complete_key_lifecycle_with_audit() {
                 "admin4@example.com".to_string(),
                 "admin5@example.com".to_string(),
             ],
-        },
+        ,
         metadata: HashMap::new(),
     };
 
@@ -87,7 +87,7 @@ async fn test_complete_key_lifecycle_with_audit() {
     let metrics = service.get_metrics().await;
     assert!(metrics.len() >= 3);
     
-    println!("✓ Complete key lifecycle with audit: {} operations tracked", audit_records.len());
+    println!("✓ Complete key lifecycle with audit: { operations tracked", audit_records.len());
 }
 
 #[tokio::test]
@@ -153,7 +153,7 @@ async fn test_policy_compliant_secret_operations() {
     assert!(scan_result.compliance_score >= 0.0);
     assert!(scan_result.compliance_score <= 100.0);
 
-    println!("✓ Policy-enforced crypto: {} violations detected in non-compliant ops", 
+    println!("✓ Policy-enforced crypto: { violations detected in non-compliant ops", 
              non_valid_result.violations.len());
 }
 
@@ -197,7 +197,7 @@ async fn test_zkp_authentication_to_secret_access() {
     let wrong_auth = zkp_system.authenticate_zkp(username.clone(), "wrong-password".to_string()).await;
     assert!(wrong_auth.is_err());
 
-    println!("✓ ZKP authentication: {} privacy-preserving audit records", audit_records.len());
+    println!("✓ ZKP authentication: { privacy-preserving audit records", audit_records.len());
 }
 
 #[tokio::test]
@@ -264,7 +264,7 @@ async fn test_multi_tenant_smpc_collaboration() {
     assert!(session_info.allowed_tenants.contains(&"tenant-b".to_string()));
     assert!(session_info.allowed_tenants.contains(&"tenant-c".to_string()));
 
-    println!("✓ SMPC collaboration: {} tenants with secure isolation", participants.len());
+    println!("✓ SMPC collaboration: { tenants with secure isolation", participants.len());
 }
 
 #[tokio::test]
@@ -281,7 +281,7 @@ async fn test_full_observability_incident_response() {
 
     let trace_result = pipeline.trace_operation(
         "secret-access".to_string(),
-        "vault-service".to_string(),
+        "engine-service".to_string(),
         trace_future,
     ).await;
     assert!(trace_result.is_ok());
@@ -341,6 +341,6 @@ async fn test_full_observability_incident_response() {
     assert!(perf.p95_latency_ms >= perf.p50_latency_ms);
     assert!(perf.p99_latency_ms >= perf.p95_latency_ms);
 
-    println!("✓ Full observability: {} components monitored, incident {} handled",
+    println!("✓ Full observability: { components monitored, incident { handled",
              health.component_health.len(), incident.incident_id);
 }

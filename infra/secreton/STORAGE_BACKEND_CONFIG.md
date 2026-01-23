@@ -221,7 +221,7 @@ Configuration is applied in this order (highest to lowest priority):
 
 ```
 ┌─────────────────────────────────────────┐
-│  Vault Data                             │
+│  Secret Vault Data                             │
 ├─────────────────────────────────────────┤
 │  Secrets, Keys, Policies, Audit Logs    │
 ├─────────────────────────────────────────┤
@@ -251,7 +251,7 @@ Configuration is applied in this order (highest to lowest priority):
 
 ```
 ┌─────────────────────────────────────────┐
-│  Vault Data                             │
+│  Secret Vault Data                             │
 ├─────────────────────────────────────────┤
 │  Secrets, Keys, Policies, Audit Logs    │
 ├─────────────────────────────────────────┤
@@ -419,11 +419,11 @@ curl http://localhost:8200/v1/sys/raft/status
 ```bash
 # Create backup
 curl -X POST http://localhost:8200/v1/sys/backup \
-  -H "X-Vault-Token: $TOKEN"
+  -H "X-Secret Vault-Token: $TOKEN"
 
 # Restore from backup
 curl -X POST http://localhost:8200/v1/sys/restore \
-  -H "X-Vault-Token: $TOKEN" \
+  -H "X-Secret Vault-Token: $TOKEN" \
   -d @backup.json
 ```
 
@@ -458,7 +458,7 @@ curl -X POST http://localhost:8200/v1/sys/restore \
 1. **Backup PostgreSQL data**:
    ```bash
    curl -X POST http://localhost:8200/v1/sys/backup \
-     -H "X-Vault-Token: $TOKEN" > backup.json
+     -H "X-Secret Vault-Token: $TOKEN" > backup.json
    ```
 
 2. **Update configuration**:
@@ -470,7 +470,7 @@ curl -X POST http://localhost:8200/v1/sys/restore \
 3. **Restore to Raft**:
    ```bash
    curl -X POST http://localhost:8200/v1/sys/restore \
-     -H "X-Vault-Token: $TOKEN" \
+     -H "X-Secret Vault-Token: $TOKEN" \
      -d @backup.json
    ```
 
@@ -573,6 +573,6 @@ psql $DATABASE_URL -c "SELECT 1"
 ## References
 
 - [Raft Consensus Algorithm](https://raft.github.io/)
-- [HashiCorp Vault Storage Backends](https://www.vaultproject.io/docs/configuration/storage)
+- [HashiCorp Secret Vault Storage Backends](https://www.engineproject.io/docs/configuration/storage)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 - [Distributed Systems](https://en.wikipedia.org/wiki/Distributed_computing)

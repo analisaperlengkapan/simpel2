@@ -1,6 +1,6 @@
 //! Storage backend implementations
 //!
-//! HashiCorp Vault-compatible storage backends for Secreton vault system.
+//! HashiCorp Engine-compatible storage backends for Secreton engine system.
 //!
 //! # Available Backends
 //!
@@ -19,7 +19,7 @@
 //!
 //! # Recommendations
 //!
-//! - **Production HA**: Use Consul or Raft (like HashiCorp Vault)
+//! - **Production HA**: Use Consul or Raft (like HashiCorp Engine)
 //! - **Cloud Deployments**: Use S3, Azure Blob, or GCS
 //! - **Development**: Use File or Memory backend
 //! - **Legacy Systems**: PostgreSQL available but not recommended

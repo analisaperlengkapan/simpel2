@@ -3,10 +3,10 @@
 //! REST API endpoints for data classification management.
 
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -38,7 +38,7 @@ pub struct ClassifyResponse {
 
 /// Classify a secret
 ///
-/// POST /v1/secret/classify/:path
+/// POST /v1/secret/classify/{path}
 #[instrument(skip(state))]
 pub async fn classify_secret(
     State(state): State<ClassificationState>,
@@ -77,9 +77,7 @@ pub async fn classify_secret(
 ///
 /// GET /v1/classification/report
 #[instrument(skip(state))]
-pub async fn get_classification_report(
-    State(state): State<ClassificationState>,
-) -> Response {
+pub async fn get_classification_report(State(state): State<ClassificationState>) -> Response {
     info!("Generating classification report");
 
     match state.classification_service.generate_report().await {
@@ -107,7 +105,7 @@ pub async fn get_classification_report(
 
 /// Get classification for a secret
 ///
-/// GET /v1/secret/classification/:path
+/// GET /v1/secret/classification/{path}
 #[instrument(skip(state))]
 pub async fn get_secret_classification(
     State(state): State<ClassificationState>,
@@ -141,7 +139,7 @@ pub async fn get_secret_classification(
 
 /// Check if MFA is required for a secret
 ///
-/// GET /v1/secret/require-mfa/:path
+/// GET /v1/secret/require-mfa/{path}
 #[instrument(skip(state))]
 pub async fn check_mfa_required(
     State(state): State<ClassificationState>,
@@ -206,9 +204,9 @@ pub async fn get_policy_violations(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use axum::Router;
     use secreton_core::services::classification::InMemoryClassificationService;
     use tower::ServiceExt;
 
@@ -219,7 +217,10 @@ mod tests {
         };
 
         Router::new()
-            .route("/v1/secret/classify/*path", axum::routing::post(classify_secret))
+            .route(
+                "/v1/secret/classify/*path",
+                axum::routing::post(classify_secret),
+            )
             .route(
                 "/v1/classification/report",
                 axum::routing::get(get_classification_report),

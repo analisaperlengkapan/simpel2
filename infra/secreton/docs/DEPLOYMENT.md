@@ -10,7 +10,7 @@
 - [ ] Copy `secreton.toml.example` to `secreton.toml`
 - [ ] Configure storage backend (Raft recommended)
 - [ ] Configure TLS certificates (production)
-- [ ] Initialize vault and save Shamir shares
+- [ ] Initialize engine and save Shamir shares
 - [ ] Distribute shares to operators securely
 - [ ] (Optional) Migrate from legacy config
 - [ ] Test unseal process
@@ -53,7 +53,7 @@ threshold = 2
 # Build
 cargo build --release
 
-# Initialize vault (generates Shamir shares)
+# Initialize engine (generates Shamir shares)
 ./target/release/secreton init --shares 3 --threshold 2 --output keys.json
 
 # IMPORTANT: Save keys.json securely!
@@ -144,7 +144,7 @@ log_format = "json"
 **/etc/systemd/system/secreton.service:**
 ```ini
 [Unit]
-Description=Secreton Vault
+Description=Secreton Secret Vault
 After=network-online.target
 Wants=network-online.target
 
@@ -336,7 +336,7 @@ sudo tar czf secreton-backup-$(date +%Y%m%d).tar.gz \
   /etc/secreton/config/ \
   /var/lib/secreton/
 
-# 2. Ensure vault is unsealed
+# 2. Ensure engine is unsealed
 secreton status  # Should show "UNSEALED"
 ```
 

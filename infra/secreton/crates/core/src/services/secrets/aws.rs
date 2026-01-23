@@ -797,9 +797,10 @@ impl AwsEngine {
         self.revoke_credentials(lease_id).await?;
 
         // Revoke lease
-        lease_manager.revoke_lease(lease_id).await.map_err(|e| {
-            AwsError::RevocationFailed(format!("Failed to revoke lease: {}", e))
-        })?;
+        lease_manager
+            .revoke_lease(lease_id)
+            .await
+            .map_err(|e| AwsError::RevocationFailed(format!("Failed to revoke lease: {}", e)))?;
 
         Ok(())
     }
@@ -813,6 +814,8 @@ impl AwsEngine {
     /// Get credential details by lease ID
     pub async fn get_credential_details(&self, lease_id: &str) -> Option<String> {
         let tracked_users = self.tracked_users.read().await;
-        tracked_users.get(lease_id).map(|user| user.user_name.clone())
+        tracked_users
+            .get(lease_id)
+            .map(|user| user.user_name.clone())
     }
 }

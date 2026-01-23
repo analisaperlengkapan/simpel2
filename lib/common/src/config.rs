@@ -89,18 +89,42 @@ impl Default for ServerConfig {
 }
 
 // Default values functions
-fn default_host() -> String { "0.0.0.0".to_string() }
-fn default_port() -> u16 { 3000 }
-fn default_grpc_port() -> u16 { 9088 }
-fn default_grpc_enabled() -> bool { true }
-fn default_keep_alive() -> u64 { 75 }
-fn default_client_timeout() -> u64 { 30 }
-fn default_client_disconnect_timeout() -> u64 { 5 }
-fn default_cors_origins() -> Vec<String> { vec!["*".to_string()] }
-fn default_max_connections() -> u32 { 100 }
-fn default_public_prefix() -> String { "/api/v1".to_string() }
-fn default_admin_prefix() -> String { "/admin".to_string() }
-fn default_internal_prefix() -> String { "/internal".to_string() }
+fn default_host() -> String {
+    "0.0.0.0".to_string()
+}
+fn default_port() -> u16 {
+    3000
+}
+fn default_grpc_port() -> u16 {
+    9088
+}
+fn default_grpc_enabled() -> bool {
+    true
+}
+fn default_keep_alive() -> u64 {
+    75
+}
+fn default_client_timeout() -> u64 {
+    30
+}
+fn default_client_disconnect_timeout() -> u64 {
+    5
+}
+fn default_cors_origins() -> Vec<String> {
+    vec!["*".to_string()]
+}
+fn default_max_connections() -> u32 {
+    100
+}
+fn default_public_prefix() -> String {
+    "/api/v1".to_string()
+}
+fn default_admin_prefix() -> String {
+    "/admin".to_string()
+}
+fn default_internal_prefix() -> String {
+    "/internal".to_string()
+}
 
 /// Common database configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,9 +174,15 @@ impl Default for DatabaseConfig {
     }
 }
 
-fn default_min_connections() -> u32 { 10 }
-fn default_idle_timeout() -> u64 { 600 }
-fn default_max_lifetime() -> u64 { 1800 }
+fn default_min_connections() -> u32 {
+    10
+}
+fn default_idle_timeout() -> u64 {
+    600
+}
+fn default_max_lifetime() -> u64 {
+    1800
+}
 
 impl DatabaseConfig {
     /// Get the connection string (URL) for the database
@@ -185,8 +215,12 @@ impl Default for LogConfig {
     }
 }
 
-fn default_log_level() -> String { "info".to_string() }
-fn default_log_format() -> String { "json".to_string() }
+fn default_log_level() -> String {
+    "info".to_string()
+}
+fn default_log_format() -> String {
+    "json".to_string()
+}
 
 /// Base configuration for simple backend services
 /// Loads common fields from environment variables with sensible defaults
@@ -208,9 +242,15 @@ pub struct BaseServiceConfig {
     pub log_level: String,
 }
 
-fn default_pool_size() -> usize { 10 }
-fn default_service_port() -> u16 { 3000 }
-fn default_service_host() -> String { "0.0.0.0".to_string() }
+fn default_pool_size() -> usize {
+    10
+}
+fn default_service_port() -> u16 {
+    3000
+}
+fn default_service_host() -> String {
+    "0.0.0.0".to_string()
+}
 
 impl Default for BaseServiceConfig {
     fn default() -> Self {
@@ -243,11 +283,9 @@ impl BaseServiceConfig {
             .and_then(|s| s.parse().ok())
             .unwrap_or(default_service_port());
 
-        let server_host = std::env::var("SERVER_HOST")
-            .unwrap_or_else(|_| default_service_host());
+        let server_host = std::env::var("SERVER_HOST").unwrap_or_else(|_| default_service_host());
 
-        let log_level = std::env::var("LOG_LEVEL")
-            .unwrap_or_else(|_| default_log_level());
+        let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| default_log_level());
 
         Self {
             database_url,

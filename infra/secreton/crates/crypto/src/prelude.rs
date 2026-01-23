@@ -27,7 +27,7 @@ pub use crate::transit::{
 
 // Re-export storage integration
 pub use crate::storage_integration::{
-    CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata, KeyInfo,
+    CryptoStorageBridge, EncryptedSecretEntry, EncryptionMetadata, KeyInfo,
 };
 
 // Re-export post-quantum crypto

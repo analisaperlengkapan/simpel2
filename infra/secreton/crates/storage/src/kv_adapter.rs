@@ -4,18 +4,17 @@
 //! This allows any KV store to be used as a backend for Secreton.
 
 use crate::{
-    BackendMetrics, HealthStatus, KvBackend, QueryParams, StorageBackend, StorageError,
-    StorageResult, StorageStats, StorageTransaction, VaultEntry,
+    HealthStatus, KvBackend, QueryParams, SecretEntry, StorageBackend, StorageError, StorageResult,
+    StorageStats, StorageTransaction,
 };
 use async_trait::async_trait;
-use chrono::Utc;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Adapter that wraps a KvBackend to implement StorageBackend
 ///
 /// This adapter handles:
-/// - Serialization/Deserialization of VaultEntry
+/// - Serialization/Deserialization of SecretEntry
 /// - Path indexing (for list operations)
 /// - Metadata management
 ///
@@ -45,11 +44,12 @@ impl<B: KvBackend> KvBackendAdapter<B> {
 
 #[async_trait]
 impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B> {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
-        let serialized = serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
-            message: format!("Failed to serialize entry: {}", e),
-            source: Some(Box::new(e)),
-        })?;
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()> {
+        let serialized =
+            serde_json::to_vec(entry).map_err(|e| StorageError::SerializationError {
+                message: format!("Failed to serialize entry: {}", e),
+                source: Some(Box::new(e)),
+            })?;
 
         // Store by ID
         self.backend
@@ -58,16 +58,13 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
 
         // Store index by path (mapping path -> ID)
         self.backend
-            .put(
-                &Self::index_key_for_path(&entry.path),
-                entry.id.as_bytes(),
-            )
+            .put(&Self::index_key_for_path(&entry.path), entry.id.as_bytes())
             .await?;
 
         Ok(())
     }
 
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>> {
         let data = self.backend.get(&Self::key_for_id(id)).await?;
 
         if let Some(bytes) = data {
@@ -82,7 +79,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         }
     }
 
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
         // Look up ID from path index
         let index_data = self.backend.get(&Self::index_key_for_path(path)).await?;
 
@@ -95,11 +92,11 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         Ok(None)
     }
 
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()> {
         // Check if exists
         if self.get_by_id(entry.id).await?.is_none() {
             return Err(StorageError::NotFound {
-                resource_type: "VaultEntry".to_string(),
+                resource_type: "SecretEntry".to_string(),
                 id: entry.id.to_string(),
             });
         }
@@ -131,7 +128,7 @@ impl<B: KvBackend + Send + Sync + 'static> StorageBackend for KvBackendAdapter<B
         }
     }
 
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>> {
         // This is inefficient for KV stores as it requires listing all keys
         // and retrieving each entry. Production implementations should use
         // proper indexing or search backend.

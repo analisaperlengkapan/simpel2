@@ -29,6 +29,11 @@ reqwest.workspace = true
 # These are only needed for deprecated legacy code and will be removed in v2.0.0
 axum = { workspace = true, optional = true }
 warp = { workspace = true, optional = true }
+http-body = { version = "1.0", optional = true }
+http-body-util = { version = "0.1", optional = true }
+
+# WASM runtime
+wasmtime = { version = "26.0", optional = true }
 
 # Database
 deadpool-postgres.workspace = true
@@ -110,16 +115,17 @@ test-utils = []
 
 # Forward storage backend features
 postgres = ["secreton-storage/postgres"]
+raft-consensus = ["secreton-storage/raft-consensus"]
 
 # gRPC utilities (for correlation context integration)
 grpc = []
 
 # WASM policy engine support (future feature)
 # Note: Requires wasmtime dependency when enabled
-wasm = []
+wasm = ["dep:wasmtime"]
 
-# DEPRECATED: Legacy web framework support
-# These features enable deprecated code that depends on web frameworks.
-# Will be removed in v2.0.0. Do not use in new code.
-legacy-warp-api = ["dep:warp"]
-legacy-axum-middleware = ["dep:axum"]
+# Web framework support
+warp-api = ["dep:warp"]
+axum-middleware = ["dep:axum", "dep:http-body", "dep:http-body-util"]
+workflow-tests = []
+integration-tests = []

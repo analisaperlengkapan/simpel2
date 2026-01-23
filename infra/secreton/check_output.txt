@@ -1,0 +1,874 @@
+[1m[33mwarning[0m: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /srv/proyek/simpelv2/infra/authenc/Cargo.toml
+workspace: /srv/proyek/simpelv2/Cargo.toml
+[1m[33mwarning[0m: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /srv/proyek/simpelv2/infra/secreton/Cargo.toml
+workspace: /srv/proyek/simpelv2/Cargo.toml
+[1m[33mwarning[0m[1m: method `commitments` is never used[0m
+   [1m[94m--> [0mlib/common/src/crypto/shamir.rs:249:8
+    [1m[94m|[0m
+[1m[94m198[0m [1m[94m|[0m impl Commitment {
+    [1m[94m|[0m [1m[94m---------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m249[0m [1m[94m|[0m     fn commitments(&s[1m[94m...[0m
+    [1m[94m|[0m        [1m[33m^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m: `lib-common` (lib) generated 1 warning
+[1m[33mwarning[0m[1m: associated function `key_for_path` is never used[0m
+  [1m[94m--> [0minfra/secreton/crates/storage/src/kv_adapter.rs:36:8
+   [1m[94m|[0m
+[1m[94m27[0m [1m[94m|[0m [1m[94m...[0mAdapter<B> {
+   [1m[94m|[0m [1m[94m...----------[0m [1m[94massociated function in this implementation[0m
+[1m[94m...[0m
+[1m[94m36[0m [1m[94m|[0m     fn key_for_path(path: &str) -> String {
+   [1m[94m|[0m        [1m[33m^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m: `secreton-storage` (lib) generated 1 warning
+[1m[33mwarning[0m[1m: unused import: `http_body::Body as HttpBody`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/audit/middleware.rs:60:5
+   [1m[94m|[0m
+[1m[94m60[0m [1m[94m|[0m use http_body::Body as HttpBody;
+   [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused import: `ZeroizeOnDrop`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/key_hierarchy.rs:23:24
+   [1m[94m|[0m
+[1m[94m23[0m [1m[94m|[0m [1m[94m...[0me, ZeroizeOnDrop};
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused imports: `Engine`, `Instance`, `Module`, and `Store`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/policy.rs:13:16
+   [1m[94m|[0m
+[1m[94m13[0m [1m[94m|[0m [1m[94m...[0m::{Engine, Instance, Module, Store};
+   [1m[94m|[0m       [1m[33m^^^^^^[0m  [1m[33m^^^^^^^^[0m  [1m[33m^^^^^^[0m  [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `ControlGroup`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/services/policy_service.rs:2:21
+  [1m[94m|[0m
+[1m[94m2[0m [1m[94m|[0m [1m[94m...[0m::{ControlGroup, P[1m[94m...[0m
+  [1m[94m|[0m       [1m[33m^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `Result`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/services/revocation.rs:6:31
+  [1m[94m|[0m
+[1m[94m6[0m [1m[94m|[0m [1m[94m...[0mr, Result};
+  [1m[94m|[0m       [1m[33m^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/wrapping.rs:44:15
+   [1m[94m|[0m
+[1m[94m44[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_crypto::key_derivation::stretch::derive_multiple_keys`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/zero_knowledge.rs:76:5
+   [1m[94m|[0m
+[1m[94m76[0m [1m[94m|[0m use [1m[94m...[0mtiple_keys;
+   [1m[94m|[0m     [1m[94m...[0m[1m[33m^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/azure.rs:19:15
+   [1m[94m|[0m
+[1m[94m19[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `super::*`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:709:9
+    [1m[94m|[0m
+[1m[94m709[0m [1m[94m|[0m [1m[94m...[0mse super::*;
+    [1m[94m|[0m       [1m[33m^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `crate::storage::InMemoryStorage`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:710:9
+    [1m[94m|[0m
+[1m[94m710[0m [1m[94m|[0m [1m[94m...[0mse crate::storage::InMemoryStorage;
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/gcp.rs:18:15
+   [1m[94m|[0m
+[1m[94m18[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/identity.rs:18:15
+   [1m[94m|[0m
+[1m[94m18[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kafka.rs:12:22
+   [1m[94m|[0m
+[1m[94m12[0m [1m[94m|[0m [1m[94m...[0mg, error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kmip.rs:12:15
+   [1m[94m|[0m
+[1m[94m12[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:13:22
+   [1m[94m|[0m
+[1m[94m13[0m [1m[94m|[0m [1m[94m...[0mg, error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/rabbitmq.rs:12:22
+   [1m[94m|[0m
+[1m[94m12[0m [1m[94m|[0m [1m[94m...[0mg, error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ssh.rs:21:15
+   [1m[94m|[0m
+[1m[94m21[0m [1m[94m|[0m [1m[94m...[0m::{error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `error`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/transform.rs:12:22
+   [1m[94m|[0m
+[1m[94m12[0m [1m[94m|[0m [1m[94m...[0mg, error, i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `enable-inline-tests`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/admin_service.rs:687:17
+    [1m[94m|[0m
+[1m[94m687[0m [1m[94m|[0m [1m[94m...[0mt, feature = "enable-inline-tests"))]
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+    [1m[94m= [0m[1mhelp[0m: consider adding `enable-inline-tests` as a feature in `Cargo.toml`
+    [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    [1m[94m= [0m[1mnote[0m: `#[warn(unexpected_cfgs)]` on by default
+
+[1m[33mwarning[0m[1m: unused import: `MemoryBackend`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/admin_service.rs:14:24
+   [1m[94m|[0m
+[1m[94m14[0m [1m[94m|[0m [1m[94m...[0m::{MemoryBackend, S[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `enable-inline-tests`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/container.rs:818:17
+    [1m[94m|[0m
+[1m[94m818[0m [1m[94m|[0m [1m[94m...[0mt, feature = "enable-inline-tests"))]
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+    [1m[94m= [0m[1mhelp[0m: consider adding `enable-inline-tests` as a feature in `Cargo.toml`
+    [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `consul`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/container.rs:627:23
+    [1m[94m|[0m
+[1m[94m627[0m [1m[94m|[0m [1m[94m...[0mfg(feature = "consul")]
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+    [1m[94m= [0m[1mhelp[0m: consider adding `consul` as a feature in `Cargo.toml`
+    [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `consul`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/container.rs:645:27
+    [1m[94m|[0m
+[1m[94m645[0m [1m[94m|[0m [1m[94m...[0mot(feature = "consul"))]
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+    [1m[94m= [0m[1mhelp[0m: consider adding `consul` as a feature in `Cargo.toml`
+    [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `enable-inline-tests`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secret_service.rs:766:17
+    [1m[94m|[0m
+[1m[94m766[0m [1m[94m|[0m [1m[94m...[0mt, feature = "enable-inline-tests"))]
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+    [1m[94m= [0m[1mhelp[0m: consider adding `enable-inline-tests` as a feature in `Cargo.toml`
+    [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+[1m[33mwarning[0m[1m: unused import: `uuid::Uuid`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/utils/correlation.rs:7:5
+  [1m[94m|[0m
+[1m[94m7[0m [1m[94m|[0m use uuid::Uuid;
+  [1m[94m|[0m     [1m[33m^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused imports: `CoreError` and `Result`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/utils/cache.rs:6:20
+  [1m[94m|[0m
+[1m[94m6[0m [1m[94m|[0m [1m[94m...[0m::{CoreError, Result};
+  [1m[94m|[0m       [1m[33m^^^^^^^^^[0m  [1m[33m^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused imports: `AsyncLruCache` and `HybridCache`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/utils/cache.rs:8:25
+  [1m[94m|[0m
+[1m[94m8[0m [1m[94m|[0m [1m[94m...[0m::{AsyncLruCache, CacheStats, HybridCache, R[1m[94m...[0m
+  [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m              [1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `std::time::Duration`[0m
+ [1m[94m--> [0minfra/secreton/crates/core/src/utils/cache.rs:9:5
+  [1m[94m|[0m
+[1m[94m9[0m [1m[94m|[0m use std::time::Duration;
+  [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unexpected `cfg` condition value: `redis`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/utils/cache.rs:68:11
+   [1m[94m|[0m
+[1m[94m68[0m [1m[94m|[0m [1m[94m...[0mfg(feature = "redis")]
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: expected values for `feature` are: `axum-middleware`, `default`, `grpc`, `integration-tests`, `postgres`, `raft-consensus`, `test-utils`, `warp-api`, `wasm`, and `workflow-tests`
+   [1m[94m= [0m[1mhelp[0m: consider adding `redis` as a feature in `Cargo.toml`
+   [1m[94m= [0m[1mnote[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+[1m[33mwarning[0m[1m: use of deprecated module `audit::middleware`: Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead.[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/audit/mod.rs:171:9
+    [1m[94m|[0m
+[1m[94m171[0m [1m[94m|[0m [1m[94m...[0mse middleware::*;
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(deprecated)]` on by default
+
+[1m[33mwarning[0m[1m: use of deprecated type alias `auth::authenc_provider::User`: Renamed to AuthencUserInfo to avoid confusion with canonical User model in crate::models::user. Use AuthencUserInfo instead.[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/mod.rs:174:34
+    [1m[94m|[0m
+[1m[94m174[0m [1m[94m|[0m [1m[94m...[0mn, User, V[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: use of deprecated type alias `auth::authenc_provider::User`: Renamed to AuthencUserInfo to avoid confusion with canonical User model in crate::models::user. Use AuthencUserInfo instead.[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:261:16
+    [1m[94m|[0m
+[1m[94m261[0m [1m[94m|[0m [1m[94m...[0m: &User,
+    [1m[94m|[0m       [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: use of deprecated type alias `auth::authenc_provider::User`: Renamed to AuthencUserInfo to avoid confusion with canonical User model in crate::models::user. Use AuthencUserInfo instead.[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:538:16
+    [1m[94m|[0m
+[1m[94m538[0m [1m[94m|[0m [1m[94m...[0m: &User,
+    [1m[94m|[0m       [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: variable does not need to be mutable[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/policy_service.rs:154:13
+    [1m[94m|[0m
+[1m[94m154[0m [1m[94m|[0m [1m[94m...[0met mut params = [1m[94m...[0m
+    [1m[94m|[0m       [1m[94m----[0m[1m[33m^^^^^^[0m
+    [1m[94m|[0m       [1m[94m|[0m
+    [1m[94m|[0m       [1m[94mhelp: remove this `mut`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: value assigned to `param_idx` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/audit/backends.rs:150:13
+    [1m[94m|[0m
+[1m[94m150[0m [1m[94m|[0m [1m[94m...[0m   param_idx += 1;
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: maybe it is overwritten before being read?
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused variable: `success`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/audit/middleware.rs:189:13
+    [1m[94m|[0m
+[1m[94m189[0m [1m[94m|[0m [1m[94m...[0met success = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_success`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused variable: `data`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:212:9
+    [1m[94m|[0m
+[1m[94m212[0m [1m[94m|[0m [1m[94m...[0m   data: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_data`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `sig`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:216:28
+    [1m[94m|[0m
+[1m[94m216[0m [1m[94m|[0m [1m[94m...[0me: sig,
+    [1m[94m|[0m       [1m[33m^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_sig`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `public_key`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:217:17
+    [1m[94m|[0m
+[1m[94m217[0m [1m[94m|[0m [1m[94m...[0m   public_key,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m [1m[33mhelp: try ignoring the field: `public_key: _`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `sig`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:225:28
+    [1m[94m|[0m
+[1m[94m225[0m [1m[94m|[0m [1m[94m...[0me: sig,
+    [1m[94m|[0m       [1m[33m^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_sig`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `public_key`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:226:17
+    [1m[94m|[0m
+[1m[94m226[0m [1m[94m|[0m [1m[94m...[0m   public_key,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m [1m[33mhelp: try ignoring the field: `public_key: _`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `classical_signature`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:233:17
+    [1m[94m|[0m
+[1m[94m233[0m [1m[94m|[0m [1m[94m...[0m   classical_signature,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^[0m [1m[33mhelp: try ignoring the field: `classical_signature: _`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `pq_signature`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:234:17
+    [1m[94m|[0m
+[1m[94m234[0m [1m[94m|[0m [1m[94m...[0m   pq_signature,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^[0m [1m[33mhelp: try ignoring the field: `pq_signature: _`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `mfa_service`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/config/mfa_policy_loader.rs:386:42
+    [1m[94m|[0m
+[1m[94m386[0m [1m[94m|[0m [1m[94m...[0mf, mfa_service: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_mfa_service`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `system_access`[0m
+    [1m[94m--> [0minfra/secreton/crates/core/src/security/audit.rs:1308:13
+     [1m[94m|[0m
+[1m[94m1308[0m [1m[94m|[0m [1m[94m...[0met system_access = [1m[94m...[0m
+     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_system_access`[0m
+
+[1m[33mwarning[0m[1m: variable does not need to be mutable[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/key_hierarchy.rs:364:13
+    [1m[94m|[0m
+[1m[94m364[0m [1m[94m|[0m [1m[94m...[0met mut keks = [1m[94m...[0m
+    [1m[94m|[0m       [1m[94m----[0m[1m[33m^^^^[0m
+    [1m[94m|[0m       [1m[94m|[0m
+    [1m[94m|[0m       [1m[94mhelp: remove this `mut`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `e`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/mfa.rs:220:23
+    [1m[94m|[0m
+[1m[94m220[0m [1m[94m|[0m [1m[94m...[0mr(|e| MfaE[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_e`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `policy`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/rotation.rs:620:9
+    [1m[94m|[0m
+[1m[94m620[0m [1m[94m|[0m [1m[94m...[0m   policy: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_policy`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `dn`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/auth/ldap.rs:158:30
+    [1m[94m|[0m
+[1m[94m158[0m [1m[94m|[0m [1m[94m...[0mf, dn: &st[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_dn`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `base_dn`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/auth/ldap.rs:192:9
+    [1m[94m|[0m
+[1m[94m192[0m [1m[94m|[0m [1m[94m...[0m   base_dn: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_base_dn`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `user_dn`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/auth/ldap.rs:193:9
+    [1m[94m|[0m
+[1m[94m193[0m [1m[94m|[0m [1m[94m...[0m   user_dn: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_user_dn`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `pkcs7`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/auth/aws.rs:434:41
+    [1m[94m|[0m
+[1m[94m434[0m [1m[94m|[0m [1m[94m...[0mf, pkcs7: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_pkcs7`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `username`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/dynamic/mod.rs:181:9
+    [1m[94m|[0m
+[1m[94m181[0m [1m[94m|[0m [1m[94m...[0met username = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_username`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `username`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/dynamic/aws.rs:36:36
+   [1m[94m|[0m
+[1m[94m36[0m [1m[94m|[0m [1m[94m...[0mal(username: &[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_username`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `client`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/database.rs:255:21
+    [1m[94m|[0m
+[1m[94m255[0m [1m[94m|[0m [1m[94m...[0met client = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_client`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `secret`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:427:9
+    [1m[94m|[0m
+[1m[94m427[0m [1m[94m|[0m [1m[94m...[0m   secret: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_secret`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `config`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:695:35
+    [1m[94m|[0m
+[1m[94m695[0m [1m[94m|[0m [1m[94m...[0mf, config: S[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_config`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `password`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kafka.rs:347:9
+    [1m[94m|[0m
+[1m[94m347[0m [1m[94m|[0m [1m[94m...[0m   password: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_password`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `password`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:225:9
+    [1m[94m|[0m
+[1m[94m225[0m [1m[94m|[0m [1m[94m...[0m   password: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_password`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `object_class`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:226:9
+    [1m[94m|[0m
+[1m[94m226[0m [1m[94m|[0m [1m[94m...[0m   object_class: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_object_class`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `attributes`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:227:9
+    [1m[94m|[0m
+[1m[94m227[0m [1m[94m|[0m [1m[94m...[0m   attributes: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_attributes`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `new_password`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:238:47
+    [1m[94m|[0m
+[1m[94m238[0m [1m[94m|[0m [1m[94m...[0mr, new_password: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_new_password`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `original_cert`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/pki.rs:606:13
+    [1m[94m|[0m
+[1m[94m606[0m [1m[94m|[0m [1m[94m...[0met original_cert = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_original_cert`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `public_key`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ssh.rs:463:13
+    [1m[94m|[0m
+[1m[94m463[0m [1m[94m|[0m [1m[94m...[0met public_key = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_public_key`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `public_key`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ssh.rs:594:13
+    [1m[94m|[0m
+[1m[94m594[0m [1m[94m|[0m [1m[94m...[0met public_key = [1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_public_key`[0m
+
+[1m[33mwarning[0m[1m: unused variable: `config`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/container.rs:505:9
+    [1m[94m|[0m
+[1m[94m505[0m [1m[94m|[0m [1m[94m...[0m   config: &[1m[94m...[0m
+    [1m[94m|[0m       [1m[33m^^^^^^[0m [1m[33mhelp: if this is intentional, prefix it with an underscore: `_config`[0m
+
+[1m[33mwarning[0m[1m: field `supported_algorithms` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:193:5
+    [1m[94m|[0m
+[1m[94m191[0m [1m[94m|[0m pub struct PostQuantumValidator {
+    [1m[94m|[0m            [1m[94m--------------------[0m [1m[94mfield in this struct[0m
+[1m[94m192[0m [1m[94m|[0m     /// Supported algorithms
+[1m[94m193[0m [1m[94m|[0m     supported_algorithms: Vec<Stri[1m[94m...[0m
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `PostQuantumValidator` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: field `request_timeout` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:296:5
+    [1m[94m|[0m
+[1m[94m282[0m [1m[94m|[0m pub struct AuthencAuthProvider {
+    [1m[94m|[0m            [1m[94m-------------------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m296[0m [1m[94m|[0m     request_timeout: Duration,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `AuthencAuthProvider` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `reason` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:602:13
+    [1m[94m|[0m
+[1m[94m600[0m [1m[94m|[0m [1m[94m...[0mtruct AppAccessResponse {
+    [1m[94m|[0m          [1m[94m-----------------[0m [1m[94mfield in this struct[0m
+[1m[94m601[0m [1m[94m|[0m [1m[94m...[0m   allowed: bool,
+[1m[94m602[0m [1m[94m|[0m [1m[94m...[0m   reason: Option<String>,
+    [1m[94m|[0m       [1m[33m^^^^^^[0m
+
+[1m[33mwarning[0m[1m: fields `algorithm` and `error_message` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/auth/authenc_provider.rs:671:13
+    [1m[94m|[0m
+[1m[94m669[0m [1m[94m|[0m [1m[94m...[0mtruct SignatureValidationResponse {
+    [1m[94m|[0m          [1m[94m---------------------------[0m [1m[94mfields in this struct[0m
+[1m[94m670[0m [1m[94m|[0m [1m[94m...[0m   valid: bool,
+[1m[94m671[0m [1m[94m|[0m [1m[94m...[0m   algorithm: String,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^[0m
+[1m[94m672[0m [1m[94m|[0m [1m[94m...[0m   error_message: Option<String>,
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: method `validate` is never used[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/config/bootstrap.rs:255:8
+    [1m[94m|[0m
+[1m[94m254[0m [1m[94m|[0m impl ListenerConfig {
+    [1m[94m|[0m [1m[94m-------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m255[0m [1m[94m|[0m     fn validate(&self)[1m[94m...[0m
+    [1m[94m|[0m        [1m[33m^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: method `create_signed_entry` is never used[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/security/audit.rs:695:14
+    [1m[94m|[0m
+[1m[94m534[0m [1m[94m|[0m impl AdvancedAuditSystem {
+    [1m[94m|[0m [1m[94m------------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m695[0m [1m[94m|[0m     async fn create_signed_entry(
+    [1m[94m|[0m              [1m[33m^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: method `load_dependencies` is never used[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/revocation.rs:292:14
+    [1m[94m|[0m
+[1m[94m215[0m [1m[94m|[0m impl RevocationManager {
+    [1m[94m|[0m [1m[94m----------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m292[0m [1m[94m|[0m     async fn load_dependencies(&s[1m[94m...[0m
+    [1m[94m|[0m              [1m[33m^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: constant `DEFAULT_TTL_SECONDS` is never used[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/wrapping.rs:53:7
+   [1m[94m|[0m
+[1m[94m53[0m [1m[94m|[0m const DEFAULT_TTL_SECONDS: i[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: fields `url` and `connected_at` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/auth/ldap.rs:144:5
+    [1m[94m|[0m
+[1m[94m143[0m [1m[94m|[0m struct LdapConnection {
+    [1m[94m|[0m        [1m[94m--------------[0m [1m[94mfields in this struct[0m
+[1m[94m144[0m [1m[94m|[0m     url: String,
+    [1m[94m|[0m     [1m[33m^^^[0m
+[1m[94m145[0m [1m[94m|[0m     connected_at: DateTi[1m[94m...[0m
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `LdapConnection` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `lease_id` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/aws.rs:241:5
+    [1m[94m|[0m
+[1m[94m237[0m [1m[94m|[0m struct TrackedIamUser {
+    [1m[94m|[0m        [1m[94m--------------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m241[0m [1m[94m|[0m     lease_id: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `TrackedIamUser` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `object_id` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/azure.rs:268:5
+    [1m[94m|[0m
+[1m[94m266[0m [1m[94m|[0m struct TrackedServicePrincipal {
+    [1m[94m|[0m        [1m[94m-----------------------[0m [1m[94mfield in this struct[0m
+[1m[94m267[0m [1m[94m|[0m     client_id: String,
+[1m[94m268[0m [1m[94m|[0m     object_id: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `TrackedServicePrincipal` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: variant `MySQL` is never constructed[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/database.rs:191:5
+    [1m[94m|[0m
+[1m[94m189[0m [1m[94m|[0m enum DbPool {
+    [1m[94m|[0m      [1m[94m------[0m [1m[94mvariant in this enum[0m
+[1m[94m190[0m [1m[94m|[0m     PostgreSQL[1m[94m...[0m
+[1m[94m191[0m [1m[94m|[0m     MySQL, // [1m[94m...[0m
+    [1m[94m|[0m     [1m[33m^^^^^[0m
+
+[1m[33mwarning[0m[1m: field `accessed_at` is never read[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:64:5
+   [1m[94m|[0m
+[1m[94m62[0m [1m[94m|[0m struct CacheEntry {
+   [1m[94m|[0m        [1m[94m----------[0m [1m[94mfield in this struct[0m
+[1m[94m63[0m [1m[94m|[0m     secret: Secret,
+[1m[94m64[0m [1m[94m|[0m     accessed_at: chr[1m[94m...[0m
+   [1m[94m|[0m     [1m[33m^^^^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `CacheEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: fields `pq_crypto` and `auth_provider` are never read[0m
+  [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/memory.rs:74:5
+   [1m[94m|[0m
+[1m[94m68[0m [1m[94m|[0m pub struct MemorySecretEngine {
+   [1m[94m|[0m            [1m[94m------------------[0m [1m[94mfields in this struct[0m
+[1m[94m...[0m
+[1m[94m74[0m [1m[94m|[0m     pq_crypto: Arc<PostQuantumKe[1m[94m...[0m
+   [1m[94m|[0m     [1m[33m^^^^^^^^^[0m
+[1m[94m75[0m [1m[94m|[0m     /// Authentication provider [1m[94m...[0m
+[1m[94m76[0m [1m[94m|[0m     auth_provider: Option<Arc<Au[1m[94m...[0m
+   [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: fields `key_id` and `created_at` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/gcp.rs:236:5
+    [1m[94m|[0m
+[1m[94m233[0m [1m[94m|[0m struct TrackedServiceAccount {
+    [1m[94m|[0m        [1m[94m---------------------[0m [1m[94mfields in this struct[0m
+[1m[94m...[0m
+[1m[94m236[0m [1m[94m|[0m     key_id: Option<String>,
+    [1m[94m|[0m     [1m[33m^^^^^^[0m
+[1m[94m237[0m [1m[94m|[0m     created_at: DateTime<Utc>,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `TrackedServiceAccount` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `token_id` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/identity.rs:233:5
+    [1m[94m|[0m
+[1m[94m232[0m [1m[94m|[0m struct StoredToken {
+    [1m[94m|[0m        [1m[94m-----------[0m [1m[94mfield in this struct[0m
+[1m[94m233[0m [1m[94m|[0m     token_id: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `StoredToken` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: fields `bootstrap_servers`, `admin_username`, and `admin_password` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kafka.rs:329:5
+    [1m[94m|[0m
+[1m[94m328[0m [1m[94m|[0m struct KafkaAdminClient {
+    [1m[94m|[0m        [1m[94m----------------[0m [1m[94mfields in this struct[0m
+[1m[94m329[0m [1m[94m|[0m     bootstrap_servers: Str[1m[94m...[0m
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^[0m
+[1m[94m330[0m [1m[94m|[0m     admin_username: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m331[0m [1m[94m|[0m     admin_password: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `KafkaAdminClient` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: method `user_exists` is never used[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kafka.rs:394:14
+    [1m[94m|[0m
+[1m[94m334[0m [1m[94m|[0m impl KafkaAdminClient {
+    [1m[94m|[0m [1m[94m---------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m394[0m [1m[94m|[0m     async fn user_exists(&s[1m[94m...[0m
+    [1m[94m|[0m              [1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kafka.rs:407:5
+    [1m[94m|[0m
+[1m[94m402[0m [1m[94m|[0m pub struct KafkaEngine {
+    [1m[94m|[0m            [1m[94m-----------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m407[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/kmip.rs:244:5
+    [1m[94m|[0m
+[1m[94m240[0m [1m[94m|[0m pub struct KmipEngine {
+    [1m[94m|[0m            [1m[94m----------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m244[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: field `bind_dn` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:197:5
+    [1m[94m|[0m
+[1m[94m195[0m [1m[94m|[0m struct LdapConnection {
+    [1m[94m|[0m        [1m[94m--------------[0m [1m[94mfield in this struct[0m
+[1m[94m196[0m [1m[94m|[0m     url: String,
+[1m[94m197[0m [1m[94m|[0m     bind_dn: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `LdapConnection` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ldap.rs:276:5
+    [1m[94m|[0m
+[1m[94m272[0m [1m[94m|[0m pub struct LdapEngine {
+    [1m[94m|[0m            [1m[94m----------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m276[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: fields `management_uri`, `username`, and `password` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/rabbitmq.rs:261:5
+    [1m[94m|[0m
+[1m[94m260[0m [1m[94m|[0m struct RabbitMqConnection {
+    [1m[94m|[0m        [1m[94m------------------[0m [1m[94mfields in this struct[0m
+[1m[94m261[0m [1m[94m|[0m     management_uri: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^[0m
+[1m[94m262[0m [1m[94m|[0m     username: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^[0m
+[1m[94m263[0m [1m[94m|[0m     password: String,
+    [1m[94m|[0m     [1m[33m^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `RabbitMqConnection` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: method `user_exists` is never used[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/rabbitmq.rs:315:14
+    [1m[94m|[0m
+[1m[94m266[0m [1m[94m|[0m impl RabbitMqConnection {
+    [1m[94m|[0m [1m[94m-----------------------[0m [1m[94mmethod in this implementation[0m
+[1m[94m...[0m
+[1m[94m315[0m [1m[94m|[0m     async fn user_exists(&s[1m[94m...[0m
+    [1m[94m|[0m              [1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/rabbitmq.rs:328:5
+    [1m[94m|[0m
+[1m[94m323[0m [1m[94m|[0m pub struct RabbitMqEngine {
+    [1m[94m|[0m            [1m[94m--------------[0m [1m[94mfield in this struct[0m
+[1m[94m...[0m
+[1m[94m328[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/ssh.rs:233:5
+    [1m[94m|[0m
+[1m[94m232[0m [1m[94m|[0m pub struct SshEngine {
+    [1m[94m|[0m            [1m[94m---------[0m [1m[94mfield in this struct[0m
+[1m[94m233[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m[1m: fields `transformation_name` and `created_at` are never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/transform.rs:174:5
+    [1m[94m|[0m
+[1m[94m173[0m [1m[94m|[0m struct TransformationKey {
+    [1m[94m|[0m        [1m[94m-----------------[0m [1m[94mfields in this struct[0m
+[1m[94m174[0m [1m[94m|[0m     transformation_name: St[1m[94m...[0m
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m175[0m [1m[94m|[0m     key: FpeKey,
+[1m[94m176[0m [1m[94m|[0m     created_at: DateTime<Utc>,
+    [1m[94m|[0m     [1m[33m^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mnote[0m: `TransformationKey` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+[1m[33mwarning[0m[1m: field `pool` is never read[0m
+   [1m[94m--> [0minfra/secreton/crates/core/src/services/secrets/transform.rs:181:5
+    [1m[94m|[0m
+[1m[94m180[0m [1m[94m|[0m pub struct TransformEngine {
+    [1m[94m|[0m            [1m[94m---------------[0m [1m[94mfield in this struct[0m
+[1m[94m181[0m [1m[94m|[0m     pool: Option<Pool>,
+    [1m[94m|[0m     [1m[33m^^^^[0m
+
+[1m[33mwarning[0m: `secreton-core` (lib) generated 94 warnings (run `cargo fix --lib -p secreton-core` to apply 55 suggestions)
+[1m[92m    Checking[0m secreton-core v0.1.0 (/srv/proyek/simpelv2/infra/secreton/crates/core)
+[1m[91merror[0m[1m: cannot find macro `json` in this scope[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:701:28
+    [1m[94m|[0m
+[1m[94m701[0m [1m[94m|[0m [1m[94m...[0m = json!({[1m[94m...[0m
+    [1m[94m|[0m       [1m[91m^^^^[0m
+    [1m[94m|[0m
+[1m[96mhelp[0m: consider importing this macro
+    [1m[94m|[0m
+[1m[94m631[0m [92m+ [0m    [92muse serde_json::json;[0m
+    [1m[94m|[0m
+
+[1m[91merror[0m[1m: cannot find macro `json` in this scope[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:692:20
+    [1m[94m|[0m
+[1m[94m692[0m [1m[94m|[0m [1m[94m...[0m = json!({[1m[94m...[0m
+    [1m[94m|[0m       [1m[91m^^^^[0m
+    [1m[94m|[0m
+[1m[96mhelp[0m: consider importing this macro
+    [1m[94m|[0m
+[1m[94m631[0m [92m+ [0m    [92muse serde_json::json;[0m
+    [1m[94m|[0m
+
+[1m[91merror[0m[1m: cannot find macro `json` in this scope[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:668:20
+    [1m[94m|[0m
+[1m[94m668[0m [1m[94m|[0m [1m[94m...[0m = json!({[1m[94m...[0m
+    [1m[94m|[0m       [1m[91m^^^^[0m
+    [1m[94m|[0m
+[1m[96mhelp[0m: consider importing this macro
+    [1m[94m|[0m
+[1m[94m631[0m [92m+ [0m    [92muse serde_json::json;[0m
+    [1m[94m|[0m
+
+[1m[91merror[0m[1m: cannot find macro `json` in this scope[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:646:28
+    [1m[94m|[0m
+[1m[94m646[0m [1m[94m|[0m [1m[94m...[0m = json!({[1m[94m...[0m
+    [1m[94m|[0m       [1m[91m^^^^[0m
+    [1m[94m|[0m
+[1m[96mhelp[0m: consider importing this macro
+    [1m[94m|[0m
+[1m[94m631[0m [92m+ [0m    [92muse serde_json::json;[0m
+    [1m[94m|[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::models::secret::Secret`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:13:9
+   [1m[94m|[0m
+[1m[94m13[0m [1m[94m|[0m [1m[94m...[0mse se[1m[94m...[0m::Secret;
+   [1m[94m|[0m       [1m[33m^^[0m[1m[94m...[0m[1m[33m^^^^^^^^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m[1m: unused import: `SecretEngine`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:14:65
+   [1m[94m|[0m
+[1m[94m14[0m [1m[94m|[0m [1m[94m...[0ms, SecretEngine, E[1m[94m...[0m
+   [1m[94m|[0m       [1m[33m^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+  [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:92:5
+   [1m[94m|[0m
+[1m[94m92[0m [1m[94m|[0m use [1m[94m...[0mineMetrics;
+   [1m[94m|[0m     [1m[94m...[0m[1m[33m^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:252:5
+    [1m[94m|[0m
+[1m[94m252[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::CoreResult`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:311:9
+    [1m[94m|[0m
+[1m[94m311[0m [1m[94m|[0m [1m[94m...[0mse secreton_core::CoreResult;
+    [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::models::secret::Secret`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:312:5
+    [1m[94m|[0m
+[1m[94m312[0m [1m[94m|[0m use[1m[94m...[0mret::Secret;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:314:5
+    [1m[94m|[0m
+[1m[94m314[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:454:5
+    [1m[94m|[0m
+[1m[94m454[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:510:5
+    [1m[94m|[0m
+[1m[94m510[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:634:5
+    [1m[94m|[0m
+[1m[94m634[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:725:5
+    [1m[94m|[0m
+[1m[94m725[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m[1m: unused import: `secreton_core::services::secrets::SecretEngineMetrics`[0m
+   [1m[94m--> [0minfra/secreton/crates/core/tests/integration_tests.rs:799:5
+    [1m[94m|[0m
+[1m[94m799[0m [1m[94m|[0m use[1m[94m...[0mgineMetrics;
+    [1m[94m|[0m    [1m[94m...[0m[1m[33m^^^^^^^^^^^[0m
+
+[1m[33mwarning[0m: `secreton-core` (test "integration_tests") generated 12 warnings
+[1m[91merror[0m: could not compile `secreton-core` (test "integration_tests") due to 4 previous errors; 12 warnings emitted

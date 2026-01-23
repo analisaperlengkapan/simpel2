@@ -564,7 +564,6 @@ mod additional_tests {
     }
 }
 
-
 // ============================================================================
 // Additional Property Tests - Properties 2, 5, 6, 7, 8
 // ============================================================================
@@ -816,7 +815,10 @@ mod fallback_tests {
         let challenge = service
             .generate_challenge_with_fallback(ChallengeType::Visual, 3)
             .await;
-        assert!(challenge.is_ok(), "Fallback challenge generation should work");
+        assert!(
+            challenge.is_ok(),
+            "Fallback challenge generation should work"
+        );
 
         // Fallback encryption should work
         let encrypted = service.encrypt_with_fallback("test data").await;
@@ -865,7 +867,6 @@ mod fallback_tests {
         assert_eq!(service.get_state().await, FallbackState::Normal);
     }
 }
-
 
 // ============================================================================
 // Property 15: Audit Logging on Bot Detection

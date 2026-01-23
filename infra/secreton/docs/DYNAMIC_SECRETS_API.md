@@ -503,7 +503,7 @@ Dynamic secrets are scoped to namespaces:
 
 ## References
 
-- [HashiCorp Vault Database Secrets Engine](https://www.vaultproject.io/docs/secrets/databases)
+- [HashiCorp Secret Vault Database Secrets Engine](https://www.engineproject.io/docs/secrets/databases)
 - [PostgreSQL User Management](https://www.postgresql.org/docs/current/user-manag.html)
 - [Secreton API Documentation](./API.md)
 - [Lease Management](./LEASE_MANAGEMENT.md)

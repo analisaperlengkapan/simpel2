@@ -121,7 +121,7 @@ async fn test_user_registration_flow() {
             let email = verification.get("email").and_then(|e| e.as_str()).unwrap_or("");
             let token = verification.get("verification_token").and_then(|t| t.as_str()).unwrap_or("");
 
-            if let Some(user) = users.get(email) {
+            if let Some(_user) = users.get(email) {
                 // In real app, verify token against stored verification token
                 if token == "valid_token_123" {
                     Ok::<Json<serde_json::Value>, StatusCode>(Json(json!({

@@ -3,7 +3,7 @@
 //! Basic performance validation tests
 
 use anyhow::Result;
-use secreton_core::storage::{InMemoryStorage, SecurityLevel, StorageBackend, VaultEntry};
+use secreton_core::storage::{InMemoryStorage, SecretEntry, SecurityLevel, StorageBackend};
 use std::time::Instant;
 
 #[tokio::test]
@@ -13,7 +13,7 @@ async fn test_storage_performance_basic() -> Result<()> {
 
     // Store 100 entries
     for i in 0..100 {
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             format!("/perf/test_{}", i),
             vec![0u8; 1024], // 1KB data
             serde_json::json!({}),
@@ -37,7 +37,7 @@ async fn test_retrieval_performance() -> Result<()> {
     let storage = InMemoryStorage::new();
 
     // Setup: Store entry
-    let entry = VaultEntry::new(
+    let entry = SecretEntry::new(
         "/perf/retrieve".to_string(),
         vec![0u8; 10240], // 10KB data
         serde_json::json!({}),

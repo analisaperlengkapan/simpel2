@@ -89,7 +89,7 @@
 //!
 //! if result.allowed {
 //!     println!("Access granted: {}", result.reason);
-//! } else {
+//!  else {
 //!     println!("Access denied: {}", result.reason);
 //! }
 //! # Ok(())
@@ -123,7 +123,7 @@
 //!     max_secrets: 10_000,
 //!     max_storage_bytes: 1_073_741_824, // 1 GB
 //!     max_secret_size_bytes: 1_048_576,  // 1 MB per secret
-//! };
+//! ;
 //!
 //! service.set_quotas("/pusat/wilayah/jaktim", quotas).await?;
 //!
@@ -181,7 +181,7 @@
 //!     namespace: "/pusat/wilayah/jaktim".to_string(),
 //!     admin_level: Some("wilayah".to_string()),
 //!     // ... other claims
-//! };
+//! ;
 //!
 //! // User automatically scoped to their namespace
 //! // All operations filtered by this path

@@ -32,9 +32,12 @@ async fn setup_test_ssh() -> Arc<SshEngine> {
     role.allow_host_certificates = true;
 
     // Add allowed extensions (Requirement 7.3)
-    role.allowed_extensions.insert("permit-pty".to_string(), "".to_string());
-    role.allowed_extensions.insert("permit-port-forwarding".to_string(), "".to_string());
-    role.allowed_extensions.insert("permit-agent-forwarding".to_string(), "".to_string());
+    role.allowed_extensions
+        .insert("permit-pty".to_string(), "".to_string());
+    role.allowed_extensions
+        .insert("permit-port-forwarding".to_string(), "".to_string());
+    role.allowed_extensions
+        .insert("permit-agent-forwarding".to_string(), "".to_string());
 
     engine.create_role(role).await.unwrap();
 

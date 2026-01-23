@@ -300,7 +300,6 @@ impl TransitKey {
                 result.push_str(&BASE64.encode(&encrypted));
                 result
             }
-
             _ => {
                 return Err(CryptoError::InvalidUsage(
                     "Key type does not support encryption".to_string(),
@@ -433,7 +432,6 @@ impl TransitKey {
 
                 decrypted
             }
-
             _ => {
                 return Err(CryptoError::InvalidUsage(
                     "Key type does not support decryption".to_string(),
@@ -481,7 +479,6 @@ impl TransitKey {
                 let signature = signing_key.sign(data);
                 BASE64.encode(signature.to_bytes())
             }
-
             _ => {
                 return Err(CryptoError::InvalidUsage(
                     "Key type does not support signing".to_string(),
@@ -559,7 +556,6 @@ impl TransitKey {
                     false
                 }
             }
-
             _ => {
                 return Err(CryptoError::InvalidUsage(
                     "Key type does not support verification".to_string(),
@@ -645,8 +641,7 @@ impl KeyVersion {
                 let signing_key = Ed25519SigningKey::from_bytes(&rand::random::<[u8; 32]>());
                 KeyMaterial::Ed25519(Box::new(signing_key))
             }
-
-            KeyType::X25519 => {
+            _ => {
                 let mut secret_bytes = [0u8; 32];
                 rand::thread_rng().fill_bytes(&mut secret_bytes);
                 KeyMaterial::X25519(Box::new(secret_bytes))

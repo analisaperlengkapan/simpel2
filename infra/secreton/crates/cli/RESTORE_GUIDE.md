@@ -96,9 +96,9 @@ The restore operation follows these steps:
 2. **Validate Integrity** - Verify checksum and backup structure
 3. **Plan Restore** - Determine what will be restored
 4. **Confirm Operation** - Prompt for user confirmation (unless `--force`)
-5. **Restore Secrets** - Upload secrets to vault
+5. **Restore Secrets** - Upload secrets to engine
 6. **Restore Audit Logs** - Upload audit logs (if included)
-7. **Verify** - Check vault accessibility and count
+7. **Verify** - Check engine accessibility and count
 
 ## Restore Options
 
@@ -240,19 +240,19 @@ secreton-cli backup restore \
 
 ### Connection Failed
 
-**Problem:** Cannot connect to vault server
+**Problem:** Cannot connect to engine server
 
 **Solution:**
 - Verify server URL: `secreton-cli status`
 - Check network connectivity
-- Ensure vault is unsealed and running
+- Ensure engine is unsealed and running
 
 ### Partial Restore
 
 **Problem:** Some secrets failed to restore
 
 **Solution:**
-- Check vault logs for errors
+- Check engine logs for errors
 - Verify permissions and quotas
 - Retry restore for failed secrets
 - Contact administrator if issues persist
@@ -284,12 +284,12 @@ secreton-cli backup restore \
 - `secreton-cli backup create` - Create a backup
 - `secreton-cli backup verify` - Verify backup integrity
 - `secreton-cli backup list` - List available backups
-- `secreton-cli status` - Check vault status
+- `secreton-cli status` - Check engine status
 
 ## Support
 
 For issues or questions:
-- Check vault logs: `/var/log/secreton/`
+- Check engine logs: `/var/log/secreton/`
 - Review audit logs: `secreton-cli audit logs`
 - Contact: Secreton Team
 

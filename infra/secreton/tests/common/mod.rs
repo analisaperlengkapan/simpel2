@@ -1,6 +1,6 @@
 //! Common test utilities and helper functions for Secreton tests
 
-use std::{sync::Arc, time::Duration};
+use std::sync::{Arc, time::Duration};
 use serde_json::{json, Value};
 
 /// Test configuration and setup utilities
@@ -15,11 +15,11 @@ pub mod test_config {
                 "pci_dss": true,
                 "sox": true,
                 "basel_iii": true
-            },
+            ,
             "encryption": {
                 "algorithm": "AES-256-GCM",
                 "key_size": 256
-            },
+            ,
             "audit": {
                 "enabled": true,
                 "level": "detailed"
@@ -34,12 +34,12 @@ pub mod test_config {
             "compliance": {
                 "fips_140_2": true,
                 "common_criteria": true
-            },
+            ,
             "encryption": {
                 "algorithm": "AES-256-GCM",
                 "key_size": 256,
                 "quantum_safe": true
-            },
+            ,
             "audit": {
                 "enabled": true,
                 "level": "comprehensive"
@@ -169,12 +169,12 @@ pub mod test_data {
                     "average_flight_time": 100,
                     "key_intervals": [120, 130, 140, 160, 155],
                     "variance": 0.15
-                },
+                ,
                 "mouse_dynamics": {
                     "velocity": 2.5,
                     "acceleration": [1.2, 1.5, 1.8],
                     "click_pattern": "regular"
-                },
+                ,
                 "device_fingerprint": {
                     "screen_resolution": "1920x1080",
                     "timezone": "UTC",
@@ -187,12 +187,12 @@ pub mod test_data {
                     "average_flight_time": 50,  // Too fast
                     "key_intervals": [50, 45, 55, 40, 48], // Consistent (bot-like)
                     "variance": 0.02  // Too low variance
-                },
+                ,
                 "mouse_dynamics": {
                     "velocity": 10.0,  // Too fast
                     "acceleration": [5.0, 5.0, 5.0], // Too consistent
                     "click_pattern": "rapid"
-                },
+                ,
                 "device_fingerprint": {
                     "screen_resolution": "800x600", // Unusual
                     "timezone": "unknown",
@@ -284,9 +284,9 @@ pub mod performance_utils {
 
     impl BenchmarkResult {
         pub fn print_summary(&self) {
-            println!("\n=== {} Benchmark Results ===", self.operation_name);
+            println!("\n=== { Benchmark Results ===", self.operation_name);
             println!("Total iterations: {}", self.total_iterations);
-            println!("Successful: {}, Failed: {}", self.successful_operations, self.failed_operations);
+            println!("Successful: {, Failed: {}", self.successful_operations, self.failed_operations);
             println!("Total time: {:.2?}", self.total_duration);
             println!("Average: {:.2?}", self.average_duration);
             println!("Median: {:.2?}", self.median_duration);
@@ -347,7 +347,7 @@ pub mod test_assertions {
     /// Assert that operation completes within expected time
     pub fn assert_performance(duration: Duration, max_duration: Duration, operation: &str) {
         assert!(duration <= max_duration,
-               "{} took too long: {:.2?} (max: {:.2?})",
+               "{ took too long: {:.2? (max: {:.2?})",
                operation, duration, max_duration);
     }
 
@@ -385,7 +385,7 @@ pub mod test_assertions {
         let quality = entropy / max_entropy;
 
         assert!(quality >= min_quality,
-               "Data entropy quality too low: {:.3} (minimum: {:.3})",
+               "Data entropy quality too low: {:.3 (minimum: {:.3})",
                quality, min_quality);
     }
 

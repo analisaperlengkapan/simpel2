@@ -23,12 +23,12 @@ pub fn create_routes() -> Router<AppState> {
         .route("/kafka/config", get(get_kafka_config))
         .route("/kafka/roles", post(create_role))
         .route("/kafka/roles", get(list_roles))
-        .route("/kafka/roles/:role_name", get(get_role))
-        .route("/kafka/roles/:role_name", delete(delete_role))
+        .route("/kafka/roles/{role_name}", get(get_role))
+        .route("/kafka/roles/{role_name}", delete(delete_role))
         .route("/kafka/creds", post(generate_credentials))
         .route("/kafka/creds", get(list_credentials))
-        .route("/kafka/creds/:username", get(get_credential_info))
-        .route("/kafka/creds/:username/revoke", post(revoke_credentials))
+        .route("/kafka/creds/{username}", get(get_credential_info))
+        .route("/kafka/creds/{username}/revoke", post(revoke_credentials))
 }
 
 /// Configure Kafka connection

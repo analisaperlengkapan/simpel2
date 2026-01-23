@@ -336,7 +336,7 @@ For production deployments:
 ### Adding a Node with curl
 
 ```bash
-curl -X POST https://vault.example.com/v1/sys/raft/peers \
+curl -X POST https://engine.example.com/v1/sys/raft/peers \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -348,14 +348,14 @@ curl -X POST https://vault.example.com/v1/sys/raft/peers \
 ### Removing a Node with curl
 
 ```bash
-curl -X DELETE https://vault.example.com/v1/sys/raft/peers/3 \
+curl -X DELETE https://engine.example.com/v1/sys/raft/peers/3 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Checking Cluster Status with curl
 
 ```bash
-curl https://vault.example.com/v1/sys/raft/status \
+curl https://engine.example.com/v1/sys/raft/status \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -365,13 +365,13 @@ curl https://vault.example.com/v1/sys/raft/status \
 # List peers
 grpcurl -d '{}' \
   -H "authorization: Bearer $TOKEN" \
-  vault.example.com:50051 \
+  engine.example.com:50051 \
   secreton.v1.SecretonService/ListPeers
 
 # Add node
 grpcurl -d '{"node_id": 3, "address": "node-3:7000"}' \
   -H "authorization: Bearer $TOKEN" \
-  vault.example.com:50051 \
+  engine.example.com:50051 \
   secreton.v1.SecretonService/AddNode
 ```
 

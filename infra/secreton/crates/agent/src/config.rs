@@ -7,7 +7,7 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// Vault server URL
+    /// Engine server URL
     pub server_url: String,
 
     /// Fallback server URLs
@@ -82,7 +82,7 @@ impl AgentConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateConfig {
-    /// Secret path in vault
+    /// Secret path in engine
     pub source: String,
 
     /// Destination file path

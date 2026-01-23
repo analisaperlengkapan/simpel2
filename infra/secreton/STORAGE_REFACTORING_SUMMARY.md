@@ -2,7 +2,7 @@
 
 ## Overview
 
-Secreton has been refactored to follow **HashiCorp Vault's storage architecture principles**, eliminating the mandatory database dependency and providing HashiCorp-compatible high-availability backends.
+Secreton has been refactored to follow **HashiCorp Secret Vault's storage architecture principles**, eliminating the mandatory database dependency and providing HashiCorp-compatible high-availability backends.
 
 ## Key Changes
 
@@ -17,7 +17,7 @@ OLD APPROACH (Database-Centric):
 ├── Memory (testing)
 └── Raft (experimental)
 
-NEW APPROACH (HashiCorp Vault-Compatible):
+NEW APPROACH (HashiCorp Secret Vault-Compatible):
 ├── File (default) ← Zero dependencies
 ├── Consul (HA recommended) ← Service discovery + KV
 ├── Raft (HA built-in) ← No external deps
@@ -104,7 +104,7 @@ path = "/var/lib/secreton/data"
 
 # Option 4: S3 (Cloud)
 # backend = "s3"
-# bucket = "my-vault"
+# bucket = "my-engine"
 
 # Option 5: PostgreSQL (Legacy)
 # backend = "postgres"  # NOT RECOMMENDED
@@ -120,7 +120,7 @@ path = "/var/lib/secreton/data"
 - ✅ Feature flag documentation
 - ✅ Programmatic usage examples
 
-#### Vault Comparison (`VAULT_COMPARISON.md`)
+#### Secret Vault Comparison (`VAULT_COMPARISON.md`)
 
 - ✅ Comprehensive 200+ line comparison document
 - ✅ Storage backend philosophy explanation
@@ -133,7 +133,7 @@ path = "/var/lib/secreton/data"
 
 ### KvBackend Trait (New)
 
-Introduced a simpler trait for physical storage backends following HashiCorp Vault's "untrusted storage" principle:
+Introduced a simpler trait for physical storage backends following HashiCorp Secret Vault's "untrusted storage" principle:
 
 ```rust
 #[async_trait]
@@ -156,7 +156,7 @@ pub trait KvBackend: Send + Sync {
 
 ### Existing StorageBackend Trait (Preserved)
 
-The existing high-level `StorageBackend` trait with `VaultEntry` operations remains for backward compatibility and advanced use cases.
+The existing high-level `StorageBackend` trait with `Secret VaultEntry` operations remains for backward compatibility and advanced use cases.
 
 ## File Structure
 
@@ -319,7 +319,7 @@ Should implement `secreton-cli storage migrate` command to move data between bac
 3. 📝 Use provided migration tools when available
 4. ❌ Don't use PostgreSQL for new clusters
 
-## Compliance with HashiCorp Vault Principles
+## Compliance with HashiCorp Secret Vault Principles
 
 | Principle                      | Secreton Implementation          | Status   |
 | ------------------------------ | -------------------------------- | -------- |
@@ -341,7 +341,7 @@ Should implement `secreton-cli storage migrate` command to move data between bac
 
 ## Conclusion
 
-Secreton now follows HashiCorp Vault's proven storage architecture:
+Secreton now follows HashiCorp Secret Vault's proven storage architecture:
 
 ✅ **No mandatory database dependency**
 ✅ **Multiple HA options without external databases**

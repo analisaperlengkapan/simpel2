@@ -10,10 +10,10 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use secreton_core::services::rate_limit::{RateLimitConfig, RateLimitError, RateLimiter};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use secreton_core::services::rate_limit::{RateLimiter, RateLimitError, RateLimitConfig};
 use tracing::{debug, warn};
 
 /// Rate limit middleware state
@@ -62,9 +62,8 @@ impl IntoResponse for RateLimitResponse {
             headers.insert("X-RateLimit-Remaining", value);
         }
 
-        let body = serde_json::to_string(&self).unwrap_or_else(|_| {
-            r#"{"error":"Rate limit exceeded"}"#.to_string()
-        });
+        let body = serde_json::to_string(&self)
+            .unwrap_or_else(|_| r#"{"error":"Rate limit exceeded"}"#.to_string());
 
         (StatusCode::TOO_MANY_REQUESTS, headers, body).into_response()
     }
@@ -114,8 +113,8 @@ fn calculate_retry_after(config: &RateLimitConfig) -> u64 {
                 60 // Default to 60 seconds
             }
         }
-        RateLimitStrategy::SlidingWindow { window_seconds, .. } |
-        RateLimitStrategy::FixedWindow { window_seconds, .. } => {
+        RateLimitStrategy::SlidingWindow { window_seconds, .. }
+        | RateLimitStrategy::FixedWindow { window_seconds, .. } => {
             // Suggest waiting for window to slide
             (*window_seconds).min(60) // Cap at 60 seconds
         }
@@ -125,11 +124,10 @@ fn calculate_retry_after(config: &RateLimitConfig) -> u64 {
 /// Rate limiting middleware handler
 pub async fn rate_limit_middleware(
     State(middleware): State<RateLimitMiddleware>,
-    connect_info: Option<ConnectInfo<SocketAddr>>,
     request: Request,
     next: Next,
-) -> Result<Response, RateLimitResponse> {
-    let client_id = extract_client_id(request.headers(), connect_info.as_ref());
+) -> Response {
+    let client_id = extract_client_id(request.headers(), None);
 
     debug!("Rate limit check for client: {}", client_id);
 
@@ -137,7 +135,7 @@ pub async fn rate_limit_middleware(
     match middleware.limiter.check(&client_id).await {
         Ok(true) => {
             // Request allowed
-            Ok(next.run(request).await)
+            next.run(request).await
         }
         Ok(false) | Err(RateLimitError::LimitExceeded(_)) => {
             // Rate limit exceeded
@@ -148,22 +146,33 @@ pub async fn rate_limit_middleware(
 
             // Extract limit from config
             let limit = match config.strategy {
-                secreton_core::services::rate_limit::RateLimitStrategy::TokenBucket { capacity, .. } => capacity,
-                secreton_core::services::rate_limit::RateLimitStrategy::SlidingWindow { max_requests, .. } => max_requests,
-                secreton_core::services::rate_limit::RateLimitStrategy::FixedWindow { max_requests, .. } => max_requests,
+                secreton_core::services::rate_limit::RateLimitStrategy::TokenBucket {
+                    capacity,
+                    ..
+                } => capacity,
+                secreton_core::services::rate_limit::RateLimitStrategy::SlidingWindow {
+                    max_requests,
+                    ..
+                } => max_requests,
+                secreton_core::services::rate_limit::RateLimitStrategy::FixedWindow {
+                    max_requests,
+                    ..
+                } => max_requests,
             };
 
-            Err(RateLimitResponse {
-                error: "Rate limit exceeded. Please retry after the specified duration.".to_string(),
+            RateLimitResponse {
+                error: "Rate limit exceeded. Please retry after the specified duration."
+                    .to_string(),
                 retry_after,
                 limit,
                 remaining: 0,
-            })
+            }
+            .into_response()
         }
         Err(e) => {
             warn!("Rate limit check error: {}", e);
             // On error, allow the request but log the issue
-            Ok(next.run(request).await)
+            next.run(request).await
         }
     }
 }
@@ -182,17 +191,26 @@ impl From<RateLimitConfig> for RateLimitConfigResponse {
         use secreton_core::services::rate_limit::RateLimitStrategy;
 
         let (strategy, limit, window_or_refill) = match config.strategy {
-            RateLimitStrategy::TokenBucket { capacity, refill_rate } => (
+            RateLimitStrategy::TokenBucket {
+                capacity,
+                refill_rate,
+            } => (
                 "token_bucket".to_string(),
                 capacity,
                 format!("{} tokens/sec", refill_rate),
             ),
-            RateLimitStrategy::SlidingWindow { max_requests, window_seconds } => (
+            RateLimitStrategy::SlidingWindow {
+                max_requests,
+                window_seconds,
+            } => (
                 "sliding_window".to_string(),
                 max_requests,
                 format!("{} seconds", window_seconds),
             ),
-            RateLimitStrategy::FixedWindow { max_requests, window_seconds } => (
+            RateLimitStrategy::FixedWindow {
+                max_requests,
+                window_seconds,
+            } => (
                 "fixed_window".to_string(),
                 max_requests,
                 format!("{} seconds", window_seconds),
@@ -212,11 +230,11 @@ impl From<RateLimitConfig> for RateLimitConfigResponse {
 mod tests {
     use super::*;
     use axum::{
+        Router,
         body::Body,
         http::{Request, StatusCode},
         middleware,
         routing::get,
-        Router,
     };
     use secreton_core::services::rate_limit::RateLimitStrategy;
     use tower::ServiceExt;
@@ -237,22 +255,18 @@ mod tests {
 
         let middleware_state = RateLimitMiddleware::new(config);
 
-        let app = Router::new()
-            .route("/test", get(test_handler))
-            .layer(middleware::from_fn_with_state(
-                middleware_state,
-                rate_limit_middleware,
-            ));
+        let app =
+            Router::new()
+                .route("/test", get(test_handler))
+                .layer(middleware::from_fn_with_state(
+                    middleware_state,
+                    rate_limit_middleware,
+                ));
 
         // First request should succeed
         let response = app
             .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -271,12 +285,13 @@ mod tests {
 
         let middleware_state = RateLimitMiddleware::new(config);
 
-        let app = Router::new()
-            .route("/test", get(test_handler))
-            .layer(middleware::from_fn_with_state(
-                middleware_state,
-                rate_limit_middleware,
-            ));
+        let app =
+            Router::new()
+                .route("/test", get(test_handler))
+                .layer(middleware::from_fn_with_state(
+                    middleware_state,
+                    rate_limit_middleware,
+                ));
 
         // First two requests should succeed
         for _ in 0..2 {
@@ -316,7 +331,10 @@ mod tests {
     #[test]
     fn test_extract_client_id_from_forwarded() {
         let mut headers = HeaderMap::new();
-        headers.insert("X-Forwarded-For", HeaderValue::from_static("203.0.113.1, 198.51.100.1"));
+        headers.insert(
+            "X-Forwarded-For",
+            HeaderValue::from_static("203.0.113.1, 198.51.100.1"),
+        );
 
         let client_id = extract_client_id(&headers, None);
         assert_eq!(client_id, "203.0.113.1");

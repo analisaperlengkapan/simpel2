@@ -28,7 +28,6 @@ async fn create_test_database() -> Arc<Database> {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let db = Database::new(&config)
@@ -198,7 +197,7 @@ async fn test_oidc_provider_creation() {
     };
 
     // This will fail if network is unavailable or discovery endpoint is unreachable
-    let provider = OidcIdentityProvider::new(config).await;
+    let _provider = OidcIdentityProvider::new(config).await;
     // We don't assert success here because it requires network access
 }
 
@@ -258,7 +257,7 @@ async fn test_oidc_authentication() {
             parameters: HashMap::new(),
         };
 
-        let response = provider.authenticate(&request).await;
+        let _response = provider.authenticate(&request).await;
         // This will fail without a real mock server
         // In production, set up Wiremock or similar
     }
@@ -352,7 +351,7 @@ async fn test_oidc_userinfo_retrieval() {
 
     if let Ok(provider) = OidcIdentityProvider::new(config).await {
         // This requires a valid access token from the mock server
-        let result = provider.get_user_info("test_access_token").await;
+        let _result = provider.get_user_info("test_access_token").await;
         // Will fail without mock server
     }
 }
@@ -481,6 +480,6 @@ async fn test_federation_service_register_oidc() {
         keystore_path: None,
     };
 
-    let result = service.register_provider(config).await;
+    let _result = service.register_provider(config).await;
     // May fail without network/mock server, but should not panic
 }

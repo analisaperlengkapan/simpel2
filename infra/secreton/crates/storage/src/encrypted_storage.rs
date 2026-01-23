@@ -1,6 +1,6 @@
 use crate::{
-    HealthStatus, QueryParams, StorageBackend, StorageResult, StorageStats, StorageTransaction,
-    VaultEntry,
+    HealthStatus, QueryParams, SecretEntry, StorageBackend, StorageResult, StorageStats,
+    StorageTransaction,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -31,19 +31,19 @@ impl EncryptedStorage {
 
 #[async_trait]
 impl StorageBackend for EncryptedStorage {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()> {
         self.backend.store(entry).await
     }
 
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>> {
         self.backend.get_by_id(id).await
     }
 
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
         self.backend.get_by_path(path).await
     }
 
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()> {
         self.backend.update(entry).await
     }
 
@@ -79,7 +79,7 @@ impl StorageBackend for EncryptedStorage {
         self.backend.compact().await
     }
 
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>> {
         self.backend.list(params).await
     }
 
@@ -112,8 +112,8 @@ mod tests {
     use crate::{MemoryBackend, SecurityLevel};
     use chrono::Utc;
 
-    fn create_test_entry(path: &str) -> VaultEntry {
-        VaultEntry {
+    fn create_test_entry(path: &str) -> SecretEntry {
+        SecretEntry {
             id: Uuid::new_v4(),
             path: path.to_string(),
             encrypted_data: vec![1, 2, 3],

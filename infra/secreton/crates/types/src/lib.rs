@@ -1,6 +1,6 @@
 //! # Secreton Types
 //!
-//! Shared types and primitives used across the Secreton vault system.
+//! Shared types and primitives used across the Secreton engine system.
 //! This crate provides common data structures that are used by multiple crates
 //! to avoid duplication and ensure consistency.
 //!

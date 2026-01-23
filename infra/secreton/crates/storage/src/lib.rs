@@ -80,7 +80,7 @@
 //! #   created_at: chrono::Utc::now(),
 //! #   updated_at: chrono::Utc::now(),
 //! #   expires_at: None,
-//! };
+//! ;
 //! storage.store(&entry).await?;
 //!
 //! // Retrieve by path
@@ -122,7 +122,7 @@
 //! #   created_at: chrono::Utc::now(),
 //! #   updated_at: chrono::Utc::now(),
 //! #   expires_at: None,
-//! };
+//! ;
 //! storage.store(&entry).await?;
 //! // Data is stored with encryption key tracking
 //! # Ok(())
@@ -370,7 +370,7 @@ pub struct ListOptions {
     pub include_metadata: bool,
 }
 
-/// Query parameters for filtering vault entries
+/// Query parameters for filtering engine entries
 #[derive(Debug, Clone, Default)]
 pub struct QueryParams {
     /// Filter by path prefix
@@ -818,9 +818,9 @@ mod tests {
     }
 
     #[test]
-    fn test_vault_entry_tag_and_metadata_helpers() {
+    fn test_engine_entry_tag_and_metadata_helpers() {
         let owner = Uuid::new_v4();
-        let entry = VaultEntry::new(
+        let entry = SecretEntry::new(
             "secret/path".to_string(),
             vec![],
             serde_json::json!({"algorithm": "aes-256-gcm"}),
@@ -866,13 +866,13 @@ mod tests {
     #[test]
     fn test_storage_error_debug_and_display() {
         let error = StorageError::NotFound {
-            resource_type: "vault_entry".to_string(),
+            resource_type: "engine_entry".to_string(),
             id: "123".to_string(),
         };
 
         let display = format!("{}", error);
         assert!(display.contains("Not found"));
-        assert!(display.contains("vault_entry"));
+        assert!(display.contains("engine_entry"));
         assert!(display.contains("123"));
 
         let debug = format!("{:?}", error);

@@ -450,7 +450,7 @@ async fn test_rate_limit_enforcement() {
 
     // Make requests up to the limit
     let mut success_count = 0;
-    for i in 0..150 {
+    for _i in 0..150 {
         let response = server
             .post("/api/action")
             .add_header("x-forwarded-for", test_ip)

@@ -6,9 +6,9 @@
 //! Endpoints:
 //! - GET /v1/sys/namespaces - List all accessible namespaces
 //! - POST /v1/sys/namespaces - Create namespace with parent validation
-//! - GET /v1/sys/namespaces/{id} - Get namespace details with hierarchy
-//! - PUT /v1/sys/namespaces/{id} - Update quotas, policies
-//! - DELETE /v1/sys/namespaces/{id} - Delete namespace (if no children)
+//! - GET /v1/sys/namespaces/{id - Get namespace details with hierarchy
+//! - PUT /v1/sys/namespaces/{id - Update quotas, policies
+//! - DELETE /v1/sys/namespaces/{id - Delete namespace (if no children)
 //! - GET /v1/sys/namespaces/{id}/stats - Usage statistics, quota enforcement
 
 use axum::{
@@ -30,11 +30,8 @@ use secreton_core::{
 };
 
 use crate::{
-    ApiError, ApiResponse, ApiResult,
-    handlers::AppState,
-    middleware::RequestContext,
-    models::{PaginatedResponse, PaginationQuery},
-    services::namespace_persistence,
+    ApiError, ApiResponse, ApiResult, PaginationQuery, RequestContext, handlers::AppState,
+    models::PaginatedResponse, services::namespace_persistence,
 };
 
 use secreton_storage::QueryParams;
@@ -161,10 +158,7 @@ pub struct ListNamespacesQuery {
 
 /// Extract JWT claims from request context
 fn extract_jwt_claims(context: &RequestContext) -> Result<JwtClaims, ApiError> {
-    context
-        .jwt_claims
-        .clone()
-        .ok_or(ApiError::Unauthorized)
+    context.jwt_claims.clone().ok_or(ApiError::Unauthorized)
 }
 
 /// Convert Namespace to NamespaceResponse
@@ -352,10 +346,10 @@ pub async fn list_namespaces(
 mod tests {
     use super::*;
     use crate::services::ServiceContainer;
-    use secreton_storage::MemoryBackend;
-    use std::sync::Arc;
     use axum::extract::State;
     use deadpool_postgres::{Config, Runtime};
+    use secreton_storage::MemoryBackend;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_delete_namespace_cascade_stub() {
@@ -423,110 +417,16 @@ mod tests {
 
         let context = RequestContext {
             request_id: "test-req".to_string(),
+            user_id: Some(claims.sub.clone()),
+            user_email: Some(claims.email.clone()),
+            user_roles: claims.roles.clone(),
+            user_permissions: claims.permissions.clone(),
+            start_time: std::time::Instant::now(),
             jwt_claims: Some(claims),
+            auth_token: None,
             client_ip: None,
             user_agent: None,
-        };
-
-        // Call delete_namespace
-        // We delete the satker
-        let result = delete_namespace(
-            State(services.clone()), // Use clone of Arc
-            Extension(context),
-            Path("satker-test".to_string()),
-        )
-        .await;
-
-        // Verify success
-        assert!(
-            result.is_ok(),
-            "delete_namespace should succeed even if DB is unavailable"
-        );
-
-        // Verify hierarchy update
-        let updated_hierarchy = services.namespace.hierarchy();
-        assert!(updated_hierarchy.get_namespace("satker-test").is_none());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::services::ServiceContainer;
-    use secreton_storage::MemoryBackend;
-    use std::sync::Arc;
-    use axum::extract::State;
-    use deadpool_postgres::{Config, Runtime};
-
-    #[tokio::test]
-    async fn test_delete_namespace_cascade_stub() {
-        // Setup mock storage
-        let storage = Arc::new(MemoryBackend::new());
-
-        // Setup dummy pool (will fail to connect, verifying graceful handling)
-        let mut cfg = Config::new();
-        cfg.dbname = Some("test".to_string());
-        // Set short timeout to avoid hanging
-        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
-        pool_cfg.timeouts.create = Some(std::time::Duration::from_millis(10));
-        pool_cfg.timeouts.wait = Some(std::time::Duration::from_millis(10));
-        cfg.pool = Some(pool_cfg);
-
-        // Create a pool that points to nowhere (default config uses localhost/5432)
-        // If there is a postgres running locally, this might connect!
-        // To ensure failure, set invalid port.
-        cfg.port = Some(0);
-
-        let pool = cfg
-            .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
-            .unwrap();
-
-        // Create service container
-        let services = Arc::new(ServiceContainer::new_mock(storage.clone(), pool));
-
-        // Initialize hierarchy with a namespace to delete
-        let mut hierarchy =
-            NamespaceHierarchy::new("Kejaksaan Agung RI".to_string(), "admin".to_string());
-        hierarchy
-            .add_wilayah(
-                "wilayah-test".to_string(),
-                "Test Wilayah".to_string(),
-                "admin".to_string(),
-            )
-            .unwrap();
-        hierarchy
-            .add_satker(
-                "satker-test".to_string(),
-                "Test Satker".to_string(),
-                "wilayah-test".to_string(),
-                "admin".to_string(),
-            )
-            .unwrap();
-
-        // Update state
-        services.namespace.update_hierarchy(hierarchy.clone());
-
-        // Create request context
-        let claims = JwtClaims {
-            sub: "admin".to_string(),
-            name: "Admin".to_string(),
-            email: "admin@example.com".to_string(),
-            satker_code: None,
-            wilayah_code: Some("TEST".to_string()),
-            admin_level: AdminLevel::Wilayah,
-            roles: vec!["admin".to_string()],
-            permissions: vec!["*".to_string()],
-            exp: 9999999999,
-            iat: 0,
-            iss: "authenc".to_string(),
-            metadata: HashMap::new(),
-        };
-
-        let context = RequestContext {
-            request_id: "test-req".to_string(),
-            jwt_claims: Some(claims),
-            client_ip: None,
-            user_agent: None,
+            policy_names: vec![],
         };
 
         // Call delete_namespace
@@ -1063,7 +963,6 @@ pub async fn get_namespace_stats(
         current_usage: QuotaUsage::default(), // Don't include usage in limits
     };
 
-    // Calculate usage percentage
     let usage_percentage = if let Some(max_secrets) = quota_limits.max_secrets {
         if max_secrets > 0 {
             (quota_usage.secrets_count as f64 / max_secrets as f64) * 100.0

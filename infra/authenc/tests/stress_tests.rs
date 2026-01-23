@@ -159,9 +159,9 @@ async fn bulk_create_resources(
 
     if let Some(resources) = payload.get("resources").and_then(|r| r.as_array()) {
         let mut created_resources = Vec::new();
-        let errors: Vec<String> = Vec::new();
+        let _errors: Vec<String> = Vec::new();
 
-        for (index, resource_payload) in resources.iter().enumerate() {
+        for (_index, resource_payload) in resources.iter().enumerate() {
             let resource_id = Uuid::new_v4().to_string();
 
             let mut resource = resource_payload.clone();
@@ -217,7 +217,7 @@ async fn resource_stats(State(state): State<AppState>) -> Json<serde_json::Value
 }
 
 async fn simulate_slow_operation(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Json<serde_json::Value> {
     // Simulate variable response times
@@ -254,7 +254,7 @@ async fn simulate_failure(
     })))
 }
 
-async fn memory_intensive_operation(State(state): State<AppState>) -> Json<serde_json::Value> {
+async fn memory_intensive_operation(State(_state): State<AppState>) -> Json<serde_json::Value> {
     let mut large_data = Vec::new();
 
     // Simulate memory-intensive operation
@@ -434,12 +434,12 @@ async fn test_memory_and_cpu_stress() {
         .route("/stress/cpu", get(simulate_slow_operation))
         .with_state(state);
 
-    let server = TestServer::new(app.clone()).unwrap();
+    let _server = TestServer::new(app.clone()).unwrap();
 
     // Test memory-intensive operations
     let mut memory_handles = vec![];
 
-    for i in 0..10 {
+    for _i in 0..10 {
         let server_clone = TestServer::new(app.clone()).unwrap();
         let handle = tokio::spawn(async move {
             let start = Instant::now();

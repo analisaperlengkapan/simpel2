@@ -2,7 +2,7 @@
 //!
 //! Command-line interface for Secreton secret management system.
 //!
-//! This library provides a comprehensive CLI for interacting with Secreton vault,
+//! This library provides a comprehensive CLI for interacting with Secreton engine,
 //! including authentication, policy management, token management, seal/unseal operations,
 //! backup/restore, and audit log access.
 //!

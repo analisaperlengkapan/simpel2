@@ -1,4 +1,4 @@
-FROM rust:1.83-slim-bookworm as builder
+FROM rust:1.90-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -6,15 +6,22 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
+
+# Patch Cargo.toml to only include lib-common and this service
+RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
+    sed -i '/\[workspace\]/a members = ["lib/common", "layanan/daskrimti/portal"]' Cargo.toml || true
+
 COPY lib/common ./lib/common
+COPY infra/authenc/proto ./infra/authenc/proto
 COPY layanan/daskrimti/portal ./layanan/daskrimti/portal
 
 # Build release
-RUN cargo build --release -p layanan-daskrimti-portal
+RUN cargo build --release -p layanan-portal
 
 # Runtime stage
 FROM debian:bookworm-slim

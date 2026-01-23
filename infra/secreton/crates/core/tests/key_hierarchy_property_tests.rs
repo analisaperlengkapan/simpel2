@@ -4,17 +4,16 @@
 
 use proptest::prelude::*;
 use secreton_core::services::key_hierarchy::{KeyHierarchyService, KeyHierarchyServiceImpl};
-use secreton_core::services::seal::{SealConfig, SealService, InMemoryVaultStateStorage};
+use secreton_core::services::seal::{InMemoryEngineStateStorage, SealConfig, SealService};
 use std::sync::Arc;
-use uuid::Uuid;
 
 // Helper to setup test service
 async fn setup_test_service() -> Arc<KeyHierarchyServiceImpl> {
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = Arc::new(SealService::with_storage(config, storage));
 
-    // Initialize and unseal vault
+    // Initialize and unseal engine
     let shares = seal_service.initialize().await.unwrap();
     for share in shares.iter().take(3) {
         let share_bytes = share.to_bytes().unwrap();
@@ -98,25 +97,28 @@ mod dek_edge_cases {
         // All DEKs should be different
         for i in 0..dek_values.len() {
             for j in (i + 1)..dek_values.len() {
-                assert_ne!(dek_values[i], dek_values[j],
-                    "DEKs {} and {} should be different", i, j);
+                assert_ne!(
+                    dek_values[i], dek_values[j],
+                    "DEKs {} and {} should be different",
+                    i, j
+                );
             }
         }
     }
 
     // TODO: This test is currently disabled because the KeyHierarchyService
-    // doesn't automatically clear KEK key material when the vault is sealed.
+    // doesn't automatically clear KEK key material when the engine is sealed.
     // This would require implementing a seal/unseal event listener or checking
     // seal status before each operation. This is a known limitation that should
     // be addressed in a future enhancement.
     #[tokio::test]
     #[ignore]
-    async fn test_dek_with_sealed_vault() {
+    async fn test_dek_with_sealed_engine() {
         let config = SealConfig::default();
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let seal_service = Arc::new(SealService::with_storage(config, storage));
 
-        // Initialize and unseal vault
+        // Initialize and unseal engine
         let shares = seal_service.initialize().await.unwrap();
         for share in shares.iter().take(3) {
             let share_bytes = share.to_bytes().unwrap();
@@ -129,12 +131,15 @@ mod dek_edge_cases {
         let kek_metadata = hierarchy.derive_kek("test-kek").await.unwrap();
         let dek_metadata = hierarchy.create_dek(kek_metadata.id).await.unwrap();
 
-        // Seal the vault
+        // Seal the engine
         seal_service.seal().await.unwrap();
 
-        // Trying to retrieve DEK should fail when vault is sealed
+        // Trying to retrieve DEK should fail when engine is sealed
         let result = hierarchy.get_dek(dek_metadata.id).await;
-        assert!(result.is_err(), "DEK retrieval should fail when vault is sealed");
+        assert!(
+            result.is_err(),
+            "DEK retrieval should fail when engine is sealed"
+        );
     }
 
     #[tokio::test]
@@ -147,7 +152,6 @@ mod dek_edge_cases {
         assert!(result.is_err(), "Retrieving non-existent DEK should fail");
     }
 }
-
 
 // **Feature: secreton-comprehensive-enhancement, Property 5: KEK Rotation Preserves DEK Accessibility**
 // **Validates: Requirements 1.5**
@@ -218,7 +222,6 @@ proptest! {
         })?;
     }
 }
-
 
 // **Feature: secreton-comprehensive-enhancement, Property 4: Key Metadata Serialization Round-Trip**
 // **Validates: Requirements 1.6, 1.7**

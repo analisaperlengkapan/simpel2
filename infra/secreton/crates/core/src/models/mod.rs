@@ -55,7 +55,7 @@
 //!         refresh_token: Some("refresh...".to_string()),
 //!         expires_in: 3600, // 1 hour
 //!     }),
-//! };
+//! ;
 //! # }
 //! ```
 //!
@@ -73,7 +73,7 @@
 //!     created_at: chrono::Utc::now(),
 //!     created_by: "user-123".to_string(),
 //!     metadata: HashMap::new(),
-//! };
+//! ;
 //!
 //! secret.data.insert("username".to_string(), "dbuser".to_string());
 //! secret.data.insert("password".to_string(), "secure_pw".to_string());
@@ -93,14 +93,14 @@
 //!         PolicyRule {
 //!             path: "/app/dev/*".to_string(),
 //!             capabilities: vec!["read".to_string(), "list".to_string()],
-//!         },
+//!         ,
 //!         PolicyRule {
 //!             path: "/app/dev/secrets/*".to_string(),
 //!             capabilities: vec!["create".to_string(), "update".to_string()],
-//!         },
+//!         ,
 //!     ],
 //!     namespace: "/pusat/wilayah/jaktim".to_string(),
-//! };
+//! ;
 //! # }
 //! ```
 //!
@@ -122,7 +122,7 @@
 //!     ip_address: Some("192.168.1.100".to_string()),
 //!     user_agent: Some("secreton-cli/1.0".to_string()),
 //!     details: None,
-//! };
+//! ;
 //! # }
 //! ```
 //!
@@ -170,7 +170,7 @@
 //! let rule = PolicyRule {
 //!     path: "/app/../sensitive".to_string(),
 //!     capabilities: vec!["read".to_string()],
-//! };
+//! ;
 //!
 //! // Validate path (prevent traversal)
 //! if rule.validate()? {

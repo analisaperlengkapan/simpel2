@@ -2,17 +2,17 @@
 
 ## Status: ✅ COMPLETED
 
-This document summarizes the critical security fixes implemented for the Seal/Unseal functionality in Secreton, ensuring compliance with HashiCorp Vault security best practices.
+This document summarizes the critical security fixes implemented for the Seal/Unseal functionality in Secreton, ensuring compliance with HashiCorp Secret Vault security best practices.
 
 ## Critical Security Issues Fixed
 
-### 1. ✅ Vault Starts in Sealed Mode by Default
+### 1. ✅ Secret Vault Starts in Sealed Mode by Default
 
-**Issue**: Vault was not starting in sealed mode, violating security best practices.
+**Issue**: Secret Vault was not starting in sealed mode, violating security best practices.
 
 **Fix Implemented**:
 - `SealService::new()` initializes with `SealState::Sealed`
-- `ServiceContainer::new()` loads vault state from storage on startup
+- `ServiceContainer::new()` loads engine state from storage on startup
 - Startup logging clearly indicates seal status
 - Location: `crates/core/src/services/seal.rs`, `crates/api/src/services/mod.rs`
 
@@ -27,19 +27,19 @@ pub fn new(config: SealConfig) -> Self {
 }
 ```
 
-**Test Coverage**: `test_vault_starts_sealed_by_default()` in `tests/seal_startup_behavior_tests.rs`
+**Test Coverage**: `test_engine_starts_sealed_by_default()` in `tests/seal_startup_behavior_tests.rs`
 
 ---
 
 ### 2. ✅ initialize() Does NOT Auto-Unseal
 
-**Issue**: The `initialize()` method was automatically unsealing the vault after generating shares, which is a critical security vulnerability.
+**Issue**: The `initialize()` method was automatically unsealing the engine after generating shares, which is a critical security vulnerability.
 
 **Fix Implemented**:
 - `initialize()` generates master key and Shamir shares
 - Master key is encrypted and stored
 - **CRITICAL**: Master key is immediately zeroized from memory
-- Vault remains in `SealState::Sealed` after initialization
+- Secret Vault remains in `SealState::Sealed` after initialization
 - Operators must manually unseal with threshold shares
 
 **Code Evidence**:
@@ -49,16 +49,16 @@ pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
     // ... generate master key and shares ...
 
     // CRITICAL SECURITY FIX: DO NOT store master key in memory after init
-    // DO NOT unseal the vault automatically
-    // Vault remains in Sealed state
+    // DO NOT unseal the engine automatically
+    // Secret Vault remains in Sealed state
     // Operators must manually unseal with threshold shares
 
     // Zeroize master key bytes immediately
     let mut master_key_bytes_mut = master_key_bytes;
     master_key_bytes_mut.zeroize();
 
-    // Vault remains sealed - state is already Sealed, no change needed
-    tracing::info!("Vault initialized successfully. Vault remains SEALED.
+    // Secret Vault remains sealed - state is already Sealed, no change needed
+    tracing::info!("Secret Vault initialized successfully. Secret Vault remains SEALED.
                     Operators must unseal with {} of {} shares.", threshold, num_shares);
 
     Ok(shares)
@@ -71,7 +71,7 @@ pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
 
 ### 3. ✅ Seal Check Middleware Blocks Operations When Sealed
 
-**Issue**: No middleware was checking seal status, allowing all operations when vault was sealed.
+**Issue**: No middleware was checking seal status, allowing all operations when engine was sealed.
 
 **Fix Implemented**:
 - `seal_check_middleware()` added to `crates/api/src/middleware.rs`
@@ -103,16 +103,16 @@ pub async fn seal_check_middleware(
         return next.run(request).await;
     }
 
-    // CRITICAL SECURITY FIX: Check if vault is sealed
+    // CRITICAL SECURITY FIX: Check if engine is sealed
     if state.services.seal.is_sealed().await {
-        warn!("🔒 Blocked request to {} - vault is sealed", path);
+        warn!("🔒 Blocked request to {} - engine is sealed", path);
 
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(serde_json::json!({
-                "errors": ["Vault is sealed"],
+                "errors": ["Secret Vault is sealed"],
                 "sealed": true,
-                "message": "The vault is sealed. Please unseal it with threshold shares before performing operations."
+                "message": "The engine is sealed. Please unseal it with threshold shares before performing operations."
             })),
         ).into_response();
     }
@@ -127,12 +127,12 @@ pub async fn seal_check_middleware(
 
 ### 4. ✅ Health Check Reflects Seal Status
 
-**Issue**: Health checks were not considering seal status, causing load balancers to route traffic to sealed vaults.
+**Issue**: Health checks were not considering seal status, causing load balancers to route traffic to sealed engines.
 
 **Fix Implemented**:
 - `readiness_check()` now checks seal status
 - Returns 503 Service Unavailable when sealed
-- Sealed vault is NOT considered "ready"
+- Sealed engine is NOT considered "ready"
 - Follows Kubernetes best practices for readiness probes
 
 **Code Evidence**:
@@ -145,12 +145,12 @@ pub async fn readiness_check(
 
     // ... other checks ...
 
-    // CRITICAL: Check seal status - vault must be unsealed to be ready
+    // CRITICAL: Check seal status - engine must be unsealed to be ready
     let seal_check = check_seal_status(&state).await;
     checks.insert("seal".to_string(), seal_check);
 
-    // Service is ready if all critical components are ready AND vault is unsealed
-    // CRITICAL: Sealed vault means NOT ready (status != "ready")
+    // Service is ready if all critical components are ready AND engine is unsealed
+    // CRITICAL: Sealed engine means NOT ready (status != "ready")
     let ready = checks.values().all(|check| check.status == "ready");
 
     let readiness = ReadinessResponse {
@@ -162,7 +162,7 @@ pub async fn readiness_check(
 
     // CRITICAL: Return 503 if not ready (including when sealed)
     if !ready {
-        tracing::warn!("Readiness check failed - vault not ready (possibly sealed)");
+        tracing::warn!("Readiness check failed - engine not ready (possibly sealed)");
         return Err((
             axum::http::StatusCode::SERVICE_UNAVAILABLE,
             "Service not ready".to_string(),
@@ -184,12 +184,12 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 
     let response_time = start_time.elapsed().as_millis() as u64;
 
-    // CRITICAL: Sealed vault is NOT ready
+    // CRITICAL: Sealed engine is NOT ready
     let status = if is_unsealed { "ready" } else { "sealed" };
     let message = if is_unsealed {
-        "Vault is unsealed and ready for operations"
+        "Secret Vault is unsealed and ready for operations"
     } else {
-        "Vault is SEALED - unseal with threshold shares required before operations"
+        "Secret Vault is SEALED - unseal with threshold shares required before operations"
     };
 
     HealthCheck {
@@ -217,7 +217,7 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 **Fix Implemented**:
 - `ServiceContainer` now includes `seal: Arc<SealService>`
 - SealService initialized with storage backend adapter
-- Vault state loaded from storage on startup
+- Secret Vault state loaded from storage on startup
 - Seal status logged at startup
 
 **Code Evidence**:
@@ -228,7 +228,7 @@ pub struct ServiceContainer {
     pub storage: Arc<dyn StorageBackend + Send + Sync>,
     pub crypto: Arc<CryptoService>,
     pub auth: Arc<auth::AuthService>,
-    pub vault: Arc<vault::VaultService>,
+    pub engine: Arc<engine::Secret VaultService>,
     pub admin: Arc<admin::AdminService>,
     pub audit: Arc<AuditLogger>,
     pub seal: Arc<SealService>, // ✅ SealService integrated
@@ -256,26 +256,26 @@ impl ServiceContainer {
         let seal_storage = Arc::new(SealStorageAdapter::new(storage.clone()));
         let seal = Arc::new(SealService::with_storage(seal_config, seal_storage));
 
-        // CRITICAL: Load vault state from storage on startup
+        // CRITICAL: Load engine state from storage on startup
         match seal.load_from_storage().await {
             Ok(true) => {
-                tracing::info!("✅ Vault state loaded from storage. Vault is SEALED.");
-                tracing::info!("   Operators must unseal with threshold shares before vault can be used.");
+                tracing::info!("✅ Secret Vault state loaded from storage. Secret Vault is SEALED.");
+                tracing::info!("   Operators must unseal with threshold shares before engine can be used.");
             }
             Ok(false) => {
-                tracing::warn!("⚠️  Vault not initialized. Use /v1/sys/init to initialize.");
+                tracing::warn!("⚠️  Secret Vault not initialized. Use /v1/sys/init to initialize.");
             }
             Err(e) => {
-                tracing::error!("❌ Failed to load vault state: {:?}", e);
-                tracing::warn!("   Continuing with uninitialized vault.");
+                tracing::error!("❌ Failed to load engine state: {:?}", e);
+                tracing::warn!("   Continuing with uninitialized engine.");
             }
         }
 
         // Check seal status and log
         if seal.is_sealed().await {
-            tracing::warn!("🔒 Vault is SEALED. All secret operations will be blocked until unsealed.");
+            tracing::warn!("🔒 Secret Vault is SEALED. All secret operations will be blocked until unsealed.");
         } else {
-            tracing::info!("🔓 Vault is UNSEALED. Secret operations are allowed.");
+            tracing::info!("🔓 Secret Vault is UNSEALED. Secret operations are allowed.");
         }
 
         Ok(Self {
@@ -283,7 +283,7 @@ impl ServiceContainer {
             storage,
             crypto,
             auth,
-            vault,
+            engine,
             admin,
             audit,
             seal, // ✅ SealService included
@@ -301,7 +301,7 @@ impl ServiceContainer {
 **Fix Implemented**:
 - `api_server.rs` checks seal status after ServiceContainer initialization
 - Clear logging of seal status at startup
-- Operators are informed if vault is sealed
+- Operators are informed if engine is sealed
 
 **Code Evidence**:
 ```rust
@@ -311,11 +311,11 @@ let services = Arc::new(ServiceContainer::new(&config).await?);
 
 // CRITICAL SECURITY: Check seal status at startup
 if services.seal.is_sealed().await {
-    warn!("🔒 Vault is SEALED at startup");
-    warn!("   All secret operations will be blocked until vault is unsealed");
+    warn!("🔒 Secret Vault is SEALED at startup");
+    warn!("   All secret operations will be blocked until engine is unsealed");
     warn!("   Use /v1/sys/unseal endpoint with threshold shares to unseal");
 } else {
-    info!("🔓 Vault is UNSEALED at startup");
+    info!("🔓 Secret Vault is UNSEALED at startup");
     info!("   Secret operations are allowed");
 }
 ```
@@ -326,19 +326,19 @@ if services.seal.is_sealed().await {
 
 ### Whitelisted Endpoints (Accessible When Sealed)
 
-These endpoints are accessible even when the vault is sealed:
+These endpoints are accessible even when the engine is sealed:
 
 1. **GET /health** - Basic health check
 2. **GET /version** - Version information
 3. **GET /metrics** - Prometheus metrics
 4. **GET /v1/sys/seal-status** - Check seal status
 5. **POST /v1/sys/unseal** - Provide unseal key
-6. **POST /v1/sys/init** - Initialize vault
+6. **POST /v1/sys/init** - Initialize engine
 7. **GET /ready** - Readiness probe (returns 503 when sealed)
 
 ### Blocked Endpoints (When Sealed)
 
-All other endpoints return 503 Service Unavailable when vault is sealed:
+All other endpoints return 503 Service Unavailable when engine is sealed:
 
 - Transit operations (`/v1/transit/*`)
 - KV secrets operations (`/v1/secret/*`)
@@ -355,7 +355,7 @@ Comprehensive integration tests verify all security fixes:
 
 ### Test File: `tests/seal_startup_behavior_tests.rs`
 
-1. ✅ `test_vault_starts_sealed_by_default()` - Verifies vault starts sealed
+1. ✅ `test_engine_starts_sealed_by_default()` - Verifies engine starts sealed
 2. ✅ `test_initialize_does_not_auto_unseal()` - Verifies init doesn't unseal
 3. ✅ `test_manual_unseal_required_after_init()` - Verifies manual unseal required
 4. ✅ `test_seal_clears_master_key_from_memory()` - Verifies seal clears key
@@ -395,7 +395,7 @@ Comprehensive integration tests verify all security fixes:
 - Operators must explicitly unseal with threshold shares
 
 ### 3. Secure by Default
-- Vault starts in sealed mode
+- Secret Vault starts in sealed mode
 - No auto-unseal after initialization
 - Master key zeroized immediately after use
 
@@ -417,50 +417,50 @@ Comprehensive integration tests verify all security fixes:
 
 ### Initial Setup
 
-1. **Initialize Vault**:
+1. **Initialize Secret Vault**:
    ```bash
-   curl -X POST https://vault.example.com/v1/sys/init \
+   curl -X POST https://engine.example.com/v1/sys/init \
      -d '{"secret_shares": 5, "secret_threshold": 3}'
    ```
 
    Response includes 5 Shamir shares and root token.
    **CRITICAL**: Distribute shares to 5 different operators securely.
 
-2. **Vault Remains Sealed**:
-   After initialization, vault is SEALED.
+2. **Secret Vault Remains Sealed**:
+   After initialization, engine is SEALED.
    All operations (except whitelisted) return 503.
 
-3. **Unseal Vault**:
+3. **Unseal Secret Vault**:
    Operators provide threshold shares (3 of 5):
    ```bash
    # Operator 1
-   curl -X POST https://vault.example.com/v1/sys/unseal \
+   curl -X POST https://engine.example.com/v1/sys/unseal \
      -d '{"key": "<share-1-base64>"}'
 
    # Operator 2
-   curl -X POST https://vault.example.com/v1/sys/unseal \
+   curl -X POST https://engine.example.com/v1/sys/unseal \
      -d '{"key": "<share-2-base64>"}'
 
    # Operator 3
-   curl -X POST https://vault.example.com/v1/sys/unseal \
+   curl -X POST https://engine.example.com/v1/sys/unseal \
      -d '{"key": "<share-3-base64>"}'
    ```
 
-   After 3rd share, vault unseals and operations are allowed.
+   After 3rd share, engine unseals and operations are allowed.
 
-### Seal Vault (Emergency)
+### Seal Secret Vault (Emergency)
 
 ```bash
-curl -X POST https://vault.example.com/v1/sys/seal \
+curl -X POST https://engine.example.com/v1/sys/seal \
   -H "Authorization: Bearer <admin-token>"
 ```
 
-Immediately seals vault and clears master key from memory.
+Immediately seals engine and clears master key from memory.
 
 ### Check Seal Status
 
 ```bash
-curl https://vault.example.com/v1/sys/seal-status
+curl https://engine.example.com/v1/sys/seal-status
 ```
 
 Response:
@@ -477,13 +477,13 @@ Response:
 
 ---
 
-## Compliance with HashiCorp Vault Standards
+## Compliance with HashiCorp Secret Vault Standards
 
-This implementation follows HashiCorp Vault security best practices:
+This implementation follows HashiCorp Secret Vault security best practices:
 
-1. ✅ **Sealed by Default**: Vault starts sealed, protecting master key
+1. ✅ **Sealed by Default**: Secret Vault starts sealed, protecting master key
 2. ✅ **Manual Unseal**: Operators must explicitly unseal with threshold shares
-3. ✅ **No Auto-Unseal on Init**: Initialization does not unseal vault
+3. ✅ **No Auto-Unseal on Init**: Initialization does not unseal engine
 4. ✅ **Operations Blocked When Sealed**: All secret operations return 503
 5. ✅ **Whitelisted System Endpoints**: Health, status, unseal accessible when sealed
 6. ✅ **Shamir Secret Sharing**: Master key split using cryptographically secure SSS
@@ -512,8 +512,8 @@ This implementation follows HashiCorp Vault security best practices:
 
 ## Success Criteria - All Met ✅
 
-- ✅ Vault starts in sealed mode by default
-- ✅ initialize() keeps vault sealed (does not auto-unseal)
+- ✅ Secret Vault starts in sealed mode by default
+- ✅ initialize() keeps engine sealed (does not auto-unseal)
 - ✅ All API calls blocked when sealed (except whitelisted endpoints)
 - ✅ Middleware properly checks seal status
 - ✅ Health check reflects seal status
@@ -521,7 +521,7 @@ This implementation follows HashiCorp Vault security best practices:
 - ✅ Auto-unseal (optional) framework ready for future implementation
 - ✅ All seal operations properly audited and monitored
 - ✅ Integration tests verify seal workflow
-- ✅ Follows HashiCorp Vault security best practices
+- ✅ Follows HashiCorp Secret Vault security best practices
 
 ---
 
@@ -534,7 +534,7 @@ This implementation follows HashiCorp Vault security best practices:
 4. ✅ Update deployment documentation
 
 ### Future Enhancements (Optional)
-1. Auto-unseal support (Transit, AWS KMS, Azure KeyVault, GCP KMS)
+1. Auto-unseal support (Transit, AWS KMS, Azure KeySecret Vault, GCP KMS)
 2. Seal migration (change threshold/shares)
 3. HSM integration for master key storage
 4. Seal status metrics for Prometheus
@@ -544,7 +544,7 @@ This implementation follows HashiCorp Vault security best practices:
 
 ## Conclusion
 
-All critical security fixes for the Seal/Unseal functionality have been successfully implemented. The vault now follows HashiCorp Vault security best practices:
+All critical security fixes for the Seal/Unseal functionality have been successfully implemented. The engine now follows HashiCorp Secret Vault security best practices:
 
 - **Sealed by default** at startup
 - **No auto-unseal** after initialization
@@ -560,5 +560,5 @@ The implementation is **production-ready** from a security perspective, pending 
 **Implementation Date**: October 2025
 **Status**: ✅ COMPLETED
 **Security Level**: CRITICAL
-**Compliance**: HashiCorp Vault Best Practices
+**Compliance**: HashiCorp Secret Vault Best Practices
 **Test Coverage**: 21 tests (100% seal/unseal functionality)

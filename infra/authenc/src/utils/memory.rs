@@ -6,8 +6,8 @@
 //! for backward compatibility.
 
 use lib_common::memory::{
+    LazySecretCryptoContext, SecretMemoryOptimizer, SecretMemoryPool, SecretMemoryTracker,
     SecureSecretBytes, SecureSecretMemory, SecureSecretString, SensitivityLevel,
-    LazySecretCryptoContext, SecretMemoryPool, SecretMemoryTracker, SecretMemoryOptimizer,
 };
 use zeroize::Zeroize;
 

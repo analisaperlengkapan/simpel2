@@ -1,9 +1,9 @@
-// Copyright 2025 Secreton Security Vault System Contributors
+// Copyright 2025 Secreton Security Engine System Contributors
 // SPDX-License-Identifier: Apache-2.0
 
 //! Advanced Seal Wrapping Engine
 //!
-//! Provides enterprise-grade seal wrapping functionality that exceeds HashiCorp Vault's
+//! Provides enterprise-grade seal wrapping functionality that exceeds HashiCorp Engine's
 //! capabilities with multi-layer encryption, quantum-resistant wrapping, and zero-trust
 //! architecture for Critical Security Parameters (CSPs).
 
@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::error::{SecretonError, SecretonResult};
 use crate::security::fips_compliance::FipsLevel;
 
-/// Seal Wrapping Engine - Advanced beyond HashiCorp Vault
+/// Seal Wrapping Engine - Advanced beyond HashiCorp Engine
 pub struct SealWrappingEngine {
     /// Seal providers with priority ordering
     seal_providers: Arc<RwLock<Vec<SealProviderWithPriority>>>,
@@ -116,7 +116,7 @@ pub enum SealAlgorithm {
 /// Data Types for Seal Wrapping
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DataType {
-    // Core Vault Data
+    // Core Engine Data
     RootKey,
     MasterKey,
     EncryptionKey,
@@ -338,7 +338,7 @@ pub struct SealProviderInfo {
 pub enum SealProviderType {
     // Cloud Providers
     AwsKms,
-    AzureKeyVault,
+    AzureKeyEngine,
     GcpKms,
 
     // Hardware Security Modules
@@ -350,8 +350,8 @@ pub enum SealProviderType {
 
     // Software Providers
     Transit,
-    Vault,
-    HashiVault,
+    Engine,
+    HashiEngine,
 
     // Quantum-Safe Providers
     QuantumSafe,
@@ -792,8 +792,8 @@ impl SealWrappingEngine {
 
     /// Compress data before wrapping
     fn compress_data(&self, data: &[u8]) -> SecretonResult<Vec<u8>> {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         use std::io::Write;
 
         let mut encoder = GzEncoder::new(Vec::new(), Compression::best());

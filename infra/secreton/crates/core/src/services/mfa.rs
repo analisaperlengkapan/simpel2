@@ -217,7 +217,7 @@ impl MfaService {
             .totp_engine
             .create_key(request)
             .await
-            .map_err(|e| MfaError::InvalidSecret)?;
+            .map_err(|_e| MfaError::InvalidSecret)?;
 
         // Update MFA config
         config.totp_key_name = Some(key_name);
@@ -306,11 +306,7 @@ impl MfaService {
         config.pending_sms_verification = Some((code.clone(), phone_number.clone(), expires_at));
 
         // Mock sending SMS
-        tracing::info!(
-            "Sending SMS code {} to phone number {}",
-            code,
-            phone_number
-        );
+        tracing::info!("Sending SMS code {} to phone number {}", code, phone_number);
 
         Ok(code)
     }
@@ -344,7 +340,9 @@ impl MfaService {
 
             Ok(true)
         } else {
-            Err(MfaError::NotConfigured("SMS Setup not initiated".to_string()))
+            Err(MfaError::NotConfigured(
+                "SMS Setup not initiated".to_string(),
+            ))
         }
     }
 

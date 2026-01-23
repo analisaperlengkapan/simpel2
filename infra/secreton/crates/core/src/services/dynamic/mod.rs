@@ -178,7 +178,7 @@ pub async fn generate_mongo_credential(role: &str) -> DynamicMongoCredential {
     }
 }
 pub async fn generate_aws_credential(role: &str) -> DynamicAwsCredential {
-    let username = format!("secreton-{}-{}", role, Utc::now().timestamp());
+    let _username = format!("secreton-{}-{}", role, Utc::now().timestamp());
     let access_key = format!(
         "AKIA{}",
         &uuid::Uuid::new_v4()

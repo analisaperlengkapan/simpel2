@@ -60,9 +60,9 @@
 //! let config = HsmConfig {
 //!     library_path: "/usr/lib/softhsm/libsofthsm2.so".to_string(),
 //!     slot_id: 0,
-//!     pin: "1234".to_string(), // From environment/Vault
+//!     pin: "1234".to_string(), // From environment/Engine
 //!     label: "secreton-master-key".to_string(),
-//! };
+//! ;
 //!
 //! let hsm = HsmBackend::new(config)?;
 //! hsm.connect().await?;
@@ -169,7 +169,7 @@
 //! let logs = hsm.get_audit_logs().await?;
 //!
 //! for log in logs {
-//!     println!("{}: {} by {}", log.timestamp, log.operation, log.user);
+//!     println!("{}: { by {}", log.timestamp, log.operation, log.user);
 //! }
 //! # Ok(())
 //! # }
@@ -233,7 +233,7 @@
 //!     - host: hsm1.internal.kejaksaan.go.id
 //!       port: 1792
 //!   ha_group: secreton-prod
-//!   partition: kejaksaan-vault
+//!   partition: kejaksaan-engine
 //! ```
 //!
 //! ## Backup Strategy

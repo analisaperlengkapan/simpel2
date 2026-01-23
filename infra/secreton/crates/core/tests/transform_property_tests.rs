@@ -115,9 +115,7 @@ proptest! {
             // Convert tweak bytes to string for API
             let tweak = if tweak_bytes.is_empty() {
                 None
-            } else {
-                Some(String::from_utf8_lossy(&tweak_bytes).to_string())
-            };
+             } else { Some(String::from_utf8_lossy(&tweak_bytes).to_string()) };
 
             // Encode
             let encoded = engine.encode(
@@ -374,16 +372,11 @@ mod edge_cases {
         let engine = TransformEngine::new();
 
         // Create tokenization transformation
-        let transformation = Transformation::new(
-            "batch-test".to_string(),
-            TransformationType::Tokenization,
-        );
+        let transformation =
+            Transformation::new("batch-test".to_string(), TransformationType::Tokenization);
         engine.create_transformation(transformation).await.unwrap();
 
-        let role = TransformRole::new(
-            "batch-role".to_string(),
-            vec!["batch-test".to_string()],
-        );
+        let role = TransformRole::new("batch-role".to_string(), vec!["batch-test".to_string()]);
         engine.create_role(role).await.unwrap();
 
         // Test batch encoding
@@ -418,16 +411,11 @@ mod edge_cases {
         let engine = TransformEngine::new();
 
         // Create tokenization transformation
-        let transformation = Transformation::new(
-            "audit-test".to_string(),
-            TransformationType::Tokenization,
-        );
+        let transformation =
+            Transformation::new("audit-test".to_string(), TransformationType::Tokenization);
         engine.create_transformation(transformation).await.unwrap();
 
-        let role = TransformRole::new(
-            "audit-role".to_string(),
-            vec!["audit-test".to_string()],
-        );
+        let role = TransformRole::new("audit-role".to_string(), vec!["audit-test".to_string()]);
         engine.create_role(role).await.unwrap();
 
         // Perform some operations

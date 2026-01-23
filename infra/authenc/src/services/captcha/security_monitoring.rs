@@ -21,7 +21,7 @@ use tracing::{error, info, warn};
 
 use super::error::CaptchaError;
 use super::types::{BehaviorClassification, Challenge, RiskLevel, ValidationResult};
-use crate::middleware::security_monitoring_axum::SecurityMonitoringConfig;
+use crate::middleware::security_monitoring::SecurityMonitoringConfig;
 use crate::models::audit_log::AuditLog;
 use crate::services::pg_audit_log_store::PgAuditLogStore;
 

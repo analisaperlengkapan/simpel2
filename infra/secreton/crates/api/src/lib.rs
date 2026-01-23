@@ -28,11 +28,13 @@ pub mod transit;
 // Re-export gRPC from separate crate
 pub use secreton_grpc as grpc;
 
-use axum::extract::State;
 pub use auth::JwtService;
+use axum::extract::State;
 pub use error::{ApiError, ApiResult};
+pub use handlers::{AppState, ListQuery};
 pub use kv::{KVApiState, KVEngine, create_kv_router};
-pub use models::PaginatedResponse;
+pub use middleware::RequestContext;
+pub use models::{PaginatedResponse, PaginationQuery};
 pub use pki::{PkiApiState, create_pki_router};
 pub use response::{
     ApiResponse, DependencyStatus, ErrorDetails, HealthCheckDependencies, HealthCheckResponse,
@@ -134,10 +136,16 @@ pub fn create_api_router(state: ApiState) -> Router {
             middleware::request_rate_middleware,
         ))
         // Common infrastructure layers
-        .layer(axum::middleware::from_fn(lib_common::middleware::security::security_headers))
+        .layer(axum::middleware::from_fn(
+            lib_common::middleware::security::security_headers,
+        ))
         .layer(lib_common::middleware::logging::RequestLogger)
-        .layer(axum::middleware::from_fn(lib_common::correlation::correlation_id_middleware))
-        .layer(lib_common::middleware::cors::standard_cors(vec!["*".to_string()]))
+        .layer(axum::middleware::from_fn(
+            lib_common::correlation::correlation_id_middleware,
+        ))
+        .layer(lib_common::middleware::cors::standard_cors(vec![
+            "*".to_string(),
+        ]))
         .with_state(state)
 }
 

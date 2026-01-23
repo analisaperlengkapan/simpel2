@@ -1,8 +1,8 @@
 //! PostgreSQL storage backend implementation using tokio-postgres
 
 use crate::{
-    HealthStatus, QueryParams, SecurityLevel, StorageBackend, StorageError, StorageResult,
-    StorageStats, StorageTransaction, VaultEntry,
+    HealthStatus, QueryParams, SecretEntry, SecurityLevel, StorageBackend, StorageError,
+    StorageResult, StorageStats, StorageTransaction,
 };
 use async_trait::async_trait;
 use deadpool_postgres::{Config, Pool, Runtime};
@@ -166,7 +166,7 @@ pub struct PoolStats {
 
 #[async_trait]
 impl StorageBackend for PostgresBackend {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()> {
         let client = self
             .pool
             .get()
@@ -179,7 +179,7 @@ impl StorageBackend for PostgresBackend {
         execute_store(&client, entry).await
     }
 
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>> {
         let client = self
             .pool
             .get()
@@ -212,7 +212,7 @@ impl StorageBackend for PostgresBackend {
         Ok(Some(entry))
     }
 
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
         let client = self
             .pool
             .get()
@@ -245,7 +245,7 @@ impl StorageBackend for PostgresBackend {
         Ok(Some(entry))
     }
 
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>> {
         let client = self
             .pool
             .get()
@@ -297,7 +297,7 @@ impl StorageBackend for PostgresBackend {
         Ok(entries)
     }
 
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()> {
         let client = self
             .pool
             .get()
@@ -619,7 +619,7 @@ impl StorageBackend for PostgresBackend {
 }
 
 impl PostgresBackend {
-    fn row_to_vault_entry(&self, row: &Row) -> StorageResult<VaultEntry> {
+    fn row_to_vault_entry(&self, row: &Row) -> StorageResult<SecretEntry> {
         let encryption_metadata_value: serde_json::Value = row.get("encryption_metadata");
         let encryption_metadata =
             serde_json::from_value(encryption_metadata_value).map_err(|e| {
@@ -647,7 +647,7 @@ impl PostgresBackend {
             _ => SecurityLevel::Internal,
         };
 
-        Ok(VaultEntry {
+        Ok(SecretEntry {
             id: row.get("id"),
             path: row.get("path"),
             encrypted_data: row.get("encrypted_data"),
@@ -665,17 +665,18 @@ impl PostgresBackend {
 }
 
 // Helper functions for database operations
-async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()> {
+async fn execute_store(client: &Client, entry: &SecretEntry) -> StorageResult<()> {
     let query = r#"
         INSERT INTO vault_entries
         (id, path, encrypted_data, encryption_metadata, security_level, metadata, tags, version, owner_id, created_at, updated_at, expires_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     "#;
 
-    let owner_uuid = Uuid::parse_str(&entry.owner_id).map_err(|e| StorageError::SerializationError {
-        source: None,
-        message: format!("Invalid owner_id (must be UUID): {}", e),
-    })?;
+    let owner_uuid =
+        Uuid::parse_str(&entry.owner_id).map_err(|e| StorageError::SerializationError {
+            source: None,
+            message: format!("Invalid owner_id (must be UUID): {}", e),
+        })?;
 
     client
         .execute(
@@ -704,7 +705,7 @@ async fn execute_store(client: &Client, entry: &VaultEntry) -> StorageResult<()>
     Ok(())
 }
 
-async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()> {
+async fn execute_update(client: &Client, entry: &SecretEntry) -> StorageResult<()> {
     let query = r#"
         UPDATE vault_entries
         SET path = $2, encrypted_data = $3, encryption_metadata = $4, security_level = $5,
@@ -736,7 +737,7 @@ async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()
 
     if rows_affected == 0 {
         return Err(StorageError::NotFound {
-            resource_type: "VaultEntry".to_string(),
+            resource_type: "SecretEntry".to_string(),
             id: entry.id.to_string(),
         });
     }
@@ -747,13 +748,14 @@ async fn execute_update(client: &Client, entry: &VaultEntry) -> StorageResult<()
 async fn execute_delete_by_id(client: &Client, id: Uuid) -> StorageResult<bool> {
     let query = "DELETE FROM vault_entries WHERE id = $1";
 
-    let rows_affected = client
-        .execute(query, &[&id])
-        .await
-        .map_err(|e| StorageError::QueryFailed {
-            source: None,
-            message: format!("Failed to delete vault entry: {}", e),
-        })?;
+    let rows_affected =
+        client
+            .execute(query, &[&id])
+            .await
+            .map_err(|e| StorageError::QueryFailed {
+                source: None,
+                message: format!("Failed to delete vault entry: {}", e),
+            })?;
 
     Ok(rows_affected > 0)
 }
@@ -773,7 +775,7 @@ impl PostgresTransaction {
 
 #[async_trait]
 impl StorageTransaction for PostgresTransaction {
-    async fn store(&mut self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn store(&mut self, entry: &SecretEntry) -> StorageResult<()> {
         let client = self
             .client
             .as_ref()
@@ -785,7 +787,7 @@ impl StorageTransaction for PostgresTransaction {
         execute_store(client, entry).await
     }
 
-    async fn update(&mut self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&mut self, entry: &SecretEntry) -> StorageResult<()> {
         let client = self
             .client
             .as_ref()

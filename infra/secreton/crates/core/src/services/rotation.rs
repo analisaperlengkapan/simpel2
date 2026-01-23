@@ -617,7 +617,7 @@ impl AutoRotationEngine {
     async fn send_webhooks(
         &self,
         endpoints: &[WebhookEndpoint],
-        policy: &RotationPolicy,
+        _policy: &RotationPolicy,
         event_type: &str,
     ) -> Result<(), RotationError> {
         for endpoint in endpoints {

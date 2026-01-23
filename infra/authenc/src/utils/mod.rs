@@ -98,7 +98,7 @@ pub use connection_pool::*;
 pub use geolocation::*;
 pub use i18n::*;
 pub use memory::*;
-pub use sanitizer::*;
 pub use request_context::*;
+pub use sanitizer::*;
 pub use sso_cookie::*;
 pub use validation::*;

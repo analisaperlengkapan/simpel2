@@ -96,7 +96,7 @@ async fn test_complete_user_registration_workflow() {
             post(
                 move |State(state): State<ApiIntegrationState>,
                       Path(user_id): Path<String>,
-                      Json(verification): Json<serde_json::Value>| async move {
+                      Json(_verification): Json<serde_json::Value>| async move {
                     let mut users = state.users.lock().await;
                     let mut audit_logs = state.audit_logs.lock().await;
                     let mut notifications = state.notifications.lock().await;

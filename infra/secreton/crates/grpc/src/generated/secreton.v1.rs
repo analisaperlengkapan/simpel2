@@ -1565,7 +1565,7 @@ pub mod secreton_service_server {
             request: tonic::Request<super::MetricsRequest>,
         ) -> std::result::Result<tonic::Response<super::MetricsResponse>, tonic::Status>;
     }
-    /// Secreton Vault Service - Secret Management
+    /// Secreton Engine Service - Secret Management
     #[derive(Debug)]
     pub struct SecretonServiceServer<T> {
         inner: Arc<T>,

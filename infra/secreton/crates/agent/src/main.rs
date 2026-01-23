@@ -3,12 +3,10 @@
 use anyhow::Result;
 use clap::Parser;
 use secreton_agent::{AgentConfig, SecretonAgent};
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
 #[command(name = "secreton-agent")]
-#[command(about = "Secreton Vault Agent - auto-auth, token renewal, template rendering")]
+#[command(about = "Secreton Engine Agent - auto-auth, token renewal, template rendering")]
 struct Cli {
     /// Configuration file path
     #[arg(short, long, default_value = "agent.yaml")]

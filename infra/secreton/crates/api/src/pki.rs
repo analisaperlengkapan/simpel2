@@ -197,11 +197,11 @@ pub fn create_pki_router(state: PkiApiState) -> Router {
         .route("/ca/list", get(list_cas))
         // Role operations
         .route("/roles", get(list_roles))
-        .route("/roles/:role_name", post(create_role))
+        .route("/roles/{role_name}", post(create_role))
         // Certificate operations
-        .route("/issue/:role_name", post(issue_certificate))
+        .route("/issue/{role_name}", post(issue_certificate))
         .route("/revoke", post(revoke_certificate))
-        .route("/cert/:serial_number", get(get_certificate))
+        .route("/cert/{serial_number}", get(get_certificate))
         // CRL operations
         .route("/crl", get(get_crl))
         .with_state(state)

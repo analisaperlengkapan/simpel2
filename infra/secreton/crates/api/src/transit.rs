@@ -7,7 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use tracing::{info, warn};
 
 // Import the actual transit engine from the main crypto crate
@@ -71,9 +70,9 @@ pub struct DecryptResponse {
 pub fn create_transit_router(state: TransitApiState) -> Router {
     Router::new()
         .route("/keys", get(list_keys))
-        .route("/keys/:key_name", post(create_key))
-        .route("/encrypt/:key_name", post(encrypt_data))
-        .route("/decrypt/:key_name", post(decrypt_data))
+        .route("/keys/{key_name}", post(create_key))
+        .route("/encrypt/{key_name}", post(encrypt_data))
+        .route("/decrypt/{key_name}", post(decrypt_data))
         .with_state(state)
 }
 
@@ -113,7 +112,7 @@ pub async fn create_key(
             state
                 .metrics
                 .transit_operations_total
-                .fetch_add(1, Ordering::Relaxed);
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!("Created key: {}", key_name);
             Ok(Json(CreateKeyResponse {
                 success: true,
@@ -160,7 +159,7 @@ pub async fn encrypt_data(
             state
                 .metrics
                 .transit_operations_total
-                .fetch_add(1, Ordering::Relaxed);
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!("Encrypted data with key: {}", key_name);
             Ok(Json(EncryptResponse { ciphertext }))
         }
@@ -198,7 +197,7 @@ pub async fn decrypt_data(
             state
                 .metrics
                 .transit_operations_total
-                .fetch_add(1, Ordering::Relaxed);
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             info!("Decrypted data with key: {}", key_name);
             Ok(Json(DecryptResponse {
                 plaintext: BASE64.encode(&plaintext_bytes),

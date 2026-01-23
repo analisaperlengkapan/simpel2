@@ -12,7 +12,7 @@
 mod token_exchange_tests {
     use async_trait::async_trait;
     use authenc::database::Database;
-    use authenc::handlers::oauth2_comprehensive::{AccessTokenClaims, generate_access_token};
+    use authenc::handlers::oauth2::{AccessTokenClaims, generate_access_token};
     use authenc::models::audit_log::AuditLog;
     use authenc::services::jwt_validator::JwtValidator;
     use authenc::services::stores::audit_log_store::AuditLogStore;

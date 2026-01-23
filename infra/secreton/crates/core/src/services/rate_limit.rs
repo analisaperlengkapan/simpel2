@@ -179,14 +179,15 @@ impl RateLimiter {
         operation = "rate_limit_check"
     ), level = "debug")]
     pub async fn check(&self, key: &str) -> Result<bool, RateLimitError> {
-        let config = self.config.read().await;
+        let strategy = {
+            let config = self.config.read().await;
 
-        if !config.enabled {
-            return Ok(true);
-        }
+            if !config.enabled {
+                return Ok(true);
+            }
 
-        let strategy = config.strategy.clone();
-        drop(config);
+            config.strategy.clone()
+        };
 
         let mut states = self.states.write().await;
 
@@ -227,14 +228,15 @@ impl RateLimiter {
 
     /// Check with custom cost
     pub async fn check_with_cost(&self, key: &str, cost: u32) -> Result<bool, RateLimitError> {
-        let config = self.config.read().await;
+        let strategy = {
+            let config = self.config.read().await;
 
-        if !config.enabled {
-            return Ok(true);
-        }
+            if !config.enabled {
+                return Ok(true);
+            }
 
-        let strategy = config.strategy.clone();
-        drop(config);
+            config.strategy.clone()
+        };
 
         let mut states = self.states.write().await;
 

@@ -20,7 +20,13 @@ use crate::services::seal::SealConfig;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BootstrapConfig {
     pub storage: StorageConfig,
-    pub listener: ListenerConfig,
+
+    // Flattened listener config to match ApiConfig
+    pub http: HttpListenerConfig,
+
+    #[serde(default)]
+    pub grpc: GrpcListenerConfig,
+
     pub seal: SealConfigBootstrap,
 
     #[serde(default)]
@@ -50,7 +56,8 @@ impl BootstrapConfig {
     /// Validate configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         self.storage.validate()?;
-        self.listener.validate()?;
+        self.http.validate()?;
+        self.grpc.validate()?;
         self.seal.validate()?;
         Ok(())
     }
@@ -473,14 +480,14 @@ impl GcpKmsSealConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AzureKvSealConfig {
-    pub vault_name: String,
+    pub engine_name: String,
     pub key_name: String,
 }
 
 impl AzureKvSealConfig {
     fn validate(&self) -> anyhow::Result<()> {
-        if self.vault_name.is_empty() {
-            return Err(anyhow::anyhow!("Azure vault name cannot be empty"));
+        if self.engine_name.is_empty() {
+            return Err(anyhow::anyhow!("Azure engine name cannot be empty"));
         }
         if self.key_name.is_empty() {
             return Err(anyhow::anyhow!("Azure key name cannot be empty"));

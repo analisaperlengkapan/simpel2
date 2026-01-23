@@ -1,8 +1,7 @@
 use anyhow::Result;
 use base64::prelude::*;
 use clap::{Parser, Subcommand};
-use tracing::{Level, info};
-use tracing_subscriber::FmtSubscriber;
+use tracing::info;
 
 mod audit;
 mod auth;
@@ -31,7 +30,7 @@ use token::{TokenCommand, execute_token_command};
 #[derive(Parser)]
 #[command(
     name = "secreton-cli",
-    about = "Command line interface for Secreton vault system",
+    about = "Command line interface for Secreton engine system",
     version = "1.0.0",
     author = "Secreton Team"
 )]
@@ -56,7 +55,7 @@ struct Cli {
 enum Commands {
     /// System health and status commands
     Status,
-    /// Login to Secreton vault
+    /// Login to Secreton engine
     Login {
         /// Authentication method (userpass or token)
         #[arg(short, long, default_value = "userpass")]
@@ -70,7 +69,7 @@ enum Commands {
         #[arg(short, long)]
         token: Option<String>,
     },
-    /// Logout from Secreton vault
+    /// Logout from Secreton engine
     Logout,
     /// Configuration management
     #[command(subcommand)]
@@ -199,7 +198,9 @@ async fn main() -> Result<()> {
         } => login_command(&config, &method, username, token).await,
         Commands::Logout => logout_command(&config).await,
         Commands::Config(cmd) => config_command(cmd, &config).await,
-        Commands::Policy(cmd) => execute_policy_command(cmd, &config, cli.namespace.as_deref()).await,
+        Commands::Policy(cmd) => {
+            execute_policy_command(cmd, &config, cli.namespace.as_deref()).await
+        }
         Commands::Token(cmd) => execute_token_command(cmd, &config, cli.namespace.as_deref()).await,
         Commands::Seal(cmd) => execute_seal_command(cmd, &config).await,
         Commands::Backup(cmd) => execute_backup_command(cmd, &config).await,
@@ -225,12 +226,18 @@ async fn config_command(cmd: ConfigCommand, config: &CliConfig) -> Result<()> {
                     println!("✅ Default namespace set to: {}", value);
                 }
                 _ => {
-                    anyhow::bail!("Unknown configuration key: {}. Valid keys: server, namespace", key);
+                    anyhow::bail!(
+                        "Unknown configuration key: {}. Valid keys: server, namespace",
+                        key
+                    );
                 }
             }
 
             new_config.save_default().await?;
-            println!("   Configuration saved to: {}", CliConfig::default_config_path()?.display());
+            println!(
+                "   Configuration saved to: {}",
+                CliConfig::default_config_path()?.display()
+            );
 
             Ok(())
         }
@@ -243,7 +250,10 @@ async fn config_command(cmd: ConfigCommand, config: &CliConfig) -> Result<()> {
                     println!("{}", config.default_namespace);
                 }
                 _ => {
-                    anyhow::bail!("Unknown configuration key: {}. Valid keys: server, namespace", key);
+                    anyhow::bail!(
+                        "Unknown configuration key: {}. Valid keys: server, namespace",
+                        key
+                    );
                 }
             }
             Ok(())
@@ -253,7 +263,10 @@ async fn config_command(cmd: ConfigCommand, config: &CliConfig) -> Result<()> {
             println!("   Server URL:        {}", config.server_url);
             println!("   Default Namespace: {}", config.default_namespace);
             println!();
-            println!("   Config file: {}", CliConfig::default_config_path()?.display());
+            println!(
+                "   Config file: {}",
+                CliConfig::default_config_path()?.display()
+            );
             Ok(())
         }
     }
@@ -268,7 +281,7 @@ async fn status_command(config: &CliConfig) -> Result<()> {
 
     if health_response.status().is_success() {
         let health: serde_json::Value = health_response.json().await?;
-        println!("🟢 Secreton Vault Status: HEALTHY");
+        println!("🟢 Secreton Engine Status: HEALTHY");
         println!("   Server: {}", config.server_url);
         println!(
             "   Version: {}",
@@ -283,15 +296,19 @@ async fn status_command(config: &CliConfig) -> Result<()> {
                 .unwrap_or(&serde_json::Value::String("unknown".to_string()))
         );
     } else {
-        println!("🔴 Secreton Vault Status: UNHEALTHY");
+        println!("🔴 Secreton Engine Status: UNHEALTHY");
         println!("   HTTP Status: {}", health_response.status());
     }
 
     Ok(())
 }
 
-async fn transit_command(cmd: TransitCommand, config: &CliConfig, namespace: Option<&str>) -> Result<()> {
-    // Check vault seal status before operations
+async fn transit_command(
+    cmd: TransitCommand,
+    config: &CliConfig,
+    namespace: Option<&str>,
+) -> Result<()> {
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);
@@ -420,8 +437,12 @@ async fn transit_command(cmd: TransitCommand, config: &CliConfig, namespace: Opt
     Ok(())
 }
 
-async fn secret_command(cmd: SecretCommand, config: &CliConfig, namespace: Option<&str>) -> Result<()> {
-    // Check vault seal status before operations
+async fn secret_command(
+    cmd: SecretCommand,
+    config: &CliConfig,
+    namespace: Option<&str>,
+) -> Result<()> {
+    // Check engine seal status before operations
     let mut seal_checker = SealChecker::new(config.server_url.clone(), None);
     if let Err(e) = seal_checker.require_unsealed().await {
         eprintln!("❌ {}", e);

@@ -7,7 +7,7 @@
 //!
 //! 1. **Environment Variables** - Highest priority (production secrets)
 //! 2. **Config File** - YAML/TOML files (dev/staging)
-//! 3. **Vault** - Remote config from Secreton itself (self-hosting)
+//! 3. **Engine** - Remote config from Secreton itself (self-hosting)
 //! 4. **Defaults** - Hardcoded fallbacks
 //!
 //! ```text
@@ -20,7 +20,7 @@
 //! └──────────────┬─────────────────────────┘
 //!                ▼
 //! ┌────────────────────────────────────────┐
-//! │   Vault (remote config)                │
+//! │   Engine (remote config)                │
 //! └──────────────┬─────────────────────────┘
 //!                ▼
 //! ┌────────────────────────────────────────┐
@@ -37,7 +37,7 @@
 //! // Load from default locations
 //! let config = SecretonConfig::load()?;
 //!
-//! println!("Server: {}:{}", config.server.host, config.server.port);
+//! println!("Server: {::}", config.server.host, config.server.port);
 //! println!("Database: {}", config.database.url);
 //! println!("MFA required: {}", config.mfa.require_for_admin);
 //! # Ok(())
@@ -157,7 +157,7 @@
 //! **NEVER** put secrets directly in config files. Use:
 //!
 //! 1. **Environment Variables**: `SECRETON_DATABASE_PASSWORD=...`
-//! 2. **Vault References**: `database_password: ${vault:database/prod/password}`
+//! 2. **Engine References**: `database_password: ${engine:database/prod/password}`
 //! 3. **File References**: `tls_cert: ${file:/etc/secreton/cert.pem}`
 //!
 //! ```yaml
@@ -169,9 +169,9 @@
 //! database:
 //!   url: ${env:DATABASE_URL}
 //!
-//! # ✅ GOOD - Secret from Vault
+//! # ✅ GOOD - Secret from Engine
 //! database:
-//!   url: ${vault:secrets/database/url}
+//!   url: ${engine:secrets/database/url}
 //! ```
 //!
 //! # Configuration Struct
@@ -234,6 +234,8 @@ pub mod migrate;
 pub use application::*;
 
 // Re-export bootstrap config (StorageConfig renamed to BootstrapStorageConfig to avoid conflict)
+/// Alias for bootstrap StorageConfig to avoid naming conflict with dynamic::StorageConfig
+pub use bootstrap::StorageConfig as BootstrapStorageConfig;
 pub use bootstrap::{
     AwsKmsSealConfig, AzureKvSealConfig, BootstrapConfig, FileStorageConfig, GcpKmsSealConfig,
     GrpcListenerConfig, HttpListenerConfig, ListenerConfig, PostgresStorageConfig,
@@ -241,16 +243,14 @@ pub use bootstrap::{
     SealTypeConfig, ShamirSealConfig, StorageBackend, StorageBackendConfig, TelemetryConfig,
     TlsConfig,
 };
-/// Alias for bootstrap StorageConfig to avoid naming conflict with dynamic::StorageConfig
-pub use bootstrap::StorageConfig as BootstrapStorageConfig;
 
 // Re-export dynamic config (explicit to avoid ambiguity)
-pub use dynamic::{
-    CacheConfig, CryptoMode, DynamicConfig, DynamicConfigManager, LoadMetrics,
-    PerformanceProfile, PerformanceProfiler, SecurityConfig, ThreatLevel,
-};
 /// Dynamic storage configuration (runtime adjustable)
 pub use dynamic::StorageConfig as DynamicStorageConfig;
+pub use dynamic::{
+    CacheConfig, CryptoMode, DynamicConfig, DynamicConfigManager, LoadMetrics, PerformanceProfile,
+    PerformanceProfiler, SecurityConfig, ThreatLevel,
+};
 
 // Re-export MFA policy loader
 pub use mfa_policy_loader::*;
@@ -311,13 +311,13 @@ pub struct LeaseConfig {
 // Default configuration values
 fn default_token_ttl() -> i64 {
     3600
-} // 1 hour
+}
 fn default_refresh_token_ttl() -> i64 {
     2_592_000
-} // 30 days
+}
 fn default_password_reset_ttl() -> i64 {
     3600
-} // 1 hour
+}
 fn default_mfa_enabled() -> bool {
     true
 }

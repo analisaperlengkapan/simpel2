@@ -207,7 +207,8 @@ impl MongoDbSecretsEngine {
         // Note: Actual MongoDB connection testing would require mongodb crate
         // For now, we validate the URL format
         if !config.connection_url.starts_with("mongodb://")
-            && !config.connection_url.starts_with("mongodb+srv://") {
+            && !config.connection_url.starts_with("mongodb+srv://")
+        {
             return Err(MongoDbError::ConnectionError(
                 "Connection URL must start with mongodb:// or mongodb+srv://".to_string(),
             ));
@@ -902,4 +903,3 @@ mod tests {
         assert!(result.is_ok());
     }
 }
-

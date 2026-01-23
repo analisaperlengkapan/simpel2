@@ -9,9 +9,6 @@ use tracing::{debug, instrument, warn};
 pub use crate::models::sentinel::SentinelPolicy;
 pub use crate::models::{ControlGroup, Policy, PolicyRule};
 
-#[cfg(feature = "wasm")]
-use wasmtime::{Engine, Instance, Module, Store};
-
 /// Capability types for fine-grained access control
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -87,7 +84,7 @@ impl PolicySet {
             {
                 debug!("Policy cache hit for {}", cache_key);
                 return cached.decision == PolicyDecision::Allow;
-            }
+            };
         }
 
         // Evaluate policy
@@ -124,12 +121,12 @@ impl PolicySet {
             // Check if path matches using glob patterns
             if !self.path_matches(&rule.path, path) {
                 continue;
-            }
+            };
 
             // Check if action/capability matches
             if !self.action_matches(&rule.action, action, capability.as_ref()) {
                 continue;
-            }
+            };
 
             debug!(
                 "Policy rule matched: path={}, action={}, effect={}",
@@ -140,7 +137,7 @@ impl PolicySet {
             if !self.evaluate_conditions(rule, user, context) {
                 debug!("Policy conditions not met for rule: path={}", rule.path);
                 continue;
-            }
+            };
 
             // Evaluate control group (multi-approval)
             if let Some(cg) = &rule.control_group
@@ -152,23 +149,23 @@ impl PolicySet {
                     cg.required_approvals
                 );
                 continue;
-            }
+            };
 
             // Evaluate MFA requirement
             if rule.mfa == Some(true) && !self.check_mfa(context) {
                 debug!("MFA required but not provided");
                 continue;
-            }
+            };
 
             // Policy precedence: deny overrides allow
             if rule.effect == "deny" {
                 debug!("Policy denied: path={}, action={}", path, action);
                 return PolicyDecision::Deny;
-            }
+            };
 
             if rule.effect == "allow" {
                 has_allow = true;
-            }
+            };
         }
 
         if has_allow {
@@ -194,7 +191,7 @@ impl PolicySet {
                 // Should match "something" but not "something/nested"
                 let parts: Vec<&str> = remainder.split('/').filter(|s| !s.is_empty()).collect();
                 return parts.len() == 1;
-            }
+            };
             return false;
         }
 
@@ -249,21 +246,21 @@ impl PolicySet {
                 && !self.check_time_range(time_range)
             {
                 return false;
-            }
+            };
 
             // IP-based conditions
             if let Some(allowed_ips) = condition.get("allowed_ips")
                 && !self.check_ip_address(allowed_ips, context)
             {
                 return false;
-            }
+            };
 
             // Custom condition evaluation
             if let Some(expr) = condition.get("expression")
                 && !self.evaluate_expression(expr, context)
             {
                 return false;
-            }
+            };
         }
 
         true
@@ -598,7 +595,7 @@ pub async fn evaluate_with_sentinel(
             if !allowed {
                 warn!("Sentinel policy '{}' denied access", pol.name);
                 return false;
-            }
+            };
         }
 
         // Handle WASM-based policies
@@ -607,7 +604,7 @@ pub async fn evaluate_with_sentinel(
             if !allowed {
                 warn!("Sentinel WASM policy '{}' denied access", pol.name);
                 return false;
-            }
+            };
         }
     }
 
@@ -674,7 +671,7 @@ async fn evaluate_sentinel_policy(
                     policy.name
                 );
                 return false;
-            }
+            };
         }
 
         // Check for path matching
@@ -734,7 +731,7 @@ async fn evaluate_sentinel_policy(
     }
 
     // Default: if no explicit deny and policy has content, allow
-    // This matches HashiCorp Vault's default-allow behavior for Sentinel
+    // This matches HashiCorp Engine's default-allow behavior for Sentinel
     debug!(
         "Sentinel policy '{}' evaluation complete, allowing by default",
         policy.name
@@ -778,10 +775,10 @@ fn evaluate_context_condition(line: &str, context: &serde_json::Value) -> bool {
             // Check for boolean conditions
             if line.contains("== true") || line.contains("is true") {
                 return value.as_bool().unwrap_or(false);
-            }
+            };
             if line.contains("== false") || line.contains("is false") {
                 return !value.as_bool().unwrap_or(true);
-            }
+            };
 
             // If field exists and no specific condition, consider it true
             return true;
@@ -904,7 +901,7 @@ pub async fn check_policy_with_sentinel(
 // Contoh: policy as code (JSON)
 // {
 //   "rules": [
-//     { "effect": "allow", "action": "read", "path": "/secrets/*" },
+//     { "effect": "allow", "action": "read", "path": "/secrets/*" ,
 //     { "effect": "deny", "action": "delete", "path": "/secrets/protected/*" }
 //   ]
 // }

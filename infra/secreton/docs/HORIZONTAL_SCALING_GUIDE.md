@@ -74,7 +74,7 @@ secreton operator raft join \
 
 # Using the API
 curl -X POST https://leader:8200/v1/sys/raft/join \
-  -H "X-Vault-Token: $SECRETON_TOKEN" \
+  -H "X-Secret Vault-Token: $SECRETON_TOKEN" \
   -d '{
     "node_id": "node-4",
     "address": "10.0.1.4:8201"
@@ -91,7 +91,7 @@ secreton operator raft list-peers
 
 # API
 curl https://leader:8200/v1/sys/raft/configuration \
-  -H "X-Vault-Token: $SECRETON_TOKEN"
+  -H "X-Secret Vault-Token: $SECRETON_TOKEN"
 ```
 
 Expected output:
@@ -176,7 +176,7 @@ secreton operator raft remove-peer -id=node-4
 
 # API
 curl -X POST https://leader:8200/v1/sys/raft/remove-peer \
-  -H "X-Vault-Token: $SECRETON_TOKEN" \
+  -H "X-Secret Vault-Token: $SECRETON_TOKEN" \
   -d '{
     "node_id": "node-4"
   }'
@@ -346,7 +346,7 @@ resource "secreton_raft_node" "follower" {
         url: "https://{{ inventory_hostname }}:8200/v1/sys/raft/join"
         method: POST
         headers:
-          X-Vault-Token: "{{ secreton_token }}"
+          X-Secret Vault-Token: "{{ secreton_token }}"
         body_format: json
         body:
           node_id: "{{ new_node_id }}"

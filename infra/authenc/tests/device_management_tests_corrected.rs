@@ -20,7 +20,6 @@ async fn test_device_registration() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -75,7 +74,6 @@ async fn test_device_trust_evaluation() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -152,7 +150,6 @@ async fn test_device_trust_policies() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -199,7 +196,6 @@ async fn test_device_session_management() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());
@@ -244,7 +240,6 @@ async fn test_get_user_devices() {
         max_lifetime: 1800,
         connection_timeout: 30,
         audit_log_url: None,
-        connection_timeout_seconds: 30,
     };
 
     let database = Arc::new(Database::new(&database_config).await.unwrap());

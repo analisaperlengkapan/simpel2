@@ -32,8 +32,8 @@ pub fn create_routes() -> Router<AppState> {
         .route("/config", get(get_oidc_config))
         // Entity management (delegated to existing IdentityService)
         .route("/entity", post(create_entity))
-        .route("/entity/:id", get(get_entity))
-        .route("/entity/:id", delete(delete_entity))
+        .route("/entity/{id}", get(get_entity))
+        .route("/entity/{id}", delete(delete_entity))
         .route("/entity", get(list_entities))
 }
 

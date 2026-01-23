@@ -7,7 +7,7 @@
 
 ## Overview
 
-Secreton uses a **Vault-like secure configuration system** with two layers:
+Secreton uses a **Secret Vault-like secure configuration system** with two layers:
 
 1. **Bootstrap Config** (`secreton.toml`) - Infrastructure only, NO SECRETS
 2. **Application Config** (encrypted in storage) - All sensitive settings
@@ -25,13 +25,13 @@ cp secreton.toml.example secreton.toml
 # Edit for your environment (still no secrets!)
 vim secreton.toml
 
-# Initialize vault (generates Shamir shares)
+# Initialize engine (generates Shamir shares)
 secreton init --shares 5 --threshold 3
 
 # Save the shares securely!
-# Vault is now SEALED
+# Secret Vault is now SEALED
 
-# Unseal vault (need 3 of 5 shares)
+# Unseal engine (need 3 of 5 shares)
 secreton unseal  # Enter share 1
 secreton unseal  # Enter share 2
 secreton unseal  # Enter share 3 -> UNSEALED!
@@ -43,7 +43,7 @@ secreton server
 ### 2. Migrating from Old Config
 
 ```bash
-# IMPORTANT: Unseal vault first!
+# IMPORTANT: Unseal engine first!
 secreton unseal
 
 # Migrate (creates backup automatically)
@@ -104,23 +104,23 @@ secreton migrate --cleanup
 secreton status
 
 # Output:
-# 🟢 Vault Status: UNSEALED
+# 🟢 Secret Vault Status: UNSEALED
 # Initialized: Yes
 # Seal Type: shamir
 # Total Shares: 5
 # Threshold: 3
 ```
 
-### Seal Vault
+### Seal Secret Vault
 
 ```bash
 secreton seal
 
-# Vault is now SEALED
+# Secret Vault is now SEALED
 # All operations blocked until unsealed
 ```
 
-### Unseal Vault
+### Unseal Secret Vault
 
 ```bash
 # Method 1: Interactive (secure)
@@ -240,14 +240,14 @@ key_ring = "secreton-keyring"
 crypto_key = "seal-key"
 ```
 
-### Azure Key Vault Auto-Unseal
+### Azure Key Secret Vault Auto-Unseal
 
 ```toml
 [seal]
 type = "azure-kv"
 
 [seal.azure_kv]
-vault_name = "secreton-kv"
+engine_name = "secreton-kv"
 key_name = "seal-key"
 ```
 
@@ -269,7 +269,7 @@ key_name = "seal-key"
 **GCP KMS:**
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to service account JSON)
 
-**Azure Key Vault:**
+**Azure Key Secret Vault:**
 - `AZURE_TENANT_ID`
 - `AZURE_CLIENT_ID`
 - `AZURE_CLIENT_SECRET`
@@ -300,7 +300,7 @@ key_name = "seal-key"
 
 ## Troubleshooting
 
-### "Vault is sealed"
+### "Secret Vault is sealed"
 
 ```bash
 # Check status
@@ -315,10 +315,10 @@ secreton unseal
 ### "Config not found in storage"
 
 ```bash
-# Vault may not be initialized
+# Secret Vault may not be initialized
 secreton init
 
-# Or vault is sealed
+# Or engine is sealed
 secreton unseal
 
 # Or migration not completed
@@ -328,7 +328,7 @@ secreton migrate --from config/
 ### "Failed to get master key"
 
 ```bash
-# Vault is sealed, unseal first
+# Secret Vault is sealed, unseal first
 secreton unseal
 ```
 
@@ -338,7 +338,7 @@ secreton unseal
 # Check backup exists
 ls -la config_backup_*/
 
-# Vault must be unsealed
+# Secret Vault must be unsealed
 secreton status
 secreton unseal
 
@@ -359,7 +359,7 @@ secreton/
 │   ├── default.toml          # OLD - delete after migration
 │   ├── production.toml       # OLD - delete after migration
 │   ├── raft.toml             # OLD - delete after migration
-│   └── vault.toml            # OLD - delete after migration
+│   └── engine.toml            # OLD - delete after migration
 │
 ├── config_backup_*/          # Migration backups (gitignored)
 │
@@ -375,10 +375,10 @@ secreton/
 
 All seal/unseal operations available via REST API:
 
-- `GET /v1/sys/seal-status` - Check vault status
-- `POST /v1/sys/init` - Initialize vault
-- `POST /v1/sys/seal` - Seal vault (requires auth)
-- `POST /v1/sys/unseal` - Unseal vault
+- `GET /v1/sys/seal-status` - Check engine status
+- `POST /v1/sys/init` - Initialize engine
+- `POST /v1/sys/seal` - Seal engine (requires auth)
+- `POST /v1/sys/unseal` - Unseal engine
 - `POST /v1/sys/rekey/init` - Start rekey
 - `POST /v1/sys/rekey/update` - Rekey progress
 

@@ -1,6 +1,6 @@
 use crate::{
-    HealthStatus, QueryParams, StorageBackend, StorageError, StorageResult, StorageStats,
-    StorageTransaction, VaultEntry,
+    HealthStatus, QueryParams, SecretEntry, StorageBackend, StorageError, StorageResult,
+    StorageStats, StorageTransaction,
 };
 #[cfg(feature = "metrics")]
 use ::metrics::{counter, gauge};
@@ -413,10 +413,7 @@ impl RaftCluster {
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let metrics = self.raft.metrics().borrow().clone();
                     if metrics.current_leader.is_some() {
-                        tracing::info!(
-                            "Leader elected: node {}",
-                            metrics.current_leader.unwrap()
-                        );
+                        tracing::info!("Leader elected: node {}", metrics.current_leader.unwrap());
                         return Ok(());
                     }
                 }
@@ -530,7 +527,7 @@ impl RaftCluster {
     /// Start monitoring node health and connectivity
     fn start_node_health_monitoring(&self) {
         let raft = Arc::clone(&self.raft);
-        let node_id = self.config.node_id;
+        let _node_id = self.config.node_id;
 
         tokio::spawn(async move {
             let mut last_leader: Option<NodeId> = None;
@@ -545,11 +542,7 @@ impl RaftCluster {
                 if current_leader != last_leader {
                     if let Some(new_leader) = current_leader {
                         if last_leader.is_some() {
-                            tracing::warn!(
-                                "Leader changed: {:?} -> {}",
-                                last_leader,
-                                new_leader
-                            );
+                            tracing::warn!("Leader changed: {:?} -> {}", last_leader, new_leader);
 
                             #[cfg(feature = "metrics")]
                             {
@@ -585,10 +578,7 @@ impl RaftCluster {
                     let lag = log_index.saturating_sub(last_applied.index);
 
                     if lag > 1000 {
-                        tracing::warn!(
-                            "High replication lag detected: {} entries behind",
-                            lag
-                        );
+                        tracing::warn!("High replication lag detected: {} entries behind", lag);
 
                         #[cfg(feature = "metrics")]
                         {
@@ -604,7 +594,7 @@ impl RaftCluster {
     fn start_election_monitoring(&self) {
         let raft = Arc::clone(&self.raft);
         let monitor = Arc::clone(&self.election_monitor);
-        let node_id = self.config.node_id;
+        let _node_id = self.config.node_id;
 
         tokio::spawn(async move {
             let mut last_term = 0u64;
@@ -688,10 +678,11 @@ impl RaftCluster {
     }
 
     /// Start automatic snapshot creation task
+    /// Start automatic snapshot creation task
     fn start_snapshot_automation(&self) {
         let raft = Arc::clone(&self.raft);
         let config = self.snapshot_config.clone();
-        let node_id = self.config.node_id;
+        let _node_id = self.config.node_id;
 
         tokio::spawn(async move {
             let interval = Duration::from_secs(config.interval_secs);
@@ -701,15 +692,9 @@ impl RaftCluster {
 
                 // Only leader creates snapshots
                 let metrics = raft.metrics().borrow().clone();
-                if metrics.current_leader != Some(node_id) {
-                    tracing::debug!("Node {} is not leader, skipping snapshot", node_id);
-                    continue;
-                }
-
-                // Check if snapshot is needed based on log size
                 let log_size = metrics.last_log_index.unwrap_or(0);
-                let last_snapshot = metrics.snapshot.as_ref().map(|s| s.index).unwrap_or(0);
-                let entries_since_snapshot = log_size.saturating_sub(last_snapshot);
+                let last_snapshot_index = metrics.snapshot.as_ref().map(|s| s.index).unwrap_or(0);
+                let entries_since_snapshot = log_size.saturating_sub(last_snapshot_index);
 
                 if entries_since_snapshot >= config.log_entries_threshold {
                     tracing::info!(
@@ -1017,7 +1002,8 @@ impl RaftCluster {
                             }
 
                             // Exponential backoff
-                            let backoff = Duration::from_millis(100 * 2u64.pow(attempts as u32 - 1));
+                            let backoff =
+                                Duration::from_millis(100 * 2u64.pow(attempts as u32 - 1));
                             tokio::time::sleep(backoff).await;
                             continue;
                         }
@@ -1165,7 +1151,7 @@ impl RaftCluster {
 
 #[async_trait]
 impl StorageBackend for RaftCluster {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()> {
         if entry.path.trim().is_empty() {
             return Err(StorageError::InvalidQuery {
                 message: "Path cannot be empty".to_string(),
@@ -1189,17 +1175,17 @@ impl StorageBackend for RaftCluster {
         }
     }
 
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>> {
         let entry = self.storage.get_entry_by_id(id).await;
         Ok(entry)
     }
 
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
         let entry = self.storage.get_entry_by_path(path).await;
         Ok(entry)
     }
 
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()> {
         let response = self
             .propose(StateMachineCommand::Update(entry.clone()))
             .await?;
@@ -1208,7 +1194,7 @@ impl StorageBackend for RaftCluster {
             StateMachineResponse::Updated(_) | StateMachineResponse::Success => Ok(()),
             StateMachineResponse::Error(msg) if msg == "Entry not found" => {
                 Err(StorageError::NotFound {
-                    resource_type: "VaultEntry".to_string(),
+                    resource_type: "SecretEntry".to_string(),
                     id: entry.id.to_string(),
                 })
             }
@@ -1257,7 +1243,7 @@ impl StorageBackend for RaftCluster {
         }
     }
 
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>> {
         let entries = self.storage.list_entries(params).await;
         Ok(entries)
     }
@@ -1338,6 +1324,15 @@ impl StorageBackend for RaftCluster {
         Ok(())
     }
 
+    async fn delete_expired(&self) -> StorageResult<u64> {
+        // TODO: Implement distributed expiration cleanup via Raft command
+        Ok(0)
+    }
+
+    async fn compact(&self) -> StorageResult<()> {
+        self.create_snapshot().await
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -1412,7 +1407,10 @@ mod tests {
         assert_eq!(status.targets[0].region, "us-west-2");
 
         // Test removing replication target
-        cluster.remove_replication_target("us-west-2").await.unwrap();
+        cluster
+            .remove_replication_target("us-west-2")
+            .await
+            .unwrap();
 
         let status = cluster.get_replication_status().await;
         assert_eq!(status.targets.len(), 0);

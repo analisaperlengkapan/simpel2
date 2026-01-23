@@ -1,6 +1,9 @@
 //! Configuration module (from layanan/daskrimti/konfigurasi)
 
-use axum::{routing::{get, put}, Router};
+use axum::{
+    Router,
+    routing::{get, put},
+};
 use std::sync::Arc;
 
 use crate::handlers::configuration;

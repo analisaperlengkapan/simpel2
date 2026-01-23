@@ -1,4 +1,4 @@
-//! Unit tests for Secreton Enterprise Vault core components
+//! Unit tests for Secreton Enterprise Engine core components
 
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;

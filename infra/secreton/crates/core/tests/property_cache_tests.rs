@@ -36,7 +36,7 @@ proptest! {
         for i in 0..num_entries {
             let key = format!("key_{}", i);
             let value = vec![i as u8];
-            cache.insert(
+            cache.insert_with_sensitivity(
                 key,
                 value,
                 Duration::from_secs(3600),
@@ -60,7 +60,7 @@ proptest! {
         // Now insert a new entry that should evict the LRU
         let new_key = "new_key".to_string();
         let new_value = vec![255];
-        cache.insert(
+        cache.insert_with_sensitivity(
             new_key.clone(),
             new_value.clone(),
             Duration::from_secs(3600),
@@ -95,7 +95,7 @@ proptest! {
 
         // Insert entries 0 to capacity-1
         for i in 0..capacity {
-            cache.insert(
+            cache.insert_with_sensitivity(
                 format!("key_{}", i),
                 vec![i as u8],
                 Duration::from_secs(3600),
@@ -110,7 +110,7 @@ proptest! {
         }
 
         // Insert one more entry - should evict key_0 (the LRU)
-        cache.insert(
+        cache.insert_with_sensitivity(
             "key_new".to_string(),
             vec![99],
             Duration::from_secs(3600),
@@ -143,7 +143,7 @@ proptest! {
 
         // Fill cache
         for i in 0..capacity {
-            cache.insert(
+            cache.insert_with_sensitivity(
                 format!("key_{}", i),
                 vec![i as u8],
                 Duration::from_secs(3600),
@@ -155,7 +155,7 @@ proptest! {
         let _ = cache.get(&"key_0".to_string());
 
         // Insert a new entry - should evict key_1 (now the LRU), not key_0
-        cache.insert(
+        cache.insert_with_sensitivity(
             "key_new".to_string(),
             vec![99],
             Duration::from_secs(3600),
@@ -184,7 +184,7 @@ proptest! {
 
         // Fill cache
         for i in 0..capacity {
-            cache.insert(
+            cache.insert_with_sensitivity(
                 format!("key_{}", i),
                 vec![i as u8],
                 Duration::from_secs(3600),
@@ -194,7 +194,7 @@ proptest! {
 
         // Insert multiple new entries
         for i in 0..num_new_entries {
-            cache.insert(
+            cache.insert_with_sensitivity(
                 format!("new_key_{}", i),
                 vec![100 + i as u8],
                 Duration::from_secs(3600),
@@ -242,9 +242,9 @@ mod unit_tests {
         let mut cache = SecretLruCache::new(3);
 
         // Insert 3 entries
-        cache.insert("a", vec![1], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("b", vec![2], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("c", vec![3], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("a", vec![1], Duration::from_secs(60));
+        cache.insert("b", vec![2], Duration::from_secs(60));
+        cache.insert("c", vec![3], Duration::from_secs(60));
 
         // All should be present
         assert_eq!(cache.get(&"a"), Some(vec![1]));
@@ -252,7 +252,7 @@ mod unit_tests {
         assert_eq!(cache.get(&"c"), Some(vec![3]));
 
         // Insert 4th entry - should evict "a" (LRU)
-        cache.insert("d", vec![4], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("d", vec![4], Duration::from_secs(60));
 
         assert_eq!(cache.get(&"a"), None);
         assert_eq!(cache.get(&"b"), Some(vec![2]));
@@ -264,15 +264,15 @@ mod unit_tests {
     fn test_lru_access_order() {
         let mut cache = SecretLruCache::new(3);
 
-        cache.insert("a", vec![1], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("b", vec![2], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("c", vec![3], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("a", vec![1], Duration::from_secs(60));
+        cache.insert("b", vec![2], Duration::from_secs(60));
+        cache.insert("c", vec![3], Duration::from_secs(60));
 
         // Access "a" to make it most recently used
         cache.get(&"a");
 
         // Insert "d" - should evict "b" (now LRU), not "a"
-        cache.insert("d", vec![4], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("d", vec![4], Duration::from_secs(60));
 
         assert_eq!(cache.get(&"a"), Some(vec![1])); // Still present
         assert_eq!(cache.get(&"b"), None); // Evicted
@@ -284,18 +284,18 @@ mod unit_tests {
     fn test_lru_eviction_count() {
         let mut cache = SecretLruCache::new(2);
 
-        cache.insert("a", vec![1], Duration::from_secs(60), SensitivityLevel::Low);
-        cache.insert("b", vec![2], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("a", vec![1], Duration::from_secs(60));
+        cache.insert("b", vec![2], Duration::from_secs(60));
 
         let stats = cache.stats();
         assert_eq!(stats.eviction_count, 0);
 
-        cache.insert("c", vec![3], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("c", vec![3], Duration::from_secs(60));
 
         let stats = cache.stats();
         assert_eq!(stats.eviction_count, 1);
 
-        cache.insert("d", vec![4], Duration::from_secs(60), SensitivityLevel::Low);
+        cache.insert("d", vec![4], Duration::from_secs(60));
 
         let stats = cache.stats();
         assert_eq!(stats.eviction_count, 2);

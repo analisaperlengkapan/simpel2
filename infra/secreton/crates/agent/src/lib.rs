@@ -1,6 +1,6 @@
-//! Secreton Vault Agent
+//! Secreton Engine Agent
 //!
-//! Auto-authentication, token renewal, and template rendering agent for Secreton vault.
+//! Auto-authentication, token renewal, and template rendering agent for Secreton engine.
 
 pub mod auth;
 pub mod config;
@@ -78,9 +78,9 @@ impl SecretonAgent {
         self.shutdown().await
     }
 
-    /// Authenticate with vault
+    /// Authenticate with engine
     async fn authenticate(&self) -> Result<()> {
-        info!("Authenticating with Secreton vault");
+        info!("Authenticating with Secreton engine");
 
         let token = auth::authenticate(
             &self.http_client,

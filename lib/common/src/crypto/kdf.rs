@@ -14,9 +14,9 @@
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use hkdf::Hkdf;
-use sha2::Sha256;
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
+use sha2::Sha256;
 use thiserror::Error;
 
 /// KDF errors
@@ -54,8 +54,7 @@ pub fn derive_key_argon2(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
         return Err(KdfError::InvalidSaltLength);
     }
 
-    let params = Params::new(65536, 10, 4, Some(32))
-        .map_err(|_| KdfError::InvalidParameters)?;
+    let params = Params::new(65536, 10, 4, Some(32)).map_err(|_| KdfError::InvalidParameters)?;
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 

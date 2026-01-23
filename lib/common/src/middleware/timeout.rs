@@ -1,9 +1,4 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-    http::StatusCode,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 use std::time::Duration;
 use tokio::time::timeout;
 

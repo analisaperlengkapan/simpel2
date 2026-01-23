@@ -1,7 +1,7 @@
 //! Quick utility to generate Argon2 password hash
 //! Usage: cargo run --example hash_password
 
-use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version, password_hash::SaltString};
 use rand::rngs::OsRng;
 
 fn main() {

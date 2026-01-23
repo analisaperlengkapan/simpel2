@@ -331,7 +331,8 @@ where
     }
 
     pub async fn insert(&self, key: K, value: V, ttl: Duration) {
-        self.insert_with_sensitivity(key, value, ttl, SensitivityLevel::default()).await
+        self.insert_with_sensitivity(key, value, ttl, SensitivityLevel::default())
+            .await
     }
 
     pub async fn insert_with_sensitivity(

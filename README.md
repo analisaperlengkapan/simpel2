@@ -295,7 +295,7 @@ simpelv2/
 
 ```bash
 # System Requirements
-- Docker & Docker Compose 20+
+- Docker & Docker Compose (v2 — prefer `docker compose`; see `docs/DOCKER_COMPOSE_MIGRATION.md`)
 - Rust 1.90+ (for development)
 - Trunk (for WASM builds)
 - PostgreSQL 15+ (or use Docker)

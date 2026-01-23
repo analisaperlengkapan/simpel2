@@ -1,8 +1,8 @@
 //! In-memory storage backend for development and testing
 
 use crate::{
-    HealthStatus, QueryParams, StorageBackend, StorageError, StorageResult, StorageStats,
-    StorageTransaction, VaultEntry,
+    HealthStatus, QueryParams, SecretEntry, StorageBackend, StorageError, StorageResult,
+    StorageStats, StorageTransaction,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use uuid::Uuid;
 /// In-memory storage backend
 #[derive(Clone)]
 pub struct MemoryBackend {
-    store: Arc<RwLock<HashMap<Uuid, VaultEntry>>>,
+    store: Arc<RwLock<HashMap<Uuid, SecretEntry>>>,
     path_index: Arc<RwLock<HashMap<String, Uuid>>>,
 }
 
@@ -35,7 +35,7 @@ impl Default for MemoryBackend {
 
 #[async_trait]
 impl StorageBackend for MemoryBackend {
-    async fn store(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn store(&self, entry: &SecretEntry) -> StorageResult<()> {
         // Basic validation: path must not be empty. This matches
         // expectations from comprehensive_storage_tests edge cases.
         if entry.path.trim().is_empty() {
@@ -53,12 +53,12 @@ impl StorageBackend for MemoryBackend {
         Ok(())
     }
 
-    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<SecretEntry>> {
         let store = self.store.read().await;
         Ok(store.get(&id).cloned())
     }
 
-    async fn get_by_path(&self, path: &str) -> StorageResult<Option<VaultEntry>> {
+    async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
         let path_index = self.path_index.read().await;
         if let Some(id) = path_index.get(path) {
             let store = self.store.read().await;
@@ -68,12 +68,12 @@ impl StorageBackend for MemoryBackend {
         }
     }
 
-    async fn update(&self, entry: &VaultEntry) -> StorageResult<()> {
+    async fn update(&self, entry: &SecretEntry) -> StorageResult<()> {
         let mut store = self.store.write().await;
 
         if !store.contains_key(&entry.id) {
             return Err(StorageError::NotFound {
-                resource_type: "VaultEntry".to_string(),
+                resource_type: "SecretEntry".to_string(),
                 id: entry.id.to_string(),
             });
         }
@@ -152,11 +152,11 @@ impl StorageBackend for MemoryBackend {
         Ok(())
     }
 
-    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<VaultEntry>> {
+    async fn list(&self, params: &QueryParams) -> StorageResult<Vec<SecretEntry>> {
         let store = self.store.read().await;
 
         // Start with all entries
-        let mut entries: Vec<VaultEntry> = store.values().cloned().collect();
+        let mut entries: Vec<SecretEntry> = store.values().cloned().collect();
 
         // Apply path prefix filtering if requested. Other filters can be
         // added here as they are needed by callers.
@@ -214,7 +214,7 @@ mod tests {
     async fn test_memory_backend_store_and_retrieve() {
         let backend = MemoryBackend::new();
 
-        let entry = VaultEntry {
+        let entry = SecretEntry {
             id: Uuid::new_v4(),
             path: "test/secret".to_string(),
             encrypted_data: vec![1, 2, 3, 4],
@@ -247,7 +247,7 @@ mod tests {
     async fn test_memory_backend_delete() {
         let backend = MemoryBackend::new();
 
-        let entry = VaultEntry {
+        let entry = SecretEntry {
             id: Uuid::new_v4(),
             path: "test/secret".to_string(),
             encrypted_data: vec![1, 2, 3, 4],

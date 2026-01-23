@@ -96,6 +96,7 @@ impl TomlPolicyParser {
     }
 
     /// Validate IP address format
+    /// Validate IP address format
     fn validate_ip(ip: &str) -> Result<(), PolicyParseError> {
         // Check if it's a valid IP or CIDR notation
         if ip.contains('/') {

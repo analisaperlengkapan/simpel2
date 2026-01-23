@@ -52,7 +52,7 @@ pub use secreton_crypto::{
 
     // Storage integration
     storage_integration::{
-        CryptoStorageBridge, EncryptedVaultEntry, EncryptionMetadata as CryptoEncryptionMetadata,
+        CryptoStorageBridge, EncryptedSecretEntry, EncryptionMetadata as CryptoEncryptionMetadata,
         KeyInfo,
     },
 

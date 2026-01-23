@@ -57,7 +57,7 @@ threshold = 3
 
 ### Application Config
 - Disimpan terenkripsi di storage backend
-- Hanya accessible setelah vault unsealed
+- Hanya accessible setelah engine unsealed
 - Berisi: auth, database, MFA, rate limiting, CORS
 
 ## Files Changed

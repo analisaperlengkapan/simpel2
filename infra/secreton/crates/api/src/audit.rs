@@ -1,4 +1,4 @@
-//! Audit logging for vault operations
+//! Audit logging for engine operations
 //! Tracks all secret access, modifications, and deletions for compliance
 
 use chrono::{DateTime, Duration, Utc};
@@ -107,7 +107,7 @@ impl AuditEvent {
     }
 }
 
-/// Audit logger for vault operations (API-specific wrapper)
+/// Audit logger for engine operations (API-specific wrapper)
 #[derive(Clone)]
 pub struct AuditLogger {
     /// Core audit logger

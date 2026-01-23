@@ -635,9 +635,6 @@ fn test_multiple_policies_with_different_paths() {
 
 #[test]
 fn test_cache_expiration() {
-    use std::thread;
-    use std::time::Duration;
-
     let rules = vec![create_test_rule("allow", "read", "secret/*")];
     let policy_set = PolicySet::new(rules);
 

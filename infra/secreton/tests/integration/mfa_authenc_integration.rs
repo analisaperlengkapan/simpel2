@@ -143,7 +143,7 @@ println!("⚠️  TOTP verification failed: {:?}", e);
             Ok(Err(e)) => {
                 println!("❌ MFA setup failed: {:?}", e);
                 match e {
-                    SecretonError::AuthencCommunicationError { .. } => {
+                    SecretonError::AuthencCommunicationError { ..  => {
                         println!("ℹ️  This is expected if authenc is not running for integration tests");
                     }
                     _ => panic!("Unexpected error during MFA setup: {:?}", e),
@@ -191,7 +191,7 @@ else {
                 Ok(Err(SecretonError::InvalidMfaCode)) => {
                     if !should_succeed {
                         println!("✅ MFA verification correctly failed: {}", description);
-                    } else {
+                     } else {
                         panic!("MFA verification should have succeeded for: {}", description);
                     }
                 }
@@ -331,7 +331,7 @@ else {
             Ok(Err(e)) => {
                 println!("❌ Admin MFA disable failed: {:?}", e);
                 match e {
-                    SecretonError::AuthencCommunicationError { .. } => {
+                    SecretonError::AuthencCommunicationError { ..  => {
                         println!("ℹ️  This is expected if authenc is not running for integration tests");
                     }
                     SecretonError::InsufficientPermissions => {
@@ -388,7 +388,7 @@ else {
 
             match verification_result {
                 Ok(Err(SecretonError::RateLimitExceeded)) => {
-                    println!("✅ Rate limiting triggered after {} attempts", i + 1);
+                    println!("✅ Rate limiting triggered after { attempts", i + 1);
                     attempts = i + 1;
                     break;
                 }
@@ -408,10 +408,10 @@ else {
         }
 
         if attempts > 0 {
-            println!("✅ Rate limiting working correctly, triggered after {} attempts", attempts);
+            println!("✅ Rate limiting working correctly, triggered after { attempts", attempts);
             assert!(attempts <= config.mfa.max_attempts_per_window);
-        } else {
-            println!("⚠️  Rate limiting not triggered within {} attempts", max_attempts);
+         } else {
+            println!("⚠️  Rate limiting not triggered within { attempts", max_attempts);
         }
     }
 
@@ -471,7 +471,7 @@ else {
         use hmac::{Hmac, Mac};
         use sha1::Sha1;
 
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
+        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false , secret)
             .expect("Failed to decode secret");
 
         let current_time = chrono::Utc::now().timestamp() as u64;
@@ -532,7 +532,7 @@ mod end_to_end_tests {
                 println!("❌ MFA setup timed out");
                 return;
             }
-        };
+        ;
 
         // Step 2: TOTP Verification
         println!("📋 Step 2: TOTP Verification");
@@ -614,7 +614,7 @@ mod end_to_end_tests {
         use hmac::{Hmac, Mac};
         use sha1::Sha1;
 
-        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
+        let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false , secret)
             .expect("Failed to decode secret");
 
         let current_time = chrono::Utc::now().timestamp() as u64;

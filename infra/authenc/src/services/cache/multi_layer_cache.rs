@@ -318,7 +318,8 @@ mod tests {
     }
 
     // Helper to create a test Redis cache
-    async fn create_test_redis_cache() -> std::result::Result<Arc<RedisCache>, crate::error::AuthencError> {
+    async fn create_test_redis_cache()
+    -> std::result::Result<Arc<RedisCache>, crate::error::AuthencError> {
         let config = RedisConfig {
             enabled: true,
             url: get_test_redis_url(),

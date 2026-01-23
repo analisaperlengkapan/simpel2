@@ -134,7 +134,7 @@ During migration, support both systems:
 - Only infrastructure config in secreton.toml (NO SECRETS)
 - All secrets encrypted with AES-256-GCM
 - Master key protected by Shamir Secret Sharing
-- Vault starts SEALED
+- Secret Vault starts SEALED
 - Secrets only accessible after unseal
 
 ## Rollback Plan

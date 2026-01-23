@@ -26,9 +26,11 @@ deadpool-postgres = { workspace = true }
 # Caching
 redis = { workspace = true }
 
-# gRPC Client
+# gRPC Client - using explicit 0.14 versions to match tonic-prost
 tonic = { workspace = true }
-prost = { workspace = true }
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
 
 # Observability
 tracing = { workspace = true }
@@ -47,6 +49,9 @@ lib-common = { path = "../../../lib/common", features = ["grpc", "encryption", "
 
 [dev-dependencies]
 axum-test = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
 
 [features]
 default = []

@@ -281,7 +281,7 @@ impl TransformEngine {
                 if let Some(pos) = chars.iter().position(|&ch| ch == c) {
                     let new_pos = (pos + shift) % radix;
                     chars[new_pos]
-                } else {
+                 } else {
                     c // Keep non-alphabet characters as-is
                 }
             })
@@ -311,7 +311,7 @@ impl TransformEngine {
                 if let Some(pos) = chars.iter().position(|&ch| ch == c) {
                     let new_pos = (pos + radix - shift) % radix;
                     chars[new_pos]
-                } else {
+                 } else {
                     c
                 }
             })
@@ -374,12 +374,12 @@ impl TransformEngine {
         // Apply template if available
         if let Some(ref template) = transformation.template {
             self.apply_template(value, template, mask_char)
-        } else {
+         } else {
             // Default: mask all but last 4 characters
             let len = value.len();
             if len <= 4 {
                 Ok(mask_char.to_string().repeat(len))
-            } else {
+             } else {
                 let masked = mask_char.to_string().repeat(len - 4);
                 let visible = &value[len - 4..];
                 Ok(format!("{}{}", masked, visible))
@@ -406,7 +406,7 @@ impl TransformEngine {
                             let c = value_chars[value_idx];
                             value_idx += 1;
                             c
-                        } else {
+                         } else {
                             mask_char
                         }
                     }

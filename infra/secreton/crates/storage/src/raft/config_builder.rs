@@ -144,8 +144,10 @@ mod tests {
             .build();
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("heartbeat_interval_ms must be less than"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("heartbeat_interval_ms must be less than")
+        );
     }
 }

@@ -16,13 +16,13 @@ pub enum Kvv2Error {
     #[error("Secret not found: {0}")]
     SecretNotFound(String),
 
-    #[error("Version not found: {0} version {1}")]
+    #[error("Version not found: {} version {}", 0, 1)]
     VersionNotFound(String, u64),
 
-    #[error("Version deleted: {0} version {1}")]
+    #[error("Version deleted: {} version {}", 0, 1)]
     VersionDeleted(String, u64),
 
-    #[error("Version destroyed: {0} version {1}")]
+    #[error("Version destroyed: {} version {}", 0, 1)]
     VersionDestroyed(String, u64),
 
     #[error("Check-and-set mismatch")]

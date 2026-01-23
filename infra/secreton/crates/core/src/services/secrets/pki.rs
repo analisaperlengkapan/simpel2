@@ -83,7 +83,10 @@ impl Default for CertificateTemplate {
             max_ttl: Duration::days(365),
             allow_any_name: false,
             allowed_domains: Vec::new(),
-            key_usage: vec!["DigitalSignature".to_string(), "KeyEncipherment".to_string()],
+            key_usage: vec![
+                "DigitalSignature".to_string(),
+                "KeyEncipherment".to_string(),
+            ],
             ext_key_usage: vec!["ServerAuth".to_string()],
             require_cn: true,
             allow_localhost: false,
@@ -230,11 +233,9 @@ impl PkiEngine {
         parent_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
 
         // Reconstruct parent CA certificate
-        let parent_cert = parent_params
-            .self_signed(&parent_key_pair)
-            .map_err(|e| {
-                PkiError::GenerationFailed(format!("Failed to reconstruct parent CA: {}", e))
-            })?;
+        let parent_cert = parent_params.self_signed(&parent_key_pair).map_err(|e| {
+            PkiError::GenerationFailed(format!("Failed to reconstruct parent CA: {}", e))
+        })?;
 
         // Create intermediate CA distinguished name
         let mut dn = DistinguishedName::new();
@@ -602,7 +603,7 @@ impl PkiEngine {
     ) -> Result<IssuedCertificate, PkiError> {
         // Get the original certificate
         let issued = self.issued_certificates.read().await;
-        let original_cert = issued
+        let _original_cert = issued
             .get(serial_number)
             .ok_or_else(|| PkiError::CertificateNotFound(serial_number.to_string()))?;
 

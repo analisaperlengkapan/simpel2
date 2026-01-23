@@ -353,4 +353,13 @@ mod tests {
             _ => panic!("Expected InvalidKeyLength error"),
         }
     }
+
+    #[test]
+    fn test_error_display() {
+        let err = CryptoError::InvalidKeyLength {
+            expected: 32,
+            actual: 16,
+        };
+        assert!(err.to_string().contains("32"));
+    }
 }

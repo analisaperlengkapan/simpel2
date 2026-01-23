@@ -7,9 +7,7 @@ use lib_common::cache::{AsyncLruCache, CacheStats};
 use serde_json::Value;
 
 // Re-export common cache types
-pub use lib_common::cache::{
-    LruCache, ThreadSafeLruCache,
-};
+pub use lib_common::cache::{LruCache, ThreadSafeLruCache};
 
 /// Specialized cache for JWT tokens
 pub type TokenCache = AsyncLruCache<String, String>;

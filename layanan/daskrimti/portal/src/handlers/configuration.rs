@@ -1,8 +1,8 @@
 //! Configuration handlers
 
 use axum::{
-    extract::{Path, State},
     Json,
+    extract::{Path, State},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -24,9 +24,7 @@ pub struct UpdateConfigRequest {
     pub value: serde_json::Value,
 }
 
-pub async fn list_configs(
-    State(_state): State<Arc<AppState>>,
-) -> Result<Json<Vec<ConfigItem>>> {
+pub async fn list_configs(State(_state): State<Arc<AppState>>) -> Result<Json<Vec<ConfigItem>>> {
     // TODO: Fetch from database
     Ok(Json(vec![]))
 }

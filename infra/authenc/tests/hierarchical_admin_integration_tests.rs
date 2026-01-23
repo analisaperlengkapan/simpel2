@@ -1148,8 +1148,12 @@ fn get_admin_satker(admin_level: &AdminLevel) -> &str {
 fn test_config() -> AuthencConfig {
     let mut config = AuthencConfig::default();
     config.secreton = Some(authenc::config::SecretonConfig {
+        enabled: true,
         endpoint: "https://secreton.test".to_string(),
         token: "test-token".to_string(),
+        mount_path: "secret".to_string(),
+        key_rotation_interval: 3600,
+        secrets_to_load: vec![],
     });
     config
 }
@@ -1162,7 +1166,7 @@ impl SecretonClient {
 
     async fn perform_hierarchical_admin_operation(
         &self,
-        token: &str,
+        _token: &str,
         operation: &str,
         target_unit: &str,
         admin_level: &AdminLevel,
@@ -1196,7 +1200,7 @@ impl SecretonClient {
 
     async fn perform_role_delegation(
         &self,
-        token: &str,
+        _token: &str,
         delegating_admin: &AdminLevel,
         target_admin: &AdminLevel,
         operation: &str,
@@ -1229,10 +1233,10 @@ impl SecretonClient {
 
     async fn perform_audited_hierarchical_operation(
         &self,
-        token: &str,
-        operation: &str,
-        target_unit: &str,
-        admin_type: &str,
+        _token: &str,
+        _operation: &str,
+        _target_unit: &str,
+        _admin_type: &str,
     ) -> Result<bool, AuthencError> {
         // Mock audited hierarchical operation
         Ok(true)
@@ -1240,8 +1244,8 @@ impl SecretonClient {
 
     async fn get_hierarchical_audit_trail(
         &self,
-        scope: &str,
-        filter: Option<&str>,
+        _scope: &str,
+        _filter: Option<&str>,
     ) -> Result<Vec<MockHierarchicalAuditEntry>, AuthencError> {
         Ok(vec![
             MockHierarchicalAuditEntry {
@@ -1269,7 +1273,7 @@ impl SecretonClient {
 
     async fn perform_emergency_override(
         &self,
-        token: &str,
+        _token: &str,
         emergency_type: &str,
         target_unit: &str,
         admin_level: &AdminLevel,
@@ -1305,8 +1309,8 @@ impl SecretonClient {
 
     async fn perform_cross_organizational_operation(
         &self,
-        token: &str,
-        operation: &str,
+        _token: &str,
+        _operation: &str,
     ) -> Result<bool, AuthencError> {
         // Mock cross-organizational operation (only AdminPusat should succeed)
         Ok(true)

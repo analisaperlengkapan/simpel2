@@ -1,6 +1,6 @@
 # HSM (Hardware Security Module) Integration
 
-This module provides Hardware Security Module integration for Secreton, implementing the `HsmVault` trait from Authenc.
+This module provides Hardware Security Module integration for Secreton, implementing the `HsmSecret Vault` trait from Authenc.
 
 ## Overview
 
@@ -27,7 +27,7 @@ The HSM module enables Secreton to leverage hardware-backed security for cryptog
 ┌───▼──────────────┐  ┌──────▼──────────────┐
 │ Pkcs11Provider   │  │  Future Providers   │
 │ - PKCS#11 HSM    │  │  - AWS KMS          │
-│ - Smart Cards    │  │  - Azure Key Vault  │
+│ - Smart Cards    │  │  - Azure Key Secret Vault  │
 │                  │  │  - GCP KMS          │
 └──────────────────┘  └─────────────────────┘
 ```
@@ -36,7 +36,7 @@ The HSM module enables Secreton to leverage hardware-backed security for cryptog
 
 ### HsmBackend
 
-Main interface for HSM operations. Implements the `HsmVault` trait from Authenc.
+Main interface for HSM operations. Implements the `HsmSecret Vault` trait from Authenc.
 
 **Key Methods:**
 - `initialize()` - Initialize HSM connection
@@ -231,7 +231,7 @@ cargo test --package secreton-core --test hsm_integration
 ## Future Enhancements
 
 - [ ] AWS KMS provider implementation
-- [ ] Azure Key Vault provider implementation
+- [ ] Azure Key Secret Vault provider implementation
 - [ ] GCP KMS provider implementation
 - [ ] Key rotation support
 - [ ] Backup and restore
@@ -242,7 +242,7 @@ cargo test --package secreton-core --test hsm_integration
 
 - [PKCS#11 Specification](http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.html)
 - [FIPS 140-2 Standard](https://csrc.nist.gov/publications/detail/fips/140/2/final)
-- [Authenc HsmVault Trait](../../../authenc/src/vault/mod.rs)
+- [Authenc HsmSecret Vault Trait](../../../authenc/src/engine/mod.rs)
 
 ## License
 

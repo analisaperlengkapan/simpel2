@@ -813,8 +813,12 @@ struct CryptoEngine;
 fn base_test_config() -> AuthencConfig {
     let mut config = AuthencConfig::default();
     config.secreton = Some(authenc::config::SecretonConfig {
+        enabled: true,
         endpoint: "https://secreton.test".to_string(),
         token: "test-token".to_string(),
+        mount_path: "authenc/kv".to_string(),
+        key_rotation_interval: 3600,
+        secrets_to_load: vec![],
     });
     config
 }

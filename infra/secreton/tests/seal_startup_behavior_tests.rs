@@ -1,31 +1,31 @@
 //! Integration tests for seal/unseal startup behavior
 //!
-//! CRITICAL SECURITY TESTS: These tests verify that the vault follows
-//! HashiCorp Vault security best practices:
-//! 1. Vault starts in sealed mode by default
-//! 2. initialize() does NOT auto-unseal (vault remains sealed after init)
+//! CRITICAL SECURITY TESTS: These tests verify that the engine follows
+//! HashiCorp Engine security best practices:
+//! 1. Engine starts in sealed mode by default
+//! 2. initialize() does NOT auto-unseal (engine remains sealed after init)
 //! 3. All API operations are blocked when sealed (except whitelisted endpoints)
 //! 4. Middleware properly checks seal status
 //! 5. Health check reflects seal status (503 when sealed)
 
-use secreton_core::services::seal::{InMemoryVaultStateStorage, SealConfig, SealService};
+use secreton_core::services::seal::{InMemoryEngineStateStorage, SealConfig, SealService};
 use std::sync::Arc;
 
 #[tokio::test]
-async fn test_vault_starts_sealed_by_default() {
-    // CRITICAL: Vault should start in sealed mode
+async fn test_engine_starts_sealed_by_default() {
+    // CRITICAL: Engine should start in sealed mode
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
-    // Verify vault is sealed at startup
+    // Verify engine is sealed at startup
     assert!(
         seal_service.is_sealed().await,
-        "Vault should start in sealed mode"
+        "Engine should start in sealed mode"
     );
     assert!(
         !seal_service.is_unsealed().await,
-        "Vault should not be unsealed at startup"
+        "Engine should not be unsealed at startup"
     );
 
     // Verify status
@@ -38,8 +38,8 @@ async fn test_vault_starts_sealed_by_default() {
 
 #[tokio::test]
 async fn test_initialize_does_not_auto_unseal() {
-    // CRITICAL SECURITY FIX: initialize() should NOT unseal the vault
-    // This follows HashiCorp Vault best practices
+    // CRITICAL SECURITY FIX: initialize() should NOT unseal the engine
+    // This follows HashiCorp Engine best practices
     let config = SealConfig {
         seal_type: "shamir".to_string(),
         secret_shares: 5,
@@ -47,21 +47,21 @@ async fn test_initialize_does_not_auto_unseal() {
         created_at: chrono::Utc::now(),
     };
 
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
-    // Initialize vault - generates master key and shares
+    // Initialize engine - generates master key and shares
     let shares = seal_service.initialize().await.unwrap();
     assert_eq!(shares.len(), 5, "Should generate 5 shares");
 
-    // CRITICAL: Vault should remain SEALED after initialization
+    // CRITICAL: Engine should remain SEALED after initialization
     assert!(
         seal_service.is_sealed().await,
-        "Vault should remain sealed after initialization"
+        "Engine should remain sealed after initialization"
     );
     assert!(
         !seal_service.is_unsealed().await,
-        "Vault should not be unsealed after initialization"
+        "Engine should not be unsealed after initialization"
     );
 
     // Verify master key is NOT available when sealed
@@ -82,13 +82,13 @@ async fn test_manual_unseal_required_after_init() {
         created_at: chrono::Utc::now(),
     };
 
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
-    // Initialize vault
-    let shares = seal_service.initialize().await.unwrap();
+    // Initialize engine
+    let _shares = seal_service.initialize().await.unwrap();
 
-    // Vault is sealed after init
+    // Engine is sealed after init
     assert!(seal_service.is_sealed().await);
 
     // Master key must not be available until manual unseal is performed
@@ -101,9 +101,9 @@ async fn test_manual_unseal_required_after_init() {
 
 #[tokio::test]
 async fn test_seal_clears_master_key_from_memory() {
-    // CRITICAL: Sealing the vault should clear the master key from memory
+    // CRITICAL: Sealing the engine should clear the master key from memory
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
     // Initialize and unseal
@@ -117,11 +117,11 @@ async fn test_seal_clears_master_key_from_memory() {
     assert!(seal_service.is_unsealed().await);
     assert!(seal_service.get_master_key().await.is_ok());
 
-    // Seal the vault
+    // Seal the engine
     seal_service.seal().await.unwrap();
 
     // Verify sealed and master key NOT available
-    assert!(seal_service.is_sealed().await, "Vault should be sealed");
+    assert!(seal_service.is_sealed().await, "Engine should be sealed");
     assert!(
         seal_service.get_master_key().await.is_err(),
         "Master key should not be available after seal"
@@ -138,10 +138,10 @@ async fn test_unseal_progress_tracking() {
         created_at: chrono::Utc::now(),
     };
 
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
-    // Initialize vault (generates shares but keeps vault sealed)
+    // Initialize engine (generates shares but keeps engine sealed)
     seal_service.initialize().await.unwrap();
 
     let status = seal_service.status().await;
@@ -156,9 +156,9 @@ async fn test_unseal_progress_tracking() {
 
 #[tokio::test]
 async fn test_load_from_storage_starts_sealed() {
-    // CRITICAL: When loading vault state from storage, vault should start sealed
+    // CRITICAL: When loading engine state from storage, engine should start sealed
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
 
     // Initialize first service
     let service1 = SealService::with_storage(config.clone(), storage.clone());
@@ -178,16 +178,16 @@ async fn test_load_from_storage_starts_sealed() {
     // Create second service and load from storage
     let service2 = SealService::with_storage(config, storage);
     let loaded = service2.load_from_storage().await.unwrap();
-    assert!(loaded, "Should successfully load vault state");
+    assert!(loaded, "Should successfully load engine state");
 
-    // CRITICAL: Vault should be sealed after loading from storage
+    // CRITICAL: Engine should be sealed after loading from storage
     assert!(
         service2.is_sealed().await,
-        "Vault should be sealed after loading from storage"
+        "Engine should be sealed after loading from storage"
     );
     assert!(
         !service2.is_unsealed().await,
-        "Vault should not be unsealed after loading"
+        "Engine should not be unsealed after loading"
     );
 
     // Master key should NOT be available
@@ -205,7 +205,7 @@ async fn test_load_from_storage_starts_sealed() {
     // Now should be unsealed
     assert!(
         service2.is_unsealed().await,
-        "Vault should be unsealed after providing shares"
+        "Engine should be unsealed after providing shares"
     );
 }
 
@@ -213,7 +213,7 @@ async fn test_load_from_storage_starts_sealed() {
 async fn test_invalid_share_rejected() {
     // Test that invalid shares are rejected
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
     // Initialize
@@ -230,7 +230,7 @@ async fn test_invalid_share_rejected() {
 async fn test_duplicate_shares_ignored() {
     // Test that duplicate shares are ignored (only counted once)
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
     // Initialize
@@ -252,7 +252,7 @@ async fn test_duplicate_shares_ignored() {
 async fn test_reset_unseal_progress() {
     // Test that unseal progress can be reset
     let config = SealConfig::default();
-    let storage = Arc::new(InMemoryVaultStateStorage::new());
+    let storage = Arc::new(InMemoryEngineStateStorage::new());
     let seal_service = SealService::with_storage(config, storage);
 
     // Initialize

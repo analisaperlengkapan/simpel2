@@ -56,9 +56,9 @@ impl GlobalMetrics {
     }
 }
 
-/// Metrics for vault operations
+/// Metrics for engine operations
 #[derive(Debug, Clone)]
-pub struct VaultMetrics {
+pub struct EngineMetrics {
     // Operation counters
     secret_creates: Arc<AtomicU64>,
     secret_reads: Arc<AtomicU64>,
@@ -79,13 +79,13 @@ pub struct VaultMetrics {
     health_failures: Arc<AtomicU64>,
 }
 
-impl Default for VaultMetrics {
+impl Default for EngineMetrics {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl VaultMetrics {
+impl EngineMetrics {
     /// Create new metrics tracker
     pub fn new() -> Self {
         Self {
@@ -203,49 +203,49 @@ impl VaultMetrics {
     pub fn to_prometheus(&self) -> String {
         let snapshot = self.snapshot();
         format!(
-            r#"# HELP vault_secret_creates_total Total number of secret creations
-# TYPE vault_secret_creates_total counter
-vault_secret_creates_total {}
+            r#"# HELP engine_secret_creates_total Total number of secret creations
+# TYPE engine_secret_creates_total counter
+engine_secret_creates_total {}
 
-# HELP vault_secret_reads_total Total number of secret reads
-# TYPE vault_secret_reads_total counter
-vault_secret_reads_total {}
+# HELP engine_secret_reads_total Total number of secret reads
+# TYPE engine_secret_reads_total counter
+engine_secret_reads_total {}
 
-# HELP vault_secret_updates_total Total number of secret updates
-# TYPE vault_secret_updates_total counter
-vault_secret_updates_total {}
+# HELP engine_secret_updates_total Total number of secret updates
+# TYPE engine_secret_updates_total counter
+engine_secret_updates_total {}
 
-# HELP vault_secret_deletes_total Total number of secret deletions
-# TYPE vault_secret_deletes_total counter
-vault_secret_deletes_total {}
+# HELP engine_secret_deletes_total Total number of secret deletions
+# TYPE engine_secret_deletes_total counter
+engine_secret_deletes_total {}
 
-# HELP vault_secret_rotations_total Total number of secret rotations
-# TYPE vault_secret_rotations_total counter
-vault_secret_rotations_total {}
+# HELP engine_secret_rotations_total Total number of secret rotations
+# TYPE engine_secret_rotations_total counter
+engine_secret_rotations_total {}
 
-# HELP vault_auth_failures_total Total number of authentication failures
-# TYPE vault_auth_failures_total counter
-vault_auth_failures_total {}
+# HELP engine_auth_failures_total Total number of authentication failures
+# TYPE engine_auth_failures_total counter
+engine_auth_failures_total {}
 
-# HELP vault_operation_failures_total Total number of operation failures
-# TYPE vault_operation_failures_total counter
-vault_operation_failures_total {}
+# HELP engine_operation_failures_total Total number of operation failures
+# TYPE engine_operation_failures_total counter
+engine_operation_failures_total {}
 
-# HELP vault_health_checks_total Total number of health checks
-# TYPE vault_health_checks_total counter
-vault_health_checks_total {}
+# HELP engine_health_checks_total Total number of health checks
+# TYPE engine_health_checks_total counter
+engine_health_checks_total {}
 
-# HELP vault_health_failures_total Total number of health check failures
-# TYPE vault_health_failures_total counter
-vault_health_failures_total {}
+# HELP engine_health_failures_total Total number of health check failures
+# TYPE engine_health_failures_total counter
+engine_health_failures_total {}
 
-# HELP vault_operation_latency_ms Average operation latency in milliseconds
-# TYPE vault_operation_latency_ms gauge
-vault_operation_latency_ms {}
+# HELP engine_operation_latency_ms Average operation latency in milliseconds
+# TYPE engine_operation_latency_ms gauge
+engine_operation_latency_ms {}
 
-# HELP vault_total_operations Total number of operations
-# TYPE vault_total_operations counter
-vault_total_operations {}
+# HELP engine_total_operations Total number of operations
+# TYPE engine_total_operations counter
+engine_total_operations {}
 "#,
             snapshot.secret_creates,
             snapshot.secret_reads,
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_metrics_creation() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
         let snapshot = metrics.snapshot();
 
         assert_eq!(snapshot.total_operations, 0);
@@ -469,7 +469,7 @@ mod tests {
 
     #[test]
     fn test_record_operations() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_create(Duration::from_millis(10));
         metrics.record_read(Duration::from_millis(5));
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_record_failures() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_auth_failure();
         metrics.record_operation_failure();
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_health_check_tracking() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_health_check(true);
         metrics.record_health_check(true);
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_average_latency() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_create(Duration::from_millis(10));
         metrics.record_read(Duration::from_millis(20));
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_reset_metrics() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_create(Duration::from_millis(10));
         metrics.record_read(Duration::from_millis(10));
@@ -580,16 +580,16 @@ mod tests {
 
     #[test]
     fn test_prometheus_export() {
-        let metrics = VaultMetrics::new();
+        let metrics = EngineMetrics::new();
 
         metrics.record_create(Duration::from_millis(10));
         metrics.record_read(Duration::from_millis(5));
 
         let prometheus = metrics.to_prometheus();
 
-        assert!(prometheus.contains("vault_secret_creates_total 1"));
-        assert!(prometheus.contains("vault_secret_reads_total 1"));
-        assert!(prometheus.contains("vault_total_operations 2"));
+        assert!(prometheus.contains("engine_secret_creates_total 1"));
+        assert!(prometheus.contains("engine_secret_reads_total 1"));
+        assert!(prometheus.contains("engine_total_operations 2"));
     }
 
     #[test]

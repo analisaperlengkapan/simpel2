@@ -115,7 +115,7 @@
 //! if let Some(user_id) = token_cache.get(token) {
 //!     println!("Cache hit: {}", user_id);
 //!     // Skip Authenc validation
-//! } else {
+//!  else {
 //!     // Validate with Authenc
 //!     let user_id = validate_with_authenc(token);
 //!     token_cache.insert(token.to_string(), user_id);
@@ -136,7 +136,7 @@
 //! // Cache policy decisions for 1 minute
 //! let mut policy_cache = LruCache::new(5_000, Duration::from_secs(60));
 //!
-//! let cache_key = format!("{}:{}", user_id, resource_path);
+//! let cache_key = format!("{::}", user_id, resource_path);
 //!
 //! if let Some(allowed) = policy_cache.get(&cache_key) {
 //!     return *allowed; // Use cached decision
@@ -166,7 +166,7 @@
 //!     secret.extend_from_slice(b"password123");
 //!
 //!     // Use secret...
-//! } // <- Memory zeroed here automatically
+//!  // <- Memory zeroed here automatically
 //!
 //! // Memory now contains all zeros, not "password123"
 //! # }
@@ -204,7 +204,7 @@
 //! # let cache: LruCache<String, String> = LruCache::new(100, std::time::Duration::from_secs(60));
 //! let stats = cache.stats();
 //! println!("Hit rate: {:.2}%", stats.hit_rate() * 100.0);
-//! println!("Hits: {}, Misses: {}", stats.hits, stats.misses);
+//! println!("Hits: {, Misses: {}", stats.hits, stats.misses);
 //! # }
 //! ```
 //!
@@ -321,15 +321,10 @@ pub mod memory;
 pub mod validation;
 
 // Re-export cache types (SensitivityLevel from cache takes precedence)
-pub use cache::{
-    SecretCacheStats, SecretLruCache, SensitivityLevel, ThreadSafeSecretCache,
-};
-
+pub use cache::{SecretCacheStats, SecretLruCache, SensitivityLevel, ThreadSafeSecretCache};
 
 // Re-export memory types (but not SensitivityLevel to avoid conflict)
-pub use memory::{
-    SecretMemoryPool, SecretMemoryStats, SecureSecretMemory, SecureSecretString,
-};
+pub use memory::{SecretMemoryPool, SecretMemoryStats, SecureSecretMemory, SecureSecretString};
 // Re-export memory's SensitivityLevel with an alias for explicit usage
 pub use memory::SensitivityLevel as MemorySensitivityLevel;
 

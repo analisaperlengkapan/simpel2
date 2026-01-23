@@ -1,6 +1,6 @@
 //! AWS S3 Storage Backend
 //!
-//! Implements HashiCorp Vault-compatible S3 storage backend for cloud-native deployments.
+//! Implements HashiCorp Engine-compatible S3 storage backend for cloud-native deployments.
 //! S3 provides:
 //!
 //! - **Unlimited Scalability**: Petabyte-scale storage capacity
@@ -28,7 +28,7 @@
 //! ```toml
 //! [storage]
 //! backend = "s3"
-//! bucket = "my-secreton-vault"
+//! bucket = "my-secreton-engine"
 //! region = "us-east-1"
 //! access_key = "${AWS_ACCESS_KEY_ID}"
 //! secret_key = "${AWS_SECRET_ACCESS_KEY}"
@@ -40,14 +40,14 @@ use crate::{BackendMetrics, KvBackend, StorageError, StorageResult};
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client;
-use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::error::SdkError;
 use aws_sdk_s3::config::SharedCredentialsProvider;
+use aws_sdk_s3::error::SdkError;
+use aws_sdk_s3::primitives::ByteStream;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
 
 /// S3 storage backend configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +89,7 @@ pub struct S3Config {
 impl Default for S3Config {
     fn default() -> Self {
         Self {
-            bucket: "secreton-vault".to_string(),
+            bucket: "secreton-engine".to_string(),
             region: "us-east-1".to_string(),
             access_key: String::new(),
             secret_key: String::new(),
@@ -125,9 +125,8 @@ impl S3Backend {
                 None,
                 "static",
             );
-            sdk_config_loader = sdk_config_loader.credentials_provider(
-                SharedCredentialsProvider::new(credentials)
-            );
+            sdk_config_loader =
+                sdk_config_loader.credentials_provider(SharedCredentialsProvider::new(credentials));
         }
 
         if let Some(ref endpoint) = config.endpoint {
@@ -135,8 +134,8 @@ impl S3Backend {
         }
 
         // Apply retry configuration
-        let retry_config = aws_config::retry::RetryConfig::standard()
-            .with_max_attempts(config.max_retries);
+        let retry_config =
+            aws_config::retry::RetryConfig::standard().with_max_attempts(config.max_retries);
         sdk_config_loader = sdk_config_loader.retry_config(retry_config);
 
         // Apply timeout configuration
@@ -147,8 +146,8 @@ impl S3Backend {
 
         let sdk_config = sdk_config_loader.load().await;
 
-        let client_config_builder = aws_sdk_s3::config::Builder::from(&sdk_config)
-             .force_path_style(true); // Useful for MinIO/testing
+        let client_config_builder =
+            aws_sdk_s3::config::Builder::from(&sdk_config).force_path_style(true); // Useful for MinIO/testing
 
         let client = Client::from_conf(client_config_builder.build());
 
@@ -183,8 +182,8 @@ impl S3Backend {
             .send()
             .await
             .map_err(|e| {
-                 error!("Failed to verify S3 bucket: {}", e);
-                 StorageError::ConnectionFailed {
+                error!("Failed to verify S3 bucket: {}", e);
+                StorageError::ConnectionFailed {
                     message: format!("Failed to verify S3 bucket '{}': {}", self.config.bucket, e),
                     source: Some(Box::new(e)),
                 }
@@ -200,7 +199,8 @@ impl KvBackend for S3Backend {
         let object_key = self.object_key(key);
         debug!("S3 GET: {}/{}", self.config.bucket, object_key);
 
-        let result = self.client
+        let result = self
+            .client
             .get_object()
             .bucket(&self.config.bucket)
             .key(&object_key)
@@ -209,25 +209,29 @@ impl KvBackend for S3Backend {
 
         match result {
             Ok(output) => {
-                let bytes = output.body.collect().await
+                let bytes = output
+                    .body
+                    .collect()
+                    .await
                     .map_err(|e| StorageError::BackendError {
                         backend: "s3".to_string(),
                         message: format!("Failed to read object body: {}", e),
                     })?
                     .into_bytes();
                 Ok(Some(bytes.to_vec()))
-            },
+            }
             Err(e) => {
-                 let is_not_found = matches!(&e, SdkError::ServiceError(context) if context.err().is_no_such_key());
+                let is_not_found =
+                    matches!(&e, SdkError::ServiceError(context) if context.err().is_no_such_key());
 
-                 if is_not_found {
-                     return Ok(None);
-                 }
+                if is_not_found {
+                    return Ok(None);
+                }
 
-                 Err(StorageError::BackendError {
+                Err(StorageError::BackendError {
                     backend: "s3".to_string(),
                     message: format!("S3 GetObject failed: {}", e),
-                 })
+                })
             }
         }
     }
@@ -238,17 +242,20 @@ impl KvBackend for S3Backend {
 
         let body = ByteStream::from(value.to_vec());
 
-        let mut builder = self.client
+        let mut builder = self
+            .client
             .put_object()
             .bucket(&self.config.bucket)
             .key(&object_key)
             .body(body);
 
         if let Some(ref kms_key) = self.config.sse_kms_key_id {
-            builder = builder.server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::AwsKms)
-                             .ssekms_key_id(kms_key);
+            builder = builder
+                .server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::AwsKms)
+                .ssekms_key_id(kms_key);
         } else if self.config.sse_s3 {
-             builder = builder.server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::Aes256);
+            builder =
+                builder.server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::Aes256);
         }
 
         builder
@@ -295,7 +302,8 @@ impl KvBackend for S3Backend {
         let mut continuation_token = None;
 
         loop {
-            let resp = self.client
+            let resp = self
+                .client
                 .list_objects_v2()
                 .bucket(&self.config.bucket)
                 .prefix(&list_prefix)
@@ -309,14 +317,14 @@ impl KvBackend for S3Backend {
 
             if let Some(contents) = resp.contents {
                 for object in contents {
-                     if let Some(key) = object.key {
-                         // Strip the global prefix to return relative keys
-                         if let Some(stripped) = key.strip_prefix(&self.config.prefix) {
-                             keys.push(stripped.to_string());
-                         } else {
-                             keys.push(key);
-                         }
-                     }
+                    if let Some(key) = object.key {
+                        // Strip the global prefix to return relative keys
+                        if let Some(stripped) = key.strip_prefix(&self.config.prefix) {
+                            keys.push(stripped.to_string());
+                        } else {
+                            keys.push(key);
+                        }
+                    }
                 }
             }
 
@@ -333,7 +341,8 @@ impl KvBackend for S3Backend {
     async fn exists(&self, key: &str) -> StorageResult<bool> {
         let object_key = self.object_key(key);
 
-        match self.client
+        match self
+            .client
             .head_object()
             .bucket(&self.config.bucket)
             .key(&object_key)
@@ -342,7 +351,8 @@ impl KvBackend for S3Backend {
         {
             Ok(_) => Ok(true),
             Err(e) => {
-                let is_not_found = matches!(&e, SdkError::ServiceError(context) if context.err().is_not_found());
+                let is_not_found =
+                    matches!(&e, SdkError::ServiceError(context) if context.err().is_not_found());
 
                 if is_not_found {
                     Ok(false)
@@ -364,7 +374,7 @@ impl KvBackend for S3Backend {
         let start = std::time::Instant::now();
         match self.verify_bucket().await {
             Ok(_) => {
-                 Ok(crate::HealthStatus {
+                Ok(crate::HealthStatus {
                     is_healthy: true,
                     response_time_ms: start.elapsed().as_millis() as f64,
                     connections_active: 1,
@@ -373,16 +383,14 @@ impl KvBackend for S3Backend {
                     uptime_seconds: 0, // Not tracked in this simple backend
                 })
             }
-            Err(e) => {
-                Ok(crate::HealthStatus {
-                    is_healthy: false,
-                    response_time_ms: start.elapsed().as_millis() as f64,
-                    connections_active: 0,
-                    connections_idle: 0,
-                    last_error: Some(e.to_string()),
-                    uptime_seconds: 0,
-                })
-            }
+            Err(e) => Ok(crate::HealthStatus {
+                is_healthy: false,
+                response_time_ms: start.elapsed().as_millis() as f64,
+                connections_active: 0,
+                connections_idle: 0,
+                last_error: Some(e.to_string()),
+                uptime_seconds: 0,
+            }),
         }
     }
 }
@@ -395,7 +403,7 @@ mod tests {
     #[ignore] // Requires AWS credentials and S3 bucket
     async fn test_s3_backend() {
         let config = S3Config {
-            bucket: "test-secreton-vault".to_string(),
+            bucket: "test-secreton-engine".to_string(),
             region: "us-east-1".to_string(),
             access_key: "test-key".to_string(),
             secret_key: "test-secret".to_string(),

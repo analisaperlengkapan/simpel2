@@ -4,9 +4,9 @@
 // DISABLED: Pending API fixes
 #![cfg(feature = "api-integration-tests")]
 
-//! Comprehensive integration tests for Vault API handlers
+//! Comprehensive integration tests for Engine API handlers
 //!
-//! Tests all vault operations including secret management, key operations,
+//! Tests all engine operations including secret management, key operations,
 //! encryption/decryption, and policy enforcement with real-world scenarios.
 
 use axum::http::StatusCode;
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use tokio::time::{Duration, sleep};
 
 use crate::config::ApiConfig;
-use crate::handlers::vault::*;
+use crate::handlers::engine::*;
 use crate::services::ServiceContainer;
 use axum_test::TestServer;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ async fn create_test_server() -> TestServer {
 }
 
 #[cfg(test)]
-mod vault_integration_tests {
+mod engine_integration_tests {
     use super::*;
 
     #[tokio::test]

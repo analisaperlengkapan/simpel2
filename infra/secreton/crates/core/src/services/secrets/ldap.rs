@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 /// LDAP secrets engine errors
 #[derive(Debug, thiserror::Error)]
@@ -222,9 +222,9 @@ impl LdapConnection {
         &self,
         dn: &str,
         username: &str,
-        password: &str,
-        object_class: &str,
-        attributes: &HashMap<String, String>,
+        _password: &str,
+        _object_class: &str,
+        _attributes: &HashMap<String, String>,
     ) -> Result<(), LdapError> {
         if !self.connected {
             return Err(LdapError::ConnectionFailed("Not connected".to_string()));
@@ -235,7 +235,7 @@ impl LdapConnection {
         Ok(())
     }
 
-    async fn modify_password(&self, dn: &str, new_password: &str) -> Result<(), LdapError> {
+    async fn modify_password(&self, dn: &str, _new_password: &str) -> Result<(), LdapError> {
         if !self.connected {
             return Err(LdapError::ConnectionFailed("Not connected".to_string()));
         }
@@ -604,7 +604,7 @@ mod tests {
         engine.configure(config).await.unwrap();
 
         let mut role = LdapRole::new("test-role".to_string());
-        role.creation_ldif = "cn={{.Username}},ou=users,dc=example,dc=com".to_string();
+        role.creation_ldif = "cn={{.Username},ou=users,dc=example,dc=com".to_string();
         role.default_ttl = 3600;
         role.max_ttl = 7200;
 
@@ -636,7 +636,7 @@ mod tests {
 
         // Create role
         let mut role = LdapRole::new("app-role".to_string());
-        role.creation_ldif = "cn={{.Username}},ou=users,dc=example,dc=com".to_string();
+        role.creation_ldif = "cn={{.Username},ou=users,dc=example,dc=com".to_string();
         engine.create_role(role).await.unwrap();
 
         // Generate credentials

@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 // use tokio_rustls::{TlsConnector, rustls}; // TODO: Add tokio-rustls dependency
 use deadpool_postgres::Pool;
-use std::io::{self};
+use std::io;
 
 /// KMIP errors
 #[derive(Debug, thiserror::Error)]

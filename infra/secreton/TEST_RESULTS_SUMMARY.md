@@ -4,7 +4,7 @@
 2024-11-28
 
 ## Critical Fix Applied
-**Issue**: Vault initialization status bug - vault showed `initialized: true` on fresh start
+**Issue**: Secret Vault initialization status bug - engine showed `initialized: true` on fresh start
 **Fix**: Modified `SealStatus::new()` to check Shamir commitment existence
 **Status**: ✅ FIXED in source code, needs Docker image rebuild
 
@@ -16,9 +16,9 @@ cargo test -p secreton-core --test seal_initialized_status_test
 ```
 
 **Results**: 4/4 tests passed
-- ✅ `test_fresh_vault_not_initialized` - Fresh vault NOT initialized
-- ✅ `test_vault_initialized_after_init` - Initialized after init
-- ✅ `test_vault_initialized_persists_across_restarts` - State persists
+- ✅ `test_fresh_engine_not_initialized` - Fresh engine NOT initialized
+- ✅ `test_engine_initialized_after_init` - Initialized after init
+- ✅ `test_engine_initialized_persists_across_restarts` - State persists
 - ✅ `test_cannot_initialize_twice` - Re-init behavior documented
 
 ### Integration Test Status
@@ -27,7 +27,7 @@ cargo test -p secreton-core --test seal_initialized_status_test
 **Test Result**: ❌ FAIL - Image needs rebuild with latest code
 
 **Expected Behavior After Rebuild**:
-1. ✅ Fresh vault: `initialized: false`
+1. ✅ Fresh engine: `initialized: false`
 2. ✅ After init: `initialized: true`, `sealed: true`
 3. ✅ After unseal: `initialized: true`, `sealed: false`
 4. ✅ After seal: `initialized: true`, `sealed: true`
@@ -70,9 +70,9 @@ cargo test -p secreton-core --test seal_initialized_status_test
 - `/v1/sys/seal-status` - Seal status
 
 ### ✅ System Endpoints
-- `POST /v1/sys/init` - Initialize vault
-- `POST /v1/sys/seal` - Seal vault
-- `POST /v1/sys/unseal` - Unseal vault
+- `POST /v1/sys/init` - Initialize engine
+- `POST /v1/sys/seal` - Seal engine
+- `POST /v1/sys/unseal` - Unseal engine
 - `GET /v1/sys/seal-status` - Get seal status
 
 ### ✅ KV Secrets Engine
@@ -96,14 +96,14 @@ cargo test -p secreton-core --test seal_initialized_status_test
 ## Security Verification
 
 ### ✅ Initialization Flow
-1. Fresh vault starts with `initialized: false` ✅ (after rebuild)
+1. Fresh engine starts with `initialized: false` ✅ (after rebuild)
 2. Init generates master key and Shamir shares ✅
-3. Vault remains sealed after init ✅
+3. Secret Vault remains sealed after init ✅
 4. Operators must manually unseal ✅
 
 ### ✅ Seal/Unseal Cycle
-1. Vault can be sealed while running ✅
-2. Sealed vault blocks operations ✅
+1. Secret Vault can be sealed while running ✅
+2. Sealed engine blocks operations ✅
 3. Unseal requires threshold shares (3 of 5) ✅
 4. Same shares work repeatedly ✅
 
@@ -130,8 +130,8 @@ cargo test -p secreton-core --test seal_initialized_status_test
 
 3. **Verify All Phases Pass**
    - Phase 1: Fresh state (NOT initialized) ✅
-   - Phase 2: Initialize vault ✅
-   - Phase 3: Unseal vault ✅
+   - Phase 2: Initialize engine ✅
+   - Phase 3: Unseal engine ✅
    - Phase 4: Public endpoints ✅
    - Phase 5: KV Secrets Engine ✅
    - Phase 6: Transit Engine ✅

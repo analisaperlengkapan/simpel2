@@ -3,14 +3,14 @@
 //! This module integrates all security components into a comprehensive
 //! security framework that provides maximum protection and compliance.
 
-use crate::{
-    audit::{AuditLogger, SecurityEventType, ComplianceStandard},
-    hsm::{HSMOperations, HSMProvider},
-    pqcrypto::{PostQuantumCrypto, PQCAlgorithm, HybridCrypto},
-    mfa::{MFAProvider, MFAMethod, MFAChallenge},
+use crate::
+    audit::AuditLogger, SecurityEventType, ComplianceStandard,
+    hsm::HSMOperations, HSMProvider,
+    pqcrypto::PostQuantumCrypto, PQCAlgorithm, HybridCrypto,
+    mfa::MFAProvider, MFAMethod, MFAChallenge,
     error::CoreError,
     SecurityLevel,
-};
+;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -116,27 +116,27 @@ pub struct SecurityRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityOperation {
     /// Cryptographic operations
-    GenerateKey { algorithm: String, key_size: u32 },
-    EncryptData { data: Vec<u8>, key_id: String },
-    DecryptData { data: Vec<u8>, key_id: String },
-    SignData { data: Vec<u8>, key_id: String },
-    VerifySignature { data: Vec<u8>, signature: Vec<u8>, key_id: String },
+    GenerateKey { algorithm: String, key_size: u32 ,
+    EncryptData { data: Vec<u8>, key_id: String ,
+    DecryptData { data: Vec<u8>, key_id: String ,
+    SignData { data: Vec<u8>, key_id: String ,
+    VerifySignature { data: Vec<u8>, signature: Vec<u8>, key_id: String ,
     
     /// Secret management
-    CreateSecret { path: String, value: String },
-    ReadSecret { path: String },
-    UpdateSecret { path: String, value: String },
-    DeleteSecret { path: String },
+    CreateSecret { path: String, value: String ,
+    ReadSecret { path: String ,
+    UpdateSecret { path: String, value: String ,
+    DeleteSecret { path: String ,
     
     /// Policy management
-    CreatePolicy { name: String, policy: String },
-    UpdatePolicy { name: String, policy: String },
-    DeletePolicy { name: String },
+    CreatePolicy { name: String, policy: String ,
+    UpdatePolicy { name: String, policy: String ,
+    DeletePolicy { name: String ,
     
     /// Administrative operations
-    RotateKeys { key_ids: Vec<String> },
-    BackupData { backup_id: String },
-    RestoreData { backup_id: String },
+    RotateKeys { key_ids: Vec<String> ,
+    BackupData { backup_id: String ,
+    RestoreData { backup_id: String ,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,13 +175,13 @@ impl Default for SecurityPolicies {
                 mandatory_methods: vec![MFAMethod::TOTP],
                 hardware_key_required: true,
                 biometric_required: false,
-            },
+            ,
             key_rotation: KeyRotationPolicy {
                 automatic_rotation: true,
                 rotation_interval: chrono::Duration::days(90),
                 max_key_age: chrono::Duration::days(365),
                 require_dual_approval: true,
-            },
+            ,
             compliance_standards: vec![
                 ComplianceStandard::FIPS140_3,
                 ComplianceStandard::SOC2TypeII,
@@ -192,7 +192,7 @@ impl Default for SecurityPolicies {
                 max_risk_score: 7.0,
                 auto_block_threshold: 8.5,
                 require_approval_threshold: 6.0,
-            },
+            ,
         }
     }
 }

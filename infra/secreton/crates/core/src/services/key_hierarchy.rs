@@ -20,23 +20,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
-use secreton_crypto::key_derivation::stretch::derive_multiple_keys;
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, KeyInit},
-};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use rand::RngCore;
 use rand::rngs::OsRng;
+use secreton_crypto::key_derivation::stretch::derive_multiple_keys;
 
 use crate::services::seal::SealService;
 
 /// Key hierarchy errors
 #[derive(Debug, thiserror::Error)]
 pub enum KeyError {
-    #[error("Vault is sealed")]
-    VaultSealed,
+    #[error("Engine is sealed")]
+    EngineSealed,
 
     #[error("Master key not available")]
     MasterKeyNotAvailable,
@@ -105,14 +102,12 @@ impl KeyMetadata {
 
     /// Serialize to JSON
     pub fn to_json(&self) -> Result<String, KeyError> {
-        serde_json::to_string(self)
-            .map_err(|e| KeyError::SerializationFailed(e.to_string()))
+        serde_json::to_string(self).map_err(|e| KeyError::SerializationFailed(e.to_string()))
     }
 
     /// Deserialize from JSON
     pub fn from_json(json: &str) -> Result<Self, KeyError> {
-        serde_json::from_str(json)
-            .map_err(|e| KeyError::SerializationFailed(e.to_string()))
+        serde_json::from_str(json).map_err(|e| KeyError::SerializationFailed(e.to_string()))
     }
 }
 
@@ -131,7 +126,7 @@ pub struct EncryptedDek {
 #[derive(Clone)]
 struct KekEntry {
     metadata: KeyMetadata,
-    key_material: Option<Vec<u8>>, // Only in memory when vault unsealed
+    key_material: Option<Vec<u8>>, // Only in memory when engine unsealed
 }
 
 impl Drop for KekEntry {
@@ -198,7 +193,7 @@ impl KeyHierarchyServiceImpl {
             .seal_service
             .get_master_key()
             .await
-            .map_err(|_| KeyError::VaultSealed)?;
+            .map_err(|_| KeyError::EngineSealed)?;
 
         // Derive KEK using HKDF-like derivation
         let keys = derive_multiple_keys(&master_key, &[context], 32)
@@ -208,10 +203,7 @@ impl KeyHierarchyServiceImpl {
     }
 
     /// Encrypt DEK with KEK
-    fn encrypt_dek_with_kek(
-        dek: &[u8],
-        kek: &[u8],
-    ) -> Result<(Vec<u8>, Vec<u8>), KeyError> {
+    fn encrypt_dek_with_kek(dek: &[u8], kek: &[u8]) -> Result<(Vec<u8>, Vec<u8>), KeyError> {
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
@@ -291,7 +283,7 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
         let kek_material = kek_entry
             .key_material
             .as_ref()
-            .ok_or(KeyError::VaultSealed)?;
+            .ok_or(KeyError::EngineSealed)?;
 
         // Generate random DEK (32 bytes for AES-256)
         let mut dek_bytes = vec![0u8; 32];
@@ -369,13 +361,13 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
     /// Rotate KEK and re-encrypt all DEKs
     async fn rotate_kek(&self, kek_id: Uuid) -> Result<KeyMetadata, KeyError> {
         // Get old KEK
-        let mut keks = self.keks.write().await;
+        let keks = self.keks.write().await;
         let old_kek_entry = keks.get(&kek_id).ok_or(KeyError::KekNotFound(kek_id))?;
 
         let old_kek_material = old_kek_entry
             .key_material
             .as_ref()
-            .ok_or(KeyError::VaultSealed)?
+            .ok_or(KeyError::EngineSealed)?
             .clone();
 
         let context = old_kek_entry.metadata.context.clone();
@@ -403,7 +395,8 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
                 )?;
 
                 // Re-encrypt DEK with new KEK
-                let (encrypted_key, nonce) = Self::encrypt_dek_with_kek(&dek_bytes, &new_kek_material)?;
+                let (encrypted_key, nonce) =
+                    Self::encrypt_dek_with_kek(&dek_bytes, &new_kek_material)?;
 
                 // Create updated encrypted DEK
                 let mut updated_encrypted = dek_entry.encrypted.clone();
@@ -424,7 +417,10 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
 
         // Apply updates atomically
         for (dek_id, metadata, encrypted) in updated_deks {
-            let entry = DekEntry { metadata, encrypted };
+            let entry = DekEntry {
+                metadata,
+                encrypted,
+            };
             deks.insert(dek_id, entry);
         }
 
@@ -464,7 +460,7 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
         let kek_material = kek_entry
             .key_material
             .as_ref()
-            .ok_or(KeyError::VaultSealed)?;
+            .ok_or(KeyError::EngineSealed)?;
 
         // Decrypt DEK
         Self::decrypt_dek_with_kek(&encrypted_key, kek_material, &nonce)
@@ -488,14 +484,14 @@ impl KeyHierarchyService for KeyHierarchyServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::seal::{SealConfig, InMemoryVaultStateStorage};
+    use crate::services::seal::{InMemoryEngineStateStorage, SealConfig};
 
     async fn setup_test_service() -> (Arc<SealService>, Arc<KeyHierarchyServiceImpl>) {
         let config = SealConfig::default();
-        let storage = Arc::new(InMemoryVaultStateStorage::new());
+        let storage = Arc::new(InMemoryEngineStateStorage::new());
         let seal_service = Arc::new(SealService::with_storage(config, storage));
 
-        // Initialize and unseal vault
+        // Initialize and unseal engine
         let shares = seal_service.initialize().await.unwrap();
         for share in shares.iter().take(3) {
             let share_bytes = share.to_bytes().unwrap();
@@ -564,11 +560,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_metadata_serialization() {
-        let metadata = KeyMetadata::new(
-            KeyLevel::KeyEncryptionKey,
-            None,
-            "test-context".to_string(),
-        );
+        let metadata =
+            KeyMetadata::new(KeyLevel::KeyEncryptionKey, None, "test-context".to_string());
 
         let json = metadata.to_json().unwrap();
         let deserialized = KeyMetadata::from_json(&json).unwrap();

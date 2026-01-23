@@ -43,7 +43,8 @@ impl CliConfig {
 
     /// Get the default config file path
     pub fn default_config_path() -> Result<PathBuf> {
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+        let home = dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
         Ok(home.join(".secreton").join("config.toml"))
     }
 
@@ -86,7 +87,7 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().expect("temp file");
         tokio::fs::write(
             tmp.path(),
-            "server_url = \"https://vault.example.com\"\ndefault_namespace = \"production\"",
+            "server_url = \"https://engine.example.com\"\ndefault_namespace = \"production\"",
         )
         .await
         .expect("write config");
@@ -94,7 +95,7 @@ mod tests {
         let loaded = CliConfig::load_from_file(tmp.path().to_str().unwrap())
             .await
             .expect("load config");
-        assert_eq!(loaded.server_url, "https://vault.example.com");
+        assert_eq!(loaded.server_url, "https://engine.example.com");
         assert_eq!(loaded.default_namespace, "production");
     }
 

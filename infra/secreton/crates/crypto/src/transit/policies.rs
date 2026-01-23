@@ -327,7 +327,6 @@ impl Default for AuditPolicy {
     }
 }
 
-/// Audit log destinations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuditDestination {
     File {

@@ -32,7 +32,7 @@ Komponen relevan di `infra/secreton`:
     - Akibatnya, **runtime default tidak memakai storage persisten/HA sama sekali**, hanya in-memory.
   - `crates/grpc/src/server.rs`
     - gRPC RAFT cluster management (`AddNode`, `RemoveNode`, `health_check`) mengharapkan `storage.as_any()` dapat di-downcast ke `secreton_storage::raft::RaftCluster` ketika fitur `raft-consensus` aktif.
-- **Database Pool (non-vault DB)**
+- **Database Pool (non-engine DB)**
   - `crates/api/src/services/mod.rs::create_database_pool`
     - Menggunakan `deadpool_postgres::Config`, `ManagerConfig{ RecyclingMethod::Fast }`, dan `NoTls`.
     - Tidak ada konfigurasi eksplisit `max_size`, `connection_timeout`, `max_lifetime`, dsb (mengandalkan default).
@@ -46,7 +46,7 @@ Komponen relevan di `infra/secreton`:
   - Storage backend HA/persisten **belum dipakai** (fallback ke memory).
   - S3 backend belum diimplementasikan.
   - RAFT backend belum disambungkan sebagai `StorageBackend` default.
-  - Koneksi Postgres (baik vault-storage maupun API DB) masih menggunakan **NoTls** dan konfigurasi pool dasar.
+  - Koneksi Postgres (baik engine-storage maupun API DB) masih menggunakan **NoTls** dan konfigurasi pool dasar.
 
 Rencana berikut memfokuskan pada menjadikan storage & DB:
 
@@ -73,7 +73,7 @@ Rencana berikut memfokuskan pada menjadikan storage & DB:
 ## 3. Ruang Lingkup
 
 - **Termasuk**
-  - Storage backend untuk vault entries (`StorageBackend`/`KvBackend`): Consul, File, Postgres, RAFT, S3.
+  - Storage backend untuk engine entries (`StorageBackend`/`KvBackend`): Consul, File, Postgres, RAFT, S3.
   - Connection pooling, TLS, retry, dan failover di tingkat storage & DB.
   - Health check & metrics untuk storage dan cluster RAFT.
 - **Tidak termasuk (lintas proyek)**
@@ -83,7 +83,7 @@ Rencana berikut memfokuskan pada menjadikan storage & DB:
 
 ## 4. Arsitektur Target (High-Level)
 
-- **Vault storage**
+- **Secret Vault storage**
   - **Mode HA utama (on-premise)**: Consul backend atau RAFT cluster.
   - **Mode cloud-native**: S3 backend (setelah implementasi penuh) dengan SSE dan versi.
   - **Mode legacy**: Postgres backend yang bergantung pada cluster Postgres eksternal untuk HA.
@@ -91,7 +91,7 @@ Rencana berikut memfokuskan pada menjadikan storage & DB:
   - Membaca konfigurasi storage dari `core::config::StorageConfig` / `secreton.toml`.
   - Menggunakan `StorageFactory::create` atau wiring RAFT cluster sebagai `StorageBackend`.
   - Health check gRPC/HTTP mengagregasi status storage, RAFT, dan DB pool.
-- **Database non-vault (metadata, audit, dsb.)**
+- **Database non-engine (metadata, audit, dsb.)**
   - Menggunakan `deadpool_postgres` dengan TLS dan konfigurasi pool yang eksplisit.
   - HA dilakukan melalui endpoint/load balancer cluster Postgres, dengan tambahan retry di level aplikasi jika diperlukan.
 

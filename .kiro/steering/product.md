@@ -1,23 +1,34 @@
-# SIMPelv2 - Product Overview
+---
+inclusion: always
+---
 
-SIMPelv2 (Sistem Informasi Manajemen Pengelolaan BMN) is an enterprise-grade platform for managing State-Owned Assets (Barang Milik Negara) for the Attorney General's Office of the Republic of Indonesia (Kejaksaan Agung RI).
+# Product Overview
 
-## Purpose
+**SIMPelv2** is a mission-critical system for the Indonesian Attorney General's Office (Kejaksaan RI).
 
-- Integrated solution for BMN management: planning, procurement, distribution, and reporting
-- Serves multiple divisions: Badiklat, Datun, Intel, Pengawasan, Pidum, Pidsus, Pidmil, Pemulihan Aset, and Pembinaan (Keuangan, Perencanaan, Perlengkapan)
+## Architecture
 
-## Key Characteristics
+- **Microservices Backend**: Domain-specific services in `layanan/` expose REST APIs
+- **Microfrontend UI**: Independent WASM applications in `antarmuka/` for different departments
+- **Infrastructure Services**: Identity (Authenc) and secrets management (Secreton) integrated in main workspace
+- **Shared Services**: Daskrimti provides shared services (portal, AI, bantuan, dokumen, integrasi, notifikasi)
 
-- Zero-Trust Security Architecture with custom IAM (Authenc) and secrets management (Secreton)
-- 12 independent microfrontends with shared component library
-- 17+ backend microservices with gRPC internal communication
-- Government compliance and security requirements
-- Production URL: https://simpel.kejaksaan.go.id/
+## Key Domains
 
-## Domain Context
+- **Daskrimti**: Pusat Data Statistik Kriminal dan Teknologi Informasi (manages portal and shared services)
+- **Pembinaan**: Development and capacity building (keuangan, perencanaan, perlengkapan)
+- **Intel**: Intelligence operations
+- **Pidsus**: Special crimes prosecution
+- **Pidum**: General crimes prosecution
+- **Pidmil**: Military crimes prosecution
+- **Pengawasan**: Supervision and monitoring
+- **Pemulihan Aset**: Asset recovery
+- **Datun**: Civil and state administration
+- **Badiklat**: Training and education
 
-- Indonesian government system - code comments and some documentation in Bahasa Indonesia
-- "Antarmuka" = Frontend/Interface
-- "Layanan" = Backend Services
-- "Infra" = Infrastructure services
+## Communication Rules
+
+- Frontend → Backend: REST API (JSON/HTTP)
+- Backend → Backend: gRPC (Protobuf)
+- Backend → Authenc/Secreton: gRPC with mTLS
+- Frontend NEVER calls Authenc/Secreton directly (always through backend proxy)

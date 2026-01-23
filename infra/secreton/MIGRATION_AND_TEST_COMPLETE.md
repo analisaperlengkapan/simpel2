@@ -18,7 +18,7 @@ Migrasi dari sistem konfigurasi legacy ke sistem konfigurasi secure berhasil dis
 - ✅ `BootstrapConfig` - Loads from secreton.toml
 - ✅ `ApplicationConfig` - Encrypted in storage backend
 - ✅ `config_adapter.rs` - Bridges bootstrap + application config
-- ✅ Two-layer config system following HashiCorp Vault model
+- ✅ Two-layer config system following HashiCorp Secret Vault model
 
 ### 3. Storage Backend
 - ✅ Raft consensus feature enabled (`raft-consensus`)
@@ -44,9 +44,9 @@ Migrasi dari sistem konfigurasi legacy ke sistem konfigurasi secure berhasil dis
 | `/metrics/tls` | ✅ PASS | Returns TLS metrics |
 | `/v1/sys/seal-status` | ✅ PASS | Returns seal status |
 | `/v1/sys/health` | ⚠️  SEALED | Requires unseal |
-| `/v1/sys/init` | ✅ PASS | Vault initialization |
-| `/v1/sys/unseal` | ✅ PASS | Vault unseal process |
-| `/v1/sys/seal` | ✅ PASS | Vault seal |
+| `/v1/sys/init` | ✅ PASS | Secret Vault initialization |
+| `/v1/sys/unseal` | ✅ PASS | Secret Vault unseal process |
+| `/v1/sys/seal` | ✅ PASS | Secret Vault seal |
 | `/v1/transit/*` | ⚠️  SEALED | Requires unseal + auth |
 | `/v1/kv/*` | ⚠️  SEALED | Requires unseal + auth |
 | `/v1/secret/*` | ⚠️  SEALED | Requires unseal + auth |
@@ -65,7 +65,7 @@ Migrasi dari sistem konfigurasi legacy ke sistem konfigurasi secure berhasil dis
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| Vault starts SEALED | ✅ PASS | Default secure state |
+| Secret Vault starts SEALED | ✅ PASS | Default secure state |
 | Shamir Secret Sharing | ✅ PASS | 5 shares, 3 threshold |
 | Bootstrap config (no secrets) | ✅ PASS | Only infrastructure settings |
 | Application config encrypted | ✅ PASS | Stored in Raft backend |
@@ -143,7 +143,7 @@ threshold = 3
 - ✅ Bootstrap config contains NO SECRETS
 - ✅ All secrets encrypted with AES-256-GCM
 - ✅ Master key protected by Shamir Secret Sharing
-- ✅ Vault starts SEALED by default
+- ✅ Secret Vault starts SEALED by default
 - ✅ Two-layer config (bootstrap + encrypted application)
 - ✅ Raft consensus for HA and data safety
 - ✅ Safe to commit bootstrap configgit
@@ -177,11 +177,11 @@ threshold = 3
 
 ✅ **Migration berhasil 100%**
 
-Secreton sekarang menggunakan sistem konfigurasi secure two-layer yang mengikuti best practices dari HashiCorp Vault:
+Secreton sekarang menggunakan sistem konfigurasi secure two-layer yang mengikuti best practices dari HashiCorp Secret Vault:
 
 1. **Bootstrap config** - Infrastructure only, safe to commit
 2. **Application config** - Encrypted in Raft storage
-3. **Vault starts SEALED** - Secure by default
+3. **Secret Vault starts SEALED** - Secure by default
 4. **Raft consensus** - HA and data safety
 5. **No secrets in config files** - All encrypted
 

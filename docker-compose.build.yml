@@ -1,0 +1,66 @@
+# Docker Compose for Building SIMPelv2 Images
+# Build all services with: docker compose -f docker-compose.build.yml build
+# Push to registry: docker compose -f docker-compose.build.yml push
+
+version: "3.9"
+
+services:
+  # =====================================================
+  # Infrastructure Services
+  # =====================================================
+
+  secreton:
+    build:
+      context: ./infra/secreton
+      dockerfile: Dockerfile
+    image: localhost:32000/simpelv2/secreton:latest
+
+  authenc:
+    build:
+      context: ./infra/authenc
+      dockerfile: Dockerfile
+    image: localhost:32000/simpelv2/authenc:latest
+
+  # =====================================================
+  # Backend Services (Layanan)
+  # =====================================================
+
+  layanan-daskrimti-portal:
+    build:
+      context: .
+      dockerfile: layanan/daskrimti/portal/Dockerfile
+    image: localhost:32000/simpelv2/layanan-daskrimti-portal:latest
+
+  layanan-pembinaan-perlengkapan:
+    build:
+      context: .
+      dockerfile: layanan/pembinaan/perlengkapan/Dockerfile
+    image: localhost:32000/simpelv2/layanan-pembinaan-perlengkapan:latest
+
+  # =====================================================
+  # Frontend Microfrontends (Antarmuka)
+  # =====================================================
+
+  daskrimti-portal:
+    build:
+      context: .
+      dockerfile: antarmuka/daskrimti/portal/Dockerfile
+    image: localhost:32000/simpelv2/daskrimti-portal:latest
+
+  pembinaan-perlengkapan:
+    build:
+      context: .
+      dockerfile: antarmuka/pembinaan/perlengkapan/Dockerfile
+    image: localhost:32000/simpelv2/pembinaan-perlengkapan:latest
+
+# Build Commands:
+# ---------------
+# Build all:     docker compose -f docker-compose.build.yml build
+# Build one:     docker compose -f docker-compose.build.yml build authenc
+# Push all:      docker compose -f docker-compose.build.yml push
+# Push one:      docker compose -f docker-compose.build.yml push authenc
+#
+# Build order (if dependencies matter):
+# 1. docker compose -f docker-compose.build.yml build secreton authenc
+# 2. docker compose -f docker-compose.build.yml build layanan-daskrimti-portal layanan-pembinaan-perlengkapan
+# 3. docker compose -f docker-compose.build.yml build daskrimti-portal pembinaan-perlengkapan

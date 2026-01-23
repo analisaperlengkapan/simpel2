@@ -1,15 +1,15 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use secreton_storage::{
-    KvBackendAdapter, MemoryBackend, QueryParams, SecurityLevel, StorageBackend, VaultEntry,
+    KvBackendAdapter, MemoryBackend, QueryParams, SecretEntry, SecurityLevel, StorageBackend,
     backends::{FileBackend, FileConfig},
 };
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 
-/// Helper to create test vault entry
-fn create_test_entry(path: &str, data_size: usize) -> VaultEntry {
-    VaultEntry {
+/// Helper to create test engine entry
+fn create_test_entry(path: &str, data_size: usize) -> SecretEntry {
+    SecretEntry {
         id: Uuid::new_v4(),
         path: path.to_string(),
         encrypted_data: vec![0u8; data_size],

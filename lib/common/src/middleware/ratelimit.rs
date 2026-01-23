@@ -1,15 +1,15 @@
 #![cfg(feature = "axum")]
 
+use crate::error::CommonError;
 use axum::{
+    body::Body,
     extract::State,
     http::{Request, Response},
     middleware::Next,
-    body::Body,
 };
 use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
-use crate::error::CommonError;
 
 /// State for Rate Limiting middleware
 pub type RateLimitState = Arc<DashMap<String, (u32, Instant)>>;
@@ -64,9 +64,16 @@ pub async fn rate_limit_middleware(
     let mut response: Response<Body> = next.run(req).await;
 
     // Add Rate Limit Headers
-    response.headers_mut().insert("X-RateLimit-Limit", limit.to_string().parse().unwrap());
-    response.headers_mut().insert("X-RateLimit-Remaining", remaining.to_string().parse().unwrap());
-    response.headers_mut().insert("X-RateLimit-Reset", reset_secs.to_string().parse().unwrap());
+    response
+        .headers_mut()
+        .insert("X-RateLimit-Limit", limit.to_string().parse().unwrap());
+    response.headers_mut().insert(
+        "X-RateLimit-Remaining",
+        remaining.to_string().parse().unwrap(),
+    );
+    response
+        .headers_mut()
+        .insert("X-RateLimit-Reset", reset_secs.to_string().parse().unwrap());
 
     Ok(response)
 }

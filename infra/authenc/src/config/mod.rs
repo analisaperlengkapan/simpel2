@@ -364,7 +364,7 @@ use tracing::Level;
 
 use crate::error::{AuthencError, Result};
 use crate::middleware::adaptive_rate_limit::AdaptiveRateLimitConfig;
-use crate::middleware::rate_limit_axum::RateLimitConfig;
+use crate::middleware::rate_limit::RateLimitConfig;
 
 /// Dynamic configuration management for adaptive security and performance
 /// This module provides runtime configuration adjustment based on system load,
@@ -545,7 +545,7 @@ fn default_sync_batch_size() -> usize {
 }
 
 // Re-export common config types
-pub use lib_common::config::{ServerConfig, DatabaseConfig};
+pub use lib_common::config::{DatabaseConfig, ServerConfig};
 
 // Shim functions for defaults if they are still needed by other modules,
 // though lib_common::config types implement Default.
@@ -554,7 +554,6 @@ pub use lib_common::config::{ServerConfig, DatabaseConfig};
 // but for migration we will try to rely on lib_common.
 
 // Removed: local ServerConfig and DatabaseConfig definitions.
-
 
 /// Security configuration for the authentication platform
 /// This struct contains all security-related configuration parameters for the
@@ -769,7 +768,6 @@ impl AppConfig {
         if other.server.workers.is_some() {
             self.server.workers = other.server.workers;
         }
-
 
         // Database config (always override if different from defaults)
         if other.database.host != "localhost" {

@@ -52,6 +52,42 @@ pub struct ApiConfig {
     pub storage: StorageConfig,
 }
 
+impl ApiConfig {
+    /// Load configuration from environment or default
+    pub fn load() -> anyhow::Result<Self> {
+        // Basic implementation: return default for now, as real loading is done in main via from_bootstrap_and_application
+        Ok(Self::default())
+    }
+
+    /// Create ApiConfig from BootstrapConfig and ApplicationConfig
+    pub fn from_bootstrap_and_application(
+        bootstrap: &secreton_core::config::BootstrapConfig,
+        app: &secreton_core::config::ApplicationConfig,
+    ) -> Result<Self, String> {
+        let mut config = Self::default();
+
+        // Map HTTP config
+        config.http.bind_address = bootstrap
+            .http
+            .address
+            .parse()
+            .map_err(|e| format!("Invalid HTTP address '{}': {}", bootstrap.http.address, e))?;
+
+        // Map gRPC config
+        config.grpc.bind_address = bootstrap
+            .grpc
+            .address
+            .parse()
+            .map_err(|e| format!("Invalid gRPC address '{}': {}", bootstrap.grpc.address, e))?;
+        config.grpc.enabled = bootstrap.grpc.enabled;
+
+        // Map other fields as needed (simplified for now)
+        // In a real implementation, we would map all fields from app config
+
+        Ok(config)
+    }
+}
+
 /// HTTP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpConfig {
@@ -1275,13 +1311,14 @@ mod tests {
                 health_check: true,
             },
             auth: AuthConfig {
+                password_policy: Default::default(),
                 jwt: JwtConfig {
                     secret: "super-secret-key".to_string(),
                     expiration: Duration::from_secs(3600),
                     refresh_expiration: Duration::from_secs(86400),
                     algorithm: "HS256".to_string(),
                     issuer: "secreton".to_string(),
-                    audience: "vault-users".to_string(),
+                    audience: "engine-users".to_string(),
                 },
                 oauth2: None,
                 mtls: Some(MtlsConfig {
@@ -1305,7 +1342,7 @@ mod tests {
                 mfa: MfaConfig {
                     enabled: true,
                     totp: TotpConfig {
-                        issuer: "Secreton Vault".to_string(),
+                        issuer: "Secreton Engine".to_string(),
                         secret_length: 32,
                         time_step: 30,
                         code_length: 6,
@@ -1314,9 +1351,9 @@ mod tests {
                     sms: None,
                     email: None,
                     webauthn: Some(WebAuthnConfig {
-                        rp_name: "Secreton Vault".to_string(),
-                        rp_id: "vault.example.com".to_string(),
-                        origin: "https://vault.example.com".to_string(),
+                        rp_name: "Secreton Engine".to_string(),
+                        rp_id: "engine.example.com".to_string(),
+                        origin: "https://engine.example.com".to_string(),
                     }),
                     ..Default::default()
                 },
@@ -1364,7 +1401,7 @@ mod tests {
             },
             cors: CorsConfig {
                 enabled: true,
-                allowed_origins: vec!["https://vault.example.com".to_string()],
+                allowed_origins: vec!["https://engine.example.com".to_string()],
                 allowed_methods: vec!["GET".to_string(), "POST".to_string()],
                 allowed_headers: vec!["Authorization".to_string()],
                 exposed_headers: vec![],

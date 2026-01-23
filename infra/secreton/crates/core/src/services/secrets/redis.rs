@@ -168,10 +168,7 @@ impl RedisSecretsEngine {
     }
 
     /// Configure Redis connection
-    pub async fn configure_connection(
-        &self,
-        config: RedisConnection,
-    ) -> Result<(), RedisError> {
+    pub async fn configure_connection(&self, config: RedisConnection) -> Result<(), RedisError> {
         // Validate configuration
         if config.name.is_empty() {
             return Err(RedisError::InvalidConfig(
@@ -207,7 +204,8 @@ impl RedisSecretsEngine {
         // Note: Actual Redis connection testing would require redis crate
         // For now, we validate the URL format
         if !config.connection_url.starts_with("redis://")
-            && !config.connection_url.starts_with("rediss://") {
+            && !config.connection_url.starts_with("rediss://")
+        {
             return Err(RedisError::ConnectionError(
                 "Connection URL must start with redis:// or rediss://".to_string(),
             ));
@@ -526,9 +524,10 @@ impl RedisSecretsEngine {
         self.revoke_credentials(credential_id).await?;
 
         // Revoke lease
-        lease_manager.revoke_lease(lease_id).await.map_err(|e| {
-            RedisError::RevocationFailed(format!("Failed to revoke lease: {}", e))
-        })?;
+        lease_manager
+            .revoke_lease(lease_id)
+            .await
+            .map_err(|e| RedisError::RevocationFailed(format!("Failed to revoke lease: {}", e)))?;
 
         Ok(())
     }
@@ -759,7 +758,7 @@ mod tests {
             default_ttl: 3600,
             max_ttl: 86400,
             creation_statements: vec![
-                "ACL SETUSER {{username}} on >{{password}} ~* +@read".to_string(),
+                "ACL SETUSER {{username} on >{{password} ~* +@read".to_string(),
             ],
             revocation_statements: vec!["ACL DELUSER {{username}}".to_string()],
             ..Default::default()
@@ -814,7 +813,7 @@ mod tests {
         assert!(engine.create_role(invalid_role).await.is_err());
 
         // Test role with n stat
-     let invalid_role = RedisRole {
+        let invalid_role = RedisRole {
             name: "test-role".to_string(),
             db_name: "test-db".to_string(),
             creation_statements: vec![],
@@ -850,9 +849,7 @@ mod tests {
             db_name: "test-db".to_string(),
             default_ttl: 3600,
             max_ttl: 7200,
-            creation_statements: vec![
-                "ACL SETUSER {{username}} on >{{password}}".to_string(),
-            ],
+            creation_statements: vec!["ACL SETUSER {{username} on >{{password}}".to_string()],
             revocation_statements: vec!["ACL DELUSER {{username}}".to_string()],
             ..Default::default()
         };

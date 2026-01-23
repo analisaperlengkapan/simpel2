@@ -1,6 +1,6 @@
 //! Advanced Audit System
 //!
-//! Provides comprehensive audit capabilities exceeding HashiCorp Vault:
+//! Provides comprehensive audit capabilities exceeding HashiCorp Engine:
 //! - Immutable audit logs with cryptographic integrity
 //! - Real-time SIEM integration
 //! - Behavioral analytics and anomaly detection
@@ -11,7 +11,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Timelike, Utc};
-use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
+use ring::signature::{ED25519, Ed25519KeyPair, KeyPair, UnparsedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, VecDeque};
@@ -259,7 +259,7 @@ pub enum ComplianceStandard {
     Hipaa,
     Iso27001,
     Nist,
-    Ojk, // Indonesian banking regulation (OJK)
+    Ojk,            // Indonesian banking regulation (OJK)
     Pp71_2019, // Indonesian Government Regulation 71/2019 on Electronic Systems and Transactions
     Perpres95_2018, // Indonesian Presidential Regulation 95/2018 on Electronic-Based Government Systems
     Custom(String),
@@ -329,8 +329,10 @@ pub trait AuditStorage: Send + Sync {
         end_sequence: u64,
     ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError>;
     async fn get_latest_sequence(&self) -> Result<u64, SecurityAuditError>;
-    async fn search_entries(&self, query: &AuditQuery)
-        -> Result<Vec<SignedAuditEntry>, SecurityAuditError>;
+    async fn search_entries(
+        &self,
+        query: &AuditQuery,
+    ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError>;
     async fn verify_chain_integrity(
         &self,
         start_sequence: u64,
@@ -436,7 +438,7 @@ impl AuditQuery {
         }
 
         // Action filter
- if let Some(ref action) = self.action {
+        if let Some(ref action) = self.action {
             if &entry.event.action != action {
                 return false;
             }
@@ -690,7 +692,10 @@ impl AdvancedAuditSystem {
     }
 
     /// Create and sign an audit entry for digital signature verification and audit integrity
-    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
+    async fn create_signed_entry(
+        &self,
+        event: AuditEvent,
+    ) -> Result<SignedAuditEntry, SecurityAuditError> {
         // Get next sequence number
         let sequence_number = {
             let mut counter = self.sequence_counter.lock().unwrap();
@@ -777,10 +782,11 @@ impl AdvancedAuditSystem {
         }
 
         // Verify hash
-        let entry_data =
-            serde_json::to_vec(&entry.event).map_err(|e| SecurityAuditError::SerializationError {
+        let entry_data = serde_json::to_vec(&entry.event).map_err(|e| {
+            SecurityAuditError::SerializationError {
                 message: e.to_string(),
-            })?;
+            }
+        })?;
 
         let mut hasher = Sha256::new();
         hasher.update(&entry_data);
@@ -835,7 +841,10 @@ impl AdvancedAuditSystem {
         start_sequence: u64,
         end_sequence: u64,
     ) -> Result<bool, SecurityAuditError> {
-        let entries = self.storage.retrieve_entries(start_sequence, end_sequence).await?;
+        let entries = self
+            .storage
+            .retrieve_entries(start_sequence, end_sequence)
+            .await?;
 
         let mut all_valid = true;
         let mut tampered_entries = Vec::new();
@@ -853,10 +862,7 @@ impl AdvancedAuditSystem {
                 "CRITICAL SECURITY ALERT: Audit log tampering detected! {} entries failed verification",
                 tampered_entries.len()
             );
-            error!(
-                "Tampered entry sequence numbers: {:?}",
-                tampered_entries
-            );
+            error!("Tampered entry sequence numbers: {:?}", tampered_entries);
 
             // Log a security event for the tampering detection
             let alert_event = AuditEvent {
@@ -866,7 +872,10 @@ impl AdvancedAuditSystem {
                 category: AuditCategory::SecurityEvent,
                 source: "audit_integrity_monitor".to_string(),
                 principal: Some("system".to_string()),
-                target: Some(format!("audit_log_sequences_{}_to_{}", start_sequence, end_sequence)),
+                target: Some(format!(
+                    "audit_log_sequences_{}_to_{}",
+                    start_sequence, end_sequence
+                )),
                 action: "audit_tampering_detected".to_string(),
                 result: AuditResult::Failure("Audit log integrity compromised".to_string()),
                 context: {
@@ -887,7 +896,10 @@ impl AdvancedAuditSystem {
                 correlation_id: Some(format!("tampering_alert_{}", Uuid::new_v4())),
                 geo_location: None,
                 risk_score: Some(100),
-                compliance_tags: vec!["SECURITY_INCIDENT".to_string(), "AUDIT_TAMPERING".to_string()],
+                compliance_tags: vec![
+                    "SECURITY_INCIDENT".to_string(),
+                    "AUDIT_TAMPERING".to_string(),
+                ],
                 sensitive_data_access: false,
                 duration: None,
             };
@@ -900,7 +912,10 @@ impl AdvancedAuditSystem {
     }
 
     /// Search audit logs with comprehensive querying
-    pub async fn search(&self, query: &AuditQuery) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
+    pub async fn search(
+        &self,
+        query: &AuditQuery,
+    ) -> Result<Vec<SignedAuditEntry>, SecurityAuditError> {
         self.storage.search_entries(query).await
     }
 
@@ -911,8 +926,7 @@ impl AdvancedAuditSystem {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
     ) -> Result<ComplianceReport, SecurityAuditError> {
-        let query = AuditQuery::new()
-            .with_time_range(start_time, end_time);
+        let query = AuditQuery::new().with_time_range(start_time, end_time);
 
         let entries = self.search(&query).await?;
 
@@ -924,8 +938,12 @@ impl AdvancedAuditSystem {
             ComplianceStandard::Sox => self.generate_sox_report(&entries, start_time, end_time),
             ComplianceStandard::Gdpr => self.generate_gdpr_report(&entries, start_time, end_time),
             ComplianceStandard::Ojk => self.generate_ojk_report(&entries, start_time, end_time),
-            ComplianceStandard::Pp71_2019 => self.generate_pp71_2019_report(&entries, start_time, end_time),
-            ComplianceStandard::Perpres95_2018 => self.generate_perpres95_2018_report(&entries, start_time, end_time),
+            ComplianceStandard::Pp71_2019 => {
+                self.generate_pp71_2019_report(&entries, start_time, end_time)
+            }
+            ComplianceStandard::Perpres95_2018 => {
+                self.generate_perpres95_2018_report(&entries, start_time, end_time)
+            }
             _ => self.generate_generic_report(&entries, start_time, end_time),
         };
 
@@ -970,7 +988,7 @@ impl AdvancedAuditSystem {
                             events.push(event);
                         } else {
                             break;
-                        }
+                        };
                     }
                     events
                 };
@@ -1018,7 +1036,10 @@ impl AdvancedAuditSystem {
     }
 
     /// Send audit entry to SIEM system
-    async fn send_to_siem(entry: &SignedAuditEntry, config: &SiemConfig) -> Result<(), SecurityAuditError> {
+    async fn send_to_siem(
+        entry: &SignedAuditEntry,
+        config: &SiemConfig,
+    ) -> Result<(), SecurityAuditError> {
         // Implementation would send to actual SIEM system
         debug!(
             "Sending audit entry {} to SIEM at {}",
@@ -1073,7 +1094,9 @@ impl AdvancedAuditSystem {
                     // Perpres 95/2018 focuses on government electronic systems
                     if matches!(
                         event.category,
-                        AuditCategory::SystemAccess | AuditCategory::ConfigurationChange | AuditCategory::AdminAction
+                        AuditCategory::SystemAccess
+                            | AuditCategory::ConfigurationChange
+                            | AuditCategory::AdminAction
                     ) {
                         event.compliance_tags.push("PERPRES_95_2018".to_string());
                     }
@@ -1182,40 +1205,61 @@ impl AdvancedAuditSystem {
         let mut recommendations = Vec::new();
 
         // Check for authentication events
-        let auth_events = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::Authentication
-        }).count();
+        let auth_events = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::Authentication)
+            .count();
 
         if auth_events == 0 {
-            recommendations.push("No authentication events logged - ensure authentication auditing is enabled".to_string());
+            recommendations.push(
+                "No authentication events logged - ensure authentication auditing is enabled"
+                    .to_string(),
+            );
         }
 
         // Check for failed access attempts
-        let failed_access = entries.iter().filter(|e| {
-            matches!(e.event.result, AuditResult::Denied(_) | AuditResult::Failure(_))
-        }).count();
+        let failed_access = entries
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e.event.result,
+                    AuditResult::Denied(_) | AuditResult::Failure(_)
+                )
+            })
+            .count();
 
         if failed_access > 0 {
-            recommendations.push(format!("{} failed access attempts detected - review security policies", failed_access));
+            recommendations.push(format!(
+                "{} failed access attempts detected - review security policies",
+                failed_access
+            ));
         }
 
         // Check for configuration changes
-        let config_changes = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::ConfigurationChange
-        }).count();
+        let config_changes = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::ConfigurationChange)
+            .count();
 
         if config_changes > 0 {
-            recommendations.push(format!("{} configuration changes detected - ensure proper authorization", config_changes));
+            recommendations.push(format!(
+                "{} configuration changes detected - ensure proper authorization",
+                config_changes
+            ));
         }
 
         // Check audit log integrity
-        let integrity_issues = entries.iter().filter(|e| {
-            !self.verify_entry(e).unwrap_or(false)
-        }).count();
+        let integrity_issues = entries
+            .iter()
+            .filter(|e| !self.verify_entry(e).unwrap_or(false))
+            .count();
 
         if integrity_issues > 0 {
             violations += integrity_issues as u32;
-            recommendations.push(format!("CRITICAL: {} audit entries failed integrity verification", integrity_issues));
+            recommendations.push(format!(
+                "CRITICAL: {} audit entries failed integrity verification",
+                integrity_issues
+            ));
         }
 
         if recommendations.is_empty() {
@@ -1230,9 +1274,13 @@ impl AdvancedAuditSystem {
             compliance_violations: violations,
             recommendations,
             summary: if violations == 0 {
-                "PP 71/2019 compliance maintained - Electronic systems security requirements met".to_string()
+                "PP 71/2019 compliance maintained - Electronic systems security requirements met"
+                    .to_string()
             } else {
-                format!("PP 71/2019 compliance issues detected - {} violations require attention", violations)
+                format!(
+                    "PP 71/2019 compliance issues detected - {} violations require attention",
+                    violations
+                )
             },
         }
     }
@@ -1257,46 +1305,65 @@ impl AdvancedAuditSystem {
         let mut recommendations = Vec::new();
 
         // Check for system access events
-        let system_access = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::SystemAccess
-        }).count();
+        let _system_access = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::SystemAccess)
+            .count();
 
         // Check for admin actions
-        let admin_actions = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::AdminAction
-        }).count();
+        let admin_actions = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::AdminAction)
+            .count();
 
         if admin_actions > 0 {
-            recommendations.push(format!("{} administrative actions logged - ensure proper oversight", admin_actions));
+            recommendations.push(format!(
+                "{} administrative actions logged - ensure proper oversight",
+                admin_actions
+            ));
         }
 
         // Check for security events
-        let security_events = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::SecurityEvent
-        }).count();
+        let security_events = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::SecurityEvent)
+            .count();
 
         if security_events > 0 {
-            recommendations.push(format!("{} security events detected - review and respond appropriately", security_events));
+            recommendations.push(format!(
+                "{} security events detected - review and respond appropriately",
+                security_events
+            ));
             violations += security_events as u32;
         }
 
         // Check for data access patterns
-        let data_access = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::DataAccess && e.event.sensitive_data_access
-        }).count();
+        let data_access = entries
+            .iter()
+            .filter(|e| {
+                e.event.category == AuditCategory::DataAccess && e.event.sensitive_data_access
+            })
+            .count();
 
         if data_access > 0 {
-            recommendations.push(format!("{} sensitive data access events - ensure proper authorization", data_access));
+            recommendations.push(format!(
+                "{} sensitive data access events - ensure proper authorization",
+                data_access
+            ));
         }
 
         // Check for policy violations
-        let policy_violations = entries.iter().filter(|e| {
-            e.event.category == AuditCategory::PolicyViolation
-        }).count();
+        let policy_violations = entries
+            .iter()
+            .filter(|e| e.event.category == AuditCategory::PolicyViolation)
+            .count();
 
         if policy_violations > 0 {
             violations += policy_violations as u32;
-            recommendations.push(format!("CRITICAL: {} policy violations detected", policy_violations));
+            recommendations.push(format!(
+                "CRITICAL: {} policy violations detected",
+                policy_violations
+            ));
         }
 
         if recommendations.is_empty() {
@@ -1313,7 +1380,10 @@ impl AdvancedAuditSystem {
             summary: if violations == 0 {
                 "Perpres 95/2018 SPBE compliance maintained - Government electronic systems requirements met".to_string()
             } else {
-                format!("Perpres 95/2018 SPBE compliance issues detected - {} violations require immediate attention", violations)
+                format!(
+                    "Perpres 95/2018 SPBE compliance issues detected - {} violations require immediate attention",
+                    violations
+                )
             },
         }
     }
@@ -1390,7 +1460,10 @@ struct ProcessingAuditSystem {
 }
 
 impl ProcessingAuditSystem {
-    async fn create_signed_entry(&self, event: AuditEvent) -> Result<SignedAuditEntry, SecurityAuditError> {
+    async fn create_signed_entry(
+        &self,
+        event: AuditEvent,
+    ) -> Result<SignedAuditEntry, SecurityAuditError> {
         let sequence_number = {
             let mut counter = self.sequence_counter.lock().unwrap();
             *counter += 1;

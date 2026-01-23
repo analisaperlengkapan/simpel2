@@ -25,7 +25,7 @@
 //!     data: serde_json::json!({"password": "secret123"}),
 //!     ttl: Duration::from_secs(300), // 5 minutes
 //!     namespace: "default".to_string(),
-//! };
+//! ;
 //! let token = service.wrap(request).await?;
 //!
 //! // Unwrap (one-time use)
@@ -41,7 +41,7 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::utils::encoding::{base64_decode, base64_encode};
@@ -455,11 +455,8 @@ impl WrappingService {
 
     /// Encrypt data using AES-256-GCM
     async fn encrypt_data(&self, data: &[u8]) -> Result<(Vec<u8>, JsonValue), WrappingError> {
-        use aes_gcm::{
-            Aes256Gcm, Nonce,
-            aead::{Aead, KeyInit, OsRng},
-        };
-        use rand::RngCore;
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
+        use rand::{RngCore, rngs::OsRng};
 
         // Generate random key for this wrap operation
         let mut key_bytes = [0u8; 32];

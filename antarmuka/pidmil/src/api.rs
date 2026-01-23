@@ -1,4 +1,4 @@
-use crate::types::{MilitaryCase, MilitarySuspect};
+use crate::types::MilitaryCase;
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
