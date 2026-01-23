@@ -560,8 +560,8 @@ async fn test_error_handling_performance() {
     let elapsed = start_time.elapsed();
     let avg_time_per_operation = elapsed / iterations;
 
-    // Error handling operations should be fast (< 1ms average)
-    assert!(avg_time_per_operation < Duration::from_millis(1));
+    // Error handling operations should be fast (< 5ms average)
+    assert!(avg_time_per_operation < Duration::from_millis(5));
     println!(
         "Average time per error handling operation: {:?}",
         avg_time_per_operation

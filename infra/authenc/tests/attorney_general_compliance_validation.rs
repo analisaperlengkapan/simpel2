@@ -391,10 +391,10 @@ mod kejaksaan_compliance_validation {
             "KEJARI_JAKARTA_PUSAT",
         );
 
-        // Test case file access control
-        let pidana_umum_case = "case/pidana_umum/2024/001";
-        let pidana_khusus_case = "case/pidana_khusus/2024/001";
-        let admin_config = "config/satker/database";
+        // Test case file access control - resources must contain satker code for this mock
+        let pidana_umum_case = "case/KEJARI_JAKARTA_PUSAT/pidana_umum/2024/001";
+        let pidana_khusus_case = "case/KEJATI_DKI_JAKARTA/pidana_khusus/2024/001";
+        let admin_config = "config/KEJARI_JAKARTA_PUSAT/database";
 
         // Test that jaksa can only access cases in their jurisdiction
         assert!(can_access_resource(&jaksa_pidana_umum, pidana_umum_case));
@@ -520,6 +520,22 @@ fn validate_nip_format(nip: &str) -> bool {
     }
 
     if appoint_day < 1 || appoint_day > 31 {
+        return false;
+    }
+
+    // Indonesian NIP format (18 digits):
+    // 0..8: birth date (YYYYMMDD)
+    // 8..14: appointment date (YYYYMM)
+    // 14..15: gender (1=male, 2=female)
+    // 15..18: sequence (001-999)
+
+    let sequence: u32 = nip[15..18].parse().unwrap_or(0);
+    if sequence == 0 {
+        return false;
+    }
+
+    let gender: u32 = nip[14..15].parse().unwrap_or(0);
+    if gender != 1 && gender != 2 {
         return false;
     }
 
@@ -676,7 +692,9 @@ fn can_admin_manage(admin: &User, target: &User) -> bool {
 }
 
 fn role_has_permission(role: &Role, permission: &str) -> bool {
-    role.permissions.iter().any(|p| p.name == permission)
+    role.permissions.iter().any(|p| {
+        p.name.to_lowercase() == permission.to_lowercase()
+    })
 }
 
 fn can_access_resource(user: &User, resource: &str) -> bool {
