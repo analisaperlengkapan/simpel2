@@ -588,17 +588,39 @@ pub async fn setup_mfa(
             }
         }
         "email" => {
-            if request.email.is_none() {
+            if let Some(email) = &request.email {
+                // Initiate Email setup
+                let _code = state
+                    .mfa
+                    .initiate_email_setup(&user_id, email.clone())
+                    .await
+                    .map_err(|e| ApiError::Internal {
+                        message: format!("Failed to initiate Email setup: {}", e),
+                    })?;
+
+                // Get recovery codes
+                let mfa_config =
+                    state
+                        .mfa
+                        .get_config(&user_id)
+                        .await
+                        .ok_or_else(|| ApiError::Internal {
+                            message: "Failed to retrieve MFA configuration".to_string(),
+                        })?;
+
+                MfaSetupResponse {
+                    method: "email".to_string(),
+                    secret: None,
+                    qr_code: None,
+                    backup_codes: mfa_config.recovery_codes.clone(),
+                }
+            } else {
                 return Err(ApiError::Validation {
                     message: "Email is required for email MFA method".to_string(),
                     field: Some("email".to_string()),
                     details: None,
                 });
             }
-            // TODO: Implement email MFA setup
-            return Err(ApiError::NotImplemented(
-                "Email MFA not yet implemented".to_string(),
-            ));
         }
         "sms" => {
             if let Some(phone) = &request.phone_number {
@@ -711,6 +733,16 @@ pub async fn verify_mfa(
                 .await
                 .map_err(|e| ApiError::Authentication {
                     message: format!("Failed to verify SMS code: {}", e),
+                })?
+        }
+        "email" => {
+            // Verify Email code
+            state
+                .mfa
+                .verify_email_setup(&user_id, &request.code)
+                .await
+                .map_err(|e| ApiError::Authentication {
+                    message: format!("Failed to verify Email code: {}", e),
                 })?
         }
         "recovery" => {
