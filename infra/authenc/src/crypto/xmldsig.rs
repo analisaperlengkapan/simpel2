@@ -855,7 +855,7 @@ impl CertificateValidator {
     }
 
     /// Validate certificate with optional revocation checking
-    pub fn validate_with_revocation(
+    pub async fn validate_with_revocation(
         &self,
         cert: &X509,
         crl_manager: Option<&mut CrlManager>,
@@ -870,7 +870,7 @@ impl CertificateValidator {
 
         // Check revocation if CRL manager provided
         if let Some(crl_mgr) = crl_manager {
-            match crl_mgr.check_revocation(cert) {
+            match crl_mgr.check_revocation(cert).await {
                 Ok(RevocationStatus::NotRevoked) => {
                     tracing::debug!("Certificate not revoked");
                 }
@@ -1213,7 +1213,7 @@ pub struct CrlManager {
     /// How long to cache CRLs (default: 1 hour)
     cache_duration: Duration,
     /// HTTP client for downloading CRLs
-    http_client: reqwest::blocking::Client,
+    http_client: reqwest::Client,
     /// Maximum CRL size to download (default: 10MB)
     max_crl_size: usize,
 }
@@ -1226,7 +1226,7 @@ impl CrlManager {
 
     /// Create a new CRL Manager with custom configuration
     pub fn with_config(cache_duration: Duration, max_crl_size: usize) -> Result<Self> {
-        let http_client = reqwest::blocking::Client::builder()
+        let http_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
             .map_err(|e| anyhow!("Failed to create HTTP client: {}", e))?;
@@ -1240,7 +1240,7 @@ impl CrlManager {
     }
 
     /// Check if a certificate has been revoked
-    pub fn check_revocation(&mut self, cert: &X509) -> Result<RevocationStatus> {
+    pub async fn check_revocation(&mut self, cert: &X509) -> Result<RevocationStatus> {
         // Extract CRL distribution points from certificate
         let crl_urls = self.extract_crl_distribution_points(cert)?;
 
@@ -1251,7 +1251,7 @@ impl CrlManager {
 
         // Try each CRL distribution point
         for url in &crl_urls {
-            match self.check_revocation_with_crl(cert, url) {
+            match self.check_revocation_with_crl(cert, url).await {
                 Ok(status) => return Ok(status),
                 Err(e) => {
                     tracing::warn!("Failed to check revocation with CRL {}: {}", url, e);
@@ -1265,20 +1265,20 @@ impl CrlManager {
     }
 
     /// Check revocation status using a specific CRL URL
-    fn check_revocation_with_crl(
+    async fn check_revocation_with_crl(
         &mut self,
         cert: &X509,
         crl_url: &str,
     ) -> Result<RevocationStatus> {
         // Get CRL (from cache or download)
-        let crl = self.get_crl(crl_url)?;
+        let crl = self.get_crl(crl_url).await?;
 
         // Check if certificate is in the CRL
         self.check_certificate_in_crl(cert, &crl)
     }
 
     /// Get a CRL (from cache or download)
-    fn get_crl(&mut self, url: &str) -> Result<X509Crl> {
+    async fn get_crl(&mut self, url: &str) -> Result<X509Crl> {
         // Check cache first
         let crl_bytes = {
             let cache = self.cache.lock().unwrap();
@@ -1300,7 +1300,7 @@ impl CrlManager {
 
         // Download CRL data
         tracing::info!("Downloading CRL from {}", url);
-        let crl_bytes = self.download_crl(url)?;
+        let crl_bytes = self.download_crl(url).await?;
 
         // Cache the raw bytes
         let expiration = SystemTime::now() + self.cache_duration;
@@ -1314,11 +1314,12 @@ impl CrlManager {
     }
 
     /// Download CRL data from a URL
-    fn download_crl(&self, url: &str) -> Result<Vec<u8>> {
+    async fn download_crl(&self, url: &str) -> Result<Vec<u8>> {
         let response = self
             .http_client
             .get(url)
             .send()
+            .await
             .map_err(|e| anyhow!("Failed to download CRL: {}", e))?;
 
         if !response.status().is_success() {
@@ -1338,6 +1339,7 @@ impl CrlManager {
 
         let crl_data = response
             .bytes()
+            .await
             .map_err(|e| anyhow!("Failed to read CRL data: {}", e))?
             .to_vec();
 

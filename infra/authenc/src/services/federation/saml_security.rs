@@ -3,7 +3,8 @@
 
 use anyhow::{Result, anyhow};
 use openssl::x509::X509;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::crypto::xmldsig::{
     CertificateValidationResult, CertificateValidator, CrlManager, OcspClient, RevocationStatus,
@@ -207,7 +208,7 @@ impl SamlSecurityValidator {
     /// # Returns
     /// * `Ok(())` if signature and certificate are valid
     /// * `Err` if any validation step fails
-    pub fn validate_signature_comprehensive(&self, xml: &str) -> Result<()> {
+    pub async fn validate_signature_comprehensive(&self, xml: &str) -> Result<()> {
         // Extract signature from XML
         let signature = XmlSignature::extract_from_xml(xml)
             .map_err(|e| anyhow!("Failed to extract XML signature: {}", e))?;
@@ -249,32 +250,32 @@ impl SamlSecurityValidator {
 
         // Check certificate revocation via CRL if enabled
         #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-        if self.config.enable_crl_check
-            && let Some(crl_manager) = &self.crl_manager
-        {
-            let mut manager = crl_manager.lock().unwrap();
-            match manager.check_revocation(&cert) {
-                Ok(RevocationStatus::NotRevoked) => {
-                    tracing::debug!("CRL check passed: certificate not revoked");
-                }
-                Ok(RevocationStatus::Revoked { reason, .. }) => {
-                    return Err(anyhow!(
-                        "Certificate revoked (CRL): {}",
-                        reason.unwrap_or_else(|| "No reason provided".to_string())
-                    ));
-                }
-                Ok(RevocationStatus::Unknown) => {
-                    if self.config.crl_fail_on_unavailable {
-                        return Err(anyhow!("CRL revocation status unknown (hard-fail mode)"));
-                    } else {
-                        tracing::warn!("CRL revocation status unknown (soft-fail mode)");
+        if self.config.enable_crl_check {
+            if let Some(crl_manager) = &self.crl_manager {
+                let mut manager = crl_manager.lock().await;
+                match manager.check_revocation(&cert).await {
+                    Ok(RevocationStatus::NotRevoked) => {
+                        tracing::debug!("CRL check passed: certificate not revoked");
                     }
-                }
-                Err(e) => {
-                    if self.config.crl_fail_on_unavailable {
-                        return Err(anyhow!("CRL check failed (hard-fail mode): {}", e));
-                    } else {
-                        tracing::warn!("CRL check failed (soft-fail mode): {}", e);
+                    Ok(RevocationStatus::Revoked { reason, .. }) => {
+                        return Err(anyhow!(
+                            "Certificate revoked (CRL): {}",
+                            reason.unwrap_or_else(|| "No reason provided".to_string())
+                        ));
+                    }
+                    Ok(RevocationStatus::Unknown) => {
+                        if self.config.crl_fail_on_unavailable {
+                            return Err(anyhow!("CRL revocation status unknown (hard-fail mode)"));
+                        } else {
+                            tracing::warn!("CRL revocation status unknown (soft-fail mode)");
+                        }
+                    }
+                    Err(e) => {
+                        if self.config.crl_fail_on_unavailable {
+                            return Err(anyhow!("CRL check failed (hard-fail mode): {}", e));
+                        } else {
+                            tracing::warn!("CRL check failed (soft-fail mode): {}", e);
+                        }
                     }
                 }
             }
@@ -282,22 +283,22 @@ impl SamlSecurityValidator {
 
         // Check certificate revocation via OCSP if enabled
         #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-        if self.config.enable_ocsp_check
-            && let Some(ocsp_client) = &self.ocsp_client
-        {
-            // Need issuer certificate for OCSP check
-            // For now, we'll skip OCSP if we can't determine issuer
-            // This is a limitation that could be improved by extracting issuer from chain
-            tracing::debug!("OCSP check skipped: issuer certificate not available");
+        if self.config.enable_ocsp_check {
+            if let Some(ocsp_client) = &self.ocsp_client {
+                // Need issuer certificate for OCSP check
+                // For now, we'll skip OCSP if we can't determine issuer
+                // This is a limitation that could be improved by extracting issuer from chain
+                tracing::debug!("OCSP check skipped: issuer certificate not available");
 
-            // TODO: Extract issuer from certificate chain and perform OCSP check
-            // let mut client = ocsp_client.lock().unwrap();
-            // match client.check_status(&cert, &issuer) {
-            //     Ok(OcspStatus::Good) => { ... }
-            //     Ok(OcspStatus::Revoked { .. }) => { ... }
-            //     Ok(OcspStatus::Unknown) => { ... }
-            //     Err(e) => { ... }
-            // }
+                // TODO: Extract issuer from certificate chain and perform OCSP check
+                // let mut client = ocsp_client.lock().await;
+                // match client.check_status(&cert, &issuer) {
+                //     Ok(OcspStatus::Good) => { ... }
+                //     Ok(OcspStatus::Revoked { .. }) => { ... }
+                //     Ok(OcspStatus::Unknown) => { ... }
+                //     Err(e) => { ... }
+                // }
+            }
         }
 
         // Verify signature with validated certificate
@@ -317,16 +318,16 @@ impl SamlSecurityValidator {
     ///
     /// Returns (crl_stats, ocsp_stats) where each is (total, valid)
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    pub fn get_cache_stats(&self) -> ((usize, usize), (usize, usize)) {
+    pub async fn get_cache_stats(&self) -> ((usize, usize), (usize, usize)) {
         let crl_stats = if let Some(crl_manager) = &self.crl_manager {
-            let manager = crl_manager.lock().unwrap();
+            let manager = crl_manager.lock().await;
             manager.cache_stats()
         } else {
             (0, 0)
         };
 
         let ocsp_stats = if let Some(ocsp_client) = &self.ocsp_client {
-            let client = ocsp_client.lock().unwrap();
+            let client = ocsp_client.lock().await;
             client.cache_stats()
         } else {
             (0, 0)
@@ -337,15 +338,15 @@ impl SamlSecurityValidator {
 
     /// Clear all caches (CRL and OCSP)
     #[cfg(any(feature = "test", feature = "dev", feature = "default"))]
-    pub fn clear_caches(&mut self) {
+    pub async fn clear_caches(&mut self) {
         if let Some(crl_manager) = &self.crl_manager {
-            let mut manager = crl_manager.lock().unwrap();
+            let mut manager = crl_manager.lock().await;
             manager.clear_cache();
             tracing::debug!("Cleared CRL cache");
         }
 
         if let Some(ocsp_client) = &self.ocsp_client {
-            let mut client = ocsp_client.lock().unwrap();
+            let mut client = ocsp_client.lock().await;
             client.clear_cache();
             tracing::debug!("Cleared OCSP cache");
         }
