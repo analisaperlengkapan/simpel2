@@ -3,7 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use secreton_core::services::lease::{LeaseError, LeaseManager};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::audit::AuditLogger;
 use crate::services::auth::AuthService;
 use secreton_crypto::encryption::CryptoEngine;
-use secreton_storage::{MemoryBackend, StorageBackend};
+use secreton_storage::{MemoryBackend, QueryParams, SecretEntry, SecurityLevel, StorageBackend};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
@@ -132,6 +132,7 @@ pub struct AdminService {
     auth: Arc<AuthService>,
     audit: Arc<AuditLogger>,
     lease_cleaner: Arc<dyn LeaseCleaner>,
+    crypto: Arc<CryptoEngine>,
     start_time: chrono::DateTime<chrono::Utc>,
     system: Arc<Mutex<System>>,
     request_count: Arc<AtomicU64>,
@@ -144,12 +145,14 @@ impl AdminService {
         auth: Arc<AuthService>,
         audit: Arc<AuditLogger>,
         lease_cleaner: Arc<dyn LeaseCleaner>,
+        crypto: Arc<CryptoEngine>,
     ) -> Result<Self> {
         Ok(Self {
             storage,
             auth,
             audit,
             lease_cleaner,
+            crypto,
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
             request_count: Arc::new(AtomicU64::new(0)),
@@ -634,6 +637,67 @@ impl AdminService {
         })
     }
 
+    /// Retrieve security incidents
+    pub async fn get_security_incidents(
+        &self,
+        limit: Option<u32>,
+        offset: Option<u32>,
+        _filter: Option<String>,
+    ) -> Result<Vec<SecurityIncident>, AdminError> {
+        let mut params = QueryParams::new().with_path_prefix("sys/incidents/".to_string());
+        if let Some(l) = limit {
+            params.limit = Some(l);
+        }
+        if let Some(o) = offset {
+            params.offset = Some(o);
+        }
+
+        let entries = self
+            .storage
+            .list(&params)
+            .await
+            .map_err(AdminError::Storage)?;
+
+        let mut incidents = Vec::new();
+        for entry in entries {
+            let decrypted = self
+                .crypto
+                .decrypt_simple(&entry.encrypted_data)
+                .map_err(|e| anyhow::anyhow!("Decryption failed: {}", e))?;
+            let incident: SecurityIncident = serde_json::from_slice(&decrypted)
+                .map_err(|e| anyhow::anyhow!("Deserialization failed: {}", e))?;
+            incidents.push(incident);
+        }
+
+        Ok(incidents)
+    }
+
+    /// Create a security incident (internal use or testing)
+    pub async fn create_security_incident(
+        &self,
+        incident: SecurityIncident,
+    ) -> Result<(), AdminError> {
+        let path = format!("sys/incidents/{}", incident.id);
+        let data = serde_json::to_vec(&incident)
+            .map_err(|e| anyhow::anyhow!("Serialization failed: {}", e))?;
+
+        let encrypted = self
+            .crypto
+            .encrypt_simple(&data)
+            .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
+
+        let entry = SecretEntry::new(
+            path,
+            encrypted,
+            serde_json::json!({"type": "security_incident"}),
+            SecurityLevel::Internal,
+            "system".to_string(),
+        );
+
+        self.storage.store(&entry).await.map_err(AdminError::Storage)?;
+        Ok(())
+    }
+
     /// Update system configuration
     pub async fn update_config(
         &self,
@@ -758,6 +822,19 @@ pub struct SecurityFinding {
     pub affected_resources: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SecurityIncident {
+    pub id: String,
+    pub severity: String,
+    pub status: String,
+    pub title: String,
+    pub description: String,
+    pub source: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
@@ -765,6 +842,7 @@ mod tests {
     use crate::config::AuthConfig;
     use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
+    use serde::Deserialize;
 
     // Mock implementation of LeaseCleaner for testing
     pub struct MockLeaseCleaner {
@@ -784,14 +862,14 @@ mod tests {
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
+            AuthService::new(storage.clone(), crypto.clone(), &config)
                 .await
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
         let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
 
-        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner).await;
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner, crypto).await;
         assert!(admin_service.is_ok());
     }
 
@@ -801,13 +879,13 @@ mod tests {
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
+            AuthService::new(storage.clone(), crypto.clone(), &config)
                 .await
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
         let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
-        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner, crypto)
             .await
             .unwrap();
 
@@ -831,13 +909,13 @@ mod tests {
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
+            AuthService::new(storage.clone(), crypto.clone(), &config)
                 .await
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
         let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
-        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner, crypto)
             .await
             .unwrap();
 
@@ -855,13 +933,13 @@ mod tests {
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
+            AuthService::new(storage.clone(), crypto.clone(), &config)
                 .await
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
         let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 15 });
-        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner)
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner, crypto)
             .await
             .unwrap();
 
@@ -893,13 +971,13 @@ mod tests {
         let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
         let config = AuthConfig::default();
         let auth = Arc::new(
-            AuthService::new(storage.clone(), crypto, &config)
+            AuthService::new(storage.clone(), crypto.clone(), &config)
                 .await
                 .expect("failed to create AuthService"),
         );
         let audit = Arc::new(AuditLogger::new(10000));
         let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
-        let admin_service = AdminService::new(storage, auth.clone(), audit, lease_cleaner)
+        let admin_service = AdminService::new(storage, auth.clone(), audit, lease_cleaner, crypto)
             .await
             .unwrap();
 
@@ -947,6 +1025,49 @@ mod tests {
             .unwrap();
         assert!(updated_keys.contains(&serde_json::Value::String("auth".to_string())));
     }
+
+    #[tokio::test]
+    async fn test_create_and_get_security_incidents() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(secreton_crypto::CryptoEngine::new());
+        let config = AuthConfig::default();
+        let auth = Arc::new(
+            AuthService::new(storage.clone(), crypto.clone(), &config)
+                .await
+                .expect("failed to create AuthService"),
+        );
+        let audit = Arc::new(AuditLogger::new(10000));
+        let lease_cleaner = Arc::new(MockLeaseCleaner { expired_count: 5 });
+        let admin_service = AdminService::new(storage, auth, audit, lease_cleaner, crypto)
+            .await
+            .unwrap();
+
+        let incident = SecurityIncident {
+            id: "inc-1".to_string(),
+            severity: "high".to_string(),
+            status: "open".to_string(),
+            title: "Test Incident".to_string(),
+            description: "A test incident".to_string(),
+            source: "test".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            resolved_at: None,
+        };
+
+        admin_service
+            .create_security_incident(incident.clone())
+            .await
+            .expect("create incident");
+
+        let incidents = admin_service
+            .get_security_incidents(None, None, None)
+            .await
+            .expect("get incidents");
+
+        assert_eq!(incidents.len(), 1);
+        assert_eq!(incidents[0].id, "inc-1");
+        assert_eq!(incidents[0].title, "Test Incident");
+    }
 }
 
 impl AdminService {
@@ -961,14 +1082,14 @@ impl AdminService {
             }
         }
 
+        let crypto = Arc::new(CryptoEngine::new());
+
         Self {
-            auth: Arc::new(AuthService::new_mock(
-                storage.clone(),
-                Arc::new(CryptoEngine::new()),
-            )),
+            auth: Arc::new(AuthService::new_mock(storage.clone(), crypto.clone())),
             storage,
             audit: Arc::new(AuditLogger::new(10000)),
             lease_cleaner: Arc::new(DummyLeaseCleaner),
+            crypto,
             start_time: chrono::Utc::now(),
             system: Arc::new(Mutex::new(System::new_all())),
             request_count: Arc::new(AtomicU64::new(0)),
