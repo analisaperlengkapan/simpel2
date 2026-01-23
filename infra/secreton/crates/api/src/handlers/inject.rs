@@ -4,19 +4,20 @@
 //! for CI/CD pipelines with automatic cleanup after job completion.
 
 use axum::{
-    Json,
-    Extension,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info};
+use std::time::Instant;
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::extractors::AuthenticatedUser;
+use crate::middleware::RequestContext;
 use crate::response::ApiResponse;
 use crate::services::engine::SecretServiceError;
 
@@ -112,6 +113,7 @@ pub struct InjectionSession {
 /// POST /v1/inject/env
 pub async fn inject_env(
     State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     user: AuthenticatedUser,
     Json(request): Json<InjectEnvRequest>,
 ) -> Result<Json<ApiResponse<InjectEnvResponse>>, ApiError> {
@@ -138,8 +140,38 @@ pub async fn inject_env(
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
-    // Optimize: Fetch secrets in parallel
     let user_id = user.id.to_string();
+
+    // Policy Check: Verify access for all requested paths
+    {
+        let policy_set = state.policy.read().map_err(|e| {
+            error!("Failed to acquire policy lock: {}", e);
+            ApiError::Internal {
+                message: "Policy service unavailable".to_string(),
+            }
+        })?;
+
+        let policy_context = build_policy_context(&ctx);
+
+        for secret_config in &request.secrets {
+            let allowed = policy_set.evaluate(
+                &user_id,
+                &secret_config.path,
+                "read",
+                Some(&policy_context),
+            );
+
+            if !allowed {
+                warn!(
+                    "Policy denied access to secret: {} for user {}",
+                    secret_config.path, user_id
+                );
+                return Err(ApiError::Forbidden);
+            }
+        }
+    }
+
+    // Optimize: Fetch secrets in parallel
     let fetch_futures = request.secrets.iter().map(|config| {
         let engine = state.engine.clone();
         let path = config.path.clone();
@@ -322,6 +354,25 @@ async fn list_active_sessions() -> Result<Vec<InjectionSession>, ApiError> {
     Ok(vec![])
 }
 
+fn build_policy_context(ctx: &RequestContext) -> serde_json::Value {
+    use serde_json::json;
+
+    json!({
+        "user_id": ctx.user_id,
+        "user_email": ctx.user_email,
+        "user_roles": ctx.user_roles,
+        "client_ip": ctx.client_ip.clone().unwrap_or_else(|| "unknown".to_string()),
+        "request_id": ctx.request_id,
+        "mfa_passed": ctx
+            .jwt_claims
+            .as_ref()
+            .and_then(|c| c.metadata.get("mfa_passed"))
+            .map(|v| v == "true")
+            .unwrap_or(false),
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    })
+}
+
 async fn schedule_cleanup(session_id: &str, ttl: u64) {
     let session_id = session_id.to_string();
 
@@ -459,6 +510,19 @@ mod tests {
             )
             .await
             .expect("Failed to put secret");
+
+        // Add permissive policy for test
+        {
+            let mut policy_set = services.policy.write().unwrap();
+            policy_set.rules.push(secreton_core::services::policy::PolicyRule {
+                effect: "allow".to_string(),
+                action: "read".to_string(),
+                path: "app/test".to_string(),
+                condition: None,
+                control_group: None,
+                mfa: None,
+            });
+        }
 
         let state = Arc::new(services);
 
