@@ -1299,61 +1299,127 @@ pub async fn list_key_versions(
 }
 
 // Policy management handlers
-// Note: Policy management requires a dedicated policy store with CRUD operations
-// The current PolicySet is designed for policy evaluation, not storage management
 pub async fn list_policies(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    // TODO: Implement policy storage/retrieval system
-    // Current PolicySet is for evaluation only
-    tracing::warn!("Policy list requested but policy storage not yet implemented");
-    Ok(Json(ApiResponse::success(vec![])))
+    // List policies via service
+    // We fetch all policies (limit 1000) and return just the names to match existing contract
+    // This maintains "Vault-like" behavior where listing returns keys/names
+    let (policies, _total) = state
+        .policy_service
+        .list_policies(None, None, None, 1000, 0)
+        .await
+        .map_err(ApiError::Core)?;
+
+    let names: Vec<String> = policies.into_iter().map(|p| p.name).collect();
+
+    // Audit log (optional for list, but good practice)
+    tracing::info!(user = %user.username, count = names.len(), "Listed policies");
+
+    Ok(Json(ApiResponse::success(names)))
 }
 
 pub async fn get_policy(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
-) -> ApiResult<Json<ApiResponse<String>>> {
-    // TODO: Implement policy storage/retrieval system
-    tracing::warn!(policy_name = %name, "Policy get requested but policy storage not yet implemented");
-    Err(ApiError::NotFound {
-        resource: format!("Policy '{}'", name),
-    })
+    user: AuthenticatedUser,
+) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
+    let p = state
+        .policy_service
+        .get_policy(name.clone())
+        .await
+        .map_err(ApiError::Core)?;
+
+    let policy = PolicyResponse {
+        name: p.name,
+        rules: p.rules,
+        metadata: PolicyMetadata {
+            description: p.description,
+            tags: vec![], // Tags not currently supported in service
+            owner: Some(p.created_by),
+        },
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+    };
+
+    // Audit log
+    let audit_entry = create_audit_log("policy_read", &user.username, "policy", &name);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(policy)))
 }
 
 pub async fn create_policy(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
-    Json(_policy_data): Json<serde_json::Value>,
+    user: AuthenticatedUser,
+    Json(req): Json<CreatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    // TODO: Implement policy storage system with validation
-    tracing::warn!(policy_name = %name, "Policy create requested but policy storage not yet implemented");
-    Err(ApiError::NotImplemented(
-        "Policy storage not yet implemented".to_string(),
-    ))
+    let description = req.metadata.as_ref().and_then(|m| m.description.clone());
+
+    state
+        .policy_service
+        .create_policy(
+            name.clone(),
+            "default".to_string(), // Default namespace
+            description,
+            req.rules,
+            user.username.clone(),
+        )
+        .await
+        .map_err(ApiError::Core)?;
+
+    // Audit log
+    let audit_entry = create_audit_log("policy_created", &user.username, "policy", &name);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(())))
 }
 
 pub async fn update_policy(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
-    Json(_policy_data): Json<serde_json::Value>,
+    user: AuthenticatedUser,
+    Json(req): Json<CreatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    // TODO: Implement policy storage system
-    tracing::warn!(policy_name = %name, "Policy update requested but policy storage not yet implemented");
-    Err(ApiError::NotFound {
-        resource: format!("Policy '{}'", name),
-    })
+    let description = req.metadata.as_ref().and_then(|m| m.description.clone());
+
+    state
+        .policy_service
+        .update_policy(
+            name.clone(),
+            description,
+            Some(req.rules),
+            None, // Don't change active status
+            user.username.clone(),
+        )
+        .await
+        .map_err(ApiError::Core)?;
+
+    // Audit log
+    let audit_entry = create_audit_log("policy_updated", &user.username, "policy", &name);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(())))
 }
 
 pub async fn delete_policy(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(name): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    // TODO: Implement policy storage system
-    tracing::warn!(policy_name = %name, "Policy delete requested but policy storage not yet implemented");
-    Err(ApiError::NotFound {
-        resource: format!("Policy '{}'", name),
-    })
+    state
+        .policy_service
+        .delete_policy(name.clone())
+        .await
+        .map_err(ApiError::Core)?;
+
+    // Audit log
+    let audit_entry = create_audit_log("policy_deleted", &user.username, "policy", &name);
+    let _ = state.audit.log(audit_entry).await;
+
+    Ok(Json(ApiResponse::success(())))
 }
 
 // Backup management handlers - delegate to admin service

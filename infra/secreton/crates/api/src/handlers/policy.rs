@@ -24,7 +24,6 @@ use tracing::info;
 use secreton_core::{
     error::CoreError,
     models::PolicyRule,
-    services::policy::{Capability, PolicySet},
 };
 
 use crate::{
@@ -169,188 +168,6 @@ fn is_admin(_state: &AppState) -> Result<bool, CoreError> {
     Ok(true)
 }
 
-/// Validate policy rules
-fn validate_policy_rules(rules: &[PolicyRule]) -> Result<(), CoreError> {
-    if rules.is_empty() {
-        return Err(CoreError::Validation {
-            message: "Invalid input".to_string(),
-        });
-    }
-
-    for (idx, rule) in rules.iter().enumerate() {
-        // Validate effect
-        if rule.effect != "allow" && rule.effect != "deny" {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        // Validate path pattern
-        if rule.path.is_empty() {
-            return Err(CoreError::Validation {
-                message: format!("Rule {}: Path cannot be empty", idx),
-            });
-        }
-
-        // Validate path pattern syntax
-        if rule.path.contains("**") && !rule.path.ends_with("**") {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        // Validate action
-        if rule.action.is_empty() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        // Validate capability if not wildcard
-        if rule.action != "*" && Capability::from_str(&rule.action).is_none() {
-            // Check if it's a valid custom action (alphanumeric with underscores)
-            if !rule.action.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return Err(CoreError::Validation {
-                    message: "Invalid input".to_string(),
-                });
-            }
-        }
-
-        // Validate control group if present
-        if let Some(cg) = &rule.control_group {
-            if cg.required_approvals == 0 {
-                return Err(CoreError::Validation {
-                    message: "Invalid input".to_string(),
-                });
-            }
-        }
-
-        // Validate condition if present
-        if let Some(condition) = &rule.condition {
-            validate_condition(condition, idx)?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Validate policy condition
-fn validate_condition(condition: &Value, _rule_idx: usize) -> Result<(), CoreError> {
-    if !condition.is_object() {
-        return Err(CoreError::Validation {
-            message: "Invalid input".to_string(),
-        });
-    }
-
-    // Validate time_range if present
-    if let Some(time_range) = condition.get("time_range") {
-        if !time_range.is_object() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        // Validate start and end are valid RFC3339 timestamps
-        if let Some(start) = time_range.get("start") {
-            if let Some(start_str) = start.as_str() {
-                if chrono::DateTime::parse_from_rfc3339(start_str).is_err() {
-                    return Err(CoreError::Validation {
-                        message: "Invalid input".to_string(),
-                    });
-                }
-            }
-        }
-
-        if let Some(end) = time_range.get("end") {
-            if let Some(end_str) = end.as_str() {
-                if chrono::DateTime::parse_from_rfc3339(end_str).is_err() {
-                    return Err(CoreError::Validation {
-                        message: "Invalid input".to_string(),
-                    });
-                }
-            }
-        }
-    }
-
-    // Validate allowed_ips if present
-    if let Some(allowed_ips) = condition.get("allowed_ips") {
-        if !allowed_ips.is_array() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-    }
-
-    // Validate expression if present
-    if let Some(expr) = condition.get("expression") {
-        if !expr.is_object() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        // Validate required fields
-        if expr.get("field").is_none() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        if expr.get("op").is_none() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-
-        if expr.get("value").is_none() {
-            return Err(CoreError::Validation {
-                message: "Invalid input".to_string(),
-            });
-        }
-    }
-
-    Ok(())
-}
-
-/// Check for circular dependencies
-async fn check_circular_dependencies(
-    pool: &deadpool_postgres::Pool,
-    policy_id: i64,
-    depends_on_id: i64,
-) -> Result<bool, CoreError> {
-    // Check if depends_on_id depends on policy_id (direct or indirect)
-    let client = pool.get().await.map_err(|e| CoreError::Internal {
-        message: format!("Database connection error: {}", e),
-        source: None,
-    })?;
-
-    // Recursive CTE to find all dependencies
-    let query = r#"
-        WITH RECURSIVE deps AS (
-            SELECT depends_on_policy_id
-            FROM policy_dependencies
-            WHERE policy_id = $1
-
-            UNION
-
-            SELECT pd.depends_on_policy_id
-            FROM policy_dependencies pd
-            INNER JOIN deps ON deps.depends_on_policy_id = pd.policy_id
-        )
-        SELECT EXISTS(SELECT 1 FROM deps WHERE depends_on_policy_id = $2)
-    "#;
-
-    let row = client
-        .query_one(query, &[&depends_on_id, &policy_id])
-        .await
-        .map_err(|e| CoreError::Internal {
-            message: format!("Database query error: {}", e),
-            source: None,
-        })?;
-
-    Ok(row.get(0))
-}
-
 // ============================================================================
 // API Handlers
 // ============================================================================
@@ -373,164 +190,51 @@ pub async fn list_policies(
         }));
     }
 
-    let pool = &state.pool;
-    let client = pool
-        .get()
-        .await
-        .map_err(|e| ApiError::internal(format!("Database connection error: {}", e)))?;
-
-    // Build query with filters
-    let mut where_clauses = vec![];
-    let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![];
-    let mut param_idx = 1;
-
-    // Storage for owned values that need to outlive the param references
-    let is_active_storage: Option<bool>;
-    let search_pattern_storage: Option<String>;
-
-    if let Some(ref namespace) = query.namespace {
-        where_clauses.push(format!("namespace = ${}", param_idx));
-        params.push(namespace);
-        param_idx += 1;
-    }
-
-    if let Some(is_active) = query.is_active {
-        where_clauses.push(format!("is_active = ${}", param_idx));
-        is_active_storage = Some(is_active);
-        if let Some(ref val) = is_active_storage {
-            params.push(val);
-        }
-        param_idx += 1;
-    } else {
-        is_active_storage = None;
-    }
-
-    if let Some(ref search) = query.search {
-        where_clauses.push(format!(
-            "(name ILIKE ${} OR description ILIKE ${})",
-            param_idx, param_idx
-        ));
-        search_pattern_storage = Some(format!("%{}%", search));
-        if let Some(ref pattern) = search_pattern_storage {
-            params.push(pattern);
-        }
-        param_idx += 1;
-    } else {
-        search_pattern_storage = None;
-    }
-
-    let where_clause = if where_clauses.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", where_clauses.join(" AND "))
-    };
-
-    // Count total
-    let count_query = format!("SELECT COUNT(*) FROM policies {}", where_clause);
-    let count_row =
-        client
-            .query_one(&count_query, &params)
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Internal error: {}", e),
-                source: None,
-            })?;
-    let total: i64 = count_row.get(0);
-
-    // Get paginated results
-    let limit = 20;
-    let offset = 0;
-
-    let select_query = format!(
-        "SELECT id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by
-         FROM policies {}
-         ORDER BY created_at DESC
-         LIMIT ${} OFFSET ${}",
-        where_clause, param_idx, param_idx + 1
-    );
-
-    params.push(&limit);
-    params.push(&offset);
-
-    let rows = client
-        .query(&select_query, &params)
-        .await
-        .map_err(|e| CoreError::Internal {
-            message: format!("Internal error: {}", e),
-            source: None,
-        })?;
-
-    let mut policies = vec![];
-    for row in rows {
-        let id: i64 = row.get(0);
-        let rules_json: serde_json::Value = row.get(4);
-        let rules: Vec<PolicyRule> = serde_json::from_value(rules_json).unwrap_or_default();
-
-        // Get stats
-        let stats = get_policy_stats(&client, id).await.ok();
-
-        policies.push(PolicyResponse {
-            id,
-            name: row.get(1),
-            namespace: row.get(2),
-            description: row.get(3),
-            rules,
-            version: row.get(5),
-            is_active: row.get(6),
-            created_at: row.get(7),
-            updated_at: row.get(8),
-            created_by: row.get(9),
-            updated_by: row.get(10),
-            stats,
-        });
-    }
-
-    info!("Found {} policies (total: {})", policies.len(), total);
-
-    Ok(Json(PaginatedResponse::new(
-        policies,
-        total as u64,
-        limit as u32,
-        offset as u32,
-    )))
-}
-
-/// Get policy statistics
-async fn get_policy_stats(
-    client: &tokio_postgres::Client,
-    policy_id: i64,
-) -> Result<PolicyStats, CoreError> {
-    let row = client
-        .query_opt(
-            "SELECT evaluations_total, evaluations_allowed, evaluations_denied, cache_hits, cache_misses, last_evaluated_at
-             FROM policy_stats WHERE policy_id = $1",
-            &[&policy_id],
+    let (policies, total) = state
+        .policy_service
+        .list_policies(
+            query.namespace,
+            query.is_active,
+            query.search,
+            query.pagination.limit,
+            query.pagination.offset,
         )
         .await
-        .map_err(|e| CoreError::Internal {
-            message: format!("Database query error: {}", e),
-            source: None,
-        })?;
+        .map_err(ApiError::Core)?;
 
-    if let Some(row) = row {
-        Ok(PolicyStats {
-            evaluations_total: row.get(0),
-            evaluations_allowed: row.get(1),
-            evaluations_denied: row.get(2),
-            cache_hits: row.get(3),
-            cache_misses: row.get(4),
-            last_evaluated_at: row.get(5),
+    let response_policies: Vec<PolicyResponse> = policies
+        .into_iter()
+        .map(|p| PolicyResponse {
+            id: p.id,
+            name: p.name,
+            namespace: p.namespace,
+            description: p.description,
+            rules: p.rules,
+            version: p.version,
+            is_active: p.is_active,
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+            created_by: p.created_by,
+            updated_by: p.updated_by,
+            stats: p.stats.map(|s| PolicyStats {
+                evaluations_total: s.evaluations_total,
+                evaluations_allowed: s.evaluations_allowed,
+                evaluations_denied: s.evaluations_denied,
+                cache_hits: s.cache_hits,
+                cache_misses: s.cache_misses,
+                last_evaluated_at: s.last_evaluated_at,
+            }),
         })
-    } else {
-        Ok(PolicyStats {
-            evaluations_total: 0,
-            evaluations_allowed: 0,
-            evaluations_denied: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-            last_evaluated_at: None,
-        })
-    }
+        .collect();
+
+    info!("Found {} policies (total: {})", response_policies.len(), total);
+
+    Ok(Json(PaginatedResponse::new(
+        response_policies,
+        total,
+        query.pagination.limit,
+        query.pagination.offset,
+    )))
 }
 
 /// Create a new policy
@@ -552,109 +256,41 @@ pub async fn create_policy(
         }));
     }
 
-    // Validate policy name
-    if name.is_empty()
-        || !name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-    {
-        return Err(ApiError::Core(CoreError::Validation {
-            message: "Invalid input".to_string(),
-        }));
-    }
-
-    // Validate rules
-    validate_policy_rules(&req.rules)?;
-
     let user = extract_user(&state)?;
-    let pool = &state.pool;
-    let client = pool
-        .get()
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
-    // Check if policy already exists
-    let existing = client
-        .query_opt(
-            "SELECT id FROM policies WHERE name = $1 AND namespace = $2",
-            &[&name, &req.namespace],
+    let p = state
+        .policy_service
+        .create_policy(
+            name,
+            req.namespace,
+            req.description,
+            req.rules,
+            user,
         )
         .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    if existing.is_some() {
-        return Err(ApiError::Core(CoreError::AlreadyExists {
-            resource: "policy".to_string(),
-        }));
-    }
-
-    // Serialize rules to JSON
-    let rules_json = serde_json::to_value(&req.rules)
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    // Insert policy
-    let row = client
-        .query_one(
-            "INSERT INTO policies (name, namespace, description, rules, version, created_by)
-             VALUES ($1, $2, $3, $4, 1, $5)
-             RETURNING id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by",
-            &[&name, &req.namespace, &req.description, &rules_json, &user],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    let policy_id: i64 = row.get(0);
-
-    // Initialize stats
-    client
-        .execute(
-            "INSERT INTO policy_stats (policy_id) VALUES ($1)",
-            &[&policy_id],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    // Create version history
-    client
-        .execute(
-            "INSERT INTO policy_versions (policy_id, version, rules, description, created_by)
-             VALUES ($1, 1, $2, $3, $4)",
-            &[&policy_id, &rules_json, &req.description, &user],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    let rules: Vec<PolicyRule> = serde_json::from_value(row.get(4)).unwrap_or_default();
+        .map_err(ApiError::Core)?;
 
     let policy = PolicyResponse {
-        id: policy_id,
-        name: row.get(1),
-        namespace: row.get(2),
-        description: row.get(3),
-        rules,
-        version: row.get(5),
-        is_active: row.get(6),
-        created_at: row.get(7),
-        updated_at: row.get(8),
-        created_by: row.get(9),
-        updated_by: row.get(10),
-        stats: Some(PolicyStats {
-            evaluations_total: 0,
-            evaluations_allowed: 0,
-            evaluations_denied: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-            last_evaluated_at: None,
+        id: p.id,
+        name: p.name,
+        namespace: p.namespace,
+        description: p.description,
+        rules: p.rules,
+        version: p.version,
+        is_active: p.is_active,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        created_by: p.created_by,
+        updated_by: p.updated_by,
+        stats: p.stats.map(|s| PolicyStats {
+            evaluations_total: s.evaluations_total,
+            evaluations_allowed: s.evaluations_allowed,
+            evaluations_denied: s.evaluations_denied,
+            cache_hits: s.cache_hits,
+            cache_misses: s.cache_misses,
+            last_evaluated_at: s.last_evaluated_at,
         }),
     };
-
-    info!(
-        "Policy created: id={}, name={}, namespace={}",
-        policy_id, name, req.namespace
-    );
-
-    // Invalidate policy cache (no-op - cache service not yet integrated)
-    let _ = &state;
 
     Ok(Json(ApiResponse::success(policy)))
 }
@@ -674,46 +310,32 @@ pub async fn get_policy(
         }));
     }
 
-    let pool = &state.pool;
-    let client = pool
-        .get()
+    let p = state
+        .policy_service
+        .get_policy(name)
         .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    // Get policy
-    let row = client
-        .query_opt(
-            "SELECT id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by
-             FROM policies WHERE name = $1",
-            &[&name],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string(),
-    })?;
-
-    let policy_id: i64 = row.get(0);
-    let rules_json: serde_json::Value = row.get(4);
-    let rules: Vec<PolicyRule> = serde_json::from_value(rules_json).unwrap_or_default();
-
-    // Get stats
-    let stats = get_policy_stats(&client, policy_id).await.ok();
+        .map_err(ApiError::Core)?;
 
     let policy = PolicyResponse {
-        id: policy_id,
-        name: row.get(1),
-        namespace: row.get(2),
-        description: row.get(3),
-        rules,
-        version: row.get(5),
-        is_active: row.get(6),
-        created_at: row.get(7),
-        updated_at: row.get(8),
-        created_by: row.get(9),
-        updated_by: row.get(10),
-        stats,
+        id: p.id,
+        name: p.name,
+        namespace: p.namespace,
+        description: p.description,
+        rules: p.rules,
+        version: p.version,
+        is_active: p.is_active,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        created_by: p.created_by,
+        updated_by: p.updated_by,
+        stats: p.stats.map(|s| PolicyStats {
+            evaluations_total: s.evaluations_total,
+            evaluations_allowed: s.evaluations_allowed,
+            evaluations_denied: s.evaluations_denied,
+            cache_hits: s.cache_hits,
+            cache_misses: s.cache_misses,
+            last_evaluated_at: s.last_evaluated_at,
+        }),
     };
 
     Ok(Json(ApiResponse::success(policy)))
@@ -735,146 +357,43 @@ pub async fn update_policy(
         }));
     }
 
-    // Validate rules if provided
-    if let Some(ref rules) = req.rules {
-        validate_policy_rules(rules)?;
-    }
-
     let user = extract_user(&state)?;
-    let pool = &state.pool;
-    let client = pool
-        .get()
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
 
-    // Get existing policy
-    let existing = client
-        .query_opt(
-            "SELECT id, version, rules FROM policies WHERE name = $1",
-            &[&name],
+    let p = state
+        .policy_service
+        .update_policy(
+            name,
+            req.description,
+            req.rules,
+            req.is_active,
+            user,
         )
         .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
+        .map_err(ApiError::Core)?;
 
-    let existing = existing.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string(),
-    })?;
+    let policy = PolicyResponse {
+        id: p.id,
+        name: p.name,
+        namespace: p.namespace,
+        description: p.description,
+        rules: p.rules,
+        version: p.version,
+        is_active: p.is_active,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+        created_by: p.created_by,
+        updated_by: p.updated_by,
+        stats: p.stats.map(|s| PolicyStats {
+            evaluations_total: s.evaluations_total,
+            evaluations_allowed: s.evaluations_allowed,
+            evaluations_denied: s.evaluations_denied,
+            cache_hits: s.cache_hits,
+            cache_misses: s.cache_misses,
+            last_evaluated_at: s.last_evaluated_at,
+        }),
+    };
 
-    let policy_id: i64 = existing.get(0);
-    let current_version: i32 = existing.get(1);
-    let new_version = current_version + 1;
-
-    // Build update query
-    let mut updates = vec![];
-    let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![];
-    let mut param_idx = 1;
-
-    // Storage for owned values that need to outlive the param references
-    let is_active_storage: Option<bool>;
-
-    if let Some(ref description) = req.description {
-        updates.push(format!("description = ${}", param_idx));
-        params.push(description);
-        param_idx += 1;
-    }
-
-    // Store rules JSON in a variable that lives long enough
-    let rules_json: Option<serde_json::Value>;
-    if let Some(ref rules) = req.rules {
-        let json = serde_json::to_value(rules)
-            .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-        updates.push(format!("rules = ${}", param_idx));
-        rules_json = Some(json);
-        if let Some(ref json_ref) = rules_json {
-            params.push(json_ref);
-        }
-        param_idx += 1;
-    } else {
-        rules_json = None;
-    }
-
-    if let Some(is_active) = req.is_active {
-        updates.push(format!("is_active = ${}", param_idx));
-        is_active_storage = Some(is_active);
-        if let Some(ref val) = is_active_storage {
-            params.push(val);
-        }
-        param_idx += 1;
-    } else {
-        is_active_storage = None;
-    }
-
-    if !updates.is_empty() {
-        updates.push(format!("version = ${}", param_idx));
-        params.push(&new_version);
-        param_idx += 1;
-
-        updates.push(format!("updated_by = ${}", param_idx));
-        params.push(&user);
-        param_idx += 1;
-
-        let update_query = format!(
-            "UPDATE policies SET {} WHERE name = ${}
-             RETURNING id, name, namespace, description, rules, version, is_active, created_at, updated_at, created_by, updated_by",
-            updates.join(", "),
-            param_idx
-        );
-
-        params.push(&name);
-
-        let row = client
-            .query_one(&update_query, &params)
-            .await
-            .map_err(|e| CoreError::Internal {
-                message: format!("Internal error: {}", e),
-                source: None,
-            })?;
-
-        // Create version history if rules changed
-        if let Some(rules_json) = rules_json {
-            client
-                .execute(
-                    "INSERT INTO policy_versions (policy_id, version, rules, description, created_by)
-                     VALUES ($1, $2, $3, $4, $5)",
-                    &[&policy_id, &new_version, &rules_json, &req.description, &user],
-                )
-                .await
-                .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-        }
-
-        let rules: Vec<PolicyRule> = serde_json::from_value(row.get(4)).unwrap_or_default();
-        let stats = get_policy_stats(&client, policy_id).await.ok();
-
-        let policy = PolicyResponse {
-            id: policy_id,
-            name: row.get(1),
-            namespace: row.get(2),
-            description: row.get(3),
-            rules,
-            version: row.get(5),
-            is_active: row.get(6),
-            created_at: row.get(7),
-            updated_at: row.get(8),
-            created_by: row.get(9),
-            updated_by: row.get(10),
-            stats,
-        };
-
-        // Audit log
-        info!(
-            "Policy updated: id={}, name={}, namespace={}, version={}",
-            policy_id, name, policy.namespace, policy.version
-        );
-
-        // Policy cache invalidation would happen here
-        // In production, integrate with actual cache service
-
-        Ok(Json(ApiResponse::success(policy)))
-    } else {
-        Err(ApiError::Core(CoreError::Validation {
-            message: "Invalid input".to_string(),
-        }))
-    }
+    Ok(Json(ApiResponse::success(policy)))
 }
 
 /// Delete a policy
@@ -892,59 +411,11 @@ pub async fn delete_policy(
         }));
     }
 
-    let pool = &state.pool;
-    let client = pool
-        .get()
+    state
+        .policy_service
+        .delete_policy(name)
         .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    // Get policy ID
-    let row = client
-        .query_opt("SELECT id FROM policies WHERE name = $1", &[&name])
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string(),
-    })?;
-
-    let policy_id: i64 = row.get(0);
-
-    // Check for dependencies (other policies that depend on this one)
-    let deps = client
-        .query(
-            "SELECT p.name FROM policies p
-             INNER JOIN policy_dependencies pd ON p.id = pd.policy_id
-             WHERE pd.depends_on_policy_id = $1",
-            &[&policy_id],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    if !deps.is_empty() {
-        let dependent_policies: Vec<String> = deps.iter().map(|row| row.get(0)).collect();
-        return Err(ApiError::Core(CoreError::Validation {
-            message: "Cannot delete policy".to_string(),
-        }));
-    }
-
-    // Delete policy (cascade will delete stats, versions, and dependencies)
-    let deleted = client
-        .execute("DELETE FROM policies WHERE id = $1", &[&policy_id])
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    if deleted == 0 {
-        return Err(ApiError::Core(CoreError::NotFound {
-            resource: "policy".to_string(),
-        }));
-    }
-
-    // Audit log
-    info!("Policy deleted: id={}, name={}", policy_id, name);
-
-    // Policy cache invalidation would happen here
-    // In production, integrate with actual cache service
+        .map_err(ApiError::Core)?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -968,63 +439,17 @@ pub async fn test_policy(
         }));
     }
 
-    let pool = &state.pool;
-    let client = pool
-        .get()
+    let res = state
+        .policy_service
+        .test_policy(name, req.user, req.path, req.action, req.context)
         .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    // Get policy
-    let row = client
-        .query_opt(
-            "SELECT rules FROM policies WHERE name = $1 AND is_active = true",
-            &[&name],
-        )
-        .await
-        .map_err(|e| ApiError::internal(format!("Database error: {}", e)))?;
-
-    let row = row.ok_or_else(|| CoreError::NotFound {
-        resource: "policy".to_string(),
-    })?;
-
-    let rules_json: serde_json::Value = row.get(0);
-    let rules: Vec<PolicyRule> = serde_json::from_value(rules_json).unwrap_or_default();
-
-    // Create policy set and evaluate
-    let policy_set = PolicySet::new(rules.clone());
-
-    let start = std::time::Instant::now();
-    let allowed = policy_set.evaluate(&req.user, &req.path, &req.action, req.context.as_ref());
-    let duration = start.elapsed();
-
-    // Find matched rules - use evaluate for each rule
-    let mut matched_rules = vec![];
-    for (idx, rule) in rules.iter().enumerate() {
-        // Create a single-rule policy set to test matching
-        let test_policy = PolicySet::new(vec![rule.clone()]);
-        if test_policy.evaluate(&req.user, &req.path, &req.action, req.context.as_ref()) {
-            matched_rules.push(format!(
-                "Rule {}: {} {} on {}",
-                idx + 1,
-                rule.effect,
-                rule.action,
-                rule.path
-            ));
-        }
-    }
+        .map_err(ApiError::Core)?;
 
     let response = TestPolicyResponse {
-        allowed,
-        matched_rules,
-        evaluation_time_ms: duration.as_secs_f64() * 1000.0,
+        allowed: res.allowed,
+        matched_rules: res.matched_rules,
+        evaluation_time_ms: res.evaluation_time_ms,
     };
-
-    info!(
-        "Policy test result: allowed={}, matched_rules={}, time={}ms",
-        allowed,
-        response.matched_rules.len(),
-        response.evaluation_time_ms
-    );
 
     Ok(Json(ApiResponse::success(response)))
 }
