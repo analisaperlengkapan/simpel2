@@ -5,6 +5,7 @@
 
 use axum::{
     Json,
+    Extension,
     extract::{Path, State},
     http::StatusCode,
 };
@@ -16,6 +17,8 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::response::ApiResponse;
+use crate::RequestContext;
+use crate::services::engine::SecretServiceError;
 
 /// Request to inject secrets as environment variables
 #[derive(Debug, Deserialize, Serialize)]
@@ -108,7 +111,8 @@ pub struct InjectionSession {
 ///
 /// POST /v1/inject/env
 pub async fn inject_env(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
+    Extension(ctx): Extension<RequestContext>,
     Json(request): Json<InjectEnvRequest>,
 ) -> Result<Json<ApiResponse<InjectEnvResponse>>, ApiError> {
     info!(
@@ -138,8 +142,8 @@ pub async fn inject_env(
         secret_paths.push(secret_config.path.clone());
 
         // Fetch secret from Secreton
-        // TODO: Integrate with actual secret storage
-        let secret_data = fetch_secret(&secret_config.path).await?;
+        let user_id = ctx.user_id.as_deref().unwrap_or("unknown");
+        let secret_data = fetch_secret(&state, &secret_config.path, user_id).await?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
@@ -254,16 +258,23 @@ pub async fn get_session_details(
 
 // Helper functions (to be implemented with actual storage)
 
-async fn fetch_secret(path: &str) -> Result<HashMap<String, String>, ApiError> {
-    // TODO: Integrate with actual secret storage
-    // For now, return mock data
+async fn fetch_secret(
+    state: &crate::services::ServiceContainer,
+    path: &str,
+    user_id: &str,
+) -> Result<HashMap<String, String>, ApiError> {
     info!("Fetching secret from path: {}", path);
 
-    // This should call the actual KV storage
-    let mut data = HashMap::new();
-    data.insert("example_key".to_string(), "example_value".to_string());
-
-    Ok(data)
+    match state.engine.get_secret(path, user_id).await {
+        Ok(secret_data) => Ok(secret_data.data),
+        Err(e) => match e {
+            SecretServiceError::SecretNotFound { path } => Err(ApiError::NotFound { resource: path }),
+            SecretServiceError::PermissionDenied(_) => Err(ApiError::Forbidden),
+            _ => Err(ApiError::Internal {
+                message: e.to_string(),
+            }),
+        },
+    }
 }
 
 async fn store_session(session: &InjectionSession) -> Result<(), ApiError> {
