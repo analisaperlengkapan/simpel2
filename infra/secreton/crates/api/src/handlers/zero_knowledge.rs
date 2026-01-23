@@ -100,7 +100,7 @@ pub struct DeleteResponse {
 ///
 /// POST /v1/zk/store
 async fn store_secret(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     user: AuthenticatedUser,
     Json(request): Json<StoreRequest>,
 ) -> ApiResult<Json<ApiResponse<StoreResponse>>> {
@@ -181,7 +181,7 @@ async fn store_secret(
 ///
 /// GET /v1/zk/retrieve/{path}
 async fn retrieve_secret(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(path): Path<String>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<RetrieveResponse>>> {
@@ -245,7 +245,7 @@ async fn retrieve_secret(
 ///
 /// POST /v1/zk/derive-params
 async fn derive_params(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(request): Json<DeriveParamsRequest>,
 ) -> ApiResult<Json<ApiResponse<DeriveParamsResponse>>> {
     info!("Deriving key parameters for client");
@@ -276,7 +276,7 @@ async fn derive_params(
 /// List all zero-knowledge secret paths
 ///
 /// GET /v1/zk/list
-async fn list_secrets(State(state): State<AppState>) -> ApiResult<Json<ApiResponse<ListResponse>>> {
+async fn list_secrets(State(_state): State<AppState>) -> ApiResult<Json<ApiResponse<ListResponse>>> {
     info!("Listing zero-knowledge secrets");
 
     // List secrets using the zero-knowledge service
@@ -295,21 +295,44 @@ async fn list_secrets(State(state): State<AppState>) -> ApiResult<Json<ApiRespon
 ///
 /// POST /v1/zk/delete/{path}
 async fn delete_secret(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Path(path): Path<String>,
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<DeleteResponse>>> {
+    use secreton_core::audit::{AuditLog, AuditStatus};
+    use std::collections::HashMap;
+
     info!("Deleting zero-knowledge secret at path: {}", path);
 
     // Delete secret using the zero-knowledge service
     let service = secreton_core::services::zero_knowledge::ZeroKnowledgeServiceImpl::new();
 
-    service
-        .delete(&path)
-        .await
-        .map_err(|e| ApiError::NotFound {
-            resource: format!("Failed to delete secret: {}", e),
-        })?;
+    let result = service.delete(&path).await;
+
+    let audit_log = AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "zero_knowledge.delete".to_string(),
+        actor: Some(user.username.clone()),
+        resource_type: "zero_knowledge_secret".to_string(),
+        resource_id: path.clone(),
+        status: if result.is_ok() {
+            AuditStatus::Success
+        } else {
+            AuditStatus::Failure
+        },
+        ip: None,
+        user_agent: None,
+        namespace: None,
+        metadata: HashMap::new(),
+    };
+
+    // Log audit entry (in production, this would use the audit logger from AppState)
+    info!("Audit: {:?}", audit_log);
+
+    result.map_err(|e| ApiError::NotFound {
+        resource: format!("Failed to delete secret: {}", e),
+    })?;
 
     info!("Successfully deleted zero-knowledge secret at: {}", path);
 
