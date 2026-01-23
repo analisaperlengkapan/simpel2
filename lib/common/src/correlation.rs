@@ -26,11 +26,6 @@ impl CorrelationId {
         &self.0
     }
 
-    /// Convert to string
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-
     /// Try to create from an HTTP header value
     /// Returns None if the header is missing or invalid utf-8
     #[cfg(feature = "axum")]

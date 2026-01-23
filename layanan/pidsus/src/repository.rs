@@ -157,43 +157,24 @@ impl Repository {
     pub async fn get_stats(&self) -> Result<DashboardStats, Box<dyn Error + Send + Sync>> {
         let client = self.pool.get().await?;
 
-        // Simple aggregate queries
-        let total_cases: i64 = client
-            .query_one("SELECT COUNT(*) FROM pidsus.cases", &[])
-            .await?
-            .get(0);
+        // Combined aggregate query for performance
+        let stmt = "
+            SELECT
+                COUNT(*) as total_cases,
+                COUNT(*) FILTER (WHERE status != 'Closed') as active_cases,
+                COUNT(*) FILTER (WHERE status = 'Closed') as closed_cases,
+                COALESCE(SUM(suspects_count), 0)::bigint as total_suspects,
+                COALESCE(SUM(evidence_count), 0)::bigint as total_evidence
+            FROM pidsus.cases
+        ";
 
-        let active_cases: i64 = client
-            .query_one(
-                "SELECT COUNT(*) FROM pidsus.cases WHERE status != 'Closed'",
-                &[],
-            )
-            .await?
-            .get(0);
+        let row = client.query_one(stmt, &[]).await?;
 
-        let closed_cases: i64 = client
-            .query_one(
-                "SELECT COUNT(*) FROM pidsus.cases WHERE status = 'Closed'",
-                &[],
-            )
-            .await?
-            .get(0);
-
-        let total_suspects: i64 = client
-            .query_one(
-                "SELECT COALESCE(SUM(suspects_count), 0)::bigint FROM pidsus.cases",
-                &[],
-            )
-            .await?
-            .get(0);
-
-        let total_evidence: i64 = client
-            .query_one(
-                "SELECT COALESCE(SUM(evidence_count), 0)::bigint FROM pidsus.cases",
-                &[],
-            )
-            .await?
-            .get(0);
+        let total_cases: i64 = row.get("total_cases");
+        let active_cases: i64 = row.get("active_cases");
+        let closed_cases: i64 = row.get("closed_cases");
+        let total_suspects: i64 = row.get("total_suspects");
+        let total_evidence: i64 = row.get("total_evidence");
 
         let total_recovered_assets: f64 = 0.0; // Placeholder until we have a real transactions/asset table
 
@@ -212,5 +193,101 @@ impl Repository {
             total_recovered_assets,
             conviction_rate,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn test_get_stats_benchmark() {
+        // Attempt to connect to DB. If not available, skip test.
+        let db_url = env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/simpelv2".to_string());
+
+        let config = lib_common::db::DbConfig {
+            url: db_url,
+            max_size: 2, // Need at least 2 connections: one for direct use, one for repo
+        };
+
+        let pool = match lib_common::db::create_postgres_pool(config) {
+            Ok(p) => p,
+            Err(_) => {
+                println!("SKIPPING: Could not create pool. Is DB configured?");
+                return;
+            }
+        };
+
+        // Verify connection
+        let client = match pool.get().await {
+            Ok(c) => c,
+            Err(_) => {
+                println!("SKIPPING: Could not connect to DB.");
+                return;
+            }
+        };
+
+        let repo = Repository::new(pool.clone());
+
+        println!("Running benchmark...");
+
+        // Baseline (Old implementation simulated)
+        let start = Instant::now();
+        let _total: i64 = client
+            .query_one("SELECT COUNT(*) FROM pidsus.cases", &[])
+            .await
+            .unwrap()
+            .get(0);
+        let _active: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM pidsus.cases WHERE status != 'Closed'",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let _closed: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM pidsus.cases WHERE status = 'Closed'",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let _suspects: i64 = client
+            .query_one(
+                "SELECT COALESCE(SUM(suspects_count), 0)::bigint FROM pidsus.cases",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let _evidence: i64 = client
+            .query_one(
+                "SELECT COALESCE(SUM(evidence_count), 0)::bigint FROM pidsus.cases",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let duration_old = start.elapsed();
+
+        // Optimized
+        let start = Instant::now();
+        let _stats = repo.get_stats().await.unwrap();
+        let duration_new = start.elapsed();
+
+        println!("Benchmark Results:");
+        println!("Old (5 queries): {:?}", duration_old);
+        println!("New (1 query):   {:?}", duration_new);
+        if duration_new.as_nanos() > 0 {
+            println!(
+                "Improvement:     {:.2}x",
+                duration_old.as_secs_f64() / duration_new.as_secs_f64()
+            );
+        }
     }
 }
