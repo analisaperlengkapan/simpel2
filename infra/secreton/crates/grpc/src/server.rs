@@ -925,14 +925,15 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
     ) -> Result<Response<MetricsResponse>, Status> {
         info!("Getting metrics");
 
-        // TODO: Implement count methods in StorageBackend trait
-        // let total_secrets = self.storage.count_secrets().await.unwrap_or(0);
-        // let total_keys = self.storage.count_keys().await.unwrap_or(0);
-        // let total_policies = self.storage.count_policies().await.unwrap_or(0);
+        // Count metrics from storage
+        let total_secrets = self.storage.count_secrets().await.unwrap_or(0);
+        let total_keys = self.storage.count_keys().await.unwrap_or(0);
+        // Policy count not yet exposed in MetricsResponse
+        let _total_policies = self.storage.count_policies().await.unwrap_or(0);
 
         let response = MetricsResponse {
-            total_secrets: 0, // Placeholder until count methods are implemented
-            total_keys: 0,
+            total_secrets: total_secrets as i64,
+            total_keys: total_keys as i64,
             operations_count: 0,
             avg_response_time_ms: 0.0,
             operation_counts: std::collections::HashMap::new(),
