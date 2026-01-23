@@ -81,6 +81,28 @@ impl ApiConfig {
             .map_err(|e| format!("Invalid gRPC address '{}': {}", bootstrap.grpc.address, e))?;
         config.grpc.enabled = bootstrap.grpc.enabled;
 
+        // Map storage config
+        if let secreton_core::config::StorageBackendConfig::Raft(raft_bootstrap) =
+            &bootstrap.storage.config
+        {
+            let node_id = raft_bootstrap
+                .node_id
+                .parse::<u64>()
+                .map_err(|e| format!("Invalid node_id '{}': {}", raft_bootstrap.node_id, e))?;
+
+            config.storage.raft.node_id = node_id;
+
+            if let Some(addr) = raft_bootstrap.listener_addr.as_ref() {
+                config.storage.raft.bind_address = addr
+                    .parse()
+                    .map_err(|e| format!("Invalid Raft listener address '{}': {}", addr, e))?;
+            } else {
+                config.storage.raft.bind_address = format!("127.0.0.1:{}", 8200 + node_id)
+                    .parse()
+                    .expect("Failed to parse default Raft address");
+            }
+        }
+
         // Map other fields as needed (simplified for now)
         // In a real implementation, we would map all fields from app config
 
@@ -870,6 +892,30 @@ pub struct RaftConfig {
 
     /// Data directory for Raft logs and snapshots
     pub data_dir: PathBuf,
+}
+
+impl From<RaftConfig> for secreton_storage::raft::RaftClusterConfig {
+    fn from(api_config: RaftConfig) -> Self {
+        let mut peers = std::collections::HashMap::new();
+        for peer in &api_config.peers {
+            if let Some((id_str, addr)) = peer.split_once('=') {
+                if let Ok(id) = id_str.trim().parse::<u64>() {
+                    peers.insert(id, addr.trim().to_string());
+                }
+            }
+        }
+
+        Self {
+            node_id: api_config.node_id,
+            bind_address: api_config.bind_address.to_string(),
+            peers,
+            election_timeout_ms: api_config.election_timeout_ms,
+            heartbeat_interval_ms: api_config.heartbeat_interval_ms,
+            max_payload_entries: 1000, // TODO: Make this configurable
+            enable_tick: true,
+            bootstrap: true, // TODO: Make this configurable
+        }
+    }
 }
 
 /// Database configuration

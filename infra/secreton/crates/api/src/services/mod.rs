@@ -13,7 +13,7 @@ pub use secret_engine as engine;
 use anyhow::Result;
 use std::sync::Arc;
 
-use crate::config::ApiConfig;
+use crate::config::{ApiConfig, RaftConfig};
 use secreton_core::audit::AuditLogger;
 use secreton_core::namespace::NamespaceService;
 use secreton_core::services::identity::IdentityService;
@@ -579,6 +579,7 @@ impl ServiceContainer {
                         }
                     }
 
+                    let raft_config = config.storage.raft.clone().into();
                     let cluster = RaftCluster::new(raft_config).await.map_err(|e| {
                         anyhow::anyhow!("Failed to create Raft storage backend: {}", e)
                     })?;

@@ -138,6 +138,7 @@ pub enum StorageBackendConfig {
 pub struct RaftStorageConfig {
     pub path: PathBuf,
     pub node_id: String,
+    pub listener_addr: Option<String>,
 
     #[serde(default)]
     pub retry_join: Vec<RaftRetryJoin>,
