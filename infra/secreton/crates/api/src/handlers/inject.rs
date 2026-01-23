@@ -137,16 +137,24 @@ pub async fn inject_env(
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
-    for secret_config in &request.secrets {
+    // Optimize: Fetch secrets in parallel
+    let user_id = user.id.to_string();
+    let fetch_futures = request.secrets.iter().map(|config| {
+        let engine = state.engine.clone();
+        let path = config.path.clone();
+        let uid = user_id.clone();
+        async move {
+            let data = fetch_secret(&engine, &path, &uid).await?;
+            Ok::<_, ApiError>(data)
+        }
+    });
+
+    let results = futures::future::join_all(fetch_futures).await;
+
+    for (secret_config, result) in request.secrets.iter().zip(results.into_iter()) {
         secret_paths.push(secret_config.path.clone());
 
-        // Fetch secret from Secreton
-        let secret_data = fetch_secret(
-            &state.engine,
-            &secret_config.path,
-            &user.id.to_string(),
-        )
-        .await?;
+        let secret_data = result?;
 
         // Process based on configuration
         if let Some(key) = &secret_config.key {
