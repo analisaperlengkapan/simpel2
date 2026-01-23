@@ -967,10 +967,10 @@ impl RaftCluster {
             match self.raft.client_write(data.clone()).await {
                 Ok(response) => {
                     let duration = start.elapsed();
-                    self.metrics_collector
-                        .write()
-                        .await
-                        .record_commit_latency(duration);
+                    let collector = self.metrics_collector.clone();
+                    tokio::spawn(async move {
+                        collector.write().await.record_commit_latency(duration);
+                    });
 
                     #[cfg(feature = "metrics")]
                     {
@@ -1453,11 +1453,15 @@ mod tests {
 
         cluster.store(&entry).await.unwrap();
 
-        // Check metrics
-        let metrics = cluster.get_metrics().await.unwrap();
-        assert!(
-            metrics.avg_commit_latency_ms.is_some(),
-            "Average commit latency should be recorded"
-        );
+        // Check metrics (allow time for async update)
+        for _ in 0..10 {
+            let metrics = cluster.get_metrics().await.unwrap();
+            if metrics.avg_commit_latency_ms.is_some() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        panic!("Average commit latency was not recorded");
     }
 }
