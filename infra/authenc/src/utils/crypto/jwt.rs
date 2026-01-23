@@ -23,6 +23,9 @@ pub struct Claims {
     pub sub: String,
     /// Token expiration timestamp as Unix timestamp
     pub exp: usize,
+    /// Token purpose (access, mfa_verification, etc.)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
 }
 
 /// Refresh token claims with JWT ID for token rotation
@@ -38,6 +41,13 @@ pub struct RefreshTokenClaims {
     pub exp: usize,
     /// JWT ID - unique identifier for this token (enables token rotation)
     pub jti: String,
+    /// Token purpose
+    #[serde(default = "default_refresh_purpose")]
+    pub purpose: String,
+}
+
+fn default_refresh_purpose() -> String {
+    "refresh".to_string()
 }
 
 // SECURITY NOTE: Previously had hardcoded secret here. Now removed for security.
@@ -103,6 +113,7 @@ pub fn generate_temp_jwt(user_id: &str) -> Result<String, String> {
     let claims = Claims {
         sub: user_id.to_owned(),
         exp: expiration,
+        purpose: Some("mfa_verification".to_string()),
     };
 
     // Create JWT header
@@ -154,6 +165,7 @@ pub fn generate_jwt(user_id: &str) -> Result<String, String> {
     let claims = Claims {
         sub: user_id.to_owned(),
         exp: expiration,
+        purpose: Some("access".to_string()),
     };
 
     // Create JWT header
@@ -299,6 +311,7 @@ pub fn generate_refresh_token(user_id: &str) -> Result<String, String> {
         sub: user_id.to_owned(),
         exp: expiration,
         jti,
+        purpose: "refresh".to_string(),
     };
 
     // Create JWT header
