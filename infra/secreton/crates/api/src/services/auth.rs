@@ -220,14 +220,19 @@ impl AuthService {
         let session_id = Uuid::new_v4().to_string();
 
         // Scope the lock to avoid holding it across await points
-        let (access_token, refresh_token, expires_in) = {
+        let (access_token, refresh_token, expires_in, refresh_expires_in) = {
             let config = self
                 .config
                 .read()
                 .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
             let access_token = self.create_access_token(&user, &session_id, &config)?;
             let refresh_token = self.create_refresh_token(&user, &session_id, &config)?;
-            (access_token, refresh_token, config.jwt.expiration.as_secs())
+            (
+                access_token,
+                refresh_token,
+                config.jwt.expiration.as_secs(),
+                config.jwt.refresh_expiration.as_secs(),
+            )
         };
 
         // Store session
@@ -239,7 +244,7 @@ impl AuthService {
             ip_address: ip_address.to_string(),
             user_agent: user_agent.to_string(),
             created_at: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::seconds(expires_in as i64),
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(refresh_expires_in as i64),
             last_accessed: chrono::Utc::now(),
         };
 
@@ -311,14 +316,19 @@ impl AuthService {
         // Generate tokens
         let session_id = Uuid::new_v4().to_string();
 
-        let (access_token, refresh_token, expires_in) = {
+        let (access_token, refresh_token, expires_in, refresh_expires_in) = {
             let config = self
                 .config
                 .read()
                 .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
             let access_token = self.create_access_token(&user, &session_id, &config)?;
             let refresh_token = self.create_refresh_token(&user, &session_id, &config)?;
-            (access_token, refresh_token, config.jwt.expiration.as_secs())
+            (
+                access_token,
+                refresh_token,
+                config.jwt.expiration.as_secs(),
+                config.jwt.refresh_expiration.as_secs(),
+            )
         };
 
         // Store session
@@ -330,7 +340,7 @@ impl AuthService {
             ip_address: ip_address.to_string(),
             user_agent: user_agent.to_string(),
             created_at: chrono::Utc::now(),
-            expires_at: chrono::Utc::now() + chrono::Duration::seconds(expires_in as i64),
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(refresh_expires_in as i64),
             last_accessed: chrono::Utc::now(),
         };
 
@@ -414,13 +424,99 @@ impl AuthService {
 
     /// Refresh access token
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthToken, AuthError> {
-        // TODO: Implement token refresh logic
-        // 1. Validate refresh token
-        // 2. Get user from token
-        // 3. Generate new access token
-        // 4. Optionally rotate refresh token
+        use jsonwebtoken::{DecodingKey, Validation, decode};
 
-        Err(AuthError::Internal("Not implemented".to_string()))
+        // 1. Validate refresh token
+        let claims = {
+            let config = self
+                .config
+                .read()
+                .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+
+            let mut validation =
+                Validation::new(Algorithm::from_str(&config.jwt.algorithm).map_err(|e| {
+                    AuthError::Configuration(format!("Invalid JWT algorithm: {}", e))
+                })?);
+            validation.set_audience(&[&config.jwt.audience]);
+            validation.set_issuer(&[&config.jwt.issuer]);
+
+            let decoding_key = DecodingKey::from_secret(config.jwt.secret.as_bytes());
+
+            let token_data = decode::<Claims>(refresh_token, &decoding_key, &validation).map_err(
+                |e| match e.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                    _ => AuthError::InvalidToken,
+                },
+            )?;
+
+            token_data.claims
+        };
+
+        // Verify token type
+        if claims.token_type != "refresh" {
+            return Err(AuthError::InvalidToken);
+        }
+
+        // 2. Get session
+        let session_id = &claims.jti;
+        let mut session = match self.get_session(session_id).await {
+            Ok(s) => s,
+            Err(_) => return Err(AuthError::InvalidToken),
+        };
+
+        // Check if token matches session (Rotate/Reuse detection)
+        if let Some(current_refresh) = &session.refresh_token {
+            if current_refresh != refresh_token {
+                // Token mismatch - potential reuse detected!
+                let _ = self.revoke_session(session_id).await;
+                return Err(AuthError::InvalidToken);
+            }
+        } else {
+            // Session has no refresh token but refresh was attempted
+            return Err(AuthError::InvalidToken);
+        }
+
+        // 3. Get user
+        let user_id = &claims.sub;
+        let user = self.get_user(user_id).await?;
+
+        if !user.is_active {
+            return Err(AuthError::InvalidCredentials);
+        }
+
+        // 4. Generate new tokens (Rotate)
+        let (new_access_token, new_refresh_token, expires_in, refresh_expires_in) = {
+            let config = self
+                .config
+                .read()
+                .map_err(|_| AuthError::Internal("Config lock poisoned".to_string()))?;
+            let access_token = self.create_access_token(&user, session_id, &config)?;
+            let refresh_token = self.create_refresh_token(&user, session_id, &config)?;
+            (
+                access_token,
+                refresh_token,
+                config.jwt.expiration.as_secs(),
+                config.jwt.refresh_expiration.as_secs(),
+            )
+        };
+
+        // 5. Update session
+        session.token = new_access_token.clone();
+        session.refresh_token = Some(new_refresh_token.clone());
+        session.last_accessed = chrono::Utc::now();
+        // Extend session expiration
+        session.expires_at =
+            chrono::Utc::now() + chrono::Duration::seconds(refresh_expires_in as i64);
+
+        self.store_session(&session, &user.id.to_string()).await?;
+
+        Ok(AuthToken {
+            access_token: new_access_token,
+            refresh_token: new_refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in,
+            user,
+        })
     }
 
     /// Create user
@@ -1630,6 +1726,96 @@ mod tests {
         assert!(policies.contains(&"perm1".to_string()));
         assert!(policies.contains(&"perm2".to_string()));
         assert!(policies.contains(&"perm3".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_refresh_token_flow() {
+        let storage = Arc::new(MemoryBackend::new());
+        let crypto = Arc::new(CryptoEngine::new());
+        let mut config = AuthConfig::default();
+        config.jwt.secret = "test_refresh_secret".to_string();
+        config.jwt.expiration = std::time::Duration::from_secs(1); // Short access token
+        config.jwt.refresh_expiration = std::time::Duration::from_secs(3600); // Long refresh
+
+        let auth_service = AuthService::new(storage.clone(), crypto, &config)
+            .await
+            .expect("service");
+
+        // Create user
+        let user_id = Uuid::new_v4();
+        let password_hash = auth_service.hash_password("password").expect("hash");
+        let user = User {
+            id: user_id,
+            username: "refresh_user".into(),
+            email: "refresh@example.com".into(),
+            password_hash,
+            full_name: None,
+            is_active: true,
+            is_superuser: false,
+            mfa_enabled: false,
+            last_login: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            roles: HashSet::from(["user".to_string()]),
+            namespace: "default".into(),
+            is_locked: false,
+            failed_attempts: 0,
+            locked_until: None,
+            metadata: HashMap::new(),
+        };
+        auth_service.store_user(&user).await.expect("store user");
+
+        // Authenticate
+        let token = auth_service
+            .authenticate(
+                "refresh_user",
+                "password",
+                None,
+                "127.0.0.1",
+                "test-agent",
+            )
+            .await
+            .expect("authenticate");
+
+        // Validate initial access token
+        let validated = auth_service
+            .validate_token(&token.access_token)
+            .await
+            .expect("validate");
+        assert_eq!(validated.id, user_id);
+
+        // Sleep to ensure timestamps change (optional, but good for verify)
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        // Note: We cannot easily test access token expiration here because jsonwebtoken
+        // has a default leeway of 60 seconds which is not configurable in validate_token.
+        // We proceed to test the refresh flow itself.
+
+        // Refresh Token
+        let new_token = auth_service
+            .refresh_token(&token.refresh_token)
+            .await
+            .expect("refresh token");
+
+        assert_ne!(new_token.access_token, token.access_token);
+        assert_ne!(new_token.refresh_token, token.refresh_token);
+
+        // Validate new access token
+        let validated_new = auth_service
+            .validate_token(&new_token.access_token)
+            .await
+            .expect("validate new");
+        assert_eq!(validated_new.id, user_id);
+
+        // Verify Reuse Detection (Old refresh token should fail)
+        let reuse_result = auth_service.refresh_token(&token.refresh_token).await;
+        assert!(matches!(reuse_result, Err(AuthError::InvalidToken)));
+
+        // Verify Session Revocation after reuse attempt
+        // The reuse attempt should have revoked the session.
+        // So even the new refresh token should fail now.
+        let subsequent_result = auth_service.refresh_token(&new_token.refresh_token).await;
+        assert!(matches!(subsequent_result, Err(AuthError::InvalidToken)));
     }
 }
 
