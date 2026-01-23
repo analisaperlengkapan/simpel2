@@ -32,6 +32,9 @@ reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 # CLI
 clap = { workspace = true, features = ["derive", "env"] }
 
+# Template engine
+handlebars.workspace = true
+
 # Internal crates
 secreton-types = { path = "../types" }
 

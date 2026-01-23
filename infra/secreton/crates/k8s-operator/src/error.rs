@@ -14,8 +14,14 @@ pub enum Error {
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
 
+    #[error("YAML serialization error: {0}")]
+    YamlError(#[from] serde_yaml::Error),
+
     #[error("HTTP request error: {0}")]
     RequestError(#[from] reqwest::Error),
+
+    #[error("Template rendering error: {0}")]
+    TemplateError(String),
 
     #[error("Secret not found in Secreton: {0}")]
     SecretNotFound(String),

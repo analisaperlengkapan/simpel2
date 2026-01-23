@@ -4,6 +4,7 @@
 //! independently of the Kubernetes controller runtime.
 
 use crate::{Error, Result};
+use handlebars::Handlebars;
 use std::collections::HashMap;
 
 /// Reconciler for SecretSync resources
@@ -73,7 +74,31 @@ impl Reconciler {
             return Ok(result);
         }
 
-        // TODO: Implement template-based transformation
+        // Apply template if specified
+        if let Some(template) = &transform.template {
+            let mut reg = Handlebars::new();
+            // Disable HTML escaping to avoid messing up JSON/YAML
+            reg.register_escape_fn(handlebars::no_escape);
+
+            let rendered = reg
+                .render_template(template, &data)
+                .map_err(|e| Error::TemplateError(e.to_string()))?;
+
+            // Try parsing as JSON first
+            if let Ok(json_result) = serde_json::from_str::<HashMap<String, String>>(&rendered) {
+                return Ok(json_result);
+            }
+
+            // If JSON fails, try YAML
+            if let Ok(yaml_result) = serde_yaml::from_str::<HashMap<String, String>>(&rendered) {
+                return Ok(yaml_result);
+            }
+
+            return Err(Error::ReconciliationFailed(
+                "Template output could not be parsed as JSON or YAML object".to_string(),
+            ));
+        }
+
         Ok(data)
     }
 
@@ -231,5 +256,106 @@ mod tests {
 
         let interval = reconciler.next_reconciliation_interval(&spec);
         assert_eq!(interval.as_secs(), 600);
+    }
+
+    #[test]
+    fn test_transform_data_json_template() {
+        let reconciler = Reconciler::new("https://secreton.internal:8200".to_string());
+
+        let mut data = HashMap::new();
+        data.insert("user".to_string(), "admin".to_string());
+        data.insert("pass".to_string(), "secret123".to_string());
+
+        let template = r#"
+        {
+            "username": "{{user}}",
+            "password": "{{pass}}",
+            "connection_string": "postgres://{{user}}:{{pass}}@localhost:5432/db"
+        }
+        "#.to_string();
+
+        let transform = TransformConfig {
+            mappings: None,
+            template: Some(template),
+        };
+
+        let result = reconciler.transform_data(data, Some(&transform)).unwrap();
+
+        assert_eq!(result.get("username"), Some(&"admin".to_string()));
+        assert_eq!(result.get("password"), Some(&"secret123".to_string()));
+        assert_eq!(
+            result.get("connection_string"),
+            Some(&"postgres://admin:secret123@localhost:5432/db".to_string())
+        );
+    }
+
+    #[test]
+    fn test_transform_data_yaml_template() {
+        let reconciler = Reconciler::new("https://secreton.internal:8200".to_string());
+
+        let mut data = HashMap::new();
+        data.insert("api_key".to_string(), "abc12345".to_string());
+
+        let template = r#"
+        API_KEY: "{{api_key}}"
+        CONFIG: |
+          enabled: true
+          key: {{api_key}}
+        "#.to_string();
+
+        let transform = TransformConfig {
+            mappings: None,
+            template: Some(template),
+        };
+
+        let result = reconciler.transform_data(data, Some(&transform)).unwrap();
+
+        assert_eq!(result.get("API_KEY"), Some(&"abc12345".to_string()));
+        // Note: The YAML parsing results in string values for the hashmap.
+        // Complex YAML objects might not fit into HashMap<String, String> if not flattened,
+        // but here we expect basic key-values.
+        // Wait, if "CONFIG" is a multiline string, it should be parsed as a string value.
+        assert!(result.get("CONFIG").unwrap().contains("enabled: true"));
+        assert!(result.get("CONFIG").unwrap().contains("key: abc12345"));
+    }
+
+    #[test]
+    fn test_transform_data_invalid_template() {
+        let reconciler = Reconciler::new("https://secreton.internal:8200".to_string());
+        let data = HashMap::new();
+
+        let template = "{{ invalid syntax".to_string();
+        let transform = TransformConfig {
+            mappings: None,
+            template: Some(template),
+        };
+
+        let result = reconciler.transform_data(data, Some(&transform));
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::TemplateError(_) => {}
+            _ => panic!("Expected TemplateError"),
+        }
+    }
+
+    #[test]
+    fn test_transform_data_invalid_output() {
+        let reconciler = Reconciler::new("https://secreton.internal:8200".to_string());
+        let data = HashMap::new();
+
+        let template = "This is not JSON or YAML".to_string();
+        let transform = TransformConfig {
+            mappings: None,
+            template: Some(template),
+        };
+
+        let result = reconciler.transform_data(data, Some(&transform));
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::ReconciliationFailed(msg) => {
+                assert!(msg.contains("Template output could not be parsed"))
+            }
+            _ => panic!("Expected ReconciliationFailed"),
+        }
     }
 }
