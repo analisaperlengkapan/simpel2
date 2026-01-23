@@ -196,7 +196,7 @@ pub fn PidmilDashboard() -> impl IntoView {
 
     // Use LocalResource for fetching recent cases
     let cases_resource =
-        LocalResource::new(move || async move { fetch_cases().await.unwrap_or_default() });
+        LocalResource::new(move || async move { fetch_cases(None, None).await.unwrap_or_default() });
 
     view! {
         <div class="space-y-6">
@@ -285,7 +285,7 @@ pub fn PidmilDashboard() -> impl IntoView {
 pub fn PidmilKasus() -> impl IntoView {
     // Resource for cases
     let cases_resource =
-        LocalResource::new(move || async move { fetch_cases().await.unwrap_or_default() });
+        LocalResource::new(move || async move { fetch_cases(None, None).await.unwrap_or_default() });
 
     // Action for creating a case
     let create_case_action = Action::new_local(|input: &CreateCasePayload| {
