@@ -12,7 +12,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::{ApiError, ApiResponse, ApiResult};
+use crate::{ApiError, ApiResponse, ApiResult, extractors::AuthenticatedUser};
 use secreton_core::services::zero_knowledge::{
     KeyDerivationParams, ZeroKnowledgeMetadata, ZeroKnowledgeService,
 };
@@ -101,6 +101,7 @@ pub struct DeleteResponse {
 /// POST /v1/zk/store
 async fn store_secret(
     State(state): State<AppState>,
+    user: AuthenticatedUser,
     Json(request): Json<StoreRequest>,
 ) -> ApiResult<Json<ApiResponse<StoreResponse>>> {
     use secreton_core::audit::{AuditLog, AuditStatus};
@@ -144,7 +145,7 @@ async fn store_secret(
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
         action: "zero_knowledge.store".to_string(),
-        actor: Some("system".to_string()), // TODO: Extract from auth context
+        actor: Some(user.username.clone()),
         resource_type: "zero_knowledge_secret".to_string(),
         resource_id: request.path.clone(),
         status: if result.is_ok() {
@@ -182,6 +183,7 @@ async fn store_secret(
 async fn retrieve_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<RetrieveResponse>>> {
     use secreton_core::audit::{AuditLog, AuditStatus};
     use std::collections::HashMap;
@@ -202,7 +204,7 @@ async fn retrieve_secret(
         id: uuid::Uuid::new_v4(),
         timestamp: chrono::Utc::now(),
         action: "zero_knowledge.retrieve".to_string(),
-        actor: Some("system".to_string()),
+        actor: Some(user.username.clone()),
         resource_type: "zero_knowledge_secret".to_string(),
         resource_id: path.clone(),
         status: if result.is_ok() {
@@ -295,6 +297,7 @@ async fn list_secrets(State(state): State<AppState>) -> ApiResult<Json<ApiRespon
 async fn delete_secret(
     State(state): State<AppState>,
     Path(path): Path<String>,
+    _user: AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<DeleteResponse>>> {
     info!("Deleting zero-knowledge secret at path: {}", path);
 
