@@ -398,7 +398,7 @@ fn CaptchaContainer(
 
                             {if accessibility_enabled && show_alternative_inputs.get() {
                                 view! {
-                                    <AlternativeInputMethods
+                                    <AlternativeInputs
                                         on_answer=on_success
                                         challenge_type=state.get().challenge_type
                                     />
