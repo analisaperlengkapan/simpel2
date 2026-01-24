@@ -140,7 +140,7 @@ pub async fn inject_env(
     let mut env_vars = HashMap::new();
     let mut secret_paths = Vec::new();
 
-    let user_id = user.id.to_string();
+    let user_id = ctx.user_id.clone().unwrap_or_else(|| user.id.to_string());
 
     // Policy Check: Verify access for all requested paths
     {
@@ -252,6 +252,7 @@ pub async fn inject_env(
 /// DELETE /v1/inject/cleanup/{session_id}
 pub async fn cleanup_session(
     State(_state): State<Arc<crate::services::ServiceContainer>>,
+    _user: AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
@@ -281,6 +282,7 @@ pub async fn cleanup_session(
 /// GET /v1/inject/sessions
 pub async fn list_sessions(
     State(_state): State<Arc<crate::services::ServiceContainer>>,
+    _user: AuthenticatedUser,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
     // TODO: Implement actual session listing
     let sessions = list_active_sessions().await?;
@@ -293,6 +295,7 @@ pub async fn list_sessions(
 /// GET /v1/inject/sessions/{session_id}
 pub async fn get_session_details(
     State(_state): State<Arc<crate::services::ServiceContainer>>,
+    _user: AuthenticatedUser,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
     let session = get_session(&session_id).await?;
