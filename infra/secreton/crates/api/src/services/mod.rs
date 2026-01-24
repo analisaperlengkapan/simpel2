@@ -297,8 +297,14 @@ impl ServiceContainer {
 
         let api_audit = Arc::new(crate::audit::AuditLogger::new(10000));
         let admin = Arc::new(
-            admin::AdminService::new(storage.clone(), auth.clone(), api_audit, lease_manager)
-                .await?,
+            admin::AdminService::new(
+                storage.clone(),
+                auth.clone(),
+                api_audit,
+                lease_manager,
+                crypto.clone(),
+            )
+            .await?,
         );
 
         Ok((auth, admin))

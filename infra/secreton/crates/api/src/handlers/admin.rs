@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{ApiError, ApiResponse, ApiResult, ListQuery, handlers::AppState};
+use crate::services::admin::SecurityIncident;
 
 use secreton_core::services::seal::SealState;
 
@@ -112,7 +113,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_config_returns_security_info() {
-        let server = server_with_routes().await;
+        let mut config = ApiConfig::default();
+        // Ensure MFA is enabled for this test expectation
+        config.auth.mfa.enabled = true;
+
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        let app = create_routes().with_state(services);
+        let server = TestServer::new(app).expect("Failed to start test server");
+
         let response = server.get("/config").await;
         response.assert_status_ok();
 
@@ -120,7 +133,7 @@ mod tests {
         assert!(body.success);
         let config = body.data.expect("config payload");
         assert!(config.security.mfa_enabled);
-        assert_eq!(config.api.version, "1.0.0");
+        assert_eq!(config.api.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[tokio::test]
@@ -391,6 +404,122 @@ mod tests {
                 .any(|f| f.title == "Engine is Sealed")
         );
     }
+
+    #[tokio::test]
+    async fn test_get_security_incidents() {
+        let config = ApiConfig::default();
+        let services = Arc::new(
+            ServiceContainer::new(&config)
+                .await
+                .expect("Failed to create services"),
+        );
+
+        // Seed an incident
+        let incident = SecurityIncident {
+            id: "api-inc-1".to_string(),
+            severity: "high".to_string(),
+            status: "open".to_string(),
+            title: "API Test Incident".to_string(),
+            description: "Incident from API test".to_string(),
+            source: "api_test".to_string(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            resolved_at: None,
+        };
+        services
+            .admin
+            .create_security_incident(incident)
+            .await
+            .expect("seed incident");
+
+        let app = create_routes().with_state(services.clone());
+        let server = TestServer::new(app).expect("Failed to start test server");
+
+        let response = server.get("/security/incidents").await;
+        response.assert_status_ok();
+
+        let body: ApiResponse<Vec<SecurityIncident>> = response.json();
+        assert!(body.success);
+        let incidents = body.data.expect("incidents payload");
+        assert_eq!(incidents.len(), 1);
+        assert_eq!(incidents[0].id, "api-inc-1");
+
+        // Test filtering
+        let response_filtered = server
+            .get("/security/incidents")
+            .add_query_param("filter", "api test")
+            .await;
+        response_filtered.assert_status_ok();
+        let body_filtered: ApiResponse<Vec<SecurityIncident>> = response_filtered.json();
+        assert_eq!(body_filtered.data.unwrap().len(), 1);
+
+        let response_empty = server
+            .get("/security/incidents")
+            .add_query_param("filter", "nonexistent")
+            .await;
+        response_empty.assert_status_ok();
+        let body_empty: ApiResponse<Vec<SecurityIncident>> = response_empty.json();
+        assert_eq!(body_empty.data.unwrap().len(), 0);
+
+        // Test pagination with filtering
+        // Create multiple incidents to test pagination logic
+        for i in 0..5 {
+            let inc = SecurityIncident {
+                id: format!("page-inc-{}", i),
+                severity: "low".to_string(),
+                status: "open".to_string(),
+                title: format!("Pagination Incident {}", i),
+                description: "Test pagination".to_string(),
+                source: "pagination_test".to_string(),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                resolved_at: None,
+            };
+            services
+                .admin
+                .create_security_incident(inc)
+                .await
+                .expect("create incident");
+        }
+
+        // Request page 1 with limit 2 and filter "Pagination"
+        let response_page1 = server
+            .get("/security/incidents")
+            .add_query_param("filter", "Pagination")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 0)
+            .await;
+        response_page1.assert_status_ok();
+        let body_page1: ApiResponse<Vec<SecurityIncident>> = response_page1.json();
+        let data_page1 = body_page1.data.unwrap();
+        assert_eq!(data_page1.len(), 2);
+
+        // Request page 2 with limit 2 and filter "Pagination"
+        let response_page2 = server
+            .get("/security/incidents")
+            .add_query_param("filter", "Pagination")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 2)
+            .await;
+        response_page2.assert_status_ok();
+        let body_page2: ApiResponse<Vec<SecurityIncident>> = response_page2.json();
+        let data_page2 = body_page2.data.unwrap();
+        assert_eq!(data_page2.len(), 2);
+
+        // Verify items are distinct
+        assert_ne!(data_page1[0].id, data_page2[0].id);
+
+        // Test pagination without filter (verifies consistency across backends)
+        let response_all_paged = server
+            .get("/security/incidents")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 0)
+            .await;
+        response_all_paged.assert_status_ok();
+        let body_all_paged: ApiResponse<Vec<SecurityIncident>> = response_all_paged.json();
+        // Should return exactly limit items, not all items
+        assert_eq!(body_all_paged.data.unwrap().len(), 2);
+    }
 }
 
 /// User management models
@@ -589,18 +718,6 @@ pub struct SecurityFinding {
     pub affected_resources: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SecurityIncident {
-    pub id: String,
-    pub severity: String,
-    pub status: String,
-    pub title: String,
-    pub description: String,
-    pub source: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
-}
 
 /// User management endpoints
 /// TODO: Implement using StorageBackend trait instead of direct database access
@@ -1015,22 +1132,16 @@ pub async fn run_security_scan(
 }
 
 pub async fn get_security_incidents(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Query(query): Query<ListQuery>,
 ) -> ApiResult<Json<ApiResponse<Vec<SecurityIncident>>>> {
-    // TODO: Implement incident retrieval
-    let incidents = vec![SecurityIncident {
-        id: uuid::Uuid::new_v4().to_string(),
-        severity: "medium".to_string(),
-        status: "resolved".to_string(),
-        title: "Multiple failed login attempts".to_string(),
-        description: "User account experienced 5 failed login attempts from IP 192.168.1.100"
-            .to_string(),
-        source: "authentication".to_string(),
-        created_at: chrono::Utc::now() - chrono::Duration::hours(2),
-        updated_at: chrono::Utc::now() - chrono::Duration::minutes(30),
-        resolved_at: Some(chrono::Utc::now() - chrono::Duration::minutes(30)),
-    }];
+    let incidents = state
+        .admin
+        .get_security_incidents(query.limit, query.offset, query.filter)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
 
     Ok(Json(ApiResponse::success(incidents)))
 }
