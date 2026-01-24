@@ -508,6 +508,17 @@ mod tests {
 
         // Verify items are distinct
         assert_ne!(data_page1[0].id, data_page2[0].id);
+
+        // Test pagination without filter (verifies consistency across backends)
+        let response_all_paged = server
+            .get("/security/incidents")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 0)
+            .await;
+        response_all_paged.assert_status_ok();
+        let body_all_paged: ApiResponse<Vec<SecurityIncident>> = response_all_paged.json();
+        // Should return exactly limit items, not all items
+        assert_eq!(body_all_paged.data.unwrap().len(), 2);
     }
 }
 
