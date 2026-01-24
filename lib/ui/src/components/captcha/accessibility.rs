@@ -142,7 +142,7 @@ pub fn AudioChallenge(
                      </label>
                      <div class="flex items-center space-x-2">
                          <Button
-                             on_click=Box::new(move || adjust_speed(1.0))
+                             on_click=Box::new(move || adjust_speed(0.75))
                              variant=if playback_speed.get() == 0.75 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
                              size=ButtonSize::Small
                          >
@@ -156,7 +156,7 @@ pub fn AudioChallenge(
                              "1x"
                          </Button>
                          <Button
-                             on_click=Box::new(move || adjust_speed(1.0))
+                             on_click=Box::new(move || adjust_speed(1.25))
                              variant=if playback_speed.get() == 1.25 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
                              size=ButtonSize::Small
                          >
