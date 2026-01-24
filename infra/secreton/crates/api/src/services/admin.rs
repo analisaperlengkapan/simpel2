@@ -645,11 +645,18 @@ impl AdminService {
         filter: Option<String>,
     ) -> Result<Vec<SecurityIncident>, AdminError> {
         let mut params = QueryParams::new().with_path_prefix("sys/incidents/".to_string());
-        if let Some(l) = limit {
-            params.limit = Some(l);
-        }
-        if let Some(o) = offset {
-            params.offset = Some(o);
+
+        // If filtering is enabled, we must fetch all records first to ensure correct count
+        // Otherwise, storage-level limit might cut off matching records
+        let should_paginate_in_memory = filter.is_some();
+
+        if !should_paginate_in_memory {
+            if let Some(l) = limit {
+                params.limit = Some(l);
+            }
+            if let Some(o) = offset {
+                params.offset = Some(o);
+            }
         }
 
         let entries = self
@@ -680,6 +687,22 @@ impl AdminService {
             }
 
             incidents.push(incident);
+        }
+
+        // Apply pagination in memory if filtering was used
+        if should_paginate_in_memory {
+            let start = offset.unwrap_or(0) as usize;
+            if start >= incidents.len() {
+                return Ok(Vec::new());
+            }
+
+            let end = if let Some(l) = limit {
+                (start + l as usize).min(incidents.len())
+            } else {
+                incidents.len()
+            };
+
+            incidents = incidents[start..end].to_vec();
         }
 
         Ok(incidents)

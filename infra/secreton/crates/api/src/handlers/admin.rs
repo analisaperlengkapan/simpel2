@@ -432,7 +432,7 @@ mod tests {
             .await
             .expect("seed incident");
 
-        let app = create_routes().with_state(services);
+        let app = create_routes().with_state(services.clone());
         let server = TestServer::new(app).expect("Failed to start test server");
 
         let response = server.get("/security/incidents").await;
@@ -460,6 +460,54 @@ mod tests {
         response_empty.assert_status_ok();
         let body_empty: ApiResponse<Vec<SecurityIncident>> = response_empty.json();
         assert_eq!(body_empty.data.unwrap().len(), 0);
+
+        // Test pagination with filtering
+        // Create multiple incidents to test pagination logic
+        for i in 0..5 {
+            let inc = SecurityIncident {
+                id: format!("page-inc-{}", i),
+                severity: "low".to_string(),
+                status: "open".to_string(),
+                title: format!("Pagination Incident {}", i),
+                description: "Test pagination".to_string(),
+                source: "pagination_test".to_string(),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                resolved_at: None,
+            };
+            services
+                .admin
+                .create_security_incident(inc)
+                .await
+                .expect("create incident");
+        }
+
+        // Request page 1 with limit 2 and filter "Pagination"
+        let response_page1 = server
+            .get("/security/incidents")
+            .add_query_param("filter", "Pagination")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 0)
+            .await;
+        response_page1.assert_status_ok();
+        let body_page1: ApiResponse<Vec<SecurityIncident>> = response_page1.json();
+        let data_page1 = body_page1.data.unwrap();
+        assert_eq!(data_page1.len(), 2);
+
+        // Request page 2 with limit 2 and filter "Pagination"
+        let response_page2 = server
+            .get("/security/incidents")
+            .add_query_param("filter", "Pagination")
+            .add_query_param("limit", 2)
+            .add_query_param("offset", 2)
+            .await;
+        response_page2.assert_status_ok();
+        let body_page2: ApiResponse<Vec<SecurityIncident>> = response_page2.json();
+        let data_page2 = body_page2.data.unwrap();
+        assert_eq!(data_page2.len(), 2);
+
+        // Verify items are distinct
+        assert_ne!(data_page1[0].id, data_page2[0].id);
     }
 }
 
