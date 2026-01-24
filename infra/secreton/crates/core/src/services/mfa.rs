@@ -389,7 +389,11 @@ impl MfaService {
         // Mock sending Email
         // SECURITY WARNING: In production, do not log the actual code.
         // This is a placeholder for development/testing where no email provider is integrated.
+        #[cfg(debug_assertions)]
         tracing::info!("Sending Email code {} to email {}", code, email);
+
+        #[cfg(not(debug_assertions))]
+        tracing::info!("Sending Email code to email {} (code hidden in release)", email);
 
         Ok(code)
     }
