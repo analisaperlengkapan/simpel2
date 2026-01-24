@@ -937,6 +937,17 @@ pub async fn oauth_callback(
     Path(provider): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
+    // Check for OAuth error response first
+    if let Some(error) = params.get("error") {
+        let description = params
+            .get("error_description")
+            .map(|s| s.as_str())
+            .unwrap_or("Authorization failed");
+        return Err(ApiError::Authentication {
+            message: format!("OAuth error: {} - {}", error, description),
+        });
+    }
+
     // 1. Verify state parameter
     let code = params.get("code").ok_or(ApiError::Validation {
         message: "Missing 'code' parameter".to_string(),
@@ -1076,11 +1087,14 @@ pub async fn oauth_callback(
     // Extract email and name
     let email = user_data["email"]
         .as_str()
-        .or_else(|| user_data["login"].as_str())
-        .ok_or(ApiError::Authentication {
-            message: "Provider did not return an email address".to_string(),
-        })?
-        .to_string();
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            let login = user_data["login"]
+                .as_str()
+                .or_else(|| user_data["sub"].as_str())
+                .unwrap_or("unknown");
+            format!("{}@{}.oauth.local", login, provider)
+        });
 
     let name = user_data["name"].as_str().map(|s| s.to_string());
 
