@@ -265,6 +265,10 @@ impl ServiceContainer {
     )> {
         let storage = Self::create_storage_backend(config).await?;
         let pool = Self::create_database_pool(config).await?;
+
+        // Initialize webhook tables
+        crate::handlers::webhook::init_storage(&pool).await?;
+
         let crypto = Arc::new(CryptoEngine::new());
         let audit = Arc::new(AuditLogger::new(vec![]));
 
