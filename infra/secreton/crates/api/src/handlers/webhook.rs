@@ -280,6 +280,27 @@ pub async fn update_subscription(
 ) -> Result<Json<ApiResponse<WebhookSubscriptionResponse>>, ApiError> {
     info!("Updating webhook subscription: {}", subscription_id);
 
+    // Validate URL
+    if !request.url.starts_with("http://") && !request.url.starts_with("https://") {
+        return Err(ApiError::BadRequest {
+            message: "Webhook URL must start with http:// or https://".to_string(),
+        });
+    }
+
+    // Validate paths
+    if request.paths.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "At least one path must be specified".to_string(),
+        });
+    }
+
+    // Validate events
+    if request.events.is_empty() {
+        return Err(ApiError::BadRequest {
+            message: "At least one event must be specified".to_string(),
+        });
+    }
+
     let mut subscription = get_subscription_by_id(&state.pool, &subscription_id).await?;
 
     // Update fields
