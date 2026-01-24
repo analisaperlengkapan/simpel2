@@ -959,9 +959,33 @@ pub async fn oauth_callback(
             message: format!("Failed to verify state: {}", e),
         })?;
 
-    if state_entry.is_none() {
+    let state_entry = state_entry.ok_or(ApiError::Validation {
+        message: "Invalid or expired state parameter".to_string(),
+        field: Some("state".to_string()),
+        details: None,
+    })?;
+
+    // Check expiration
+    if state_entry.is_expired() {
+        let _ = state.storage.delete_by_path(&state_path).await;
         return Err(ApiError::Validation {
             message: "Invalid or expired state parameter".to_string(),
+            field: Some("state".to_string()),
+            details: None,
+        });
+    }
+
+    // Validate provider matches state
+    let stored_provider = state_entry.encryption_metadata["provider"]
+        .as_str()
+        .ok_or(ApiError::Internal {
+            message: "Invalid state metadata".to_string(),
+        })?;
+
+    if stored_provider != provider {
+        let _ = state.storage.delete_by_path(&state_path).await;
+        return Err(ApiError::Validation {
+            message: "Provider mismatch in OAuth state".to_string(),
             field: Some("state".to_string()),
             details: None,
         });
