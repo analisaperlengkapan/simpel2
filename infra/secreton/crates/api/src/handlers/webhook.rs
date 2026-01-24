@@ -669,9 +669,13 @@ fn row_to_subscription(row: &tokio_postgres::Row) -> Result<WebhookSubscriptionD
     let events: Vec<WebhookEvent> = serde_json::from_value(events_val)
         .map_err(|e| ApiError::internal(format!("Failed to deserialize events: {}", e)))?;
 
-    let headers_val: serde_json::Value = row.get("headers");
-    let headers: HashMap<String, String> = serde_json::from_value(headers_val)
-        .map_err(|e| ApiError::internal(format!("Failed to deserialize headers: {}", e)))?;
+    let headers_val: Option<serde_json::Value> = row.get("headers");
+    let headers: HashMap<String, String> = if let Some(val) = headers_val {
+        serde_json::from_value(val)
+            .map_err(|e| ApiError::internal(format!("Failed to deserialize headers: {}", e)))?
+    } else {
+        HashMap::new()
+    };
 
     let retry_val: serde_json::Value = row.get("retry");
     let retry: RetryConfig = serde_json::from_value(retry_val)
