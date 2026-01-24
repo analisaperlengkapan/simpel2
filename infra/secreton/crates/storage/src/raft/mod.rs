@@ -100,6 +100,7 @@ impl RaftClusterConfig {
     pub fn development(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 1000, // 2x = 2 seconds max
             heartbeat_interval_ms: 300,
@@ -117,6 +118,7 @@ impl RaftClusterConfig {
     pub fn staging(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 2000, // 2x = 4 seconds max
             heartbeat_interval_ms: 600,
@@ -134,6 +136,7 @@ impl RaftClusterConfig {
     pub fn production(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 2500, // 2x = 5 seconds max
             heartbeat_interval_ms: 750,
@@ -151,6 +154,7 @@ impl RaftClusterConfig {
     pub fn fast_failover(node_id: u64) -> Self {
         Self {
             node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             election_timeout_ms: 1500, // 2x = 3 seconds max
             heartbeat_interval_ms: 450,

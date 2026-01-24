@@ -579,7 +579,6 @@ impl ServiceContainer {
                         }
                     }
 
-                    let raft_config = config.storage.raft.clone().into();
                     let cluster = RaftCluster::new(raft_config).await.map_err(|e| {
                         anyhow::anyhow!("Failed to create Raft storage backend: {}", e)
                     })?;
