@@ -260,6 +260,25 @@ mod tests {
         assert!(auth_url.contains("state="));
         assert!(auth_url.contains("scope=read%3Auser"));
     }
+
+    #[tokio::test]
+    async fn test_oauth_callback_invalid_state() {
+        let server = create_test_server().await;
+
+        let response = server
+            .get("/oauth/github/callback")
+            .add_query_param("state", "invalid_state")
+            .add_query_param("code", "some_code")
+            .await;
+
+        // Should be 401 because state is not found in storage
+        response.assert_status(StatusCode::UNAUTHORIZED);
+
+        let body: ApiResponse<serde_json::Value> = response.json();
+        assert!(!body.success);
+        let error = body.error.expect("error payload");
+        assert_eq!(error.code, "AUTH_FAILED");
+    }
 }
 
 // LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo now imported from secreton_core::models
@@ -970,30 +989,179 @@ pub async fn oauth_login(
 
 /// OAuth callback handler
 pub async fn oauth_callback(
-    State(_state): State<AppState>,
-    Path(provider): Path<String>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(provider_name): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
-    // TODO: Implement OAuth callback
     // 1. Verify state parameter
+    let state_token = params.get("state").ok_or_else(|| ApiError::Validation {
+        message: "Missing state parameter".to_string(),
+        field: Some("state".to_string()),
+        details: None,
+    })?;
+
+    let code = params.get("code").ok_or_else(|| ApiError::Validation {
+        message: "Missing code parameter".to_string(),
+        field: Some("code".to_string()),
+        details: None,
+    })?;
+
+    // Verify state against storage
+    let storage_path = format!("sys/oauth/states/{}", state_token);
+    let state_entry = state
+        .storage
+        .get_by_path(&storage_path)
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to verify state: {}", e),
+        })?
+        .ok_or(ApiError::Authentication {
+            message: "Invalid or expired state parameter".to_string(),
+        })?;
+
+    // Delete state immediately (single use)
+    let _ = state.storage.delete_by_path(&storage_path).await;
+
+    // Verify provider matches
+    let state_data: serde_json::Value =
+        serde_json::from_slice(&state_entry.encrypted_data).map_err(|_| {
+            ApiError::Authentication {
+                message: "Invalid state data".to_string(),
+            }
+        })?;
+
+    if state_data["provider"].as_str() != Some(provider_name.as_str()) {
+        return Err(ApiError::Authentication {
+            message: "Provider mismatch".to_string(),
+        });
+    }
+
     // 2. Exchange code for access token
+    let oauth_config = state.config.auth.oauth2.as_ref().ok_or_else(|| {
+        ApiError::Auth(crate::error::AuthError::Configuration(
+            "OAuth2 is not configured".to_string(),
+        ))
+    })?;
+
+    let provider_config = oauth_config
+        .providers
+        .iter()
+        .find(|p| p.name == provider_name)
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("OAuth provider '{}'", provider_name),
+        })?;
+
+    let client = reqwest::Client::new();
+    let token_res = client
+        .post(&provider_config.token_url)
+        .form(&[
+            ("client_id", provider_config.client_id.as_str()),
+            ("client_secret", provider_config.client_secret.as_str()),
+            ("code", code),
+            ("redirect_uri", oauth_config.redirect_url.as_str()),
+            ("grant_type", "authorization_code"),
+        ])
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Failed to exchange token: {}", e),
+        })?;
+
+    if !token_res.status().is_success() {
+        return Err(ApiError::Authentication {
+            message: format!("Provider returned error: {}", token_res.status()),
+        });
+    }
+
+    let token_data: serde_json::Value = token_res.json().await.map_err(|e| {
+        ApiError::Authentication {
+            message: format!("Failed to parse token response: {}", e),
+        }
+    })?;
+
+    let access_token = token_data["access_token"].as_str().ok_or_else(|| {
+        ApiError::Authentication {
+            message: "No access_token in response".to_string(),
+        }
+    })?;
+
     // 3. Fetch user information
-    // 4. Create/update user account
-    // 5. Generate JWT tokens
+    let user_res = client
+        .get(&provider_config.user_info_url)
+        .bearer_auth(access_token)
+        .header("User-Agent", "Secreton-Engine")
+        .send()
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: format!("Failed to fetch user info: {}", e),
+        })?;
+
+    if !user_res.status().is_success() {
+        return Err(ApiError::Authentication {
+            message: format!("Failed to fetch user info: {}", user_res.status()),
+        });
+    }
+
+    let user_data: serde_json::Value = user_res.json().await.map_err(|e| {
+        ApiError::Authentication {
+            message: format!("Failed to parse user info: {}", e),
+        }
+    })?;
+
+    // Strategy to extract email (GitHub uses specific endpoint for emails if not public)
+    let email = user_data["email"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| ApiError::Authentication {
+            message: "Email not provided by OAuth provider".to_string(),
+        })?;
+
+    let name = user_data["name"]
+        .as_str()
+        .or_else(|| user_data["login"].as_str()) // GitHub fallback
+        .map(|s| s.to_string());
+
+    let client_ip = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("unknown");
+
+    // 4. Create/Authenticate User
+    let auth_token = state
+        .auth
+        .login_external(
+            &email,
+            name,
+            HashMap::from([("provider".to_string(), provider_name.clone())]),
+            &client_ip,
+            user_agent,
+        )
+        .await?;
+
+    let policies = state
+        .auth
+        .get_user_policies(&auth_token.user)
+        .await
+        .unwrap_or_else(|_| vec!["default".to_string()]);
+
+    let user_info = UserInfo {
+        username: auth_token.user.username.clone(),
+        email: Some(auth_token.user.email.clone()),
+        display_name: auth_token.user.full_name.clone(),
+        groups: auth_token.user.roles.iter().cloned().collect(),
+        policies,
+        metadata: auth_token.user.metadata.clone(),
+    };
 
     let response = LoginResponse {
-        access_token: "oauth_jwt_token".to_string(),
-        refresh_token: "oauth_refresh_token".to_string(),
-        token_type: "Bearer".to_string(),
-        expires_in: 3600,
-        user: UserInfo {
-            username: "oauth_user".to_string(),
-            email: Some("oauth@example.com".to_string()),
-            display_name: Some("OAuth User".to_string()),
-            groups: vec![],
-            policies: vec!["default".to_string()],
-            metadata: std::collections::HashMap::new(),
-        },
+        access_token: auth_token.access_token,
+        refresh_token: auth_token.refresh_token,
+        token_type: auth_token.token_type,
+        expires_in: auth_token.expires_in,
+        user: user_info,
         mfa_required: false,
     };
 
