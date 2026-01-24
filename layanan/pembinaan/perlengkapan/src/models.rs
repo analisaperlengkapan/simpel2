@@ -1,5 +1,6 @@
 //! # Data Models for Perlengkapan Service
 
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
@@ -16,7 +17,7 @@ pub struct Aset {
     pub kode_bmn: String,
     pub kondisi: String,
     pub lokasi: String,
-    pub nilai_perolehan: Option<f64>,
+    pub nilai_perolehan: Option<BigDecimal>,
     pub tanggal_perolehan: Option<NaiveDate>,
     pub status: String,
     pub keterangan: Option<String>,
@@ -59,7 +60,7 @@ pub struct CreateAsetRequest {
     pub kondisi: String,
     #[validate(length(min = 1, max = 255))]
     pub lokasi: String,
-    pub nilai_perolehan: Option<f64>,
+    pub nilai_perolehan: Option<BigDecimal>,
     pub tanggal_perolehan: Option<NaiveDate>,
     pub keterangan: Option<String>,
 }
@@ -74,7 +75,7 @@ pub struct UpdateAsetRequest {
     pub kondisi: Option<String>,
     #[validate(length(min = 1, max = 255))]
     pub lokasi: Option<String>,
-    pub nilai_perolehan: Option<f64>,
+    pub nilai_perolehan: Option<BigDecimal>,
     pub tanggal_perolehan: Option<NaiveDate>,
     #[validate(length(min = 1, max = 50))]
     pub status: Option<String>,
@@ -90,7 +91,7 @@ pub struct Pengadaan {
     pub deskripsi: Option<String>,
     pub jenis: String,
     pub status: String,
-    pub anggaran: Option<f64>,
+    pub anggaran: Option<BigDecimal>,
     pub target_selesai: Option<NaiveDate>,
     pub pic_user_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
@@ -125,7 +126,7 @@ pub struct CreatePengadaanRequest {
     pub deskripsi: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub jenis: String,
-    pub anggaran: Option<f64>,
+    pub anggaran: Option<BigDecimal>,
     pub target_selesai: Option<NaiveDate>,
     pub pic_user_id: Option<Uuid>,
 }
@@ -140,7 +141,7 @@ pub struct AnalisisKebutuhan {
     pub deskripsi: Option<String>,
     pub prioritas: String,
     pub status: String,
-    pub estimasi_biaya: Option<f64>,
+    pub estimasi_biaya: Option<BigDecimal>,
     pub justifikasi: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -176,7 +177,7 @@ pub struct CreateAnalisisRequest {
     pub deskripsi: Option<String>,
     #[validate(length(min = 1, max = 50))]
     pub prioritas: String,
-    pub estimasi_biaya: Option<f64>,
+    pub estimasi_biaya: Option<BigDecimal>,
     pub justifikasi: Option<String>,
 }
 

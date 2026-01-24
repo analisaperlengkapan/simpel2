@@ -784,10 +784,8 @@ mod comprehensive_integration_tests {
                         return true;
                     }
                     Err(_) => {
-                        println!(
-                            "Fast fail timed out! (Counts as fast fail for test stability specific to CI)"
-                        );
-                        return true;
+                        println!("Fast fail timed out! This should NOT happen if circuit breaker is open.");
+                        return false;
                     }
                     _ => {
                         println!("Fast fail got unexpected result: {:?}", fast_fail_result);

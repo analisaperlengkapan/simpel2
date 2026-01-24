@@ -127,9 +127,10 @@ tokio-postgres = { version = "0.7.14", features = [
     "with-chrono-0_4",
     "with-serde_json-1",
     "with-time-0_3",
+    "with-bigdecimal-0_4",
 ] }
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
-postgres-types = { version = "0.2.10", features = [
+postgres-types = { version = "0.2.12", features = [
     "derive",
     "with-uuid-1",
     "with-chrono-0_4",
