@@ -652,6 +652,23 @@ pub trait StorageBackend: Send + Sync {
     /// Count secret entries matching query
     async fn count(&self, params: &QueryParams) -> StorageResult<u64>;
 
+    /// Count all secrets (total entries)
+    async fn count_secrets(&self) -> StorageResult<u64> {
+        self.count(&QueryParams::new()).await
+    }
+
+    /// Count keys (entries with prefix "keys/")
+    async fn count_keys(&self) -> StorageResult<u64> {
+        self.count(&QueryParams::new().with_path_prefix("keys/".to_string()))
+            .await
+    }
+
+    /// Count policies (entries with prefix "sys/policies/")
+    async fn count_policies(&self) -> StorageResult<u64> {
+        self.count(&QueryParams::new().with_path_prefix("sys/policies/".to_string()))
+            .await
+    }
+
     /// Check if path exists
     async fn exists(&self, path: &str) -> StorageResult<bool>;
 

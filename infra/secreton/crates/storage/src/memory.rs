@@ -107,6 +107,51 @@ impl StorageBackend for MemoryBackend {
     }
 
     async fn count(&self, params: &QueryParams) -> StorageResult<u64> {
+        // Optimization: If no filters other than path_prefix and include_expired=true,
+        // use path_index to count keys. This is O(N) on keys only.
+        let only_prefix_filter = params.security_level.is_none()
+            && params.tags.is_empty()
+            && params.owner_id.is_none()
+            && params.metadata_filters.is_empty();
+
+        // If we want to include expired (or don't care about checking expiration)
+        // AND we only have prefix filter, we can use the path_index directly.
+        if only_prefix_filter && params.include_expired {
+            let path_index = self.path_index.read().await;
+            if let Some(prefix) = &params.path_prefix {
+                let count = path_index
+                    .keys()
+                    .filter(|k| k.starts_with(prefix))
+                    .count();
+                return Ok(count as u64);
+            } else {
+                return Ok(path_index.len() as u64);
+            }
+        }
+
+        // If we need to filter out expired entries (common case), we iterate
+        // over the store but avoid cloning the full result vector.
+        if only_prefix_filter && !params.include_expired {
+            let store = self.store.read().await;
+            let prefix = params.path_prefix.as_deref();
+
+            let count = store.values()
+                .filter(|entry| {
+                    // Check prefix if it exists
+                    if let Some(p) = prefix {
+                        if !entry.path.starts_with(p) {
+                            return false;
+                        }
+                    }
+                    // Check expiration
+                    !entry.is_expired()
+                })
+                .count();
+
+            return Ok(count as u64);
+        }
+
+        // Fallback to list for complex filters (tags, owner, metadata)
         let entries = self.list(params).await?;
         Ok(entries.len() as u64)
     }
@@ -162,6 +207,11 @@ impl StorageBackend for MemoryBackend {
         // added here as they are needed by callers.
         if let Some(prefix) = &params.path_prefix {
             entries.retain(|entry| entry.path.starts_with(prefix));
+        }
+
+        // Filter expired entries unless requested
+        if !params.include_expired {
+            entries.retain(|entry| !entry.is_expired());
         }
 
         Ok(entries)
