@@ -592,6 +592,11 @@ pub async fn mfa_status(
 
     let claims = jwt::verify_jwt(token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
 
+    // Verify token purpose (must be access token, not mfa_verification token)
+    if claims.purpose.as_deref() != Some("access") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
+
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
 
@@ -612,6 +617,11 @@ pub async fn mfa_disable(
     // Verify admin token
     let claims = jwt::verify_jwt(&req.admin_token)
         .map_err(|_| AuthencError::unauthorized("Invalid admin token"))?;
+
+    // Verify token purpose (must be access token, not mfa_verification token)
+    if claims.purpose.as_deref() != Some("access") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
 
     let admin_user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid admin user ID in token"))?;
@@ -689,6 +699,11 @@ pub async fn mfa_reset(
     // Verify token
     let claims =
         jwt::verify_jwt(&req.token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
+
+    // Verify token purpose (must be access token, not mfa_verification token)
+    if claims.purpose.as_deref() != Some("access") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
 
     let requesting_user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;
@@ -778,6 +793,11 @@ pub async fn mfa_backup_codes(
     // Verify token
     let claims =
         jwt::verify_jwt(&req.token).map_err(|_| AuthencError::unauthorized("Invalid token"))?;
+
+    // Verify token purpose (must be access token, not mfa_verification token)
+    if claims.purpose.as_deref() != Some("access") {
+        return Err(AuthencError::unauthorized("Invalid token purpose"));
+    }
 
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| AuthencError::internal("Invalid user ID in token"))?;

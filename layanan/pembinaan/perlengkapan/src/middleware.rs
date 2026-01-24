@@ -63,13 +63,6 @@ where
     }
 }
 
-pub async fn auth_middleware(request: Request, next: Next) -> Result<Response, AppError> {
-    // For now, we'll extract the claims but let the handlers deal with them
-    // This middleware is just for global authentication
-    let response = next.run(request).await;
-    Ok(response)
-}
-
 // Optional middleware for role-based access control
 #[allow(dead_code)]
 pub fn require_role(required_role: &str) -> impl Fn(Claims) -> Result<(), AppError> + Clone {

@@ -9,7 +9,6 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-mod config;
 mod database;
 mod errors;
 mod handlers;

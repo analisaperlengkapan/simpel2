@@ -2,9 +2,9 @@
 //!
 //! Route definitions for the Perlengkapan service
 
-use axum::{Router, middleware, routing::get};
+use axum::{Router, routing::get};
 
-use crate::{handlers::*, middleware::auth_middleware, services::PerlengkapanService};
+use crate::{handlers::*, services::PerlengkapanService};
 
 pub fn create_routes(service: PerlengkapanService) -> Router {
     Router::new()
@@ -23,8 +23,6 @@ pub fn create_routes(service: PerlengkapanService) -> Router {
         .route("/pengadaan/{id}", get(get_pengadaan_by_id))
         // Analisis Kebutuhan routes
         .route("/analisis", get(get_all_analisis).post(create_analisis))
-        // Apply authentication middleware to all routes except health
-        .layer(middleware::from_fn(auth_middleware))
         // Add the service as state
         .with_state(service)
 }
