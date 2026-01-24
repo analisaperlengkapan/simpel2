@@ -49,6 +49,12 @@ pub enum MfaError {
 
     #[error("SMS code expired")]
     SmsExpired,
+
+    #[error("Invalid Email code")]
+    InvalidEmailCode,
+
+    #[error("Email code expired")]
+    EmailExpired,
 }
 
 /// MFA method type
@@ -110,6 +116,14 @@ pub struct MfaConfig {
     /// Pending SMS verification (code, phone, expires_at)
     pub pending_sms_verification: Option<(String, String, DateTime<Utc>)>,
 
+    /// Email address for Email MFA
+    #[serde(default)]
+    pub email_address: Option<String>,
+
+    /// Pending Email verification (code, email, expires_at)
+    #[serde(default)]
+    pub pending_email_verification: Option<(String, String, DateTime<Utc>)>,
+
     /// Created at
     pub created_at: DateTime<Utc>,
 
@@ -131,6 +145,8 @@ impl MfaConfig {
             used_recovery_codes: Vec::new(),
             phone_number: None,
             pending_sms_verification: None,
+            email_address: None,
+            pending_email_verification: None,
             created_at: Utc::now(),
             last_used_at: None,
             enforced: false,
@@ -342,6 +358,78 @@ impl MfaService {
         } else {
             Err(MfaError::NotConfigured(
                 "SMS Setup not initiated".to_string(),
+            ))
+        }
+    }
+
+    /// Initiate Email MFA setup
+    #[instrument(skip(self), fields(
+        user_id = %user_id,
+        email = %email,
+        operation = "initiate_email_setup"
+    ))]
+    pub async fn initiate_email_setup(
+        &self,
+        user_id: &str,
+        email: String,
+    ) -> Result<String, MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .entry(user_id.to_string())
+            .or_insert_with(|| MfaConfig::new(user_id.to_string()));
+
+        // Generate random 6-digit code
+        use rand::Rng;
+        let code = format!("{:06}", rand::thread_rng().gen_range(0..1000000));
+        let expires_at = Utc::now() + chrono::Duration::minutes(10);
+
+        // Store email in pending state until verified
+        config.pending_email_verification = Some((code.clone(), email.clone(), expires_at));
+
+        // Mock sending Email
+        // SECURITY WARNING: In production, do not log the actual code.
+        // This is a placeholder for development/testing where no email provider is integrated.
+        #[cfg(debug_assertions)]
+        tracing::info!("Sending Email code {} to email {}", code, email);
+
+        #[cfg(not(debug_assertions))]
+        tracing::info!("Sending Email code to email {} (code hidden in release)", email);
+
+        Ok(code)
+    }
+
+    /// Verify Email setup code
+    #[instrument(skip(self, code), fields(
+        user_id = %user_id,
+        operation = "verify_email_setup"
+    ))]
+    pub async fn verify_email_setup(&self, user_id: &str, code: &str) -> Result<bool, MfaError> {
+        let mut configs = self.configs.write().await;
+        let config = configs
+            .get_mut(user_id)
+            .ok_or_else(|| MfaError::NotConfigured(user_id.to_string()))?;
+
+        if let Some((pending_code, pending_email, expires_at)) = &config.pending_email_verification
+        {
+            if Utc::now() > *expires_at {
+                return Err(MfaError::EmailExpired);
+            }
+            if pending_code != code {
+                return Err(MfaError::InvalidEmailCode);
+            }
+
+            // Valid - enable Email MFA and save email
+            config.email_address = Some(pending_email.clone());
+            if !config.enabled_methods.contains(&MfaMethodType::Email) {
+                config.enabled_methods.push(MfaMethodType::Email);
+            }
+            config.pending_email_verification = None;
+            config.last_used_at = Some(Utc::now());
+
+            Ok(true)
+        } else {
+            Err(MfaError::NotConfigured(
+                "Email Setup not initiated".to_string(),
             ))
         }
     }
@@ -566,5 +654,33 @@ mod tests {
         assert!(config.enabled_methods.contains(&MfaMethodType::SMS));
         assert_eq!(config.phone_number, Some(phone));
         assert!(config.pending_sms_verification.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_email_setup_flow() {
+        let service = MfaService::new();
+        let user_id = "user_email";
+        let email = "test@example.com".to_string();
+
+        // Initiate setup
+        let code = service
+            .initiate_email_setup(user_id, email.clone())
+            .await
+            .unwrap();
+        assert_eq!(code.len(), 6);
+
+        // Verify with wrong code
+        let result = service.verify_email_setup(user_id, "000000").await;
+        assert!(matches!(result, Err(MfaError::InvalidEmailCode)));
+
+        // Verify with correct code
+        let result = service.verify_email_setup(user_id, &code).await;
+        assert!(matches!(result, Ok(true)));
+
+        // Check enabled methods
+        let config = service.get_config(user_id).await.unwrap();
+        assert!(config.enabled_methods.contains(&MfaMethodType::Email));
+        assert_eq!(config.email_address, Some(email));
+        assert!(config.pending_email_verification.is_none());
     }
 }
