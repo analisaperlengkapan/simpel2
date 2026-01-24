@@ -58,6 +58,125 @@ pub fn Captcha(
 
     // Clone session_id for use in async closures
     let session_id_clone = session_id.clone();
+    let session_id_verify = session_id.clone();
+
+    // Verification logic (lifted to parent to support AlternativeInputs)
+    let handle_verification = move |answer: String| {
+        set_validation_status.set(ValidationStatus::Validating);
+
+        let behavioral_data_val = behavioral_data.get();
+        // Use state for challenge_id
+        let challenge_id_val = state.get().challenge_id.unwrap_or_default();
+        let session_id_val = session_id_verify.clone();
+
+        // Clone callbacks for async block
+        let on_success_clone = on_success.clone();
+        let on_failure_clone = on_failure.clone();
+
+        spawn_local(async move {
+            // Get Authenc URL - use window.location.origin for same-origin requests
+            // This allows nginx proxy to route /captcha/ to Authenc
+            let authenc_url = web_sys::window()
+                .and_then(|w| w.location().origin().ok())
+                .unwrap_or_else(|| {
+                    option_env!("AUTHENC_URL")
+                        .unwrap_or("http://localhost:8080")
+                        .to_string()
+                });
+
+            let verify_url = format!("{}/captcha/verify", authenc_url);
+
+            // Prepare validation request
+            let validation_request = ValidationRequest {
+                challenge_id: challenge_id_val,
+                answer: answer,
+                behavioral_data: Some(behavioral_data_val),
+            };
+
+            let mut success = false;
+            let mut error_msg = "Verification failed".to_string();
+
+            // Make API call to Authenc
+            match web_sys::window() {
+                Some(window) => {
+                    use wasm_bindgen::{JsCast, JsValue};
+                    use web_sys::{Request, RequestInit, RequestMode, Response};
+
+                    let opts = RequestInit::new();
+                    opts.set_method("POST");
+                    opts.set_mode(RequestMode::Cors);
+
+                    // Set body
+                    if let Ok(body_str) = serde_json::to_string(&validation_request) {
+                        opts.set_body(&JsValue::from_str(&body_str));
+                    }
+
+                    match Request::new_with_str_and_init(&verify_url, &opts) {
+                        Ok(request) => {
+                            let _ = request.headers().set("Content-Type", "application/json");
+
+                            match wasm_bindgen_futures::JsFuture::from(
+                                window.fetch_with_request(&request),
+                            )
+                            .await
+                            {
+                                Ok(resp_value) => {
+                                    let resp: Response = resp_value.dyn_into().unwrap();
+                                    if resp.ok() {
+                                        if let Ok(json) = wasm_bindgen_futures::JsFuture::from(
+                                            resp.json().unwrap(),
+                                        )
+                                        .await
+                                        {
+                                            if let Ok(val_resp) = serde_wasm_bindgen::from_value::<
+                                                ValidationResponse,
+                                            >(
+                                                json
+                                            ) {
+                                                if val_resp.success {
+                                                    success = true;
+                                                } else {
+                                                    error_msg = val_resp.message;
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        error_msg = format!("API error: {}", resp.status());
+                                    }
+                                }
+                                Err(_) => {
+                                    error_msg = "Network error".to_string();
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            error_msg = "Request creation failed".to_string();
+                        }
+                    }
+                }
+                None => {
+                    error_msg = "Window not available".to_string();
+                }
+            }
+
+            if success {
+                set_validation_status.set(ValidationStatus::Success);
+                on_success_clone.run(format!("captcha_verified_{}", session_id_val));
+            } else {
+                set_validation_status.set(ValidationStatus::Failed(error_msg.clone()));
+                set_state.update(|s| {
+                    s.attempts += 1;
+                    if s.attempts >= 3 {
+                        s.error = Some("Too many failed attempts. Please refresh.".to_string());
+                    }
+                });
+
+                if let Some(failure_callback) = on_failure_clone {
+                    failure_callback.run(error_msg);
+                }
+            }
+        });
+    };
 
     // Challenge generation effect - wrap in Resource for reactive updates
     let (refresh_trigger, set_refresh_trigger) = signal(0);
@@ -263,6 +382,7 @@ pub fn Captcha(
             set_validation_status=set_validation_status
             input_value=input_value
             set_input_value=set_input_value
+            on_verify_answer=Callback::new(handle_verification)
         />
     }
 }
@@ -281,6 +401,7 @@ fn CaptchaContainer(
     accessibility_enabled: bool,
     on_success: Callback<String>,
     on_failure: Option<Callback<String>>,
+    on_verify_answer: Callback<String>,
     refresh_challenge: impl Fn(leptos::ev::MouseEvent) + 'static + Copy + Send,
     show_alternative_inputs: ReadSignal<bool>,
     behavioral_analysis: bool,
@@ -398,8 +519,8 @@ fn CaptchaContainer(
 
                             {if accessibility_enabled && show_alternative_inputs.get() {
                                 view! {
-                                    <AlternativeInputMethods
-                                        on_answer=on_success
+                                    <AlternativeInputs
+                                        on_answer=on_verify_answer
                                         challenge_type=state.get().challenge_type
                                     />
                                 }.into_any()

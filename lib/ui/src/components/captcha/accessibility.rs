@@ -7,6 +7,7 @@ use crate::components::forms::Button;
 use crate::core::types::{ButtonSize, ButtonVariant};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use send_wrapper::SendWrapper;
 use wasm_bindgen::JsCast;
 
 /// Audio challenge component for visually impaired users
@@ -141,7 +142,7 @@ pub fn AudioChallenge(
                      </label>
                      <div class="flex items-center space-x-2">
                          <Button
-                             on_click=Box::new(move || adjust_speed(1.0))
+                             on_click=Box::new(move || adjust_speed(0.75))
                              variant=if playback_speed.get() == 0.75 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
                              size=ButtonSize::Small
                          >
@@ -155,7 +156,7 @@ pub fn AudioChallenge(
                              "1x"
                          </Button>
                          <Button
-                             on_click=Box::new(move || adjust_speed(1.0))
+                             on_click=Box::new(move || adjust_speed(1.25))
                              variant=if playback_speed.get() == 1.25 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
                              size=ButtonSize::Small
                          >
@@ -258,18 +259,35 @@ pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl
     }
 }
 
-/// Alternative input methods for users with motor impairments
-#[component]
-pub fn AlternativeInputMethods(
-    on_answer: Callback<String>,
-    challenge_type: ChallengeType,
-) -> impl IntoView {
-    let _ = on_answer;
-    let (_selected_option, _set_selected_option) = signal(None::<String>);
-    let (_voice_input_active, set_voice_input_active) = signal(false);
 
-    // Voice input using Web Speech API
-    let _start_voice_input = move |_: ()| {
+/// Alternative input methods component for accessibility
+#[component]
+pub fn AlternativeInputs(
+    challenge_type: ChallengeType,
+    on_answer: Callback<String>,
+) -> impl IntoView {
+    let (selected_option, set_selected_option) = signal(None::<String>);
+    let (voice_input_active, set_voice_input_active) = signal(false);
+
+    // Store recognition instance for cleanup
+    let recognition_ref = StoredValue::new(None::<SendWrapper<js_sys::Object>>);
+
+    // Cleanup on component unmount
+    on_cleanup(move || {
+        if let Some(wrapped_recognition) = recognition_ref.get_value() {
+            let recognition = wrapped_recognition.take();
+            if let Ok(abort_fn) = js_sys::Reflect::get(&recognition, &"abort".into()) {
+                let _ = js_sys::Reflect::apply(
+                    abort_fn.unchecked_ref(),
+                    &recognition,
+                    &js_sys::Array::new(),
+                );
+            }
+        }
+    });
+
+    // Voice input handler
+    let start_voice_input = move |_| {
         set_voice_input_active.set(true);
 
         spawn_local(async move {
@@ -282,112 +300,117 @@ pub fn AlternativeInputMethods(
                 if let Ok(recognition_constructor) = speech_recognition {
                     if !recognition_constructor.is_undefined() {
                         // Create speech recognition instance
-                        let recognition = js_sys::Reflect::construct(
-                            &recognition_constructor.into(),
+                        if let Ok(recognition) = js_sys::Reflect::construct(
+                            recognition_constructor.unchecked_ref(),
                             &js_sys::Array::new(),
-                        )
-                        .unwrap();
+                        ) {
+                            // Store reference for cleanup
+                            if let Ok(obj) = recognition.clone().dyn_into::<js_sys::Object>() {
+                                recognition_ref.set_value(Some(SendWrapper::new(obj)));
+                            }
 
-                        // Configure recognition
-                        let _ =
-                            js_sys::Reflect::set(&recognition, &"continuous".into(), &false.into());
-                        let _ = js_sys::Reflect::set(
-                            &recognition,
-                            &"interimResults".into(),
-                            &false.into(),
-                        );
-                        let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
+                            // Configure recognition
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"continuous".into(),
+                                &false.into(),
+                            );
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"interimResults".into(),
+                                &false.into(),
+                            );
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"lang".into(),
+                                &"en-US".into(),
+                            );
 
-                        // Set up result handler
-                        let _on_answer_clone = on_answer.clone();
-                        let set_voice_input_active_clone = set_voice_input_active.clone();
-                        let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
-                            move |event: web_sys::Event| {
-                                // Extract speech result
-                                if let Ok(results) = js_sys::Reflect::get(&event, &"results".into())
-                                {
-                                    if let Ok(result) = js_sys::Reflect::get(&results, &0.into()) {
-                                        if let Ok(alternative) =
-                                            js_sys::Reflect::get(&result, &0.into())
+                            // Set up result handler
+                            let on_answer_clone = on_answer.clone();
+                            let set_voice_input_active_clone = set_voice_input_active.clone();
+                            let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
+                                move |event: web_sys::Event| {
+                                    // Extract speech result
+                                    if let Ok(results) =
+                                        js_sys::Reflect::get(&event, &"results".into())
+                                    {
+                                        if let Ok(result) =
+                                            js_sys::Reflect::get(&results, &0.into())
                                         {
-                                            if let Ok(transcript) = js_sys::Reflect::get(
-                                                &alternative,
-                                                &"transcript".into(),
-                                            ) {
-                                                if let Some(_text) = transcript.as_string() {
-                                                    // on_answer_clone(text.trim().to_string());
+                                            if let Ok(alternative) =
+                                                js_sys::Reflect::get(&result, &0.into())
+                                            {
+                                                if let Ok(transcript) = js_sys::Reflect::get(
+                                                    &alternative,
+                                                    &"transcript".into(),
+                                                ) {
+                                                    if let Some(text) = transcript.as_string() {
+                                                        on_answer_clone.run(text.trim().to_string());
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                                set_voice_input_active_clone.set(false);
-                            },
-                        )
-                            as Box<dyn Fn(web_sys::Event)>);
+                                    set_voice_input_active_clone.set(false);
+                                },
+                            )
+                                as Box<dyn Fn(web_sys::Event)>);
 
-                        let _ = js_sys::Reflect::set(
-                            &recognition,
-                            &"onresult".into(),
-                            onresult.as_ref().unchecked_ref(),
-                        );
-                        onresult.forget();
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"onresult".into(),
+                                onresult.as_ref().unchecked_ref(),
+                            );
+                            onresult.forget();
 
-                        // Start recognition
-                        let _ = js_sys::Reflect::apply(
-                            &js_sys::Reflect::get(&recognition, &"start".into())
-                                .unwrap()
-                                .into(),
-                            &recognition,
-                            &js_sys::Array::new(),
-                        );
+                            // Set up error handler
+                            let set_voice_input_active_clone_err = set_voice_input_active.clone();
+                            let onerror = wasm_bindgen::closure::Closure::wrap(Box::new(
+                                move |_e: web_sys::Event| {
+                                    set_voice_input_active_clone_err.set(false);
+                                },
+                            )
+                                as Box<dyn Fn(web_sys::Event)>);
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"onerror".into(),
+                                onerror.as_ref().unchecked_ref(),
+                            );
+                            onerror.forget();
+
+                            // Set up end handler
+                            let set_voice_input_active_clone_end = set_voice_input_active.clone();
+                            let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                                set_voice_input_active_clone_end.set(false);
+                            })
+                                as Box<dyn Fn()>);
+                            let _ = js_sys::Reflect::set(
+                                &recognition,
+                                &"onend".into(),
+                                onend.as_ref().unchecked_ref(),
+                            );
+                            onend.forget();
+
+                            // Start recognition
+                            if let Ok(start_fn) =
+                                js_sys::Reflect::get(&recognition, &"start".into())
+                            {
+                                let _ = js_sys::Reflect::apply(
+                                    start_fn.unchecked_ref(),
+                                    &recognition,
+                                    &js_sys::Array::new(),
+                                );
+                            }
+
+                            return;
+                        }
                     }
                 }
             }
 
-            // Timeout after 10 seconds
-            gloo_timers::future::TimeoutFuture::new(10000).await;
-            set_voice_input_active.set(false);
-        });
-    };
-
-    // Multiple choice options for easier selection
-    let _options = match challenge_type {
-        ChallengeType::Visual | ChallengeType::Logical => vec![
-            ("1", "One"),
-            ("2", "Two"),
-            ("3", "Three"),
-            ("4", "Four"),
-            ("5", "Five"),
-        ],
-        _ => vec![
-            ("yes", "Yes"),
-            ("no", "No"),
-            ("maybe", "Maybe"),
-            ("skip", "Skip this challenge"),
-        ],
-    };
-}
-
-/// Alternative input methods component for accessibility
-#[component]
-pub fn AlternativeInputs(
-    challenge_type: ChallengeType,
-    _on_answer: Callback<String>,
-) -> impl IntoView {
-    let (selected_option, set_selected_option) = signal(None::<String>);
-    let (voice_input_active, set_voice_input_active) = signal(false);
-
-    // Voice input handler - simplified implementation
-    let start_voice_input = move |_| {
-        set_voice_input_active.set(true);
-
-        spawn_local(async move {
-            // Simulate voice recognition delay
+            // Fallback if not supported
             gloo_timers::future::TimeoutFuture::new(2000).await;
-
-            // For now, just show that voice input is not supported
-            // TODO: Implement proper speech recognition when web_sys supports it
             set_voice_input_active.set(false);
         });
     };
@@ -440,7 +463,7 @@ pub fn AlternativeInputs(
                                     )
                                     on:click=move |_| {
                                         set_selected_option.set(Some(value_clone_for_click.clone()));
-                                        // on_answer(value_clone_for_click.clone());
+                                        on_answer.run(value_clone_for_click.clone());
                                     }
                                     aria-pressed=move || selected_option.get().as_deref() == Some(&value_clone_for_aria)
                                 >
