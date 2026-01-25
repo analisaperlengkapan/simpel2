@@ -18,18 +18,21 @@ fn create_dummy_pool() -> deadpool_postgres::Pool {
     cfg.create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls).unwrap()
 }
 
-async fn create_test_server(config: ApiConfig, storage: Arc<dyn StorageBackend + Send + Sync>, crypto: Arc<CryptoEngine>) -> TestServer {
+async fn create_test_server(config: ApiConfig, storage: Arc<dyn StorageBackend + Send + Sync>) -> (TestServer, Arc<CryptoEngine>) {
     let pool = create_dummy_pool();
     let mut services = ServiceContainer::new_mock(storage, pool);
     services.config = config;
-    services.crypto = crypto;
+
+    // Extract crypto from services to return it
+    let crypto = services.crypto.clone();
 
     let services = Arc::new(services);
 
     let app = create_routes()
         .with_state(services);
 
-    TestServer::new(app).expect("Failed to create test server")
+    let server = TestServer::new(app).expect("Failed to create test server");
+    (server, crypto)
 }
 
 #[tokio::test]
@@ -49,8 +52,7 @@ async fn test_bug_1_oauth_state_expiration() {
     });
 
     let storage = Arc::new(MemoryBackend::new());
-    let crypto = Arc::new(CryptoEngine::new());
-    let server = create_test_server(config, storage.clone(), crypto.clone()).await;
+    let (server, crypto) = create_test_server(config, storage.clone()).await;
 
     // 1. Manually insert an expired state
     let state_token = "expired_state";
@@ -112,8 +114,7 @@ async fn test_bug_2_oauth_state_encryption() {
     });
 
     let storage = Arc::new(MemoryBackend::new());
-    let crypto = Arc::new(CryptoEngine::new());
-    let server = create_test_server(config, storage.clone(), crypto.clone()).await;
+    let (server, crypto) = create_test_server(config, storage.clone()).await;
 
     // 1. Call oauth login to generate state
     let response = server.get("/oauth/github").await;
