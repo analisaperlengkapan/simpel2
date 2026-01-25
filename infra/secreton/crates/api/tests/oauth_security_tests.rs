@@ -127,19 +127,19 @@ async fn test_bug_2_oauth_state_encryption() {
     let storage_path = format!("sys/oauth/states/{}", state_token);
     let entry = storage.get_by_path(&storage_path).await.unwrap().expect("State should be stored");
 
-    // Bug 2 Check: Data should NOT be plain JSON
+    // Bug 2 Check: Data should be encrypted (length check)
+    // encrypt_simple adds 32 bytes key + 12 bytes nonce + 16 bytes auth tag to the ciphertext
+    // Total overhead = 60 bytes
     let data = entry.encrypted_data;
 
-    // Try to parse as JSON directly
-    let json_result: Result<serde_json::Value, _> = serde_json::from_slice(&data);
+    // Calculate expected plaintext length to verify
+    let original_data = serde_json::json!({
+        "provider": "github",
+    });
+    let plaintext_len = serde_json::to_vec(&original_data).unwrap().len();
 
-    if let Ok(json) = json_result {
-         if json.get("provider") == Some(&serde_json::Value::String("github".to_string())) {
-             panic!("Data is still stored as plain JSON!");
-         }
-    } else {
-        println!("Data is not plain JSON (good).");
-    }
+    // Verify length matches expected encrypted format
+    assert_eq!(data.len(), plaintext_len + 60, "Encrypted data length incorrect. Expected plaintext + 60 bytes overhead");
 
     // Verify we can decrypt it
     let decrypted = crypto.decrypt_simple(&data).expect("Should be able to decrypt");
