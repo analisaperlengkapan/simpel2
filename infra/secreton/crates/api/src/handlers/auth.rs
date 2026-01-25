@@ -991,12 +991,21 @@ pub async fn oauth_login(
     });
 
     // Store as SecretEntry
+    let state_bytes = serde_json::to_vec(&data).map_err(|e| ApiError::Internal {
+        message: format!("Serialization failed: {}", e),
+    })?;
+
+    let encrypted_data = state
+        .crypto
+        .encrypt_simple(&state_bytes)
+        .map_err(|e| ApiError::Internal {
+            message: format!("Encryption failed: {}", e),
+        })?;
+
     let entry = SecretEntry::new(
         storage_path,
-        serde_json::to_vec(&data).map_err(|e| ApiError::Internal {
-            message: format!("Serialization failed: {}", e),
-        })?,
-        serde_json::json!({}),
+        encrypted_data,
+        serde_json::json!({"method": "simple"}),
         SecurityLevel::Internal,
         "system".to_string(),
     )
@@ -1052,15 +1061,32 @@ pub async fn oauth_callback(
             message: "Invalid or expired state parameter".to_string(),
         })?;
 
+    // Check if state has expired
+    // Note: Some storage backends (like MemoryBackend) do not automatically expire entries upon retrieval,
+    // so we must explicitly check the expiration time.
+    if state_entry.is_expired() {
+        // Delete the expired entry
+        let _ = state.storage.delete_by_path(&storage_path).await;
+        return Err(ApiError::Authentication {
+            message: "Invalid or expired state parameter".to_string(),
+        });
+    }
+
     // Delete state immediately (single use)
     let _ = state.storage.delete_by_path(&storage_path).await;
 
     // Verify provider matches
-    let state_data: serde_json::Value =
-        serde_json::from_slice(&state_entry.encrypted_data).map_err(|_| {
-            ApiError::Authentication {
+    let decrypted_bytes =
+        state
+            .crypto
+            .decrypt_simple(&state_entry.encrypted_data)
+            .map_err(|_| ApiError::Authentication {
                 message: "Invalid state data".to_string(),
-            }
+            })?;
+
+    let state_data: serde_json::Value =
+        serde_json::from_slice(&decrypted_bytes).map_err(|_| ApiError::Authentication {
+            message: "Invalid state data".to_string(),
         })?;
 
     if state_data["provider"].as_str() != Some(provider_name.as_str()) {
