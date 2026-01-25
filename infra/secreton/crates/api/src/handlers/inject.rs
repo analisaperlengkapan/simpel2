@@ -14,6 +14,8 @@ use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use secreton_storage::{QueryParams, SecretEntry, SecurityLevel};
+
 use crate::error::ApiError;
 use crate::middleware::RequestContext;
 use crate::response::ApiResponse;
@@ -185,11 +187,10 @@ pub async fn inject_env(
     };
 
     // Store session for tracking
-    // TODO: Store in actual session storage
-    store_session(&session).await?;
+    store_session(&state, &session).await?;
 
     // Schedule automatic cleanup
-    schedule_cleanup(&session_id, ttl).await;
+    schedule_cleanup(state, &session_id, ttl).await;
 
     let response = InjectEnvResponse {
         session_id: session_id.clone(),
@@ -205,13 +206,13 @@ pub async fn inject_env(
 ///
 /// DELETE /v1/inject/cleanup/{session_id}
 pub async fn cleanup_session(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     info!("Cleaning up injection session {}", session_id);
 
     // Retrieve session
-    let session = get_session(&session_id).await?;
+    let session = get_session(&state, &session_id).await?;
 
     if !session.active {
         return Err(ApiError::NotFound {
@@ -220,7 +221,7 @@ pub async fn cleanup_session(
     }
 
     // Mark session as inactive
-    deactivate_session(&session_id).await?;
+    deactivate_session(&state, &session_id).await?;
 
     // Audit log the cleanup
     audit_cleanup(&session).await;
@@ -234,10 +235,9 @@ pub async fn cleanup_session(
 ///
 /// GET /v1/inject/sessions
 pub async fn list_sessions(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
 ) -> Result<Json<ApiResponse<Vec<InjectionSession>>>, ApiError> {
-    // TODO: Implement actual session listing
-    let sessions = list_active_sessions().await?;
+    let sessions = list_active_sessions(&state).await?;
 
     Ok(Json(ApiResponse::success(sessions)))
 }
@@ -246,10 +246,10 @@ pub async fn list_sessions(
 ///
 /// GET /v1/inject/sessions/{session_id}
 pub async fn get_session_details(
-    State(_state): State<Arc<crate::services::ServiceContainer>>,
+    State(state): State<Arc<crate::services::ServiceContainer>>,
     Path(session_id): Path<String>,
 ) -> Result<Json<ApiResponse<InjectionSession>>, ApiError> {
-    let session = get_session(&session_id).await?;
+    let session = get_session(&state, &session_id).await?;
 
     Ok(Json(ApiResponse::success(session)))
 }
@@ -270,6 +270,9 @@ async fn fetch_secret(
                     resource: path.to_string(),
                 }
             }
+            crate::services::secret_engine::SecretServiceError::PermissionDenied(msg) => {
+                ApiError::Forbidden
+            }
             _ => ApiError::Internal {
                 message: e.to_string(),
             },
@@ -279,39 +282,92 @@ async fn fetch_secret(
     Ok(secret_data.data)
 }
 
-async fn store_session(session: &InjectionSession) -> Result<(), ApiError> {
-    // TODO: Store in Redis or PostgreSQL
+const SESSION_PREFIX: &str = "sys/inject/sessions/";
+
+async fn store_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session: &InjectionSession,
+) -> Result<(), ApiError> {
     info!("Storing injection session: {}", session.id);
+    let path = format!("{}{}", SESSION_PREFIX, session.id);
+    let serialized = serde_json::to_vec(session).map_err(|e| ApiError::Internal {
+        message: e.to_string(),
+    })?;
+
+    let entry = SecretEntry::new(
+        path,
+        serialized,
+        serde_json::json!({}),
+        SecurityLevel::Confidential,
+        "system".to_string(),
+    );
+
+    state.storage.store(&entry).await.map_err(ApiError::Storage)?;
     Ok(())
 }
 
-async fn get_session(session_id: &str) -> Result<InjectionSession, ApiError> {
-    // TODO: Retrieve from storage
+async fn get_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<InjectionSession, ApiError> {
     info!("Retrieving session: {}", session_id);
+    let path = format!("{}{}", SESSION_PREFIX, session_id);
 
-    // Mock session for now
-    Ok(InjectionSession {
-        id: session_id.to_string(),
-        job_id: "mock-job".to_string(),
-        created_at: chrono::Utc::now(),
-        expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
-        secret_paths: vec![],
-        active: true,
-    })
+    let entry = state
+        .storage
+        .get_by_path(&path)
+        .await
+        .map_err(ApiError::Storage)?
+        .ok_or_else(|| ApiError::NotFound {
+            resource: format!("Session {}", session_id),
+        })?;
+
+    let session: InjectionSession = serde_json::from_slice(&entry.encrypted_data).map_err(|e| {
+        ApiError::Internal {
+            message: format!("Failed to deserialize session: {}", e),
+        }
+    })?;
+
+    Ok(session)
 }
 
-async fn deactivate_session(session_id: &str) -> Result<(), ApiError> {
-    // TODO: Update in storage
+async fn deactivate_session(
+    state: &Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+) -> Result<(), ApiError> {
     info!("Deactivating session: {}", session_id);
-    Ok(())
+    let mut session = get_session(state, session_id).await?;
+    session.active = false;
+    store_session(state, &session).await
 }
 
-async fn list_active_sessions() -> Result<Vec<InjectionSession>, ApiError> {
-    // TODO: Query from storage
-    Ok(vec![])
+async fn list_active_sessions(
+    state: &Arc<crate::services::ServiceContainer>,
+) -> Result<Vec<InjectionSession>, ApiError> {
+    let params = QueryParams {
+        path_prefix: Some(SESSION_PREFIX.to_string()),
+        ..Default::default()
+    };
+
+    let entries = state.storage.list(&params).await.map_err(ApiError::Storage)?;
+    let mut sessions = Vec::new();
+
+    for entry in entries {
+        if let Ok(session) = serde_json::from_slice::<InjectionSession>(&entry.encrypted_data) {
+            if session.active {
+                sessions.push(session);
+            }
+        }
+    }
+
+    Ok(sessions)
 }
 
-async fn schedule_cleanup(session_id: &str, ttl: u64) {
+async fn schedule_cleanup(
+    state: Arc<crate::services::ServiceContainer>,
+    session_id: &str,
+    ttl: u64,
+) {
     let session_id = session_id.to_string();
 
     tokio::spawn(async move {
@@ -319,7 +375,7 @@ async fn schedule_cleanup(session_id: &str, ttl: u64) {
 
         info!("Auto-cleanup triggered for session {}", session_id);
 
-        if let Err(e) = deactivate_session(&session_id).await {
+        if let Err(e) = deactivate_session(&state, &session_id).await {
             error!("Failed to auto-cleanup session {}: {}", session_id, e);
         }
     });
@@ -389,6 +445,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_lifecycle() {
+        use deadpool_postgres::{Config, Runtime};
+        use secreton_storage::MemoryBackend;
+        use tokio_postgres::NoTls;
+
+        // Setup mock services
+        let storage = Arc::new(MemoryBackend::new());
+        let mut cfg = Config::new();
+        cfg.dbname = Some("test".to_string());
+        // We need a pool even if unused by session storage
+        let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+
+        let state = Arc::new(crate::services::ServiceContainer::new_mock(storage, pool));
+
         let session = InjectionSession {
             id: "test-session".to_string(),
             job_id: "test-job".to_string(),
@@ -399,13 +468,17 @@ mod tests {
         };
 
         // Test store
-        assert!(store_session(&session).await.is_ok());
+        assert!(store_session(&state, &session).await.is_ok());
 
         // Test retrieve
-        let retrieved = get_session(&session.id).await.unwrap();
+        let retrieved = get_session(&state, &session.id).await.unwrap();
         assert_eq!(retrieved.id, session.id);
 
         // Test deactivate
-        assert!(deactivate_session(&session.id).await.is_ok());
+        assert!(deactivate_session(&state, &session.id).await.is_ok());
+
+        // Test verify inactive
+        let inactive = get_session(&state, &session.id).await.unwrap();
+        assert!(!inactive.active);
     }
 }
