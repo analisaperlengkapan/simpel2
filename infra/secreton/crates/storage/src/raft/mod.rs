@@ -40,9 +40,10 @@ pub struct RaftClusterConfig {
 
 impl Default for RaftClusterConfig {
     fn default() -> Self {
+        let node_id = 1;
         Self {
-            node_id: 1,
-            bind_address: "127.0.0.1:8201".to_string(),
+            node_id,
+            bind_address: format!("127.0.0.1:{}", 8200 + node_id),
             peers: HashMap::new(),
             // Tuned for 5-second leader election guarantee
             // With election_timeout_max = 2x election_timeout_min
@@ -1190,22 +1191,10 @@ impl RaftCluster {
         let metrics = self.raft.metrics().borrow().clone();
         let mut members = HashMap::new();
 
-        for node_id in metrics.membership_config.membership().voter_ids() {
-            if node_id == self.config.node_id {
-                members.insert(
-                    node_id,
-                    openraft::BasicNode {
-                        addr: self.config.bind_address.clone(),
-                    },
-                );
-            } else if let Some(addr) = self.config.peers.get(&node_id) {
-                members.insert(
-                    node_id,
-                    openraft::BasicNode {
-                        addr: addr.clone(),
-                    },
-                );
-            }
+        // Use the addresses directly from the current membership configuration
+        // This ensures dynamically added nodes are included
+        for (node_id, node) in metrics.membership_config.membership().nodes() {
+            members.insert(*node_id, node.clone());
         }
 
         Ok(members)
