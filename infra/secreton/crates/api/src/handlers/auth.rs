@@ -13,7 +13,9 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 // Use canonical types from core
 use secreton_core::models::{LoginRequest, LoginResponse, RefreshTokenRequest, UserInfo};
@@ -271,13 +273,13 @@ mod tests {
             .add_query_param("code", "some_code")
             .await;
 
-        // Should be 401 because state is not found in storage
-        response.assert_status(StatusCode::UNAUTHORIZED);
+        // Should be 400 because state is invalid/expired (Validation error)
+        response.assert_status(StatusCode::BAD_REQUEST);
 
         let body: ApiResponse<serde_json::Value> = response.json();
         assert!(!body.success);
         let error = body.error.expect("error payload");
-        assert_eq!(error.code, "AUTH_FAILED");
+        assert_eq!(error.code, "INVALID_REQUEST");
     }
 }
 
@@ -910,74 +912,42 @@ pub async fn disable_mfa(
 /// OAuth login redirect
 pub async fn oauth_login(
     State(state): State<AppState>,
-    Path(provider_name): Path<String>,
+    Path(provider): Path<String>,
 ) -> ApiResult<Json<ApiResponse<serde_json::Value>>> {
     // 1. Validate provider
-    let oauth_config = state.config.auth.oauth2.as_ref().ok_or_else(|| {
-        ApiError::Auth(crate::error::AuthError::Configuration(
-            "OAuth2 is not configured".to_string(),
-        ))
-    })?;
+    let oauth_config = state
+        .config
+        .auth
+        .oauth2
+        .as_ref()
+        .ok_or_else(|| ApiError::NotFound {
+            resource: "OAuth2 configuration".to_string(),
+        })?;
 
     let provider_config = oauth_config
         .providers
         .iter()
-        .find(|p| p.name == provider_name)
+        .find(|p| p.name == provider)
         .ok_or_else(|| ApiError::NotFound {
-            resource: format!("OAuth provider '{}'", provider_name),
+            resource: format!("OAuth provider '{}'", provider),
         })?;
 
     // 2. Generate OAuth state
-    let state_token = uuid::Uuid::new_v4().to_string();
+    let state_string = uuid::Uuid::new_v4().to_string();
 
-    // 3. Build authorization URL
-    let mut url = url::Url::parse(&provider_config.auth_url).map_err(|e| ApiError::Internal {
-        message: format!("Invalid auth URL: {}", e),
-    })?;
-
-    {
-        let mut pairs = url.query_pairs_mut();
-        pairs.append_pair("client_id", &provider_config.client_id);
-        pairs.append_pair("redirect_uri", &oauth_config.redirect_url);
-        pairs.append_pair("state", &state_token);
-        pairs.append_pair("response_type", "code");
-        if !oauth_config.scopes.is_empty() {
-            pairs.append_pair("scope", &oauth_config.scopes.join(" "));
-        }
-    }
-
-    let auth_url = url.to_string();
-
-    // 4. Store state for callback verification
-    let storage_path = format!("sys/oauth/states/{}", state_token);
-    let now = chrono::Utc::now();
-    let expires_at = now + chrono::Duration::minutes(10);
-
-    // Store provider name in metadata/data so we know who to verify against in callback if needed
-    let data = serde_json::json!({
-        "provider": provider_name,
-    });
-
-    // Store as SecretEntry
-    let state_bytes = serde_json::to_vec(&data).map_err(|e| ApiError::Internal {
-        message: format!("Serialization failed: {}", e),
-    })?;
-
-    let encrypted_data = state
-        .crypto
-        .encrypt_simple(&state_bytes)
-        .map_err(|e| ApiError::Internal {
-            message: format!("Encryption failed: {}", e),
-        })?;
-
-    let entry = SecretEntry::new(
-        storage_path,
-        encrypted_data,
-        serde_json::json!({"method": "simple"}),
-        SecurityLevel::Internal,
+    // 3. Store state for callback verification
+    let state_path = format!("sys/oauth/states/{}", state_string);
+    let entry = secreton_storage::SecretEntry::new(
+        state_path,
+        state_string.as_bytes().to_vec(),
+        serde_json::json!({
+            "provider": provider,
+            "created_at": chrono::Utc::now()
+        }),
+        secreton_storage::SecurityLevel::Internal,
         "system".to_string(),
     )
-    .with_expiration(expires_at);
+    .with_expiration(chrono::Utc::now() + chrono::Duration::minutes(10));
 
     state
         .storage
@@ -987,186 +957,222 @@ pub async fn oauth_login(
             message: format!("Failed to store OAuth state: {}", e),
         })?;
 
-    let response_data = serde_json::json!({
-        "provider": provider_name,
-        "auth_url": auth_url,
-        "state": state_token
+    // 4. Build authorization URL
+    let mut url = url::Url::parse(&provider_config.auth_url)
+        .map_err(|e| ApiError::Internal {
+            message: e.to_string(),
+        })?;
+
+    url.query_pairs_mut()
+        .append_pair("client_id", &provider_config.client_id)
+        .append_pair("redirect_uri", &oauth_config.redirect_url)
+        .append_pair("response_type", "code")
+        .append_pair("scope", &oauth_config.scopes.join(" "))
+        .append_pair("state", &state_string);
+
+    // Store provider name in metadata/data so we know who to verify against in callback if needed
+    let data = serde_json::json!({
+        "provider": provider,
+        "auth_url": url.to_string(),
+        "state": state_string
     });
 
-    Ok(Json(ApiResponse::success(response_data)))
+    Ok(Json(ApiResponse::success(data)))
 }
 
 /// OAuth callback handler
 pub async fn oauth_callback(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(provider_name): Path<String>,
+    Path(provider): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
-    // 1. Verify state parameter
-    let state_token = params.get("state").ok_or_else(|| ApiError::Validation {
-        message: "Missing state parameter".to_string(),
-        field: Some("state".to_string()),
-        details: None,
-    })?;
+    // Check for OAuth error response first
+    if let Some(error) = params.get("error") {
+        let description = params
+            .get("error_description")
+            .map(|s| s.as_str())
+            .unwrap_or("Authorization failed");
+        return Err(ApiError::Authentication {
+            message: format!("OAuth error: {} - {}", error, description),
+        });
+    }
 
-    let code = params.get("code").ok_or_else(|| ApiError::Validation {
-        message: "Missing code parameter".to_string(),
+    // 1. Verify state parameter
+    let code = params.get("code").ok_or(ApiError::Validation {
+        message: "Missing 'code' parameter".to_string(),
         field: Some("code".to_string()),
         details: None,
     })?;
 
-    // Verify state against storage
-    let storage_path = format!("sys/oauth/states/{}", state_token);
+    let state_param = params.get("state").ok_or(ApiError::Validation {
+        message: "Missing 'state' parameter".to_string(),
+        field: Some("state".to_string()),
+        details: None,
+    })?;
+
+    let state_path = format!("sys/oauth/states/{}", state_param);
     let state_entry = state
         .storage
-        .get_by_path(&storage_path)
+        .get_by_path(&state_path)
         .await
         .map_err(|e| ApiError::Internal {
             message: format!("Failed to verify state: {}", e),
-        })?
-        .ok_or(ApiError::Authentication {
-            message: "Invalid or expired state parameter".to_string(),
         })?;
 
-    // Check if state has expired
-    // Note: Some storage backends (like MemoryBackend) do not automatically expire entries upon retrieval,
-    // so we must explicitly check the expiration time.
-    if state_entry.is_expired() {
-        // Delete the expired entry
-        let _ = state.storage.delete_by_path(&storage_path).await;
-        return Err(ApiError::Authentication {
-            message: "Invalid or expired state parameter".to_string(),
-        });
-    }
-
-    // Delete state immediately (single use)
-    let _ = state.storage.delete_by_path(&storage_path).await;
-
-    // Verify provider matches
-    let decrypted_bytes =
-        state
-            .crypto
-            .decrypt_simple(&state_entry.encrypted_data)
-            .map_err(|_| ApiError::Authentication {
-                message: "Invalid state data".to_string(),
-            })?;
-
-    let state_data: serde_json::Value =
-        serde_json::from_slice(&decrypted_bytes).map_err(|_| ApiError::Authentication {
-            message: "Invalid state data".to_string(),
-        })?;
-
-    if state_data["provider"].as_str() != Some(provider_name.as_str()) {
-        return Err(ApiError::Authentication {
-            message: "Provider mismatch".to_string(),
-        });
-    }
-
-    // 2. Exchange code for access token
-    let oauth_config = state.config.auth.oauth2.as_ref().ok_or_else(|| {
-        ApiError::Auth(crate::error::AuthError::Configuration(
-            "OAuth2 is not configured".to_string(),
-        ))
+    let state_entry = state_entry.ok_or(ApiError::Validation {
+        message: "Invalid or expired state parameter".to_string(),
+        field: Some("state".to_string()),
+        details: None,
     })?;
+
+    // Check expiration
+    if state_entry.is_expired() {
+        let _ = state.storage.delete_by_path(&state_path).await;
+        return Err(ApiError::Validation {
+            message: "Invalid or expired state parameter".to_string(),
+            field: Some("state".to_string()),
+            details: None,
+        });
+    }
+
+    // Validate provider matches state
+    let stored_provider = state_entry.encryption_metadata["provider"]
+        .as_str()
+        .ok_or(ApiError::Internal {
+            message: "Invalid state metadata".to_string(),
+        })?;
+
+    if stored_provider != provider {
+        let _ = state.storage.delete_by_path(&state_path).await;
+        return Err(ApiError::Validation {
+            message: "Provider mismatch in OAuth state".to_string(),
+            field: Some("state".to_string()),
+            details: None,
+        });
+    }
+
+    // Delete used state
+    let _ = state.storage.delete_by_path(&state_path).await;
+
+    // 2. Get provider config
+    let oauth_config = state
+        .config
+        .auth
+        .oauth2
+        .as_ref()
+        .ok_or_else(|| ApiError::NotFound {
+            resource: "OAuth2 configuration".to_string(),
+        })?;
 
     let provider_config = oauth_config
         .providers
         .iter()
-        .find(|p| p.name == provider_name)
+        .find(|p| p.name == provider)
         .ok_or_else(|| ApiError::NotFound {
-            resource: format!("OAuth provider '{}'", provider_name),
+            resource: format!("OAuth provider '{}'", provider),
         })?;
 
-    let client = reqwest::Client::new();
+    // 3. Exchange code for access token
+    let client = HTTP_CLIENT.get_or_init(reqwest::Client::new);
+    let token_params = [
+        ("client_id", provider_config.client_id.as_str()),
+        ("client_secret", provider_config.client_secret.as_str()),
+        ("code", code.as_str()),
+        ("grant_type", "authorization_code"),
+        ("redirect_uri", oauth_config.redirect_url.as_str()),
+    ];
+
     let token_res = client
         .post(&provider_config.token_url)
-        .form(&[
-            ("client_id", provider_config.client_id.as_str()),
-            ("client_secret", provider_config.client_secret.as_str()),
-            ("code", code),
-            ("redirect_uri", oauth_config.redirect_url.as_str()),
-            ("grant_type", "authorization_code"),
-        ])
+        .form(&token_params)
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| ApiError::Authentication {
-            message: format!("Failed to exchange token: {}", e),
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to request access token: {}", e),
         })?;
 
     if !token_res.status().is_success() {
+        let error_text = token_res.text().await.unwrap_or_default();
         return Err(ApiError::Authentication {
-            message: format!("Provider returned error: {}", token_res.status()),
+            message: format!("OAuth provider rejected token request: {}", error_text),
         });
     }
 
-    let token_data: serde_json::Value = token_res.json().await.map_err(|e| {
-        ApiError::Authentication {
+    let token_data: serde_json::Value =
+        token_res.json().await.map_err(|e| ApiError::Internal {
             message: format!("Failed to parse token response: {}", e),
-        }
-    })?;
+        })?;
 
-    let access_token = token_data["access_token"].as_str().ok_or_else(|| {
-        ApiError::Authentication {
-            message: "No access_token in response".to_string(),
-        }
-    })?;
+    let access_token = token_data["access_token"]
+        .as_str()
+        .ok_or(ApiError::Authentication {
+            message: "Missing access_token in provider response".to_string(),
+        })?;
 
-    // 3. Fetch user information
-    let user_res = client
+    // 4. Fetch user information
+    let user_info_res = client
         .get(&provider_config.user_info_url)
-        .bearer_auth(access_token)
+        .header("Authorization", format!("Bearer {}", access_token))
         .header("User-Agent", "Secreton-Engine")
         .send()
         .await
-        .map_err(|e| ApiError::Authentication {
-            message: format!("Failed to fetch user info: {}", e),
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to request user info: {}", e),
         })?;
 
-    if !user_res.status().is_success() {
+    if !user_info_res.status().is_success() {
+        let error_text = user_info_res.text().await.unwrap_or_default();
         return Err(ApiError::Authentication {
-            message: format!("Failed to fetch user info: {}", user_res.status()),
+            message: format!("OAuth provider rejected user info request: {}", error_text),
         });
     }
 
-    let user_data: serde_json::Value = user_res.json().await.map_err(|e| {
-        ApiError::Authentication {
+    let user_data: serde_json::Value =
+        user_info_res.json().await.map_err(|e| ApiError::Internal {
             message: format!("Failed to parse user info: {}", e),
-        }
-    })?;
+        })?;
 
-    // Strategy to extract email (GitHub uses specific endpoint for emails if not public)
+    // Extract email and name
     let email = user_data["email"]
         .as_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| ApiError::Authentication {
-            message: "Email not provided by OAuth provider".to_string(),
-        })?;
+        .unwrap_or_else(|| {
+            let login = user_data["login"]
+                .as_str()
+                .or_else(|| user_data["sub"].as_str())
+                .unwrap_or("unknown");
+            format!("{}@{}.oauth.local", login, provider)
+        });
 
-    let name = user_data["name"]
-        .as_str()
-        .or_else(|| user_data["login"].as_str()) // GitHub fallback
-        .map(|s| s.to_string());
+    let name = user_data["name"].as_str().map(|s| s.to_string());
 
-    let client_ip = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
+    // Metadata from provider
+    let mut metadata = HashMap::new();
+    metadata.insert("provider".to_string(), provider.clone());
+    if let Some(sub) = user_data["sub"].as_str() {
+        metadata.insert("provider_id".to_string(), sub.to_string());
+    } else if let Some(id) = user_data["id"].as_i64() {
+        metadata.insert("provider_id".to_string(), id.to_string());
+    }
+
+    // 5. Create/update user account
+    let ip_address = extract_client_ip(&headers).unwrap_or_else(|| "unknown".to_string());
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("unknown");
 
-    // 4. Create/Authenticate User
     let auth_token = state
         .auth
-        .login_external(
-            &email,
-            name,
-            HashMap::from([("provider".to_string(), provider_name.clone())]),
-            &client_ip,
-            user_agent,
-        )
-        .await?;
+        .login_external(&email, name, metadata, &ip_address, user_agent)
+        .await
+        .map_err(|e| ApiError::Authentication {
+            message: e.to_string(),
+        })?;
 
+    // 6. Generate response
     let policies = state
         .auth
         .get_user_policies(&auth_token.user)
@@ -1179,7 +1185,7 @@ pub async fn oauth_callback(
         display_name: auth_token.user.full_name.clone(),
         groups: auth_token.user.roles.iter().cloned().collect(),
         policies,
-        metadata: auth_token.user.metadata.clone(),
+        metadata: HashMap::new(),
     };
 
     let response = LoginResponse {
@@ -1187,9 +1193,25 @@ pub async fn oauth_callback(
         refresh_token: auth_token.refresh_token,
         token_type: auth_token.token_type,
         expires_in: auth_token.expires_in,
-        user: user_info,
+        user: user_info.clone(),
         mfa_required: false,
     };
+
+    // Audit: authentication success
+    let audit_entry = secreton_core::audit::AuditLog {
+        id: uuid::Uuid::new_v4(),
+        timestamp: chrono::Utc::now(),
+        action: "oauth_login_success".to_string(),
+        actor: Some(user_info.username.clone()),
+        resource_type: "auth".to_string(),
+        resource_id: provider.clone(),
+        status: secreton_core::audit::AuditStatus::Success,
+        ip: Some(ip_address.clone()),
+        user_agent: Some(user_agent.to_string()),
+        namespace: Some(auth_token.user.namespace),
+        metadata: HashMap::new(),
+    };
+    let _ = state.audit.log(audit_entry).await;
 
     Ok(Json(ApiResponse::success(response)))
 }
