@@ -100,7 +100,7 @@ impl PerlengkapanService {
 
         let rows = client
             .query(
-                "SELECT * FROM perlengkapan.aset ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                "SELECT id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset ORDER BY created_at DESC LIMIT $1 OFFSET $2",
                 &[&(per_page as i64), &(offset as i64)],
             )
             .await
@@ -118,7 +118,7 @@ impl PerlengkapanService {
             })?;
 
         let row = client
-            .query_opt("SELECT * FROM perlengkapan.aset WHERE id = $1", &[&id])
+            .query_opt("SELECT id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by FROM perlengkapan.aset WHERE id = $1", &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -159,7 +159,7 @@ impl PerlengkapanService {
                 INSERT INTO perlengkapan.aset
                 (id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan, tanggal_perolehan, keterangan, created_by, updated_by)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                RETURNING *
+                RETURNING id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,
@@ -212,7 +212,7 @@ impl PerlengkapanService {
                     updated_by = $10,
                     updated_at = NOW()
                 WHERE id = $1
-                RETURNING *
+                RETURNING id, nama, kategori, kode_bmn, kondisi, lokasi, nilai_perolehan::FLOAT8, tanggal_perolehan, status, keterangan, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,
@@ -273,7 +273,7 @@ impl PerlengkapanService {
 
         let rows = client
             .query(
-                "SELECT * FROM perlengkapan.pengadaan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                "SELECT id, judul, deskripsi, jenis, status, anggaran::FLOAT8, target_selesai, pic_user_id, created_at, updated_at, created_by, updated_by FROM perlengkapan.pengadaan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
                 &[&(per_page as i64), &(offset as i64)],
             )
             .await
@@ -291,7 +291,7 @@ impl PerlengkapanService {
             })?;
 
         let row = client
-            .query_opt("SELECT * FROM perlengkapan.pengadaan WHERE id = $1", &[&id])
+            .query_opt("SELECT id, judul, deskripsi, jenis, status, anggaran::FLOAT8, target_selesai, pic_user_id, created_at, updated_at, created_by, updated_by FROM perlengkapan.pengadaan WHERE id = $1", &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -319,7 +319,7 @@ impl PerlengkapanService {
                 INSERT INTO perlengkapan.pengadaan
                 (id, judul, deskripsi, jenis, anggaran, target_selesai, pic_user_id, created_by, updated_by)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING *
+                RETURNING id, judul, deskripsi, jenis, status, anggaran::FLOAT8, target_selesai, pic_user_id, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,
@@ -364,7 +364,7 @@ impl PerlengkapanService {
 
         let rows = client
             .query(
-                "SELECT * FROM perlengkapan.analisis_kebutuhan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+                "SELECT id, judul, kategori, deskripsi, prioritas, status, estimasi_biaya::FLOAT8, justifikasi, created_at, updated_at, created_by, updated_by FROM perlengkapan.analisis_kebutuhan ORDER BY created_at DESC LIMIT $1 OFFSET $2",
                 &[&(per_page as i64), &(offset as i64)],
             )
             .await
@@ -396,7 +396,7 @@ impl PerlengkapanService {
                 INSERT INTO perlengkapan.analisis_kebutuhan
                 (id, judul, kategori, deskripsi, prioritas, estimasi_biaya, justifikasi, created_by, updated_by)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING *
+                RETURNING id, judul, kategori, deskripsi, prioritas, status, estimasi_biaya::FLOAT8, justifikasi, created_at, updated_at, created_by, updated_by
                 "#,
                 &[
                     &id,

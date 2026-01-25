@@ -127,7 +127,6 @@ tokio-postgres = { version = "0.7.14", features = [
     "with-chrono-0_4",
     "with-serde_json-1",
     "with-time-0_3",
-    "with-bigdecimal-0_4",
 ] }
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
 postgres-types = { version = "0.2.12", features = [
@@ -491,7 +490,7 @@ rpassword = "7.3"
 tokio-postgres-rustls = "0.13.0"
 tokio-rustls = "0.26"
 ipnetwork = "0.20"
-lru = "0.16.2"
+lru = "0.16.3"
 glob = "0.3"
 parking_lot = "0.12.5"
 openraft = { version = "0.9.21", features = ["serde"] }
