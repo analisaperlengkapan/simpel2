@@ -1030,6 +1030,8 @@ pub async fn oauth_callback(
         })?;
 
     // Check if state has expired
+    // Note: Some storage backends (like MemoryBackend) do not automatically expire entries upon retrieval,
+    // so we must explicitly check the expiration time.
     if state_entry.is_expired() {
         // Delete the expired entry
         let _ = state.storage.delete_by_path(&storage_path).await;
